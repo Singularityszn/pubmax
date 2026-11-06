@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "@/e2e/helpers/mapNetworkFixtures";
 import { priceBandLegendLabel } from "@/lib/priceBand";
@@ -12,6 +13,7 @@ const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffe
 const VENUE_KIND_LABELS = ["Pubs", "Bars", "Clubs", "Late food", "Restaurants"];
 
 test.use({
+  screenshot: "on",
   serviceWorkers: "block",
   launchOptions: {
     args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
@@ -550,8 +552,98 @@ for (const width of [390, 320]) {
 for (const width of [1280, 1440]) {
   test(`${width}px OpenStreetMap credit owns its hit target and opens`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     test.setTimeout(90_000);
+    const eventLog = testInfo.outputPath("osm-credit-events.ndjson");
+    const record = (event: string, detail: Record<string, unknown> = {}) => {
+      if (width === 1440) {
+        appendFileSync(eventLog, `${JSON.stringify({ at: Date.now(), event, ...detail })}\n`);
+      }
+    };
+    if (width === 1440) {
+      mkdirSync(testInfo.outputDir, { recursive: true });
+      record("replay-start", { width, height: 900 });
+      const appOrigin = new URL(testInfo.project.use.baseURL!).origin;
+      await page.exposeBinding("__recordOsmCreditPointer", ({ frame }, sample: Record<string, unknown>) => {
+        if (frame === page.mainFrame() && frame.url().startsWith(`${appOrigin}/`)) record("pointer", sample);
+      });
+      await page.addInitScript((origin) => {
+        if (window.top !== window || location.origin !== origin) return;
+        const browser = window as Window & {
+          __recordOsmCreditPointer: (sample: Record<string, unknown>) => Promise<void>;
+          __osmCreditNodeId: (element: Element) => number;
+        };
+        const nodeIds = new WeakMap<Element, number>();
+        let nextNodeId = 0;
+        browser.__osmCreditNodeId = (element) => {
+          const id = nodeIds.get(element) ?? ++nextNodeId;
+          nodeIds.set(element, id);
+          return id;
+        };
+        for (const type of ["pointerdown", "pointerup", "click"]) {
+          document.addEventListener(type, (event) => {
+            if (!(event instanceof MouseEvent)) return;
+            const target = event.composedPath()[0];
+            const element = target instanceof Element ? target : null;
+            const anchor = element?.closest<HTMLAnchorElement>("a");
+            void browser.__recordOsmCreditPointer({
+              type, pageUrl: location.href, eventTime: event.timeStamp,
+              x: event.clientX, y: event.clientY, button: event.button,
+              trusted: event.isTrusted, defaultPreventedAtCapture: event.defaultPrevented,
+              tag: element?.tagName, id: element?.id,
+              className: element?.getAttribute("class"),
+              anchor: anchor && {
+                nodeId: browser.__osmCreditNodeId(anchor),
+                href: anchor.href, target: anchor.target, connected: anchor.isConnected,
+                inAttribution: !!anchor.closest(".maplibregl-ctrl-attrib"),
+              },
+            }).catch(() => {});
+          }, { capture: true, passive: true });
+        }
+      }, appOrigin);
+      const context = page.context();
+      const requests = new Map<Request, number>();
+      context.on("request", (request) => {
+        const previous = request.redirectedFrom();
+        const redirectFrom = previous ? requests.get(previous) : undefined;
+        const host = new URL(request.url()).hostname;
+        if (!/(^|\.)openstreetmap\.org$/i.test(host) && redirectFrom === undefined) return;
+        const id = requests.size + 1;
+        requests.set(request, id);
+        record("osm-request", {
+          id, redirectFrom, url: request.url(), method: request.method(),
+          navigation: request.isNavigationRequest(), resourceType: request.resourceType(),
+        });
+      });
+      context.on("response", (response) => {
+        const id = requests.get(response.request());
+        if (id !== undefined) record("osm-response", { id, url: response.url(), status: response.status() });
+      });
+      context.on("requestfailed", (request) => {
+        const id = requests.get(request);
+        if (id !== undefined) record("osm-requestfailed", { id, url: request.url(), error: request.failure()?.errorText });
+      });
+      context.on("requestfinished", (request) => {
+        const id = requests.get(request);
+        if (id !== undefined) record("osm-requestfinished", { id, url: request.url() });
+      });
+      const watchPage = (observed: Page, id: string) => {
+        observed.on("framenavigated", (frame) => {
+          if (frame === observed.mainFrame()) record("page-navigation", { id, url: frame.url() });
+        });
+        observed.on("domcontentloaded", () => record("page-domcontentloaded", { id, url: observed.url() }));
+        observed.on("load", () => record("page-load", { id, url: observed.url() }));
+        observed.on("close", () => record("page-close", { id, url: observed.url() }));
+      };
+      watchPage(page, "original");
+      let nextPageId = 0;
+      context.on("page", (openedPage) => {
+        const id = `context-${++nextPageId}`;
+        record("context-page", { id, url: openedPage.url() });
+        watchPage(openedPage, id);
+      });
+      page.on("popup", (popup) => record("original-page-popup", { url: popup.url() }));
+    }
     await page.setViewportSize({ width, height: 900 });
     await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
@@ -574,7 +666,12 @@ for (const width of [1280, 1440]) {
       const x = box.x + box.width / 2;
       const y = box.y + box.height / 2;
       const element = document.elementFromPoint(x, y);
+      const browser = window as Window & { __osmCreditNodeId?: (element: Element) => number };
       return {
+        selected: credit instanceof HTMLAnchorElement ? {
+          nodeId: browser.__osmCreditNodeId?.(credit), href: credit.href, target: credit.target,
+          connected: credit.isConnected, x, y, width: box.width, height: box.height,
+        } : null,
         isCredit: element === credit,
         tagName: element?.tagName.toLowerCase() ?? null,
         className:
@@ -587,11 +684,13 @@ for (const width of [1280, 1440]) {
           null,
       };
     });
+    record("centre-sample", hit);
     expect(
       hit.isCredit,
       `credit centre belongs to ${JSON.stringify(hit)}`,
     ).toBe(true);
 
+    record("destination-waits-armed");
     const opened = Promise.any([
       page.waitForEvent("popup", { timeout: 5_000 }).then((popup) => ({
         kind: "popup",
@@ -605,8 +704,11 @@ for (const width of [1280, 1440]) {
     ]);
     // Rail credits can redraw this link after the hit check. A locator click
     // uses its current centre and waits for a stable physical click target.
+    record("locator-click-start");
     await openStreetMap.click();
+    record("locator-click-returned");
     const destination = await opened;
+    record("destination", destination);
     expect(destination.kind).toMatch(/^(popup|navigation)$/);
     expect(destination.url).toMatch(
       /^https?:\/\/(?:www\.)?openstreetmap\.org\//,
