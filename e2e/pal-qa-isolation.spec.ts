@@ -25,6 +25,7 @@ async function seed(page: Page) {
     localStorage.setItem('pubmax-tour-v1-done', '1');
     localStorage.setItem('pubmax_onboarding_dismissed', '1');
     localStorage.setItem('pubmax-theme', 'light');
+    localStorage.setItem('pubmax:e2e-defer-shell:v1', 'now');
     localStorage.setItem(accountsKey, JSON.stringify(Object.values(accounts).map(account => ({userId:account.id,refreshToken:account.refreshToken,email:account.email,handle:account.handle,lastActiveAt:Date.now()}))));
   }, {pal, accounts: ACCOUNTS, accountsKey: DEVICE_ACCOUNTS_KEY});
 }
@@ -36,7 +37,10 @@ async function switchToB(page: Page) {
   await expect(page.getByRole('button',{name:'Account options for '+ACCOUNTS.B.name,exact:true})).toBeVisible();
 }
 async function shot(page: Page, name: string) {
-  if (EVIDENCE) await page.screenshot({path:`${EVIDENCE}/${name}.png`});
+  if (EVIDENCE) {
+    await expect(page.locator(".mapLoading")).toBeHidden({timeout:60_000});
+    await page.screenshot({path:`${EVIDENCE}/${name}.png`});
+  }
 }
 
 // F12 is the oracle: personal shortcuts and portraits belong to the live account.
@@ -53,6 +57,7 @@ test('provider sign-out retires the open map marker while retaining the owner st
   await expect(marker).toHaveAttribute('role','button',{timeout:60000});
   const oldMarker = await marker.elementHandle();
   const canvas = await page.locator('.maplibregl-canvas').elementHandle();
+  await expect(page.locator('.palSummon')).toContainText('Ripley');
   await shot(page,'provider-before');
   await page.evaluate(key => {
     localStorage.removeItem(key);

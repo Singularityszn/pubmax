@@ -28,9 +28,9 @@ import "./navigation.css";
 // - PalSiteNavButton, the face and the Pal's name in the desktop bar.
 //
 // Only a person's OWN stored Pal puts a face on it: the Pal stored on this
-// device must belong to the account signed in now, because signing out does
-// not clear it and a shared device must not show the last account's Pal to
-// the next. A stranger, a signed-out device, another account, or a person who
+// device must pass the live ownership check in useOwnPal. Provider sign-out
+// can retain the cache, so its owner stamp alone cannot authorise a portrait.
+// A stranger, a signed-out device, another account, or a person who
 // hid their Pal from shortcuts sees a drawn bird, so the door costs a stranger
 // no image request on any page. A muted Pal is shown asleep, and a
 // Pal moment (lib/palMoments.ts) makes the face hop once.

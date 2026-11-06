@@ -66,6 +66,8 @@ test.describe("the Pal on the map", () => {
     expect(oldMarker).not.toBeNull();
     expect(canvas).not.toBeNull();
     await mkdir(SHOTS, { recursive: true });
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 60_000 });
+    await expect(marker).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/pal-account-a.png` });
     await switchRememberedAccount(page, "A", "B");
     await expect(marker).toHaveCount(0);
