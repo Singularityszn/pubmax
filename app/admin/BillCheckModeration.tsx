@@ -114,7 +114,9 @@ export default function BillCheckModeration({ request }: { request: AdminRequest
                 Sent: <strong className="admin-bill-sent">{gbp(row.priceGbp)}</strong>
               </span>
               {row.drop ? <span>@{row.drop.handle}</span> : null}
-              {row.drop ? <span>{row.drop.drink}</span> : null}
+              {row.drop ? (
+                <span>{row.drop.serving ? `${row.drop.drink}, ${row.drop.serving.toLowerCase()}` : row.drop.drink}</span>
+              ) : null}
               {row.drop && row.drop.status !== "visible" ? <span>{row.drop.status}</span> : null}
               {row.communityPriceId && !row.pintDropId ? <span>Community price</span> : null}
             </p>

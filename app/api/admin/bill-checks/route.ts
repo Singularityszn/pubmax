@@ -28,6 +28,7 @@ import {
   type BillCheckRecord,
 } from "@/lib/billCheckStore";
 import { moderateCommunityPriceWithState } from "@/lib/communityPriceStore";
+import { drinkMeasureName, statedDrinkMeasure } from "@/lib/drinkMeasure";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
 import { pintDropsStore, resolveStorageUrl } from "@/lib/pintDropsStore";
@@ -88,6 +89,9 @@ async function withContext(checks: BillCheckRecord[]): Promise<ModeratorBillChec
               id: hit.id,
               handle: hit.handle,
               drink: hit.drink,
+              ...(statedDrinkMeasure(hit.measure)
+                ? { serving: drinkMeasureName(hit.measure, hit.measureLabel) }
+                : {}),
               status: hit.status,
               createdAt: hit.createdAt,
             },

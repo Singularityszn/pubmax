@@ -116,9 +116,30 @@ describe("GET /api/admin/bill-checks", () => {
         lines: [{ name: "Guinness", priceGbp: 6.2 }],
         pintDropId: "drop-1",
         receiptPhotoUrl: null,
-        drop: expect.objectContaining({ handle: "billed_drinker", status: "visible" }),
+        drop: expect.objectContaining({ handle: "billed_drinker", status: "visible", serving: "Pint" }),
       }),
     ]);
+  });
+
+  // A half on the bill against a pint sent at the same price is a mismatch the
+  // moderator cannot see unless the card names the serving that was sent.
+  it("names the serving the drop was sent with, and none when it stated none", async () => {
+    addPintDrop(drop("drop-pint"));
+    addPintDrop({ ...drop("drop-plain"), measure: undefined });
+    for (const id of ["drop-pint", "drop-plain"]) {
+      await memoryBillCheckStore.record({
+        billHash: "b".repeat(64),
+        pintDropId: id,
+        venueId: VENUE,
+        priceGbp: 4.5,
+        result: "mismatch",
+        lines: [{ name: "1/2 Guinness", priceGbp: 4.5 }],
+      });
+    }
+    const { checks } = await (await GET(new Request(URL_BASE))).json();
+    const byDrop = new Map(checks.map((row: { pintDropId: string; drop: unknown }) => [row.pintDropId, row.drop]));
+    expect(byDrop.get("drop-pint")).toMatchObject({ drink: "Guinness", serving: "Pint" });
+    expect(byDrop.get("drop-plain")).not.toHaveProperty("serving");
   });
 });
 
