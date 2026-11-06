@@ -3243,7 +3243,7 @@ function PlanComposerForm({
       setRouteStatus(failureStatus);
       setRouteRevealTick((tick) => tick + 1);
     } finally {
-      if (!signal.aborted) setSorting(false);
+      if (!lifetimeSignal.aborted) setSorting(false);
     }
   }
 
@@ -3384,7 +3384,7 @@ function PlanComposerForm({
     } catch (caught) {
       if (!signal.aborted) setError(caught instanceof Error ? caught.message : "The plan could not be created.");
     } finally {
-      if (!signal.aborted) setSubmitting(false);
+      if (!lifetimeSignal.aborted) setSubmitting(false);
     }
   }
 

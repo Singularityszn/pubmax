@@ -76,6 +76,7 @@ import {
 } from "@/lib/deviceAccountIdentity";
 import { clearPersistedPlanDrafts } from "@/lib/planComposerHandoff";
 import { clearPlanIntakeDraft } from "@/lib/planIntake";
+import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import {
   emitDeviceAccountSessionsChanged,
   forgetAllDeviceAccounts,
@@ -423,7 +424,25 @@ export function AuthProvider({
       // tab's sessionStorage still belongs to its previous live account.
       const tabOwnerChanged = liveAccountDeparted(previousUserId, nextUserId);
       if (tabOwnerChanged) {
+        // Plan storage at departure:
+        // Clear pubmaxx:plan-draft:v1 and pubmax:plan-draft:v2 from this session.
+        // Clear pubmax:plan-host-name:v1 from local storage on every departure.
+        // Clear pubmaxx:plan-route-draft:v1, pubmax:plan-route-draft:v2 and
+        // pubmax:plan-intake:v1 on sign-out or a shared device owner change.
+        // These values describe the departing person's unpublished Plan.
+        // Keep pubmax:planning-intent:v1, pubmax:ask-plan-draft:v1 and
+        // pubmax:onboarding:planner-handoff:v1: these are device handoffs.
+        // Keep pubmaxx:plan-mutation:v1:*: request fingerprints bind retry keys.
+        // Keep pubmax_active_plan, pubmax:plan-report-line:*,
+        // pubmaxx:plan-mutation-outbox:v1, pubmaxx.plan-collaboration-change.v1:*,
+        // pubmaxx.pending-plan-recap.v1:* and
+        // pubmaxx.pending-plan-recap-resolution.v1:*: these describe saved Plans.
+        // Keep pubmax:plan-reveals:v1:*: reveal state includes the account ID.
+        // Keep pubmax-plan-member:*, pubmax-plan-collaboration:* and
+        // pubmaxx:plan-creator-token:v1:*: capability restoration removes these.
+        // Keep pubmax:identityNudge:planReturnTo:v1: this is a return destination.
         clearDeviceAccountSessionArtifacts(browserSessionStorage());
+        try { browserLocalStorage()?.removeItem(PLAN_HOST_NAME_KEY); } catch {}
         if (nextUserId === null) {
           clearPersistedPlanDrafts({ planDraft: browserSessionStorage(), routeDraft: browserLocalStorage() });
           clearPlanIntakeDraft(browserLocalStorage());

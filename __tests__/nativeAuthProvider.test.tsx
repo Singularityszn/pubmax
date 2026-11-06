@@ -68,6 +68,7 @@ vi.mock("@/lib/authSessionResumeClient", () => ({
 import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
 import { setProviderAuthState } from "@/lib/authProviderRevision";
+import { PLAN_HOST_NAME_KEY, readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 
 const token = ["e30", Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url"), "unsigned"].join(".");
@@ -125,6 +126,8 @@ describe("tab-local private state across account events", () => {
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
     const planKeys = ["pubmaxx:plan-route-draft:v1", "pubmax:plan-route-draft:v2", "pubmax:plan-intake:v1"];
     for (const key of planKeys) localStorage.setItem(key, "account-a-plan-input");
+    rememberPlanHostName(localStorage, "Account A host");
+    expect(readRememberedPlanHostName(localStorage)).toBe("Account A host");
     const retained = {
       pubmax_pub_pal_v1: "saved-pal",
       "pubmax:pal-quest-stamps:v1": "quest-stamps",
@@ -134,10 +137,12 @@ describe("tab-local private state across account events", () => {
     for (const [key, value] of Object.entries(retained)) localStorage.setItem(key, value);
     await act(async () => { h.session = null; h.subscriber?.("SIGNED_OUT", null); });
     for (const key of planKeys) expect(localStorage.getItem(key)).toBeNull();
+    expect(readRememberedPlanHostName(localStorage)).toBe("");
     for (const [key, value] of Object.entries(retained)) expect(localStorage.getItem(key)).toBe(value);
     expect(deviceAccountOwner(localStorage)).toBe(original.user.id);
     await act(async () => { h.session = replacement; h.subscriber?.("SIGNED_IN", replacement); });
     expect(container.textContent).toBe("replacement");
+    expect(readRememberedPlanHostName(localStorage)).toBe("");
     expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
     expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
   });
@@ -146,6 +151,7 @@ describe("tab-local private state across account events", () => {
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
     localStorage.setItem("pubmaxx:plan-route-draft:v1", "account-a-route");
     localStorage.setItem("pubmax:plan-intake:v1", "account-a-accessibility");
+    rememberPlanHostName(localStorage, "Account A host");
     let finishProvider!: () => void;
     let finishCookie!: () => void;
     h.signOut.mockImplementation(() => new Promise<void>((resolve) => { finishProvider = resolve; }));
@@ -155,6 +161,7 @@ describe("tab-local private state across account events", () => {
     expect(container.textContent).toBe("signed-out");
     expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
     expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
+    expect(localStorage.getItem(PLAN_HOST_NAME_KEY)).toBeNull();
     await act(async () => { finishProvider(); });
     expect(h.clearPersistedSession).toHaveBeenCalledOnce();
     expect(container.textContent).toBe("signed-out");
@@ -165,17 +172,21 @@ describe("tab-local private state across account events", () => {
     h.platform = null;
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
     sessionStorage.setItem(rotaKey, savedOrder);
+    rememberPlanHostName(localStorage, "Account A host");
     await act(async () => { h.subscriber?.("TOKEN_REFRESHED", original); });
     expect(sessionStorage.getItem(rotaKey)).toBe(savedOrder);
+    expect(readRememberedPlanHostName(localStorage)).toBe("Account A host");
 
     // Another tab shares localStorage, but cannot clear this tab's sessionStorage.
     bindDeviceAccountOwner("replacement", localStorage);
     localStorage.setItem("pubmax_handle", "replacement_owner");
+    rememberPlanHostName(localStorage, "Account A host");
     await act(async () => { h.session = replacement; h.subscriber?.("SIGNED_IN", replacement); });
     expect(container.textContent).toBe("replacement");
     expect(sessionStorage.getItem(rotaKey)).toBeNull();
     expect(deviceAccountOwner(localStorage)).toBe("replacement");
     expect(localStorage.getItem("pubmax_handle")).toBe("replacement_owner");
+    expect(readRememberedPlanHostName(localStorage)).toBe("");
 
     bindDeviceAccountOwner("original", localStorage);
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });

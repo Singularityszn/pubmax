@@ -159,6 +159,104 @@ async function accountADrafts(): Promise<void> {
 }
 
 describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
+  it("releases generation controls after sign-in cancels a signed-out request", async () => {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    let generationCount = 0;
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input) => {
+      if (String(input).includes("/api/plans/generate")) {
+        generationCount += 1;
+        return generationCount === 1 ? pending : Response.json(GENERATED);
+      }
+      return Response.json([]);
+    }));
+    await mountComposer();
+    const form = document.querySelector("form.planComposer");
+    await editInput(QUERY, "Three pubs in Soho");
+    await act(async () => { [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click(); });
+    await vi.waitFor(() => expect(generationCount).toBe(1));
+    expect(document.querySelector(".planComposer__concierge")?.getAttribute("aria-busy")).toBe("true");
+
+    setProviderIdentity("supabase", ACCOUNT_B.id);
+    bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
+    authFixture.user = ACCOUNT_B;
+    await rerender();
+    expect(document.querySelector("form.planComposer")).toBe(form);
+    await act(async () => { finish(Response.json(GENERATED)); });
+    await settle();
+
+    expect(document.querySelectorAll(".planStop")).toHaveLength(0);
+    expect(document.querySelector(".planComposer__concierge")?.getAttribute("aria-busy")).toBe("false");
+    const generate = document.querySelector<HTMLButtonElement>(".planComposer__concierge button")!;
+    expect(generate.disabled).toBe(false);
+    expect(generate.getAttribute("aria-disabled")).not.toBe("true");
+    await act(async () => { generate.click(); });
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop")).toHaveLength(3));
+    expect(generationCount).toBe(2);
+  });
+
+  it.each(["hashing", "creation", "metadata"] as const)("releases Lock it in after sign-in cancels %s", async (stage) => {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    let finishHash!: (hash: ArrayBuffer) => void;
+    const pendingHash = new Promise<ArrayBuffer>((resolve) => { finishHash = resolve; });
+    const digest = vi.fn(async () => new ArrayBuffer(32));
+    if (stage === "hashing") digest.mockImplementationOnce(() => pendingHash);
+    vi.stubGlobal("crypto", { subtle: { digest }, randomUUID: () => "plan-test-operation" });
+    const created = {
+      created: true, grounded: true, memberToken: "plan-capability",
+      plan: { plan: { id: "signed-out-plan", status: "draft" }, stops: GENERATED.stops },
+    };
+    let createCount = 0;
+    let metadataCount = 0;
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      if (String(input).includes("/api/plans/generate")) return Response.json({ ...GENERATED, operationKey: null });
+      if (String(input) === "/api/plans" && init?.method === "POST") {
+        createCount += 1;
+        return stage === "creation" && createCount === 1 ? pending : Response.json(created);
+      }
+      if (init?.method === "PATCH") {
+        metadataCount += 1;
+        return stage === "metadata" && metadataCount === 1 ? pending : Response.json({});
+      }
+      return Response.json([]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await mountComposer();
+    await editInput(QUERY, "Three pubs in Soho");
+    await act(async () => { [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click(); });
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop")).toHaveLength(3));
+    await editInput("#plan-name", "Signed-out host");
+    const form = document.querySelector("form.planComposer")!;
+    await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+    await vi.waitFor(() => expect(stage === "hashing" ? digest.mock.calls.length : stage === "creation" ? createCount : metadataCount).toBe(1));
+    expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.disabled).toBe(true);
+
+    setProviderIdentity("supabase", ACCOUNT_B.id);
+    bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
+    authFixture.user = ACCOUNT_B;
+    await rerender();
+    expect(document.querySelector("form.planComposer")).toBe(form);
+    await act(async () => {
+      if (stage === "hashing") finishHash(new ArrayBuffer(32));
+      else finish(stage === "creation" ? Response.json(created) : Response.json({}));
+    });
+    await settle();
+
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(localStorage.getItem(PLAN_HOST_NAME_KEY)).toBeNull();
+    if (stage === "hashing") {
+      expect(createCount).toBe(0);
+      expect(sessionStorage.getItem("pubmaxx:plan-mutation:v1:create")).toBeNull();
+    }
+    const lock = document.querySelector<HTMLButtonElement>(".planComposer__submit")!;
+    expect(lock.disabled).toBe(false);
+    expect(lock.textContent).toBe("Lock it in");
+    await act(async () => { lock.click(); });
+    await vi.waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/plan/signed-out-plan#share"));
+    expect(localStorage.getItem(PLAN_HOST_NAME_KEY)).toBe("Signed-out host");
+  });
+
   it("does not recover retained route and accessibility inputs after provider sign-out then B sign-in", async () => {
     authFixture.user = ACCOUNT_A;
     bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
