@@ -287,6 +287,11 @@ describe("Social account boundary", () => {
 
   it("never renders account A Social state after account B becomes current", async () => {
     await flushAccountA();
+    // The crews card is lazy, so wait for its real import to land.
+    await vi.waitFor(async () => {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(host.textContent).toContain("crew:account-a:alice");
+    });
 
     expect(host.textContent).toContain(A_FEED_POST.body);
     expect(host.textContent).toContain(A_OUTBOX_POST.body);
