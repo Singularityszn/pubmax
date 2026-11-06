@@ -89,7 +89,7 @@ describe("no shipped public description carries internal language", () => {
     const rows = readJson<
       { name: string; hook: string; facts: { fact: string }[] }[]
     >("public/data/historic_pubs.json");
-    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeGreaterThan(100);
     const offences: string[] = [];
     for (const row of rows) {
       for (const text of [row.hook, ...row.facts.map((f) => f.fact)]) {

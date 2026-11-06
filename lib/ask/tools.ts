@@ -57,7 +57,7 @@ import { matchVenueByName } from "@/lib/ask/venueResolution.server";
 import { searchVenueHours } from "@/lib/ask/venueHours.server";
 import {
   HERITAGE_AMBIGUOUS_PUB_HINT,
-  heritageQuestionVenueName,
+  heritageQuestionVenueMatches,
   heritageVenueNameMatches,
 } from "@/lib/ask/heritageQuestion";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
@@ -284,17 +284,14 @@ async function toolVenueHeritage(
 ): Promise<AskToolResult> {
   const venueName = str(args.venueName) || str(args.name);
   const venueId = str(args.venueId);
-  // Resolve one listed identity: a selected venue id first, then the exact
-  // tool argument, then the exact name the question asks about. A name shared
-  // by several listed pubs is ambiguous, so the reader chooses on the map.
   const venues = await loadConciergeVenues(ctx.cityId);
   const byId = venueId ? venues.find((venue) => venue.id === venueId) : null;
   const byArgument = heritageVenueNameMatches(venues, venueName);
-  const candidates = byId
-    ? [byId]
-    : byArgument.length > 0
-      ? byArgument
-      : heritageVenueNameMatches(venues, heritageQuestionVenueName(ctx.query) ?? "");
+  const requested = heritageQuestionVenueMatches(venues, ctx.query);
+  const proposed = byId ? [byId] : byArgument;
+  const candidates = proposed.length
+    ? proposed.filter((venue) => requested.some((subject) => subject.id === venue.id))
+    : requested;
   const hit = candidates.length === 1 ? candidates[0] : null;
   if (!hit) {
     return {

@@ -1,4 +1,5 @@
 import { wordsOnly } from "@/lib/ask/placePhrases";
+import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import type { VenueNameMatchInput } from "@/lib/ask/venueResolution";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 
@@ -8,7 +9,7 @@ export const HERITAGE_AMBIGUOUS_PUB_HINT =
 
 /** Preserve the complete requested name so a longer namesake cannot become a listed pub. */
 export function heritageQuestionVenueName(query: string): string | null {
-  const question = query.trim().replace(/[.!?]+$/, "").trim();
+  const question = semanticAskRequest(query, false).trim().replace(/[.!?]+$/, "").trim();
   const patterns = [
     /^heritage\s+story\s+for\s+(.+)$/i,
     /^(?:(?:please\s+)?tell me(?:\s+about)?\s+|what(?:'s|\s+is)\s+)?(?:the\s+)?(?:history|heritage|story)\s+(?:of|behind)\s+(.+)$/i,
@@ -30,4 +31,21 @@ export function heritageVenueNameMatches<T extends VenueNameMatchInput>(venues: 
   const subject = normalize(name);
   if (!subject) return [];
   return venues.filter((venue) => venueSearchNames(venue).some((alias) => normalize(alias) === subject));
+}
+
+export function heritageQuestionVenueMatches<T extends VenueNameMatchInput>(venues: readonly T[], query: string): T[] {
+  const subject = heritageQuestionVenueName(query);
+  if (!subject) return [];
+  const matchSubjects = (name: string): T[] => {
+    const exact = heritageVenueNameMatches(venues, name);
+    if (exact.length) return exact;
+    for (const separator of name.matchAll(/\s+(?:and|&)\s+/gi)) {
+      const left = heritageVenueNameMatches(venues, name.slice(0, separator.index));
+      if (!left.length) continue;
+      const right = matchSubjects(name.slice(separator.index + separator[0].length));
+      if (right.length) return [...left, ...right];
+    }
+    return [];
+  };
+  return matchSubjects(subject);
 }

@@ -22,6 +22,55 @@ afterEach(() => {
 });
 
 describe("typed heritage questions", () => {
+  it.each([
+    { venueName: "The Blackfriar" },
+    { name: "The Blackfriar" },
+    { venueId: "venue-eltcmh" },
+    { venueId: "venue-eltcmh", venueName: "The Blackfriar Arms" },
+  ].flatMap((args) => [
+    { args, query: "Tell me the history of The Blackfriar Arms." },
+    { args, query: "Tell me the history of The Blackfriar Arms and The Clachan." },
+  ]))("rejects a model-proposed identity for an unlisted longer name: %j", async ({ args, query }) => {
+    const result = await runAskTool("venue_heritage", args, {
+      query,
+      cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.sources).toEqual([]);
+  });
+
+  it.each([
+    { venueName: "The Blackfriar" },
+    { venueId: "venue-eltcmh" },
+  ])("rejects an unrelated model identity in a compound question: %j", async (args) => {
+    const result = await runAskTool("venue_heritage", args, {
+      query: "Tell me the history of The Old Bank of England and The Clachan.",
+      cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.sources).toEqual([]);
+  });
+
+  it("preserves a pub name containing a conjunction in a compound question", async () => {
+    const result = await runAskTool("venue_heritage", { venueName: "Lion & Unicorn" }, {
+      query: "Tell me the history of Lion & Unicorn and The Clachan.",
+      cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]?.title).toBe("Lion & Unicorn");
+  });
+
+  it("preserves the named pub when the reader also requests price sources", async () => {
+    const result = await runAskTool("venue_heritage", { venueName: "The Clachan" }, {
+      query: "Tell me the history of The Clachan. Show the source and date for any price you use.",
+      cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(result.cards[0]).toMatchObject({ venueId: "venue-4pqtn7", title: "The Clachan" });
+  });
+
   it.each(["The Imaginary Copper Narwhal", "The Blackfriar Arms"])("does not turn unlisted %s into a venue card", async (name) => {
     const response = await runAsk({
       query: `Tell me the history of ${name}.`,
@@ -78,8 +127,11 @@ describe("typed heritage questions", () => {
   it.each([
     { name: "The Old Bank of England", id: "venue-lrlyh8" },
     { name: "The Clachan", id: "venue-4pqtn7" },
-  ])("preserves $name as the tool subject in a compound heritage story question", async ({ name, id }) => {
-    const result = await runAskTool("venue_heritage", { venueName: name }, {
+  ].flatMap((venue) => [
+    { ...venue, args: { venueName: venue.name } },
+    { ...venue, args: { venueId: venue.id } },
+  ]))("preserves $name as the tool subject in a compound heritage story question", async ({ name, id, args }) => {
+    const result = await runAskTool("venue_heritage", args, {
       query: "Heritage story for The Old Bank of England and The Clachan",
       cityId: "london", skipModel: true, fetchImpl: offlineFetch,
     });

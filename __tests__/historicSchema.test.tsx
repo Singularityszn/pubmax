@@ -25,7 +25,7 @@ describe("historic pub identity markup", () => {
   it("does not equate the pub with a photographic print that cites it", async () => {
     const { document, schema } = await historicSchema("the-grapes");
     expect(schema.sameAs).toEqual(["https://en.wikipedia.org/wiki/The_Grapes,_Limehouse"]);
-    expect(document).not.toContain('href="https://www.alastairhiltonphotographer.com/product-page/the-grapes"');
+    expect(document).toContain('href="https://www.alastairhiltonphotographer.com/product-page/the-grapes"');
   });
 
   it("describes only the verified Hammersmith Black Lion", async () => {

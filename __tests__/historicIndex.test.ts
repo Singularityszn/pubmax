@@ -29,12 +29,12 @@ const FIXTURE_CACHE = {
   // Matched to a venue row; has BOTH a century and a year → earliest (century)
   // wins for `era`, and a Grade II* → listed must preserve the star.
   "the old bell": [
-    { source: "seed", address: "1 High Street", fact: "A tavern here since the 15th century.", sourceRef: "https://ex/1" },
-    { source: "wikipedia", address: "1 High Street", fact: "The Old Bell is a Grade II* listed pub rebuilt in 1670.", sourceRef: "https://ex/2" },
+    { source: "seed", fact: "A tavern here since the 15th century.", sourceRef: "https://ex/1" },
+    { source: "wikipedia", fact: "The Old Bell is a Grade II* listed pub rebuilt in 1670.", sourceRef: "https://ex/2" },
   ],
   // Matched; a plain Grade II, no year/century → era null, listed "II".
   "the new inn": [
-    { source: "osm", address: "9 Green Lane", fact: "A Grade II listed coaching inn on the green.", sourceRef: "https://ex/3" },
+    { source: "osm", fact: "A Grade II listed coaching inn on the green.", sourceRef: "https://ex/3" },
   ],
   "the bell": [{ source: "wikipedia", fact: "Established 1720, a fine old house." }],
   "the bell!": [{ source: "seed", fact: "No dates on record here at all." }],
@@ -84,8 +84,8 @@ function byName(records: HistoricPub[], name: string): HistoricPub {
 describe("buildHistoricIndex — schema + join", () => {
   const records: HistoricPub[] = buildHistoricIndex({ heritageCache: FIXTURE_CACHE, dataset: FIXTURE_DATASET });
 
-  it("emits only records whose address identifies a venue", () => {
-    expect(records).toHaveLength(2);
+  it("retains uniquely named and unlinked directory records", () => {
+    expect(records).toHaveLength(4);
   });
 
   it("every record has exactly the documented schema keys, in order", () => {
@@ -108,8 +108,11 @@ describe("buildHistoricIndex — schema + join", () => {
     expect(oldBell.facts).toHaveLength(2);
   });
 
-  it("withholds facts when there is no dataset match", () => {
-    expect(records.find((record) => record.name === "The Bell")).toBeUndefined();
+  it("keeps an unmatched directory record without a venue identity", () => {
+    expect(byName(records, "The Bell")).toMatchObject({
+      venueId: null, borough: null, lat: null, lng: null,
+      facts: [{ source: "wikipedia", fact: "Established 1720, a fine old house." }],
+    });
   });
 });
 
@@ -230,7 +233,7 @@ describe("generate — deterministic + idempotent over a /tmp fixture", () => {
     const a = await generate({ cachePath, datasetPath, outPath: outA });
     await generate({ cachePath, datasetPath, outPath: outB });
 
-    expect(a.total).toBe(2);
+    expect(a.total).toBe(4);
     expect(readFileSync(outA, "utf8")).toBe(readFileSync(outB, "utf8"));
 
     // Re-running over the SAME out path is also byte-stable.
@@ -239,7 +242,7 @@ describe("generate — deterministic + idempotent over a /tmp fixture", () => {
     expect(readFileSync(outA, "utf8")).toBe(firstBytes);
 
     expect(a.matched).toBe(2);
-    expect(a.withEra).toBe(1);
+    expect(a.withEra).toBe(2);
     expect(a.withListed).toBe(2);
   });
 });
@@ -315,7 +318,7 @@ describe("venue joins survive a renamed or merged dataset row", () => {
     expect(george.slug).toBe("the-george-inn");
   });
 
-  it("joins nothing when the curated id no longer resolves to a venue", () => {
+  it("leaves the directory record unlinked when a curated id no longer resolves", () => {
     const records: HistoricPub[] = buildHistoricIndex({
       heritageCache: CACHE,
       dataset: RENAMED_DATASET,
@@ -323,7 +326,7 @@ describe("venue joins survive a renamed or merged dataset row", () => {
       venueIdsByCacheKey: { "the george inn": MERGED_ID },
     });
 
-    expect(records).toEqual([]);
+    expect(records[0]).toMatchObject({ name: "The George Inn", venueId: null, lat: null, lng: null });
   });
 
   it("keeps joining words lowercase in a name taken from the cache key", () => {
@@ -367,14 +370,14 @@ describe("the shipped historic index (generated artifact)", () => {
     expect(dangling).toEqual([]);
   });
 
-  it("publishes no historic record without a verified venue", () => {
+  it("keeps only the existing Barley Mow directory record unlinked", () => {
     const historic = JSON.parse(
       readFileSync("public/data/historic_pubs.json", "utf8"),
     ) as HistoricPub[];
     const unjoined = historic
       .filter((rec) => rec.venueId == null)
       .map((rec) => rec.slug);
-    expect(unjoined).toEqual([]);
+    expect(unjoined).toEqual(["the-barley-mow"]);
 
     for (const rec of historic) {
       if (rec.venueId == null) continue;
@@ -588,7 +591,7 @@ describe("buildHistoricPublication — a date says what it is a date of", () => 
   });
 });
 
-describe("heritage facts require one address or postcode match", () => {
+describe("shared heritage names require one address, postcode or coordinate match", () => {
   const hammersmith = {
     pub_name: "Black Lion", address: "2 S Black Lion Ln, London W6 9TJ",
     latitude: 51.4905, longitude: -0.24209, primary_borough: "Hammersmith and Fulham",
@@ -626,27 +629,58 @@ describe("heritage facts require one address or postcode match", () => {
     })).toEqual([]);
   });
 
-  it("does not treat a unique name or locality as address evidence", () => {
+  it("matches namesakes by source coordinates within 150 metres", () => {
+    const fact = { source: "wikidata", fact: "An old riverside public house.",
+      sourceRef: "https://example.org/riverside", latitude: 51.4915, longitude: -0.24209 };
+    const records: HistoricPub[] = buildHistoricIndex({
+      heritageCache: { "black lion": [fact] }, dataset: [kilburn, hammersmith],
+    });
+    expect(records).toHaveLength(1);
+    expect(records[0]?.venueId).toBe("venue-fudfew");
+    expect(records[0]?.facts).toEqual([{ source: fact.source, fact: fact.fact, sourceRef: fact.sourceRef }]);
+  });
+
+  it.each([
+    { latitude: 51.4925, longitude: -0.24209 },
+    { latitude: null, longitude: null },
+    { latitude: 151, longitude: -0.24209 },
+  ])("withholds coordinates without a nearby namesake: %j", (coordinates) => {
     expect(buildHistoricIndex({
+      heritageCache: { "black lion": [{ source: "seed", fact: "An old public house.", ...coordinates }] },
+      dataset: [hammersmith, kilburn],
+    })).toEqual([]);
+  });
+
+  it("withholds coordinates within 150 metres of two namesakes", () => {
+    expect(buildHistoricIndex({
+      heritageCache: { "black lion": [{ source: "seed", fact: "An old public house.",
+        latitude: hammersmith.latitude, longitude: hammersmith.longitude }] },
+      dataset: [hammersmith, { ...hammersmith, address: "4 Black Lion Lane", latitude: 51.491 }],
+    })).toEqual([]);
+  });
+
+  it("retains a unique name without requiring address evidence", () => {
+    const records = buildHistoricIndex({
       heritageCache: { "black lion": [{ source: "wikidata", fact: "pub in Hammersmith, London" }] },
       dataset: [hammersmith],
-    })).toEqual([]);
+    });
+    expect(records[0]?.facts).toEqual([{ source: "wikidata", fact: "pub in Hammersmith, London" }]);
   });
 
   it("retains facts from the same address-verified source", () => {
     const secondFact = { source: "seed", fact: "An old riverside public house.", sourceRef: hammerFact.sourceRef };
     const records: HistoricPub[] = buildHistoricIndex({
-      heritageCache: { "black lion": [hammerFact, secondFact] }, dataset: [hammersmith],
+      heritageCache: { "black lion": [hammerFact, secondFact] }, dataset: [hammersmith, kilburn],
     });
     expect(records[0]?.facts).toEqual([
       { source: hammerFact.source, fact: hammerFact.fact, sourceRef: hammerFact.sourceRef }, secondFact,
     ]);
   });
 
-  it("does not let a curated venue ID bypass address evidence", () => {
+  it("does not let a curated venue ID bypass namesake address evidence", () => {
     expect(buildHistoricIndex({
-      heritageCache: { "old black lion": [kilburnFact] }, dataset: [hammersmith],
-      venueIdsByCacheKey: { "old black lion": "venue-fudfew" },
+      heritageCache: { "black lion": [{ source: "seed", fact: "A historic pub." }] }, dataset: [hammersmith, kilburn],
+      venueIdsByCacheKey: { "black lion": "venue-fudfew" },
     })).toEqual([]);
   });
 
@@ -654,7 +688,7 @@ describe("heritage facts require one address or postcode match", () => {
     const records: HistoricPub[] = buildHistoricIndex({
       heritageCache: { "black lion": [hammerFact, {
         source: "seed", fact: hammerFact.fact, sourceRef: "https://example.org/unresolved",
-      }] }, dataset: [hammersmith],
+      }] }, dataset: [hammersmith, kilburn],
     });
     expect(records[0]?.facts).toEqual([
       { source: hammerFact.source, fact: hammerFact.fact, sourceRef: hammerFact.sourceRef },

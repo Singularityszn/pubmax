@@ -115,6 +115,17 @@ function addressMatches(venue, fact) {
     street.split(" ").length >= 3 && ` ${text} `.includes(` ${street} `);
 }
 
+function coordinatesMatch(venue, fact) {
+  const lat = fact.latitude;
+  const lng = fact.longitude;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 ||
+      !Number.isFinite(venue.lat) || !Number.isFinite(venue.lng)) return false;
+  const radians = (value) => value * Math.PI / 180;
+  const a = Math.sin(radians(lat - venue.lat) / 2) ** 2 +
+    Math.cos(radians(lat)) * Math.cos(radians(venue.lat)) * Math.sin(radians(lng - venue.lng) / 2) ** 2;
+  return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, a))) <= 150;
+}
+
 // Index the dataset by the stable venue id, so a heritage key whose name has
 // drifted apart from the dataset spelling can still be joined by identity.
 export function buildVenueIdIndex(dataset) {
@@ -324,21 +335,24 @@ export function buildHistoricPublication({
     const rawFacts = heritageCache[cacheKey];
     if (!Array.isArray(rawFacts) || rawFacts.length === 0) continue;
     const raw = rawFacts.filter((entry) => entry && typeof entry.fact === "string" && entry.fact.trim());
-    const cited = raw.map(normaliseFact);
-    if (cited.length === 0) continue;
+    if (raw.length === 0) continue;
 
     const curated = curatedVenueMatch(cacheKey, venueIdIndex, venueAliases, venueIdsByCacheKey);
     const candidates = venueIndex.get(cacheKey) ?? (curated ? [curated] : []);
     const byVenue = new Map();
-    for (const fact of cited) {
-      const evidence = raw.filter((entry) =>
-        entry.sourceRef === fact.sourceRef &&
-        (entry.fact.trim() === fact.fact || Boolean(fact.sourceRef)),
-      );
-      const matches = candidates.filter((venue) => evidence.some((entry) => addressMatches(venue, entry)));
+    for (const entry of raw) {
+      const fact = normaliseFact(entry);
+      const evidence = entry.sourceRef
+        ? raw.filter((other) => other.sourceRef === entry.sourceRef)
+        : [entry];
+      const matches = candidates.length > 1
+        ? candidates.filter((venue) => evidence.some((item) => addressMatches(venue, item) || coordinatesMatch(venue, item)))
+        : candidates.length === 1 ? candidates : [{
+          venueId: null, name: null, borough: null, lat: null, lng: null,
+        }];
       if (matches.length !== 1) {
         quarantined.push({ cacheKey, name: titleCase(cacheKey), reason: "unresolved-venue-identity",
-          detail: "the fact has no unique address or postcode match", fact: fact.fact });
+          detail: "the shared name has no unique address, postcode or coordinate match", fact: fact.fact });
         continue;
       }
       const match = matches[0];
