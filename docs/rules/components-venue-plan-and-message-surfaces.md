@@ -84,6 +84,14 @@ Recovery clears the older context, walking inputs, proof, operation key, and gen
 The restored route needs refreshing before locking.
 A dated route stays preferred when the session save is not newer. An undated session draft keeps the local route.
 Route-save failure has its own notice, even when intake saves and the description is empty.
+Expired or invalid route proof gives the same result for a V1-only, V2 or invalid local record.
+The route stays a preview that needs a refresh. Lock stays off.
+The record does not restore its accepted pub or its generated checks.
+A Map acceptance made after that route is a separate request, and Release does not change the route records.
+A Session draft whose only stop is an accepted pub without a generated route has the `provisionalStop` marker.
+That draft never counts as stop work that beats a newer generated route.
+The marker ends when the draft gets a second stop or a generated route. A one-stop edit of a generated route never gets the marker.
+Coverage: `__tests__/planRequestSaveFreshness.test.tsx` and `__tests__/planDraftArbitration.test.ts`.
 The [requested-intent contract](lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) owns description and count recovery, including handoff priority.
 
 Generation uses the displayed **First pint** schedule for its [default daypart](../API_CONTRACTS_THE_LOCAL.md#accepted-pub-anchor).
