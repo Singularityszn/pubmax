@@ -60,6 +60,7 @@ import {
   heritageQuestionVenueSubjects,
   heritageVenueNameMatches,
 } from "@/lib/ask/heritageQuestion";
+import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { STATIC_STATIONS } from "@/lib/staticStations";
 import type {
@@ -1069,6 +1070,10 @@ export async function runAskTool(
       ok: false, tool: name, data: { kind: "unsupported-price", code: intent.coverage.code },
       provenance: [], cards: [], proposals: [], priceEvidence: [], answerHint: intent.coverage.answer,
     };
+  }
+  if (!isIndependentAskTool(name)) {
+    const lateFood = answerLateFoodQuestion(ctx);
+    if (lateFood) return lateFood;
   }
   if (isVenueHoursQuestion(ctx.query) && !isIndependentAskTool(name)) {
     return searchVenueHours(ctx.query, ctx);

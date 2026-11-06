@@ -134,11 +134,12 @@
       ]
     },
     "food-midnight-covent": {
-      "minCards": 1,
-      "topVenueId": "venue-u68xn3",
-      "topPrice": 6.4,
+      "expectEmpty": true,
       "expectedTools": [
         "search_venues"
+      ],
+      "answerIncludes": [
+        "no current late-food record"
       ]
     },
     "wine-lamb-honest": {

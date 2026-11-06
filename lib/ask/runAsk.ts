@@ -2,6 +2,7 @@
 
 import { isVenueHoursQuestion, recordedDrinkComparison, refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { routeAsk } from "@/lib/ask/routerJudged";
+import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
 import {
@@ -173,7 +174,7 @@ export type RunAskInput = {
  * tool failures (those become degraded status + honest copy).
  */
 export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
-  const query = input.query.trim().slice(0, 500);
+  const query = resolveLateFoodQuery(input.query.trim().slice(0, 500), input.turns);
   const unsupported = unsupportedPriceComparison(query);
   const cityId = resolveAskCityId(input.cityId);
   const turns = normaliseTurns(input.turns);

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { composeAnswer } from "@/lib/ask/runAsk";
+import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import {
   resolveAskCityId,
   runAskTool,
@@ -33,7 +34,7 @@ export function resolvePubPalToolQuery(input: {
   const fromTurn = input.turnQuery?.trim() ?? "";
   const fromArgs =
     typeof input.args.query === "string" ? input.args.query.trim() : "";
-  const query = fromTurn || fromArgs;
+  const query = fromTurn ? resolveLateFoodQuery(fromTurn, input.turns) : fromArgs;
   const priorUsers = input.turns?.filter((turn) => turn.role === "user").map((turn) => turn.content);
   return refineVenueBudgetFollowUp(query, priorUsers) ?? query;
 }
