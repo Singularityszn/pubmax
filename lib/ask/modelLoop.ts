@@ -20,7 +20,6 @@ import {
   claudeClient,
   claudeConfigured,
   claudePromptTokens,
-  logClaudeUsage,
   type ClaudeClient,
 } from "@/lib/claudeClient.server";
 import { traceArizeModelLoop, type ArizeModelLoopSpans } from "@/lib/observability/arize";
@@ -40,8 +39,6 @@ const MAX_TOOLS_PER_ROUND = 3;
 const TIMEOUT_MS = 12_000;
 /** The OpenRouter model, used only when the deploy has no Claude key. */
 export const DEFAULT_ASK_MODEL = "anthropic/claude-sonnet-4-5";
-/** Claude model override for Ask; the shared default otherwise. */
-const ASK_CLAUDE_MODEL_ENV = "ASK_CLAUDE_MODEL";
 // Claude thinks before it calls a tool, and thinking counts toward this cap,
 // so it leaves room above the tool call itself.
 const CLAUDE_MAX_TOKENS = 1_024;
@@ -376,7 +373,6 @@ async function runAskClaudeLoop(input: {
             promptTokens: claudePromptTokens(message.usage),
             completionTokens: message.usage.output_tokens,
           });
-          logClaudeUsage(input.traceRoute, input.model, message.usage);
           const toolUses = message.content.filter(
             (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
           );
@@ -466,7 +462,7 @@ export async function runAskModelLoop(input: {
       turns: input.turns,
       ctx: input.ctx,
       client: input.claude ?? claudeClient(claudeKey!),
-      model: input.model ?? claudeChatModel(ASK_CLAUDE_MODEL_ENV),
+      model: input.model ?? claudeChatModel(),
       timeoutMs: input.timeoutMs,
       traceRoute: input.traceRoute ?? "ask/model-loop",
     });

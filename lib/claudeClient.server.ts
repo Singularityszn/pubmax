@@ -2,17 +2,15 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 
-import { log } from "@/lib/log";
-
 // The one Claude API client for user chat: typed Pub Pal chat
 // (lib/palClaudeChat.server.ts) and map Ask (lib/ask/modelLoop.ts). Both pay
 // from the same Claude Platform key, so the key, the host, the default model,
-// the prompt cache markers and the usage line live here once.
+// and the prompt cache markers live here once.
 //
 // The host is named here so /privacy can be held to it (__tests__/legalPages.test.ts).
 const CLAUDE_API_HOST = "api.anthropic.com";
 
-/** A fast, low-cost model for chat answers. Each surface reads its own override env. */
+/** A fast, low-cost model for chat answers. */
 export const CLAUDE_CHAT_DEFAULT_MODEL = "claude-haiku-5-5";
 
 /** The Claude Platform key, or null when this deploy has none. */
@@ -25,9 +23,9 @@ export function claudeConfigured(): boolean {
   return claudeApiKey() !== null;
 }
 
-/** The model a surface uses: its override env when set, else the default. */
-export function claudeChatModel(overrideEnv: string): string {
-  return process.env[overrideEnv]?.trim() || CLAUDE_CHAT_DEFAULT_MODEL;
+/** The model for typed Pub Pal chat and map Ask. */
+export function claudeChatModel(): string {
+  return process.env.PUB_PAL_CLAUDE_MODEL?.trim() || CLAUDE_CHAT_DEFAULT_MODEL;
 }
 
 type ClaudeStream = {
@@ -62,20 +60,4 @@ export function claudeCachedSystem(text: string): Anthropic.TextBlockParam[] {
 /** Every input token the call was billed for, cached or not, for the trace's prompt count. */
 export function claudePromptTokens(usage: Anthropic.Usage): number {
   return usage.input_tokens + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
-}
-
-/**
- * One structured line per model call: the route, the model and the token
- * counts by billing class. It carries no prompt, reply, caller or key. Field
- * names avoid the word "token", which the logger redacts as a secret name.
- */
-export function logClaudeUsage(route: string, model: string, usage: Anthropic.Usage): void {
-  log("info", "claude.usage", {
-    route,
-    model,
-    input: usage.input_tokens,
-    output: usage.output_tokens,
-    cacheRead: usage.cache_read_input_tokens ?? 0,
-    cacheWrite: usage.cache_creation_input_tokens ?? 0,
-  });
 }
