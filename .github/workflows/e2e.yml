@@ -319,6 +319,7 @@ jobs:
           e2e/plan-crawl-stops.spec.ts
           e2e/plan-invite.spec.ts
           e2e/plan-join-reveal.spec.ts
+          e2e/plan-route-result.spec.ts
           e2e/price-caption-integrity.spec.ts
           e2e/profile-avatar.spec.ts
           e2e/profile-hero-desktop.spec.ts
