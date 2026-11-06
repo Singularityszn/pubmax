@@ -5,15 +5,16 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { DEFAULT_PAL_DRAFT, type PalAnimationState, type PubPal } from "@/lib/pubPal";
 import { palGenomeFor } from "@/lib/palGenome";
 import { useAuth } from "@/components/auth/authContext";
-import { useOwnPal } from "./useOwnPal";
+import { useOwnPalSnapshot } from "./useOwnPal";
 import PalPortrait from "./PalPortrait";
 
 /** The chat keeps the person's selected companion beside the conversation. */
 export default function PalChatCompanion({ owner, state }: { owner: string | null; state: PalAnimationState }) {
-  const localPal = useOwnPal();
+  const snapshot = useOwnPalSnapshot();
+  const localPal = useMemo(() => snapshot ? JSON.parse(snapshot) as PubPal : null, [snapshot]);
   const { user, loading, getCurrentUserId } = useAuth();
   const accountId = !loading && user && getCurrentUserId() === user.id ? user.id : null;
-  const source = useMemo(() => ({ owner, accountId, localPal }), [owner, accountId, localPal]);
+  const source = useMemo(() => ({ owner, accountId, snapshot }), [owner, accountId, snapshot]);
   const [loaded, setLoaded] = useState<{ pal: PubPal | null; source: typeof source } | null>(null);
   useEffect(() => {
     const { owner, accountId } = source;

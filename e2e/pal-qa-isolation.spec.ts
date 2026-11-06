@@ -51,7 +51,7 @@ test('provider sign-out retires the open map marker while retaining the owner st
   await installDeterministicMapBasemap(page);
   await page.route(`**/api/plans/${PLAN_ID}`, route => route.fulfill({json:{stops:STOPS.map((venueId,position)=>({venueId,venueName:venueId,position}))}}));
   await page.route(`**/api/plans/${PLAN_ID}/pals`, route => route.fulfill({json:{visibility:'member',pals:[]}}));
-  await page.addInitScript(planId => localStorage.setItem('pubmax_active_plan',JSON.stringify({version:1,id:planId,startTime:new Date(Date.now()-3600000).toISOString(),stopIndex:0})),PLAN_ID);
+  await page.addInitScript(({planId, ownerId}) => localStorage.setItem('pubmax_active_plan',JSON.stringify({version:1,ownerId,id:planId,startTime:new Date(Date.now()-3600000).toISOString(),stopIndex:0})),{planId:PLAN_ID,ownerId:ACCOUNTS.A.id});
   await page.goto('/map');
   const marker = page.locator('.palMapMarker:not([data-pal-crew])');
   await expect(marker).toHaveAttribute('role','button',{timeout:60000});

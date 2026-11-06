@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth/authContext";
 import { trackEvent } from "@/lib/analytics";
-import { isPlanActiveNow, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
+import { isPlanActiveNow, subscribeActivePlan } from "@/lib/activePlan";
+import { useOwnedActivePlan } from "@/components/night/useOwnedActivePlan";
 import { useOwnPal } from "@/components/pal/useOwnPal";
 import { readShowableMorningNight } from "@/lib/morningReentry";
 import { palSummonLine } from "@/lib/palSummonLine";
@@ -39,6 +40,7 @@ export default function PubPalSummon() {
 
 function OwnedPubPalSummon({ ownerId, pathname }: { ownerId: string; pathname: string }) {
   const pal = useOwnPal();
+  const ownPlan = useOwnedActivePlan();
   const [cheer, setCheer] = useState<PalMoment | null>(null);
   const [offer, setOffer] = useState<{ nightOnStop: number | null; nightKept: boolean; hour: number } | null>(null);
   // What the Pal offers now: a night that is on, a kept night, or the hour.
@@ -47,8 +49,6 @@ function OwnedPubPalSummon({ ownerId, pathname }: { ownerId: string; pathname: s
     const read = () => {
       if (!active) return;
       const now = Date.now();
-      const plan = readActivePlan();
-      const ownPlan = pal && plan?.palContext?.id === pal.id ? plan : null;
       const morningNight = readShowableMorningNight(now);
       setOffer({
         nightOnStop: ownPlan && isPlanActiveNow(ownPlan, now) ? ownPlan.stopIndex : null,
@@ -59,7 +59,7 @@ function OwnedPubPalSummon({ ownerId, pathname }: { ownerId: string; pathname: s
     queueMicrotask(read);
     const unsubscribe = subscribeActivePlan(read);
     return () => { active = false; unsubscribe(); };
-  }, [pathname, pal]);
+  }, [pathname, pal, ownPlan]);
   // A finished crawl or night: the chip jumps and says so, then settles.
   useEffect(() => {
     let active = true;

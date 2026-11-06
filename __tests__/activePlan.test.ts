@@ -17,6 +17,7 @@ import {
   msUntilActivePlanEdge,
   parseActivePlan,
   readActivePlan,
+  readOwnedActivePlan,
   restoreNightMode,
   serializeActivePlan,
   setActivePlanEndingPreview,
@@ -282,5 +283,31 @@ describe("isWithinRecapGrace", () => {
   it("retires the card before the ending and after grace expires", () => {
     expect(isWithinRecapGrace(completedAt, at - 1)).toBe(false);
     expect(isWithinRecapGrace(completedAt, at + RECAP_GRACE_MS + 1)).toBe(false);
+  });
+});
+
+describe("F12 activation ownership", () => {
+  beforeEach(installWindow);
+
+  it("preserves the activation owner through serialization and Pal context writes", () => {
+    markActivePlan(PLAN_ID, START, Date.parse(START), "account-a");
+    setActivePlanStopIndex(4);
+    setActivePlanPalContext({ id: "pal-a", name: "Robin" }, "account-a");
+    setActivePlanPalContext({ id: "pal-b", name: "Pip" }, "account-b");
+    setActivePlanPalContext(null, "account-b");
+    expect(readOwnedActivePlan("account-a")).toMatchObject({ ownerId: "account-a", stopIndex: 4, palContext: { id: "pal-a", name: "Robin" } });
+    expect(readOwnedActivePlan("account-b")).toBeNull();
+    expect(readOwnedActivePlan(null)).toBeNull();
+    markActivePlan(PLAN_ID, START, Date.parse(START), "account-b");
+    expect(readOwnedActivePlan("account-b")).toMatchObject({ ownerId: "account-b", stopIndex: 0, palContext: null });
+    expect(readOwnedActivePlan("account-a")).toBeNull();
+  });
+
+  it("does not adopt legacy or anonymous device plans into a signed-in account", () => {
+    markActivePlan(PLAN_ID, START, Date.parse(START));
+    setActivePlanPalContext({ id: "pal-a", name: "Robin" }, "account-a");
+    expect(readOwnedActivePlan("account-a")).toBeNull();
+    expect(readActivePlan()?.palContext).toBeNull();
+    expect(readOwnedActivePlan(null)?.id).toBe(PLAN_ID);
   });
 });

@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-import { isPlanActiveNow, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
+import { isPlanActiveNow, readOwnedActivePlan, subscribeActivePlan } from "@/lib/activePlan";
+import { useAuth } from "@/components/auth/authContext";
+import { useOwnedActivePlan } from "@/components/night/useOwnedActivePlan";
 import { crewPalsFromBody, type CrewPal } from "@/lib/crewPals";
 import { discardBody } from "@/lib/responseBody";
 
@@ -14,19 +16,23 @@ import { discardBody } from "@/lib/responseBody";
 const NO_CREW: readonly CrewPal[] = [];
 
 export function useCrewPals(): readonly CrewPal[] {
-  const [pals, setPals] = useState<readonly CrewPal[]>(NO_CREW);
+  const ref = useOwnedActivePlan();
+  const { getCurrentUserId } = useAuth();
+  const source = ref ? `${ref.ownerId ?? ""}:${ref.id}` : null;
+  const [loaded, setLoaded] = useState<{ source: string | null; pals: readonly CrewPal[] } | null>(null);
 
   useEffect(() => {
+    if (!source) return;
     let active = true;
     let loadedPlanId = "";
     let controller: AbortController | null = null;
 
     const load = () => {
-      const ref = readActivePlan();
+      const ref = readOwnedActivePlan(getCurrentUserId());
       if (!ref || !isPlanActiveNow(ref, Date.now())) {
         controller?.abort();
         loadedPlanId = "";
-        if (active) setPals(NO_CREW);
+        if (active) setLoaded(null);
         return;
       }
       if (ref.id === loadedPlanId) return;
@@ -34,7 +40,7 @@ export function useCrewPals(): readonly CrewPal[] {
       controller?.abort();
       const request = new AbortController();
       controller = request;
-      if (active) setPals(NO_CREW);
+      if (active) setLoaded(null);
       fetch(`/api/plans/${ref.id}/pals`, { cache: "no-store", signal: request.signal })
         .then((response) => {
           if (response.ok) return response.json();
@@ -42,7 +48,7 @@ export function useCrewPals(): readonly CrewPal[] {
           return null;
         })
         .then((body: unknown) => {
-          if (active && controller === request) setPals(crewPalsFromBody(body));
+          if (active && controller === request) setLoaded({ source, pals: crewPalsFromBody(body) });
         })
         .catch(() => {
           // No crew Pals is the honest answer to a failed read.
@@ -56,7 +62,7 @@ export function useCrewPals(): readonly CrewPal[] {
       controller?.abort();
       unsubscribe();
     };
-  }, []);
+  }, [source, getCurrentUserId]);
 
-  return pals;
+  return ref && loaded?.source === source ? loaded.pals : NO_CREW;
 }

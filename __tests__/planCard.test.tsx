@@ -10,15 +10,6 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const active = vi.hoisted(() => ({ ref: null as null | { id: string; startTime: string; role: string } }));
-
-vi.mock("@/lib/activePlan", () => ({
-  readActivePlan: () => active.ref,
-  isPlanActiveNow: (ref: unknown) => Boolean(ref),
-  subscribeActivePlan: () => () => undefined,
-  setActivePlanRole: vi.fn(),
-  markActivePlan: vi.fn(),
-}));
 vi.mock("@/lib/planSessionCapability", () => ({
   parsePlanCapabilitySnapshot: () => ({ token: "member-token", collaborationAuthorized: true, role: "host" }),
   planCapabilityEvent: (id: string) => `pubmax:plan-capability:${id}`,
@@ -31,6 +22,7 @@ vi.mock("@/components/media/VenueImage", () => ({
     createElement("img", { "data-testid": "plan-card-photo", src: sources[0]?.url, alt }),
 }));
 
+import { clearActivePlan, markActivePlan } from "@/lib/activePlan";
 import PlanCard, { planStartInWords } from "@/components/plan/PlanCard";
 import { clearPlanMemberProjectionRead } from "@/components/plan/usePlanMemberRead";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
@@ -87,7 +79,7 @@ function respond(body: unknown, ok = true): Response {
 beforeEach(() => {
   clearPlanMemberProjectionRead(PLAN);
   clearSurfaceCache();
-  active.ref = null;
+  clearActivePlan();
   planBody = memberBody();
   venueBody = { venue: { id: "v-first", imageUrl: "https://example.com/lamb.jpg", kind: "pub" } };
   venueReads.length = 0;
@@ -108,6 +100,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  clearActivePlan();
   vi.restoreAllMocks();
 });
 
@@ -165,7 +158,7 @@ describe("PlanCard", () => {
   });
 
   it("offers Night mode only while the night is on, and opens the existing night crawl mode", async () => {
-    active.ref = { id: PLAN, startTime: "2026-07-17T18:00:00.000Z", role: "host" };
+    markActivePlan(PLAN, new Date().toISOString());
     await render();
     expect(actionLabels()).toEqual(["Send to the crew", "Who’s in", "Night mode"]);
     const engaged: unknown[] = [];

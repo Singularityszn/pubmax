@@ -1,5 +1,7 @@
 "use client";
 
+import { useOwnedActivePlan } from "@/components/night/useOwnedActivePlan";
+
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import VenueImage from "@/components/media/VenueImage";
@@ -8,7 +10,7 @@ import { canonicalStateFromBody } from "@/components/plan/PlanSummary";
 import PlanRoundForecast from "@/components/plan/PlanRoundForecast";
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { Button } from "@/components/ui/button";
-import { isPlanActiveNow, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
+import { isPlanActiveNow, subscribeActivePlan } from "@/lib/activePlan";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
 import type { PlanState } from "@/lib/plan";
 import { isPlanPreviewProjection } from "@/lib/planPrivacy";
@@ -96,6 +98,7 @@ function usePlanCover(venueId: string | null): Cover | null {
 
 /** Is this plan's night on right now? The same pointer Night mode reads. */
 function usePlanOnTonight(planId: string): boolean {
+  const ref = useOwnedActivePlan();
   return useSyncExternalStore(
     (onChange) => {
       const unsubscribe = subscribeActivePlan(onChange);
@@ -106,7 +109,6 @@ function usePlanOnTonight(planId: string): boolean {
       };
     },
     () => {
-      const ref = readActivePlan();
       return Boolean(ref && ref.id === planId && isPlanActiveNow(ref, Date.now()));
     },
     () => false,

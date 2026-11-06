@@ -43,6 +43,7 @@ export type ActivePlanRef = {
   startTime: string;
   /** User-advanced "which stop are we at" cursor — never inferred, only tapped. */
   stopIndex: number;
+  ownerId?: string | null;
   /** Safe continuity only; never grants host/guest mutation authority. */
   role?: PlanMemberRole | null;
   /** A preview selection, not a completed ending. Server confirmation remains required. */
@@ -113,12 +114,13 @@ export function parseActivePlan(raw: string | null | undefined): ActivePlanRef |
   const palContext = rawPal && typeof rawPal.id === "string" && rawPal.id.length <= 120 && typeof rawPal.name === "string" && rawPal.name.length <= 80
     ? { id: rawPal.id, name: rawPal.name }
     : null;
-  return { version: ACTIVE_PLAN_VERSION, id: row.id, startTime: row.startTime, stopIndex: cleanStopIndex(row.stopIndex), role, endingPreview, palContext };
+  return { version: ACTIVE_PLAN_VERSION, ownerId: typeof row.ownerId === "string" && row.ownerId ? row.ownerId : null, id: row.id, startTime: row.startTime, stopIndex: cleanStopIndex(row.stopIndex), role, endingPreview, palContext };
 }
 
 export function serializeActivePlan(ref: ActivePlanRef): string {
   return JSON.stringify({
     version: ACTIVE_PLAN_VERSION,
+    ownerId: ref.ownerId ?? null,
     id: ref.id,
     startTime: ref.startTime,
     stopIndex: cleanStopIndex(ref.stopIndex),
@@ -179,6 +181,11 @@ export function readActivePlan(): ActivePlanRef | null {
   }
 }
 
+export function readOwnedActivePlan(accountId: string | null): ActivePlanRef | null {
+  const ref = readActivePlan();
+  return ref && (ref.ownerId ?? null) === accountId ? ref : null;
+}
+
 /** Persist (or replace) the active-plan pointer. No-op on SSR / invalid / failure. */
 export function writeActivePlan(ref: ActivePlanRef): void {
   if (!hasLocal()) return;
@@ -196,14 +203,14 @@ export function writeActivePlan(ref: ActivePlanRef): void {
  * Preserves an existing stopIndex when re-recording the SAME plan (a revisit
  * must not reset how far the crew has walked); resets to 0 for a new plan.
  */
-export function markActivePlan(id: string, startTime: string, now: number = Date.now()): void {
+export function markActivePlan(id: string, startTime: string, now: number = Date.now(), ownerId: string | null = null): void {
   if (!isPlanId(id) || Number.isNaN(Date.parse(startTime))) return;
-  const current = readActivePlan();
+  const current = readOwnedActivePlan(ownerId);
   // Opening a past/future plan page must not evict the plan that's live RIGHT
   // NOW (which would hide the live Night Mode card). Only replace the pointer
   // when there's no stored plan, it's the same plan, the stored plan is no
   // longer in its active window, or the incoming plan is itself active now.
-  const candidate: ActivePlanRef = { version: ACTIVE_PLAN_VERSION, id, startTime, stopIndex: 0, role: null, endingPreview: null, palContext: null };
+  const candidate: ActivePlanRef = { version: ACTIVE_PLAN_VERSION, ownerId, id, startTime, stopIndex: 0, role: null, endingPreview: null, palContext: null };
   if (
     current &&
     current.id !== id &&
@@ -215,7 +222,7 @@ export function markActivePlan(id: string, startTime: string, now: number = Date
   const continuity = current && current.id === id
     ? { stopIndex: current.stopIndex, role: current.role ?? null, endingPreview: current.endingPreview ?? null, palContext: current.palContext ?? null }
     : { stopIndex: 0, role: null, endingPreview: null, palContext: null };
-  writeActivePlan({ version: ACTIVE_PLAN_VERSION, id, startTime, ...continuity });
+  writeActivePlan({ version: ACTIVE_PLAN_VERSION, ownerId, id, startTime, ...continuity });
 }
 
 /** Persist a new stop cursor for the active plan (the "here now" tap). */
@@ -237,8 +244,8 @@ export function setActivePlanEndingPreview(planId: string, endingPreview: CrawlE
   writeActivePlan({ ...current, endingPreview });
 }
 
-export function setActivePlanPalContext(palContext: ActivePlanRef["palContext"]): void {
-  const current = readActivePlan();
+export function setActivePlanPalContext(palContext: ActivePlanRef["palContext"], accountId: string | null = null): void {
+  const current = readOwnedActivePlan(accountId);
   if (!current) return;
   writeActivePlan({ ...current, palContext: palContext ?? null });
 }

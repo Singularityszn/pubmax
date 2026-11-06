@@ -118,3 +118,22 @@ it("does not revive a server portrait after signing out and returning while the 
   await render("owner-a");
   expect(container.textContent).toBe("Pub Pal");
 });
+
+it.each(["hidden", "removed"])("invalidates a visible server result after an already hidden cache becomes %s", async (change) => {
+  const hidden = { ...pal("owner-a", "Cached Pal"), hidden: true };
+  cache(hidden);
+  let finish!: (value: Response) => void;
+  fetches.fetch.mockResolvedValueOnce(response("owner-a", "Server Pal"))
+    .mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+  await render("owner-a");
+  expect(container.textContent).toBe("Server Pal");
+  await act(async () => {
+    if (change === "hidden") cache({ ...hidden, updatedAt: "2026-10-04T12:01:00.000Z" });
+    else localStorage.removeItem(LOCAL_PAL_KEY);
+    announceLocalPalChange();
+  });
+  expect(container.textContent).toBe("Pub Pal");
+  expect(fetches.fetch).toHaveBeenCalledTimes(2);
+  await act(async () => finish(new Response(null, { status: 503 })));
+  expect(container.textContent).toBe("Pub Pal");
+});

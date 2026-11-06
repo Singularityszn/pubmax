@@ -15,6 +15,7 @@ import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/componen
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { trackEvent } from "@/lib/analytics";
+import { useOwnedActivePlan } from "@/components/night/useOwnedActivePlan";
 import { useOwnPal } from "@/components/pal/useOwnPal";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
@@ -1267,6 +1268,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const selectedIdRef = useRef(selectedVenueId);
   // The reader's Pub Pal perched beside the selected pin (palMarker.ts).
   const ownPal = useOwnPal();
+  const ownPlan = useOwnedActivePlan();
   const palMarkerRef = useRef<PalMapMarker | null>(null);
   // The last crawl stop the Pal was sent to, so a re-render never resends it.
   const palVisitKeyRef = useRef("");
@@ -4544,8 +4546,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Tonight's next stop: the reader's Pal waits beside it and, tapped there,
   // opens it the way a tapped route stop does.
   // The crew's Pals wait there with it, as pictures, never buttons.
-  const palNextVenueId = palNextStop?.venueId ?? "";
-  const palNextName = palNextStop?.name ?? "";
+  const palNextVenueId = ownPlan ? palNextStop?.venueId ?? "" : "";
+  const palNextName = ownPlan ? palNextStop?.name ?? "" : "";
   useEffect(() => {
     if (!mapReady) return;
     const stop = palNextVenueId ? routeIds.split(",").indexOf(palNextVenueId) : -1;

@@ -19,7 +19,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) => createElement("a", { href }, children),
 }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null, session: null }) }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null, session: null, getCurrentUserId: () => null }) }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/pal/PubPalMascot", () => ({ PubPalMascot: () => null }));
 vi.mock("@/components/pal/PalChatCompanion", () => ({ default: () => null }));

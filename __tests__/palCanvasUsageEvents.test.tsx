@@ -13,9 +13,9 @@ const boundary = vi.hoisted(() => ({
   reducedMotion: false,
 }));
 
-const auth = vi.hoisted(() => ({ userId: "owner-a" as string | null, liveId: "owner-a" as string | null, loading: false }));
+const auth = vi.hoisted(() => ({ getCurrentUserId: (): string | null => auth.liveId, userId: "owner-a" as string | null, liveId: "owner-a" as string | null, loading: false }));
 vi.mock("@/components/auth/authContext", () => ({
-  useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null, loading: auth.loading, getCurrentUserId: () => auth.liveId }),
+  useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null, loading: auth.loading, getCurrentUserId: auth.getCurrentUserId }),
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/map", useRouter: () => ({ prefetch() {} }) }));
 vi.mock("@/components/pal/usePalHead3D", () => ({ usePalHead3D() {} }));
@@ -132,6 +132,8 @@ import {
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
 import { announceLocalPalChange, LOCAL_PAL_KEY } from "@/lib/localPal";
+import { markActivePlan, readActivePlan, setActivePlanPalContext } from "@/lib/activePlan";
+import { useActivePlanRoute, useActivePlanPalNextStop } from "@/components/map/pubmap/useActivePlanRoute";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import type { LegOption } from "@/lib/legOptions";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
@@ -219,6 +221,7 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
       adultAttestedAt: now, muted: false, hidden: false, proposalPreferences: {}, masteryPoints: 0,
       createdAt: now, updatedAt: now,
     }));
+    markActivePlan("11111111-1111-4111-8111-111111111111", new Date().toISOString(), Date.now(), "owner-a");
     showLegRouteOnMap(null);
     host = document.createElement("div");
     document.body.append(host);
@@ -376,8 +379,9 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
         assertPersonal("Moss");
         const newMarker = host.querySelector<HTMLElement>(".palMapMarker")!;
         expect(newMarker).not.toBe(oldMarker);
+        expect(newMarker.getAttribute("aria-label")).not.toBe("Next stop: The Crown");
         newMarker.click();
-        expect(openStop).toHaveBeenCalledExactlyOnceWith("venue-b");
+        expect(openStop).not.toHaveBeenCalled();
       }
       await choose("walk");
       await frame();
@@ -385,6 +389,55 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
       expect(boundary.maps[0]!.removed).toBe(false);
     },
   );
+
+  it("retires account A's map route and actions when B opens Pal and returns", async () => {
+    boundary.reducedMotion = true;
+    const openStop = vi.fn();
+    const planId = "11111111-1111-4111-8111-111111111111";
+    const stops = route.map((v, position) => ({ venueId: v.id, venueName: v.name, position }));
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input) === `/api/plans/${planId}` ? { stops } : {},
+    ), { status: String(input) === `/api/plans/${planId}` ? 200 : 503 }));
+    function MapJourney() {
+      const activeStops = useActivePlanRoute();
+      const activeRoute = activeStops.map(stop => route.find(v => v.id === stop.venueId)!);
+      const { palNextStop } = useActivePlanPalNextStop(activeStops, activeRoute, false, new Map(route.map(v => [v.id, v])));
+      return createElement(Fragment, null,
+        createElement("output", { "data-testid": "retained-route" }, activeStops.map(stop => stop.venueId).join(",")),
+        createElement(PubMapCanvas, { ...props, route: activeRoute, palNextStop, onRouteStopClick: openStop }),
+        createElement(PubPalSummon),
+      );
+    }
+    await act(async () => root.render(createElement(MapJourney)));
+    await ready();
+    expect(host.querySelector("output")?.textContent).toBe("venue-a,venue-b");
+    const oldMarker = host.querySelector<HTMLElement>(".palMapMarker")!;
+    expect(oldMarker.getAttribute("aria-label")).toBe("Next stop: The Crown");
+    oldMarker.click();
+    expect(openStop).toHaveBeenCalledExactlyOnceWith("venue-b");
+    openStop.mockClear();
+    const oldPal = JSON.parse(localStorage.getItem(LOCAL_PAL_KEY)!);
+    await act(async () => {
+      auth.userId = auth.liveId = "owner-b";
+      bindDeviceAccountOwner("owner-b", localStorage, sessionStorage);
+      localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify({ ...oldPal, id: "pal-b", ownerId: "owner-b", name: "Moss" }));
+      setActivePlanPalContext({ id: "pal-b", name: "Moss" }, "owner-b");
+      emitDeviceIdentityChanged();
+      announceLocalPalChange();
+    });
+    await act(async () => root.render(createElement(MapJourney)));
+    await choose("walk");
+    await frame();
+    expect(readActivePlan()?.ownerId).toBe("owner-a");
+    expect(host.querySelector("output")?.textContent).toBe("");
+    expect(host.querySelector(".palSummon small")?.textContent).not.toContain("Stop");
+    expect(host.querySelector("[aria-label='Next stop: The Crown']")).toBeNull();
+    oldMarker.click();
+    expect(openStop).not.toHaveBeenCalled();
+    expect(leads()).toHaveLength(0);
+    expect(boundary.maps).toHaveLength(1);
+    expect(boundary.maps[0]!.removed).toBe(false);
+  });
 
   it.each(["signed-out", "loading"])("creates no own marker for a %s account with a retained cache", async (state) => {
     if (state === "signed-out") auth.userId = auth.liveId = null;

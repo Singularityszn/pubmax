@@ -701,7 +701,7 @@ export default function PalExperience() {
       setEditingMemoryId("");
       setEditingMemoryValue("");
       setError(null);
-      setActivePlanPalContext(null);
+      setActivePlanPalContext(null, getCurrentUserId());
       palMutationRef.current = null;
       setSaving(false);
       controlSavingRef.current = null;
@@ -717,7 +717,7 @@ export default function PalExperience() {
         setAdultOnFile(response.ok && body.adultOnFile === true);
         const next = response.ok ? body.pal ?? null : readStoredPal(getCurrentUserId());
         if (next?.ownerId === ownerId) {
-          setActivePlanPalContext({ id: next.id, name: next.name });
+          setActivePlanPalContext({ id: next.id, name: next.name }, getCurrentUserId());
           writeStored(LOCAL_PAL_KEY, next);
           setPal(next);
           setDraft({
@@ -756,7 +756,7 @@ export default function PalExperience() {
         if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
         const next = readStoredPal(getCurrentUserId());
         if (next?.ownerId === ownerId) {
-          setActivePlanPalContext({ id: next.id, name: next.name });
+          setActivePlanPalContext({ id: next.id, name: next.name }, getCurrentUserId());
           setPal(next);
           setMode("home");
         }
@@ -824,7 +824,7 @@ export default function PalExperience() {
       writeStored(LOCAL_PAL_KEY, next);
       writeStored(`${PRIVACY_KEY}:${ownerId}`, { proposeMemories: privacy.proposeMemories });
       setPal(next);
-      setActivePlanPalContext({ id: next.id, name: next.name });
+      setActivePlanPalContext({ id: next.id, name: next.name }, getCurrentUserId());
       setMode("home");
       clearPalOnboardingDraft(draftOwner);
     } catch (cause) {
@@ -1033,7 +1033,7 @@ export default function PalExperience() {
       if (activeOwnerRef.current !== ownerId) return;
       removeStored(LOCAL_PAL_KEY);
       removeStored(`${PRIVACY_KEY}:${ownerId}`);
-      setActivePlanPalContext(null);
+      setActivePlanPalContext(null, getCurrentUserId());
       setMemories([]);
       setPal(null);
       setDraft(DEFAULT_PAL_DRAFT);

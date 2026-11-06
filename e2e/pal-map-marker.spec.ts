@@ -54,7 +54,7 @@ test.describe("the Pal on the map", () => {
         handle: account.handle, lastActiveAt: Date.now(),
       }))));
       window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
-        version: 1, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
+        version: 1, ownerId: accounts.A.id, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
       }));
     }, { accounts: ACCOUNTS, accountsKey: DEVICE_ACCOUNTS_KEY, planId: PLAN_ID });
     await page.goto("/map");
@@ -117,14 +117,14 @@ test.describe("the Pal on the map", () => {
     }));
     await page.route(`**/api/plans/${PLAN_ID}/pals`, (route) => route.fulfill({ json: { visibility: "member", pals: [] } }));
     await seedPal(page);
-    await page.addInitScript((planId) => {
+    await page.addInitScript(({ planId, ownerId }) => {
       // Set once, so a reload or a later cursor write in the test is kept.
       if (window.sessionStorage.getItem("e2e-plan-seeded")) return;
       window.sessionStorage.setItem("e2e-plan-seeded", "1");
       window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
-        version: 1, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
+        version: 1, ownerId, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
       }));
-    }, PLAN_ID);
+    }, { planId: PLAN_ID, ownerId: ACCOUNTS.A.id });
     await page.goto("/map");
 
     // On the first stop, tonight's next stop is the second: the Pal waits there as a button.

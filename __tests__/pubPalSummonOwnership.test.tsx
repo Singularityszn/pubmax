@@ -8,7 +8,7 @@ vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ ...auth, get
 vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
-import { readActivePlan, writeActivePlan } from "@/lib/activePlan";
+import { markActivePlan, readActivePlan, setActivePlanPalContext, setActivePlanStopIndex, writeActivePlan } from "@/lib/activePlan";
 import { announcePalMoment } from "@/lib/palMoments";
 import { readPendingCompletedNight, recordCompletedNight } from "@/lib/morningReentry";
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
@@ -51,7 +51,7 @@ describe("mounted Pal shortcut ownership", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     vi.setSystemTime(new Date(2026, 9, 18, 9, 0));
     const planId = "11111111-1111-4111-8111-111111111111";
-    writeActivePlan({ id: planId, startTime: new Date(2026, 9, 17, 23, 0).toISOString(), stopIndex: 6, palContext: { id: "pal-account-a", name: "Robin" } });
+    writeActivePlan({ ownerId: "account-a", id: planId, startTime: new Date(2026, 9, 17, 23, 0).toISOString(), stopIndex: 6, palContext: { id: "pal-account-a", name: "Robin" } });
     recordCompletedNight({ version: 1, planId, title: "A's night", completedAt: new Date(2026, 9, 18, 1, 0).toISOString() });
     await render();
     expect(host.querySelector("small")?.textContent).toBe("Morning. Last night's kept");
@@ -71,11 +71,13 @@ describe("mounted Pal shortcut ownership", () => {
     expect(host.querySelector("small")?.textContent).toBe("Morning. Tap to plan tonight");
   });
 
-  it("keeps device plan continuity without attributing its cursor to another account's Pal", async () => {
+  it("does not transfer a night when the next account opens Pal and returns to the map", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     vi.setSystemTime(new Date(2026, 9, 18, 19, 0));
     const planId = "11111111-1111-4111-8111-111111111111";
-    writeActivePlan({ id: planId, startTime: new Date().toISOString(), stopIndex: 4, palContext: { id: "pal-account-a", name: "Robin" } });
+    markActivePlan(planId, new Date().toISOString(), Date.now(), "account-a");
+    setActivePlanStopIndex(4);
+    setActivePlanPalContext({ id: "pal-account-a", name: "Robin" }, "account-a");
     await render();
     expect(host.querySelector("small")?.textContent).toBe("Night's on. Stop 5");
     auth.user = { id: "account-b" };
@@ -85,9 +87,11 @@ describe("mounted Pal shortcut ownership", () => {
     expect(host.querySelector("small")?.textContent).toBe("Where to tonight?");
     expect(readActivePlan()?.stopIndex).toBe(4);
     await act(async () => {
-      writeActivePlan({ id: planId, startTime: new Date().toISOString(), stopIndex: 2, palContext: { id: "pal-account-b", name: "Pip" } });
+      setActivePlanPalContext({ id: "pal-account-b", name: "Pip" }, "account-b");
     });
-    expect(host.querySelector("small")?.textContent).toBe("Night's on. Stop 3");
+    expect(readActivePlan()?.ownerId).toBe("account-a");
+    expect(readActivePlan()?.palContext?.id).toBe("pal-account-a");
+    expect(host.querySelector("small")?.textContent).toBe("Where to tonight?");
   });
 
   it("removes the previous account's shortcut during an account switch on the same route", async () => {

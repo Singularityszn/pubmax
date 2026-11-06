@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   isPlanActiveNow,
-  readActivePlan,
+  readOwnedActivePlan,
   subscribeActivePlan,
 } from "@/lib/activePlan";
+import { useAuth } from "@/components/auth/authContext";
+import { useOwnedActivePlan } from "@/components/night/useOwnedActivePlan";
 import { planNextStopVenue } from "@/lib/activePlanRoute";
 import type { PlanState, PlanStopDTO } from "@/lib/plan";
 import type { Venue } from "@/lib/venues";
@@ -25,6 +27,7 @@ import type { Venue } from "@/lib/venues";
 // useActivePlan's own WINDOW_TICK_MS. The window edges are hours wide, so 60s is
 // plenty and stays off the paint/RAF hot path.
 const WINDOW_TICK_MS = 60_000;
+const NO_STOPS: PlanStopDTO[] = [];
 
 /**
  * Ordered stops of the plan that's on tonight, or [] when nothing is live.
@@ -32,9 +35,13 @@ const WINDOW_TICK_MS = 60_000;
  * client-only), then upgrades after mount — no hydration mismatch.
  */
 export function useActivePlanRoute(): PlanStopDTO[] {
-  const [stops, setStops] = useState<PlanStopDTO[]>([]);
+  const ref = useOwnedActivePlan();
+  const { getCurrentUserId } = useAuth();
+  const source = ref ? `${ref.ownerId ?? ""}:${ref.id}` : null;
+  const [loaded, setLoaded] = useState<{ source: string | null; stops: PlanStopDTO[] } | null>(null);
 
   useEffect(() => {
+    if (!source) return;
     let active = true;
     // Keep the overlay tied to the canonical plan read. A creator can save a
     // new route revision in another tab, so same-plan focus/timer events must
@@ -43,17 +50,17 @@ export function useActivePlanRoute(): PlanStopDTO[] {
     let loadedPlanId = "";
 
     const load = () => {
-      const ref = readActivePlan();
+      const ref = readOwnedActivePlan(getCurrentUserId());
       if (!ref || !isPlanActiveNow(ref, Date.now())) {
         requestController?.abort();
         requestController = null;
         loadedPlanId = "";
-        if (active) setStops([]);
+        if (active) setLoaded(null);
         return;
       }
       if (loadedPlanId !== ref.id) {
         loadedPlanId = ref.id;
-        if (active) setStops([]);
+        if (active) setLoaded(null);
       }
       requestController?.abort();
       requestController = new AbortController();
@@ -62,7 +69,7 @@ export function useActivePlanRoute(): PlanStopDTO[] {
         .then((res) => (res.ok ? res.json() : null))
         .then((body: PlanState | null) => {
           if (!active || controller !== requestController) return;
-          setStops(body && Array.isArray(body.stops) ? body.stops : []);
+          setLoaded({ source, stops: body && Array.isArray(body.stops) ? body.stops : [] });
         })
         .catch((error: unknown) => {
           if (!active || controller !== requestController) return;
@@ -82,13 +89,10 @@ export function useActivePlanRoute(): PlanStopDTO[] {
       unsub();
       window.clearInterval(timer);
     };
-  }, []);
+  }, [source, getCurrentUserId]);
 
-  return stops;
+  return ref && loaded?.source === source ? loaded.stops : NO_STOPS;
 }
-
-const readStopIndex = (): number => readActivePlan()?.stopIndex ?? 0;
-const serverStopIndex = (): number => 0;
 
 /**
  * Is the route on the map tonight's plan (not a crawl the reader is building),
@@ -107,8 +111,9 @@ export function useActivePlanPalNextStop(
   routeMappedActive: boolean,
   venueById: ReadonlyMap<string, Venue>,
 ): { routeIsActivePlan: boolean; palNextStop: { venueId: string; name: string } | null } {
-  const stopIndex = useSyncExternalStore(subscribeActivePlan, readStopIndex, serverStopIndex);
-  const routeIsActivePlan = !routeMappedActive && activePlanRoute.length > 1;
+  const ref = useOwnedActivePlan();
+  const stopIndex = ref?.stopIndex ?? 0;
+  const routeIsActivePlan = Boolean(ref) && !routeMappedActive && activePlanRoute.length > 1;
   const palNextStop = useMemo(() => {
     if (!routeIsActivePlan) return null;
     const next = planNextStopVenue(stops, stopIndex, venueById);

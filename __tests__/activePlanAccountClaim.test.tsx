@@ -24,6 +24,8 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     user: state.user,
     session: state.session,
     identityResolved: state.identityResolved,
+    loading: false,
+    getCurrentUserId: () => state.user?.id ?? null,
   }),
 }));
 vi.mock("@/lib/accountBoundFetch", async (importOriginal) => ({
