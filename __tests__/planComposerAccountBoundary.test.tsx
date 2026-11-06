@@ -56,6 +56,7 @@ import { PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
 import { createPlanIntakeDraft, readPlanIntakeDraft, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 const ACCOUNT_A = { id: "11111111-1111-4111-8111-111111111111" };
 const ACCOUNT_B = { id: "22222222-2222-4222-8222-222222222222" };
@@ -77,6 +78,7 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 
 beforeEach(() => {
+  setProviderIdentity("supabase", null);
   navigation.push.mockClear();
   authFixture.user = null;
   authFixture.handle = null;
@@ -218,8 +220,15 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     expect(generations()).toBe(beforeSwitch);
   });
 
-  it.each(["creation", "metadata", "active account"])("preserves draft ownership through %s completion", async (stage) => {
+  it.each([
+    ["creation", true],
+    ["metadata", true],
+    ["active account", true],
+    ["creation", false],
+    ["metadata", false],
+  ] as const)("preserves draft ownership through %s completion with form replacement %s", async (stage, replaceForm) => {
     authFixture.user = ACCOUNT_A;
+    setProviderIdentity("supabase", ACCOUNT_A.id);
     bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
     let finish!: (response: Response) => void;
     const pending = new Promise<Response>((resolve) => { finish = resolve; });
@@ -258,11 +267,17 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
       return;
     }
 
+    if (!replaceForm) setProviderIdentity("supabase", ACCOUNT_B.id);
     clearDeviceAccountSessionArtifacts(sessionStorage);
     bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
     authFixture.user = ACCOUNT_B;
-    await rerender();
-    await editInput(QUERY, "B's own request");
+    if (replaceForm) {
+      await rerender();
+      await editInput(QUERY, "B's own request");
+    } else {
+      sessionStorage.setItem(PLAN_DRAFT_V2_KEY, JSON.stringify({ draft: { conciergeQuery: "B's own request" } }));
+      writePlanIntakeDraft(createPlanIntakeDraft());
+    }
     await vi.waitFor(() => expect(storedRequest()).toBe("B's own request"));
     const bDraft = sessionStorage.getItem(PLAN_DRAFT_V2_KEY);
     const bIntake = localStorage.getItem("pubmax:plan-intake:v1");
@@ -272,13 +287,14 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(bDraft);
     expect(localStorage.getItem("pubmax:plan-intake:v1")).toBe(bIntake);
     expect(localStorage.getItem(PLAN_HOST_NAME_KEY)).toBeNull();
-    expect(queryValue()).toBe("B's own request");
+    if (replaceForm) expect(queryValue()).toBe("B's own request");
     expect(navigation.push).not.toHaveBeenCalled();
     if (stage === "creation") expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   });
 
-  it("does not save or display A's route when generation completes after the switch", async () => {
+  it.each([true, false])("discards A's generation after the switch with form replacement %s", async (replaceForm) => {
     authFixture.user = ACCOUNT_A;
+    setProviderIdentity("supabase", ACCOUNT_A.id);
     bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
     let finish!: (response: Response) => void;
     const pending = new Promise<Response>((resolve) => { finish = resolve; });
@@ -288,11 +304,16 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     await mountComposer();
     await editInput(QUERY, "Three pubs in Soho");
     await act(async () => { [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click(); });
+    if (!replaceForm) setProviderIdentity("supabase", ACCOUNT_B.id);
     clearDeviceAccountSessionArtifacts(sessionStorage);
     bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
     authFixture.user = ACCOUNT_B;
-    await rerender();
-    await editInput(QUERY, "B's own request");
+    if (replaceForm) {
+      await rerender();
+      await editInput(QUERY, "B's own request");
+    } else {
+      sessionStorage.setItem(PLAN_DRAFT_V2_KEY, JSON.stringify({ draft: { conciergeQuery: "B's own request" } }));
+    }
     await vi.waitFor(() => expect(storedRequest()).toBe("B's own request"));
     await act(async () => { finish(Response.json(GENERATED)); });
     await settle();

@@ -25,6 +25,7 @@ import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
 import { moveItem } from "@/lib/planStopReorder";
@@ -3058,8 +3059,10 @@ function PlanComposerForm({
     intakeOverride?: PlanIntakeDraft,
     context: Partial<NightContext> = requestContext,
   ) {
-    const signal = formLifetime.current?.signal;
-    if (!signal || signal.aborted) return;
+    const lifetimeSignal = formLifetime.current?.signal;
+    if (!lifetimeSignal) return;
+    const signal = AbortSignal.any([lifetimeSignal, readProviderAccountSignal()]);
+    if (signal.aborted) return;
     // Both overrides (from the describe-first entry surface) are threaded
     // through explicitly before React re-renders, so state reads here cannot
     // send the pre-skip intake to the server.
@@ -3246,8 +3249,10 @@ function PlanComposerForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const signal = formLifetime.current?.signal;
-    if (!signal || signal.aborted) return;
+    const lifetimeSignal = formLifetime.current?.signal;
+    if (!lifetimeSignal) return;
+    const signal = AbortSignal.any([lifetimeSignal, readProviderAccountSignal()]);
+    if (signal.aborted) return;
     const validationError = planLockValidationError({
       title,
       creatorName,

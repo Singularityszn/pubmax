@@ -69,12 +69,13 @@ import {
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   bindDeviceAccountOwner,
-  clearDeviceAccountArtifacts,
   clearDeviceAccountSessionArtifacts,
   emitDeviceIdentityChanged,
   liveAccountDeparted,
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
+import { clearPersistedPlanDrafts } from "@/lib/planComposerHandoff";
+import { clearPlanIntakeDraft } from "@/lib/planIntake";
 import {
   emitDeviceAccountSessionsChanged,
   forgetAllDeviceAccounts,
@@ -422,8 +423,11 @@ export function AuthProvider({
       // tab's sessionStorage still belongs to its previous live account.
       const tabOwnerChanged = liveAccountDeparted(previousUserId, nextUserId);
       if (tabOwnerChanged) {
-        if (nextUserId === null) clearDeviceAccountArtifacts(browserLocalStorage(), browserSessionStorage());
-        else clearDeviceAccountSessionArtifacts(browserSessionStorage());
+        clearDeviceAccountSessionArtifacts(browserSessionStorage());
+        if (nextUserId === null) {
+          clearPersistedPlanDrafts({ planDraft: browserSessionStorage(), routeDraft: browserLocalStorage() });
+          clearPlanIntakeDraft(browserLocalStorage());
+        }
       }
       const deviceOwnerChanged = nextUserId
         ? bindDeviceAccountOwner(nextUserId, browserLocalStorage(), browserSessionStorage())

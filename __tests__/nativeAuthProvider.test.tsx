@@ -123,11 +123,19 @@ describe("tab-local private state across account events", () => {
 
   it("clears recovered Plan inputs on provider sign-out before another account signs in", async () => {
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
-    localStorage.setItem("pubmaxx:plan-route-draft:v1", "account-a-route");
-    localStorage.setItem("pubmax:plan-intake:v1", "account-a-accessibility");
+    const planKeys = ["pubmaxx:plan-route-draft:v1", "pubmax:plan-route-draft:v2", "pubmax:plan-intake:v1"];
+    for (const key of planKeys) localStorage.setItem(key, "account-a-plan-input");
+    const retained = {
+      pubmax_pub_pal_v1: "saved-pal",
+      "pubmax:pal-quest-stamps:v1": "quest-stamps",
+      "pubmax:optimistic-spill-posts:v1": "pending-pint-drop",
+      "pubmaxx.night-profile.v1:device": JSON.stringify({ source: "account", profile: "account-a-profile" }),
+    };
+    for (const [key, value] of Object.entries(retained)) localStorage.setItem(key, value);
     await act(async () => { h.session = null; h.subscriber?.("SIGNED_OUT", null); });
-    expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
-    expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
+    for (const key of planKeys) expect(localStorage.getItem(key)).toBeNull();
+    for (const [key, value] of Object.entries(retained)) expect(localStorage.getItem(key)).toBe(value);
+    expect(deviceAccountOwner(localStorage)).toBe(original.user.id);
     await act(async () => { h.session = replacement; h.subscriber?.("SIGNED_IN", replacement); });
     expect(container.textContent).toBe("replacement");
     expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
