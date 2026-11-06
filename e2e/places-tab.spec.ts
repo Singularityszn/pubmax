@@ -8,7 +8,7 @@ import { expect, test, type Page } from "@playwright/test";
 // Product owner, Oct 2026 UX audit: Places is a setting, not a tab. The primary
 // row is Map, Tonight, Plan, You; the picker is reached from the map's city
 // chip ("Search a UK town") and the footer's "Pick your city", and its list
-// names only the cities with listed prices plus one waitlist line.
+// keeps London as the first planning door, with one city-request line.
 
 const PREFERRED_CITY_KEY = "pubmax:preferredCity:v1";
 
@@ -68,16 +68,18 @@ test.describe("places tab @390", () => {
     const head = page.locator(".screenHead");
     await expect(head.locator(".kicker")).toHaveText("Places");
     await expect(
-      page.getByRole("heading", { level: 1, name: "London only, for now.", exact: true }),
+      page.getByRole("heading", { level: 1, name: "London first.", exact: true }),
     ).toBeVisible();
     // Exactly one painted action on the screen.
     await expect(page.locator("[data-primary-action]")).toHaveCount(1);
 
     await expect(page.getByRole("link", { name: "Open London", exact: true })).toHaveAttribute("href", "/places?city=london");
-    await expect(page.getByText("London is the one city with listed pint prices.", { exact: false })).toBeVisible();
+    await expect(page.getByText("Price coverage varies by place and source.", { exact: false })).toBeVisible();
+    await expect(page.getByText("London is the one city with listed pint prices.", { exact: false })).toHaveCount(0);
     await expect(page.getByText("Prices coming", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Browse pubs across the UK", exact: true })).toHaveAttribute("href", /\/map/);
-    await expect(page.getByText(/Outside London the map shows the pubs, without prices yet/)).toBeVisible();
+    await expect(page.getByText("Find a town to browse the pubs on the map.", { exact: false })).toBeVisible();
+    await expect(page.getByText(/Outside London the map shows the pubs, without prices yet/)).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Want your city next? Tell us.", exact: true }))
       .toHaveAttribute("href", "mailto:hello@pubmaxxing.com?subject=City%20request");
     const field = page.getByLabel("Find a town");

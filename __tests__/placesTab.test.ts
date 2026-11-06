@@ -570,11 +570,14 @@ describe("Places screen", () => {
     expect(list).toContain(PLACES_TITLE);
     // Exactly one painted action per screen, counted the way coreUiAudit does.
     expect(list.match(/data-primary-action/g)?.length).toBe(1);
-    // ONE CITY SAYS SO (taste plan, 18 Oct 2026): the heading names London
-    // as the only city, the one door opens it and the city request sits
+    // London keeps the first door and the city request sits
     // beside that door. No city search field, no one-row city list, and no
-    // other city named.
-    expect(list).toContain("London only, for now.");
+    // other city named. This does not claim that other cities have no prices.
+    expect(list).toContain("London first.");
+    expect(list).toContain("Price coverage varies by place and source.");
+    expect(list).not.toContain("the one city with listed pint prices");
+    expect(list).not.toContain("without prices yet");
+    expect(list).toMatch(/href="\/places\?city=london"[^>]*>Open London<\/a>/);
     expect(list).not.toContain("Manchester");
     expect(list).not.toContain(PLACES_PRICES_COMING_PILL);
     expect(list).not.toContain(PLACES_PRICES_LISTED_PILL);

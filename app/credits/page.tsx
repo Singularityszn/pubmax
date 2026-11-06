@@ -9,7 +9,7 @@ import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 
 import "../legal.css";
 
-// /credits - every outside source PUBMAXX shows data from, its licence and the
+// /credits - every outside source PUBMAXX shows data from, its recorded licence details and the
 // credit it asks for. Server component, zero client JS, on the legal shell.
 //
 // SAME HOUSE RULE AS /privacy: the page describes what the code does. The
@@ -19,7 +19,7 @@ import "../legal.css";
 
 const PAGE_TITLE = "Data credits";
 const PAGE_DESCRIPTION =
-  "Where PUBMAXX data comes from: every outside source, the licence it is used under and the credit it asks for.";
+  "Where PUBMAXX data comes from: every outside source, its credit and any recorded licence information.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -43,18 +43,18 @@ export default function DataCreditsPage() {
         <Kicker>Small print</Kicker>
         <h1 className="legalTitle">Where our data comes from</h1>
         <p className="legalLede">
-          Most of what you see on PUBMAXX is other people&rsquo;s open data. A
-          price is either what a drinker logged or what a pub&rsquo;s own menu
-          states. Every outside source is below, with the licence we use it
-          under and the credit it asks for.
+          PUBMAXX uses open data and other published sources. Prices come from
+          drinker logs, pubs&rsquo; own menus and published directories. Every
+          outside source is below, with its credit and the licence information
+          recorded in this registry.
         </p>
       </header>
 
       <section className="legalSection" aria-labelledby="notice">
         <h2 id="notice" className="legalH2">Data licence notice</h2>
         <p className="legalBody">
-          The PUBMAXX code is ours. The data below is not: it belongs to its
-          publishers and is used under the licence named beside it. A fact on a
+          The PUBMAXX code is ours. Each entry below names its publisher and
+          gives the licence information held in this registry. A fact on a
           pub&rsquo;s sheet names its source. The hygiene rating, the listed
           building and the Wikidata history also name the day we read them.
           Where a source says nothing about a pub, the sheet says nothing
@@ -89,7 +89,7 @@ export default function DataCreditsPage() {
                       {credit.licence.name}
                     </a>
                   ) : (
-                    "Used under the publisher's own terms."
+                    credit.licenceNote ?? "Used under the publisher's own terms."
                   )}
                   {credit.sourceUrl ? (
                     <>
