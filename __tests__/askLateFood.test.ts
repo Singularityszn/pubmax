@@ -200,13 +200,21 @@ describe("requests outside the agreed late-food parser", () => {
     "Chinese food in Soho tonight at 1am",
     "Food in Soho tonight at 1am. Find Chinese close to the tube.",
     "Find four pubs with food in Soho",
-    "Food at The Devonshire in Soho",
   ])("preserves ordinary pub discovery for the narrowed case: %s", async (query) => {
     const response = await ask(query, Date.parse("2026-11-07T18:00:00.000Z"));
     expect(response.cards.length).toBeGreaterThan(0);
     expect(response.cards.every((card) => card.venueId.startsWith("venue-"))).toBe(true);
     expect(response.sources).not.toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
     expect(response.answer).not.toContain("Which night and time");
+  });
+
+  it("preserves main's named-pub prompt for a place after at", async () => {
+    const response = await ask("Food at The Devonshire in Soho", Date.parse("2026-11-07T18:00:00.000Z"));
+    expect(response.answer).toBe("Name a listed pub and I'll read back what people have logged there.");
+    expect(response.toolsUsed).toEqual(["venue_drinks"]);
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.sources).toEqual([]);
   });
 });
 

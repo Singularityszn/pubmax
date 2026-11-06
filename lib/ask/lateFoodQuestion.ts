@@ -108,7 +108,7 @@ export function parseLateFoodQuestion(query: string, now: number): LateFoodQuest
 
 function clarificationFields(query: string): string {
   const polite = stripTrailingPunctuation(foodWording(query)).replace(/(?:\b(?:please|thanks)[\s,.!?;:]*)+$/i, "");
-  const fragment = stripTrailingPunctuation(polite).replace(/^(?:actually|please|make\s+(?:that|it))\b[\s,:]*/i, "");
+  const fragment = stripTrailingPunctuation(polite.trim()).replace(/^(?:actually|please|make\s+(?:that|it))\b[\s,:]*/i, "");
   if (recognisedArea(fragment)) return `near ${fragment}`;
   return fragment;
 }

@@ -520,7 +520,7 @@ describe("POST /api/pub-pal/chat", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each(["where should I go", "Food tonight at 1am"])("keeps main's keyless taste fallback for %s", async (query) => {
+  it.each(["where should I go", "Food tonight at 1am"])("keeps main's keyless discovery behaviour for %s", async (query) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     authState.userId = "11111111-1111-4111-8111-111111111111";
@@ -548,7 +548,12 @@ describe("POST /api/pub-pal/chat", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
+    if (query === "where should I go") {
+      expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
+    } else {
+      expect(body.answer).toBe("4 picks from the listed pubs, each with its source.");
+      expect(body.cards.every((card: { venueId: string }) => card.venueId.startsWith("venue-"))).toBe(true);
+    }
     expect(body.cards.length).toBeGreaterThan(0);
     expect(body.toolsUsed).toContain("search_venues");
   });
