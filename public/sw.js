@@ -25,7 +25,7 @@
  *   navigations
  *       → navigation preload (else fetch), network-first
  *         → shelved shell after a timeout, only while within its revalidate window
- *         → cached plan preview or fixed shell page → cached "/" → /offline.html
+ *         → route-specific offline fallback (README.md, "Offline pages")
  *       A /map query that changes the document itself (MAP_DOCUMENT_QUERY_KEYS)
  *       is shelved under its exact query, never under the shared /map shell,
  *       and never answers from the shelf early.
