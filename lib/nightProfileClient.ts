@@ -18,6 +18,7 @@ export {
   type NightProfileDeviceSource,
 } from "@/lib/nightProfileDeviceProvenance";
 const NIGHT_PROFILE_DEVICE_CHANGED_EVENT = "pubmax:night-profile-device-changed";
+const NIGHT_PROFILE_DEVICE_DRINK_KEY = "pubmaxx.night-profile-drink.v1:device";
 
 type StoredNightProfileDraft = {
   version: typeof NIGHT_PROFILE_VERSION;
@@ -43,6 +44,26 @@ export function readDeviceNightProfile(storage = browserStorage()): NightProfile
     const envelope = value as Partial<StoredNightProfileDraft>;
     if (envelope.version !== NIGHT_PROFILE_VERSION) return null;
     return cleanNightProfileInput(envelope.profile);
+  } catch {
+    return null;
+  }
+}
+
+export function readDeviceNightDrink(storage = browserStorage()): NightProfileInput | null {
+  if (!storage) return null;
+  try {
+    const value = JSON.parse(storage.getItem(NIGHT_PROFILE_DEVICE_DRINK_KEY) ?? "null") as unknown;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const drink = value as { cityId?: unknown; zeroProof?: unknown; drinkCategory?: unknown };
+    return cleanNightProfileInput({
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      cityId: drink.cityId,
+      context: {
+        ...DEFAULT_NIGHT_PROFILE_INPUT.context,
+        zeroProof: drink.zeroProof,
+        drinkCategory: drink.drinkCategory,
+      },
+    });
   } catch {
     return null;
   }
@@ -80,10 +101,6 @@ export function mirrorAccountNightProfileToDevice(
   storage = browserStorage(),
 ): NightProfileInput | null {
   if (!account) return null;
-  const device = readDeviceNightProfile(storage);
-  if (device?.context.drinkCategory != null && readDeviceNightProfileProvenance(storage) === "device") {
-    return device;
-  }
   const input = nightProfileInput(account);
   // Stamped "account": this copy is the account's answer, so an account change
   // takes it with it (lib/deviceAccountIdentity.ts).
@@ -107,7 +124,18 @@ export function writeDeviceNightContext(
     ...(cityId ? { cityId } : {}),
     context,
   });
-  if (!next || !writeDeviceNightProfile(next, storage)) return null;
+  if (!next || !storage) return null;
+  try {
+    storage.setItem(NIGHT_PROFILE_DEVICE_DRINK_KEY, JSON.stringify({
+      cityId: next.cityId,
+      zeroProof: next.context.zeroProof,
+      drinkCategory: next.context.drinkCategory,
+    }));
+  } catch {
+    return null;
+  }
+  const source = readDeviceNightProfileProvenance(storage) ?? "device";
+  if (!writeDeviceNightProfile(next, storage, source)) return null;
   return next;
 }
 
@@ -161,7 +189,8 @@ export function confirmedNightProfileMerge(
 export function subscribeDeviceNightProfile(listener: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const onStorage = (event: StorageEvent) => {
-    if (event.storageArea === window.localStorage && event.key === NIGHT_PROFILE_DEVICE_KEY) {
+    if (event.storageArea === window.localStorage &&
+      (event.key === null || event.key === NIGHT_PROFILE_DEVICE_KEY || event.key === NIGHT_PROFILE_DEVICE_DRINK_KEY)) {
       listener();
     }
   };

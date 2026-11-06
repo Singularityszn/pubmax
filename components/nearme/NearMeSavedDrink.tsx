@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/authContext";
 import { Button } from "@/components/ui/button";
 import type { DrinkCategory } from "@/lib/drinks";
-import { readDeviceNightProfile, subscribeDeviceNightProfile } from "@/lib/nightProfileClient";
+import { readDeviceNightDrink, subscribeDeviceNightProfile } from "@/lib/nightProfileClient";
 import { savedDrinkFromProfile, savedDrinkIsShowing, type SavedDrink } from "@/lib/savedDrinkPreference";
 import { useSavedNightProfile } from "@/lib/useSavedNightProfile";
 
@@ -26,7 +26,7 @@ export default function NearMeSavedDrink({ cityId, drinkLane, noAlcoholView, onS
   const account = useSavedNightProfile(ownerKey);
   const deviceDrink = useSyncExternalStore(
     subscribeDeviceNightProfile,
-    () => savedDrinkFromProfile(readDeviceNightProfile(), cityId),
+    () => savedDrinkFromProfile(readDeviceNightDrink(), cityId),
     () => null,
   );
   const accountDrink = account.status === "ready" ? savedDrinkFromProfile(account.profile, cityId) : null;

@@ -60,7 +60,6 @@ import {
   readDeviceNightProfile,
   subscribeDeviceNightProfile,
   mirrorAccountNightProfileToDevice,
-  writeDeviceNightProfile,
   type NightProfileMergeChoice,
   type NightProfileMergeState,
 } from "@/lib/nightProfileClient";
@@ -573,8 +572,7 @@ export default function PubmaxxAccountHub() {
     const confirmed = confirmedNightProfileMerge(state, choice);
     if (!confirmed.writesAccount) {
       if (state.kind === "conflict") {
-        writeDeviceNightProfile(nightProfileInput(state.account), undefined, "account");
-        setDeviceNightProfile(nightProfileInput(state.account));
+        setDeviceNightProfile(mirrorAccountNightProfileToDevice(state.account));
         setNightProfileDraft(nightProfileInput(state.account));
       } else {
         setMergeDeferred(true);

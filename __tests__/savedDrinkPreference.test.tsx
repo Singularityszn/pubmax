@@ -4,8 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_NIGHT_PROFILE_INPUT, type NightProfileInput } from "@/lib/nightProfile";
-import { mirrorAccountNightProfileToDevice, writeDeviceNightContext, writeDeviceNightProfile } from "@/lib/nightProfileClient";
-import { clearDeviceAccountArtifacts } from "@/lib/deviceAccountIdentity";
+import { mirrorAccountNightProfileToDevice, readDeviceNightDrink, readDeviceNightProfile, writeDeviceNightContext, writeDeviceNightProfile } from "@/lib/nightProfileClient";
+import { bindDeviceAccountOwner, clearDeviceAccountArtifacts, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { savedDrinkFromProfile, savedDrinkIsShowing } from "@/lib/savedDrinkPreference";
 
 const { profileState, authState, owners } = vi.hoisted(() => ({
@@ -160,8 +160,51 @@ describe("NearMeSavedDrink", () => {
     expect(host.textContent).toContain("Your saved drink is Wine.");
   });
 
+  it.each(["sign-out", "account switch"])("removes copied account fields after a local drink edit and %s", (transition) => {
+    bindDeviceAccountOwner("account-a", localStorage, sessionStorage);
+    mirrorAccountNightProfileToDevice({
+      ...profile({ budget: "treat" }),
+      pubPalId: "11111111-1111-4111-8111-111111111111",
+      voicePreference: "ptt",
+      briefingPreferences: { muteAll: true, mutedAreas: [], mutedTopics: ["music"] },
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:00:00Z",
+    });
+    writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "london");
+    expect(readDeviceNightProfile()).toMatchObject({
+      pubPalId: "11111111-1111-4111-8111-111111111111",
+      voicePreference: "ptt",
+      briefingPreferences: { muteAll: true, mutedAreas: [], mutedTopics: ["music"] },
+    });
+    if (transition === "sign-out") releaseDeviceAccountOwner(localStorage, sessionStorage);
+    else bindDeviceAccountOwner("account-b", localStorage, sessionStorage);
+    expect(readDeviceNightProfile()).toBeNull();
+    expect(readDeviceNightDrink()).toMatchObject({
+      pubPalId: null,
+      voicePreference: "off",
+      briefingPreferences: { muteAll: false, mutedAreas: [], mutedTopics: [] },
+    });
+    authState.current = { signedIn: transition !== "sign-out" };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
+
+  it("refreshes the saved account budget while keeping the device Wine offer", () => {
+    writeDeviceNightContext(profile({ drinkCategory: "wine", budget: "value" }).context, "london");
+    const saved = mirrorAccountNightProfileToDevice({
+      ...profile({ budget: "treat" }),
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:01:00Z",
+    });
+    expect(saved?.context.budget).toBe("treat");
+    expect(readDeviceNightProfile()?.context.budget).toBe("treat");
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
+
   it("does not retain an account mirror after the account changes", () => {
     writeDeviceNightProfile(profile({ zeroProof: true }), undefined, "account");
+    profileState.current = { profile: profile({ zeroProof: true }), status: "ready" };
     render("beer");
     expect(host.textContent).toContain("Your saved drink is Alcohol-free.");
     clearDeviceAccountArtifacts(localStorage, sessionStorage);
