@@ -746,6 +746,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpHero { padding-top: calc(var(--tabbar-h, 64px) + var(--space-2)); }
   .lpHero .screenHead { gap: var(--space-1); }
   .lpHero .screenAnswer { margin-top: 0; }
+  .lpHero .lpHuntCard { padding-block: var(--space-2); }
 }
 
 /* ── The hunt: the cheapest pint we can find in Britain ─────────────────── */

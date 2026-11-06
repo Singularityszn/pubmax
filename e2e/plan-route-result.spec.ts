@@ -56,6 +56,8 @@ async function sortARoute(page: Page): Promise<void> {
     await planIt.click();
     await expect(summary).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 45_000 });
+  // The summary can paint before the stop-list chunk arrives.
+  await expect(page.locator(".planStop__name")).toHaveText(STOPS.map((stop) => stop.venueName));
 }
 
 test.describe("the Plan result is a route", () => {
