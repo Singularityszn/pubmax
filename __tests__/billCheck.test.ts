@@ -163,6 +163,22 @@ describe("judgeBill", () => {
   });
 
   it.each([
+    ["Half Carlsberg", "Carlsberg", "half", "pint"],
+    ["Pint Carlsberg", "Carlsberg", "pint", "half"],
+    ["Bottle Carlsberg", "Carlsberg", "bottle", "pint"],
+    ["Half Foster's", "Foster's", "half", "pint"],
+  ] as const)("checks canonical beer servings in %s against the submitted measure", (served, product, measure, different) => {
+    expect(judgeBill(read([[served, 2.6]]), 2.6, served, different).result).toBe("mismatch");
+    expect(judgeBill(read([[served, 2.6]]), 2.6, served, measure).result).toBe("match");
+    expect(judgeBill(read([[served, 2.6]]), 2.6, product, different).result).toBe("mismatch");
+    expect(judgeBill(read([[served, 2.6]]), 2.6, product, measure).result).toBe("match");
+    expect(judgeBill(read([[product, 2.6]]), 2.6, served, different).result).toBe("mismatch");
+    expect(judgeBill(read([[product, 2.6]]), 2.6, served, measure).result).toBe("match");
+    expect(judgeBill(read([[product, 2.6]]), 2.6, served).result).toBe("match");
+    expect(judgeBill(read([[served, 2.6]]), 2.6, product).result).toBe("match");
+  });
+
+  it.each([
     ["Double Single Malt Whisky", "Single Malt Whisky", "Malt Whisky", "double", "single"],
     ["Single Double IPA", "Double IPA", "IPA", "single", "double"],
     ["Half Half Moon IPA", "Half Moon IPA", "Moon IPA", "half", "pint"],
@@ -209,7 +225,7 @@ describe("judgeBill", () => {
     expect(judgeBill(lines, 5.2, drink).result).toBe("match");
   });
 
-  it.each(["Double IPA", "Single Malt Whisky", "Half Moon IPA", "Bottle Rocket IPA"])(
+  it.each(["Double IPA", "Single Malt Whisky", "Half Moon IPA", "Bottle Rocket IPA", "Halfway House Pale"])(
     "preserves the product words in %s on both sides of the comparison",
     (drink) => {
       const shortened = drink.split(" ").slice(1).join(" ");

@@ -31,6 +31,7 @@ import type { DrinkMeasure } from "@/lib/drinkMeasure";
 import { drinkCategoryFromText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import { brandsForCategory, normalizeDrinkHaystack } from "@/lib/drinkBrands";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
+import { BEERS } from "@/lib/beers";
 
 /** The three answers a bill check can give. */
 export const BILL_CHECK_RESULTS = ["match", "mismatch", "unreadable"] as const;
@@ -118,11 +119,12 @@ function billItem(name: string): { name: string; measure?: string } {
     if (match.index === 0 && /^(single|double|half|pint)$/.test(match[0]) &&
       /^(single|double|half|pint)\b/.test(following)) return true;
     const words = normalizeDrinkHaystack(following);
-    const brandCategory = DRINK_CATEGORIES.find((category) => brandsForCategory(category).some((brand) =>
-      [brand.label, ...(brand.aliases ?? [])].some((label) => {
-        const prefix = normalizeDrinkHaystack(label);
-        return words === prefix || words.startsWith(`${prefix} `);
-      })));
+    const brandCategory = DRINK_CATEGORIES.find((category) =>
+      [...brandsForCategory(category), ...(category === "beer" ? BEERS : [])].some((brand) =>
+        [brand.label, ...(brand.aliases ?? [])].some((label) => {
+          const prefix = normalizeDrinkHaystack(label);
+          return words === prefix || words.startsWith(`${prefix} `);
+        })));
     const category = drinkCategoryFromText(following) ?? brandCategory ?? null;
     const startsWithDrink = drinkKeywordSpans(following).some((span) => span.start === 0) ||
       brandCategory !== undefined;
