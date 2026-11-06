@@ -232,7 +232,9 @@
   color: var(--state-selected-ink);
   box-shadow: inset 0 -3px var(--state-selected-border);
 }
-.profilePage .youProfileTabs a:hover { background: var(--panel); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .youProfileTabs a:hover { background: var(--panel); color: var(--ink); }
+}
 .profilePage .youProfileTabs a:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
 .profilePage :is(#timeline, #posts, #passport, #wanted, #saved-pubs, #account-settings) {
   scroll-margin-block-start: 24px;
