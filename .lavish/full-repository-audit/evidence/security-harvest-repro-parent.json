@@ -1,0 +1,23 @@
+{
+  "homepageDecision": {
+    "allowed": true,
+    "reason": "allowed",
+    "robots": "rules-file",
+    "evidence": "https://audit-pub.example/robots.txt permits /.",
+    "sitemaps": []
+  },
+  "menuDecision": {
+    "allowed": false,
+    "reason": "robots-disallowed",
+    "robots": "rules-file",
+    "evidence": "https://audit-pub.example/robots.txt disallows /menus/drinks for `*` (rule: /menus)."
+  },
+  "actualCrawlPermissionChecks": [
+    "https://audit-pub.example"
+  ],
+  "actualCrawlRequests": [
+    "https://audit-pub.example",
+    "https://audit-pub.example/menus/drinks"
+  ],
+  "limits": "Unchanged crawlHost and real robots checker; discovery and transport infrastructure doubled. No network requests."
+}

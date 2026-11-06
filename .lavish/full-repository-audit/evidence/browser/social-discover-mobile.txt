@@ -1,0 +1,544 @@
+- link "Skip to main content":
+  - /url: "#main"
+- navigation "Site navigation":
+  - link "Open PUBMAXX landing page":
+    - /url: /
+    - img "PUBMAXX":
+      - generic: PUBMAXX
+      - generic: PUBMAX
+      - generic: X
+  - link "Activity":
+    - /url: /activity
+  - link "Messages":
+    - /url: /messages
+  - button "Switch to dark theme":
+- main:
+  - region "Crews and people who are already here.":
+    - paragraph: Social
+    - heading "Crews and people who are already here." [level=1]
+    - link "Sign in":
+      - /url: /login?mode=signin&from=%2Fsocial
+    - complementary "Social views":
+      - navigation "Social view":
+        - link "Posts":
+          - /url: /social
+        - link "Pubs & pints":
+          - /url: /social?tab=discover
+    - region "Creator lists":
+      - heading "Creator lists" [level=2]
+      - paragraph: No creators have shared a list yet.
+      - link "Find venues on Map":
+        - /url: /map
+    - region "Where you can plan a crawl tonight":
+      - paragraph: Across London
+      - heading "Where you can plan a crawl tonight" [level=2]
+      - link "Open planner":
+        - /url: /plan
+      - paragraph: We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
+      - list "Area coverage counts":
+        - strong: "4"
+        - generic: Route-ready
+        - strong: "6"
+        - generic: Some checks done
+        - strong: "2"
+        - generic: Reviewed
+        - strong: "34"
+        - generic: Not checked
+        - strong: "1"
+        - generic: Paused
+      - paragraph: Quick read
+      - list "Representative area coverage":
+        - strong: Clapham
+        - generic: Route-ready
+        - paragraph: Prices here are fresh and checked. Plan a crawl whenever.
+        - link "Open the planner from Clapham coverage":
+          - /url: /plan
+          - text: Open planner
+        - strong: Shoreditch
+        - generic: Some checks done
+        - paragraph: 4 more checks to do here before a crawl.
+        - link "See Shoreditch pubs on the map":
+          - /url: /map?q=Shoreditch
+          - text: See the pubs
+        - strong: Barnes
+        - generic: Reviewed
+        - paragraph: 2 more checks to do here before a crawl.
+        - link "See Barnes pubs on the map":
+          - /url: /map?q=Barnes
+          - text: See the pubs
+        - strong: Dalston
+        - generic: Not checked
+        - paragraph: Haven't got to this one yet. Have a browse.
+        - link "See Dalston pubs on the map":
+          - /url: /map?q=Dalston
+          - text: See the pubs
+        - strong: Richmond
+        - generic: Paused
+        - paragraph: Prices here have gone stale. Have a browse while we recheck them.
+        - link "See Richmond pubs on the map":
+          - /url: /map?q=Richmond
+          - text: See the pubs
+      - generic "See every area 47 areas +":
+        - generic: See every area
+        - generic: 47 areas
+        - text: +
+    - region "Choose your drink":
+      - heading "Choose your drink" [level=2]
+      - paragraph: Each drink family has a map colour. Pick the family you want in hand. A cheap pint, a house red, a gin and tonic, or the low/no option for one more stop before the last train.
+      - region "Explore drinks by category":
+        - list:
+          - link "Explore low and no alcohol drinks":
+            - /url: /map?drink=low-no&low=1&alt=mocktail
+            - generic: Free
+            - generic: Low / No
+          - link "Explore Beer":
+            - /url: /map?drink=beer
+            - generic: Beer
+          - link "Explore Wine":
+            - /url: /map?drink=wine
+            - generic: Wine
+          - link "Explore Whisky":
+            - /url: /map?drink=whisky
+            - generic: Whisky
+          - link "Explore Gin":
+            - /url: /map?drink=gin
+            - generic: Gin
+          - link "Explore Vodka":
+            - /url: /map?drink=vodka
+            - generic: Vodka
+          - link "Explore Rum":
+            - /url: /map?drink=rum
+            - generic: Rum
+          - link "Explore Cocktails":
+            - /url: /map?drink=cocktail&cocktails=1
+            - generic: Cocktails
+          - link "Explore Shots":
+            - /url: /map?drink=shot
+            - generic: Shots
+          - link "Explore Alcohol-free":
+            - /url: /map?drink=alcohol-free
+            - generic: Alcohol-free
+          - link "Explore Soft drinks":
+            - /url: /map?drink=soft-drink
+            - generic: Soft drinks
+          - link "Explore Coffee":
+            - /url: /map?drink=coffee
+            - generic: Coffee
+      - generic "Jump by brand":
+        - heading "Jump by brand" [level=3]
+        - paragraph: Open a drink family on the map, or jump by brand. Beer and wine have the best coverage today.
+        - list:
+          - link "Guinness":
+            - /url: /map?drink=beer&brand=guinness
+          - link "Neck Oil":
+            - /url: /map?drink=beer&brand=neck-oil
+          - link "Estrella":
+            - /url: /map?drink=beer&brand=estrella
+          - link "Peroni":
+            - /url: /map?drink=beer&brand=peroni
+          - link "Amstel":
+            - /url: /map?drink=beer&brand=amstel
+          - link "Madrí":
+            - /url: /map?drink=beer&brand=madri
+          - link "Camden Hells":
+            - /url: /map?drink=beer&brand=camden-hells
+          - link "Birra Moretti":
+            - /url: /map?drink=beer&brand=birra-moretti
+          - link "Prosecco":
+            - /url: /map?drink=wine&brand=prosecco
+          - link "Rioja":
+            - /url: /map?drink=wine&brand=rioja
+          - link "Malbec":
+            - /url: /map?drink=wine&brand=malbec
+          - link "Chardonnay":
+            - /url: /map?drink=wine&brand=chardonnay
+          - link "Pinot Grigio":
+            - /url: /map?drink=wine&brand=pinot-grigio
+          - link "Sauvignon Blanc":
+            - /url: /map?drink=wine&brand=sauvignon-blanc
+          - link "Champagne":
+            - /url: /map?drink=wine&brand=champagne
+    - region "Hungry?":
+      - heading "Hungry?" [level=2]
+      - paragraph: Pubs that serve food. Light cuisine tags only, not full menus. Open the map already filtered, or jump to a plate style.
+      - link "Show pubs that serve food":
+        - /url: /map?food=1
+      - list "Cuisine filters":
+        - link "roast":
+          - /url: /map?food=1&q=roast
+        - link "gastropub":
+          - /url: /map?food=1&q=gastropub
+        - link "burger":
+          - /url: /map?food=1&q=burger
+        - link "pizza":
+          - /url: /map?food=1&q=pizza
+        - link "tapas":
+          - /url: /map?food=1&q=tapas
+        - link "pie":
+          - /url: /map?food=1&q=pie
+        - link "thai":
+          - /url: /map?food=1&q=thai
+        - link "italian":
+          - /url: /map?food=1&q=italian
+    - region "UK city energy":
+      - heading "UK city energy" [level=2]
+      - paragraph: Cities ranked on Pint Drops, crawl packs, and how much ground we cover. Open a map and add to your city’s tally.
+      - paragraph: Seeded only where we’ve got demo data.
+      - table "UK city energy. Demo Pint Drops, listed crawls, and venue coverage.":
+        - caption: UK city energy. Demo Pint Drops, listed crawls, and venue coverage.
+        - rowgroup:
+          - row "# City Drops Energy":
+            - columnheader "#"
+            - columnheader "City"
+            - columnheader "Drops"
+            - columnheader "Energy"
+        - rowgroup:
+          - row "Rank 1 London Price-aware crawls across the capital 0 95":
+            - cell "Rank 1":
+              - generic: "1"
+              - generic: Rank 1
+            - rowheader "London Price-aware crawls across the capital":
+              - link "London Price-aware crawls across the capital":
+                - /url: /map
+                - generic: London
+                - generic: Price-aware crawls across the capital
+            - cell "0"
+            - cell "95":
+              - generic: "95"
+          - row "Rank 2 Bristol Harbour-side rounds and hillside pubs 0 35":
+            - cell "Rank 2":
+              - generic: "2"
+              - generic: Rank 2
+            - rowheader "Bristol Harbour-side rounds and hillside pubs":
+              - link "Bristol Harbour-side rounds and hillside pubs":
+                - /url: /map/bristol
+                - generic: Bristol
+                - generic: Harbour-side rounds and hillside pubs
+            - cell "0"
+            - cell "35":
+              - generic: "35"
+          - row "Rank 3 Glasgow West End crawls and Subway nights 0 35":
+            - cell "Rank 3":
+              - generic: "3"
+              - generic: Rank 3
+            - rowheader "Glasgow West End crawls and Subway nights":
+              - link "Glasgow West End crawls and Subway nights":
+                - /url: /map/glasgow
+                - generic: Glasgow
+                - generic: West End crawls and Subway nights
+            - cell "0"
+            - cell "35":
+              - generic: "35"
+          - row "Rank 4 Liverpool Waterfront crawls and Merseyrail nights 0 35":
+            - cell "Rank 4":
+              - generic: "4"
+              - generic: Rank 4
+            - rowheader "Liverpool Waterfront crawls and Merseyrail nights":
+              - link "Liverpool Waterfront crawls and Merseyrail nights":
+                - /url: /map/liverpool
+                - generic: Liverpool
+                - generic: Waterfront crawls and Merseyrail nights
+            - cell "0"
+            - cell "35":
+              - generic: "35"
+          - row "Rank 5 Manchester Northern Quarter rounds and city-centre crawls 0 35":
+            - cell "Rank 5":
+              - generic: "5"
+              - generic: Rank 5
+            - rowheader "Manchester Northern Quarter rounds and city-centre crawls":
+              - link "Manchester Northern Quarter rounds and city-centre crawls":
+                - /url: /map/manchester
+                - generic: Manchester
+                - generic: Northern Quarter rounds and city-centre crawls
+            - cell "0"
+            - cell "35":
+              - generic: "35"
+          - row "Rank 6 Oxford College-town pints and riverside walks 0 24.7":
+            - cell "Rank 6":
+              - generic: "6"
+              - generic: Rank 6
+            - rowheader "Oxford College-town pints and riverside walks":
+              - link "Oxford College-town pints and riverside walks":
+                - /url: /map/oxford
+                - generic: Oxford
+                - generic: College-town pints and riverside walks
+            - cell "0"
+            - cell "24.7":
+              - generic: "24.7"
+          - row "Rank 7 Birmingham City-centre rounds and canal-side pubs 0 20":
+            - cell "Rank 7":
+              - generic: "7"
+              - generic: Rank 7
+            - rowheader "Birmingham City-centre rounds and canal-side pubs":
+              - link "Birmingham City-centre rounds and canal-side pubs":
+                - /url: /map/birmingham
+                - generic: Birmingham
+                - generic: City-centre rounds and canal-side pubs
+            - cell "0"
+            - cell "20":
+              - generic: "20"
+          - row "Rank 8 Leeds Arcade bars and Headingley terraces 0 20":
+            - cell "Rank 8":
+              - generic: "8"
+              - generic: Rank 8
+            - rowheader "Leeds Arcade bars and Headingley terraces":
+              - link "Leeds Arcade bars and Headingley terraces":
+                - /url: /map/leeds
+                - generic: Leeds
+                - generic: Arcade bars and Headingley terraces
+            - cell "0"
+            - cell "20":
+              - generic: "20"
+          - row "Rank 9 Cambridge Back-lane pubs and riverside college crawls 0 18.1":
+            - cell "Rank 9":
+              - generic: "9"
+              - generic: Rank 9
+            - rowheader "Cambridge Back-lane pubs and riverside college crawls":
+              - link "Cambridge Back-lane pubs and riverside college crawls":
+                - /url: /map/cambridge
+                - generic: Cambridge
+                - generic: Back-lane pubs and riverside college crawls
+            - cell "0"
+            - cell "18.1":
+              - generic: "18.1"
+          - row "Rank 10 Durham Cathedral-city snugs on a compact map 0 13":
+            - cell "Rank 10":
+              - generic: "10"
+              - generic: Rank 10
+            - rowheader "Durham Cathedral-city snugs on a compact map":
+              - link "Durham Cathedral-city snugs on a compact map":
+                - /url: /map/durham
+                - generic: Durham
+                - generic: Cathedral-city snugs on a compact map
+            - cell "0"
+            - cell "13":
+              - generic: "13"
+          - row "Rank 11 Bath Georgian streets and spa-city snugs 0 6.8":
+            - cell "Rank 11":
+              - generic: "11"
+              - generic: Rank 11
+            - rowheader "Bath Georgian streets and spa-city snugs":
+              - link "Bath Georgian streets and spa-city snugs":
+                - /url: /map/bath
+                - generic: Bath
+                - generic: Georgian streets and spa-city snugs
+            - cell "0"
+            - cell "6.8":
+              - generic: "6.8"
+          - row "Rank 12 Llandudno Seafront pubs from the Great Orme to Colwyn Bay 0 5.6":
+            - cell "Rank 12":
+              - generic: "12"
+              - generic: Rank 12
+            - rowheader "Llandudno Seafront pubs from the Great Orme to Colwyn Bay":
+              - link "Llandudno Seafront pubs from the Great Orme to Colwyn Bay":
+                - /url: /map/llandudno
+                - generic: Llandudno
+                - generic: Seafront pubs from the Great Orme to Colwyn Bay
+            - cell "0"
+            - cell "5.6":
+              - generic: "5.6"
+    - region "On tonight":
+      - heading "On tonight" [level=2]:
+        - text: On tonight
+      - paragraph: "Quiz, screens, deals, and live music live on the map Tonight lane, the same `/api/whats-on` spine, with pin badges and kind filters."
+      - link "Open Tonight on the map":
+        - /url: /map?src=discover-tonight
+    - region "Cheap Pint Leaderboard":
+      - heading "Cheap Pint Leaderboard" [level=2]
+      - paragraph: Lowest listed pint prices, separate from the recently logged prices above. Open a pub to see how fresh its number is.
+      - table "Listed pint prices in London, cheapest first. Not a live feed.":
+        - caption: Listed pint prices in London, cheapest first. Not a live feed.
+        - rowgroup:
+          - row "# Pub Cheapest pint":
+            - columnheader "#"
+            - columnheader "Pub"
+            - columnheader "Cheapest pint"
+        - rowgroup:
+          - row "Rank 1 The Fox on the Hill BUD LIGHT £1.99 Listed":
+            - cell "Rank 1":
+              - generic: "1"
+              - generic: Rank 1
+            - rowheader "The Fox on the Hill BUD LIGHT":
+              - link "The Fox on the Hill":
+                - /url: /map?sel=venue-gdlj1b
+              - generic: BUD LIGHT
+            - cell "£1.99 Listed":
+              - generic: £1.99
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 2 The Pennsylvanian (JD Wetherspoons) Worthington’s Creamflow Ale £1.99 Listed":
+            - cell "Rank 2":
+              - generic: "2"
+              - generic: Rank 2
+            - rowheader "The Pennsylvanian (JD Wetherspoons) Worthington’s Creamflow Ale":
+              - link "The Pennsylvanian (JD Wetherspoons)":
+                - /url: /map?sel=venue-14t4gxt
+              - generic: Worthington’s Creamflow Ale
+            - cell "£1.99 Listed":
+              - generic: £1.99
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 3 J.J. Moons Jaipur £2.09 Listed":
+            - cell "Rank 3":
+              - generic: "3"
+              - generic: Rank 3
+            - rowheader "J.J. Moons Jaipur":
+              - link "J.J. Moons":
+                - /url: /map?sel=venue-11mu12n
+              - generic: Jaipur
+            - cell "£2.09 Listed":
+              - generic: £2.09
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 4 J.J. Moon's - JD Wetherspoon Bud Light £2.43 Listed":
+            - cell "Rank 4":
+              - generic: "4"
+              - generic: Rank 4
+            - rowheader "J.J. Moon's - JD Wetherspoon Bud Light":
+              - link "J.J. Moon's - JD Wetherspoon":
+                - /url: /map?sel=venue-g5uud9
+              - generic: Bud Light
+            - cell "£2.43 Listed":
+              - generic: £2.43
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 5 The Masque Haunt BUD LIGHT £2.49 Listed":
+            - cell "Rank 5":
+              - generic: "5"
+              - generic: Rank 5
+            - rowheader "The Masque Haunt BUD LIGHT":
+              - link "The Masque Haunt":
+                - /url: /map?sel=venue-10ilrk3
+              - generic: BUD LIGHT
+            - cell "£2.49 Listed":
+              - generic: £2.49
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 6 The Greyhound - JD Wetherspoon BUD LIGHT £2.55 Listed":
+            - cell "Rank 6":
+              - generic: "6"
+              - generic: Rank 6
+            - rowheader "The Greyhound - JD Wetherspoon BUD LIGHT":
+              - link "The Greyhound - JD Wetherspoon":
+                - /url: /map?sel=venue-y8gxl7
+              - generic: BUD LIGHT
+            - cell "£2.55 Listed":
+              - generic: £2.55
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 7 J.J. Moon's - JD Wetherspoon BUD LIGHT £2.59 Listed":
+            - cell "Rank 7":
+              - generic: "7"
+              - generic: Rank 7
+            - rowheader "J.J. Moon's - JD Wetherspoon BUD LIGHT":
+              - link "J.J. Moon's - JD Wetherspoon":
+                - /url: /map?sel=venue-cfctc5
+              - generic: BUD LIGHT
+            - cell "£2.59 Listed":
+              - generic: £2.59
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 8 The Asparagus BUD LIGHT £2.66 Listed":
+            - cell "Rank 8":
+              - generic: "8"
+              - generic: Rank 8
+            - rowheader "The Asparagus BUD LIGHT":
+              - link "The Asparagus":
+                - /url: /map?sel=venue-1oa8eys
+              - generic: BUD LIGHT
+            - cell "£2.66 Listed":
+              - generic: £2.66
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 9 The King's Tun - JD Wetherspoon BUD LIGHT £2.77 Listed":
+            - cell "Rank 9":
+              - generic: "9"
+              - generic: Rank 9
+            - rowheader "The King's Tun - JD Wetherspoon BUD LIGHT":
+              - link "The King's Tun - JD Wetherspoon":
+                - /url: /map?sel=venue-ydvsco
+              - generic: BUD LIGHT
+            - cell "£2.77 Listed":
+              - generic: £2.77
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+          - row "Rank 10 The Holland Tringham - JD Wetherspoon Carlsberg Pilsner £2.83 Listed":
+            - cell "Rank 10":
+              - generic: "10"
+              - generic: Rank 10
+            - rowheader "The Holland Tringham - JD Wetherspoon Carlsberg Pilsner":
+              - link "The Holland Tringham - JD Wetherspoon":
+                - /url: /map?sel=venue-duc2ax
+              - generic: Carlsberg Pilsner
+            - cell "£2.83 Listed":
+              - generic: £2.83
+              - generic "The pub or its chain published this price. The date and the page are below.": Listed
+      - note: Lowest listed prices on record. Not necessarily tonight's price. Open a pub to see its source and any recent reports.
+    - region "Ways to drink through the city":
+      - heading "Ways to drink through the city" [level=2]
+      - article:
+        - paragraph: Golden days
+        - heading "The old guard, still standing" [level=3]
+        - paragraph: Victorian gin palaces, listed snugs, and the bar Dickens leaned on.
+        - link "Walk Victorian Soho":
+          - /url: /map?mode=build&pubs=venue-1ufn31x%2Cvenue-1t8siin%2Cvenue-xiesdn%2Cvenue-phqazo%2Cvenue-15i2wst&crawl=victorian-soho&style=heritage
+          - text: Walk Victorian Soho
+      - article:
+        - paragraph: Coding pint
+        - heading "A quiet table and a slow pint" [level=3]
+        - paragraph: Pubs with sockets, listed Wi-Fi and quieter afternoon notes.
+        - link "Find a working pint":
+          - /url: /map?mode=build&pubs=venue-1h8gb3j%2Cvenue-qtavbf%2Cvenue-1pq1x5j%2Cvenue-myhgdk%2Cvenue-10ilrk3&crawl=barbican-coding-pint&style=balanced&band=coding-pint
+          - text: Find a working pint
+      - article:
+        - paragraph: Then vs now
+        - heading "What a pint used to cost" [level=3]
+        - paragraph: Listed pints around £4, mapped into a walk.
+        - link "Build a cheap crawl":
+          - /url: /map?mode=build&pubs=venue-133uf6h%2Cvenue-fpmfjs%2Cvenue-16ze6b1%2Cvenue-1ywc2og%2Cvenue-2e3otf&crawl=borough-market-crawl&style=balanced&band=markets-theatre
+          - text: Build a cheap crawl
+      - article:
+        - paragraph: Tonight
+        - heading "Tonight's crawl, sorted" [level=3]
+        - paragraph: Pick a borough and set your price before opening the route on the map.
+        - link "Plan an outing":
+          - /url: /map?mode=build&pubs=venue-1ufn31x%2Cvenue-1t8siin%2Cvenue-xiesdn%2Cvenue-phqazo%2Cvenue-15i2wst&crawl=victorian-soho&style=heritage
+          - text: Plan an outing
+    - region "Historic London":
+      - heading "Historic London" [level=2]
+      - paragraph: Themed heritage routes built from the pubs’ cited histories. Oldest first, the riverside taverns, and the highly listed classics.
+      - paragraph: Cited from Wikipedia.
+      - article:
+        - paragraph: Historic London
+        - heading "London's Oldest Pubs" [level=3]
+        - paragraph: The city's oldest surviving pubs, earliest first. Every date is cited from Wikipedia.
+        - link "Start with the oldest":
+          - /url: /map?mode=build&pubs=venue-16pnwmm%2Cvenue-ekvkuv%2Cvenue-178c07p%2Cvenue-11n82fd%2Cvenue-1r447i7%2Cvenue-xvusrx%2Cvenue-1ufn31x%2Cvenue-erabed&crawl=heritage-oldest-pubs&style=heritage
+          - text: Start with the oldest
+      - article:
+        - paragraph: Historic London
+        - heading "Historic Riverside Taverns" [level=3]
+        - paragraph: Thames-side taverns walked west to east along the river, wharf to wharf. Every stop is cited from Wikipedia.
+        - link "Walk the Thames taverns":
+          - /url: /map?mode=build&pubs=venue-16twk4e%2Cvenue-1p5ftm3%2Cvenue-vys493%2Cvenue-1ya67fi%2Cvenue-1d8a5xb%2Cvenue-16pnwmm%2Cvenue-ekvkuv&crawl=heritage-riverside-taverns&style=heritage
+          - text: Walk the Thames taverns
+      - article:
+        - paragraph: Historic London
+        - heading "Grade-Listed Classics" [level=3]
+        - paragraph: The map's most highly listed pubs. Grade II* and above, protected historic interiors. Every listing is cited from Wikipedia.
+        - link "See the listed classics":
+          - /url: /map?mode=build&pubs=venue-16pnwmm%2Cvenue-178c07p%2Cvenue-eltcmh%2Cvenue-1p5ftm3&crawl=heritage-grade-listed&style=heritage
+          - text: See the listed classics
+- navigation "Primary":
+  - list:
+    - link "Tonight":
+      - /url: /tonight
+      - generic: Tonight
+    - link "Map":
+      - /url: /map
+      - generic: Map
+    - link "Places":
+      - /url: /places
+      - generic: Places
+    - link "Out":
+      - /url: /out
+      - generic: Out
+    - link "Plan":
+      - /url: /plan
+      - generic: Plan
+    - link "You":
+      - /url: /u/karan
+      - generic: You
+- button "Create":
+- alert

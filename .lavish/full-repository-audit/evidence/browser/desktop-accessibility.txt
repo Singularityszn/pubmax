@@ -1,0 +1,354 @@
+- link "Skip to main content":
+  - /url: "#main"
+- main:
+  - navigation "Site navigation":
+    - link "Open PUBMAXX landing page":
+      - /url: /
+      - img "PUBMAXX":
+        - generic: PUBMAXX
+        - generic: PUBMAX
+        - generic: X
+    - list:
+      - link "Tonight":
+        - /url: /tonight
+      - link "Map":
+        - /url: /map
+      - link "Places":
+        - /url: /places
+      - link "Out":
+        - /url: /out
+      - link "Plan":
+        - /url: /plan
+      - link "You":
+        - /url: /u/you
+    - button "More pages":
+      - generic: More
+    - link "Share a Moment":
+      - /url: /moment?returnTo=%2Fmap
+    - button "Open command palette":
+      - generic: ⌘K
+    - link "Activity":
+      - /url: /activity
+    - link "Messages":
+      - /url: /messages
+    - button "Switch to light theme":
+    - button "Sign in":
+      - generic: Sign in
+  - region "Interactive pub map of London":
+    - region "Map"
+    - button "Zoom in"
+    - button "Zoom out"
+    - generic "Toggle attribution"
+    - 'button "Map layers: Tube, Rail, parks, and place stories"':
+      - generic: Layers
+    - search:
+      - generic: Search pubs
+      - combobox "Search pubs"
+      - status
+      - 'button "Filters: venue types, view and zone"':
+        - generic: Filters
+      - 'button "Drink: Pints"':
+        - generic: "Drink: Pints"
+      - button "Close plan" [pressed]:
+        - generic: Close plan
+      - 'button "Map area: Piccadilly & Soho. Change city"':
+        - generic: Piccadilly & Soho
+    - complementary "Conditions and area news"
+    - status:
+      - paragraph: Visiting another city?
+      - button "Near me?"
+      - button "Dismiss city suggestion":
+  - button "Close and return to the London map":
+  - complementary:
+    - paragraph: PUBMAXX
+    - heading "Design the right London pub crawl." [level=1]
+    - group "Crawl mode":
+      - button "Suggest a crawl" [pressed]:
+        - text: Suggest a crawl
+      - button "Build your own":
+        - text: Build your own
+    - button "Build a crawl from the pubs nearest to me":
+      - text: Pubs near me
+    - textbox:
+      - /placeholder: Search Shoreditch, Hackney, pub name…
+    - generic: Featured routes
+    - paragraph: Hand-picked crawls. One generation’s pubs, handed to the next.
+    - button "Map the Victorian Soho crawl with 5 stops":
+      - strong: Victorian Soho
+      - generic: 5 stops
+      - generic: Five Dean Street–era snugs the old Soho hands drank in. Pass the round on to whoever's next.
+      - text: Map route
+    - button "Map the Fleet Street & the Writers crawl with 6 stops":
+      - strong: Fleet Street & the Writers
+      - generic: 6 stops
+      - generic: The old press strip, Strand to Fleet Street, where a generation of hacks filed copy, then drank it back.
+      - text: Map route
+    - button "Map the Bloomsbury Literary crawl with 5 stops":
+      - strong: Bloomsbury Literary
+      - generic: 5 stops
+      - generic: From the Museum Tavern down Lamb's Conduit Street, the reading-room-and-a-pint round handed down since the British Museum days.
+      - text: Map route
+    - button "Map the Riverside Heritage crawl with 4 stops":
+      - strong: Riverside Heritage
+      - generic: 4 stops
+      - generic: St Katharine Docks east to Limehouse, the Thames-side taverns watermen and their grandkids still drink in at the turn of the tide.
+      - text: Map route
+    - button "Map the A pint, a park, a view crawl with 5 stops":
+      - strong: A pint, a park, a view
+      - generic: 5 stops
+      - generic: A City-fringe loop past Leadenhall Market that climbs to a free rooftop garden with one of London's best skyline views. A pint at each end of the climb.
+      - text: Map route
+    - button "Map the Borough Market crawl crawl with 5 stops":
+      - strong: Borough Market crawl
+      - generic: 5 stops
+      - generic: A tight loop through the stalls and railway arches of Borough Market, London's oldest food market, trading since at least the 13th century, threaded between five pubs.
+      - text: Map route
+    - button "Map the Bankside riverside walk crawl with 4 stops":
+      - strong: Bankside riverside walk
+      - generic: 4 stops
+      - generic: Straight along the Thames path from Clink Street to the South Bank, the old wharves and a working riverside pub, with Tate Modern and the river the whole way.
+      - text: Map route
+    - button "Map the Camden Market crawl crawl with 4 stops":
+      - strong: Camden Market crawl
+      - generic: 4 stops
+      - generic: From the lock down Camden High Street, market stalls, canal views, and the pubs that have watched Camden's music scene since punk.
+      - text: Map route
+    - button "Map the Soho small plates crawl with 5 stops":
+      - strong: Soho small plates
+      - generic: 5 stops
+      - generic: A kitchen-first loop through Dean Street's food pubs. Proper plates between the pints, so nobody drinks on an empty stomach.
+      - text: Map route
+    - button "Map the Westminster & Whitehall crawl with 4 stops":
+      - strong: Westminster & Whitehall
+      - generic: 4 stops
+      - generic: From the Admiralty to Trafalgar Square, the pubs civil servants and tourists share when Parliament is in session and the bells are ringing.
+      - text: Map route
+    - button "Map the Barbican coding pint crawl with 5 stops":
+      - strong: Barbican coding pint
+      - generic: 5 stops
+      - generic: A Barbican-to-Old-Street loop through the City fringe, the after-work standup pint between the Square Mile studios and Silicon Roundabout.
+      - text: Map route
+    - button "Map the Leicester Square soft round crawl with 5 stops":
+      - strong: Leicester Square soft round
+      - generic: 5 stops
+      - generic: "A cocktail-bar loop off Leicester Square. Every stop mixes drinks, so it's an easy one to run alcohol-free: order the mocktail version of the round."
+      - text: Map route
+    - button "Map the Historic pubs (Eating Europe guide) crawl with 7 stops":
+      - strong: Historic pubs (Eating Europe guide)
+      - generic: 7 stops
+      - generic: Seven stops from Eating Europe's London pubs guide. Heritage notes and stories only, never prices. A city-wide greatest-hits loop, not one tight walk.
+      - text: Map route
+    - button "Map the Young's beer gardens crawl with 10 stops":
+      - strong: Young's beer gardens
+      - generic: 10 stops
+      - generic: Garden pubs from Young's own regional guides that match our London map. Official microsite links, beer-garden story, no invented prices.
+      - text: Map route
+    - button "Map the Nicholson's West End crawl with 8 stops":
+      - strong: Nicholson's West End
+      - generic: 8 stops
+      - generic: A walkable Mayfair–Soho–Strand loop through Nicholson's historic pubs. Official menu and book links, no invented prices.
+      - text: Map route
+    - generic: Crawl Style
+    - group "Crawl style":
+      - button "Balanced"
+      - button "Alcohol-free first"
+      - button "Cheapest"
+      - button "Historic"
+      - button "Writer Trail"
+      - button "Beer Garden"
+      - button "Live Sports"
+      - button "Date Night" [pressed]
+    - generic: Max Pint
+    - strong: Any
+    - slider "Maximum pint price": "10"
+    - generic: Stops
+    - strong: "6"
+    - slider "Number of stops": "6"
+    - generic: Max walk between stops
+    - strong: 20 min
+    - slider "Route window in minutes": "20"
+    - generic: Story Filters
+    - button "Reset":
+      - text: Reset
+    - generic "Show only venues you have saved":
+      - checkbox "Show only venues you have saved"
+      - text: Saved only
+    - checkbox "By the water"
+    - text: By the water
+    - checkbox "Heritage note"
+    - text: Heritage note
+    - checkbox "Has Pint Drops"
+    - text: Has Pint Drops
+    - checkbox "Beer garden"
+    - text: Beer garden
+    - checkbox "Non-alcoholic" [checked]
+    - text: Non-alcoholic
+    - checkbox "Live sports"
+    - text: Live sports
+    - checkbox "Serves food"
+    - text: Serves food
+    - checkbox "Cocktails"
+    - text: Cocktails
+    - checkbox "Verified listings only"
+    - text: Verified listings only
+    - paragraph: Off by default so scraped Young's / Nicholson's / guide pins stay on the map.
+    - checkbox "Open now"
+    - text: Open now
+    - generic: Accessible venues
+    - paragraph:
+      - text: Only pubs with access we can
+      - strong: confirm
+      - text: from a public source. Unknown pubs are hidden here rather than guessed. Help by spilling what you know.
+    - checkbox "Step-free entry" [checked] [active]
+    - text: Step-free entry
+    - checkbox "Accessible toilet"
+    - text: Accessible toilet
+    - checkbox "Seated service"
+    - text: Seated service
+    - status: Only showing pubs with confirmed step-free entry. 0 confirmed so far; help by spilling what you know.
+    - generic: Matched
+    - strong: "501"
+    - generic: ≤ £5.50
+    - strong: "63"
+    - generic: Water
+    - strong: "0"
+    - generic: Heritage
+    - strong: "188"
+    - generic: Writer
+    - strong: "0"
+    - paragraph: "@London_W4"
+    - heading "Alastair Hilton" [level=2]
+    - paragraph: "A photographer-led view of pubs: what they look like, why they are loved, and why people should still visit them."
+    - text: The Greatest Pubs
+    - text: Narrowboat London
+    - list:
+      - listitem: The book is a 156-page signed hardback covering 44 pubs.
+      - listitem: His guide profiles describe private historic London pub tours with stories and history facts.
+      - listitem: His shop includes pub prints such as The City Barge, The Grapes, The Sun Tavern, and The Queens.
+    - link "The Greatest Pubs":
+      - /url: https://www.alastairhiltonphotographer.com/product-page/the-greatest-pubs
+      - text: The Greatest Pubs
+    - link "London_W4 on X":
+      - /url: https://x.com/London_W4
+      - text: London_W4 on X
+    - link "Historic pub tours":
+      - /url: https://camdenguidedwalks.co.uk/london-tour-guide-alastair.php
+      - text: Historic pub tours
+  - complementary:
+    - paragraph: Suggested Plan
+    - heading "Date Night plan" [level=2]
+    - button "Copy a shareable link to this crawl":
+      - text: Copy link
+    - radiogroup "Crawl style":
+      - radio "Pint" [checked]
+      - radio "Food"
+      - radio "Coffee"
+      - radio "Mocktail"
+    - generic: £33.89
+    - generic: estimated round
+    - generic "Haversine (straight-line) distance between stops. Walking distance will be longer.":
+      - generic: 1.8 km
+      - generic: straight-line, between stops
+    - generic "Estimated at 4.8 km/h (walking) or 9 km/h (running), over the same straight-line distance. Real pavement time will be longer.":
+      - generic: 24 min
+      - generic: walking, straight-line
+    - generic "Live TfL itinerary between stops via CityMCP London (leave-now).":
+      - generic: 29 min
+      - generic: TfL between stops
+    - generic: "6"
+    - generic: pint stops
+    - generic: "6"
+    - generic: story pubs
+    - generic: "0"
+    - generic: by water
+    - generic: "0"
+    - generic: writer picks
+    - group "Walking or running pace":
+      - button "Walk" [pressed]
+      - button "Run"
+      - generic: 24 min walk total · 1.8 km, straight-line
+    - strong: Map this plan?
+    - generic: 1.8 km, 24 min walk, straight-line.
+    - button "Map route":
+      - text: Map route
+    - paragraph: Invite friends to walk this plan as a Round.
+    - text: The Round · group crawl
+    - heading "Invite friends to this plan" [level=2]
+    - paragraph: Turn this plan into a Round. Friends join by a short code; stops are already queued.
+    - textbox "Your handle":
+      - /placeholder: your handle
+    - button "Start Round":
+      - text: Start Round
+    - button "Add to calendar (.ics)":
+      - text: Add to calendar (.ics)
+    - button "Check last train at final stop":
+      - text: Check last train at final stop
+    - button "Start this crawl":
+      - text: Start this crawl
+    - button "Save as story":
+      - text: Save as story
+    - list:
+      - button "1 Plumbers Arms (Belgravia) £5.95 · Westminster":
+        - generic: "1"
+        - strong: Plumbers Arms (Belgravia)
+        - paragraph: £5.95 ·
+        - generic: Westminster
+      - link "Directions":
+        - /url: https://www.google.com/maps/dir/?api=1&destination=51.4965,-0.147568&travelmode=walking
+        - generic: Directions
+      - generic "Leg to The Willow Walk - JD Wetherspoon":
+        - generic: 5 min walk · 0.4 km, straight-line
+      - button "2 The Willow Walk - JD Wetherspoon £4.39 · Westminster":
+        - generic: "2"
+        - strong: The Willow Walk - JD Wetherspoon
+        - paragraph: £4.39 ·
+        - generic: Westminster
+      - link "Directions":
+        - /url: https://www.google.com/maps/dir/?api=1&destination=51.4951,-0.142282&travelmode=walking
+        - generic: Directions
+      - generic "Leg to The Queens Arms":
+        - generic: 5 min walk · 0.3 km, straight-line
+      - button "3 The Queens Arms 1 £5.20 · Westminster":
+        - generic: "3"
+        - strong:
+          - text: The Queens Arms
+          - generic "1 Pint Drop logged here":
+            - text: "1"
+        - paragraph: £5.20 ·
+        - generic: Westminster
+      - link "Directions":
+        - /url: https://www.google.com/maps/dir/?api=1&destination=51.4927,-0.139219&travelmode=walking
+        - generic: Directions
+      - generic "Leg to Albert (Victoria)":
+        - generic: 8 min walk · 0.6 km, straight-line
+        - paragraph:
+          - text: 9 min · walk → bus → walk
+      - button "4 Albert (Victoria) £6.15 · Westminster":
+        - generic: "4"
+        - strong: Albert (Victoria)
+        - paragraph: £6.15 ·
+        - generic: Westminster
+      - link "Directions":
+        - /url: https://www.google.com/maps/dir/?api=1&destination=51.4977,-0.135558&travelmode=walking
+        - generic: Directions
+      - generic "Leg to The Feathers":
+        - generic: 3 min walk · 0.2 km, straight-line
+      - button "5 The Feathers £6.05 · Westminster":
+        - generic: "5"
+        - strong: The Feathers
+        - paragraph: £6.05 ·
+        - generic: Westminster
+      - link "Directions":
+        - /url: https://www.google.com/maps/dir/?api=1&destination=51.4992,-0.133103&travelmode=walking
+        - generic: Directions
+      - generic "Leg to Two Chairmen":
+        - generic: 3 min walk · 0.2 km, straight-line
+      - button "6 Two Chairmen £6.15 · Westminster":
+        - generic: "6"
+        - strong: Two Chairmen
+        - paragraph: £6.15 ·
+        - generic: Westminster
+      - link "Directions":
+        - /url: https://www.google.com/maps/dir/?api=1&destination=51.5006,-0.13164&travelmode=walking
+        - generic: Directions
+- alert

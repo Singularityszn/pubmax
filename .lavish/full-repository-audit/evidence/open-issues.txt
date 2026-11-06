@@ -1,0 +1,43 @@
+count: 38
+issues[38]{number,title,state,author,created}:
+  1745,"lib/accountOnboardingClient.ts waitForRetry and lib/authedFetch.ts waitForTokenRetry are the same abortable-delay shape, duplicated",open,karanmrn,14h ago
+  1744,"__tests__/authedFetch.test.ts: two tests race a bare 10ms setTimeout against production wait logic",open,karanmrn,14h ago
+  1743,"app/api/night-signals/route.ts: public GET route for approved signals appears to have no caller",open,karanmrn,14h ago
+  1742,"app/api/contributors/route.ts: GET handler has zero callers, page fetches the data directly",open,karanmrn,14h ago
+  1709,"lib/convex/migration.ts + recordShadowComparison: the shadow-verification pipeline is fully built but never called",open,karanmrn,1d ago
+  1691,"lib/emailProvider.ts: fully-built seam with zero live callers and a stub that always throws",open,karanmrn,5d ago
+  1646,Converge the Bar Tab and Ledger venue reads onto lookupVenueDetail,open,karanmrn,9d ago
+  1641,"warmNavRoute strips the query, so IntentLink never warms a query-bearing route",open,karanmrn,10d ago
+  1639,"The map rail says its list is narrowed, never that an unlisted pub may qualify",open,karanmrn,10d ago
+  1623,Every UK pub on the map,open,karanmrn,14d ago
+  1622,Out shows every sourced listing as a real row,open,karanmrn,14d ago
+  1621,"Simple landing with the map as the picture, answer-first primary, and an FAQ",open,karanmrn,14d ago
+  1620,"Map first-visit card off the pins, desktop chrome cut, arrival bearing",open,karanmrn,14d ago
+  1618,"Research: the pubs London is talking about, last 30 days",open,karanmrn,14d ago
+  1617,"Two drinkers, two prices, and a bill photo on every new price",open,karanmrn,14d ago
+  1616,Five one-line production bugs from the live walk,open,karanmrn,14d ago
+  1615,Performance gate stops going red on runner noise,open,karanmrn,14d ago
+  1614,"Wayfinder: tonight's cut, 7 September 2026",open,karanmrn,14d ago
+  1580,"Grilling: onboarding, images and the social bet, the captain's priorities",open,karanmrn,15d ago
+  1576,"Wayfinder map: PlanAstra, the next set of features after v0",open,karanmrn,15d ago
+  1544,"Phone tab bar: the selected pill is cut square at the row's outer edge",open,karanmrn,16d ago
+  1543,"iOS map: pin price labels render inside the system status bar",open,karanmrn,16d ago
+  1542,"iOS shell: /today and /out leave a tall empty band under the status bar that /tonight does not",open,karanmrn,16d ago
+  1541,"Social: the Posts tab renders an empty band with no empty state (both shells)",open,karanmrn,16d ago
+  1540,Cold start on a plan URL shows the plan's own host the invitee teaser,open,karanmrn,16d ago
+  1539,"Plan page: the route rail is drawn over the Plan it together card",open,karanmrn,16d ago
+  1538,Run-the-night card leaves a third of the screen empty between the stop name and the actions,open,karanmrn,16d ago
+  1537,"On tonight panel never resolves: it stays on \"Loading tonight's route...\"",open,karanmrn,16d ago
+  1536,"The compose control overlaps the active-plan pill, map-fallback Retry and other controls",open,karanmrn,16d ago
+  1535,"Plan intake select pills cut their own value text at 390 (Standarc, Any drink)",open,karanmrn,16d ago
+  1534,Lock it in is disabled with no reason on screen when the host name is empty,open,karanmrn,16d ago
+  1533,"Bottom sheets stop short of the screen bottom and clip their last row (both shells, both themes)",open,karanmrn,16d ago
+  1531,"Onboarding: the hero photo pushes the primary action off screen once the consent bar is dismissed (Android shell, 390x844)",open,karanmrn,16d ago
+  1522,"The Local: remaining epic after the 5 Sep split",open,karanmrn,16d ago
+  1358,"Store enrolment and signing: owner checklist",open,karanmrn,18d ago
+  1354,"Wayfinder map: September relaunch, London first",open,karanmrn,18d ago
+  727,"Spec: reduce store/review bloat without hiding policy",open,karanmrn,1mo ago
+  437,"Wayfinder map: app-store-ready frontend",open,karanmrn,2mo ago
+help[2]:
+  Run `gh-axi issue view <number>` to view details
+  Run `gh-axi issue create --title "..." --body-file <path>` to create

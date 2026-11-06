@@ -1,0 +1,52 @@
+- link "Skip to main content":
+  - /url: "#main"
+- main:
+  - region "Interactive pub map of London":
+    - region "Map"
+    - generic "Toggle attribution"
+    - generic "Map camera controls"
+    - status:
+      - strong: Royal & civic
+      - generic: Westminster has been the seat of English government and monarchy for nearly a thousand years, from the Abbey's coronations to Parliament and the royal parks. The pubs tucked behind Whitehall have long poured for civil servants, MPs and the crowds around Trafalgar Square.
+      - button "Walk this story"
+      - button "Dismiss Place story intro":
+    - generic "Map controls":
+      - link "Open PUBMAXX landing page":
+        - /url: /
+        - img "PUBMAXX":
+          - generic: PUBMAXX
+          - generic: PUBMAX
+          - generic: X
+      - 'button "Map area: Piccadilly & Soho. Change city"':
+        - generic: Piccadilly & Soho
+      - button "Search the map":
+      - button "Filters":
+      - button "More map controls":
+      - 'button "Drink shown on the map: Pints. Choose another drink"':
+        - generic: Pints
+    - generic "Map utilities":
+      - 'button "TfL live: 3 updates"':
+        - generic: "3"
+      - button "Near me":
+- navigation "Primary":
+  - list:
+    - link "Tonight":
+      - /url: /tonight
+      - generic: Tonight
+    - link "Map":
+      - /url: /map
+      - generic: Map
+    - link "Places":
+      - /url: /places
+      - generic: Places
+    - link "Out":
+      - /url: /out
+      - generic: Out
+    - link "Plan":
+      - /url: /plan
+      - generic: Plan
+    - link "You":
+      - /url: /u/you
+      - generic: You
+- button "Create":
+- alert: UK venue map

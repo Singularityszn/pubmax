@@ -1,0 +1,216 @@
+- link "Skip to main content":
+  - /url: "#main"
+- main:
+  - navigation "Site navigation":
+    - link "Open PUBMAXX landing page":
+      - /url: /
+      - img "PUBMAXX":
+        - generic: PUBMAXX
+        - generic: PUBMAX
+        - generic: X
+    - link "Activity":
+      - /url: /activity
+    - link "Messages":
+      - /url: /messages
+    - button "Switch to light theme":
+  - region "Pub stories mapped into walks.":
+    - paragraph: Crawls
+    - heading "Pub stories mapped into walks." [level=1]
+    - paragraph: A Crawl Story is a shareable poster of a London pub crawl, the stops, the prices, the vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map.
+    - link "Start a crawl":
+      - /url: /map?mode=build&pubs=venue-1ufn31x%2Cvenue-1t8siin%2Cvenue-xiesdn%2Cvenue-phqazo%2Cvenue-15i2wst&crawl=victorian-soho&style=heritage
+    - link "Open the map":
+      - /url: /map
+    - navigation "Jump to a route pack":
+      - paragraph: Jump to a route pack
+      - list:
+        - link "Old London 4":
+          - /url: /crawls?pack=old-london
+          - text: Old London
+          - generic: "4"
+        - link "Thames-side 2":
+          - /url: /crawls?pack=thames
+          - text: Thames-side
+          - generic: "2"
+        - link "Writers & Fleet Street 2":
+          - /url: /crawls?pack=writers
+          - text: Writers & Fleet Street
+          - generic: "2"
+        - link "Music & theatre 3":
+          - /url: /crawls?pack=music-theatre
+          - text: Music & theatre
+          - generic: "3"
+        - link "Markets & late trains 4":
+          - /url: /crawls?pack=markets-late-trains
+          - text: Markets & late trains
+          - generic: "4"
+        - link "Coding pint 2":
+          - /url: /crawls?pack=coding-pint
+          - text: Coding pint
+          - generic: "2"
+        - link "Cheap chaos 3":
+          - /url: /crawls?pack=cheap-chaos
+          - text: Cheap chaos
+          - generic: "3"
+        - link "Late train 3":
+          - /url: /crawls?pack=late-train
+          - text: Late train
+          - generic: "3"
+        - link "Quiet table 3":
+          - /url: /crawls?pack=quiet-table
+          - text: Quiet table
+          - generic: "3"
+        - link "Civic west 3":
+          - /url: /crawls?pack=civic-west
+          - text: Civic west
+          - generic: "3"
+        - link "Southwark tide 3":
+          - /url: /crawls?pack=southwark-tide
+          - text: Southwark tide
+          - generic: "3"
+    - paragraph: Featured crawl
+    - article:
+      - generic: Heritage
+      - heading "Victorian Soho" [level=2]
+      - paragraph: Five Dean Street–era snugs the old Soho hands drank in. Pass the round on to whoever's next.
+      - 'img "Route shape: straight lines between 5 stops"'
+      - generic: 6 min walk · 0.4 km, straight-line
+      - generic: Pints from £5.70–£6.75
+      - text: Starts at Piccadilly Circus
+      - paragraph: 5 stops
+      - link "Plan the Victorian Soho crawl on the map":
+        - /url: /map?mode=build&pubs=venue-1ufn31x%2Cvenue-1t8siin%2Cvenue-xiesdn%2Cvenue-phqazo%2Cvenue-15i2wst&crawl=victorian-soho&style=heritage
+        - text: Plan this crawl →
+    - region "Heritage routes, handed down":
+      - heading "Heritage routes, handed down" [level=3]
+      - list "Heritage crawls":
+        - link "Plan the Riverside Heritage crawl on the map":
+          - /url: /map?mode=build&pubs=venue-xvusrx%2Cvenue-1d8a5xb%2Cvenue-16pnwmm%2Cvenue-ekvkuv&crawl=riverside-heritage&style=heritage&band=thames-industrial
+          - generic: Riverside Heritage
+          - generic: Tower Bridge
+          - generic: 4 stops
+          - generic: £4.00–£6.00
+        - link "Plan the Bankside riverside walk crawl on the map":
+          - /url: /map?mode=build&pubs=venue-1x50b6d%2Cvenue-1bb3t97%2Cvenue-gv8lwa%2Cvenue-1pvqxca&crawl=bankside-riverside&style=heritage&band=river-history
+          - generic: Bankside riverside walk
+          - generic: Tate Modern
+          - generic: 4 stops
+          - generic: £6.15–£7.00
+        - link "Plan the Westminster & Whitehall crawl on the map":
+          - /url: /map?mode=build&pubs=venue-1t2cfa2%2Cvenue-698bu3%2Cvenue-gk2fp9%2Cvenue-11iolkd&crawl=westminster-civic&style=heritage&band=royal-civic
+          - generic: Westminster & Whitehall
+          - generic: Big Ben
+          - generic: 4 stops
+          - generic: £5.75–£6.45
+        - link "Plan the Historic pubs (Eating Europe guide) crawl on the map":
+          - /url: /map?mode=build&pubs=venue-1lcgpd9%2Cvenue-hbtda7%2Cvenue-68ns7y%2Cvenue-1wgjxs6%2Cvenue-1snxfi3%2Cvenue-806vol%2Cvenue-1ha28jc&crawl=eating-europe-london-pubs&style=heritage
+          - generic: Historic pubs (Eating Europe guide)
+          - generic: 7 stops
+          - generic: £6.70
+        - link "Plan the Nicholson's West End crawl on the map":
+          - /url: /map?mode=build&pubs=venue-1c2pk99%2Cvenue-ru7vbr%2Cvenue-4pqtn7%2Cvenue-1ozggok%2Cvenue-xiesdn%2Cvenue-14mrz2z%2Cvenue-u0ox5x%2Cvenue-dbukrn&crawl=nicholsons-west-end&style=heritage
+          - generic: Nicholson's West End
+          - generic: Piccadilly Circus
+          - generic: 8 stops
+          - generic: £6.05–£6.35
+    - region "Writer Trail":
+      - heading "Writer Trail" [level=3]
+      - list "Writer Trail crawls":
+        - link "Plan the Fleet Street & the Writers crawl on the map":
+          - /url: /map?mode=build&pubs=venue-dbukrn%2Cvenue-q9lryg%2Cvenue-11n82fd%2Cvenue-lrlyh8%2Cvenue-1sx1vco%2Cvenue-1r447i7&crawl=fleet-street-writers&style=writerTrail&band=fleet-street-writers
+          - generic: Fleet Street & the Writers
+          - generic: Somerset House
+          - generic: 6 stops
+          - generic: £5.60–£6.80
+        - link "Plan the Bloomsbury Literary crawl on the map":
+          - /url: /map?mode=build&pubs=venue-fr71bp%2Cvenue-1yd70c7%2Cvenue-erabed%2Cvenue-1kbl05l%2Cvenue-12ino21&crawl=bloomsbury-literary&style=writerTrail
+          - generic: Bloomsbury Literary
+          - generic: British Museum
+          - generic: 5 stops
+          - generic: £6.15–£6.65
+    - region "Beer Garden":
+      - heading "Beer Garden" [level=3]
+      - list "Beer Garden crawls":
+        - link "Plan the A pint, a park, a view crawl on the map":
+          - /url: /map?mode=build&pubs=venue-1dosq7b%2Cvenue-25y8c7%2Cvenue-zottpx%2Cvenue-6r6xa3%2Cvenue-10mil9j&crawl=pint-park-view&style=beerGarden&band=coding-pint
+          - generic: A pint, a park, a view
+          - generic: Leadenhall Market
+          - generic: 5 stops
+          - generic: £2.99–£6.65
+        - link "Plan the Young's beer gardens crawl on the map":
+          - /url: /map?mode=build&pubs=venue-1lf3cw%2Cvenue-1yd70c7%2Cvenue-1dafrop%2Cvenue-jxen6y%2Cvenue-17nbxyh%2Cvenue-x2hh3d%2Cvenue-t3ii33%2Cvenue-1e0mpj3%2Cvenue-fejqqd%2Cvenue-1v1wfs4&crawl=youngs-beer-gardens&style=beerGarden
+          - generic: Young's beer gardens
+          - generic: 10 stops
+          - generic: £5.85–£7.30
+    - region "Balanced":
+      - heading "Balanced" [level=3]
+      - list "Balanced crawls":
+        - link "Plan the Borough Market crawl crawl on the map":
+          - /url: /map?mode=build&pubs=venue-133uf6h%2Cvenue-fpmfjs%2Cvenue-16ze6b1%2Cvenue-1ywc2og%2Cvenue-2e3otf&crawl=borough-market-crawl&style=balanced&band=markets-theatre
+          - generic: Borough Market crawl
+          - generic: Borough Market
+          - generic: 5 stops
+          - generic: £5.50–£6.60
+        - link "Plan the Soho small plates crawl on the map":
+          - /url: /map?mode=build&pubs=venue-1ufn31x%2Cvenue-1t8siin%2Cvenue-xiesdn%2Cvenue-phqazo%2Cvenue-15i2wst&crawl=soho-food-crawl&style=balanced&alt=food
+          - generic: Soho small plates
+          - generic: Piccadilly Circus
+          - generic: 5 stops
+          - generic: £5.70–£6.75
+        - link "Plan the Barbican coding pint crawl on the map":
+          - /url: /map?mode=build&pubs=venue-1h8gb3j%2Cvenue-qtavbf%2Cvenue-1pq1x5j%2Cvenue-myhgdk%2Cvenue-10ilrk3&crawl=barbican-coding-pint&style=balanced&band=coding-pint
+          - generic: Barbican coding pint
+          - generic: Barbican Centre
+          - generic: 5 stops
+          - generic: £2.49–£7.30
+    - region "Sports":
+      - heading "Sports" [level=3]
+      - list "Sports crawls":
+        - link "Plan the Camden Market crawl crawl on the map":
+          - /url: /map?mode=build&pubs=venue-17u2i1w%2Cvenue-t20n94%2Cvenue-11wwbzz%2Cvenue-1d1tez&crawl=camden-market-crawl&style=sports&band=markets-theatre
+          - generic: Camden Market crawl
+          - generic: Camden Lock
+          - generic: 4 stops
+          - generic: £3.66–£6.00
+    - region "Date Night":
+      - heading "Date Night" [level=3]
+      - list "Date Night crawls":
+        - link "Plan the Leicester Square soft round crawl on the map":
+          - /url: /map?mode=build&pubs=venue-11u4gpi%2Cvenue-ymqu1w%2Cvenue-12bzb84%2Cvenue-165ayyi%2Cvenue-1jmwk6r&crawl=leicester-mocktail-crawl&style=dateNight&alt=mocktail&band=royal-civic
+          - generic: Leicester Square soft round
+          - generic: Piccadilly Circus
+          - generic: 5 stops
+          - generic: £6.30–£7.31
+    - text: The Round · group crawl
+    - heading "Start a Round" [level=2]
+    - paragraph: A group crawl that builds itself. Friends join by a short code; as everyone drops pints, the route grows itself, stop by stop.
+    - textbox "Your handle":
+      - /placeholder: your handle
+    - button "Start a Round":
+      - text: Start a Round
+    - paragraph: Or build your own. Pick the pubs, pass the round on.
+    - link "Build your own crawl on the map":
+      - /url: /map
+      - text: Build your own crawl on the map
+- navigation "Primary":
+  - list:
+    - link "Tonight":
+      - /url: /tonight
+      - generic: Tonight
+    - link "Map":
+      - /url: /map
+      - generic: Map
+    - link "Places":
+      - /url: /places
+      - generic: Places
+    - link "Out":
+      - /url: /out
+      - generic: Out
+    - link "Plan":
+      - /url: /plan
+      - generic: Plan
+    - link "You":
+      - /url: /u/you
+      - generic: You
+- button "Create":
+- alert

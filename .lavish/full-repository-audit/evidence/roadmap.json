@@ -1,0 +1,37 @@
+[
+  {
+    "step": "1",
+    "title": "Close privacy, access and price correctness gaps",
+    "depends": "None",
+    "work": "SEC-01/02/03/04, Q-07, Q-02/03, H9. Preserve public avatars, free drinker access and honest prices.",
+    "accept": "Old cover URL denied after privacy changes; server expiry enforced; client duration cannot erase use; per-path crawl permissions respected; true/false/unknown access facets hold; half/noncomparable drinks excluded from pint/change claims; clean strict lockfile."
+  },
+  {
+    "step": "2",
+    "title": "Repair current journeys before adding scope",
+    "depends": "1; isolate E2E failures",
+    "work": "Date-night routing, music response admission, draft expiry, storage fallback and native Back ownership. Resolve freshness owner and prove timed deals.",
+    "accept": "Every shipped occasion chip completes keyless and provider-failure paths; music fixture renders; expired V1 cannot resurrect; map works with denied storage; one native Back action; empty/stale/failed states stay usable."
+  },
+  {
+    "step": "3",
+    "title": "Recover browse-first London occasions",
+    "depends": "1\u20132; labelled editorial estimates approved",
+    "work": "Expose dates, friends, music, quiet, gardens and crawls in current design. Reuse existing routes and preferences, preserve area/date/group intent into Ask.",
+    "accept": "Person discovers a sourced shortlist, distinguishes sourced facts from labelled editorial estimates, understands unknowns, refines it, plans and shares without login friction or fabricated attributes. Desktop and 390px verified; no duplicated composer."
+  },
+  {
+    "step": "4",
+    "title": "Build the complete dancing evening",
+    "depends": "3; licensed/allowed club and event supply",
+    "work": "Unify dancing/disco/DJ vocabulary across browse and Ask. Combine pub + sourced event + getting home; reuse late-food contract where needed.",
+    "accept": "Equivalent browse/ask constraints produce same dated evidence; cancelled/unmatched/empty listings handled; no pub-pint totals assigned to club/food stops; transport has source/time and fallback."
+  },
+  {
+    "step": "5",
+    "title": "Make subsequent work auditable",
+    "depends": "Behavioral baselines from 1\u20134",
+    "work": "Extend existing PLG_STRATEGY waves; reconcile roadmap statuses and harness precedence. Refactor map state ownership only behind transition tests; finish unresolved file and authenticated/native coverage.",
+    "accept": "One owner/status record per commitment with shipped SHA, source evidence and retirement rationale; CI proves user outcomes, not source-string presence alone; venue-first revenue and free Year in Pints preserved."
+  }
+]

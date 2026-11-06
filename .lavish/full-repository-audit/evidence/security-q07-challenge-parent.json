@@ -1,0 +1,132 @@
+{
+  "commit": "04b73e834",
+  "results": [
+    {
+      "filter": "requireStepFree",
+      "evidence": true,
+      "priceRows": 0,
+      "normalMatches": 1,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireStepFree",
+      "evidence": true,
+      "priceRows": 1,
+      "normalMatches": 1,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireStepFree",
+      "evidence": false,
+      "priceRows": 0,
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireStepFree",
+      "evidence": false,
+      "priceRows": 1,
+      "normalMatches": 0,
+      "mapMatches": 0
+    },
+    {
+      "filter": "requireStepFree",
+      "evidence": "unknown",
+      "priceRows": 0,
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireStepFree",
+      "evidence": "unknown",
+      "priceRows": 1,
+      "normalMatches": 0,
+      "mapMatches": 0
+    },
+    {
+      "filter": "requireAccessibleToilet",
+      "evidence": true,
+      "priceRows": 0,
+      "normalMatches": 1,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireAccessibleToilet",
+      "evidence": true,
+      "priceRows": 1,
+      "normalMatches": 1,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireAccessibleToilet",
+      "evidence": false,
+      "priceRows": 0,
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireAccessibleToilet",
+      "evidence": false,
+      "priceRows": 1,
+      "normalMatches": 0,
+      "mapMatches": 0
+    },
+    {
+      "filter": "requireAccessibleToilet",
+      "evidence": "unknown",
+      "priceRows": 0,
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireAccessibleToilet",
+      "evidence": "unknown",
+      "priceRows": 1,
+      "normalMatches": 0,
+      "mapMatches": 0
+    },
+    {
+      "filter": "requireSeatedService",
+      "evidence": true,
+      "priceRows": 0,
+      "normalMatches": 1,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireSeatedService",
+      "evidence": true,
+      "priceRows": 1,
+      "normalMatches": 1,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireSeatedService",
+      "evidence": false,
+      "priceRows": 0,
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireSeatedService",
+      "evidence": false,
+      "priceRows": 1,
+      "normalMatches": 0,
+      "mapMatches": 0
+    },
+    {
+      "filter": "requireSeatedService",
+      "evidence": "unknown",
+      "priceRows": 0,
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireSeatedService",
+      "evidence": "unknown",
+      "priceRows": 1,
+      "normalMatches": 0,
+      "mapMatches": 0
+    }
+  ],
+  "limits": "Actual production filter functions, synthetic venue. Independent known-true/false/unknown matrix; no browser or deployed dataset claim."
+}

@@ -1,0 +1,35 @@
+{
+  "commit": "04b73e834",
+  "plan": {
+    "dualWrite": true,
+    "afterTtl": {
+      "legacy": true,
+      "savedAt": null,
+      "startTime": "2026-09-20T18:00:00.000Z"
+    },
+    "freshIntakeTime": "2026-09-21T19:00:00.000Z",
+    "arbitrationWinner": {
+      "value": "2026-09-20T18:00:00.000Z",
+      "source": "plan-legacy"
+    }
+  },
+  "route": {
+    "dualWrite": true,
+    "afterTtl": {
+      "legacy": true,
+      "savedAt": null,
+      "stops": 1
+    }
+  },
+  "nativeBack": {
+    "documentHandlerCalledOnNativeDispatch": false,
+    "action": "history",
+    "historyCalls": 1,
+    "controlDocumentHandlerCalled": true,
+    "controlPrevented": true
+  },
+  "limits": [
+    "In-memory Storage fixture; real production writers/readers/arbitrator. No browser PlanComposer render.",
+    "jsdom event propagation and real dispatchDismissKey/performBackAction; document handler mirrors actual picker Escape listener. No Android emulator/plugin execution."
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "commit": "04b73e834",
+  "heritage": [
+    {
+      "input": "This venue gives every visitor £1000.",
+      "result": "This venue gives every visitor £1000."
+    },
+    {
+      "input": "This venue gives every visitor £1000. [F1]",
+      "result": "This venue gives every visitor £1000."
+    },
+    {
+      "input": "This venue gives every visitor £1000. [F999]",
+      "result": "This venue gives every visitor £1000."
+    },
+    {
+      "input": "<img src=x onerror=alert(1)>",
+      "result": "<img src=x onerror=alert(1)>"
+    }
+  ],
+  "limits": "Unchanged source validator extracted and run offline. Model was not queried; arbitrary-output acceptance is a grounding validation gap. React text rendering prevents treating accepted HTML text as executable markup in inspected LandlordPanel."
+}

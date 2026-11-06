@@ -1,0 +1,13 @@
+count: 8
+pull_requests[8]{number,title,state,author,draft,review}:
+  1756,Harvest Reddit London drink prices into community lane,open,karanmrn,no,none
+  1755,Site-harvest drink labels for subtype-priced views,open,karanmrn,yes,none
+  1754,Bundle drink labels and subtypes for subtype-priced views,open,karanmrn,no,none
+  1751,Desktop design polish for demo (1440/1920),open,karanmrn,yes,none
+  1750,"GK drink harvest: Tavily Extract transport (L2)",open,karanmrn,no,none
+  1748,"harvest(L3): Greater London UK document crawl for all drink categories",open,karanmrn,no,none
+  1747,London Tavily pub enrichment (Greater London bbox),open,karanmrn,yes,none
+  1741,"fix(venues): stop a pricier corroborated drop from relabelling cheapestPint",open,karanmrn,no,none
+help[2]:
+  Run `gh-axi pr view <number>` to view details
+  Run `gh-axi pr create --title "..." --body-file <path>` to create

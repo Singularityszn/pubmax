@@ -1,0 +1,19 @@
+{
+  "confirmed": [
+    "Review current tracked files and historical losses, not every historical file version",
+    "Complete London outings; browse occasions plus ask",
+    "Local writes and read-only production",
+    "Up to three bounded reviewers",
+    "Date night: evidence-backed shortlist before asking",
+    "Dancing: sourced pub + club/event + getting home",
+    "Restore useful outcomes in current design",
+    "Then-vs-Now: compare matching drinks and servings only; otherwise show observations without delta",
+    "Atmosphere: labelled editorial estimates alongside sourced facts; unknown is not observed quiet",
+    "Recover all outing types: dates, friends/dancing, quiet/gardens; up to three bounded reviewers",
+    "22 September: user explicitly authorized fixing findings and restoring all London outing journeys through Lavish feedback"
+  ],
+  "not_authorized": [
+    "Merges, migrations, deployment",
+    "Production writes or messaging"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "commit": "04b73e834",
+  "validFixture": true,
+  "initialText": " Deals tonight1 listed dealListed offers and other deals, deal on. Prices and inclusions vary; check the source.Audit expiring dealHappening nowFixture pubEnds 7:01 pmFixture official listing · sourcedOpen deals on the map",
+  "afterTwoMinutesIdle": " Deals tonight1 listed dealListed offers and other deals, deal on. Prices and inclusions vary; check the source.Audit expiring dealHappening nowFixture pubEnds 7:01 pmFixture official listing · sourcedOpen deals on the map",
+  "afterForcedRerender": "",
+  "networkCalls": 0,
+  "limits": [
+    "Actual DealsTonightLane, Next Link, urgency badge and production validators/helpers mounted in jsdom. Only CSS imports omitted.",
+    "Synthetic global Date and timer clock advanced two minutes over a deal ending after one minute; supplied rows avoid network. No parent Tonight/Discover component mounted; parent rerenders could refresh incidentally.",
+    "DOM presence proved, not painted browser geometry or background-tab scheduling."
+  ]
+}

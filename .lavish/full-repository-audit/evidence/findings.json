@@ -1,0 +1,172 @@
+[
+  {
+    "id": "SEC-01",
+    "priority": "P1",
+    "title": "Private cover photos remain available through retained URLs",
+    "confidence": "Confirmed source-executed",
+    "anchor": "lib/profileImageServe.server.ts:156",
+    "impact": "A private profile hides cover URLs in JSON, but the image endpoint still serves bytes anonymously and permits shared caching.",
+    "remedy": "Apply the same owner/mate boundary to covers; remove shared caching and handle cached old generations.",
+    "evidence": "security-repro-parent.json"
+  },
+  {
+    "id": "Q-07",
+    "priority": "P1",
+    "title": "Desktop planner ignores required accessibility on slim pins",
+    "confidence": "Confirmed source-executed; desktop path traced",
+    "anchor": "lib/filterMapVenues.ts:18",
+    "impact": "No-price rows bypass step-free, accessible-toilet and seated-service requirements, despite UI promising to hide unknown access.",
+    "remedy": "Preserve true/false/unknown evidence rules for both priced and slim cohorts.",
+    "evidence": "quality-extra-proofs-parent.json"
+  },
+  {
+    "id": "Q-02",
+    "priority": "P1",
+    "title": "Half prices can appear as cheap pints",
+    "confidence": "Confirmed source-executed",
+    "anchor": "app/discover/DiscoverPageClient.tsx:200",
+    "impact": "Discover drops serving size before ranking. A \u00a32.60 half can appear under cheap pints.",
+    "remedy": "Retain serving identity and enforce pint eligibility at consumer boundaries.",
+    "evidence": "non-pint-proof.json"
+  },
+  {
+    "id": "H0",
+    "priority": "P1",
+    "title": "Date night asks for history of a fictitious pub",
+    "confidence": "Confirmed in production and local browser",
+    "anchor": "lib/ask/router.ts:275",
+    "impact": "The shipped Date night request becomes a heritage lookup for \u201cdate-night with some , calm not loud\u201d. It returns no shortlist.",
+    "remedy": "Browse an evidence-backed shortlist; separate general heritage preferences from resolved named-venue questions.",
+    "evidence": "browser/date-night-production.txt"
+  },
+  {
+    "id": "Q-01",
+    "priority": "P1",
+    "title": "Discover silently rejects contemporary music listings",
+    "confidence": "Confirmed source-executed",
+    "anchor": "components/discovery/MusicTonightLane.tsx:55",
+    "impact": "Array.filter supplies its index as the validator clock. A valid modern listing fails validation. Production music supply was empty during audit, so this is a fixture proof of a reachable consumer.",
+    "remedy": "Wrap the predicate; test a rendered self-fetch lane using the real row validator.",
+    "evidence": "music-filter-proof.json"
+  },
+  {
+    "id": "SEC-02",
+    "priority": "P2",
+    "title": "Moderator session expiry exists only in the browser",
+    "confidence": "Confirmed source-executed",
+    "anchor": "lib/adminAuth.ts:90",
+    "impact": "A copied valid cookie remains accepted after 31 days because its digest contains no timestamp.",
+    "remedy": "Enforce signed/server-side expiry; reject legacy timeless sessions.",
+    "evidence": "security-repro-parent.json"
+  },
+  {
+    "id": "SEC-03",
+    "priority": "P2",
+    "title": "Client can release voice quota without recording use",
+    "confidence": "Confirmed source-executed",
+    "anchor": "app/api/pub-pal/voice-token/route.ts:139",
+    "impact": "Authenticated clients report zero duration and regain allowance. Provider single-session cap exists; monthly accounting is bypassable.",
+    "remedy": "Reserve bounded use, bind conversation identity, reconcile trusted provider duration idempotently.",
+    "evidence": "security-repro-parent.json"
+  },
+  {
+    "id": "SEC-04",
+    "priority": "P2",
+    "title": "Price crawler reads menu paths denied by robots",
+    "confidence": "Confirmed source-executed with transport doubles",
+    "anchor": "scripts/harvest/uk-prices/run.mjs:392",
+    "impact": "Homepage robots permission is reused for discovered menu paths instead of checking each path.",
+    "remedy": "Recheck source policy and robots for each target and redirect.",
+    "evidence": "security-harvest-repro-parent.json"
+  },
+  {
+    "id": "Q-03",
+    "priority": "P2",
+    "title": "Then-vs-Now compares different drinks",
+    "confidence": "Confirmed source-executed/static",
+    "anchor": "lib/thenVsNow.ts:79",
+    "impact": "Venue identity alone is insufficient to call a change in serving or drink a price rise or fall.",
+    "remedy": "Compare matching drink/serving only, or show separate observations without a delta.",
+    "evidence": "non-pint-proof.json"
+  },
+  {
+    "id": "Q-05",
+    "priority": "P2",
+    "title": "Expired plan drafts reappear through legacy mirrors",
+    "confidence": "Confirmed source-executed",
+    "anchor": "lib/planDraft.ts",
+    "impact": "V2 expiry falls through to timeless V1 data. Yesterday\u2019s start time can defeat a fresh intake.",
+    "remedy": "Retire or migrate mirrors atomically; expired records cannot participate in arbitration.",
+    "evidence": "quality-proofs-parent.json"
+  },
+  {
+    "id": "Q-06",
+    "priority": "P2",
+    "title": "Native Back skips document-bound picker dismissal",
+    "confidence": "Confirmed event-seam proof; device untested",
+    "anchor": "lib/nativeBackGesture.ts",
+    "impact": "A window-dispatched Escape never reaches document-bound picker handlers, so history navigation can run.",
+    "remedy": "Use one dismissal contract and verify actual Android Back and iOS gesture behavior.",
+    "evidence": "quality-proofs-parent.json"
+  },
+  {
+    "id": "Q-08",
+    "priority": "P2",
+    "title": "Native Back can request history twice",
+    "confidence": "Confirmed hook/helper proof; device untested",
+    "anchor": "components/map/pubmap/useMapKeyboardShortcuts.ts:46",
+    "impact": "The Escape handler calls surface navigation but does not prevent default; native helper requests history again. Browser coalescing untested.",
+    "remedy": "Claim handled events and assert one dismissal or navigation per event.",
+    "evidence": "quality-extra-proofs-parent.json"
+  },
+  {
+    "id": "Q-09",
+    "priority": "P2",
+    "title": "Restricted storage crashes map persistence",
+    "confidence": "Confirmed mounted-hook proof",
+    "anchor": "components/map/pubmap/useBuiltIdsPersistence.ts:11",
+    "impact": "Unconditional localStorage access throws SecurityError even with no planned stops.",
+    "remedy": "Use existing safeStorage boundary and preserve in-memory operation.",
+    "evidence": "quality-extra-proofs-parent.json"
+  },
+  {
+    "id": "H9",
+    "priority": "P2",
+    "title": "Committed lockfile contains conflict markers",
+    "confidence": "Confirmed parser failure; npm install passed",
+    "anchor": "package-lock.json:44",
+    "impact": "Strict JSON readers fail. npm 11 accepts conflict JSON; observed concrete dependencies installed as expected.",
+    "remedy": "Regenerate under declared toolchain, validate JSON and compare clean resolutions.",
+    "evidence": "history.md"
+  },
+  {
+    "id": "OPS-01",
+    "priority": "P2",
+    "title": "Freshness gate fails for area news",
+    "confidence": "Confirmed local gate",
+    "anchor": "data/area_news.json",
+    "impact": "Area news exceeded 504 hours; three durable datasets could not be measured without configured services.",
+    "remedy": "Restore authorized producer ownership and verify durable freshness in an isolated configured environment.",
+    "evidence": "freshness.log"
+  },
+  {
+    "id": "Q-04",
+    "priority": "P2",
+    "title": "Idle Discover has no deal-expiry rerender",
+    "confidence": "Confirmed mounted-component clock proof",
+    "anchor": "components/discovery/DealsTonightLane.tsx:98",
+    "impact": "Clock is read only during renders, so crossing the end time need not remove an idle card.",
+    "remedy": "Schedule next boundary and refresh on visibility; validate mounted timed behavior.",
+    "evidence": "quality-deal-expiry-parent.json"
+  },
+  {
+    "id": "UX-01",
+    "priority": "P3",
+    "title": "Implementation labels leak into product copy",
+    "confidence": "Confirmed browser",
+    "anchor": "components/discovery/TonightMapPointer.tsx:23",
+    "impact": "\u201c/api/whats-on spine\u201d and \u201cSort My Night P1\u201d describe internal implementation rather than user outcomes.",
+    "remedy": "Replace with purpose-led copy.",
+    "evidence": "parent-findings.json"
+  }
+]

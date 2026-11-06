@@ -1,0 +1,62 @@
+[
+  {
+    "check": "Data validation",
+    "status": "PASS",
+    "detail": "21 datasets accepted by documented validation."
+  },
+  {
+    "check": "Lint",
+    "status": "PASS with warnings",
+    "detail": "0 errors; 72 warnings. Not a clean-warning claim."
+  },
+  {
+    "check": "Typecheck / deadcode",
+    "status": "PASS",
+    "detail": "Both passed within verify."
+  },
+  {
+    "check": "Full verify",
+    "status": "FAIL",
+    "detail": "1620 files passed, 2 failed, 1 skipped. 17305 tests passed, 1 failed, 63 skipped. RLS setup timed out; deploy-size fence saw audit artifacts. Gate was not green."
+  },
+  {
+    "check": "Serial PostgreSQL / RLS",
+    "status": "PASS on serial rerun",
+    "detail": "34 suites and 407 tests passed with one worker against disposable local PostgreSQL. Initial concurrent verify timed out in RLS setup; no production database tested."
+  },
+  {
+    "check": "Production build",
+    "status": "PASS",
+    "detail": "Two isolated E2E builds succeeded, keyed-test and keyless configurations. No deployment performed."
+  },
+  {
+    "check": "Full E2E",
+    "status": "RUNNING",
+    "detail": "1174 cases inventoried. Failure contexts exist; final counts and isolated triage pending."
+  },
+  {
+    "check": "Freshness",
+    "status": "FAIL",
+    "detail": "1 stale; 3 unresolved of 27 datasets. See freshness.log."
+  },
+  {
+    "check": "Dependency audit",
+    "status": "PASS high/critical gate",
+    "detail": "0 high/critical; 3 moderate entries in one uuid tooling chain. Reachable application exploit not demonstrated."
+  },
+  {
+    "check": "Image outputs",
+    "status": "PASS decode only",
+    "detail": "2573 image files decoded, 2406 unique pixel payloads, no decode failures. Not semantic visual review."
+  },
+  {
+    "check": "Native runtime / real auth provider",
+    "status": "UNTESTED / BLOCKED",
+    "detail": "No booted simulator or Android device tested; no isolated provider credentials. Browser and mocked tests do not establish native or real-provider correctness."
+  },
+  {
+    "check": "Deploy-size fence isolated rerun",
+    "status": "PASS",
+    "detail": "3 tests passed after moving audit artifacts outside deploy input. Confirms initial failure was introduced by audit output, not pinned source."
+  }
+]

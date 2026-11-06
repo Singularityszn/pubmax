@@ -1,0 +1,286 @@
+- link "Skip to main content":
+  - /url: "#main"
+- main:
+  - navigation "Site navigation":
+    - link "Open PUBMAXX landing page":
+      - /url: /
+      - img "PUBMAXX":
+        - generic: PUBMAXX
+        - generic: PUBMAX
+        - generic: X
+    - list:
+      - link "Tonight":
+        - /url: /tonight
+      - link "Map":
+        - /url: /map
+      - link "Places":
+        - /url: /places
+      - link "Out":
+        - /url: /out
+      - link "Plan":
+        - /url: /plan
+      - link "You":
+        - /url: /u/you
+    - button "More pages":
+      - generic: More
+    - link "Activity":
+      - /url: /activity
+    - link "Messages":
+      - /url: /messages
+    - button "Switch to dark theme":
+    - button "Sign in":
+  - navigation "Now":
+    - link "Day":
+      - /url: /today
+    - link "Tonight":
+      - /url: /tonight
+  - generic "What’s on near you tonight.":
+    - paragraph: Tonight in London
+    - heading "What’s on near you tonight." [level=1]
+    - paragraph:
+      - generic: Monday 21 Sept, 21°C, clear.
+      - text: Warm and dry. Beer garden weather.
+    - region "Pubs people are talking about":
+      - heading "Pubs people are talking about" [level=2]
+      - list:
+        - heading "The Devonshire" [level=3]
+        - paragraph:
+          - generic: Soho
+        - paragraph: Named again and again as the Soho pub people queue for, with @beli_eats calling it "considered by many to be the top gastropub in London, if not the entire UK" and Mark Wiens filming its roast for 482k views.
+        - paragraph:
+          - link "r/london":
+            - /url: https://www.reddit.com/r/london/comments/1vo4ak1/comment/p3mla48/
+            - text: r/london
+          - generic: Checked 14 Aug
+        - link "Open on map":
+          - /url: /map?sel=venue-s2ppfm
+          - text: Open on map
+        - heading "Duke of Edinburgh" [level=3]
+        - paragraph:
+          - generic: Brixton
+        - paragraph: Brixton beer garden that r/LondonSocialClub keeps booking for open meet-ups, and that @missjonesgroup lists among its ten London beer gardens.
+        - paragraph:
+          - link "r/LondonSocialClub":
+            - /url: https://www.reddit.com/r/LondonSocialClub/comments/1vo2dgd/comment/p3m9ajf/
+            - text: r/LondonSocialClub
+          - generic: Checked 14 Aug
+        - link "Open on map":
+          - /url: /map?sel=venue-6yj07d
+          - text: Open on map
+        - heading "Ye Olde Cheshire Cheese" [level=3]
+        - paragraph:
+          - generic: Fleet Street
+        - paragraph: The Fleet Street pub every London history creator films, with @thosepubguys reaching 321k views on its cellars and Dickens connection.
+        - paragraph:
+          - link "r/LondonFood":
+            - /url: https://www.reddit.com/r/LondonFood/comments/1u8fpgt/comment/os7u2wh/
+            - text: r/LondonFood
+          - generic: Checked 17 Jun
+        - link "Open on map":
+          - /url: /map?sel=venue-alrti6
+          - text: Open on map
+        - heading "Simmons" [level=3]
+        - paragraph:
+          - generic: Soho (Greek St) and City
+        - paragraph: Cited across TikTok and r/cheaplondon for a £4 Guinness, with u/TheBaneofNewHaven noting "Simmons on Greek Street does £4 Guinness all day plus £3 Camden Hells til 7".
+        - paragraph:
+          - link "TikTok @guinnessgirlz":
+            - /url: https://www.tiktok.com/@guinnessgirlz/video/7666131977975778582
+            - text: TikTok @guinnessgirlz
+          - generic: Checked 24 Jul
+        - paragraph: Not on our map yet
+        - heading "Ye Olde Mitre" [level=3]
+        - paragraph:
+          - generic: Holborn
+        - paragraph: Repeatedly framed as the hidden pub down an alley, with @tans.pantry posting "everyone walks past this alley and has no idea london's oldest pub was hiding in it".
+        - paragraph:
+          - link "r/LondonFood":
+            - /url: https://www.reddit.com/r/LondonFood/comments/1vmf6ho/comment/p392gcd/
+            - text: r/LondonFood
+          - generic: Checked 12 Aug
+        - link "Open on map":
+          - /url: /map?sel=venue-lkjwk4
+          - text: Open on map
+      - generic "7 more pubs":
+        - text: 7 more pubs
+    - status:
+      - text: The city’s having a quiet one tonight. We only list what’s really on, and nothing’s confirmed yet.
+      - link "The map still knows where the cheap pints are":
+        - /url: /map
+      - text: .
+    - paragraph: No event needed
+    - list:
+      - link "Pubs near you":
+        - /url: /near?patch=soho
+        - generic: Pubs near you
+      - link "Plan the night instead":
+        - /url: /plan
+        - generic: Plan the night instead
+    - paragraph: Quiet night · No date on this yet · via what’s-on
+    - button "Share tonight's listings":
+      - text: Share
+    - complementary "Tonight at a glance":
+      - region "Cheapest listed pints":
+        - heading "Cheapest listed pints" [level=2]
+        - list:
+          - link "The Fox on the Hill Southwark · Wetherspoon £1.99":
+            - /url: /map?sel=venue-gdlj1b
+            - generic: The Fox on the Hill
+            - generic: Southwark · Wetherspoon
+            - generic: £1.99
+          - link "Nags Head, Peckham Southwark £2.90":
+            - /url: /map?sel=venue-19vregq
+            - generic: Nags Head, Peckham
+            - generic: Southwark
+            - generic: £2.90
+          - link "The Three Tuns - LSE Student Union Westminster £2.95":
+            - /url: /map?sel=venue-p7p18j
+            - generic: The Three Tuns - LSE Student Union
+            - generic: Westminster
+            - generic: £2.95
+          - link "The Hand in Hand Lambeth £3.10":
+            - /url: /map?sel=venue-1otcj9u
+            - generic: The Hand in Hand
+            - generic: Lambeth
+            - generic: £3.10
+        - paragraph: Snapshot from 4 September 2026
+      - group "What’s the vibe tonight":
+        - paragraph: What’s the vibe?
+        - link "Quiet pint":
+          - /url: /plan?occasion=quiet&src=tonight-vibes
+        - link "Cheeky one after work":
+          - /url: /pal/chat?ask=Cheapest%20decent%20pint%20for%20a%20quick%20one%20after%20work
+        - link "Date night":
+          - /url: /pal/chat?ask=A%20date-night%20pub%20with%20some%20history%2C%20calm%20not%20loud
+        - link "Coffee catch-up":
+          - /url: /plan?occasion=coffee&src=tonight-vibes
+        - link "Alcohol-free outing":
+          - /url: /plan?occasion=af&src=tonight-vibes
+        - link "Chill afternoon":
+          - /url: /plan?occasion=chill&src=tonight-vibes
+      - region "Soft plans tonight":
+        - paragraph: Soft plans tonight
+        - list:
+          - link "Coffee catch-up":
+            - /url: /plan?occasion=coffee&src=tonight-soft
+            - generic: Coffee catch-up
+          - link "Alcohol-free outing":
+            - /url: /plan?occasion=af&src=tonight-soft
+            - generic: Alcohol-free outing
+          - link "Chill afternoon":
+            - /url: /plan?occasion=chill&src=tonight-soft
+            - generic: Chill afternoon
+          - link "A quiet pint":
+            - /url: "#tonight-quiet-pint"
+            - generic: A quiet pint
+        - paragraph: Out of the house. Something to see first, the pint after.
+        - list:
+          - link "Gallery then a pint":
+            - /url: /plan?occasion=gallery-pint&src=tonight-culture
+            - generic: Gallery then a pint
+          - link "Market wander + kebab":
+            - /url: /plan?occasion=market-kebab&src=tonight-culture
+            - generic: Market wander + kebab
+          - link "River walk + historic pub":
+            - /url: /plan?occasion=river-historic&src=tonight-culture
+            - generic: River walk + historic pub
+          - link "Sights then a quiet one":
+            - /url: /plan?occasion=sights-quiet&src=tonight-culture
+            - generic: Sights then a quiet one
+    - region "A quiet pint, and a bit of history.":
+      - paragraph: For a quieter pint
+      - heading "A quiet pint, and a bit of history." [level=2]
+      - list:
+        - link "Prospect of Whitby £5.00":
+          - /url: /map?sel=venue-16pnwmm
+          - generic: Prospect of Whitby
+          - generic: £5.00
+        - generic "The Prospect of Whitby is a Grade II* listed pub on Wapping Wall in the East End, reputed to be one of the oldest riverside taverns in London, dating from around 1520. Show more":
+          - generic: The Prospect of Whitby is a Grade II* listed pub on Wapping Wall in the East End, reputed to be one of the oldest riverside taverns in London, dating from around 1520.
+          - generic: Show more
+        - generic: Grade II*
+        - generic: Founded 1520
+        - generic: Usually quiet on a Monday
+        - generic: Sourced
+        - link "via Wikipedia":
+          - /url: https://en.wikipedia.org/wiki/Prospect_of_Whitby
+          - text: via Wikipedia
+        - link "The Hoop and Grapes £6.65":
+          - /url: /map?sel=venue-178c07p
+          - generic: The Hoop and Grapes
+          - generic: £6.65
+        - generic "The Hoop and Grapes at 47 Aldgate High Street is a Grade II* listed pub, probably built in the late 17th century; it is one of the very few timber-framed buildings in the City of London to survive from that period, standing just beyond where the Great Fire of London was halted in 1666. Show more":
+          - generic: The Hoop and Grapes at 47 Aldgate High Street is a Grade II* listed pub, probably built in the late 17th century; it is one of the very few timber-framed buildings in the City of London to survive from that period, standing just beyond where the Great Fire of London was halted in 1666.
+          - generic: Show more
+        - generic: Grade II*
+        - generic: Built 17th century
+        - generic: Usually quiet on a Monday
+        - generic: Sourced
+        - link "via Wikipedia":
+          - /url: https://en.wikipedia.org/wiki/Hoop_and_Grapes,_Aldgate_High_Street
+          - text: via Wikipedia
+        - link "The Blackfriar £6.50":
+          - /url: /map?sel=venue-eltcmh
+          - generic: The Blackfriar
+          - generic: £6.50
+        - generic "The Black Friar is a Grade II* listed pub at 174 Queen Victoria Street, Blackfriars, built about 1875 on the site of a medieval Dominican (Black Friars) friary and remodelled around 1905 by the architect Herbert Fuller-Clark; it is famous for its Arts and Crafts and Art Nouveau interior of marble, mosaic and bronze reliefs of jovial friars. Show more":
+          - generic: The Black Friar is a Grade II* listed pub at 174 Queen Victoria Street, Blackfriars, built about 1875 on the site of a medieval Dominican (Black Friars) friary and remodelled around 1905 by the architect Herbert Fuller-Clark; it is famous for its Arts and Crafts and Art Nouveau interior of marble, mosaic and bronze reliefs of jovial friars.
+          - generic: Show more
+        - generic: Grade II*
+        - generic: Built 1875
+        - generic: Usually quiet on a Monday
+        - generic: Sourced
+        - link "via Wikipedia":
+          - /url: https://en.wikipedia.org/wiki/The_Black_Friar,_Blackfriars
+          - text: via Wikipedia
+        - link "The Dove £7.25":
+          - /url: /map?sel=venue-1p5ftm3
+          - generic: The Dove
+          - generic: £7.25
+        - generic "The Dove is a Grade II* listed pub on Upper Mall, Hammersmith, overlooking the Thames; it holds a Guinness World Record for the smallest bar room in a public house. Show more":
+          - generic: The Dove is a Grade II* listed pub on Upper Mall, Hammersmith, overlooking the Thames; it holds a Guinness World Record for the smallest bar room in a public house.
+          - generic: Show more
+        - generic: Grade II*
+        - generic: Usually quiet on a Monday
+        - generic: Sourced
+        - link "via Wikipedia":
+          - /url: https://en.wikipedia.org/wiki/The_Dove,_Hammersmith
+          - text: via Wikipedia
+        - link "The Captain Kidd £4.00":
+          - /url: /map?sel=venue-1d8a5xb
+          - generic: The Captain Kidd
+          - generic: £4.00
+        - generic "The Captain Kidd at 108 Wapping High Street is a Grade II listed riverside pub in a converted former warehouse, named after the pirate William Kidd, who was hanged at the nearby Execution Dock in 1701. Show more":
+          - generic: The Captain Kidd at 108 Wapping High Street is a Grade II listed riverside pub in a converted former warehouse, named after the pirate William Kidd, who was hanged at the nearby Execution Dock in 1701.
+          - generic: Show more
+        - generic: Grade II
+        - generic: Linked to 1701
+        - generic: Usually quiet on a Monday
+        - generic: Sourced
+        - link "via Wikipedia":
+          - /url: https://en.wikipedia.org/wiki/Captain_Kidd,_Wapping
+          - text: via Wikipedia
+      - paragraph:
+        - generic: Quiet reads the usual pattern for the hour, not the door.
+        - link "More historic pubs":
+          - /url: /historic
+          - text: More historic pubs
+    - region "While it's quiet":
+      - paragraph: "Quiet one tonight. Still worth a look:"
+      - list:
+        - link "Check your last train home Open a pub's Getting Home tab on the map":
+          - /url: /map
+          - generic: Check your last train home
+          - generic: Open a pub's Getting Home tab on the map
+        - link "Browse crawls Multi-stop routes worth planning around":
+          - /url: /crawls
+          - generic: Browse crawls
+          - generic: Multi-stop routes worth planning around
+    - region "Location for walk times and last train":
+      - button "Walk times and last train":
+        - generic: Walk times and last train
+    - link "See them on the map":
+      - /url: /map
+    - link "Find my pint":
+      - /url: /near?locate=1
+- alert

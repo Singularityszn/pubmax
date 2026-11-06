@@ -1,0 +1,160 @@
+- link "Skip to main content":
+  - /url: "#main"
+- main:
+  - navigation "Site navigation":
+    - link "Open PUBMAXX landing page":
+      - /url: /
+      - img "PUBMAXX":
+        - generic: PUBMAXX
+        - generic: PUBMAX
+        - generic: X
+    - list:
+      - link "Tonight":
+        - /url: /tonight
+      - link "Map":
+        - /url: /map
+      - link "Places":
+        - /url: /places
+      - link "Out":
+        - /url: /out
+      - link "Plan":
+        - /url: /plan
+      - link "You":
+        - /url: /u/you
+    - button "More pages":
+      - generic: More
+    - link "Share a Moment":
+      - /url: /moment?returnTo=%2Fplan%2F65ba1e7d-cab7-404e-b8b3-fdf81e28aa82
+    - button "Open command palette":
+      - generic: ⌘K
+    - link "Activity":
+      - /url: /activity
+    - link "Messages":
+      - /url: /messages
+    - button "Switch to light theme":
+    - button "Sign in":
+      - generic: Sign in
+  - region "Your night out in Piccadilly & Soho":
+    - paragraph: Your plan
+    - heading "Your night out in Piccadilly & Soho" [level=1]
+    - paragraph: 3 pubs, one link, zero account walls.
+    - link "Send to the crew":
+      - /url: "#share"
+    - link "Make another plan":
+      - /url: /plan
+  - region "The route":
+    - paragraph: First pint · 18:00
+    - heading "The route" [level=2]
+    - button "Edit route"
+    - paragraph: Get-in estimate for one going. Never a guarantee of entry.
+    - figure:
+      - 'img "Route map: 3 stops in Westminster Walking route between The Glasshouse Stores, The Duke of Argyll, The Lyric."':
+        - generic: "1"
+        - generic: "2"
+        - generic: "3"
+    - link "See the walking route":
+      - /url: /map?mode=build&pubs=venue-1jle4q6%2Cvenue-1g5ax5n%2Cvenue-7tarkc
+    - list:
+      - generic: "1"
+      - strong: The Glasshouse Stores
+      - link "Open on the map":
+        - /url: /map?venue=venue-1jle4q6
+      - generic "That's the usual pattern for this hour. We're not watching the door.": Usually quiet
+      - generic "We do not hold opening hours for this pub, so we cannot say.": Check before going
+      - generic: "2"
+      - strong: The Duke of Argyll
+      - link "Open on the map":
+        - /url: /map?venue=venue-1g5ax5n
+      - generic "That's the usual pattern for this hour. We're not watching the door.": Usually quiet
+      - generic "We do not hold opening hours for this pub, so we cannot say.": Check before going
+      - generic: "3"
+      - strong: The Lyric
+      - link "Open on the map":
+        - /url: /map?venue=venue-7tarkc
+      - generic "That's the usual pattern for this hour. We're not watching the door.": Usually quiet
+      - generic "We do not hold opening hours for this pub, so we cannot say.": Check before going
+    - text: The Round · group crawl
+    - heading "Invite friends to this plan" [level=2]
+    - paragraph: Turn this plan into a Round. Friends join by a short code; stops are already queued.
+    - textbox "Your handle":
+      - /placeholder: your handle
+    - button "Start Round":
+      - text: Start Round
+    - region "Plan it together":
+      - paragraph: Crew decisions
+      - heading "Plan it together" [level=3]
+      - generic: Host
+      - button "Create private invite"
+      - generic: One-use private link. Until they join, guests see the inviter, broad area, time window, and vibe, never the full stop list.
+      - region "Match the group":
+        - paragraph: Sort My Night P1
+        - heading "Match the group" [level=4]
+        - generic: Not shared yet
+        - paragraph: Pick a budget, a vibe and optional needs. Saved picks are shared with everyone on this plan.
+        - strong: Budget
+        - group "Budget preference":
+          - button "Under GBP 6"
+          - button "Standard"
+          - button "Flexible"
+        - strong: Vibe
+        - group "Atmosphere preference":
+          - button "Cosy corners"
+          - button "Chatty tables"
+          - button "Lively room"
+          - button "Music-led"
+          - button "Food nearby"
+        - button "Zero-proof needed"
+        - button "Step-free access"
+        - button "Covered shelter"
+        - button "Clear my picks"
+        - status: "Crew overlap: waiting on mate picks. No shared picks on this plan yet."
+      - strong: Add a need
+      - combobox "Need type":
+        - option "Access"
+        - option "Budget"
+        - option "Zero-proof"
+        - option "Timing"
+        - option "Transport"
+        - option "Other" [selected]
+      - combobox "Need priority":
+        - option "Preference" [selected]
+        - option "Must-have"
+      - textbox "Describe this crew need":
+        - /placeholder: e.g. step-free entrance
+      - button "Add" [disabled]
+  - complementary:
+    - region "Get everyone on the same page":
+      - paragraph: Send the invite
+      - heading "Get everyone on the same page" [level=2]
+      - paragraph: WhatsApp the night link, or copy the invite. Mates tap “I’m in” with a name.
+      - link "Send on WhatsApp":
+        - /url: https://wa.me/?text=a%20night%20out%20in%20Piccadilly%20%26%20Soho%20%C2%B7%203%20stops%20%C2%B7%20starts%2018%3A00.%20Open%20the%20link%20and%20tap%20I'm%20in.%20https%3A%2F%2Fpubmaxxing.com%2Fplan%2F65ba1e7d-cab7-404e-b8b3-fdf81e28aa82%23invite%3De884c36cf55cc3f8b2b3d4bc5b925e72
+      - button "Copy invite link"
+      - button "New link"
+      - button "More ways to share"
+    - region "Who’s in":
+      - paragraph: The crew
+      - heading "Who’s in" [level=2]
+      - generic: "1"
+      - group "Update your status":
+        - button "In"
+        - button "On the way"
+        - button "Here"
+        - button "Running late"
+        - button "Start without me"
+      - list:
+        - generic: Audit Tester
+        - generic: In
+    - region "What’s the vibe?":
+      - paragraph: Crew vibe
+      - heading "What’s the vibe?" [level=2]
+      - paragraph: One vote each. Tap another chip to change yours; the winner stamps the share card.
+      - group "Vote the night's vibe":
+        - button "Big one tonight"
+        - button "Live and loud"
+        - button "Quiet pint"
+        - button "Cheeky one after work"
+        - button "Match on"
+        - button "Big brain energy"
+        - button "Date night"
+- alert: Your night out in Piccadilly & Soho · PUBMAXXING | PUBMAXX

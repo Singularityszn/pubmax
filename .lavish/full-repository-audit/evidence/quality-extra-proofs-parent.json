@@ -1,0 +1,47 @@
+{
+  "commit": "04b73e834",
+  "nativeEscape": {
+    "backRequests": 2,
+    "action": "history"
+  },
+  "blockedStorage": {
+    "emptyMapMountError": "SecurityError"
+  },
+  "slimFilters": [
+    {
+      "filter": "requireBeerGarden",
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireNonAlcoholic",
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireLiveSports",
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireStepFree",
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireAccessibleToilet",
+      "normalMatches": 0,
+      "mapMatches": 1
+    },
+    {
+      "filter": "requireSeatedService",
+      "normalMatches": 0,
+      "mapMatches": 1
+    }
+  ],
+  "limits": [
+    "Actual React hooks rendered in jsdom, actual native dispatch/action functions. onBack is a count double for PubMap surface history callback; two requests proved, browser history scheduling not exercised.",
+    "Storage getter throws SecurityError by fixture, mirroring restricted browser storage. Actual persistence hook and React error boundary executed.",
+    "Synthetic no-price London venue with known-false amenity hints and unknown accessibility passed through real production filtering functions. No browser canvas rendering."
+  ]
+}

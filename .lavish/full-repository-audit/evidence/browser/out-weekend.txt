@@ -1,0 +1,765 @@
+- link "Skip to main content":
+  - /url: "#main"
+- main:
+  - navigation "Site navigation":
+    - link "Open PUBMAXX landing page":
+      - /url: /
+      - img "PUBMAXX":
+        - generic: PUBMAXX
+        - generic: PUBMAX
+        - generic: X
+    - list:
+      - link "Tonight":
+        - /url: /tonight
+      - link "Map":
+        - /url: /map
+      - link "Places":
+        - /url: /places
+      - link "Out":
+        - /url: /out
+      - link "Plan":
+        - /url: /plan
+      - link "You":
+        - /url: /u/you
+    - button "More pages":
+      - generic: More
+    - link "Activity":
+      - /url: /activity
+    - link "Messages":
+      - /url: /messages
+    - button "Switch to dark theme":
+    - button "Sign in":
+  - generic "What’s on, sourced.":
+    - paragraph: Out in London
+    - heading "What’s on, sourced." [level=1]
+    - link "Open the map":
+      - /url: /map
+    - link "Plan a night":
+      - /url: /plan
+    - navigation "When":
+      - link "Tonight":
+        - /url: /out
+      - link "Tomorrow":
+        - /url: /out?day=tomorrow
+      - link "Weekend" [active]:
+        - /url: /out?day=weekend
+    - region "What's on the weekend":
+      - heading "What's on the weekend" [level=2]
+      - region "Friday 25 September":
+        - list:
+          - link "Voxtrot Gig The Lexington Fri 19:30":
+            - /url: /map?sel=venue-1137z1c
+            - heading "Voxtrot" [level=4]
+            - paragraph:
+              - generic: Gig
+              - generic: The Lexington
+              - generic: Fri 19:30
+          - paragraph:
+            - generic: Ticketmaster · ticketweb.uk
+          - generic: On PUBMAXX
+          - paragraph: The Lexington
+          - link "Open on map":
+            - /url: /map?sel=venue-1137z1c
+      - region "Not on our map yet":
+        - heading "Not on our map yet" [level=3]
+        - region "Friday 25 September":
+          - list:
+            - link "Laver Cup - Session Two Event The O2 Fri 17:30":
+              - /url: https://www.ticketmaster.co.uk/laver-cup-session-two-london-25-09-2026/event/350064D7E33759E7
+              - heading "Laver Cup - Session Two" [level=4]
+              - paragraph:
+                - generic: Event
+                - generic: The O2
+                - generic: Fri 17:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/laver-cup-session-two-london-25-09-2026/event/350064D7E33759E7
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "THE FRIDAY NIGHT SHOW! Comedy Up The Creek Fri 18:00":
+              - /url: https://www.universe.com/events/the-friday-night-show-tickets-52BPK7?ref=ticketmaster
+              - heading "THE FRIDAY NIGHT SHOW!" [level=4]
+              - paragraph:
+                - generic: Comedy
+                - generic: Up The Creek
+                - generic: Fri 18:00
+            - link "Ticketmaster · universe.com":
+              - /url: https://www.universe.com/events/the-friday-night-show-tickets-52BPK7?ref=ticketmaster
+              - generic: Ticketmaster · universe.com
+            - paragraph: Not on our map yet.
+            - link "Pale Waves Gig KOKO Fri 18:00":
+              - /url: https://www.ticketmaster.co.uk/pale-waves-london-25-09-2026/event/1F0064A6B1E33536
+              - heading "Pale Waves" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: KOKO
+                - generic: Fri 18:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/pale-waves-london-25-09-2026/event/1F0064A6B1E33536
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Soulidified - Early Show Gig The Lower Third Fri 18:00":
+              - /url: https://www.universe.com/events/soulidified-early-show-tickets-XVY9G8?ref=ticketmaster
+              - heading "Soulidified - Early Show" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: The Lower Third
+                - generic: Fri 18:00
+            - link "Ticketmaster · universe.com":
+              - /url: https://www.universe.com/events/soulidified-early-show-tickets-XVY9G8?ref=ticketmaster
+              - generic: Ticketmaster · universe.com
+            - paragraph: Not on our map yet.
+            - link "Dead Bob Gig New Cross Inn Fri 18:00":
+              - /url: https://www.universe.com/events/dead-bob-tickets-W4DFC5?ref=ticketmaster
+              - heading "Dead Bob" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: New Cross Inn
+                - generic: Fri 18:00
+            - link "Ticketmaster · universe.com":
+              - /url: https://www.universe.com/events/dead-bob-tickets-W4DFC5?ref=ticketmaster
+              - generic: Ticketmaster · universe.com
+            - paragraph: Not on our map yet.
+            - link "Split Chain Gig Underworld Fri 18:00":
+              - /url: https://www.ticketmaster.co.uk/split-chain-london-25-09-2026/event/1F0064ABB861448D
+              - heading "Split Chain" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Underworld
+                - generic: Fri 18:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/split-chain-london-25-09-2026/event/1F0064ABB861448D
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Live Jazz from the Piano Bar at Red Room Studios, Soho Gig Piano Bar Soho Fri 18:30":
+              - /url: https://www.universe.com/events/live-jazz-from-the-piano-bar-at-red-room-studios-soho-tickets-ZD6FXL?ref=ticketmaster
+              - heading "Live Jazz from the Piano Bar at Red Room Studios, Soho" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Piano Bar Soho
+                - generic: Fri 18:30
+            - link "Ticketmaster · universe.com":
+              - /url: https://www.universe.com/events/live-jazz-from-the-piano-bar-at-red-room-studios-soho-tickets-ZD6FXL?ref=ticketmaster
+              - generic: Ticketmaster · universe.com
+            - paragraph: Not on our map yet.
+            - link "Lucy Bedroque Gig EartH Fri 18:30":
+              - /url: https://www.ticketmaster.co.uk/lucy-bedroque-london-25-09-2026/event/35006522A87E89ED
+              - heading "Lucy Bedroque" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: EartH
+                - generic: Fri 18:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/lucy-bedroque-london-25-09-2026/event/35006522A87E89ED
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Party 101 Gig British Airways ARC Fri 18:30":
+              - /url: https://www.ticketmaster.co.uk/party-101-london-25-09-2026/event/370064D2B3E56921
+              - heading "Party 101" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: British Airways ARC
+                - generic: Fri 18:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/party-101-london-25-09-2026/event/370064D2B3E56921
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Mamma Mia! The Party Theatre The O2 Fri 18:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GY5A-mamma-mia-the-party/#perf=1GY5A-171&date=2026-09-25&time=6.30PM
+              - heading "Mamma Mia! The Party" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: The O2
+                - generic: Fri 18:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GY5A-mamma-mia-the-party/#perf=1GY5A-171&date=2026-09-25&time=6.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Harold Melvins Bluenotes 'Wake Up Everybody' 50th Anniversary Show Gig O2 Shepherds Bush Empire Fri 18:30":
+              - /url: https://www.ticketmaster.co.uk/harold-melvins-bluenotes-wake-up-everybody-london-25-09-2026/event/3E006388E7C97D5B
+              - heading "Harold Melvins Bluenotes 'Wake Up Everybody' 50th Anniversary Show" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: O2 Shepherds Bush Empire
+                - generic: Fri 18:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/harold-melvins-bluenotes-wake-up-everybody-london-25-09-2026/event/3E006388E7C97D5B
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Dele Sosimi Afrobeat Orchestra Gig Soul Mama Islington Fri 18:30":
+              - /url: https://www.universe.com/events/dele-sosimi-afrobeat-orchestra-tickets-QDCW1M?ref=ticketmaster
+              - heading "Dele Sosimi Afrobeat Orchestra" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Soul Mama Islington
+                - generic: Fri 18:30
+            - link "Ticketmaster · universe.com":
+              - /url: https://www.universe.com/events/dele-sosimi-afrobeat-orchestra-tickets-QDCW1M?ref=ticketmaster
+              - generic: Ticketmaster · universe.com
+            - paragraph: Not on our map yet.
+            - link "The Prat Pack Comedy The London Palladium Fri 18:30":
+              - /url: https://www.ticketmaster.co.uk/the-prat-pack-london-25-09-2026/event/3700647AA8162C48
+              - heading "The Prat Pack" [level=4]
+              - paragraph:
+                - generic: Comedy
+                - generic: The London Palladium
+                - generic: Fri 18:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/the-prat-pack-london-25-09-2026/event/3700647AA8162C48
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "A Guy Called Gerald (Live) Gig Jazz Cafe Fri 18:30":
+              - /url: https://www.universe.com/events/a-guy-called-gerald-live-tickets-0KHWRC?ref=ticketmaster
+              - heading "A Guy Called Gerald (Live)" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Jazz Cafe
+                - generic: Fri 18:30
+            - link "Ticketmaster · universe.com":
+              - /url: https://www.universe.com/events/a-guy-called-gerald-live-tickets-0KHWRC?ref=ticketmaster
+              - generic: Ticketmaster · universe.com
+            - paragraph: Not on our map yet.
+            - link "I Prevail Gig Alexandra Palace Fri 18:30":
+              - /url: https://www.ticketmaster.co.uk/i-prevail-london-25-09-2026/event/1F00634139C7C441
+              - heading "I Prevail" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Alexandra Palace
+                - generic: Fri 18:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/i-prevail-london-25-09-2026/event/1F00634139C7C441
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "CHAT NOIR! Event The Lost Estate Fri 18:45":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HHV2-chat-noir/#perf=1HHV2-11S&date=2026-09-25&time=6.45PM
+              - heading "CHAT NOIR!" [level=4]
+              - paragraph:
+                - generic: Event
+                - generic: The Lost Estate
+                - generic: Fri 18:45
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HHV2-chat-noir/#perf=1HHV2-11S&date=2026-09-25&time=6.45PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Magic Mike Live Theatre The Theatre at the Hippodrome Casino Fri 19:00":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FHGN-magic-mike-live#perf=1FHGN-51Y&date=2026-09-25&time=7.00PM
+              - heading "Magic Mike Live" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: The Theatre at the Hippodrome Casino
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FHGN-magic-mike-live#perf=1FHGN-51Y&date=2026-09-25&time=7.00PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Matilda The Musical Theatre Cambridge Theatre Fri 19:00":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FY3Y-matilda-the-musical/#perf=1FY3Y-38Z&date=2026-09-25&time=7.00PM
+              - heading "Matilda The Musical" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Cambridge Theatre
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FY3Y-matilda-the-musical/#perf=1FY3Y-38Z&date=2026-09-25&time=7.00PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Sinead Harnett Gig Blue Note London Fri 19:00":
+              - /url: https://www.ticketmaster.co.uk/sinead-harnett-london-25-09-2026/event/2300650EC0320D0A
+              - heading "Sinead Harnett" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Blue Note London
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/sinead-harnett-london-25-09-2026/event/2300650EC0320D0A
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Molotovs Gig O2 Forum Kentish Town Fri 19:00":
+              - /url: https://www.ticketmaster.co.uk/the-molotovs-london-25-09-2026/event/3E006435F33B5260
+              - heading "The Molotovs" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: O2 Forum Kentish Town
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/the-molotovs-london-25-09-2026/event/3E006435F33B5260
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - 'link "DJ Nights: Mi-Soul Radio Fridays Gig Boisdale, Canary Wharf Fri 19:00"':
+              - /url: https://www.universe.com/events/dj-nights-mi-soul-radio-fridays-tickets-V3MNJ2?ref=ticketmaster
+              - 'heading "DJ Nights: Mi-Soul Radio Fridays" [level=4]'
+              - paragraph:
+                - generic: Gig
+                - generic: Boisdale, Canary Wharf
+                - generic: Fri 19:00
+            - link "Ticketmaster · universe.com":
+              - /url: https://www.universe.com/events/dj-nights-mi-soul-radio-fridays-tickets-V3MNJ2?ref=ticketmaster
+              - generic: Ticketmaster · universe.com
+            - paragraph: Not on our map yet.
+            - 'link "Stranger Things: The First Shadow Theatre Phoenix Theatre Fri 19:00"':
+              - /url: https://theatre.ticketmaster.co.uk/book/1FHDY-stranger-things-the-first-shadow/#perf=1FHDY-233&date=2026-09-25&time=7.00PM
+              - 'heading "Stranger Things: The First Shadow" [level=4]'
+              - paragraph:
+                - generic: Theatre
+                - generic: Phoenix Theatre
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FHDY-stranger-things-the-first-shadow/#perf=1FHDY-233&date=2026-09-25&time=7.00PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Ella Mai Gig Eventim Apollo Fri 19:00":
+              - /url: https://www.ticketmaster.co.uk/ella-mai-london-25-09-2026/event/360064827FD42814
+              - heading "Ella Mai" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Eventim Apollo
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/ella-mai-london-25-09-2026/event/360064827FD42814
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Alyssa Grace Gig 26 Leake Street Fri 19:00":
+              - /url: https://www.ticketmaster.co.uk/alyssa-grace-london-25-09-2026/event/3500651B00A3DDF6
+              - heading "Alyssa Grace" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: 26 Leake Street
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/alyssa-grace-london-25-09-2026/event/3500651B00A3DDF6
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Death Cab for Cutie Gig Troxy Fri 19:00":
+              - /url: https://www.ticketmaster.co.uk/death-cab-for-cutie-london-25-09-2026/event/3E00649DA4382725
+              - heading "Death Cab for Cutie" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Troxy
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/death-cab-for-cutie-london-25-09-2026/event/3E00649DA4382725
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Space Gig O2 Academy Islington Fri 19:00":
+              - /url: https://www.ticketmaster.co.uk/space-london-25-09-2026/event/3E00644390592E42
+              - heading "Space" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: O2 Academy Islington
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/space-london-25-09-2026/event/3E00644390592E42
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "I love you, but... I chose The Maine Gig Roundhouse Fri 19:00":
+              - /url: https://www.ticketmaster.co.uk/i-love-you-but-i-chose-london-25-09-2026/event/1F00645A3E95B861
+              - heading "I love you, but... I chose The Maine" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Roundhouse
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/i-love-you-but-i-chose-london-25-09-2026/event/1F00645A3E95B861
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Belle Livingstone's 58th Street Country Club Gig Belle Livingstone's 58th Street Country Club Fri 19:00":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HBYR-58th-street/#perf=1HBYR-14Z&date=2026-09-25&time=7.00PM
+              - heading "Belle Livingstone's 58th Street Country Club" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Belle Livingstone's 58th Street Country Club
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HBYR-58th-street/#perf=1HBYR-14Z&date=2026-09-25&time=7.00PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Magnum Gig Islington Assembly Hall Fri 19:00":
+              - /url: https://www.ticketmaster.co.uk/magnum-london-25-09-2026/event/1F006389E3807D67
+              - heading "Magnum" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Islington Assembly Hall
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/magnum-london-25-09-2026/event/1F006389E3807D67
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "My Neighbour Totoro Theatre Gillian Lynne Theatre Fri 19:00":
+              - /url: https://theatre.ticketmaster.co.uk/book/1G7HA-my-neighbour-totoro/#perf=1G7HA-17Y&date=2026-09-25&time=7.00PM
+              - heading "My Neighbour Totoro" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Gillian Lynne Theatre
+                - generic: Fri 19:00
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1G7HA-my-neighbour-totoro/#perf=1G7HA-17Y&date=2026-09-25&time=7.00PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Beetlejuice Theatre Prince Edward Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HM82-beetlejuice/#perf=1HM82-43&date=2026-09-25&time=7.30PM
+              - heading "Beetlejuice" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Prince Edward Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HM82-beetlejuice/#perf=1HM82-43&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Mousetrap Theatre St Martin's Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1J3DY-the-mousetrap/#perf=1J3DY-4P&date=2026-09-25&time=7.30PM
+              - heading "The Mousetrap" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: St Martin's Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1J3DY-the-mousetrap/#perf=1J3DY-4P&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Witcher by candlelight Gig Kensington United Reformed Church Fri 19:30":
+              - /url: https://www.universe.com/events/the-witcher-by-candlelight-tickets-R8FQ79?ref=ticketmaster
+              - heading "The Witcher by candlelight" [level=4]
+              - paragraph:
+                - generic: Gig
+                - generic: Kensington United Reformed Church
+                - generic: Fri 19:30
+            - link "Ticketmaster · universe.com":
+              - /url: https://www.universe.com/events/the-witcher-by-candlelight-tickets-R8FQ79?ref=ticketmaster
+              - generic: Ticketmaster · universe.com
+            - paragraph: Not on our map yet.
+            - link "Mamma Mia Theatre Novello Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1H4KU-mamma-mia-sept-25/#perf=1H4KU-17O&date=2026-09-25&time=7.30PM
+              - heading "Mamma Mia" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Novello Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1H4KU-mamma-mia-sept-25/#perf=1H4KU-17O&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Shakespeare's Globe - As You Like It Theatre Globe Theatre, Shakespeare's Globe Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HM8Y-as-you-like-it-26/#perf=1HM8Y-P&date=2026-09-25&time=7.30PM
+              - heading "Shakespeare's Globe - As You Like It" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Globe Theatre, Shakespeare's Globe
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HM8Y-as-you-like-it-26/#perf=1HM8Y-P&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Play That Goes Wrong Theatre Duchess Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/17YY4-the-play-that-goes-wrong/#perf=17YY4-812&date=2026-09-25&time=7.30PM
+              - heading "The Play That Goes Wrong" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Duchess Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/17YY4-the-play-that-goes-wrong/#perf=17YY4-812&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Disney's THE LION KING Theatre Lyceum Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1DR6R-lyceum-theatre-london-disneys-the-lion-king/#perf=1DR6R-59G&date=2026-09-25&time=7.30PM
+              - heading "Disney's THE LION KING" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Lyceum Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1DR6R-lyceum-theatre-london-disneys-the-lion-king/#perf=1DR6R-59G&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Les Miserables Theatre Sondheim Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GWN6-les-miserables-sept-25/#perf=1GWN6-17B&date=2026-09-25&time=7.30PM
+              - heading "Les Miserables" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Sondheim Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GWN6-les-miserables-sept-25/#perf=1GWN6-17B&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Oh Mary! Theatre Trafalgar Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HHVY-oh-mary/#perf=1HHVY-9D&date=2026-09-25&time=7.30PM
+              - heading "Oh Mary!" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Trafalgar Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HHVY-oh-mary/#perf=1HHVY-9D&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Paranormal Activity Theatre Ambassadors Theatre Fri 19:30":
+              - /url: https://www.ticketmaster.co.uk/paranormal-activity-london-25-09-2026/event/Z3r9uZKbZL4Ze3Lo-Zef
+              - heading "Paranormal Activity" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Ambassadors Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/paranormal-activity-london-25-09-2026/event/Z3r9uZKbZL4Ze3Lo-Zef
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Cabaret At The Kit Kat Club Theatre Playhouse Theatre Fri 19:30":
+              - /url: https://www.ticketmaster.co.uk/cabaret-at-the-kit-kat-club-london-25-09-2026/event/3700637BEDB8B5D5
+              - heading "Cabaret At The Kit Kat Club" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Playhouse Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/cabaret-at-the-kit-kat-club-london-25-09-2026/event/3700637BEDB8B5D5
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Phantom of the Opera Theatre His Majesty's Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FU7R-the-phantom-of-the-opera/#perf=1FU7R-35J&date=2026-09-25&time=7.30PM
+              - heading "Phantom of the Opera" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: His Majesty's Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FU7R-the-phantom-of-the-opera/#perf=1FU7R-35J&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Hadestown Theatre Lyric Theatre Fri 19:30":
+              - /url: https://www.ticketmaster.co.uk/hadestown-london-25-09-2026/event/ZKr9uZKbZL4Ze8-4-Z7vQ
+              - heading "Hadestown" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Lyric Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/hadestown-london-25-09-2026/event/ZKr9uZKbZL4Ze8-4-Z7vQ
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Burlesque Theatre The Arts at Marble Arch Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HUML-burlesque/#perf=1HUML-G&date=2026-09-25&time=7.30PM
+              - heading "Burlesque" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: The Arts at Marble Arch
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HUML-burlesque/#perf=1HUML-G&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Oliver! Theatre Gielgud Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1H4KN-oliver/#perf=1H4KN-17J&date=2026-09-25&time=7.30PM
+              - heading "Oliver!" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Gielgud Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1H4KN-oliver/#perf=1H4KN-17J&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Book Of Mormon Theatre Prince of Wales Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GZHW-the-book-of-mormon/#perf=1GZHW-193&date=2026-09-25&time=7.30PM
+              - heading "The Book Of Mormon" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Prince of Wales Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GZHW-the-book-of-mormon/#perf=1GZHW-193&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Avenue Q Theatre Shaftesbury Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HMDJ-avenue-q/#perf=1HMDJ-5Z&date=2026-09-25&time=7.30PM
+              - heading "Avenue Q" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Shaftesbury Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HMDJ-avenue-q/#perf=1HMDJ-5Z&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Sting's the Last Ship Theatre Theatre Royal Drury Lane Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1JAAE-stings-the-last-ship/#perf=1JAAE-6&date=2026-09-25&time=7.30PM
+              - heading "Sting's the Last Ship" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Theatre Royal Drury Lane
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1JAAE-stings-the-last-ship/#perf=1JAAE-6&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Devil Wears Prada Theatre Dominion Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FWNE-the-devil-wears-prada/#perf=1FWNE-22C&date=2026-09-25&time=7.30PM
+              - heading "The Devil Wears Prada" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Dominion Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1FWNE-the-devil-wears-prada/#perf=1FWNE-22C&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Titanique Theatre Criterion Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GTBN-titanique/#perf=1GTBN-218&date=2026-09-25&time=7.30PM
+              - heading "Titanique" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Criterion Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GTBN-titanique/#perf=1GTBN-218&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Hamilton Theatre Victoria Palace Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1H1YN-hamilton/#perf=1H1YN-18C&date=2026-09-25&time=7.30PM
+              - heading "Hamilton" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Victoria Palace Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1H1YN-hamilton/#perf=1H1YN-18C&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Witness for the Prosecution Theatre County Hall Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1EL6R-witness-for-the-prosecution/#perf=1EL6R-46M&date=2026-09-25&time=7.30PM
+              - heading "Witness for the Prosecution" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: County Hall
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1EL6R-witness-for-the-prosecution/#perf=1EL6R-46M&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Faulty Towers the Dining Experience Theatre President Hotel Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GLTR-faulty-towers-the-dining-experience-in-londons-west-end-2024/#perf=1GLTR-20I&date=2026-09-25&time=7.30PM
+              - heading "Faulty Towers the Dining Experience" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: President Hotel
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1GLTR-faulty-towers-the-dining-experience-in-londons-west-end-2024/#perf=1GLTR-20I&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Million Dollar Quartet Theatre The Arts at Marble Arch Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1J8MU-million-dollar-quartet/#perf=1J8MU-Q&date=2026-09-25&time=7.30PM
+              - heading "Million Dollar Quartet" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: The Arts at Marble Arch
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1J8MU-million-dollar-quartet/#perf=1J8MU-Q&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Moulin Rouge The Musical Theatre Piccadilly Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1DVRJ-piccadilly-theatre-london-moulin-rouge-the-musical/#perf=1DVRJ-56C&date=2026-09-25&time=7.30PM
+              - heading "Moulin Rouge The Musical" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Piccadilly Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1DVRJ-piccadilly-theatre-london-moulin-rouge-the-musical/#perf=1DVRJ-56C&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Sinatra the Musical Theatre Aldwych Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HU76-sinatra-the-musical/#perf=1HU76-3J&date=2026-09-25&time=7.30PM
+              - heading "Sinatra the Musical" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Aldwych Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HU76-sinatra-the-musical/#perf=1HU76-3J&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Standard of Living Theatre Theatre Royal Haymarket Fri 19:30":
+              - /url: https://www.ticketmaster.co.uk/the-standard-of-living-london-25-09-2026/event/Zor9uZKbZL4ZefAN5Z6
+              - heading "The Standard of Living" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Theatre Royal Haymarket
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/the-standard-of-living-london-25-09-2026/event/Zor9uZKbZL4ZefAN5Z6
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Into The Woods Theatre Noel Coward Theatre Fri 19:30":
+              - /url: https://www.ticketmaster.co.uk/into-the-woods-london-25-09-2026/event/Zor9uZKbZL4Zef7Q2Zk
+              - heading "Into The Woods" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Noel Coward Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/into-the-woods-london-25-09-2026/event/Zor9uZKbZL4Zef7Q2Zk
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Comedy About Spies Theatre Adelphi Theatre Fri 19:30":
+              - /url: https://www.ticketmaster.co.uk/the-comedy-about-spies-london-25-09-2026/event/Z3r9uZKbZL4Ze3-2dZeq
+              - heading "The Comedy About Spies" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Adelphi Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/the-comedy-about-spies-london-25-09-2026/event/Z3r9uZKbZL4Ze3-2dZeq
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "The Hunger Games On Stage Theatre Troubadour Canary Wharf Theatre Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HUN0-the-hunger-games-on-stage/#perf=1HUN0-79&date=2026-09-25&time=7.30PM
+              - heading "The Hunger Games On Stage" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Troubadour Canary Wharf Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1HUN0-the-hunger-games-on-stage/#perf=1HUN0-79&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Inala Theatre House of Sisters Grimm Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1J2CG-inala/#perf=1J2CG-62&date=2026-09-25&time=7.30PM
+              - heading "Inala" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: House of Sisters Grimm
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1J2CG-inala/#perf=1J2CG-62&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Hay Fever Theatre Wyndham's Theatre Fri 19:30":
+              - /url: https://www.ticketmaster.co.uk/hay-fever-london-25-09-2026/event/Zor9uZKbZL4ZefkovZk
+              - heading "Hay Fever" [level=4]
+              - paragraph:
+                - generic: Theatre
+                - generic: Wyndham's Theatre
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://www.ticketmaster.co.uk/hay-fever-london-25-09-2026/event/Zor9uZKbZL4ZefkovZk
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+            - link "Comedy At Cadogan Hall with David O'Doherty Comedy Cadogan Hall Fri 19:30":
+              - /url: https://theatre.ticketmaster.co.uk/book/1J5PJ-comedy-at-cadogan-with-david-odoherty/#perf=1J5PJ-2&date=2026-09-25&time=7.30PM
+              - heading "Comedy At Cadogan Hall with David O'Doherty" [level=4]
+              - paragraph:
+                - generic: Comedy
+                - generic: Cadogan Hall
+                - generic: Fri 19:30
+            - link "Ticketmaster":
+              - /url: https://theatre.ticketmaster.co.uk/book/1J5PJ-comedy-at-cadogan-with-david-odoherty/#perf=1J5PJ-2&date=2026-09-25&time=7.30PM
+              - generic: Ticketmaster
+            - paragraph: Not on our map yet.
+      - paragraph:
+        - text: Listings from
+        - link "Ticketmaster":
+          - /url: https://www.ticketmaster.co.uk/
+        - text: .
+- alert: What’s on, sourced.

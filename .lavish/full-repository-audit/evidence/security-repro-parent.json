@@ -1,0 +1,55 @@
+{
+  "voice": {
+    "releaseStatus": 200,
+    "rpcCalls": [
+      {
+        "name": "release_pub_pal_voice_trial",
+        "args": {
+          "p_owner_id": "audit-owner",
+          "p_month": "2026-09-01"
+        }
+      }
+    ],
+    "body": {
+      "released": true,
+      "remainingMinutes": null
+    }
+  },
+  "admin": {
+    "acceptedAtCreation": true,
+    "accepted31DaysLater": true
+  },
+  "privateCover": {
+    "projectionMatrix": [
+      {
+        "role": "anonymous",
+        "profileProjection": "limited",
+        "profileExposesCover": false,
+        "coverBytesStatus": 200
+      },
+      {
+        "role": "stranger",
+        "profileProjection": "limited",
+        "profileExposesCover": false,
+        "coverBytesStatus": 200
+      },
+      {
+        "role": "mate",
+        "profileProjection": "full",
+        "profileExposesCover": true,
+        "coverBytesStatus": 200
+      },
+      {
+        "role": "owner",
+        "profileProjection": "full",
+        "profileExposesCover": true,
+        "coverBytesStatus": 200
+      }
+    ],
+    "anonymousStatus": 200,
+    "cacheControl": "public, max-age=300, s-maxage=3600",
+    "downloads": 1,
+    "body": "private-cover-proof"
+  },
+  "limits": "Source-level executable proof with infrastructure doubles; not deployed reproduction."
+}

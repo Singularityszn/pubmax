@@ -1,0 +1,50 @@
+- link "Skip to main content":
+  - /url: "#main"
+- navigation "Site navigation":
+  - link "Open PUBMAXX landing page":
+    - /url: /
+    - img "PUBMAXX":
+      - generic: PUBMAXX
+      - generic: PUBMAX
+      - generic: X
+  - list:
+    - link "Tonight":
+      - /url: /tonight
+    - link "Map":
+      - /url: /map
+    - link "Places":
+      - /url: /places
+    - link "Out":
+      - /url: /out
+    - link "Plan":
+      - /url: /plan
+    - link "You":
+      - /url: /u/you
+  - button "More pages":
+    - generic: More
+  - link "Activity":
+    - /url: /activity
+  - link "Messages":
+    - /url: /messages
+  - button "Switch to dark theme":
+  - button "Sign in":
+- main "What's the night?":
+  - paragraph:
+    - img "Pub Pal"
+    - text: Your Pub Pal
+  - heading "What's the night?" [level=1]
+  - paragraph: Straight answers from what we have actually seen. Every card keeps its source. No made-up venues, prices, or events.
+  - link "Back to your Pub Pal":
+    - /url: /pal
+  - paragraph: A date-night pub with some history, calm not loud
+  - paragraph: I've got the basics but no fuller story on record yet. I won't make one up.
+  - note: Grounded around Soho, your remembered area.
+  - list:
+    - paragraph: date-night with some , calm not loud
+    - paragraph: I've got the basics but no fuller story on record yet. I won't make one up.
+    - generic: Heritage
+  - generic: Describe the outing
+  - textbox "Describe the outing":
+    - /placeholder: Quiet-ish near Bank, not pricey
+  - button "Ask" [disabled]:
+- alert: What's the night?

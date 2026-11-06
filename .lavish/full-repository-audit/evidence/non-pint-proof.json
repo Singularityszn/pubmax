@@ -1,0 +1,30 @@
+{
+  "input": {
+    "id": "audit-half",
+    "venueId": "audit-venue",
+    "venueName": "Audit venue",
+    "priceGbp": 2.6,
+    "createdAt": "2026-09-21T22:35:51.101Z",
+    "measure": "half",
+    "drink": "Lager"
+  },
+  "cheapestTonight": [
+    {
+      "rank": 1,
+      "venueId": "audit-venue",
+      "venueName": "Audit venue",
+      "priceGbp": 2.6,
+      "createdAt": "2026-09-21T22:35:51.101Z"
+    }
+  ],
+  "thenVsNow": [
+    {
+      "venueId": "audit-venue",
+      "venueName": "Audit venue",
+      "thenGbp": 5.2,
+      "nowGbp": 2.6,
+      "deltaGbp": -2.6,
+      "pct": -50
+    }
+  ]
+}
