@@ -14,7 +14,7 @@ ElevenLabs.
 
 1. Make an API key in the Claude Console. Set a monthly spend limit there.
 2. Set `ANTHROPIC_API_KEY` on the deployment (server-only).
-3. Optional: set `PUB_PAL_CLAUDE_MODEL`. The default is `claude-haiku-5-5`.
+3. Optional: set `PUB_PAL_CLAUDE_MODEL` for both Pub Pal typed chat and map Ask. The default is `claude-haiku-5-5`.
 
 When the key is set, `/api/pub-pal/chat` sends each typed ask to Claude
 (`lib/palClaudeChat.server.ts`). It needs a signed-in session and spends the
@@ -26,9 +26,8 @@ server runs each tool itself, so no webhook is involved. To go back to
 ElevenLabs for typed chat, remove the key.
 
 The same key also moves map Ask's model loop (`/api/ask`) from OpenRouter to
-Claude. The client, the prompt cache markers and the `claude.usage` log line
-are shared (`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling. Set
-`ASK_CLAUDE_MODEL` to change its model; the default is `claude-haiku-5-5`.
+Claude. Both paths use the shared client, model setting and prompt cache
+markers (`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling.
 
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule

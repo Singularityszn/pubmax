@@ -10,7 +10,6 @@ import {
   claudeClient,
   claudeConfigured,
   claudePromptTokens,
-  logClaudeUsage,
   type ClaudeClient,
 } from "@/lib/claudeClient.server";
 import { PalChatDeadlineExceeded, beforePalChatDeadline } from "@/lib/palChatDeadline";
@@ -188,7 +187,7 @@ export async function runPalClaudeChatTurn(
 
   const client = dependencies.client ?? claudeClient(apiKey!);
   const runTool = dependencies.runTool ?? runPalTool;
-  const model = claudeChatModel("PUB_PAL_CLAUDE_MODEL");
+  const model = claudeChatModel();
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), Math.max(0, deadline - Date.now()));
   const onCallerAbort = () => abort.abort();
@@ -247,7 +246,6 @@ export async function runPalClaudeChatTurn(
             promptTokens: claudePromptTokens(message.usage),
             completionTokens: message.usage.output_tokens,
           });
-          logClaudeUsage(TRACE_ROUTE, model, message.usage);
           const reply = replyText(message);
           span.setOutput(reply);
           span.end();

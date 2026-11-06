@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // tools are a fake too, so no test reaches a model or a data source.
 
 const { runAskToolMock } = vi.hoisted(() => ({ runAskToolMock: vi.fn() }));
+const { capturePosthogAiGeneration } = vi.hoisted(() => ({ capturePosthogAiGeneration: vi.fn() }));
+
+vi.mock("@/lib/posthog/posthogAiCapture", () => ({ capturePosthogAiGeneration }));
 
 vi.mock("@/lib/ask/tools", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ask/tools")>()),
@@ -74,7 +77,10 @@ function sentResults(body: Anthropic.MessageStreamParams): Anthropic.ToolResultB
 beforeEach(() => {
   vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
   vi.stubEnv("OPENROUTER_API_KEY", undefined);
-  vi.stubEnv("ASK_CLAUDE_MODEL", undefined);
+  vi.stubEnv("PUB_PAL_CLAUDE_MODEL", undefined);
+  vi.stubEnv("ARIZE_API_KEY", undefined);
+  vi.stubEnv("ARIZE_SPACE_KEY", undefined);
+  capturePosthogAiGeneration.mockClear();
   runAskToolMock.mockReset().mockImplementation(async (name: AskToolName) => toolResult(name, `${name} ran.`));
 });
 
@@ -128,13 +134,27 @@ describe("Ask model loop on Claude", () => {
     expect(JSON.parse(String(result!.content))).toMatchObject({ ok: true, answerHint: "search_venues ran." });
   });
 
-  it("uses the model the deployment names for Ask", async () => {
-    vi.stubEnv("ASK_CLAUDE_MODEL", "claude-sonnet-5-5");
+  it.each([
+    [undefined, "claude-haiku-5-5"],
+    ["", "claude-haiku-5-5"],
+    ["   ", "claude-haiku-5-5"],
+    [" claude-sonnet-5-5 ", "claude-sonnet-5-5"],
+  ])("uses the shared model setting %j as %s", async (setting, expected) => {
+    vi.stubEnv("PUB_PAL_CLAUDE_MODEL", setting);
     const { client, bodies } = fakeClaude([{ content: [text("Nothing to look up.")], stop_reason: "end_turn" }]);
 
     await runAskModelLoop({ query: "hello", ctx, claude: client });
 
-    expect(bodies[0]!.model).toBe("claude-sonnet-5-5");
+    expect(bodies[0]!.model).toBe(expected);
+  });
+
+  it("uses an explicit model instead of the shared deployment model", async () => {
+    vi.stubEnv("PUB_PAL_CLAUDE_MODEL", "claude-sonnet-5-5");
+    const { client, bodies } = fakeClaude([{ content: [text("Nothing to look up.")], stop_reason: "end_turn" }]);
+
+    await runAskModelLoop({ query: "hello", ctx, claude: client, model: "claude-opus-5-5" });
+
+    expect(bodies[0]!.model).toBe("claude-opus-5-5");
   });
 
   it("starts the conversation with the user and keeps earlier turns", async () => {
@@ -220,27 +240,36 @@ describe("Ask model loop on Claude", () => {
     expect(outcome?.toolResults.map((result) => result.tool)).toEqual(["search_venues"]);
   });
 
-  it("logs each call's token counts with no prompt text", async () => {
-    const lines: string[] = [];
-    vi.spyOn(console, "log").mockImplementation((line: unknown) => {
-      lines.push(String(line));
-    });
-    const { client } = fakeClaude([{ content: [text("Fine.")], stop_reason: "end_turn" }]);
+  it("reports each round's model and usage through tracing without Arize", async () => {
+    const { client } = fakeClaude([
+      { content: [toolUse("tu_1", "search_venues", {})], stop_reason: "tool_use" },
+      { content: [text("Fine.")], stop_reason: "end_turn" },
+    ]);
 
     await runAskModelLoop({ query: "a secret question", ctx, claude: client, traceRoute: "api/ask" });
 
-    const usage = lines.map((line) => JSON.parse(line) as Record<string, unknown>).filter((record) => record.event === "claude.usage");
-    expect(usage).toEqual([
-      expect.objectContaining({
+    expect(capturePosthogAiGeneration.mock.calls).toEqual([
+      [{
         route: "api/ask",
         model: "claude-haiku-5-5",
-        input: 40,
-        output: 12,
-        cacheRead: 900,
-        cacheWrite: 0,
-      }),
+        provider: "anthropic",
+        latencyMs: expect.any(Number),
+        promptTokens: 940,
+        completionTokens: 12,
+        totalTokens: undefined,
+        isError: false,
+      }],
+      [{
+        route: "api/ask",
+        model: "claude-haiku-5-5",
+        provider: "anthropic",
+        latencyMs: expect.any(Number),
+        promptTokens: 940,
+        completionTokens: 12,
+        totalTokens: undefined,
+        isError: false,
+      }],
     ]);
-    expect(lines.join("\n")).not.toContain("a secret question");
   });
 });
 

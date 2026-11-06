@@ -7,6 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fenceMocks = vi.hoisted(() => ({
   resolvePubPalFenceIntent: vi.fn(async () => ({ fenced: false, sobrietyOnly: false })),
 }));
+const { capturePosthogAiGeneration } = vi.hoisted(() => ({ capturePosthogAiGeneration: vi.fn() }));
+
+vi.mock("@/lib/posthog/posthogAiCapture", () => ({ capturePosthogAiGeneration }));
 
 vi.mock("@/lib/pubPalLlmFence", () => ({
   resolvePubPalFenceIntent: fenceMocks.resolvePubPalFenceIntent,
@@ -104,6 +107,10 @@ function fakeClient(rounds: Round[]): { client: PalClaudeClient; bodies: Anthrop
 describe("runPalClaudeChatTurn", () => {
   beforeEach(() => {
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+    vi.stubEnv("PUB_PAL_CLAUDE_MODEL", undefined);
+    vi.stubEnv("ARIZE_API_KEY", undefined);
+    vi.stubEnv("ARIZE_SPACE_KEY", undefined);
+    capturePosthogAiGeneration.mockClear();
     fenceMocks.resolvePubPalFenceIntent.mockReset().mockResolvedValue({ fenced: false, sobrietyOnly: false });
     storeMocks.registerPubPalToolTurn.mockReset().mockResolvedValue(undefined);
     storeMocks.readOwnedPubPalToolTurn.mockReset().mockResolvedValue(null);
@@ -142,15 +149,30 @@ describe("runPalClaudeChatTurn", () => {
     expect(body.tools?.map((tool) => (tool as Anthropic.Tool).name)).toEqual([...PUB_PAL_TOOL_NAMES]);
     expect(body.messages).toHaveLength(1);
     expect(String(body.messages[0]!.content).split("\n").at(-1)).toBe("Current user message: evening");
+    expect(capturePosthogAiGeneration.mock.calls).toEqual([[{
+      route: "api/pub-pal/chat",
+      model: "claude-haiku-5-5",
+      provider: "anthropic",
+      latencyMs: expect.any(Number),
+      promptTokens: 10,
+      completionTokens: 5,
+      totalTokens: undefined,
+      isError: false,
+    }]]);
   });
 
-  it("uses the model the deployment names", async () => {
-    vi.stubEnv("PUB_PAL_CLAUDE_MODEL", "claude-sonnet-5-5");
+  it.each([
+    [undefined, "claude-haiku-5-5"],
+    ["", "claude-haiku-5-5"],
+    ["   ", "claude-haiku-5-5"],
+    [" claude-sonnet-5-5 ", "claude-sonnet-5-5"],
+  ])("uses the shared model setting %j as %s", async (setting, expected) => {
+    vi.stubEnv("PUB_PAL_CLAUDE_MODEL", setting);
     const { client, bodies } = fakeClient([{ content: [text("Hey.")], stop_reason: "end_turn" }]);
 
     await runPalClaudeChatTurn({ query: "evening", ownerId: OWNER }, undefined, { client });
 
-    expect(bodies[0]!.model).toBe("claude-sonnet-5-5");
+    expect(bodies[0]!.model).toBe(expected);
   });
 
   it("gives each tool its catalog arguments, with no provider correlation field", async () => {

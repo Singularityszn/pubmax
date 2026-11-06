@@ -53,8 +53,7 @@ The `x-admin-token` header remains available for scripts.
 | Var | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | **Server-only** Claude Platform key. When set, Pub Pal typed chat and the map Ask tool loop on `POST /api/ask` run on the Claude API (`lib/claudeClient.server.ts`). Without it, typed chat uses ElevenLabs and map Ask uses OpenRouter. Set a monthly spend limit in the Claude Console. The `pub-pal-chat` and `ask` paid-spend ceilings still apply. |
-| `PUB_PAL_CLAUDE_MODEL` | Typed chat model. Defaults to `claude-haiku-5-5`. |
-| `ASK_CLAUDE_MODEL` | Map Ask model. Defaults to `claude-haiku-5-5`. |
+| `PUB_PAL_CLAUDE_MODEL` | Shared model for Pub Pal typed chat and map Ask. Defaults to `claude-haiku-5-5`. |
 
 ### Pub Pal voice and hosted typed chat (ElevenLabs)
 
