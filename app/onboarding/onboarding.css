@@ -447,6 +447,13 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 @media (max-width: 760px) {
+  .firstRunOnboarding {
+    height: 100dvh;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   body:has(.firstRunOnboarding) {
     padding-bottom: 0;
   }
@@ -487,8 +494,8 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
      bar for. So the stage stops giving the picture a share of the viewport
      and gives it the space the panel does not need, floored at nothing. The
      panel keeps its own height at every width, which is what puts the
-     reviewed areas and the primary action back on screen at rest. Take the
-     card away and this stops matching, so the designed 31dvh band returns. */
+     reviewed areas and the primary action back on screen at rest.
+     The clean first-run layout below also lets the photograph yield. */
   body:has(.analyticsConsentPrompt) .firstRunStage,
   body:has(.analyticsConsentPrompt)
     .firstRunOnboarding[data-stage="companion"] .firstRunStage {
@@ -533,16 +540,16 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   .firstRunStage {
     min-height: calc(100dvh - 62px - env(safe-area-inset-top, 0px));
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(186px, 31dvh) auto;
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .firstRunOnboarding[data-stage="companion"] .firstRunStage {
-    grid-template-rows: minmax(176px, 23dvh) auto;
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .firstRunPanel {
     align-items: start;
-    padding: 28px max(18px, env(safe-area-inset-left, 0px)) max(28px, env(safe-area-inset-bottom, 0px));
+    padding: 28px max(18px, env(safe-area-inset-left, 0px)) 0;
   }
 
   .firstRunPanel h1 {
@@ -596,8 +603,17 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     padding-left: 11px;
   }
 
+  .firstRunCompanionChoice {
+    scroll-margin-block: 8px calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
   .firstRunActions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
     margin-top: 20px;
+    padding: 12px 0 max(12px, env(safe-area-inset-bottom, 0px));
+    background: var(--paper);
   }
 }
 

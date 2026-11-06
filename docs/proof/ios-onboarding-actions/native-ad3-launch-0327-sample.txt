@@ -1,0 +1,59 @@
+Analysis of sampling App (pid 98190) every 1 millisecond
+Process:         App [98190]
+Path:            /Users/USER/Library/Developer/CoreSimulator/Devices/15BB7F4A-B86D-465B-B0D3-D2282924335E/data/Containers/Bundle/Application/40870924-365F-4984-99C0-87BB991977B4/App.app/App
+Load Address:    0x100828000
+Identifier:      App
+Version:         ???
+Code Type:       ARM64
+Platform:        iOS Simulator
+Parent Process:  launchd_sim [97881]
+Target Type:     live task
+
+Date/Time:       2026-09-08 04:28:05.477 +0100
+Launch Time:     2026-09-08 04:27:07.913 +0100
+OS Version:      macOS 26.6.2 (25G83)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         480K
+Physical footprint (peak):  480K
+Idle exit:                  untracked
+----
+
+Call graph:
+    786 Thread_37999335: Main Thread   DispatchQueue_<multiple>
+      786 start  (in dyld) + 6904  [0x100b1448c]
+        786 dyld4::start(dyld4::KernelArgs*, void*, void*, unsigned long long)::$_1::operator()() const  (in dyld) + 320  [0x100b14b30]
+          786 dyld4::prepare(dyld4::APIs&, mach_o::UnsafeHeader const*)  (in dyld) + 340  [0x100b14ca0]
+            786 dyld4::prepareSim(dyld4::RuntimeState&, char const*)  (in dyld) + 1300  [0x100b16840]
+              786 _dyld_sim_prepare  (in dyld_sim) + 856  [0x1008df058]
+                786 dyld4::prepare(dyld4::APIs&, mach_o::UnsafeHeader const*)  (in dyld_sim) + 712  [0x1008df45c]
+                  786 dyld4::JustInTimeLoader::loadDependents(Diagnostics&, dyld4::RuntimeState&, dyld4::Loader::LoadOptions const&)  (in dyld_sim) + 244  [0x1008edc58]
+                    786 dyld4::JustInTimeLoader::loadDependents(Diagnostics&, dyld4::RuntimeState&, dyld4::Loader::LoadOptions const&)  (in dyld_sim) + 136  [0x1008edbec]
+                      786 mach_o::UnsafeHeader::forEachLinkedDylib(void (char const*, mach_o::LinkedDylibAttributes, mach_o::Version32, mach_o::Version32, bool, bool&) block_pointer) const  (in dyld_sim) + 144  [0x1009143f4]
+                        786 mach_o::UnsafeHeader::forEachLoadCommand(void (load_command const*, bool&) block_pointer) const  (in dyld_sim) + 200  [0x100912a1c]
+                          786 invocation function for block in mach_o::UnsafeHeader::forEachLinkedDylib(void (char const*, mach_o::LinkedDylibAttributes, mach_o::Version32, mach_o::Version32, bool, bool&) block_pointer) const  (in dyld_sim) + 128  [0x1009146a8]
+                            786 invocation function for block in dyld4::JustInTimeLoader::loadDependents(Diagnostics&, dyld4::RuntimeState&, dyld4::Loader::LoadOptions const&)  (in dyld_sim) + 476  [0x1008edecc]
+                              786 dyld4::Loader::getLoader(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&)  (in dyld_sim) + 828  [0x1008f1a70]
+                                786 dyld4::Loader::forEachPath(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, void (char const*, dyld4::ProcessConfig::PathOverrides::Type, bool&) block_pointer)  (in dyld_sim) + 236  [0x1008f1378]
+                                  786 dyld4::ProcessConfig::PathOverrides::forEachPathVariant(char const*, mach_o::Platform, bool, bool, bool&, void (char const*, dyld4::ProcessConfig::PathOverrides::Type, bool&) block_pointer) const  (in dyld_sim) + 508  [0x1008e4668]
+                                    786 dyld4::Loader::forEachResolvedAtPathVar(dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, dyld4::ProcessConfig::PathOverrides::Type, bool&, void (char const*, dyld4::ProcessConfig::PathOverrides::Type, bool&) block_pointer)  (in dyld_sim) + 412  [0x1008f16bc]
+                                      786 mach_o::UnsafeHeader::forEachRPath(void (char const*, bool&) block_pointer) const  (in dyld_sim) + 72  [0x100912dd0]
+                                        786 mach_o::UnsafeHeader::forEachLoadCommand(void (load_command const*, bool&) block_pointer) const  (in dyld_sim) + 200  [0x100912a1c]
+                                          786 invocation function for block in dyld4::Loader::forEachResolvedAtPathVar(dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, dyld4::ProcessConfig::PathOverrides::Type, bool&, void (char const*, dyld4::ProcessConfig::PathOverrides::Type, bool&) block_pointer)  (in dyld_sim) + 376  [0x1008f3120]
+                                            786 invocation function for block in dyld4::Loader::getLoader(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&)  (in dyld_sim) + 3592  [0x1008f2c0c]
+                                              786 dyld4::JustInTimeLoader::makeJustInTimeLoaderDisk(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, bool, unsigned int, mach_o::Layout const*)  (in dyld_sim) + 172  [0x1008efbd8]
+                                                786 dyld4::SyscallDelegate::mapFileReadOnly(Diagnostics&, char const*, int*, unsigned long*, dyld4::FileID*, bool*, char*) const  (in dyld_sim) + 104  [0x1008de9d4]
+                                                  786 dyld3::open(char const*, int, int)  (in dyld_sim) + 48  [0x100900714]
+                                                    786 open_with_subsystem  (in dyld_sim) + 56  [0x100909188]
+                                                      786 open  (in dyld_sim) + 52  [0x1008ec930]
+                                                        786 open  (in dyld) + 40  [0x100af6664]
+                                                          786 __open  (in dyld) + 8  [0x100af9f70]
+
+Total number in stack (recursive counted multiple, when >=5):
+
+Sort by top of stack, same collapsed (when >= 5):
+        __open  (in dyld)        786
+
+Binary images description not available
+

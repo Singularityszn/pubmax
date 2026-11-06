@@ -1,0 +1,30 @@
+{
+	"appId": "com.pubmaxx.app",
+	"appName": "PUBMAXXING",
+	"webDir": "native/web-stub",
+	"server": {
+		"url": "http://localhost:3811",
+		"cleartext": true,
+		"errorPath": "offline.html"
+	},
+	"ios": {
+		"backgroundColor": "#060607"
+	},
+	"plugins": {
+		"SystemBars": {
+			"hidden": false,
+			"style": "DEFAULT",
+			"insetsHandling": "css"
+		}
+	},
+	"packageClassList": [
+		"InAppReviewPlugin",
+		"AppPlugin",
+		"CAPBrowserPlugin",
+		"CAPCameraPlugin",
+		"HapticsPlugin",
+		"PushNotificationsPlugin",
+		"SharePlugin",
+		"TextZoomPlugin"
+	]
+}
