@@ -214,6 +214,7 @@
     if (capacitor && typeof capacitor.isNativePlatform === "function" && capacitor.isNativePlatform() === true) return;
     var root = parseFloat(window.getComputedStyle(document.documentElement).fontSize);
     if (root / 16 >= 1.3) document.documentElement.setAttribute("data-text-scale", "large");
+    else document.documentElement.removeAttribute("data-text-scale");
   } catch {}
 })();
 

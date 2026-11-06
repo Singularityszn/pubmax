@@ -22,6 +22,8 @@
 import { useEffect } from "react";
 
 import { BROWSER_BAR_COLOR } from "@/lib/browserBarColor";
+import { isNativeApp } from "@/lib/nativePlatform";
+import { LARGE_TEXT_SCALE_FLOOR, TEXT_SCALE_ATTRIBUTE } from "@/lib/nativeTextScale";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   isNightThemeTime,
@@ -55,6 +57,26 @@ function storedValue(storage: Storage | null, key: string): string | null {
 }
 
 export default function ThemeAttribute(): null {
+  useEffect(() => {
+    if (isNativeApp()) return;
+    const reconcile = () => {
+      const root = document.documentElement;
+      const scale = parseFloat(window.getComputedStyle(root).fontSize) / 16;
+      if (scale >= LARGE_TEXT_SCALE_FLOOR) root.setAttribute(TEXT_SCALE_ATTRIBUTE, "large");
+      else root.removeAttribute(TEXT_SCALE_ATTRIBUTE);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reconcile();
+    };
+    reconcile();
+    window.addEventListener("pageshow", reconcile);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", reconcile);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
   useEffect(() => {
     const root = document.documentElement;
     const storage = safeLocalStorage();
