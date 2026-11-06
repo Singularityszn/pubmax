@@ -66,24 +66,31 @@ function loadSeed(file: string): FamousVenueRow[] {
 }
 
 const PACKS = [
-  ["bars.json", 27, "bar"],
-  ["late_food.json", 19, "food"],
-  ["restaurants.json", 24, "restaurant"],
+  ["bars.json", 26, "bar"],
+  ["late_food.json", 18, "food"],
+  ["restaurants.json", 22, "restaurant"],
 ] as const;
 
 describe("famous venue seeds", () => {
   it("retains the full history of withheld venues without recommending or declaring them closed", () => {
-    const audit = JSON.parse(readFileSync(
-      path.join(ROOT, "data/famous_venues/withheld_2026-10-21.json"), "utf8",
-    )) as { rows: Array<{
+    type Audit = { rows: Array<{
       status: string;
       reason: string;
       restorationRequirements: string[];
       originalSeedRow: FamousVenueRow;
     }> };
+    const loadAudit = (file: string) => JSON.parse(readFileSync(
+      path.join(ROOT, "data/famous_venues", file), "utf8",
+    )) as Audit;
+    const october = loadAudit("withheld_2026-10-21.json");
+    const november = loadAudit("withheld_2026-11-06.json");
+    expect(october.rows).toHaveLength(18);
+    expect(november.rows.map((row) => row.originalSeedRow.id)).toEqual([
+      "bar-oriole", "food-antepliler", "restaurant-st-john-smithfield", "restaurant-veeraswamy",
+    ]);
+    const audit = { rows: [...october.rows, ...november.rows] };
     const active = PACKS.flatMap(([file]) => loadSeed(file));
-    expect(active).toHaveLength(70);
-    expect(audit.rows).toHaveLength(18);
+    expect(active).toHaveLength(66);
     const activeIds = new Set(active.map((row) => row.id));
     expect(activeIds.has("food-lahore-kebab-house")).toBe(true);
     for (const row of audit.rows) {
@@ -107,7 +114,7 @@ describe("famous venue seeds", () => {
     const sourceUrl = "https://www.thewolseleypiccadilly.com/app/uploads/2017/10/00728_WOLSELEY_OG_Winter_2026_All_Day_KCALS_BREAKFAST.pdf";
     expect(row).toMatchObject({
       sourceUrl,
-      observedAt: "2026-10-21",
+      observedAt: "2026-11-06",
       anchor: { kind: "signature_dish", label: "The English", course: "breakfast", price: 24.5,
         observedAt: "2026-10-21", sourceUrl },
     });

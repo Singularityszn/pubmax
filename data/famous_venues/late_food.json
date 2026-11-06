@@ -23,7 +23,7 @@
       }
     ],
     "sourceUrl": "https://tbtk.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -44,7 +44,7 @@
       "lng": -0.07422
     },
     "sourceName": "tbtk.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -68,7 +68,7 @@
       }
     ],
     "sourceUrl": "https://www.superkebab.net/Menu",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "large_doner",
       "label": "Lamb Doner L",
@@ -89,7 +89,7 @@
       "lng": -0.07505
     },
     "sourceName": "superkebab.net",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -117,7 +117,7 @@
       }
     ],
     "sourceUrl": "https://mangal2.com/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -138,7 +138,7 @@
       "lng": -0.074917
     },
     "sourceName": "mangal2.com",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -165,7 +165,7 @@
       }
     ],
     "sourceUrl": "https://gokyuzurestaurant.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -186,57 +186,9 @@
       "lng": -0.09882
     },
     "sourceName": "gokyuzurestaurant.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
-  },
-  {
-    "id": "food-antepliler",
-    "name": "Antepliler",
-    "address": "46 Grand Parade, Green Lanes, London N4 1AG",
-    "borough": "Haringey",
-    "lat": 51.579345,
-    "lng": -0.098941,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/antepliler"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://anteplilerlondon.co.uk/about/"
-      }
-    ],
-    "sourceUrl": "https://anteplilerlondon.co.uk/",
-    "observedAt": "2026-10-21",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Adana kebab",
-      "price": 24.5,
-      "observedAt": "2026-10-05",
-      "sourceUrl": "https://anteplilerlondon.co.uk/wp-content/uploads/2026/09/Antepliler_Menu_A3_PRINT.pdf"
-    },
-    "story": {
-      "text": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
-      "sourceUrl": "https://anteplilerlondon.co.uk/about/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
-    "area": "Haringey",
-    "location": {
-      "lat": 51.579345,
-      "lng": -0.098941
-    },
-    "sourceName": "anteplilerlondon.co.uk",
-    "expiresAt": "2026-11-20",
-    "discoveredVia": "manual",
-    "extractedVia": "manual",
-    "placesNameAliases": [
-      "antepliler restaurant"
-    ]
   },
   {
     "id": "food-diyarbakir",
@@ -258,7 +210,7 @@
       }
     ],
     "sourceUrl": "https://diyarbakir.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Diyarbakir special kebab",
@@ -279,7 +231,7 @@
       "lng": -0.098863
     },
     "sourceName": "diyarbakir.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -303,7 +255,7 @@
       }
     ],
     "sourceUrl": "https://halarestaurant.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana Kofte (Large)",
@@ -324,7 +276,7 @@
       "lng": -0.09904
     },
     "sourceName": "halarestaurant.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -348,7 +300,7 @@
       }
     ],
     "sourceUrl": "https://selale.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -369,7 +321,7 @@
       "lng": -0.10079
     },
     "sourceName": "selale.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -396,7 +348,7 @@
       }
     ],
     "sourceUrl": "https://eatlebab.com/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Lamb adana kebab",
@@ -417,7 +369,7 @@
       "lng": -0.13918
     },
     "sourceName": "eatlebab.com",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -444,7 +396,7 @@
       }
     ],
     "sourceUrl": "https://testirestaurant.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Mixed kebab",
@@ -465,7 +417,7 @@
       "lng": -0.07475
     },
     "sourceName": "testirestaurant.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -492,7 +444,7 @@
       }
     ],
     "sourceUrl": "https://www.fmmangal.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -513,7 +465,7 @@
       "lng": -0.09057
     },
     "sourceName": "fmmangal.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -537,7 +489,7 @@
       }
     ],
     "sourceUrl": "https://lahore-kebabhouse.com/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Seekh kebab",
@@ -558,7 +510,7 @@
       "lng": -0.06362
     },
     "sourceName": "lahore-kebabhouse.com",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -586,7 +538,7 @@
       }
     ],
     "sourceUrl": "https://www.tayyabs.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Lamb chops",
@@ -607,7 +559,7 @@
       "lng": -0.06351
     },
     "sourceName": "tayyabs.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -631,7 +583,7 @@
       }
     ],
     "sourceUrl": "https://www.maroush.com/restaurants/edgware-road",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Chicken shawarma",
@@ -652,7 +604,7 @@
       "lng": -0.16085
     },
     "sourceName": "maroush.com",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -676,7 +628,7 @@
       }
     ],
     "sourceUrl": "https://kebabkid.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -697,7 +649,7 @@
       "lng": -0.19992
     },
     "sourceName": "kebabkid.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -725,7 +677,7 @@
       }
     ],
     "sourceUrl": "https://www.beigelbake.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Salt beef beigel",
@@ -746,7 +698,7 @@
       "lng": -0.07193
     },
     "sourceName": "beigelbake.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -770,7 +722,7 @@
       }
     ],
     "sourceUrl": "https://www.polobar.co.uk/",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Full English breakfast",
@@ -791,7 +743,7 @@
       "lng": -0.08019
     },
     "sourceName": "polobar.co.uk",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -818,7 +770,7 @@
       }
     ],
     "sourceUrl": "https://duckandwaffle.com/london",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Duck and waffle",
@@ -839,7 +791,7 @@
       "lng": -0.08105
     },
     "sourceName": "duckandwaffle.com",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -863,7 +815,7 @@
       }
     ],
     "sourceUrl": "https://vqrestaurants.com/wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf",
-    "observedAt": "2026-10-21",
+    "observedAt": "2026-11-06",
     "anchor": {
       "kind": "signature_item",
       "label": "Breakfast Burger",
@@ -884,7 +836,7 @@
       "lng": -0.18156
     },
     "sourceName": "vqrestaurants.com",
-    "expiresAt": "2026-11-20",
+    "expiresAt": "2026-12-06",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   }

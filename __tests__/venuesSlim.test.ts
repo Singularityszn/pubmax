@@ -496,7 +496,7 @@ describe("venues_slim.json", () => {
   it.each([
     ["51.500_0.000", 21, "venue-1uvk466"],
     ["51.500_0.025", 8, "venue-8rf7pi"],
-    ["51.575_-0.100", 22, "venue-fw3cy8"],
+    ["51.575_-0.100", 21, "venue-fw3cy8"],
   ])("keeps every venue in cold cell %s", async (cell, count, barId) => {
     const url = `/data/venues_slim.cell.${cell}.json`;
     const payload = JSON.parse(readFileSync(path.join(ROOT, "public", url), "utf8")) as {

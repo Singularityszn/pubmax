@@ -4,29 +4,18 @@ The famous bars, late-food spots and restaurants in `data/famous_venues/` (`bars
 
 The app does not check a famous venue's expiry when it serves it. The slim index was built on a fixed date, and every row in it keeps showing until the next `refresh:slim`. The freshness gate is the only warning, and it is set to fire two weeks before the earliest row in the current build expires.
 
-## Publication on 2026-10-21
+## Publication records
 
-| | |
-| --- | --- |
-| Slim built at | 2026-10-21 (`venues_slim.json` `generatedAt`, the `famous_venues` literal stamp) |
-| Gate turns red | After 2026-11-06 00:00 UTC, when the 384-hour budget is exceeded |
-| Rows shipping | 70 (27 bars, 19 late food, 24 restaurants) |
-| Those rows lapse | 2026-11-20. After that day the slim still shows them until rebuilt. |
-| Withheld | 18 complete withheld seed rows archived in `data/famous_venues/withheld_2026-10-21.json` |
-
-The captain authorised withholding unverifiable entries while retaining their history.
+The [2026-11-06 verification receipt](../data/famous_venues/verification_2026-11-06.json) owns the run outcomes and Places call counts.
+The [2026-11-06 withholding archive](../data/famous_venues/withheld_2026-11-06.json) owns the captain's decision, full original rows, failed checks, and restoration requirements.
 Withdrawal from current recommendations does not assert that a venue closed.
-The fixed seed files contain only confirmed rows after this publication.
-The archive retains original rows, price observations, source checks, repaired candidates, and restoration requirements.
-`removed.json` records each withdrawn ID for the existing slim rebuild guard.
-Restoration requires supported identity and price evidence, removal of the ID from `removed.json`, and another slim rebuild.
 
-The [publication report](FAMOUS_VENUES_REVERIFY_2026-10-21.md) records the evidence and quota limits.
-Lahore Kebab House returned on its genuine 2026-10-21 confirmation.
-Wolseley returned after its official current breakfast PDF repaired the old source failure.
-The archive retains its full original row under `restoredRows`.
-Its derived confirmation reuses the original same-day Places identity receipt without another request.
-Price dates remain separate from venue confirmation dates.
+The active seed files own each venue's verification window and price observation date.
+The `generatedAt` field in `public/data/venues_slim.json` records the committed slim clock.
+The `famous_venues` entry in the [freshness registry](../data/freshness_registry.json) owns the freshness stamp and budget.
+Step 5 explains how to derive that budget.
+
+The [2026-10-21 publication report](FAMOUS_VENUES_REVERIFY_2026-10-21.md) records the earlier publication, source repairs, and quota limits.
 
 ## Who can do this
 
@@ -59,6 +48,9 @@ Anyone with a Google Places API key who can reach `places.googleapis.com`. The n
    - **The venue is gone.** Delete the row and add its id to `removed.json`.
    - **You leave it.** It ships until its old `expiresAt` and then drops out on the next refresh.
    - **The captain authorises withholding.** Archive the full original row and the source failure before removing it from the active seed. Add its ID to `removed.json`. Record restoration requirements without asserting closure.
+
+   Restoration requires supported identity and price evidence, removal of the ID from `removed.json`, and another slim rebuild.
+   Price observation dates remain separate from venue confirmation dates.
 4. Run `npm run refresh:slim`. It rebuilds `public/data/venues_slim.json` at the latest seed `observedAt` or `expiresAt` on or before today, and fails rather than silently drop a shipped venue. Commit the slim it writes.
 5. Update the `famous_venues` entry in `data/freshness_registry.json`:
    - `stamp.value`: the new slim `generatedAt`.

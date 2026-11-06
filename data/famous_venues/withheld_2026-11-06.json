@@ -1,0 +1,317 @@
+{
+  "version": 1,
+  "reviewedAt": "2026-11-06T13:00:00.000Z",
+  "decision": "The captain authorised withholding these four unverified entries on 2026-11-06 and retaining their history.",
+  "meaning": "Withdrawal from current recommendations does not assert closure.",
+  "sourceArtifacts": [
+    {
+      "path": "data/famous_venues/verification_2026-11-06.json"
+    }
+  ],
+  "rows": [
+    {
+      "id": "bar-oriole",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-11-06T13:00:00.000Z",
+      "reason": "Places returned no confident name match on 2026-11-06.",
+      "originalSeedRow": {
+        "id": "bar-oriole",
+        "name": "Oriole",
+        "address": "7-9 Slingsby Place, London WC2E 9AB",
+        "borough": "Westminster",
+        "lat": 51.51238,
+        "lng": -0.1267,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Oriole.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.oriolebar.com/"
+          }
+        ],
+        "sourceUrl": "https://www.oriolebar.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Oriole signature cocktail",
+          "price": 18.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.oriolebar.com/"
+        },
+        "story": {
+          "text": "Oriole's new Covent Garden home keeps its traveller's-cabinet drinks and live-music supper-club spirit.",
+          "sourceUrl": "https://www.oriolebar.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Oriole's new Covent Garden home keeps its traveller's-cabinet drinks and live-music supper-club spirit.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51238,
+          "lng": -0.1267
+        },
+        "sourceName": "oriolebar.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "bar-oriole",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.oriolebar.com/",
+        "outcome": "unverified",
+        "result": "places_no_confident_match",
+        "textQuery": "Oriole WC2E 9AB London",
+        "placeId": "ChIJP-efSFIbdkgRnCF-jDmn864",
+        "matchReason": "name:name_token_mismatch;location:postcode_WC2E 9AB",
+        "checkedAt": "2026-11-06T12:33:08.876Z",
+        "receipt": "data/famous_venues/verification_2026-11-06.json"
+      },
+      "previousInspection": null,
+      "sourceReview": {
+        "canonicalUrl": "https://www.oriolebar.com/",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "food-antepliler",
+      "pack": "late_food.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-11-06T13:00:00.000Z",
+      "reason": "The price anchor source was unreachable on 2026-11-06: source policy or robots refused it, or the request failed.",
+      "originalSeedRow": {
+        "id": "food-antepliler",
+        "name": "Antepliler",
+        "address": "46 Grand Parade, Green Lanes, London N4 1AG",
+        "borough": "Haringey",
+        "lat": 51.579345,
+        "lng": -0.098941,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/antepliler"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://anteplilerlondon.co.uk/about/"
+          }
+        ],
+        "sourceUrl": "https://anteplilerlondon.co.uk/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Adana kebab",
+          "price": 24.5,
+          "observedAt": "2026-10-05",
+          "sourceUrl": "https://anteplilerlondon.co.uk/wp-content/uploads/2026/09/Antepliler_Menu_A3_PRINT.pdf"
+        },
+        "story": {
+          "text": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
+          "sourceUrl": "https://anteplilerlondon.co.uk/about/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
+        "area": "Haringey",
+        "location": {
+          "lat": 51.579345,
+          "lng": -0.098941
+        },
+        "sourceName": "anteplilerlondon.co.uk",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "antepliler restaurant"
+        ]
+      },
+      "previousCheck": {
+        "id": "food-antepliler",
+        "method": "places_text_search",
+        "sourceUrl": "https://anteplilerlondon.co.uk/",
+        "outcome": "unverified",
+        "result": "anchor_source_unreachable",
+        "textQuery": "Antepliler N4 1AG London",
+        "placeId": "ChIJ3c66vvQbdkgRFWuDWVLrRc8",
+        "matchReason": "places_name_alias;postcode_N4 1AG",
+        "checkedAt": "2026-11-06T12:33:45.835Z",
+        "receipt": "data/famous_venues/verification_2026-11-06.json"
+      },
+      "previousInspection": null,
+      "sourceReview": {
+        "canonicalUrl": "https://anteplilerlondon.co.uk/",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "restaurant-st-john-smithfield",
+      "pack": "restaurants.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-11-06T13:00:00.000Z",
+      "reason": "The price anchor source redirected to another page on 2026-11-06.",
+      "originalSeedRow": {
+        "id": "restaurant-st-john-smithfield",
+        "name": "St. JOHN Smithfield",
+        "address": "26 St John Street, London EC1M 4AY",
+        "borough": "Islington",
+        "lat": 51.5204809,
+        "lng": -0.1012748,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://stjohnrestaurant.com/a/restaurants/smithfield"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/St._John_(restaurant)"
+          }
+        ],
+        "sourceUrl": "https://stjohnrestaurant.com/a/menus/1",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Roast Bone Marrow & Parsley Salad",
+          "course": "starters",
+          "price": 16.5,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://stjohnrestaurant.com/a/menus/1"
+        },
+        "story": {
+          "text": "Fergus Henderson opened St. JOHN in a former smokehouse in 1994 and made nose-to-tail cooking its signature.",
+          "sourceUrl": "https://stjohnrestaurant.com/a/restaurants/smithfield"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Fergus Henderson opened St. JOHN in a former smokehouse in 1994 and made nose-to-tail cooking its signature.",
+        "area": "Smithfield",
+        "location": {
+          "lat": 51.5204809,
+          "lng": -0.1012748
+        },
+        "sourceName": "stjohnrestaurant.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "st john"
+        ]
+      },
+      "previousCheck": {
+        "id": "restaurant-st-john-smithfield",
+        "method": "places_text_search",
+        "sourceUrl": "https://stjohnrestaurant.com/a/menus/1",
+        "outcome": "unverified",
+        "result": "anchor_source_redirected",
+        "textQuery": "St. JOHN Smithfield EC1M 4AY London",
+        "placeId": "ChIJFzO5YVEbdkgR1zdv5_hzZwg",
+        "matchReason": "places_name_alias;postcode_EC1M 4AY",
+        "checkedAt": "2026-11-06T12:34:05.230Z",
+        "receipt": "data/famous_venues/verification_2026-11-06.json"
+      },
+      "previousInspection": null,
+      "sourceReview": {
+        "canonicalUrl": "https://stjohnrestaurant.com/a/menus/1",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "restaurant-veeraswamy",
+      "pack": "restaurants.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-11-06T13:00:00.000Z",
+      "reason": "The price anchor source was unreachable on 2026-11-06: source policy or robots refused it, or the request failed.",
+      "originalSeedRow": {
+        "id": "restaurant-veeraswamy",
+        "name": "Veeraswamy",
+        "address": "Victory House, 99 Regent Street, London W1B 4EZ",
+        "borough": "Westminster",
+        "lat": 51.5098955,
+        "lng": -0.1379192,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.veeraswamy.com/about"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Veeraswamy"
+          }
+        ],
+        "sourceUrl": "https://www.veeraswamy.com/menu",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Raj Kachori",
+          "course": "starters",
+          "price": 19,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://www.veeraswamy.com/menu"
+        },
+        "story": {
+          "text": "Veeraswamy opened in 1926 and is London's oldest surviving Indian restaurant.",
+          "sourceUrl": "https://www.veeraswamy.com/about"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Veeraswamy opened in 1926 and is London's oldest surviving Indian restaurant.",
+        "area": "Regent Street",
+        "location": {
+          "lat": 51.5098955,
+          "lng": -0.1379192
+        },
+        "sourceName": "veeraswamy.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "restaurant-veeraswamy",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.veeraswamy.com/menu",
+        "outcome": "unverified",
+        "result": "anchor_source_unreachable",
+        "textQuery": "Veeraswamy W1B 4EZ London",
+        "placeId": "ChIJnVRkK9QEdkgRz8uiqq2HfjM",
+        "matchReason": "exact_normalized_name;within_13m",
+        "checkedAt": "2026-11-06T12:34:07.853Z",
+        "receipt": "data/famous_venues/verification_2026-11-06.json"
+      },
+      "previousInspection": null,
+      "sourceReview": {
+        "canonicalUrl": "https://www.veeraswamy.com/menu",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    }
+  ]
+}
