@@ -51,6 +51,37 @@ describe("typed heritage questions", () => {
     expect(result.cards[0]).toMatchObject({ venueId: "venue-4pqtn7", title: "The Clachan" });
   });
 
+  it("resolves the listed Old Bank in a heritage story request", async () => {
+    const result = await runAsk({
+      query: "Heritage story for The Old Bank of England", cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(result.toolsUsed).toContain("venue_heritage");
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]).toMatchObject({ venueId: "venue-lrlyh8", title: "The Old Bank of England", price: null });
+    expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue", venueId: "venue-lrlyh8" }));
+  });
+
+  it("does not shorten an unlisted name in a heritage story request", async () => {
+    const result = await runAsk({
+      query: "Heritage story for The Old Bank of England Arms", cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.sources).toEqual([]);
+  });
+
+  it.each([
+    { name: "The Old Bank of England", id: "venue-lrlyh8" },
+    { name: "The Clachan", id: "venue-4pqtn7" },
+  ])("preserves $name as the tool subject in a compound heritage story question", async ({ name, id }) => {
+    const result = await runAskTool("venue_heritage", { venueName: name }, {
+      query: "Heritage story for The Old Bank of England and The Clachan",
+      cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]).toMatchObject({ venueId: id, title: name, price: null });
+  });
+
   it("does not choose the first of several pubs with the same name", async () => {
     const result = await runAsk({
       query: "Tell me the history of The Crown.", cityId: "london", skipModel: true, fetchImpl: offlineFetch,
