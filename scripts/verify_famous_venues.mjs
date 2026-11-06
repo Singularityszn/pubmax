@@ -38,6 +38,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { NIGHT_OUT_PLACE_MAX_AGE_HOURS } from "../lib/nightOutPlaceContract.mjs";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy.ts";
 import {
   decidePlacesVerification,
   placesTextQueryForRow,
@@ -115,8 +117,13 @@ function canonicalPage(url) {
   return `${protocol}//${host.replace(/^www\./, "")}${pathname.replace(/\/+$/, "")}${search}`;
 }
 
-/** Asks the anchor page for its status without following a redirect. */
+const checkRobots = createRobotsChecker();
+
+/** Asks the anchor page only after source policy and robots permit it. */
 export async function headAnchorSource(url) {
+  if (!isHarvestableOperatorUrl(url)) throw new Error("Source policy refused anchor URL");
+  const permission = await checkRobots(url);
+  if (!permission.allowed) throw new Error("Robots refused anchor URL");
   const response = await fetch(url, { method: "HEAD", redirect: "manual" });
   return { status: response.status, location: response.headers.get("location") };
 }
@@ -128,21 +135,32 @@ export async function anchorRenewalBlock(row, headSource) {
   if (!rowOwnSourceUrls(row).some((source) => isUnderSource(source, anchorUrl))) {
     return "anchor_source_not_row_source";
   }
-  let head;
-  try {
-    head = await headSource(anchorUrl);
-  } catch {
-    return "anchor_source_unreachable";
+  let current = anchorUrl;
+  const visited = new Set();
+  // The accepted spelling may add both www. and a trailing slash in two hops.
+  for (let redirects = 0; redirects <= 3; redirects += 1) {
+    if (visited.has(current)) return "anchor_source_redirected";
+    visited.add(current);
+    let head;
+    try {
+      head = await headSource(current);
+    } catch {
+      return "anchor_source_unreachable";
+    }
+    if (!Number.isInteger(head?.status) || head.status < 200 || head.status >= 400) {
+      return "anchor_source_unreachable";
+    }
+    if (head.status < 300) return null;
+    if (!head.location || redirects === 3) return "anchor_source_redirected";
+    try {
+      const next = new URL(head.location, current).href;
+      if (canonicalPage(next) !== canonicalPage(anchorUrl)) return "anchor_source_redirected";
+      current = next;
+    } catch {
+      return "anchor_source_redirected";
+    }
   }
-  if (
-    head.status >= 300 &&
-    head.status < 400 &&
-    (!head.location ||
-      canonicalPage(new URL(head.location, anchorUrl).href) !== canonicalPage(anchorUrl))
-  ) {
-    return "anchor_source_redirected";
-  }
-  return null;
+  return "anchor_source_redirected";
 }
 
 export async function verifyRowWithPlaces(row, searchText, headSource) {

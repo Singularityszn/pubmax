@@ -107,7 +107,6 @@ describe("famous venue seeds", () => {
     const sourceUrl = "https://www.thewolseleypiccadilly.com/app/uploads/2017/10/00728_WOLSELEY_OG_Winter_2026_All_Day_KCALS_BREAKFAST.pdf";
     expect(row).toMatchObject({
       sourceUrl,
-      observedAt: "2026-10-21",
       anchor: { kind: "signature_dish", label: "The English", course: "breakfast", price: 24.5,
         observedAt: "2026-10-21", sourceUrl },
     });
@@ -119,6 +118,7 @@ describe("famous venue seeds", () => {
       }),
     })]);
     const receipt = JSON.parse(readFileSync(path.join(ROOT, "data/famous_venues/receipts/wolseley_source_repair_2026-10-21.json"), "utf8"));
+    expect(receipt.verifiedAt).toBe("2026-10-21");
     expect(receipt.newPlacesLiveApiCalls).toBe(0);
     expect(receipt.checks).toEqual([expect.objectContaining({
       id: "restaurant-wolseley", outcome: "confirmed", sourceUrl,
