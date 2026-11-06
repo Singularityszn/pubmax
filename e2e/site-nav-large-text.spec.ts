@@ -156,12 +156,14 @@ async function expectPreviewState(page: Page, width: number, selected: boolean) 
 }
 
 // The wrap above is for enlarged text only. At default text an inner page's
-// bar holds one row from 1280px up: the brand, every door and every utility
+// bar holds one row from 1024px up: the brand, every door and every utility
 // share one line, and the bar is no taller than one 44px target plus its
-// padding. The 1100px cap once wrapped every inner page onto two rows here.
-for (const width of [1280, 1440, 1920]) {
+// padding. The 1100px cap once wrapped every inner page onto two rows from
+// 1280px, and the laptop band (1024px to 1279px, an iPad held sideways at 1024
+// and 1180) wrapped until its Pal and More doors took their compact shape.
+for (const width of [1024, 1100, 1180, 1280, 1440, 1920]) {
   for (const signedIn of [false, true]) {
-    test(`inner-page navigation is one row at ${width}px at default text, ${signedIn ? "signed in with a 10ch Pal name" : "signed out"}`, async ({ page }) => {
+    test(`inner-page navigation is one row at ${width}px at default text, ${signedIn ? "signed in with a 10ch Pal name" : "signed out"}`, async ({ page }, info) => {
       await page.setViewportSize({ width, height: 900 });
       await storeThemeChoice(page, "light");
       await page.addInitScript(() => {
@@ -207,13 +209,21 @@ for (const width of [1280, 1440, 1920]) {
           await expectHitTarget(pal);
           const label = pal.locator(".siteNavPalName");
           const truncation = await label.evaluate((node) => ({
-            width: node.clientWidth,
+            width: node.getBoundingClientRect().width,
+            clientWidth: node.clientWidth,
             contentWidth: node.scrollWidth,
             overflow: getComputedStyle(node).textOverflow,
           }));
-          expect(truncation.width).toBeGreaterThan(0);
-          expect(truncation.contentWidth).toBeGreaterThan(truncation.width);
-          expect(truncation.overflow).toBe("ellipsis");
+          if (width < 1280) {
+            // The laptop band shows the Pal's face alone, a 44px disc like
+            // More, and keeps the name in the door's accessible name.
+            expect(truncation.width).toBeLessThanOrEqual(1);
+            expect((await pal.boundingBox())!.width).toBeLessThanOrEqual(45);
+          } else {
+            expect(truncation.clientWidth).toBeGreaterThan(0);
+            expect(truncation.contentWidth).toBeGreaterThan(truncation.clientWidth);
+            expect(truncation.overflow).toBe("ellipsis");
+          }
         }
         const row = await header.evaluate((bar) => {
           const centre = (node: Element) => {
@@ -229,6 +239,10 @@ for (const width of [1280, 1440, 1920]) {
             doors: doors.length,
             utilities: utilities.length,
           };
+        });
+        await info.attach(`one-row-${width}-${signedIn ? "signed-in" : "signed-out"}${path.replace("/", "-")}`, {
+          body: await page.screenshot({ clip: { x: 0, y: 0, width, height: 140 } }),
+          contentType: "image/png",
         });
         expect(row.doors, `${path}: doors`).toBe(6);
         expect(row.utilities, `${path}: utilities`).toBeGreaterThan(0);
