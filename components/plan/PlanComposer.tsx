@@ -783,7 +783,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
 }
 
 type ComposerDraftPair = { v1: string | null; v2: string | null };
-type ComposerProvisionalOwner = { sessionPair: ComposerDraftPair | null; routePair: ComposerDraftPair | null };
+type ComposerRequestOwner = { sessionPair: ComposerDraftPair | null; routePair: ComposerDraftPair | null };
 type ComposerGeneratedRelease = {
   operationKey: string;
   provisionalSavedAt: string;
@@ -981,11 +981,11 @@ function sameComposerDraftPair(left: ComposerDraftPair | null, right: ComposerDr
   return Boolean(left && right && left.v1 === right.v1 && left.v2 === right.v2);
 }
 
-function releaseComposerAcceptance(storages: AcceptedContextStorages, release: ComposerGeneratedRelease | null): void {
+function releaseComposerAcceptance(storages: AcceptedContextStorages, release: ComposerGeneratedRelease | null): ComposerDraftPair | null {
   const storage = storages.routeDraft;
-  if (!release || !storage) {
+  if (!storage) {
     releaseAcceptedPlanContext(storages);
-    return;
+    return null;
   }
   let v1: string | undefined;
   let v2: string | undefined;
@@ -1001,10 +1001,14 @@ function releaseComposerAcceptance(storages: AcceptedContextStorages, release: C
       removeItem: (key) => storage.removeItem(key),
     },
   });
-  if (v1 === undefined || v2 === undefined) return;
+  if (v1 === undefined || v2 === undefined) return null;
   const { pair, envelope } = readComposerRouteDraft();
-  if (sameComposerDraftPair(pair, { v1, v2 }) && envelope?.value.operationKey === release.operationKey
-    && isProoflessReleasedRoute(envelope.value)) release.routePair = pair;
+  if (!sameComposerDraftPair(pair, { v1, v2 })) return null;
+  if (release) {
+    if (envelope?.value.operationKey !== release.operationKey || !isProoflessReleasedRoute(envelope.value)) return null;
+    release.routePair = pair;
+  }
+  return pair;
 }
 
 function canCopyRecoveredRoute(
@@ -1070,8 +1074,8 @@ function intentBelongsToAcceptance(intent: ReturnType<typeof readPlanningIntent>
     && intent.startsAt === anchor.startsAt && JSON.stringify(intent.acceptedArea) === JSON.stringify(anchor.acceptedArea));
 }
 
-function ownedProvisionalAnchor(
-  owner: ComposerProvisionalOwner | null,
+function ownedRequestAnchor(
+  owner: ComposerRequestOwner | null,
   heldVenueId: string | null,
   hydratedAnchor: ComposerHydration["acceptedAnchor"] | undefined,
 ): StoredPlanDraft["acceptedAnchor"] {
@@ -1082,29 +1086,28 @@ function ownedProvisionalAnchor(
     ?? (storedAnchor?.venueId === heldVenueId ? storedAnchor : undefined);
 }
 
-function ownedProvisionalSessionPair(
-  owner: ComposerProvisionalOwner,
+function ownedRequestSessionPair(
+  owner: ComposerRequestOwner,
   storage: Storage | null,
   heldAnchor: StoredPlanDraft["acceptedAnchor"],
-  held: boolean,
 ): ComposerDraftPair | null {
   const { pair } = readComposerDraftBytes(storage, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY);
   if (!sameComposerDraftPair(owner.sessionPair, pair)) return null;
-  if (held && !sameComposerDraftPair(owner.routePair, readComposerRouteDraft().pair)) return null;
+  if (!sameComposerDraftPair(owner.routePair, readComposerRouteDraft().pair)) return null;
   const intent = readPlanningIntent({ storage, cleanupInvalid: false });
   if (!heldAnchor) return intent ? null : pair;
-  return intentBelongsToAcceptance(intent, heldAnchor) ? pair : null;
+  return !intent || intentBelongsToAcceptance(intent, heldAnchor) ? pair : null;
 }
 
 function composerRequestOwnership(
-  owner: ComposerProvisionalOwner | null,
+  owner: ComposerRequestOwner | null,
   heldVenueId: string | null,
   acceptedAnchor: ComposerHydration["acceptedAnchor"] | undefined,
   session: Storage | null,
   release: ComposerGeneratedRelease | null,
 ) {
-  const heldAnchor = ownedProvisionalAnchor(owner, heldVenueId, acceptedAnchor);
-  const ownedSessionPair = owner && ownedProvisionalSessionPair(owner, session, heldAnchor, Boolean(heldVenueId));
+  const heldAnchor = ownedRequestAnchor(owner, heldVenueId, acceptedAnchor);
+  const ownedSessionPair = owner && ownedRequestSessionPair(owner, session, heldAnchor);
   if (owner && !ownedSessionPair) return null;
   if (release && !sameComposerDraftPair(release.routePair, readComposerRouteDraft().pair)) {
     if (owner) owner.sessionPair = null;
@@ -1113,30 +1116,20 @@ function composerRequestOwnership(
   return { ownedSessionPair };
 }
 
-function updateComposerProvisionalOwnership(input: {
-  owner: ComposerProvisionalOwner | null;
+function updateComposerRequestOwnership(input: {
+  owner: ComposerRequestOwner | null;
   ownedSessionPair: ComposerDraftPair | null;
-  provisionalOwner: { current: ComposerProvisionalOwner | null };
   session: Storage | null;
   writtenSession: PlanDraftWriteResult;
   sessionDraft: StoredPlanDraft;
   sessionSavedAt: number;
-  successfulGeneration: number;
-  routeReference: StoredPlanDraft["routeReference"];
-  actualMutation: boolean;
   routeSaved: boolean;
 }) {
-  const { owner, ownedSessionPair, provisionalOwner, session, writtenSession, sessionDraft, sessionSavedAt,
-    successfulGeneration, routeReference, actualMutation, routeSaved } = input;
+  const { owner, ownedSessionPair, session, writtenSession, sessionDraft, sessionSavedAt, routeSaved } = input;
   if (owner && ownedSessionPair) {
     const confirmed = confirmedComposerSessionPair(session, ownedSessionPair, writtenSession, sessionDraft, sessionSavedAt);
-    if (confirmed && writtenSession.v1 && writtenSession.v2 && successfulGeneration > 0
-      && routeReference && sessionDraft.routeReference === routeReference) {
-      provisionalOwner.current = null;
-    } else {
-      if (confirmed) owner.sessionPair = confirmed;
-      if (actualMutation && routeSaved) owner.routePair = readComposerRouteDraft().pair;
-    }
+    if (confirmed) owner.sessionPair = confirmed;
+    if (routeSaved) owner.routePair = readComposerRouteDraft().pair;
   }
 }
 
@@ -2367,8 +2360,8 @@ function PlanComposerForm({
   preserveStoredDrafts,
   provisionalRequest,
   datedProvisionalSuccessor,
-  provisionalRoutePair,
-  provisionalSessionPair,
+  requestRoutePair,
+  requestSessionPair,
   handoff: hydratedHandoff,
   canPersist,
 }: {
@@ -2383,8 +2376,8 @@ function PlanComposerForm({
   preserveStoredDrafts: boolean;
   provisionalRequest: boolean;
   datedProvisionalSuccessor: boolean;
-  provisionalRoutePair: ComposerDraftPair | null;
-  provisionalSessionPair: ComposerDraftPair | null;
+  requestRoutePair: ComposerDraftPair | null;
+  requestSessionPair: ComposerDraftPair | null;
   handoff: ComposerHydration | null;
   canPersist: boolean;
 }) {
@@ -2410,8 +2403,8 @@ function PlanComposerForm({
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const automaticCreatorName = useRef<string | null>(null);
   const pendingDraftSave = useRef(false);
-  const provisionalOwner = useRef<ComposerProvisionalOwner | null>(provisionalRequest || datedProvisionalSuccessor
-    ? { sessionPair: provisionalSessionPair, routePair: provisionalRoutePair } : null);
+  const requestOwner = useRef<ComposerRequestOwner | null>(provisionalRequest || datedProvisionalSuccessor || hydratedHandoff?.heldVenueId
+    ? { sessionPair: requestSessionPair, routePair: requestRoutePair } : null);
   const generatedRelease = useRef<ComposerGeneratedRelease | null>(null);
   const requestEditTime = useRef<number | null>(null);
   const [initialStartTime] = useState(draftFields.startTime);
@@ -2899,7 +2892,7 @@ function PlanComposerForm({
     if (!actualMutation && !canSaveRecoveredComposerDraft(
       stops, preserveStoredDrafts, recoveredRouteDraft, acceptedIntentTime, recoveredPreviewReference,
     )) return;
-    const owner = provisionalOwner.current;
+    const owner = requestOwner.current;
     const ownership = composerRequestOwnership(owner, heldVenueId, acceptedAnchor, session, release);
     if (!ownership) return showSaveFailure("request");
     const savedAt = Date.now();
@@ -2976,9 +2969,9 @@ function PlanComposerForm({
     const writtenSession = writePlanDraftEnvelope(sessionDraft,
       persistedAcceptedAnchor ? "planning-intent" : "manual", session, sessionSavedAt,
       { requireV1: retainedPreview !== null });
-    updateComposerProvisionalOwnership({
-      owner, ownedSessionPair: ownership.ownedSessionPair, provisionalOwner, session, writtenSession,
-      sessionDraft, sessionSavedAt, successfulGeneration, routeReference, actualMutation, routeSaved,
+    updateComposerRequestOwnership({
+      owner, ownedSessionPair: ownership.ownedSessionPair, session, writtenSession,
+      sessionDraft, sessionSavedAt, routeSaved,
     });
     const releaseReference = releasedComposerRouteReference(release, previousSession, writtenSession, {
       routeChanged, routeSaved, savedAt: routeCopy.current.savedAt,
@@ -3218,15 +3211,14 @@ function PlanComposerForm({
 
   function dropAcceptance() {
     const session = canPersist ? safeSessionStorage() : null;
-    const owner = provisionalOwner.current;
-    const anchor = ownedProvisionalAnchor(owner, heldVenueId, handoff?.acceptedAnchor);
+    const owner = requestOwner.current;
+    const anchor = ownedRequestAnchor(owner, heldVenueId, handoff?.acceptedAnchor);
     const currentIntent = owner ? readPlanningIntent({ storage: session, cleanupInvalid: false }) : null;
     const ownsIntent = intentBelongsToAcceptance(currentIntent, anchor);
-    const ownsSession = !owner || sameComposerDraftPair(owner.sessionPair,
-      readComposerDraftBytes(session, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY).pair);
+    const ownsRequest = Boolean(composerRequestOwnership(owner, heldVenueId, handoff?.acceptedAnchor, session, null));
     const ownsRoute = canPersist && routeSorted && planAnchor?.venueId === heldVenueId
       && composerOwnsAcceptedRoute(planAnchor, routeCopy.current.savedAt, createOperationKey, stops);
-    pendingDraftSave.current = ownsSession && (!currentIntent || ownsIntent);
+    pendingDraftSave.current = ownsRequest && (!currentIntent || ownsIntent);
     if (owner && pendingDraftSave.current && ownsRoute && createOperationKey && groundingProof) {
       const plan = readPlanDraftEnvelope(session);
       const stored = readComposerRouteDraft().envelope;
@@ -3236,14 +3228,15 @@ function PlanComposerForm({
         generatedRelease.current = { operationKey: createOperationKey, provisionalSavedAt, routePair: null };
       }
     }
-    releaseComposerAcceptance({
-      intent: !owner || ownsIntent ? session : null,
-      planDraft: ownsSession ? session : null,
-      routeDraft: ownsRoute && (!owner || pendingDraftSave.current) ? safeLocalStorage() : null,
+    const releasedRoutePair = releaseComposerAcceptance({
+      intent: ownsRequest && ownsIntent ? session : null,
+      planDraft: pendingDraftSave.current ? session : null,
+      routeDraft: ownsRoute && pendingDraftSave.current ? safeLocalStorage() : null,
     }, generatedRelease.current);
     if (owner) {
       owner.sessionPair = pendingDraftSave.current
         ? readComposerDraftBytes(session, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY).pair : null;
+      if (pendingDraftSave.current && ownsRoute) owner.routePair = releasedRoutePair;
     }
     setPlanAnchor(null);
     setGroundingProof(null);
@@ -4253,8 +4246,8 @@ export default function PlanComposer() {
       preserveStoredDrafts={recovery?.preserveStoredDrafts ?? false}
       provisionalRequest={recovery?.provisionalRequest ?? false}
       datedProvisionalSuccessor={recovery?.datedProvisionalSuccessor ?? false}
-      provisionalRoutePair={recovery?.provisionalRequest || recovery?.datedProvisionalSuccessor ? recovery.route.pair : null}
-      provisionalSessionPair={recovery?.provisionalRequest || recovery?.datedProvisionalSuccessor ? recovery.sessionPair : null}
+      requestRoutePair={recovery?.route.pair ?? null}
+      requestSessionPair={recovery?.sessionPair ?? null}
       handoff={handoff}
       canPersist={hydrated}
     />
