@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
@@ -12,7 +12,7 @@ import { planRouteReady } from "@/lib/planPrivacy";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
 import { isIdentityNudgePending, recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { rememberLastCrew } from "@/lib/lastCrew";
-import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
+import { clearPlanCapability, PLAN_HTTP_ONLY_SESSION, parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { subscribeToAuthFragmentRestored } from "@/lib/authRedirect";
@@ -50,6 +50,16 @@ const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   start_without_me: "Start without me",
 };
 
+type PresenceRequestScope = {
+  planId: string;
+  active: boolean;
+  generation: number;
+  requestId: number;
+  pending: boolean;
+  controller: AbortController | null;
+  rollback: (() => void) | null;
+};
+
 // §4.10: the server passes only the host display name, never the crew list. The
 // full crew (names + presence + size) is fetched on mount from the
 // capability-gated /api/plans/[id] and only ever arrives for a valid member.
@@ -59,6 +69,9 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const presenceScope = useRef<PresenceRequestScope | null>(null);
+  const presenceSequence = useRef(0);
+  const [presencePending, setPresencePending] = useState<{ planId: string; requestId: number } | null>(null);
   const [sessionCheckedPlanId, setSessionCheckedPlanId] = useState<string | null>(null);
   const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [sessionAttempt, setSessionAttempt] = useState(0);
@@ -69,6 +82,29 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   const tokenEvent = planCapabilityEvent(planId);
   const statusKey = `pubmax-plan-status:${planId}`;
   const statusEvent = `pubmax-plan-status-change:${planId}`;
+
+  useLayoutEffect(() => {
+    const scope: PresenceRequestScope = {
+      planId, active: true, generation: 0, requestId: 0, pending: false, controller: null, rollback: null,
+    };
+    presenceScope.current = scope;
+    // Identical HttpOnly-marker writes still supersede an old request.
+    const changed = () => {
+      scope.generation += 1;
+      scope.rollback?.();
+      scope.rollback = null;
+    };
+    window.addEventListener(tokenEvent, changed);
+    return () => {
+      scope.rollback?.();
+      scope.rollback = null;
+      scope.active = false;
+      scope.generation += 1;
+      scope.controller?.abort();
+      window.removeEventListener(tokenEvent, changed);
+      if (presenceScope.current === scope) presenceScope.current = null;
+    };
+  }, [planId, tokenEvent]);
 
   // Derived from sessionStorage so it survives a reload and stays lint-clean
   // (no setState-in-effect) — same external-store pattern as memberToken below.
@@ -306,19 +342,51 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   }
 
   async function updatePresence(status: CrewPresenceStatus) {
-    if (!memberToken || status === myStatus) return;
+    const scope = presenceScope.current;
+    if (!memberToken || pending || !scope?.active || scope.planId !== planId || scope.pending || status === myStatus) return;
+    const snapshot = readPlanCapabilitySnapshot(planId);
+    if (snapshot !== capabilitySnapshot) return;
+    const generation = scope.generation;
+    const requestId = ++presenceSequence.current;
+    const controller = new AbortController();
+    scope.requestId = requestId;
+    scope.pending = true;
+    scope.controller = controller;
+    const ownsRequest = () => scope.active && presenceScope.current === scope && scope.requestId === requestId;
+    const ownsCapability = () => ownsRequest() && scope.generation === generation
+      && readPlanCapabilitySnapshot(planId) === snapshot;
     const previous = myStatus;
-    rememberStatus(status); // optimistic: reflect the tap on the same frame (Apple: respond on press)
-    setPending(true);
+    scope.rollback = () => rememberStatus(previous);
+    setPresencePending({ planId, requestId });
     setError("");
     try {
+      rememberStatus(status); // optimistic: reflect the tap on the same frame
+      if (!ownsCapability()) return;
       const response = await fetch(`/api/plans/${planId}/presence`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ memberToken, status }),
+        signal: controller.signal,
       });
+      if (!ownsRequest()) { discardBody(response); return; }
       const body = await response.json();
+      if (!ownsRequest()) return;
+      if (response.status === 401 && body.code === "PLAN_PRESENCE_REQUIRED"
+        && memberToken === PLAN_HTTP_ONLY_SESSION && ownsCapability()) {
+        scope.rollback?.();
+        scope.rollback = null;
+        // Status listeners run synchronously. Recheck before clearing authority.
+        if (!ownsCapability()) return;
+        clearPlanCapability(planId);
+        setSessionCheckedPlanId(null);
+        setSessionUnavailable(false);
+        setSessionAttempt((value) => value + 1);
+        setError("Couldn't save your status. Tap it again when your crew is back.");
+        return;
+      }
       if (!response.ok) throw new Error(errorMessageFrom(body, "Could not update your status."));
+      if (!ownsCapability()) return;
+      scope.rollback = null;
       setCrew(body.crew ?? crew);
       if (status === "here") {
         try {
@@ -333,10 +401,16 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         }
       }
     } catch (caught) {
-      rememberStatus(previous); // roll back the optimistic state on failure
-      setError(caught instanceof Error ? caught.message : "Could not update your status.");
+      if (!ownsCapability()) return;
+      scope.rollback?.();
+      scope.rollback = null;
+      if (ownsCapability()) setError(caught instanceof Error ? caught.message : "Could not update your status.");
     } finally {
-      setPending(false);
+      if (scope.requestId === requestId) {
+        scope.pending = false;
+        scope.controller = null;
+      }
+      setPresencePending((current) => current?.requestId === requestId ? null : current);
     }
   }
 
@@ -375,7 +449,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
             <button
               type="button"
               key={status}
-              disabled={pending}
+              disabled={pending || presencePending?.planId === planId}
               aria-pressed={myStatus === status}
               data-active={myStatus === status ? "" : undefined}
               onClick={() => updatePresence(status)}

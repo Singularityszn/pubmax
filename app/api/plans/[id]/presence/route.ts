@@ -23,7 +23,11 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (await isLimited(limiterKey, limiterKey)) {
     return publicApiError("Too many updates, slow down.", "PLAN_PRESENCE_RATE_LIMITED", 429, { retryable: true });
   }
-  const result = await planStore().updatePresence(id, planMemberCapability(request, body.memberToken), body.status);
+  const memberToken = planMemberCapability(request, body.memberToken);
+  if (!memberToken) {
+    return publicApiError("Your crew session needs refreshing.", "PLAN_PRESENCE_REQUIRED", 401);
+  }
+  const result = await planStore().updatePresence(id, memberToken, body.status);
   if (!result.ok) {
     const status = result.error === "invalid" ? 400 : result.error === "not_found" ? 404 : result.error === "forbidden" ? 403 : 503;
     const error = result.error === "forbidden" ? "That member token isn't valid." : result.error === "invalid" ? "Choose a valid crew status." : result.error === "not_found" ? "That Plan doesn't exist." : "Could not update presence.";

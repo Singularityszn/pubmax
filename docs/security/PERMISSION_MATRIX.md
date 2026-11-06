@@ -188,6 +188,9 @@ no side effect, as above.
 2. **Refusals for a foreign Plan write read as 400** rather than 403 on the
    `PATCH` and presence routes, because validation and the capability lookup
    share one store result. Denied is denied; the matrix asserts 400 or 403.
+   A presence request with no member authority at all (no token, or only the
+   page's HttpOnly marker after the cookie expired) answers 401
+   `PLAN_PRESENCE_REQUIRED`, so a mounted Plan can recover its crew session.
 3. **Account deletion takes the bearer alone.** The audit's expected policy
    names a reauthenticated owner; the route deletes the account the verified
    bearer names and reads no target from the body. Recorded as a policy
