@@ -187,8 +187,10 @@ describe("NearMeSavedDrink", () => {
     expect(host.textContent).toBe("");
     act(() => { writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "london"); });
     expect(host.textContent).toContain("Your saved drink is Wine.");
-    act(() => { writeDeviceNightContext(profile({ drinkCategory: "cider" }).context, "london"); });
-    expect(host.textContent).toContain("Your saved drink is Cider.");
+    act(() => { writeDeviceNightContext(profile({ drinkCategory: "gin" }).context, "london"); });
+    expect(host.textContent).toContain("Your saved drink is Gin.");
+    act(() => { writeDeviceNightContext(profile({ drinkCategory: "other" }).context, "london"); });
+    expect(host.textContent).toBe("");
     act(() => { writeDeviceNightContext(profile({ drinkCategory: "beer" }).context, "london"); });
     expect(host.textContent).toBe("");
     act(() => { writeDeviceNightContext(profile({ drinkCategory: "wine" }).context, "manchester"); });

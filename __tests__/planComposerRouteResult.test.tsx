@@ -267,6 +267,9 @@ async function nameRouteCreator(): Promise<void> {
 async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
   await nameRouteCreator();
   await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+  await vi.waitFor(() => {
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/plans")).toBe(true);
+  });
   const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
   expect(creation).toBeDefined();
   return JSON.parse(String(creation[1]?.body));
