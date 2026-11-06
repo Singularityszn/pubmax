@@ -154,7 +154,9 @@ it.each([false, true])("disposes the abandoned account's pending price after a r
   expect(defined(requests[0]).signal.aborted).toBe(false);
   expect(defined(requests[0]).body.has("receipt_photo")).toBe(withBill);
   expect(optimistic.optimistic?.state).toBe("uploading");
-  expect(optimistic.priceEvidence).toBe(withBill ? "receipt" : "unchecked");
+  // A bill photo is not a bill read: the price waits unchecked until the
+  // background bill check matches it (captain 5 Nov 2026).
+  expect(optimistic.priceEvidence).toBe("unchecked");
   expect(storedIds()).toContain(optimistic.id);
   expect(container.textContent).toBe("Cheers. Saving your Pint Drop…");
   expect(revoked()).toEqual([]);
