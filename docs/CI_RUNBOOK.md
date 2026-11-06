@@ -112,9 +112,10 @@ Each workflow has its own concurrency group. A newer pull request head supersede
 
 Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push holds 3 of the 5 macOS runners for the layout pins. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
-`ci.yml` starts lint and the two unit shards at once. `production-build` runs
-after lint. The unit shards wait on nothing, because they build their own slim
-data, and they run in parallel. Each shard runs
+`ci.yml` starts lint, the production build and the two unit shards at once.
+The production build installs and generates its own files. Lint and both
+typechecks still report separately. The unit shards wait on nothing, because
+they build their own slim data, and they run in parallel. Each shard runs
 `npm run coverage -- --without-postgres` on its half of the suite with
 coverage thresholds off and writes a Vitest blob report. The Coverage job runs
 after both shards: it merges the two blobs with
@@ -123,6 +124,10 @@ thresholds in `vitest.config.mts` over the whole suite. So CI runs the unit
 suite once, not once in the shards and again for coverage. The freshness job
 runs on its own: a calendar breach is that job's red mark and does not skip the
 build, the unit shards or coverage.
+
+The freshness job installs Node without the npm cache or application dependencies.
+Both freshness scripts use Node built-ins and committed data. The job still checks
+candidate artifacts and production store observations on every change.
 
 Locally, `npm run verify` runs `npm run coverage -- --without-postgres` and
 then `npm run test:rls`, so each PostgreSQL suite runs once. The suites

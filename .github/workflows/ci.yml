@@ -129,7 +129,8 @@ jobs:
 
   production-build:
     name: Production build
-    needs: [lint-and-types]
+    # This job installs and builds its own files. Lint and both typechecks
+    # report separately, so the build does not wait for their runner.
     runs-on: ubuntu-latest
     timeout-minutes: 28
     steps:
@@ -392,14 +393,10 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm run deps:install-scripts
+      # Both freshness scripts use only Node built-ins and committed data.
       - name: Check every tracked feed
         run: |
-          npm run check:freshness -- --artifacts-only
+          node scripts/check_freshness.mjs --artifacts-only
           node scripts/check-production-store-freshness.mjs
 
   # The bundled datasets and city packs, held to scripts/validate-data.mjs on

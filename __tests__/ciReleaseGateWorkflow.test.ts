@@ -175,10 +175,13 @@ describe("clean-main CI release gate", () => {
     for (const job of ["production-build", "unit-tests", "coverage"]) {
       expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
     }
-    expect(needs["production-build"]).toEqual(["lint-and-types"]);
     expect(needs.coverage).toEqual(["unit-tests"]);
     expect(needs.freshness).toEqual([]);
     expect(needs["validate-data"]).toEqual([]);
+  });
+
+  it("starts the production build beside lint and typechecks", () => {
+    expect(parseJobNeeds(workflow)["production-build"]).toEqual([]);
   });
 
   it("validates every bundled dataset in its own job", () => {
@@ -232,8 +235,10 @@ describe("clean-main CI release gate", () => {
     expect(merge).toEqual(["npx", "vitest", "--merge-reports=blob-reports", "--coverage"]);
     const coverageWords = (coverage.steps ?? []).flatMap((step) => step.run?.trim().split(/\s+/) ?? []);
     expect(coverageWords.filter((word) => word.startsWith("--coverage.thresholds"))).toEqual([]);
+    const freshness = defined(ciJobs().freshness, "freshness job");
+    expect((freshness.steps ?? []).some((step) => /\bnpm\s+ci\b/.test(step.run ?? ""))).toBe(false);
     expect(workflow).toMatch(
-      /freshness:[\s\S]*name: Freshness release gate[\s\S]*npm run check:freshness -- --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,
+      /freshness:[\s\S]*name: Freshness release gate[\s\S]*node scripts\/check_freshness\.mjs --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,
     );
   });
 });
