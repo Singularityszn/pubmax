@@ -22,6 +22,8 @@ async function seedPal(page: Page, hidden = false): Promise<void> {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The cached Pal counts only for the account stamped on this device.
+    window.localStorage.setItem("pubmax_account_owner", "owner-e2e");
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
       id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
       adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: palHidden,

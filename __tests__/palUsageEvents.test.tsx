@@ -43,6 +43,7 @@ import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMissi
 import PalQuestStamps from "@/components/pal/PalQuestStamps";
 import { ANALYTICS_EVENTS, sanitizeEvent } from "@/lib/analyticsEvents";
 import { LOCAL_PAL_KEY } from "@/lib/localPal";
+import { DEVICE_ACCOUNT_OWNER_KEY } from "@/lib/deviceAccountIdentity";
 import { PAL_QUEST_STAMPS_KEY } from "@/lib/palQuest";
 import { londonDayKey } from "@/lib/pintContributions";
 
@@ -90,6 +91,7 @@ describe("the Pal's usage events on screen", () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    window.localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, ripley.ownerId);
     window.localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify(ripley));
     state.pal = ripley;
     state.track = [];

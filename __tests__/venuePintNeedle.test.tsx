@@ -100,6 +100,7 @@ describe("the needle on a pub", () => {
   });
 
   it("seats the person's own Pal at the pivot, and hops it only for a cheap pint", async () => {
+    window.localStorage.setItem("pubmax_account_owner", "owner");
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(pal()));
     const thresholds = priceBandThresholdsFor(priceBandAreaForVenue(LONDON_PUB));
     await render(thresholds.cheapMaxGbp - 0.4);
@@ -118,6 +119,7 @@ describe("the needle on a pub", () => {
     act(() => root?.unmount());
     host.remove();
 
+    window.localStorage.setItem("pubmax_account_owner", "owner");
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(pal({ hidden: true })));
     await render(5);
     expect(host.querySelector(".venuePintNeedlePal")).toBeNull();
