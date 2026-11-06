@@ -25,7 +25,7 @@ vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => auth.session.ac
 import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import NearMeSavedDrink from "@/components/nearme/NearMeSavedDrink";
 import { DEFAULT_NIGHT_PROFILE_INPUT, type NightProfile } from "@/lib/nightProfile";
-import { readDeviceNightProfile, writeDeviceNightContext } from "@/lib/nightProfileClient";
+import { readDeviceNightProfile, writeDeviceNightContext, writeDeviceNightProfile } from "@/lib/nightProfileClient";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { readProviderIdentityRevision, setProviderAuthState, setProviderIdentity } from "@/lib/authProviderRevision";
@@ -148,7 +148,7 @@ afterEach(async () => {
 });
 
 describe("AccountHub's device-only drink choice", () => {
-  async function mountNightProfile() {
+  async function mountNightProfile(legacy = false) {
     accountNightProfile = {
       ...DEFAULT_NIGHT_PROFILE_INPUT,
       createdAt: "2026-11-06T12:00:00Z",
@@ -161,17 +161,19 @@ describe("AccountHub's device-only drink choice", () => {
     mounted = true;
     await vi.waitFor(() => expect(host.textContent).toContain("Night Profile synced"));
     await act(async () => {
-      writeDeviceNightContext({
+      const context = {
         ...DEFAULT_NIGHT_PROFILE_INPUT.context,
-        drinkCategory: "wine",
-        budget: "value",
-      }, "london");
+        drinkCategory: "wine" as const,
+        budget: "value" as const,
+      };
+      if (legacy) writeDeviceNightProfile({ ...DEFAULT_NIGHT_PROFILE_INPUT, context });
+      else writeDeviceNightContext(context, "london");
     });
     expect(host.textContent).toContain("Your saved drink is Wine.");
   }
 
-  it("keeps Wine and refreshes the device budget after an account save", async () => {
-    await mountNightProfile();
+  it.each([false, true])("keeps Wine and refreshes the device budget after an account save with legacy=%s", async (legacy) => {
+    await mountNightProfile(legacy);
     const budget = [...host.querySelectorAll("label")].find((label) => label.textContent?.startsWith("Budget"))?.querySelector("select");
     expect(budget).toBeDefined();
     await act(async () => {
@@ -189,8 +191,8 @@ describe("AccountHub's device-only drink choice", () => {
     expect(host.querySelector('[aria-labelledby="night-profile-merge-title"]')).toBeNull();
   });
 
-  it("keeps Wine after choosing Keep account preferences", async () => {
-    await mountNightProfile();
+  it.each([false, true])("keeps Wine after choosing Keep account preferences with legacy=%s", async (legacy) => {
+    await mountNightProfile(legacy);
     const group = host.querySelector('[aria-labelledby="night-profile-merge-title"]');
     const keep = [...(group?.querySelectorAll("button") ?? [])].find((button) => button.textContent?.trim() === "Keep account preferences");
     expect(keep).toBeDefined();
@@ -199,6 +201,17 @@ describe("AccountHub's device-only drink choice", () => {
     expect(readDeviceNightProfile()?.context.budget).toBe("standard");
     expect(host.textContent).toContain("Your saved drink is Wine.");
     expect(host.querySelector('[aria-labelledby="night-profile-merge-title"]')).toBeNull();
+  });
+
+  it("keeps legacy Wine after importing device preferences", async () => {
+    await mountNightProfile(true);
+    const group = host.querySelector('[aria-labelledby="night-profile-merge-title"]');
+    const bring = [...(group?.querySelectorAll("button") ?? [])].find((button) => button.textContent?.trim() === "Bring this device");
+    expect(bring).toBeDefined();
+    await act(async () => bring!.click());
+    await vi.waitFor(() => expect(profileWrites).toHaveLength(1));
+    expect(readDeviceNightProfile()?.context.budget).toBe("treat");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
   });
 });
 

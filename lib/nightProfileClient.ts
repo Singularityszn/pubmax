@@ -52,7 +52,14 @@ export function readDeviceNightProfile(storage = browserStorage()): NightProfile
 export function readDeviceNightDrink(storage = browserStorage()): NightProfileInput | null {
   if (!storage) return null;
   try {
-    const value = JSON.parse(storage.getItem(NIGHT_PROFILE_DEVICE_DRINK_KEY) ?? "null") as unknown;
+    const raw = storage.getItem(NIGHT_PROFILE_DEVICE_DRINK_KEY);
+    const legacy = raw === null && readDeviceNightProfileProvenance(storage) === "device"
+      ? readDeviceNightProfile(storage) : null;
+    const value: unknown = raw === null ? legacy && {
+      cityId: legacy.cityId,
+      zeroProof: legacy.context.zeroProof,
+      drinkCategory: legacy.context.drinkCategory,
+    } : JSON.parse(raw);
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const drink = value as { cityId?: unknown; zeroProof?: unknown; drinkCategory?: unknown };
     return cleanNightProfileInput({
@@ -78,6 +85,16 @@ export function writeDeviceNightProfile(
   const clean = cleanNightProfileInput(profile);
   if (!clean) return false;
   try {
+    if (source === "account" && storage.getItem(NIGHT_PROFILE_DEVICE_DRINK_KEY) === null) {
+      const drink = readDeviceNightDrink(storage);
+      if (drink) {
+        storage.setItem(NIGHT_PROFILE_DEVICE_DRINK_KEY, JSON.stringify({
+          cityId: drink.cityId,
+          zeroProof: drink.context.zeroProof,
+          drinkCategory: drink.context.drinkCategory,
+        }));
+      }
+    }
     storage.setItem(
       NIGHT_PROFILE_DEVICE_KEY,
       JSON.stringify({

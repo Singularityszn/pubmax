@@ -92,6 +92,66 @@ describe("NearMeSavedDrink", () => {
     expect(onShow).toHaveBeenCalledWith({ kind: "lane", category: "wine", label: "Wine" });
   });
 
+  it.each(["device", undefined])("offers Wine from a legacy device profile with source=%s", (source) => {
+    localStorage.setItem("pubmaxx.night-profile.v1:device", JSON.stringify({
+      version: 1,
+      source,
+      profile: profile({ drinkCategory: "wine" }),
+    }));
+    authState.current = { signedIn: false };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
+
+  it.each([
+    { version: 1, source: "account", profile: profile({ drinkCategory: "wine" }) },
+    { version: 2, source: "device", profile: profile({ drinkCategory: "wine" }) },
+    { version: 1, source: "device", profile: { ...profile({ drinkCategory: "wine" }), cityId: "unknown" } },
+    { version: 1, source: "device", profile: { ...profile({}), context: { ...profile({}).context, drinkCategory: "unknown" } } },
+    { version: 1, source: "device", profile: null },
+  ])("does not offer an account-owned or invalid legacy drink: %j", (envelope) => {
+    localStorage.setItem("pubmaxx.night-profile.v1:device", JSON.stringify(envelope));
+    render("beer");
+    expect(host.textContent).toBe("");
+  });
+
+  it("keeps the separate device drink ahead of the legacy choice", () => {
+    writeDeviceNightContext(profile({ drinkCategory: "beer" }).context, "london");
+    writeDeviceNightProfile(profile({ drinkCategory: "wine" }));
+    render("beer");
+    expect(host.textContent).toBe("");
+  });
+
+  it("preserves only the legacy drink before an account mirror replaces the profile", () => {
+    localStorage.setItem("pubmaxx.night-profile.v1:device", JSON.stringify({
+      version: 1,
+      source: "device",
+      profile: {
+        ...profile({ drinkCategory: "wine", budget: "value" }),
+        pubPalId: "11111111-1111-4111-8111-111111111111",
+        voicePreference: "ptt",
+        briefingPreferences: { muteAll: true, mutedAreas: [], mutedTopics: ["music"] },
+      },
+    }));
+    mirrorAccountNightProfileToDevice({
+      ...profile({ budget: "treat" }),
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:01:00Z",
+    });
+    expect(readDeviceNightProfile()?.context.budget).toBe("treat");
+    releaseDeviceAccountOwner(localStorage, sessionStorage);
+    expect(readDeviceNightProfile()).toBeNull();
+    expect(readDeviceNightDrink()).toMatchObject({
+      context: { drinkCategory: "wine", budget: "standard" },
+      pubPalId: null,
+      voicePreference: "off",
+      briefingPreferences: { muteAll: false, mutedAreas: [], mutedTopics: [] },
+    });
+    authState.current = { signedIn: false };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
+
   it("shows nothing without a device choice or when the map already shows it", () => {
     owners.length = 0;
     profileState.current = { profile: profile({ drinkCategory: "wine" }), status: "ready" };
