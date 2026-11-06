@@ -119,7 +119,12 @@ function clampText(value: unknown, max: number): string {
   return trimmed.length > max ? trimmed.slice(0, max) : trimmed;
 }
 
-function coercePrice(value: unknown): number | null {
+/**
+ * The stop price this store keeps for an untrusted value, or null for none.
+ * `app/api/crawls` asks the same function whether a stop carries a price, so
+ * the route gates exactly the figures the store would keep.
+ */
+export function cleanCrawlStopPrice(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0) return null;
@@ -154,7 +159,7 @@ function normaliseStops(raw: CreateCrawlStoryInput["stops"]): Array<{
     const note = clampText(item.note, MAX_NOTE);
     stops.push({
       venueId,
-      priceGbp: coercePrice(item.priceGbp),
+      priceGbp: cleanCrawlStopPrice(item.priceGbp),
       ...(note ? { note } : {}),
     });
     if (stops.length >= MAX_STOPS) break;

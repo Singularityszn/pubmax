@@ -7,6 +7,7 @@
 
 import {
   clampAuthorCrawlListLimit,
+  cleanCrawlStopPrice,
   listAuthoredCrawlPage,
   listOwnUnlistedCrawlPage,
   createCrawlStory,
@@ -18,6 +19,7 @@ import {
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -64,14 +66,12 @@ function readStops(value: unknown): CreateCrawlStoryInput["stops"] {
     const venueId = readString(record.venueId ?? record.id ?? record.venue_id, MAX_VENUE_ID);
     if (!venueId) continue;
     const note = readString(record.note ?? record.m, MAX_NOTE);
-    const priceRaw = record.priceGbp ?? record.price ?? record.p;
     stops.push({
       venueId,
       ...(note ? { note } : {}),
-      priceGbp:
-        priceRaw === undefined || priceRaw === null || priceRaw === ""
-          ? null
-          : Number(priceRaw),
+      // The store's own rule, so the age gate below sees exactly the prices
+      // the store would keep: a figure it would drop is not a price submission.
+      priceGbp: cleanCrawlStopPrice(record.priceGbp ?? record.price ?? record.p),
     });
     if (stops.length >= MAX_STOPS) break;
   }
@@ -104,6 +104,17 @@ export async function POST(request: Request): Promise<Response> {
   const stops = readStops(body.stops);
   if (stops.length === 0) {
     return publicApiError("A crawl needs at least one stop.", "INVALID_REQUEST", 400);
+  }
+  // A STOP PRICE IS A PRICE SUBMISSION. Privacy and Terms promise that a price
+  // needs a signed-in account, a claimed handle and an 18+ answer, so a crawl
+  // that carries one asks the price door's own question and spends its own
+  // refusal body, which ContributionGateDialog already answers. A crawl with no
+  // stop price keeps the anonymous save.
+  if (stops.some((stop) => stop.priceGbp !== null)) {
+    const contributor = await resolveContributionIdentity(request);
+    if (!contributor.ok) {
+      return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+    }
   }
   const venueLookups = await Promise.all(
     stops.map(async (stop) => ({ stop, lookup: await lookupCanonicalVenue(stop.venueId) })),
