@@ -15,12 +15,11 @@ import { formatGbp } from "@/lib/formatGbp";
 // Palette = the dark-elevation ladder from app/theme.css's
 // `html[data-theme="dark"]` block + the Candle-Coral action accent from
 // app/globals.css (`--brass: #ff5a5f`). satori can't read `var(--…)`, so the
-// hexes are copied verbatim from those files. Keep this module the single
-// source of truth for OG colour so the borough / city / homepage cards can
-// never drift apart.
+// hexes are copied verbatim from those files. This module owns the shared
+// default palette. Card-specific palettes belong to their renderers.
 //
-// Imported ONLY by `opengraph-image.tsx` route modules (Node runtime), never by
-// a normal page — so it adds zero bytes to any client/page bundle.
+// Only server-side card renderers import this module. Normal pages must not
+// import it, to keep the fonts and rendering kit out of their bundles.
 
 export const OG = {
   // Elevation ladder (deepest well → paper → panel → raised → overlay),
@@ -72,8 +71,8 @@ export const OG_DEPLOY_STABLE_CACHE_HEADERS = {
   "cache-control": OG_DEPLOY_STABLE_CACHE_CONTROL,
 } as const;
 
-// The canonical page background: a near-black diagonal wash across the
-// elevation ladder. Kept as one string so every card opens on the same surface.
+// The default CardShell background uses a near-black diagonal wash across
+// the elevation ladder. Cards with their own surfaces do not use CardShell.
 const OG_BG = `linear-gradient(150deg, ${OG.inkDeep} 0%, ${OG.panel} 52%, ${OG.paper} 100%)`;
 
 // ── Fonts ────────────────────────────────────────────────────────────────────
@@ -226,7 +225,7 @@ export function Wordmark({
   );
 }
 
-// The near-black page shell every card opens on: the diagonal elevation wash, a
+// The shared near-black card shell: the diagonal elevation wash, a
 // soft coral glow bleeding in from the top-right, a fainter amber wash
 // lower-left for depth, and a hairline inset frame. Children render above all of
 // it. `padding` lets a card breathe wider or tighter.
