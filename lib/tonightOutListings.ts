@@ -252,13 +252,11 @@ export type TonightLedeComposition = {
 /**
  * What the Tonight first screen leads with.
  *
- * The lede is the head sentence plus the first card, and BOTH are composed
- * from the primary rows alone: a JD Wetherspoon deal and a Ticketmaster
- * kind:event row are never what a reader meets first. So `tonightPrimaryRows`
- * runs BEFORE the merge, the status and the lede sentence, never after, and an
- * answer carrying nothing else is honestly empty rather than led by one of
- * them. The secondary Deals and Music lanes keep the unfiltered list, which is
- * why both come back from one call.
+ * Filter primary rows before merging or calculating their status. Otherwise,
+ * excluded supply can become the first event card or make that list read ready.
+ * The availability sentence can still point to eligible secondary listings.
+ * README.md's Tonight feature guide owns the notice order and wording.
+ * Return both lists so secondary listings survive primary-row filtering.
  *
  * EVERY CHAIN IS REFUSED HERE, not just the one that led a build in August.
  * `withoutTonightChainRows` takes the Greene King fixtures too: 259 of them
