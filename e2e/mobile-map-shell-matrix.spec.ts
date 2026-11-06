@@ -14,6 +14,16 @@ const THEMES = ["light", "dark"] as const;
 
 test.setTimeout(90_000);
 
+type Camera = { center: [number, number]; zoom: number; moving: boolean; settling: boolean };
+
+async function readCamera(page: Page): Promise<Camera> {
+  return page.evaluate(() => {
+    const probe = (window as Window & { __pubmaxMapCamera?: { read: () => Camera } }).__pubmaxMapCamera;
+    if (!probe) throw new Error("camera probe missing");
+    return probe.read();
+  });
+}
+
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => Math.max(
     document.documentElement.scrollWidth - window.innerWidth,
@@ -109,10 +119,11 @@ for (const viewport of VIEWPORTS) {
 
       expect(await page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-geo-calls"))).toBe("0");
       await expect(nearMe).toHaveAccessibleName("Near me");
-      const viewportBeforeNearby = await page.evaluate(() => {
-        const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: unknown } | null;
-        return JSON.stringify(raw?.viewport ?? null);
-      });
+      await expect.poll(async () => {
+        const camera = await readCamera(page);
+        return !camera.moving && !camera.settling;
+      }).toBe(true);
+      const cameraBeforeNearby = await readCamera(page);
       await nearMe.click();
       await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-geo-calls"))).toBe("1");
       const nearbyChip = page.getByRole("button", { name: "Nearby" });
@@ -120,10 +131,16 @@ for (const viewport of VIEWPORTS) {
       const nearbyCount = Number.parseInt((await nearbyChip.innerText()).replace(/\D+/g, ""), 10);
       expect(nearbyCount).toBeGreaterThan(0);
       await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-venue-count", String(nearbyCount));
+      await expect.poll(async () => {
+        const camera = await readCamera(page);
+        return !camera.moving && !camera.settling &&
+          JSON.stringify([camera.center, camera.zoom]) !==
+          JSON.stringify([cameraBeforeNearby.center, cameraBeforeNearby.zoom]);
+      }).toBe(true);
       await expect.poll(() => page.evaluate(() => {
         const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: unknown } | null;
-        return JSON.stringify(raw?.viewport ?? null);
-      })).not.toBe(viewportBeforeNearby);
+        return raw?.viewport;
+      })).toBeNull();
       await waitForMapPaint(page);
       const nearMeClose = page.getByRole("button", { name: "Close Near me" });
       if (await nearMeClose.isVisible().catch(() => false)) {
@@ -370,25 +387,30 @@ for (const theme of THEMES) {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     }, theme);
-    await page.goto("/map");
+    // A named public-area link creates a saved camera without a location request.
+    await page.goto("/map?area=piccadilly-soho");
     await expectMobileMapShellReady(page, 45_000);
     await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 45_000 });
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
-    await expect.poll(() => page.evaluate(() =>
-      window.localStorage.getItem("pubmaxx.mobile-map-session.v1"),
-    )).not.toBeNull();
+    await expect.poll(() => page.evaluate(() => {
+      const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: unknown } | null;
+      return raw?.viewport ?? null;
+    })).not.toBeNull();
+    const publicPlaceSession = await page.evaluate(() => {
+      const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as (Record<string, unknown> & { viewport: Record<string, unknown> }) | null;
+      if (!raw?.viewport) throw new Error("public-place camera missing");
+      return raw;
+    });
 
     for (const [zoom, pitch] of [[10, 0], [12, 22], [14, 40], [16, 50]] as const) {
-      // Leave the map before writing its camera. A live map keeps writing both
-      // stores: the session on every camera change, the resume cache in idle
-      // time after one. Its opening turn or a late resume write landing between this
-      // write and the reopen put the map back at its own camera, not this one.
+      // Leave the map before changing the public-place fixture's zoom and pitch.
+      // Keep its selected centre and provenance in both camera stores.
+      // Reuse the captured session because later automatic moves can clear it.
       await page.goto("/offline.html");
-      await page.evaluate(({ nextZoom, nextPitch }) => {
+      await page.evaluate(({ session, nextZoom, nextPitch }) => {
         const key = "pubmaxx.mobile-map-session.v1";
-        const raw = JSON.parse(window.localStorage.getItem(key) ?? "null") as Record<string, unknown> | null;
-        if (!raw) throw new Error("mobile map session missing");
-        const viewport = { center: [-0.102, 51.513], zoom: nextZoom, pitch: nextPitch, bearing: 0 };
+        const raw = { ...session };
+        const viewport = { ...raw.viewport, zoom: nextZoom, pitch: nextPitch, bearing: 0 };
         raw.viewport = viewport;
         raw.selectedVenueId = null;
         raw.openSheet = null;
@@ -401,15 +423,12 @@ for (const theme of THEMES) {
           resume.viewport = viewport;
           window.localStorage.setItem(resumeKey, JSON.stringify(resume));
         }
-      }, { nextZoom: zoom, nextPitch: pitch });
+      }, { session: publicPlaceSession, nextZoom: zoom, nextPitch: pitch });
       await page.goto("/map");
       await expectMobileMapShellReady(page, 45_000);
       await waitForMapPaint(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-      await expect.poll(() => page.evaluate(() => {
-        const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: { zoom?: number } } | null;
-        return raw?.viewport?.zoom ?? -1;
-      })).toBeCloseTo(zoom, 1);
+      await expect.poll(async () => (await readCamera(page)).zoom).toBeCloseTo(zoom, 1);
       await saveShot(page, `map-z${zoom}-390x844-${theme}`);
     }
   });
