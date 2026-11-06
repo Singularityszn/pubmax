@@ -1450,6 +1450,44 @@ test.describe("story and credit placement", () => {
           expect(layout.buttonHit).toBe(true);
           expect(layout.storyHits).toEqual([true, true]);
           expect(layout.storyClipped).toBe(false);
+          const storyText = chip.getByRole("region", { name: "Subcrawl: Clockwork Orange loop", exact: true });
+          await expect(storyText).toHaveAttribute("tabindex", "0");
+          const textViewport = await storyText.evaluate(element => ({
+            height: element.clientHeight, width: element.clientWidth,
+            scrollHeight: element.scrollHeight, scrollWidth: element.scrollWidth,
+            overflow: getComputedStyle(element).overflowY,
+          }));
+          expect(textViewport.height).toBeGreaterThan(0);
+          expect(textViewport.scrollWidth).toBeLessThanOrEqual(textViewport.width);
+          expect(textViewport.overflow).toBe("auto");
+          const documentScroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+          await storyText.focus();
+          await expect(storyText).toBeFocused();
+          await page.keyboard.press("End");
+          await expect.poll(() => storyText.evaluate(element =>
+            element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(1);
+          const lastLine = await storyText.locator("span").evaluate(element => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const lines = Array.from(range.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0);
+            const last = lines.at(-1)!;
+            const viewport = element.parentElement!.getBoundingClientRect();
+            return { top: last.top, bottom: last.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom };
+          });
+          expect(lastLine.top).toBeGreaterThanOrEqual(lastLine.viewportTop);
+          expect(lastLine.bottom).toBeLessThanOrEqual(lastLine.viewportBottom);
+          expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(documentScroll);
+          await page.keyboard.press("Home");
+          await expect.poll(() => storyText.evaluate(element => element.scrollTop)).toBe(0);
+          for (const action of await chip.getByRole("button").all()) {
+            const box = (await action.boundingBox())!;
+            expect(box.width).toBeGreaterThanOrEqual(44);
+            expect(box.height).toBeGreaterThanOrEqual(44);
+            expect(await action.evaluate(element => {
+              const box = element.getBoundingClientRect();
+              return element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
+            })).toBe(true);
+          }
           for (const other of [layout.nearMe, layout.consent, ...(expanded ? [] : [layout.pal])].filter((box): box is Rect => !!box)) {
             expect(overlaps(layout.credit, other)).toBe(false);
             expect(overlaps(layout.chip, other)).toBe(false);
