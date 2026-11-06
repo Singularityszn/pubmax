@@ -16,11 +16,20 @@ import { isHttpUrl } from "@/lib/httpUrl";
 import type { RobotsChecker } from "@/lib/harvest/robots";
 import {
   CATEGORY_PRICE_BANDS,
-  decideKeylessUkPriceCandidate,
-  findUkPriceCandidates,
+  UK_PRICE_PATTERN,
+  FRACTIONAL_PINT_MEASURE,
+  MIXED_THIRD_PINT_MEASURE,
+  fractionalBeerServing,
   isLikelyMenuUrl,
-  pageText,
-  drinkLabelFromPriceContext,
+  printedPageText,
+  printedPriceLayout,
+  type PrintedPriceEvidence,
+  menuKind,
+  cleanListedDrinkName,
+  GLASS_ML,
+  SERVING_SIZE,
+  SERVING_WORD,
+  type MenuKind,
 } from "@/lib/harvest/ukPriceCrawl";
 
 export const SEARCH_CREDIT_COST = 1;
@@ -32,22 +41,13 @@ const BEER_MIN_GBP = 2;
 const BEER_MAX_GBP = 12;
 const DAY_MS = 86_400_000;
 const EXCERPT_MAX = 500;
-
 const SEED_PATCHES = ["soho", "clapham", "shoreditch", "islington", "camden"] as const;
 const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "hounslow"]);
 
-const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
-const SERVING_WORD = "pints?|halves|half|schooners?|two[\\s-]thirds|kegs?|bottles?|cans?|glasses|glass|measures|measure";
-const SERVING_SIZE = new RegExp(`\\b(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i");
-const POUR_OF = /^(?:(?:a|an)\s+)?(?:pints?|half|measures?|schooners?|two[\s-]thirds|glass(?:es)?|bottles?|cans?)\s+of\s+(?:(?:a|an)\s+)?(.+)$/i;
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
 const DRINKS_PATH =
   /(?:^|[/?])(?:drinks?|bars?|tap-list|on-tap|cellar|price-list|tariff|beer|wine|cocktail)(?:\/|$|[?#])/i;
-const DRINKS_LABEL = /\b(drinks?|bars?|beers?|wines?|cocktails?|ale|lager|stout|porter|cider|spirit|whisky|whiskey|gin|rum|vodka)\b/i;
-const FOOD_LABEL = /\b(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
-const HEADING_FILLER = new Set(["and", "menu", "list"]);
-const GLASS_ML = new Set(["125ml", "175ml", "250ml"]);
 const SPIRIT_ML = new Set(["25ml", "35ml", "50ml"]);
 
 type DrinkSize = "pint" | "keg" | "bottle" | "can" | "unstated";
@@ -534,39 +534,19 @@ export function acceptedExtractUrls(urls: readonly string[], siteOrigin: string)
   return out;
 }
 
-function cleanName(label: string): string | null {
-  const poured = label.replace(/^[/|\s]+/, "").trim().match(POUR_OF);
-  const source = poured?.[1]?.trim() ?? label;
-  const cleaned = source
-    .replace(/\bschooners?\b(?:\s*\([^)]*\))?/gi, " ")
-    .replace(/\btwo[\s-]thirds\b(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
-    .replace(/(?:⅔|\b2\/3\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
-    .replace(/(?:½|\b1\/2\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
-    .replace(/\b\d{2,4}\s*ml\b/gi, " ")
-    .replace(new RegExp(`\\b(?:${SERVING_WORD})(?:\\s+of(?:\\s+a)?)?\\b`, "gi"), " ")
-    .replace(/[/|]+/g, (mark, offset, source) => (
-      mark === "/"
-      && /(?:19|20)\d{2}$/.test(source.slice(Math.max(0, offset - 4), offset))
-      && /^\d{2}(?!\d)/.test(source.slice(offset + 1))
-        ? "/"
-        : " "
-    ))
-    .replace(/\s+/g, " ")
-    .replace(/^[\s,;:.\-]+|[\s,;:.\-]+$/g, "")
-    .trim();
-  if (cleaned.length < 2 || VAGUE_NAME.test(cleaned)) return null;
-  return cleaned;
-}
+const MIXED_OTHER_PINT_MEASURE = /(?<![\w.])\d{1,2}(?:(?:[ \t-]+|[ \t]+and[ \t]+)1[ \t]*\/[ \t]*2|[ \t]*[½¼¾])[\s-]*(?:of\s+a\s+)?pints?\b/i;
 
 function isMixedNumber(line: string): boolean {
-  return /\d\s*[½⅓⅔¼¾]\s*pints?\b/i.test(line)
-    || /\d[ \t]+1\/2\s*pints?\b/i.test(line);
+  const withoutPrices = line.replace(UK_PRICE_PATTERN, " ");
+  return MIXED_THIRD_PINT_MEASURE.test(withoutPrices) || MIXED_OTHER_PINT_MEASURE.test(withoutPrices);
 }
 
 function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\bschooners?\b/i.test(line)) return { size: "unstated", sizeDetail: "schooner" };
-  if (/\btwo[\s-]thirds\b/i.test(line) || /(?<!\d)⅔|(?<!\d)\b2\/3\b/.test(line)) {
-    return { size: "unstated", sizeDetail: "two-thirds" };
+  const fractionalServing = fractionalBeerServing(line);
+  const hasContainer = /\b(?:bottles?|cans?|keg)\b/i.test(line);
+  if (fractionalServing && (!hasContainer || FRACTIONAL_PINT_MEASURE.test(line))) {
+    return { size: "unstated", sizeDetail: fractionalServing };
   }
   if (/(?<!\d)(?:½|\b1\/2\b|\bhalf)[\s-]+bottles?\b/i.test(line)) {
     return { size: "unstated", sizeDetail: "half bottle" };
@@ -574,7 +554,9 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/(?<!\d)(?:½|\b1\/2\b)|\bhalf\b/i.test(line)) {
     return { size: "unstated", sizeDetail: "half" };
   }
-  if (/\b568\s*ml\b/i.test(line) || /\bpints?\b/i.test(line)) return { size: "pint", sizeDetail: "pint" };
+  if (!fractionalServing && (/\b568\s*ml\b/i.test(line) || /\bpints?\b/i.test(line))) {
+    return { size: "pint", sizeDetail: "pint" };
+  }
   const ml = /\b(\d{2,4})\s*ml\b/i.exec(line);
   const detail = ml ? `${ml[1]}ml` : null;
   if (detail && SPIRIT_ML.has(detail)) return { size: "unstated", sizeDetail: detail };
@@ -589,7 +571,7 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
 function measureAllowed(line: string, size: { size: DrinkSize; sizeDetail: string | null }): boolean {
   if (isMixedNumber(line)) return false;
   if (size.size === "pint" || size.size === "keg" || size.size === "bottle" || size.size === "can") return true;
-  if (size.sizeDetail === "half" || size.sizeDetail === "half bottle" || size.sizeDetail === "schooner" || size.sizeDetail === "two-thirds") return true;
+  if (size.sizeDetail === "half" || size.sizeDetail === "half bottle" || size.sizeDetail === "schooner" || fractionalBeerServing(line)) return true;
   if (size.sizeDetail && (GLASS_ML.has(size.sizeDetail) || SPIRIT_ML.has(size.sizeDetail))) return true;
   if (/\b\d{2,4}\s*ml\b/i.test(line)) return true;
   return /\b(?:glasses|glass)\b/i.test(line);
@@ -608,7 +590,7 @@ function listedDrink(
   forced?: { size: DrinkSize; sizeDetail: string | null },
   band: { minGbp: number; maxGbp: number } = { minGbp: BEER_MIN_GBP, maxGbp: BEER_MAX_GBP },
 ): ListedDrinkLine | null {
-  const drink = cleanName(name);
+  const drink = cleanListedDrinkName(name);
   if (!drink || !inBand(priceGbp, band.minGbp, band.maxGbp)) return null;
   const size = forced ?? sizeOf(line);
   if (!measureAllowed(line, size)) return null;
@@ -623,70 +605,14 @@ function listedDrink(
   };
 }
 
-type PriceOutcome = ReturnType<typeof decideKeylessUkPriceCandidate>;
-
 function measureTail(after: string): string {
   return new RegExp(`^(?:\\s*\\/\\s*|\\s+)(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i").exec(after)?.[0] ?? "";
 }
 
-function trailingMeasure(after: string): string {
-  const next = /£/.exec(after);
-  const untilNext = next ? after.slice(0, next.index) : after;
-  const tail = measureTail(untilNext);
-  if (next && untilNext.trim() === tail.trim()) return "";
-  return tail;
-}
-
-function isBareGlassMeasure(text: string): boolean {
-  const detail = text.replace(/^[/|\s]+/, "").trim().replace(/\s+/g, "").toLowerCase();
-  return GLASS_ML.has(detail);
-}
-
-function namedLabel(line: string, at: number, local: string): string {
-  if (cleanName(local)) return local;
-  const ownMeasure = local.replace(/^[/|\s]+/, "").trim();
-  let cursor = at;
-  for (let hop = 0; hop < 4; hop += 1) {
-    const before = line.slice(0, cursor);
-    const prior = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)].at(-1);
-    if (!prior || prior.index === undefined) return local;
-    const between = before.slice(prior.index + prior[0].length);
-    if (/(?:\. |; )/.test(between)) return local;
-    const crossedPipe = /(?: \| |\|\s)/.test(between);
-    if (crossedPipe && !isBareGlassMeasure(ownMeasure)) return local;
-    const priorLabel = drinkLabelFromPriceContext(line, prior[0], prior.index) ?? "";
-    const priorName = cleanName(priorLabel);
-    const priorMl = /\b(\d{2,4})\s*ml\b/i.exec(priorLabel);
-    if (crossedPipe && priorName && !(priorMl && GLASS_ML.has(`${priorMl[1]}ml`))) return local;
-    if (priorName) return ownMeasure ? `${priorName} ${ownMeasure}` : priorName;
-    if (!isBareGlassMeasure(priorLabel)) return local;
-    cursor = prior.index;
-  }
-  return local;
-}
-
-function ownPrice(line: string, verbatim: string, at: number): { text: string; at: number; label: string } {
-  const local = drinkLabelFromPriceContext(line, verbatim, at) ?? "";
-  const label = namedLabel(line, at, local);
-  const tail = trailingMeasure(line.slice(at + verbatim.length));
-  const prefix = label ? `${label} ` : "";
-  return { label, text: `${prefix}${verbatim}${tail}`, at: prefix.length };
-}
-
-function drinkFromDrop(
-  line: string,
-  label: string,
-  priceGbp: number,
-  drop: PriceOutcome["drop"],
-  fact: SourcedFact,
-): ListedDrinkLine | null {
-  if (drop === "bottled-measure-not-a-pint" || drop === "half-measure-not-a-pint" || drop === "fractional-measure-not-a-pint") {
-    return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, sizeOf(line));
-  }
-  if (drop !== "no-category-word-nearby") return null;
-  const size = sizeOf(line);
-  if (size.size === "unstated" && !size.sizeDetail) return null;
-  return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, size);
+function ownPrice(evidence: PrintedPriceEvidence): string {
+  const { label, raw, tail, fraction } = evidence;
+  const serving = fraction.suffix ?? measureTail(tail);
+  return (label ? label + " " : "") + raw.verbatim + serving;
 }
 
 function listedDrinkKey(row: { drink: string; size: string; sizeDetail: string | null; priceGbp: number }): string {
@@ -701,153 +627,31 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
   drinks.push(row);
 }
 
-const JOINED_SIZE_LIST = /(?<![\d/.£])\d{2,4}(?:\s*ml)?(?:\s*\/\s*\d{2,4}(?:\s*ml)?)+(?!\s*\/\s*\d)/gi;
-const JOINED_PRICE_LIST = /^\s*((?:£\s?\d{1,2}(?:\.\d{2})?)(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*)/;
-const LEADING_MEASURE = new RegExp(`^(?:${SERVING_WORD}|\\d{2,4}\\s*ml|½|1\\/2|2\\/3|⅔)\\b`, "i");
-
-function isNewDrinkName(text: string): boolean {
-  const body = text.replace(/^[/|\s]+/, "");
-  if (!body || /^£/.test(body)) return false;
-  const head = (body.split("£")[0] ?? "").trim();
-  if (POUR_OF.test(head)) return true;
-  if (LEADING_MEASURE.test(body)) return false;
-  const name = cleanName(head);
-  return Boolean(name && /[A-Za-z]/.test(name));
-}
-
-function splitPriceItems(line: string): string[] {
-  const splits: Array<{ sepStart: number; nextStart: number }> = [];
-  const consider = (sepStart: number, nextStart: number) => {
-    if (nextStart > sepStart && isNewDrinkName(line.slice(nextStart))) splits.push({ sepStart, nextStart });
-  };
-  for (const match of line.matchAll(/(?<=\d)[.!?]\s+|(?<=[a-z]{3})[.!?]\s+|;\s+/gi)) {
-    consider(match.index ?? 0, (match.index ?? 0) + match[0].length);
-  }
-  for (const match of line.matchAll(/\s*\|\s*/g)) {
-    consider(match.index ?? 0, (match.index ?? 0) + match[0].length);
-  }
-  for (const match of line.matchAll(/£\s?\d{1,2}(?:\.\d{2})?(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*/g)) {
-    const after = (match.index ?? 0) + match[0].length;
-    const lead = /^,?\s+/.exec(line.slice(after));
-    if (!lead) continue;
-    const nextStart = after + lead[0].length;
-    if (/^[.!?;|]/.test(line.slice(nextStart))) continue;
-    consider(after, nextStart);
-  }
-  splits.sort((a, b) => a.sepStart - b.sepStart || a.nextStart - b.nextStart);
-  const items: string[] = [];
-  let cursor = 0;
-  for (const split of splits) {
-    if (split.sepStart < cursor) continue;
-    const item = line.slice(cursor, split.sepStart).trim();
-    if (item) items.push(item);
-    cursor = split.nextStart;
-  }
-  const rest = line.slice(cursor).trim();
-  if (rest) items.push(rest);
-  return items.length > 0 ? items : [line];
-}
-
-function pairedMeasureLines(line: string): string[] | null {
-  const parts: string[] = [];
-  let carried = "";
-  let saw = false;
-  let cursor = 0;
-  for (const match of line.matchAll(JOINED_SIZE_LIST)) {
-    if (match.index === undefined || match.index < cursor || !/ml/i.test(match[0])) continue;
-    const sizes = [...match[0].matchAll(/\d{2,4}/g)].map((token) => `${token[0]}ml`);
-    const priceMatch = JOINED_PRICE_LIST.exec(line.slice(match.index + match[0].length));
-    const prices = priceMatch
-      ? [...(priceMatch[1] ?? "").matchAll(/£\s?\d{1,2}(?:\.\d{2})?/g)].map((token) => token[0].replace(/\s+/g, ""))
-      : [];
-    if (!priceMatch || prices.length !== sizes.length) {
-      const before = line.slice(cursor, match.index).trim();
-      if (before.includes("£")) parts.push(before);
-      saw = true;
-      const consumed = priceMatch ? priceMatch[0].length : 0;
-      cursor = match.index + match[0].length + consumed;
-      continue;
-    }
-    saw = true;
-    const name = line.slice(cursor, match.index).replace(/\s+/g, " ").trim();
-    carried = name;
-    for (let i = 0; i < sizes.length; i += 1) {
-      parts.push(`${name} ${sizes[i]} ${prices[i]}`.replace(/\s+/g, " ").trim());
-    }
-    cursor = match.index + match[0].length + priceMatch[0].length;
-  }
-  if (!saw) return null;
-  const tail = line.slice(cursor).trim();
-  if (tail) {
-    const named = isNewDrinkName(tail) ? tail : `${carried} ${tail}`;
-    parts.push(named.replace(/\s+/g, " ").trim());
-  }
-  return parts;
-}
-
 function recordPriceLine(
   line: string,
   fact: SourcedFact,
   drinks: ListedDrinkLine[],
   seenDrinks: Set<string>,
+  prices: readonly PrintedPriceEvidence[],
 ): void {
-  const items = splitPriceItems(line);
-  if (items.length > 1) {
-    for (const item of items) recordPriceLine(item, fact, drinks, seenDrinks);
-    return;
-  }
-  const paired = pairedMeasureLines(line);
-  if (paired) {
-    for (const part of paired) recordPriceLine(part, fact, drinks, seenDrinks);
-    return;
-  }
-  if (!line.includes("£")) return;
-  for (const raw of findUkPriceCandidates(line)) {
-    const own = ownPrice(line, raw.verbatim, raw.at);
-    if (!SERVING_SIZE.test(own.text)) continue;
-    const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
-    const row = outcome.kept
-      ? listedDrink(
-          outcome.kept.drinkLabel || own.label,
-          own.text,
-          outcome.kept.priceGbp,
-          fact.sourceUrl,
-          fact.seenOn,
-          undefined,
-          CATEGORY_PRICE_BANDS[outcome.kept.category] ?? { minGbp: BEER_MIN_GBP, maxGbp: BEER_MAX_GBP },
-        )
-      : drinkFromDrop(own.text, own.label, raw.priceGbp, outcome.drop, fact);
+  for (const evidence of prices) {
+    const { raw, admission, qualifier, label } = evidence;
+    if (admission.kind === "refused") continue;
+    const own = ownPrice(evidence);
+    // A bare fractional label without an explicit serving still supplies no row.
+    if (!SERVING_SIZE.test(own) && !FRACTIONAL_PINT_MEASURE.test(own)) continue;
+    const size = sizeOf(own);
+    if (qualifier && size.size === "pint") continue;
+    const category = admission.kind === "accepted" ? admission.category.category : undefined;
+    if (!category && size.size === "unstated" && !size.sizeDetail) continue;
+    const band = category ? CATEGORY_PRICE_BANDS[category] : undefined;
+    const row = listedDrink(label, own, raw.priceGbp, fact.sourceUrl, fact.seenOn, size, band);
     rememberDrink(drinks, seenDrinks, row && line.includes(row.drink) ? row : null);
   }
 }
 
-type MenuKind = "drinks" | "food" | "both";
-
-function menuKind(value: string): MenuKind | null {
-  const food = FOOD_LABEL.test(value);
-  const drinks = DRINKS_LABEL.test(value);
-  if (food && drinks) return "both";
-  if (food) return "food";
-  if (drinks) return "drinks";
-  return null;
-}
-
 function saysMenu(kind: MenuKind | null, want: "food" | "drinks"): boolean {
   return kind === want || kind === "both";
-}
-
-function headingKind(line: string): "drinks" | "food" | null {
-  const text = line.replace(/^#{1,6}\s+/, "").replace(/[*_`]+/g, "").trim();
-  if (!text || /[£\d.!?]/.test(text)) return null;
-  const words = phraseWords(text);
-  if (words.length === 0 || words.length > 4) return null;
-  const content = words.filter((word) => !HEADING_FILLER.has(word));
-  if (content.length === 0) return null;
-  const hasFood = content.some((word) => FOOD_LABEL.test(word));
-  const hasDrinks = content.some((word) => DRINKS_LABEL.test(word));
-  if (hasDrinks && (!hasFood || content.every((word) => FOOD_LABEL.test(word) || DRINKS_LABEL.test(word)))) return "drinks";
-  if (hasFood && content.every((word) => FOOD_LABEL.test(word))) return "food";
-  return null;
 }
 
 function urlPath(url: string): string {
@@ -899,20 +703,16 @@ function pageExcerpt(markdown: string): string {
 export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
   const drinks: ListedDrinkLine[] = [];
   const seenDrinks = new Set<string>();
-  const rawLines = String(markdown ?? "").split(/\r?\n/);
-  let section: "drinks" | "food" | null = null;
-
-  for (const rawLine of rawLines) {
-    const line = pageText(rawLine).replace(/\s+/g, " ").trim();
-    if (!line) continue;
-    const headed = headingKind(line);
-    if (headed) {
-      section = headed;
-      continue;
-    }
-    if (pricesAllowed(fact.sourceUrl, fact.title, section, fact.boundSnippet)) {
-      recordPriceLine(line, fact, drinks, seenDrinks);
-    }
+  // Keep the source's existing line and heading evidence, including preformatted menus.
+  const page = printedPageText(String(markdown ?? ""), "text", { preserveSourceLines: true });
+  const layout = printedPriceLayout(page);
+  for (const { text: line, priceOffsets, menuSection } of layout.lines) {
+    if (priceOffsets.length === 0 || !pricesAllowed(fact.sourceUrl, fact.title, menuSection, fact.boundSnippet)) continue;
+    const prices = priceOffsets.flatMap((at) => {
+      const evidence = layout.prices.get(at);
+      return evidence ? [evidence] : [];
+    });
+    recordPriceLine(line, fact, drinks, seenDrinks, prices);
   }
 
   const excerpt = pageExcerpt(markdown);
