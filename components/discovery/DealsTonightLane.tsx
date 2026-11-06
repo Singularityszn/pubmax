@@ -17,7 +17,7 @@ import {
   liveDeals,
   orderDeals,
   type DealProximityAnchor,
-} from "@/lib/dealsHonesty";
+} from "@/lib/dealsHonestyCore";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
