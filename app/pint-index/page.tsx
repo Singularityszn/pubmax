@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import { SITE_ORGANIZATION_ID } from "@/lib/siteJsonLd";
 
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
@@ -80,7 +81,7 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
     name: "The London Pint Index",
     description: `A dated London pint-price dataset covering ${pubCount} pubs across ${boroughCount} boroughs.`,
     url: `${SITE_URL}/pint-index`,
-    creator: { "@type": "Organization", name: "PUBMAXX", url: SITE_URL },
+    creator: { "@id": SITE_ORGANIZATION_ID },
     isAccessibleForFree: true,
     dateModified: snapshot.generatedAt,
     temporalCoverage: `${snapshot.observationWindow.start}/${snapshot.observationWindow.end}`,

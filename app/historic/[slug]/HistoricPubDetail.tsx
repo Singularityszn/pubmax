@@ -309,7 +309,6 @@ export default function HistoricPubDetail({
         </section>
 
         <footer className="hdProvenance">
-          Cited from Wikipedia and Wikidata. Never invented.{" "}
           <DataCreditsLink className="historicCreditsLink" />
         </footer>
       </Screen>

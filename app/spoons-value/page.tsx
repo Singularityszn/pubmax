@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import { SITE_ORGANIZATION_ID } from "@/lib/siteJsonLd";
 
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
@@ -94,7 +95,7 @@ export default async function SpoonsValuePage() {
       "@type": "Person",
       name: pack.provenance.author,
     },
-    publisher: { "@type": "Organization", name: "PUBMAXX", url: SITE_URL },
+    publisher: { "@id": SITE_ORGANIZATION_ID },
     isBasedOn: pack.provenance.sourceUrl,
     variableMeasured: "Alcohol units purchasable for £10, by pub",
     measurementTechnique:
