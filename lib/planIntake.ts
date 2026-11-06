@@ -25,9 +25,11 @@ import {
 } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 import { safeLocalStorage } from "@/lib/safeStorage";
+import { PLAN_INTAKE_STORAGE_KEY } from "@/lib/planDraftStorage";
+
+export { clearPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY } from "@/lib/planDraftStorage";
 
 export const PLAN_INTAKE_VERSION = 1 as const;
-export const PLAN_INTAKE_STORAGE_KEY = "pubmax:plan-intake:v1";
 export const PLAN_INTAKE_DRAFT_TTL_MS = DAY_MS;
 export const PLAN_INTAKE_MAX_RAW_BYTES = 12 * 1024;
 const LONDON_TIME_ZONE = "Europe/London";
@@ -668,16 +670,6 @@ export function writePlanIntakeDraft(
   } catch {
     // Planning remains available in memory when storage is blocked or full.
     return false;
-  }
-}
-
-export function clearPlanIntakeDraft(storage?: Storage | null): void {
-  const store = resolveStorage(storage);
-  if (!store) return;
-  try {
-    store.removeItem(PLAN_INTAKE_STORAGE_KEY);
-  } catch {
-    // Best effort after successful Plan creation or invalid draft recovery.
   }
 }
 

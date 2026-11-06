@@ -239,10 +239,11 @@ test('explicit sign-out clears the open Plan before the cookie deletion finishes
 
 test('sign-in during request-key hashing cancels the stale key and permits Lock retry', async ({ page }) => {
   await seed(page, null);
-  await page.goto('/plan');
   // A supported manual route has no server-generated operation key. This
   // persisted input exercises the native hashing path used by manual Plans.
-  await page.evaluate(stops => {
+  // Install it before hydration, so the empty form cannot save a competing
+  // request while the route fixture is installed.
+  await page.addInitScript(stops => {
     sessionStorage.removeItem('pubmaxx:plan-draft:v1');
     sessionStorage.removeItem('pubmax:plan-draft:v2');
     localStorage.removeItem('pubmax:plan-intake:v1');
@@ -251,7 +252,7 @@ test('sign-in during request-key hashing cancels the stale key and permits Lock 
       stops: stops.map((venueId, key) => ({ key, venueId, venueName: venueId })),
     }));
   }, STOPS);
-  await page.reload();
+  await page.goto('/plan');
   await expect(page.locator('.planStop')).toHaveCount(3);
   await page.locator('#plan-name').fill('Signed-out hashing host');
   const form = await page.locator('form.planComposer').elementHandle();

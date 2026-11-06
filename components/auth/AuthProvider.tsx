@@ -74,8 +74,7 @@ import {
   liveAccountDeparted,
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
-import { clearPersistedPlanDrafts } from "@/lib/planComposerHandoff";
-import { clearPlanIntakeDraft } from "@/lib/planIntake";
+import { clearPersistedPlanDrafts, clearPlanIntakeDraft } from "@/lib/planDraftStorage";
 import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import {
   emitDeviceAccountSessionsChanged,

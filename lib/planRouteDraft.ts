@@ -9,8 +9,9 @@ import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { cleanPlanPintPrice, type PlanPintPriceFields } from "@/lib/planPintPrice";
 
-export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
-export const PLAN_ROUTE_DRAFT_V2_KEY = "pubmax:plan-route-draft:v2";
+import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planDraftStorage";
+
+export { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planDraftStorage";
 const PLAN_ROUTE_DRAFT_STORAGE_VERSION = 2 as const;
 const PLAN_ROUTE_DRAFT_MAX_RAW_BYTES = 40 * 1024;
 export const PLAN_ROUTE_DRAFT_TTL_MS = DAY_MS;

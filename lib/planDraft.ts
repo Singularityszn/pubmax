@@ -7,8 +7,9 @@ import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import { PLANNING_INTENT_SOURCES, type PlanningIntentArea, type PlanningIntentSource } from "@/lib/planningIntent";
 
-export const PLAN_DRAFT_KEY = "pubmaxx:plan-draft:v1";
-export const PLAN_DRAFT_V2_KEY = "pubmax:plan-draft:v2";
+import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY } from "@/lib/planDraftStorage";
+
+export { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY } from "@/lib/planDraftStorage";
 const PLAN_DRAFT_STORAGE_VERSION = 2 as const;
 const PLAN_DRAFT_MAX_RAW_BYTES = 20 * 1024;
 export const PLAN_DRAFT_TTL_MS = DAY_MS;
