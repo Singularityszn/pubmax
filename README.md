@@ -94,6 +94,15 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   An unmatched or ambiguous pub name prompts a question. A failed record read produces a separate failure message.
   This lookup does not confirm live open-now status or holiday hours.
 
+  Map Ask and typed chat without ElevenLabs also read recorded late-food service for simple questions such as "Food in Soho tonight at 1am".
+  The lookup accepts one recognised area and one clear time phrase, optionally with one ISO date.
+  "Food after midnight near Soho" or "Food in Soho tonight" asks for a night and time when the area has records.
+  Filters cover one category (pizza, kebab, cafe or restaurant) and recorded vegan, vegetarian or gluten-free labels.
+  Unsupported cuisines, extra sentences, multiple times and named places after "at" keep the existing Ask handling.
+  Those answers do not establish food-service coverage.
+  Late-food results show the source and recorded date, or explain that no current record qualifies.
+  Check the service hours for your requested date before you leave. Recorded hours do not confirm live availability.
+
   Map Ask uses the same safety response as Pub Pal for sobriety and getting-home questions.
   It does not assess sobriety or recommend another drink.
   It points you to **Getting Home** on the venue sheet and retains sourced transport facts.

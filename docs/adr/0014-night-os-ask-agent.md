@@ -59,7 +59,7 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    Explicit named questions about opening or closing hours or times also
    bypass the map Ask model loop. `search_venues` delegates these questions to
    `lib/ask/venueHours.server.ts`. Keyless typed chat preserves the result
-   before its discovery fallback. Discovery and crawl requests retain their
+   before its discovery fallback. Other discovery and crawl requests retain their
    existing routing.
    The resolver isolates the hours clause before matching a complete venue
    name or alias. It tries complete names before removing a grammatical
@@ -70,6 +70,19 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    source URL. `__tests__/askVenueHours.test.ts` covers source precedence and
    name resolution. `__tests__/pubPalChatHours.test.ts` covers the keyless chat
    response and combined transit questions.
+   `runAsk` checks `lib/ask/lateFoodAnswer.server.ts` before normal tool routing
+   and the OpenRouter loop. It returns accepted late-food results as
+   `search_venues`, without pub IDs, prices or plan proposals.
+   The handler reads the existing [food-terminal evidence contract](../API_CONTRACTS_THE_LOCAL.md#10-get-apilate-food--crawl-ending-food-terminals).
+   `lib/ask/lateFoodQuestion.ts` owns question parsing and follow-up resolution.
+   It merges field replies only from an accepted earlier user question and
+   validates each corrected question. Rejected questions retain general Ask routing.
+   Keyless typed chat preserves late-food results, including clarification,
+   before its taste-based discovery fallback.
+   `invokePubPalAskTool` uses the same handler for tools other than independent
+   transport and city-status tools. The hosted agent still selects webhook tools.
+   Regression coverage is in `__tests__/askLateFood.test.ts` and
+   `__tests__/pubPalChatRoute.test.ts`.
    `runAskTool` applies the original question before speculative model arguments.
    `venue_drinks` also reads accepted food and drink menu items through
    `lib/ask/publishedMenu.server.ts`, preserving each field's source and date.
