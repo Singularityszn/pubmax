@@ -38,6 +38,7 @@ import {
   palDraftAnswers,
   palDraftAttemptKept,
   palDraftAttempts,
+  palDraftAttemptsStopAt,
   palDraftCheckingLine,
   palDraftRouteLines,
   palPlanDraftFor,
@@ -1609,7 +1610,10 @@ function takePalDraft(held: { current: PalPlanDraft | null }, query: string): Pa
   let draft = held.current && palDraftAnswers(held.current, query) ? held.current : null;
   if (!draft && !held.current) {
     try {
-      draft = palPlanDraftFor(safeSessionStorage()?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null, query);
+      const store = safeSessionStorage();
+      draft = palPlanDraftFor(store?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null, query);
+      // The draft is one-shot: the generation that reads it spends it.
+      if (draft) store?.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
     } catch {
       draft = null;
     }
@@ -1639,6 +1643,8 @@ async function requestPlanGeneration(
     last = { response, body, attempt };
     // A refused keeping attempt hands over to the next; the plain ask's own
     // refusal is the answer, and the caller reads its error as it always did.
+    // A timeout, rate limit or server fault ends the attempts as that error.
+    if (palDraftAttemptsStopAt(response.status)) break;
     if (!response.ok && attempt.keeps !== "none") continue;
     if (palDraftAttemptKept(attempt, draft, response.ok, body as { outcome?: unknown; stops?: unknown } | null)) break;
   }
@@ -3157,7 +3163,7 @@ function PlanComposerForm({
       const baseContext = { ...submittedContext };
       const { response, body: rawBody, attempt: taken } = await requestPlanGeneration(
         palDraft,
-        palDraftAttempts(palDraft, handoff?.acceptedAnchor),
+        palDraftAttempts(palDraft, handoff?.acceptedAnchor, intake.answers.stopCount ?? null),
         (attempt) => buildPlanGenerationIntakeBody(
           intake,
           query,

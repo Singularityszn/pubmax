@@ -4,6 +4,7 @@ import {
   palDraftAnswers,
   palDraftAttemptKept,
   palDraftAttempts,
+  palDraftAttemptsStopAt,
   palDraftCheckingLine,
   palDraftOutcomeLine,
   palDraftRouteLines,
@@ -96,6 +97,33 @@ describe("palDraftAttempts: keep all, then keep the first, then plan from the as
       venueIds: DRAFT.stopIds,
     });
     expect(body.context?.stopCount).toBe(3);
+  });
+});
+
+describe("palDraftAttempts with a requested stop count", () => {
+  const draft = palPlanDraftFor(raw(), ASK)!;
+
+  // The Pal drafts three pubs. A request for five would send three pubs with a
+  // count of five, which the anchored generator always refuses.
+  it("skips keeping every pub when the request asks for another number of stops", () => {
+    expect(palDraftAttempts(draft, null, 5).map((attempt) => attempt.keeps)).toEqual(["first", "none"]);
+  });
+
+  it("keeps every pub when the requested count matches the draft", () => {
+    expect(palDraftAttempts(draft, null, 3).map((attempt) => attempt.keeps)).toEqual(["all", "first", "none"]);
+    expect(palDraftAttempts(draft, null, null).map((attempt) => attempt.keeps)).toEqual(["all", "first", "none"]);
+  });
+});
+
+describe("palDraftAttemptsStopAt: only a refusal hands over to the next attempt", () => {
+  it("moves on after an answer or a refused request", () => {
+    for (const status of [200, 400, 404, 409, 422]) expect(palDraftAttemptsStopAt(status)).toBe(false);
+  });
+
+  // A rate limit or a server fault says nothing about the drafted pubs. It is
+  // shown as the error it is, and it does not spend two more requests.
+  it("stops on a timeout, a rate limit or a server fault", () => {
+    for (const status of [408, 429, 500, 502, 503, 504]) expect(palDraftAttemptsStopAt(status)).toBe(true);
   });
 });
 

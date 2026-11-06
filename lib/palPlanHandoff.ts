@@ -85,20 +85,39 @@ export function palPlanDraftFor(raw: string | null, ask: string | null): PalPlan
 export function palDraftAttempts(
   draft: PalPlanDraft | null,
   fallbackAnchor: PlanGenerationAnchorInput | null | undefined,
+  requestedStopCount: number | null = null,
 ): PalDraftAttempt[] {
   const plain: PalDraftAttempt = { keeps: "none", anchor: fallbackAnchor ?? null, context: {} };
   if (!draft) return [plain];
   const source = draft.origin === "map" ? "map-search" : "pal";
   const first = draft.stopIds[0]!;
+  const keepFirst: PalDraftAttempt = {
+    keeps: "first", anchor: { venueId: first, source, acceptedArea: null, startsAt: null }, context: {},
+  };
+  // A request for another number of stops than the draft holds cannot keep
+  // every drafted pub: the request's count wins, and the generator refuses
+  // a route of the drafted pubs at that count.
+  if (requestedStopCount !== null && requestedStopCount !== draft.stopIds.length) return [keepFirst, plain];
   return [
     {
       keeps: "all",
       anchor: { venueId: first, source, acceptedArea: null, startsAt: null, venueIds: [...draft.stopIds] },
       context: { stopCount: normalizePlanStopCount(draft.stopIds.length) },
     },
-    { keeps: "first", anchor: { venueId: first, source, acceptedArea: null, startsAt: null }, context: {} },
+    keepFirst,
     plain,
   ];
+}
+
+/**
+ * Whether a keeping attempt's answer ends the attempts. A route that kept the
+ * draft, or the generator's refusal (an answer, or a refused request), says
+ * something about the drafted pubs. A timeout, a rate limit or a server fault
+ * says nothing about them: it is shown as the error it is, and it does not
+ * spend further requests from the same limit.
+ */
+export function palDraftAttemptsStopAt(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
 }
 
 type GeneratedBody = { outcome?: unknown; stops?: unknown } | null;
