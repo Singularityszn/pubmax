@@ -197,8 +197,6 @@ describe("StepOutNudgePref in a browser tab", () => {
   });
 });
 
-// The browser push subscription is shared with the cheap-pint ping. Turning the
-// weekly nudge off may only remove it when the server says nothing else holds it.
 describe("StepOutNudgePref turning the weekly nudge off", () => {
   async function withdrawWith(answer: Record<string, unknown>): Promise<void> {
     setUserAgent(CHROME_DESKTOP);
@@ -222,12 +220,12 @@ describe("StepOutNudgePref turning the weekly nudge off", () => {
     await act(async () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
-    expect(container.textContent).toContain("Weekly nudge is off. Nothing will be sent.");
+    expect(container.textContent).toContain("Weekly nudge is off.");
   }
 
-  it("removes the browser subscription when nothing else uses it", async () => {
+  it("keeps shared browser push when the server reports no preference token", async () => {
     await withdrawWith({ subscriptionRetained: false });
-    expect(unregisterWebPush).toHaveBeenCalledTimes(1);
+    expect(unregisterWebPush).not.toHaveBeenCalled();
   });
 
   it("keeps the browser subscription when the cheap-pint ping still uses it", async () => {

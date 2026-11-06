@@ -13,7 +13,7 @@ import {
   type ContributionDoorStatus,
 } from "@/lib/contributionGateStatus";
 import { isNativeApp } from "@/lib/nativePlatform";
-import { registerWebPush, unregisterWebPush, webPushSupport } from "@/lib/webPush";
+import { registerWebPush, webPushSupport } from "@/lib/webPush";
 import { Button } from "@/components/ui/button";
 
 type PrefState = {
@@ -213,16 +213,13 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         );
         return;
       }
-      if (body.subscriptionRetained === false) {
-        await unregisterWebPush();
-      }
       setPref({
         enabled: false,
         lastSentAt: null,
         canSend: false,
         maxPerWeek: 1,
       });
-      setNotice("Weekly nudge is off. Nothing will be sent.");
+      setNotice("Weekly nudge is off.");
     } catch {
       setNotice(
         offlineOrMessage("Could not turn the weekly nudge off. Try again.")

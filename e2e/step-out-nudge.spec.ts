@@ -261,7 +261,7 @@ async function installStepOutRoutes(
 }
 
 test.describe("Step Out weekly nudge opt-in (390x844)", () => {
-  test("shows the notifications section and completes opt-in then withdraw", async ({
+  test("preserves shared push after opt-in and withdrawal with cheap-pint off", async ({
     page,
   }) => {
     await seedSignedInSession(page);
@@ -294,12 +294,12 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     await panel.getByRole("button", { name: "Turn weekly nudge off" }).click();
     await expect(panel.getByText(/Weekly nudge off/i)).toBeVisible({ timeout: 10_000 });
     expect(state.enabled).toBe(false);
-    expect(state.pushTokenMethods).toEqual(["POST", "DELETE"]);
+    expect(state.pushTokenMethods).toEqual(["POST"]);
     await expect.poll(() => page.evaluate(() => (
       window as unknown as {
         __stepOutPushE2EState: { active: boolean; unsubscribeCalls: number };
       }
-    ).__stepOutPushE2EState)).toEqual({ active: false, unsubscribeCalls: 1 });
+    ).__stepOutPushE2EState)).toEqual({ active: true, unsubscribeCalls: 0 });
 
     await page.screenshot({
       path: path.join(SHOTS, "step-out-nudge-withdrawn-390.png"),
@@ -335,7 +335,7 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     expect(state.pushTokenMethods).toEqual([]);
   });
 
-  test("keeps browser push active when an older server omits retention status", async ({
+  test("keeps browser push active when the server omits retention status", async ({
     page,
   }) => {
     await seedSignedInSession(page);
