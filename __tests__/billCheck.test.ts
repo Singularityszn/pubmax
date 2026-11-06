@@ -167,6 +167,13 @@ describe("judgeBill", () => {
     ["Pint Carlsberg", "Carlsberg", "pint", "half"],
     ["Bottle Carlsberg", "Carlsberg", "bottle", "pint"],
     ["Half Foster's", "Foster's", "half", "pint"],
+    ["Half Heineken", "Heineken", "half", "pint"],
+    ["Pint Heineken", "Heineken", "pint", "half"],
+    ["Pint London Pride", "London Pride", "pint", "half"],
+    ["Half London Pride", "London Pride", "half", "pint"],
+    ["Bottle Heineken", "Heineken", "bottle", "pint"],
+    ["Half Heineken lager", "Heineken lager", "half", "pint"],
+    ["London Pride pint", "London Pride", "pint", "half"],
   ] as const)("checks canonical beer servings in %s against the submitted measure", (served, product, measure, different) => {
     expect(judgeBill(read([[served, 2.6]]), 2.6, served, different).result).toBe("mismatch");
     expect(judgeBill(read([[served, 2.6]]), 2.6, served, measure).result).toBe("match");

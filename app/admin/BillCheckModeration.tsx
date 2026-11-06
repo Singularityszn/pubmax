@@ -114,6 +114,7 @@ export default function BillCheckModeration({ request }: { request: AdminRequest
                 Sent: <strong className="admin-bill-sent">{gbp(row.priceGbp)}</strong>
               </span>
               {row.drop ? <span>@{row.drop.handle}</span> : null}
+              {!row.drop && row.submittedDrink ? <span>{row.submittedDrink}</span> : null}
               {row.drop ? (
                 <span>{row.drop.serving ? `${row.drop.drink}, ${row.drop.serving.toLowerCase()}` : row.drop.drink}</span>
               ) : null}
@@ -130,7 +131,9 @@ export default function BillCheckModeration({ request }: { request: AdminRequest
                   </li>
                 ))}
               </ul>
-              {row.receiptPhotoUrl ? (
+              {row.communityOnly ? (
+                <p className="admin-meta">Photo not kept for community submissions</p>
+              ) : row.receiptPhotoUrl ? (
                 <a
                   className="admin-bill-photo"
                   href={row.receiptPhotoUrl}

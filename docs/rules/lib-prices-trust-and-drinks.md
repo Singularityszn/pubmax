@@ -74,6 +74,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      An unrelated item at the same price cannot match.
      The stated measure and any serving in the submitted name must agree.
      A serving on the bill must agree with the submitted serving when one is known.
+     Serving recognition uses the shared drink taxonomy, including canonical brand names such as Heineken and London Pride.
      A bill line without a stated serving can still match by name and price.
      An outer serving word in `Double Single Malt Whisky` leaves `Single Malt Whisky` as the product name.
      If no named line satisfies the price and serving constraints, the verdict is `mismatch`.
@@ -86,10 +87,14 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      The parser drops the venue name and date read from the bill.
      Product digits survive matching, but stored line names lose runs of four or more digits.
      The admin **Bills** tab lists unreviewed mismatches.
+     Community-only submissions keep no photo reference, key, column or association.
+     Their moderation cards show the submitted drink category and price beside the read lines and their prices.
+     Each card states "Photo not kept for community submissions".
+     Pint Drop and Round cards continue to show their existing bill photos.
      The [write certification](../WRITE_SURFACE_CERTIFICATION.md#appapiadminbill-checks---the-bill-checks-moderation-queue) owns the review API and hide behaviour.
 
   Pins: `__tests__/billCheck.test.ts`, `__tests__/billCheckServer.test.ts`, `__tests__/billCheckStore.test.ts`,
-  `__tests__/billChecksAdminRoute.test.ts`, `__tests__/pintDrops.test.ts`, `__tests__/priceSubmitRoute.test.ts`,
+  `__tests__/billChecksAdminRoute.test.ts`, `__tests__/billCheckModeration.test.tsx`, `__tests__/pintDrops.test.ts`, `__tests__/priceSubmitRoute.test.ts`,
   `__tests__/roundsRoute.test.ts`, `__tests__/priceBillChecksMigrationEffective.test.ts`.
 
 <a id="a-typed-price-without-a-bill-is-unchecked"></a>
