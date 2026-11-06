@@ -126,10 +126,6 @@ export default function TodayPintsCard({ index }: Props) {
         ))}
       </ul>
 
-      {/* ONE sentence about what these prices are, and it is the dated one in
-          the line above. The footer used to repeat it undated over a
-          different geography, so a reader met the same claim twice and only
-          one copy said which day it was collected. */}
       <p className="todayCardFootRow">
         <Link href="/map" className={TODAY_TEXT_BUTTON_CLASS}>
           Change area

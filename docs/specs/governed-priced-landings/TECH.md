@@ -13,9 +13,6 @@ any rule is how two pages come to answer one question two ways:
   so the route, `generateStaticParams` and the sitemap cannot disagree.
 - `formatPricedLandingPublisherStatus` and `pricedLandingCountLabel` - the two
   sentences these pages print about provenance and coverage.
-- `formatPricedLandingPintName` - the ONE display rule for a shouted dataset
-  drink tag, so one page cannot print `GUINNESS` while the other prints
-  `Guinness`.
 - `pricedLandingAreaMapCta` and `pricedLandingLogCta` - one decision each
   answers the href AND the label, so a CTA's words cannot describe a link it no
   longer carries.
@@ -27,6 +24,9 @@ any rule is how two pages come to answer one question two ways:
 - `nightAreaPublishesPrices` - see "Area review gate" below.
 - `pricedLandingJsonLd` - one BreadcrumbList plus one ItemList. The root layout
   still supplies the site-wide `WebSite` and `Organization` graph.
+
+Drink-tag formatting uses `formatDrinkTagName` in
+[`lib/drinkTagName.ts`](../../../lib/drinkTagName.ts), shared with price evidence captions.
 
 `components/drinks/PricedLandingRows.tsx` is the matching ONE list component.
 Both content components render it, so `role="list"`, the rank's presentational
