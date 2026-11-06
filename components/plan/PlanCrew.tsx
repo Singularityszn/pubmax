@@ -57,7 +57,7 @@ type PresenceRequestScope = {
   requestId: number;
   pending: boolean;
   controller: AbortController | null;
-  rollback: (() => void) | null;
+  invalidate: (() => void) | null;
 };
 
 // §4.10: the server passes only the host display name, never the crew list. The
@@ -85,19 +85,19 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
 
   useLayoutEffect(() => {
     const scope: PresenceRequestScope = {
-      planId, active: true, generation: 0, requestId: 0, pending: false, controller: null, rollback: null,
+      planId, active: true, generation: 0, requestId: 0, pending: false, controller: null, invalidate: null,
     };
     presenceScope.current = scope;
     // Identical HttpOnly-marker writes still supersede an old request.
     const changed = () => {
       scope.generation += 1;
-      scope.rollback?.();
-      scope.rollback = null;
+      scope.invalidate?.();
+      scope.invalidate = null;
     };
     window.addEventListener(tokenEvent, changed);
     return () => {
-      scope.rollback?.();
-      scope.rollback = null;
+      scope.invalidate?.();
+      scope.invalidate = null;
       scope.active = false;
       scope.generation += 1;
       scope.controller?.abort();
@@ -356,7 +356,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
     const ownsCapability = () => ownsRequest() && scope.generation === generation
       && readPlanCapabilitySnapshot(planId) === snapshot;
     const previous = myStatus;
-    scope.rollback = () => rememberStatus(previous);
+    scope.invalidate = () => rememberStatus("");
     setPresencePending({ planId, requestId });
     setError("");
     try {
@@ -371,10 +371,10 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       if (!ownsRequest()) { discardBody(response); return; }
       const body = await response.json();
       if (!ownsRequest()) return;
-      if (response.status === 401 && body.code === "PLAN_PRESENCE_REQUIRED"
+      if (response.status === 401 && body?.code === "PLAN_PRESENCE_REQUIRED"
         && memberToken === PLAN_HTTP_ONLY_SESSION && ownsCapability()) {
-        scope.rollback?.();
-        scope.rollback = null;
+        scope.invalidate = null;
+        rememberStatus(previous);
         // Status listeners run synchronously. Recheck before clearing authority.
         if (!ownsCapability()) return;
         clearPlanCapability(planId);
@@ -384,10 +384,16 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         setError("Couldn't save your status. Tap it again when your crew is back.");
         return;
       }
-      if (!response.ok) throw new Error(errorMessageFrom(body, "Could not update your status."));
+      if (!response.ok) {
+        if (ownsCapability() && response.status >= 400 && response.status < 500) {
+          scope.invalidate = null;
+          rememberStatus(previous);
+        }
+        throw new Error(errorMessageFrom(body, "Could not update your status."));
+      }
       if (!ownsCapability()) return;
-      scope.rollback = null;
       setCrew(body.crew ?? crew);
+      scope.invalidate = null;
       if (status === "here") {
         try {
           sessionStorage.removeItem(`pubmax:night-crawl-collapsed:${planId}`);
@@ -402,8 +408,8 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       }
     } catch (caught) {
       if (!ownsCapability()) return;
-      scope.rollback?.();
-      scope.rollback = null;
+      scope.invalidate?.();
+      scope.invalidate = null;
       if (ownsCapability()) setError(caught instanceof Error ? caught.message : "Could not update your status.");
     } finally {
       if (scope.requestId === requestId) {

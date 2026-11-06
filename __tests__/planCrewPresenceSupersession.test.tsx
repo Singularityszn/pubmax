@@ -29,6 +29,8 @@ const MEMBER = { token: PLAN_HTTP_ONLY_SESSION, role: "host" as const, collabora
 let root: Root;
 let host: HTMLDivElement;
 let finishFirst: (response: Response) => void;
+let rejectFirst: (error: Error) => void;
+let serverStatus: string;
 let requests: Array<{ path: string; method: string; body: unknown }>;
 const crew = (status = "in") => ({ crew: [{ id: "crew-host", name: "Sam", status }] });
 
@@ -40,7 +42,8 @@ beforeEach(() => {
   publishAuthActionState({ status: "signed-in", identityResolved: true });
   window.history.replaceState(null, "", `/plan/${PLAN}`);
   requests = [];
-  const firstPresence = new Promise<Response>((resolve) => { finishFirst = resolve; });
+  serverStatus = "in";
+  const firstPresence = new Promise<Response>((resolve, reject) => { finishFirst = resolve; rejectFirst = reject; });
   vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const request = input instanceof Request ? input : null;
     const path = new URL(request?.url ?? String(input), window.location.origin).pathname;
@@ -48,8 +51,9 @@ beforeEach(() => {
     const body = init?.body ? JSON.parse(String(init.body)) as unknown : null;
     requests.push({ path, method, body });
     if (path === `/api/plans/${PLAN}/presence` && method === "POST") {
+      serverStatus = (body as { status: string }).status;
       const count = requests.filter((row) => row.path === path && row.method === "POST").length;
-      return count === 1 ? firstPresence : Promise.resolve(Response.json(crew("on_the_way")));
+      return count === 1 ? firstPresence : Promise.resolve(Response.json(crew(serverStatus)));
     }
     if (path === `/api/plans/${PLAN}/session`) {
       // If stale code clears the newer marker, the real restore helper will
@@ -57,7 +61,7 @@ beforeEach(() => {
       return Promise.resolve(Response.json(method === "PATCH"
         ? { active: true, role: "host", collaborationAuthorized: true } : { active: false }));
     }
-    if (path === `/api/plans/${PLAN}` && method === "GET") return Promise.resolve(Response.json(crew()));
+    if (path === `/api/plans/${PLAN}` && method === "GET") return Promise.resolve(Response.json(crew(serverStatus)));
     return Promise.reject(new Error("Unexpected fixture endpoint"));
   }));
   writePlanCapability(PLAN, MEMBER);
@@ -146,4 +150,58 @@ it("recovers the lost crew session when presence finds only the HttpOnly marker"
   await act(async () => statusButton().click());
   await settled(() => expect(statusButton().getAttribute("aria-pressed")).toBe("true"));
   expect(requests.filter((row) => row.path.endsWith("/presence") && row.method === "POST")).toHaveLength(2);
+});
+
+it.each(["unmount", "supersession", "transport", "body", "refusal-body", "null-body", "server"] as const)(
+  "forgets the cached selection after a committed write with an uncertain %s outcome",
+  async (outcome) => {
+    sessionStorage.setItem(`pubmax-plan-status:${PLAN}`, "in");
+    await act(async () => root.render(createElement(PlanCrew, { planId: PLAN, hostName: "Sam" })));
+    await settled(() => expect(statusButton().disabled).toBe(false));
+    await act(async () => statusButton().click());
+    expect(serverStatus).toBe("on_the_way");
+
+    if (outcome === "unmount") {
+      await act(async () => root.render(null));
+    } else if (outcome === "supersession") {
+      await act(async () => writePlanCapability(PLAN, { ...MEMBER }));
+    } else if (outcome === "transport") {
+      await act(async () => rejectFirst(new Error("Connection lost after commit")));
+    } else {
+      await act(async () => finishFirst(outcome === "body" || outcome === "refusal-body"
+        ? new Response("truncated JSON", { status: outcome === "refusal-body" ? 403 : 200 })
+        : outcome === "null-body" ? Response.json(null)
+        : Response.json({ error: "Unknown write outcome" }, { status: 503 })));
+    }
+
+    expect(sessionStorage.getItem(`pubmax-plan-status:${PLAN}`)).toBeNull();
+    if (outcome === "unmount" || outcome === "supersession") {
+      await act(async () => finishFirst(Response.json(crew(serverStatus))));
+    }
+    if (outcome === "unmount") {
+      clearPlanMemberProjectionRead(PLAN);
+      await act(async () => root.render(createElement(PlanCrew, { planId: PLAN, hostName: "Sam" })));
+      await settled(() => expect(host.querySelector('.planCrew__list [data-status="on_the_way"]')?.textContent).toBe("On the way"));
+    }
+    await settled(() => expect(statusButton().disabled).toBe(false));
+    expect(host.querySelector('button[aria-pressed="true"]')).toBeNull();
+    const inButton = [...host.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent === "In")!;
+    await act(async () => inButton.click());
+    await settled(() => expect(inButton.getAttribute("aria-pressed")).toBe("true"));
+    expect(serverStatus).toBe("in");
+    expect(requests.filter((row) => row.path.endsWith("/presence"))).toHaveLength(2);
+  },
+);
+
+it("restores the previous selection after a confirmed refusal", async () => {
+  sessionStorage.setItem(`pubmax-plan-status:${PLAN}`, "in");
+  await act(async () => root.render(createElement(PlanCrew, { planId: PLAN, hostName: "Sam" })));
+  await settled(() => expect(statusButton().disabled).toBe(false));
+  await act(async () => statusButton().click());
+  serverStatus = "in";
+  await act(async () => finishFirst(Response.json({ error: "Too many updates" }, { status: 429 })));
+  await settled(() => expect(statusButton().disabled).toBe(false));
+  expect(sessionStorage.getItem(`pubmax-plan-status:${PLAN}`)).toBe("in");
+  expect(host.querySelector('button[aria-pressed="true"]')?.textContent).toBe("In");
 });

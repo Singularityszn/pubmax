@@ -20,6 +20,7 @@
     "test": "node scripts/check_node_modules_fresh.mjs && vitest run",
     "test:rls": "node scripts/rls/run-session-tests.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:plan-auth": "node scripts/e2e/run-disposable-plan-auth.mjs",
     "review:dedup": "node scripts/review-finding-dedup.mjs",
     "test:review-dedup": "node --test __tests__/reviewFindingDedup.test.mjs",
     "test:landing-transport": "node --experimental-strip-types --test __tests__/fragmentedLandingProxy.test.mjs",
