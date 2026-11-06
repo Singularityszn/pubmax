@@ -30,6 +30,7 @@ import {
 } from "@/lib/pubPalToolTurnStore";
 
 import { PAL_CHAT_TIMEOUT_MS as CHAT_TIMEOUT_MS, PalChatDeadlineExceeded, assertPalChatDeadline, beforePalChatDeadline } from "@/lib/palChatDeadline";
+import { palChatDeadlineTracker, type PalChatDeadlineProgress } from "@/lib/palChatDeadlineProgress";
 const LOCAL_TURN_WRITE_BUDGET_MS = 1_500;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
@@ -117,8 +118,8 @@ type AgentResponseEvent = {
   type?: string;
   agent_response_event?: { agent_response?: string };
   text_response_part?: { type?: string; text?: string };
-  agent_tool_request?: { tool_call_id?: string };
-  agent_tool_response?: { tool_call_id?: string };
+  agent_tool_request?: { tool_call_id?: string; tool_name?: string };
+  agent_tool_response?: { tool_call_id?: string; tool_name?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
     conversation_id?: string;
@@ -167,8 +168,15 @@ export type PalChatFailureRecorder = (
   reason?: Extract<PalSignedConversation, { ok: false }>["reason"],
 ) => void;
 
-/** Logs a failed turn once, with its stage and duration. A cancelled caller is not a failure. */
-export function palChatFailureRecorder(input: PalElevenLabsChatInput, startedAt = Date.now()): PalChatFailureRecorder {
+/**
+ * Caller cancellation emits no failure warning.
+ * See docs/PUB_PAL_SETUP.md for the diagnostic contract.
+ */
+export function palChatFailureRecorder(
+  input: PalElevenLabsChatInput,
+  startedAt = Date.now(),
+  deadlineProgress?: () => PalChatDeadlineProgress,
+): PalChatFailureRecorder {
   return (code, stage, reason) => {
     if (input.signal?.aborted || stage === "caller_cancel") return;
     log("warn", "pub_pal.chat_failed", {
@@ -176,6 +184,7 @@ export function palChatFailureRecorder(input: PalElevenLabsChatInput, startedAt 
       stage,
       ...(reason ? { reason } : {}),
       durationMs: Math.max(0, Date.now() - startedAt),
+      ...(stage === "deadline" && deadlineProgress ? { progress: deadlineProgress() } : {}),
     });
   };
 }
@@ -371,7 +380,9 @@ export async function runPalElevenLabsChatTurn(
   input: PalElevenLabsChatInput,
   context?: PalElevenLabsChatContext,
 ): Promise<PalElevenLabsChatOutcome> {
-  const recordFailure = palChatFailureRecorder(input);
+  const startedAt = Date.now();
+  const progress = palChatDeadlineTracker(startedAt);
+  const recordFailure = palChatFailureRecorder(input, startedAt, progress.snapshot);
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
   if (!apiKey || !agentId) {
@@ -383,6 +394,9 @@ export async function runPalElevenLabsChatTurn(
   if ("outcome" in prepared) return prepared.outcome;
   const { query, cityId, deadline, prior, memoriesRead, tasteRead } = prepared.turn;
   const turns = prior.turns;
+  // Observed on a side branch, so the reads themselves are awaited unchanged.
+  memoriesRead.then(() => progress.mark("memoriesReadyAtMs"), () => {});
+  tasteRead.then(() => progress.mark("tasteReadyAtMs"), () => {});
   const sessionRead = fetchPalSignedConversation({
     apiKey, agentId, timeoutMs: Math.max(1, deadline - Date.now()),
   });
@@ -399,8 +413,9 @@ export async function runPalElevenLabsChatTurn(
     return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   }
   const signedUrl = session.signedUrl;
-  const registerTurn = (id: string) =>
-    registerPubPalToolTurn(id, {
+  const registerTurn = (id: string) => {
+    progress.registrationStarted();
+    const registration = registerPubPalToolTurn(id, {
       deadline,
       query,
       cityId,
@@ -408,6 +423,9 @@ export async function runPalElevenLabsChatTurn(
       turns,
       summary: prior.summary,
     });
+    registration.then(() => progress.registrationReady(), () => {});
+    return registration;
+  };
   // The signed URL already names the conversation, so the turn is registered
   // while the socket opens rather than after the agent's metadata arrives. The
   // metadata is still what decides: a different id there registers that one.
@@ -475,6 +493,7 @@ export async function runPalElevenLabsChatTurn(
     const finish = (outcome: PalElevenLabsChatOutcome, failureStage: PalChatFailureStage = "turn") => {
       if (settled) return;
       settled = true;
+      progress.settle(pendingToolCalls.size, Boolean(latestReply && replyIsAnswer()));
       if (!outcome.ok) recordFailure(outcome.code, failureStage);
       clearTimeout(timer);
       clearSettle();
@@ -511,6 +530,7 @@ export async function runPalElevenLabsChatTurn(
 
     ws.addEventListener("open", () => {
       if (settled || Date.now() >= deadline) return;
+      progress.mark("socketOpenAtMs");
       ws.send(
         JSON.stringify({
           type: "conversation_initiation_client_data",
@@ -537,6 +557,7 @@ export async function runPalElevenLabsChatTurn(
     const receiveMetadata = (id: string | undefined): void => {
       if (settled || Date.now() >= deadline || metadataReceived) return;
       metadataReceived = true;
+      progress.mark("metadataAtMs");
       conversationId = id?.trim() ?? "";
       void (async () => {
         try {
@@ -556,6 +577,7 @@ export async function runPalElevenLabsChatTurn(
           ws.send(
             JSON.stringify({ type: "user_message", text: palUserMessageText(query, prior, memories, taste) }),
           );
+          progress.mark("sendReturnedAtMs");
         } catch {
           finish({ ok: false, code: "UNAVAILABLE" }, "registration");
         }
@@ -568,8 +590,10 @@ export async function runPalElevenLabsChatTurn(
       try {
         payload = JSON.parse(String(event.data)) as AgentResponseEvent;
       } catch {
+        progress.parseFailure();
         return;
       }
+      progress.frame(payload, userMessageSent);
 
       if (payload.type === "ping") {
         ws.send(
@@ -592,8 +616,11 @@ export async function runPalElevenLabsChatTurn(
         if (part?.type === "start") {
           resetStream();
         } else if (part?.type === "delta" && part.text) {
+          progress.streamDelta();
           streamedText = true;
           input.onProgress?.({ type: "delta", text: part.text });
+        } else {
+          progress.streamPart(payload);
         }
         return;
       }
@@ -604,6 +631,7 @@ export async function runPalElevenLabsChatTurn(
         if (!reply) return;
         latestReply = reply;
         replyGeneration += 1;
+        progress.reply();
         replyToolEvents = toolEvents;
         // The reply is the answer unless a tool event follows it in the window.
         armSettle(REPLY_SETTLE_MS);
@@ -615,6 +643,7 @@ export async function runPalElevenLabsChatTurn(
         clearSettle();
         resetStream();
         toolEvents += 1;
+        progress.toolRequest(payload);
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
         return;
       }
@@ -625,11 +654,15 @@ export async function runPalElevenLabsChatTurn(
         clearSettle();
         resetStream();
         toolEvents += 1;
+        progress.toolResponse(payload);
         return;
       }
 
       if (payload.type === "agent_response_complete") {
-        if (!userMessageSent || !latestReply || !replyIsAnswer()) return;
+        if (!userMessageSent) return;
+        const eligible = Boolean(latestReply) && replyIsAnswer();
+        progress.complete(eligible);
+        if (!eligible) return;
         armSettle(TURN_END_SETTLE_MS);
       }
     });
