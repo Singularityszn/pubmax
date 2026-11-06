@@ -16,9 +16,8 @@
 // `resolveCanonicalIdentity` rewrites the handle on the next tick.
 //
 // WHAT IS NOT HERE: a device-only artifact that never claimed account backing.
-// A signed-out drinker's self-asserted handle and a Night Profile saved on this
-// device are theirs; this module only ever runs for a signed-in session, and
-// the Night Profile is dropped only when it was MIRRORED from an account.
+// A Night Profile typed on this device stays. A profile mirrored from an
+// account leaves with that account.
 
 import {
   NIGHT_PROFILE_DEVICE_KEY,

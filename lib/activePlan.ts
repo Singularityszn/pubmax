@@ -199,17 +199,17 @@ export function writeActivePlan(ref: ActivePlanRef): void {
 }
 
 /**
- * Record a plan as the one that's on tonight — called from the plan screen.
- * Preserves an existing stopIndex when re-recording the SAME plan (a revisit
- * must not reset how far the crew has walked); resets to 0 for a new plan.
+ * Record tonight's plan with its activation owner from the plan screen.
+ * A revisit preserves the cursor only for the same plan and owner. A different
+ * owner starts at stop 0, even when the plan ID matches.
  */
 export function markActivePlan(id: string, startTime: string, now: number = Date.now(), ownerId: string | null = null): void {
   if (!isPlanId(id) || Number.isNaN(Date.parse(startTime))) return;
   const current = readOwnedActivePlan(ownerId);
   // Opening a past/future plan page must not evict the plan that's live RIGHT
   // NOW (which would hide the live Night Mode card). Only replace the pointer
-  // when there's no stored plan, it's the same plan, the stored plan is no
-  // longer in its active window, or the incoming plan is itself active now.
+  // when this owner has no stored plan, it's the same plan, the stored plan is
+  // no longer in its active window, or the incoming plan is itself active now.
   const candidate: ActivePlanRef = { version: ACTIVE_PLAN_VERSION, ownerId, id, startTime, stopIndex: 0, role: null, endingPreview: null, palContext: null };
   if (
     current &&

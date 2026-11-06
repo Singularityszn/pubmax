@@ -177,10 +177,9 @@ export function palMarkerElement(pal: PalMarkerLook): HTMLElement | null {
 }
 
 /**
- * The reader's own Pal, or, with `crew`, one crew member's Pal on a crew plan
- * (Pals walk together, lib/crewPals.ts). A crew Pal walks the same route a
- * step behind the one before it, and only the reader's own Pal answers the
- * reader's Pal moments.
+ * The caller supplies an authorised Pal. An index identifies a crew member's
+ * Pal, which walks behind the preceding Pal (lib/crewPals.ts). Only the
+ * reader's own Pal answers the reader's Pal moments.
  */
 export function createPalMapMarker(map: maplibregl.Map, options: { pal: (PalMarkerLook & { hidden?: boolean }) | null; index?: number }): PalMapMarker {
   const crew = options.index === undefined ? null : { pal: options.pal, index: options.index };

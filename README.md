@@ -283,7 +283,7 @@ On phones, tap the map credit control to expand its text and links. The Pub Pal 
 
 ## Demo data
 
-The community layer ships alive: hand-written Pint Drops and Featured crawls are seeded so the map has content on day one. Seeded content is tagged `demo` and stays **visibly distinct** — it never masquerades as organic contributor signal and is filtered out before it can move any price or story metric. Provenance chips (`Sourced` / `Contributor` / `Anecdote` / `Demo`) are the product's trust signal.
+The community layer includes optional demo Pint Drops and Featured crawls. Enabled demo content carries a `demo` tag and stays visibly distinct from contributor activity. It cannot affect price or story metrics. Provenance chips distinguish `Sourced`, `Contributor`, `Anecdote` and `Demo` content.
 
 Seeded content is opt-in: it renders only in a build where
 `NEXT_PUBLIC_DEMO_CONTENT` is the literal value `on`, in lists and by id. Leave
