@@ -2694,6 +2694,27 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
+/* The toggle says it opens (design review, 6 Nov 2026: "Technical details"
+   showed no sign of it): a chevron that turns when the detail is shown. */
+.mapFallbackDisclosureToggle {
+  gap: 4px;
+}
+
+.mapFallbackDisclosureChevron {
+  flex: none;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.mapFallbackDisclosureToggle[aria-expanded="true"] .mapFallbackDisclosureChevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapFallbackDisclosureChevron {
+    transition: none;
+  }
+}
+
 .mapFallbackDisclosureToggle:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;

@@ -531,25 +531,18 @@
   flex: 0 0 auto;
   width: 100%;
   margin: 0 auto;
-  padding: 0.7rem clamp(1rem, 4vw, 1.5rem) calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  /* THE ROW IS THE TRANSCRIPT'S COLUMN. The side padding grows with the
+     screen so the field and the send button together span exactly the
+     bubbles' measure, min(46rem, 100%) less the same gutter, and the field's
+     left edge is the bubbles' left edge. Capping each child at 46rem instead
+     let field plus button run about 53px past the column on each side at
+     1440 (design review, 6 Nov 2026). */
+  padding: 0.7rem max(clamp(1rem, 4vw, 1.5rem), calc((100% - 46rem) / 2 + clamp(1rem, 4vw, 1.5rem))) calc(0.7rem + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   gap: 0.55rem;
   border-top: 1px solid var(--line-soft);
   background: var(--paper);
-}
-
-/* The row keeps the transcript's measure while the bar runs edge to edge. */
-.palChatComposer > * {
-  max-width: 46rem;
-}
-
-.palChatInput {
-  margin-left: auto;
-}
-
-.palChatSend {
-  margin-right: auto;
 }
 
 .palChatInput {

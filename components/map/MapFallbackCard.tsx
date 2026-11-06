@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -58,6 +59,7 @@ export default function MapFallbackCard({
             onClick={() => setDetailOpen((open) => !open)}
           >
             Technical details
+            <ChevronDown className="mapFallbackDisclosureChevron" size={14} aria-hidden="true" />
           </button>
           {detailOpen ? <small className="mapFallbackDetail">{detail}</small> : null}
         </div>

@@ -88,4 +88,16 @@ describe("area root pages", () => {
     expect(html).toContain('href="/map?area=piccadilly-soho"');
     expect(html).not.toContain("/map?q=");
   });
+
+  // Design review, 6 Nov 2026: the head printed "Source read 2 October 2026"
+  // and the next line "Oldest source read shown here: 2 October 2026.". The
+  // oldest read is said only when it is another day than the head's.
+  it("never prints the same source day twice in its head", async () => {
+    for (const landing of listAreaLandings(venues)) {
+      const html = renderToStaticMarkup(await AreaPage({ params: Promise.resolve({ slug: landing.areaSlug }) }));
+      const head = html.match(/Source read (\d{1,2} \w+ \d{4})/)?.[1];
+      const oldest = html.match(/Oldest source read shown here: (\d{1,2} \w+ \d{4})/)?.[1];
+      if (head && oldest) expect(oldest, landing.areaSlug).not.toBe(head);
+    }
+  });
 });

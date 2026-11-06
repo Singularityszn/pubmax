@@ -77,7 +77,13 @@
   color: var(--ink);
 }
 
+/* The source credit sits inside a wrapping meta line. Its 44 px box set the
+   height of the line it sat on, so a wrapped line read "Pint Prices · 2" with
+   "Oct 2026" a whole target's height below (design review follow-up, 6 Nov
+   2026). Equal negative margins make the box's margin edge one line tall: the
+   target stays 44 px and overlaps the line spacing instead of widening it. */
 .tonightAnswerSource {
+  margin-block: calc((1lh - var(--control-height)) / 2);
   color: var(--color-text-muted);
 }
 

@@ -88,6 +88,18 @@ html[data-text-scale="large"] .socialPage .screenHead {
   text-underline-offset: 4px;
 }
 
+/* On a phone the four links wrapped as three and one, and "Save a Moment"
+   sat alone at the right of a second line (design review, 6 Nov 2026). Two
+   even columns read as one block at every phone width. */
+@media (max-width: 640px) {
+  .socialNightLinks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-items: start;
+    gap: 0 var(--space-4);
+  }
+}
+
 .socialNightLinks a:focus-visible {
   outline: 2px solid var(--river);
   outline-offset: 3px;
