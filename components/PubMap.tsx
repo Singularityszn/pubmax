@@ -519,7 +519,6 @@ import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   createMapResumeWriter,
-  clearMapResumeCamera,
   isCurrentMapResumeRefresh,
   isPersistableMapResumeViewport,
   type MapResumeLiveLoadStatus,
@@ -529,11 +528,8 @@ import {
 } from "@/lib/mapResume";
 import {
   readOpeningMapLocation,
-  retireMapOpeningLocation,
   resolveMapOpeningView,
 } from "@/lib/mapOpeningLocation";
-import { mapLocationWasExposed } from "@/lib/mapLocationExposure";
-import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
 import { useMapReaderPosition } from "@/components/map/useMapReaderPosition";
@@ -554,6 +550,7 @@ import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import MapSearchEmptyState from "@/components/map/MapSearchEmptyState";
 import { useMapOpeningArrival, useNamedMapAreaArrival } from "@/components/map/useMapOpeningArrival";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
+import { usePrivateMapCamera } from "@/components/map/usePrivateMapCamera";
 import { mapAreaOpeningView } from "@/lib/mapAreaArrival";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { useMapSecondaryStreamHold } from "@/components/map/useMapSecondaryStreamHold";
@@ -654,7 +651,6 @@ import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import {
   MAP_SHEET_TITLES,
   readMobileMapSession,
-  clearMobileMapSessionCamera,
   MOBILE_SHEET_DISMISS_EVENT,
   withCityCameraAttitude,
   writeMobileMapSession,
@@ -721,7 +717,6 @@ import {
   searchParamsQuery,
   searchParamValue,
   settledBoundsFor,
-  shouldResolveOpeningLocation as shouldResolveOpeningLocationFor,
   suggestedRouteWanted,
   tonightLaneKindFor,
   tonightLaneReadState,
@@ -1320,7 +1315,6 @@ export default function PubMap({
     ukPlacesPromiseRef.current = pending;
     return pending;
   }, []);
-  useEffect(() => { retireMapOpeningLocation(); }, []);
   const { search: arrivalSearch, frame: arrival, area: namedAreaArrival } = useMapOpeningArrival({
     placeArrival: ukPlaceArrival,
     nationalBrowse: ukNationalBrowse,
@@ -1417,25 +1411,12 @@ export default function PubMap({
   const [mapResumeSeed] = useState(() =>
     arrivalSearch ? null : readMapResumeSync(cityId),
   );
-  const shouldResolveOpeningLocation = shouldResolveOpeningLocationFor({
-    needsOpeningResolution: arrival.needsOpeningResolution,
-    mapResumeSeed: mapResumeSeed?.viewport ? mapResumeSeed : null,
+  const { cameraOwnership, invalidatePrivateCamera, shouldResolveOpeningLocation } = usePrivateMapCamera({
+    cityId,
+    mapResumeSeed,
     restoredMobileSession,
+    needsOpeningResolution: arrival.needsOpeningResolution,
   });
-  const [cameraOwnership] = useState(() => {
-    const ownership = createMapCameraOwnership(mapResumeSeed?.viewport ? mapResumeSeed : restoredMobileSession);
-    if (mapLocationWasExposed()) ownership.exposeLocation();
-    return ownership;
-  });
-  useEffect(() => {
-    cameraOwnership.attach();
-    return () => cameraOwnership.detach();
-  }, [cameraOwnership]);
-  const invalidatePrivateCamera = useCallback(() => {
-    cameraOwnership.exposeLocation();
-    clearMobileMapSessionCamera();
-    clearMapResumeCamera(cityId);
-  }, [cameraOwnership, cityId]);
   const [grantedOpeningLocation, setGrantedOpeningLocation] =
     useState<MapOpeningLocation | null>(null);
   const [openingLocationPromptActive, setOpeningLocationPromptActive] = useState(false);
