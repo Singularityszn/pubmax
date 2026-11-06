@@ -48,7 +48,7 @@ it("taints the mounted map before the granted-permission watch delivers coordina
   expect(order).toContain("exposure");
   await act(async () => success({ coords: { latitude: 51.5286, longitude: -0.0916478, accuracy: 10 } } as GeolocationPosition));
   expect(order.indexOf("exposure")).toBeLessThan(order.indexOf("position"));
-  owner.beginPublicPlace(camera.center);
+  owner.beginPublicPlace(camera.center, camera.zoom);
   owner.settle(camera);
   expect(owner.capture(camera)).toBeNull();
 });
@@ -61,7 +61,7 @@ it("consumes pre-React exposure even when the later permission query denies loca
   function Probe() { useMapReaderPosition(expose); return null; }
   await act(async () => root.render(createElement(Probe)));
   expect(navigator.geolocation.watchPosition).not.toHaveBeenCalled();
-  owner.beginPublicPlace(camera.center);
+  owner.beginPublicPlace(camera.center, camera.zoom);
   owner.settle(camera);
   expect(owner.capture(camera)).toBeNull();
 });

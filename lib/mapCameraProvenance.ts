@@ -19,8 +19,11 @@ export function readMapCameraProvenance(value: unknown): MapCameraProvenance | n
 }
 
 function sameViewport(left: MapViewportSnapshot, right: MapViewportSnapshot): boolean {
-  return left.center[0] === right.center[0] && left.center[1] === right.center[1] &&
-    left.zoom === right.zoom && left.pitch === right.pitch && left.bearing === right.bearing;
+  // MapLibre can round the coordinates of an unchanged camera.
+  return [
+    left.center[0] - right.center[0], left.center[1] - right.center[1],
+    left.zoom - right.zoom, left.pitch - right.pitch, left.bearing - right.bearing,
+  ].every((difference) => Math.abs(difference) < 1e-10);
 }
 
 /** Explicit intent permits one settled camera. Later automatic moves do not inherit it. */
@@ -31,6 +34,7 @@ export function createMapCameraOwnership(initial?: {
   let revision = 0;
   let active = true;
   let locationExposed = false;
+  let settledViewport: MapViewportSnapshot | null = null;
   let held = initial?.viewport && readMapCameraProvenance(initial.cameraProvenance)
     ? { viewport: initial.viewport, provenance: readMapCameraProvenance(initial.cameraProvenance)! }
     : null;
@@ -39,6 +43,19 @@ export function createMapCameraOwnership(initial?: {
     revision += 1;
     held = null;
     pending = null;
+  };
+  const settle = (viewport: MapViewportSnapshot) => {
+    if (!active) return;
+    settledViewport = viewport;
+    if (pending) {
+      const target = pending.center;
+      if (target && (Math.abs(viewport.center[0] - target[0]) > 0.0000001 ||
+        Math.abs(viewport.center[1] - target[1]) > 0.0000001)) return;
+      held = { viewport, provenance: { version: 1, source: pending.source } };
+      pending = null;
+    } else if (held && !sameViewport(held.viewport, viewport)) {
+      invalidate();
+    }
   };
   return {
     invalidate,
@@ -50,22 +67,14 @@ export function createMapCameraOwnership(initial?: {
       locationExposed = true;
       invalidate();
     },
-    beginPublicPlace(center: [number, number]) {
+    beginPublicPlace(center: [number, number], zoom: number) {
       invalidate();
       if (!locationExposed) pending = { source: "public-place", center: [...center] };
+      // A named arrival may already be at its destination when venues load.
+      // No movement event is owed when the chosen camera is already current.
+      if (settledViewport?.zoom === zoom) settle(settledViewport);
     },
-    settle(viewport: MapViewportSnapshot) {
-      if (!active) return;
-      if (pending) {
-        const target = pending.center;
-        if (target && (Math.abs(viewport.center[0] - target[0]) > 0.0000001 ||
-          Math.abs(viewport.center[1] - target[1]) > 0.0000001)) return;
-        held = { viewport, provenance: { version: 1, source: pending.source } };
-        pending = null;
-      } else if (held && !sameViewport(held.viewport, viewport)) {
-        invalidate();
-      }
-    },
+    settle,
     capture(viewport: MapViewportSnapshot): MapCameraWrite | null {
       if (!active || !held || !sameViewport(held.viewport, viewport)) return null;
       const capturedRevision = revision;
@@ -75,6 +84,6 @@ export function createMapCameraOwnership(initial?: {
       };
     },
     attach() { active = true; },
-    detach() { active = false; invalidate(); },
+    detach() { active = false; settledViewport = null; invalidate(); },
   };
 }

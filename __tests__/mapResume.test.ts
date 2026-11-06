@@ -46,7 +46,7 @@ const value = {
 
 function cameraFor(viewport: typeof value.viewport) {
   const owner = createMapCameraOwnership();
-  owner.beginPublicPlace(viewport.center);
+  owner.beginPublicPlace(viewport.center, viewport.zoom);
   owner.settle(viewport);
   return owner.capture(viewport)!;
 }
@@ -233,7 +233,7 @@ describe("camera privacy in resume storage", () => {
   it("rechecks ownership before a queued asynchronous camera write", async () => {
     const store = storage();
     const owner = createMapCameraOwnership();
-    owner.beginPublicPlace(value.viewport.center);
+    owner.beginPublicPlace(value.viewport.center, value.viewport.zoom);
     owner.settle(value.viewport);
     createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, owner.capture(value.viewport));
     owner.invalidate();
@@ -253,7 +253,7 @@ describe("camera privacy in resume storage", () => {
     });
     try {
       const owner = createMapCameraOwnership();
-      owner.beginPublicPlace(value.viewport.center);
+      owner.beginPublicPlace(value.viewport.center, value.viewport.zoom);
       owner.settle(value.viewport);
       const store = storage();
       createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, owner.capture(value.viewport));

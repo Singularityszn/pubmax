@@ -4923,7 +4923,7 @@ export default function PubMap({
    */
   const moveMapCameraTo = useCallback(
     (camera: { center: [number, number]; zoom: number }, persist = true) => {
-      if (persist) cameraOwnership.beginPublicPlace(camera.center);
+      if (persist) cameraOwnership.beginPublicPlace(camera.center, camera.zoom);
       else cameraOwnership.invalidate();
       setNearbyMapResult(null);
       // A deliberate move is the reader taking the camera, exactly as a
@@ -5693,7 +5693,7 @@ export default function PubMap({
             ? mapOverlay
             : null,
     });
-  }, [activeNightAreaSlug, cameraOwnership, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
+  }, [activeNightAreaSlug, areaFocus, cameraOwnership, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
   const [writeMapResume] = useState(() => createMapResumeWriter());
   useEffect(() => {
@@ -5711,7 +5711,7 @@ export default function PubMap({
     // time instead of landing beside the next tap's frame.
     const camera = cameraOwnership.capture(mapViewport);
     return scheduleMapResumeWrite(() => writeMapResume(cityId, mapViewport, slimPins, Date.now(), camera));
-  }, [cameraOwnership, cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed, writeMapResume]);
+  }, [areaFocus, cameraOwnership, cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed, writeMapResume]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
