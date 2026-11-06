@@ -1069,7 +1069,7 @@ const REQUIRED_MEMBERS = [
 
 async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Promise<void> {
   // The pill wears a stored Pal only for the signed-in account that owns it.
-  await installAuthDoubles(page);
+  await installAuthDoubles(page, { analyticsConsent: consentVisible ? "pending" : "denied" });
   await page.addInitScript(({ visibleConsent, ownerId }) => {
     if (visibleConsent) {
       window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
