@@ -113,17 +113,24 @@ function retry() {
   expect(button, host.textContent ?? "").toBeDefined();
   button!.click();
 }
+function expectVerifiedSocialFeed() {
+  expect(host.querySelector(".sampleSkeleton.socialFeed")).toBeNull();
+  const feed = host.querySelector('section[aria-label="Social posts"]');
+  expect(feed).not.toBeNull();
+  expect(feed?.closest("[data-sample-skeleton]")).toBeNull();
+}
 
 describe("account identity recovery", () => {
   it("lets a signed-in Social viewer retry a failed identity read without a reload", async () => {
     await mount("social");
-    expect(host.textContent).not.toContain("Checking Social access");
+    expect(host.querySelector(".sampleSkeleton.socialFeed")).toBeNull();
+    expect(host.querySelector('section[aria-label="Social posts"]')).toBeNull();
     expect(actions.identityResolved).toBe(false);
     identityResponse = async () => json({ handle: "alice" });
     await act(async () => retry());
     expect(actions.identityResolved).toBe(true);
     expect(actions.handle).toBe("alice");
-    expect(host.textContent).toContain("No posts here yet.");
+    expectVerifiedSocialFeed();
   });
 
   it("lets the You page recover without treating an unavailable account as a missing handle", async () => {
@@ -141,31 +148,40 @@ describe("account identity recovery", () => {
     let release!: (response: Response) => void;
     identityResponse = () => new Promise((resolve) => { release = resolve; });
     await mount("social");
-    expect(host.textContent).toContain("Checking Social access");
+    expect(host.querySelector(".sampleSkeleton.socialFeed")).not.toBeNull();
+    expect(host.querySelector('section[aria-label="Social posts"]')).toBeNull();
     await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
-    expect(host.textContent).not.toContain("Checking Social access");
+    expect(host.querySelector(".sampleSkeleton.socialFeed")).toBeNull();
+    expect(host.querySelector('section[aria-label="Social posts"]')).toBeNull();
+    expect(actions.identityResolved).toBe(false);
     identityResponse = async () => json({ handle: "alice" });
     await act(async () => retry());
     expect(actions.handle).toBe("alice");
+    expectVerifiedSocialFeed();
     await act(async () => release(json({ handle: "obsolete" })));
     expect(actions.handle).toBe("alice");
     expect(localStorage.getItem("pubmax_handle")).toBe("alice");
+    expectVerifiedSocialFeed();
   });
 
   it("does not publish another account's late identity after an account switch", async () => {
     let release!: (response: Response) => void;
     identityResponse = () => new Promise((resolve) => { release = resolve; });
     await mount("social");
+    expect(host.querySelector(".sampleSkeleton.socialFeed")).not.toBeNull();
+    expect(host.querySelector('section[aria-label="Social posts"]')).toBeNull();
     identityResponse = async () => json({ handle: "bob" });
     await act(async () => {
       h.session = account("bob");
       h.subscriber?.("SIGNED_IN", h.session);
     });
     expect(actions.handle).toBe("bob");
+    expectVerifiedSocialFeed();
     await act(async () => release(json({ handle: "alice" })));
     expect(actions.user?.id).toBe("bob");
     expect(actions.handle).toBe("bob");
     expect(localStorage.getItem("pubmax_handle")).toBe("bob");
+    expectVerifiedSocialFeed();
   });
 
   it.each(["malformed", "rejected"])("offers recovery for a %s identity response", async (failure) => {
