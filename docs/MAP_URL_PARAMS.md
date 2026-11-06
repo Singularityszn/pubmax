@@ -103,7 +103,9 @@ owns query framing, surrounding price pins, and sheet behavior after reload.
 A saved viewport contains the map's centre, zoom, pitch and bearing.
 Only an explicit public-place selection can authorise its settled viewport for storage.
 A gesture or a later automatic move invalidates that authorisation.
-Location exposure clears the stored camera and cancels pending camera saves and restores.
+The opening-location check and the map's Near me and travel-location requests clear the camera before a location answer arrives.
+A location watch or a location received from another map control also clears it.
+These events cancel pending camera saves and restores.
 Camera storage stays disabled for that map mount after location exposure, including after later public-place selections.
 A document exposure marker also disables camera storage on later map mounts.
 The exposure marker contains no coordinates and does not survive a document reload.
