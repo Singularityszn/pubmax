@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   navigate: vi.fn(), available: true, switchAccount: vi.fn(),
   canonicalOAuth: vi.fn(), getSession: vi.fn(), nativeOAuth: vi.fn(), exchange: vi.fn(), verify: vi.fn(),
   authenticate: vi.fn(), setSession: vi.fn(), signOut: vi.fn(), cancel: vi.fn(), openBrowser: vi.fn(),
+  clearPersistedSession: vi.fn(async () => {}),
   session: null as Session | null,
   subscriber: null as null | ((event: string, session: Session | null) => void),
 }));
@@ -61,7 +62,7 @@ vi.mock("@/lib/identityClient", () => ({
   resolveCanonicalIdentity: async () => null,
 }));
 vi.mock("@/lib/authSessionResumeClient", () => ({
-  clearPersistedSession: async () => {}, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
+  clearPersistedSession: h.clearPersistedSession, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));
 import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
@@ -104,6 +105,7 @@ beforeEach(async () => {
     return { status: "switched", userId };
   });
   h.signOut.mockImplementation(async () => { h.session = null; h.subscriber?.("SIGNED_OUT", null); });
+  h.clearPersistedSession.mockResolvedValue(undefined);
   container = document.createElement("div"); document.body.append(container); root = createRoot(container);
   await act(async () => { root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe))); });
   expect(container.textContent).toBe("signed-out");
@@ -118,6 +120,38 @@ describe("tab-local private state across account events", () => {
   const savedOrder = JSON.stringify({ version: 1, ownerId: "original", rounds: [
     { roundId: "round-a", names: ["Sam", "Priya"], current: 1 },
   ] });
+
+  it("clears recovered Plan inputs on provider sign-out before another account signs in", async () => {
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", "account-a-route");
+    localStorage.setItem("pubmax:plan-intake:v1", "account-a-accessibility");
+    await act(async () => { h.session = null; h.subscriber?.("SIGNED_OUT", null); });
+    expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+    expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
+    await act(async () => { h.session = replacement; h.subscriber?.("SIGNED_IN", replacement); });
+    expect(container.textContent).toBe("replacement");
+    expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+    expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
+  });
+
+  it("clears Plan inputs before the provider and cookie sign-out requests finish", async () => {
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", "account-a-route");
+    localStorage.setItem("pubmax:plan-intake:v1", "account-a-accessibility");
+    let finishProvider!: () => void;
+    let finishCookie!: () => void;
+    h.signOut.mockImplementation(() => new Promise<void>((resolve) => { finishProvider = resolve; }));
+    h.clearPersistedSession.mockImplementation(() => new Promise<void>((resolve) => { finishCookie = resolve; }));
+    let pending!: Promise<void>;
+    await act(async () => { pending = actions.signOut("device"); });
+    expect(container.textContent).toBe("signed-out");
+    expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+    expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
+    await act(async () => { finishProvider(); });
+    expect(h.clearPersistedSession).toHaveBeenCalledOnce();
+    expect(container.textContent).toBe("signed-out");
+    await act(async () => { finishCookie(); await pending; });
+  });
 
   it("clears this tab's names when another tab has already stamped the replacement account", async () => {
     h.platform = null;

@@ -69,6 +69,7 @@ import {
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   bindDeviceAccountOwner,
+  clearDeviceAccountArtifacts,
   clearDeviceAccountSessionArtifacts,
   emitDeviceIdentityChanged,
   liveAccountDeparted,
@@ -420,7 +421,10 @@ export function AuthProvider({
       // Another tab may already have changed the shared owner stamp. This
       // tab's sessionStorage still belongs to its previous live account.
       const tabOwnerChanged = liveAccountDeparted(previousUserId, nextUserId);
-      if (tabOwnerChanged) clearDeviceAccountSessionArtifacts(browserSessionStorage());
+      if (tabOwnerChanged) {
+        if (nextUserId === null) clearDeviceAccountArtifacts(browserLocalStorage(), browserSessionStorage());
+        else clearDeviceAccountSessionArtifacts(browserSessionStorage());
+      }
       const deviceOwnerChanged = nextUserId
         ? bindDeviceAccountOwner(nextUserId, browserLocalStorage(), browserSessionStorage())
         : false;
@@ -1410,10 +1414,13 @@ export function AuthProvider({
 
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
+      const departing = sessionTransitions.current.currentUserId();
+      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+      updateSession(null, "SIGNED_OUT");
+      emitDeviceIdentityChanged();
       await cancelPendingNativeAuth();
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
-      const departing = sessionTransitions.current.currentUserId();
       // The provider can finish a refresh before SIGNED_OUT clears the session.
       // Clear device data after that final event, before another account takes over.
       await supabase.auth.signOut();
@@ -1449,7 +1456,7 @@ export function AuthProvider({
       if (!next) return;
       await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [cancelPendingNativeAuth],
+    [cancelPendingNativeAuth, updateSession],
   );
 
   const switchAccount = useCallback(

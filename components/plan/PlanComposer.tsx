@@ -49,6 +49,9 @@ import {
   type PalPlanDraft,
 } from "@/lib/palPlanHandoff";
 import {
+  PLAN_DESCRIBE_PARAM,
+  PLAN_OCCASION_PARAM,
+  PLAN_QUERY_PARAM,
   parsePlanDescribeFromSearch,
   parsePlanHandoffQueryFromSearch,
   shouldAutoGeneratePalHandoffPlan,
@@ -1578,15 +1581,19 @@ async function requestPlanGeneration(
   draft: PalPlanDraft | null,
   attempts: readonly PalDraftAttempt[],
   bodyFor: (attempt: PalDraftAttempt) => unknown,
+  signal: AbortSignal,
 ): Promise<{ response: Response; body: unknown; attempt: PalDraftAttempt }> {
   let last: { response: Response; body: unknown; attempt: PalDraftAttempt } | null = null;
   for (const attempt of attempts) {
+    signal.throwIfAborted();
     const response = await fetch("/api/plans/generate", {
+      signal,
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(bodyFor(attempt)),
     });
     const body = await readApiJson(response);
+    signal.throwIfAborted();
     last = { response, body, attempt };
     // A refused keeping attempt hands over to the next; the plain ask's own
     // refusal is the answer, and the caller reads its error as it always did.
@@ -2085,6 +2092,7 @@ function PlanComposerForm({
   preserveStoredDrafts,
   handoff: hydratedHandoff,
   canPersist,
+  allowUrlPrefill,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
@@ -2097,8 +2105,15 @@ function PlanComposerForm({
   preserveStoredDrafts: boolean;
   handoff: ComposerHydration | null;
   canPersist: boolean;
+  allowUrlPrefill: boolean;
 }) {
   const router = useRouter();
+  const formLifetime = useRef<AbortController | null>(null);
+  useLayoutEffect(() => {
+    const lifetime = new AbortController();
+    formLifetime.current = lifetime;
+    return () => lifetime.abort();
+  }, []);
   const { user, identityResolved } = useAuth();
   const viewerHandle = useViewerHandle();
   const areaGroups = nightAreaSelectorGroups();
@@ -2134,7 +2149,7 @@ function PlanComposerForm({
   const [venueIndexStatus, setVenueIndexStatus] = useState<"reading" | "read" | "failed">("reading");
   const pathname = usePathname();
   const [urlPrefill] = useState(() =>
-    canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
+    canPersist && allowUrlPrefill ? describeAskFromLocation() : NO_URL_PREFILL,
   );
   const urlAsk = urlPrefill.ask;
   const recoveredStopCount = urlAsk
@@ -2218,7 +2233,7 @@ function PlanComposerForm({
     });
   }, [routeSorted]);
   useLayoutEffect(() => {
-    if (!canPersist) return;
+    if (!canPersist || !allowUrlPrefill) return;
     const fresh = describeAskFromLocation();
     if (!fresh.ask) return;
     if (appliedUrlAskRef.current === fresh.ask) return;
@@ -2237,7 +2252,7 @@ function PlanComposerForm({
         setEntryMode("describe");
       }
     });
-  }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft, adoptFreshAsk]);
+  }, [canPersist, allowUrlPrefill, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft, adoptFreshAsk]);
   useEffect(() => {
     // The URL ask is already in state; this effect exists to SPEND the draft,
     // which is a storage write and so waits for a browser that can persist.
@@ -2260,7 +2275,7 @@ function PlanComposerForm({
       // scheduled by the mount render, which on a client-side navigation
       // still saw the previous route, so a captured ask would read as none
       // and hand the field back to the draft the URL just beat.
-      const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
+      const askOnScreen = (allowUrlPrefill ? describeAskFromLocation().ask : null) ?? appliedUrlAskRef.current;
       // The Pal's "Open in Plan" puts its ask in the address; Ask the map
       // leaves it to prefill the field. Either way the drafted pubs ride
       // with that ask, and only with it.
@@ -2284,7 +2299,7 @@ function PlanComposerForm({
     } catch {
       /* private mode or bad JSON */
     }
-  }, [canPersist, hasDurableIntakeDraft, recoveredIntake.completed, adoptFreshAsk]);
+  }, [canPersist, allowUrlPrefill, hasDurableIntakeDraft, recoveredIntake.completed, adoptFreshAsk]);
   const palHandoffAutoGenerateStartedRef = useRef(false);
   // D3: a generated route must be SEEN. The reveal is requested by the
   // generation success path and runs in an effect, because on a describe-first
@@ -2341,7 +2356,7 @@ function PlanComposerForm({
     });
   }, [identityResolved]);
   useEffect(() => {
-    if (!canPersist) return;
+    if (!canPersist || !allowUrlPrefill) return;
     if (palHandoffAutoGenerateStartedRef.current) return;
     // A client-side Pal Open in Plan still sees the previous route during the
     // mount render, so urlPrefill.handoffAsk can be empty. Re-read the live
@@ -2364,7 +2379,7 @@ function PlanComposerForm({
     // submitFromEntry is intentionally excluded: it is recreated on render,
     // while this effect must run only when the URL handoff changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canPersist, urlPrefill.handoffAsk]);
+  }, [canPersist, allowUrlPrefill, urlPrefill.handoffAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
@@ -3043,6 +3058,8 @@ function PlanComposerForm({
     intakeOverride?: PlanIntakeDraft,
     context: Partial<NightContext> = requestContext,
   ) {
+    const signal = formLifetime.current?.signal;
+    if (!signal || signal.aborted) return;
     // Both overrides (from the describe-first entry surface) are threaded
     // through explicitly before React re-renders, so state reads here cannot
     // send the pre-skip intake to the server.
@@ -3119,7 +3136,9 @@ function PlanComposerForm({
           attempt.anchor,
           londonDateTimeInputToIso(submittedStart),
         ),
+        signal,
       );
+      if (signal.aborted) return;
       responseStatus = response.status;
       // The kept route's own length is the night it answers.
       Object.assign(submittedContext, taken.context);
@@ -3207,6 +3226,7 @@ function PlanComposerForm({
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }
     } catch (caught) {
+      if (signal.aborted) return;
       const message = caught instanceof Error ? caught.message : "PUBMAXX could not sort this one.";
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
@@ -3220,12 +3240,14 @@ function PlanComposerForm({
       setRouteStatus(failureStatus);
       setRouteRevealTick((tick) => tick + 1);
     } finally {
-      setSorting(false);
+      if (!signal.aborted) setSorting(false);
     }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const signal = formLifetime.current?.signal;
+    if (!signal || signal.aborted) return;
     const validationError = planLockValidationError({
       title,
       creatorName,
@@ -3273,13 +3295,16 @@ function PlanComposerForm({
         planAnchor,
         context: nightContext,
       });
-      const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload);
+      const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload, signal);
+      if (signal.aborted) return;
       const response = await fetch("/api/plans", {
+        signal,
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
         body: JSON.stringify(createPayload),
       });
       const body = await response.json();
+      if (signal.aborted) return;
       if (!response.ok || !body?.plan?.plan?.id) {
         // Surface anchored-lock failures honestly: 422 for invalid or expired
         // proof, and 409 for replay conflict.
@@ -3327,6 +3352,7 @@ function PlanComposerForm({
         const metadataPatch = createdPlanMetadataPatch(body.plan as PlanState, nightContext);
         if (metadataPatch) {
           const metadataResponse = await fetch(`/api/plans/${planId}`, {
+            signal,
             method: "PATCH",
             headers: {
               "content-type": "application/json",
@@ -3334,6 +3360,7 @@ function PlanComposerForm({
             },
             body: JSON.stringify(metadataPatch),
           });
+          if (signal.aborted) return;
           if (!metadataResponse.ok) {
             discardBody(metadataResponse);
             throw new Error("The route was created, but its details could not be saved. Try again.");
@@ -3350,9 +3377,9 @@ function PlanComposerForm({
       rememberLockedReportLine(planId, generatedReportRef.current, completeStops);
       router.push(`/plan/${planId}#share`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The plan could not be created.");
+      if (!signal.aborted) setError(caught instanceof Error ? caught.message : "The plan could not be created.");
     } finally {
-      setSubmitting(false);
+      if (!signal.aborted) setSubmitting(false);
     }
   }
 
@@ -3855,8 +3882,16 @@ export default function PlanComposer() {
   // not the copy the mounted form holds. When the live account departs, the
   // form is mounted again from the cleared storage (#2539).
   const accountGeneration = useLiveAccountGeneration();
+  useLayoutEffect(() => {
+    if (accountGeneration === 0) return;
+    const url = new URL(window.location.href);
+    for (const parameter of [PLAN_QUERY_PARAM, PLAN_DESCRIBE_PARAM, PLAN_OCCASION_PARAM]) {
+      url.searchParams.delete(parameter);
+    }
+    window.history.replaceState(window.history.state, "", url);
+  }, [accountGeneration]);
   const recovery = useMemo(() => {
-    if (!hydrated) return null;
+    if (!hydrated || accountGeneration > 0) return null;
     try {
       let legacyDraft: ReturnType<typeof parsePlanDraft> = null;
       try { legacyDraft = parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch {}
@@ -3869,9 +3904,6 @@ export default function PlanComposer() {
       }, routeRecovery);
       return { ...recovery, previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery) };
     } catch { return null; }
-    // `accountGeneration` is read by no line above: it marks the storage this
-    // memo read as cleared, so the next account reads it afresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, accountGeneration]);
   const recoveredDraft = recovery?.recoveredDraft ?? null;
   const recoveredRouteDraft = recovery?.route.route ?? null;
@@ -3917,6 +3949,7 @@ export default function PlanComposer() {
       preserveStoredDrafts={recovery?.preserveStoredDrafts ?? false}
       handoff={handoff}
       canPersist={hydrated}
+      allowUrlPrefill={accountGeneration === 0}
     />
   );
 }

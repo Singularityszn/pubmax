@@ -15,6 +15,15 @@ beforeEach(() => vi.stubGlobal("sessionStorage", storage()));
 afterEach(() => vi.unstubAllGlobals());
 
 describe("persistent Plan mutation keys", () => {
+  it("does not overwrite the next account's key after cancellation during hashing", async () => {
+    const controller = new AbortController();
+    const pending = persistentPlanMutationKey("create", { title: "Account A" }, controller.signal);
+    controller.abort();
+    sessionStorage.setItem("pubmaxx:plan-mutation:v1:create", "account-b-key");
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(sessionStorage.getItem("pubmaxx:plan-mutation:v1:create")).toBe("account-b-key");
+  });
+
   it("reuses one key for the same intent across retries and replaces it when intent changes", async () => {
     const first = await persistentPlanMutationKey("create", { title: "Friday", stops: ["a", "b"] });
     const retry = await persistentPlanMutationKey("create", { title: "Friday", stops: ["a", "b"] });

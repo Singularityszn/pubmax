@@ -24,11 +24,13 @@ vi.mock("next/navigation", () => ({
     back: () => undefined,
     forward: () => undefined,
     refresh: () => undefined,
-    push: () => undefined,
+    push: navigation.push,
     replace: () => undefined,
     prefetch: () => Promise.resolve(),
   }),
 }));
+
+const navigation = vi.hoisted(() => ({ push: vi.fn() }));
 
 const authFixture = vi.hoisted(() => ({
   user: null as { id: string; user_metadata?: Record<string, unknown> } | null,
@@ -51,16 +53,31 @@ import {
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
 import { PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
+import { createPlanIntakeDraft, readPlanIntakeDraft, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
+import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
+import { inferNightContext } from "@/lib/nightPlanning";
 
 const ACCOUNT_A = { id: "11111111-1111-4111-8111-111111111111" };
 const ACCOUNT_B = { id: "22222222-2222-4222-8222-222222222222" };
 const A_REQUEST = "A private outing in Soho";
 const QUERY = "#plan-describe-first-query";
+const GENERATED = {
+  grounded: true,
+  groundingProof: `${btoa(JSON.stringify({ v: 2, expiresAt: Date.UTC(2100, 0, 1) }))}.test-signature`,
+  operationKey: "account-a-create",
+  stops: [
+    { venueId: "venue-a", venueName: "Pub A" },
+    { venueId: "venue-b", venueName: "Pub B" },
+    { venueId: "venue-c", venueName: "Pub C" },
+  ],
+  inferredContext: inferNightContext("Three pubs in Soho").context,
+};
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
 
 beforeEach(() => {
+  navigation.push.mockClear();
   authFixture.user = null;
   authFixture.handle = null;
   authFixture.identityResolved = true;
@@ -100,6 +117,9 @@ async function mountComposer(): Promise<void> {
     root.render(createElement(PlanComposer));
   });
   await settle();
+  if (document.querySelector(".planStops__placeholder")) {
+    await vi.waitFor(() => expect(document.querySelector(".planStops__placeholder")).toBeNull());
+  }
 }
 
 /** The auth context changed: every consumer re-renders with the new account. */
@@ -119,7 +139,7 @@ async function editInput(selector: string, value: string): Promise<void> {
 }
 
 function queryValue(): string | undefined {
-  return document.querySelector<HTMLInputElement>(QUERY)?.value;
+  return document.querySelector<HTMLInputElement>(`${QUERY}, #plan-concierge-query`)?.value;
 }
 
 function storedRequest(): string | null {
@@ -137,6 +157,150 @@ async function accountADrafts(): Promise<void> {
 }
 
 describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
+  it("does not recover retained route and accessibility inputs after provider sign-out then B sign-in", async () => {
+    authFixture.user = ACCOUNT_A;
+    bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
+    const intake = skipRemainingPlanIntake(createPlanIntakeDraft());
+    writePlanIntakeDraft({
+      ...intake,
+      skippedSteps: intake.skippedSteps.filter((step) => step !== "accessibility"),
+      settledSteps: [...intake.settledSteps, "accessibility"],
+      answers: { ...intake.answers, accessibilityNeeds: ["step-free"] },
+    });
+    localStorage.setItem("pubmaxx:plan-route-draft:v1", JSON.stringify({ stops: GENERATED.stops }));
+    await mountComposer();
+    expect(document.querySelectorAll(".planStop")).toHaveLength(3);
+    expect(readPlanIntakeDraft()?.answers.accessibilityNeeds).toEqual(["step-free"]);
+
+    clearDeviceAccountSessionArtifacts(sessionStorage);
+    authFixture.user = null;
+    await rerender();
+    expect(document.querySelectorAll(".planStop")).toHaveLength(0);
+    expect(queryValue()).toBe("");
+
+    bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
+    authFixture.user = ACCOUNT_B;
+    await rerender();
+    await editInput(QUERY, "B's own request");
+    await vi.waitFor(() => expect(storedRequest()).toBe("B's own request"));
+    expect(document.querySelectorAll(".planStop")).toHaveLength(0);
+    expect(readPlanIntakeDraft()?.answers.accessibilityNeeds ?? []).toEqual([]);
+  });
+
+  it.each(["query", "describe", "occasion"])("does not replay the %s URL handoff after an account switch", async (parameter) => {
+    authFixture.user = ACCOUNT_A;
+    bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
+    const value = parameter === "occasion" ? "quiet" : parameter === "describe" ? "Quiet in Clapham for 4, not pricey" : A_REQUEST;
+    window.history.replaceState({}, "", `/plan?${parameter}=${encodeURIComponent(value)}&from=pal#request`);
+    await mountComposer();
+    expect(queryValue()).toBe(parameter === "query" ? A_REQUEST : "Quiet in Clapham for 4, not pricey");
+    const fetchMock = vi.mocked(fetch);
+    const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).length;
+    const beforeSwitch = generations();
+    if (parameter === "query") expect(beforeSwitch).toBe(1);
+
+    clearDeviceAccountSessionArtifacts(sessionStorage);
+    bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
+    authFixture.user = ACCOUNT_B;
+    await rerender();
+
+    expect(queryValue()).toBe("");
+    expect(generations()).toBe(beforeSwitch);
+    expect(storedRequest()).toBeNull();
+    expect(new URLSearchParams(window.location.search).has(parameter)).toBe(false);
+    expect(new URLSearchParams(window.location.search).get("from")).toBe("pal");
+    expect(window.location.hash).toBe("#request");
+    await act(async () => { root!.unmount(); });
+    root = null;
+    host?.remove();
+    await mountComposer();
+    expect(queryValue()).toBe("");
+    expect(generations()).toBe(beforeSwitch);
+  });
+
+  it.each(["creation", "metadata", "active account"])("preserves draft ownership through %s completion", async (stage) => {
+    authFixture.user = ACCOUNT_A;
+    bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    const created = {
+      created: true, grounded: true, memberToken: "account-a-capability",
+      plan: { plan: { id: "account-a-plan", status: "draft" }, stops: GENERATED.stops },
+    };
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      if (String(input).includes("/api/plans/generate")) return Response.json(GENERATED);
+      if (String(input) === "/api/plans" && init?.method === "POST") {
+        return stage === "creation" ? pending : Response.json(created);
+      }
+      if (String(input) === "/api/plans/account-a-plan" && init?.method === "PATCH") {
+        return stage === "metadata" ? pending : Response.json({});
+      }
+      return Response.json([]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await mountComposer();
+    await editInput(QUERY, "Three pubs in Soho");
+    await act(async () => { [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click(); });
+    await settle();
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop")).toHaveLength(3));
+    await editInput("#plan-name", "Account A host");
+    await act(async () => { document.querySelector("form.planComposer")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+    await vi.waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
+      stage === "creation" ? String(input) === "/api/plans" && init?.method === "POST" : init?.method === "PATCH",
+    )).toBe(true));
+
+    if (stage === "active account") {
+      await settle();
+      expect(navigation.push).toHaveBeenCalledWith("/plan/account-a-plan#share");
+      expect(localStorage.getItem(PLAN_HOST_NAME_KEY)).toBe("Account A host");
+      expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBeNull();
+      expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
+      return;
+    }
+
+    clearDeviceAccountSessionArtifacts(sessionStorage);
+    bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
+    authFixture.user = ACCOUNT_B;
+    await rerender();
+    await editInput(QUERY, "B's own request");
+    await vi.waitFor(() => expect(storedRequest()).toBe("B's own request"));
+    const bDraft = sessionStorage.getItem(PLAN_DRAFT_V2_KEY);
+    const bIntake = localStorage.getItem("pubmax:plan-intake:v1");
+    await act(async () => { finish(stage === "creation" ? Response.json(created) : Response.json({})); });
+    await settle();
+
+    expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(bDraft);
+    expect(localStorage.getItem("pubmax:plan-intake:v1")).toBe(bIntake);
+    expect(localStorage.getItem(PLAN_HOST_NAME_KEY)).toBeNull();
+    expect(queryValue()).toBe("B's own request");
+    expect(navigation.push).not.toHaveBeenCalled();
+    if (stage === "creation") expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+  });
+
+  it("does not save or display A's route when generation completes after the switch", async () => {
+    authFixture.user = ACCOUNT_A;
+    bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input) =>
+      String(input).includes("/api/plans/generate") ? pending : Response.json([]),
+    ));
+    await mountComposer();
+    await editInput(QUERY, "Three pubs in Soho");
+    await act(async () => { [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click(); });
+    clearDeviceAccountSessionArtifacts(sessionStorage);
+    bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
+    authFixture.user = ACCOUNT_B;
+    await rerender();
+    await editInput(QUERY, "B's own request");
+    await vi.waitFor(() => expect(storedRequest()).toBe("B's own request"));
+    await act(async () => { finish(Response.json(GENERATED)); });
+    await settle();
+    expect(document.querySelectorAll(".planStop")).toHaveLength(0);
+    expect(storedRequest()).toBe("B's own request");
+    expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
+  });
+
   it("drops account A's request when account B takes over the open /plan", async () => {
     await accountADrafts();
 
