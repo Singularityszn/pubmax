@@ -87,7 +87,8 @@
 }
 
 /* The regular nights sit apart from the confirmed listing they stand in for:
-   their own heading, their own lead line, and a left rule rather than a box. */
+   their own disclosure summary, their own lead line, and a left rule rather
+   than a box. */
 .tonightRegular {
   margin-top: var(--space-2);
   padding-left: var(--space-3);
