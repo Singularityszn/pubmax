@@ -21,6 +21,7 @@ import {
   MIXED_THIRD_PINT_MEASURE,
   fractionalBeerServing,
   pintServingDrop,
+  printedPriceItem,
   isLikelyMenuUrl,
   printedPageText,
   printedPriceLayout,
@@ -29,7 +30,6 @@ import {
   cleanListedDrinkName,
   GLASS_ML,
   SERVING_SIZE,
-  SERVING_WORD,
   type MenuKind,
 } from "@/lib/harvest/ukPriceCrawl";
 
@@ -606,16 +606,6 @@ function listedDrink(
   };
 }
 
-function measureTail(after: string): string {
-  return new RegExp(`^(?:\\s*\\/\\s*|\\s+)(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i").exec(after)?.[0] ?? "";
-}
-
-function ownPrice(evidence: PrintedPriceEvidence): string {
-  const { label, raw, tail, fraction } = evidence;
-  const serving = fraction.suffix ?? measureTail(tail);
-  return (label ? label + " " : "") + raw.verbatim + serving;
-}
-
 function listedDrinkKey(row: { drink: string; size: string; sizeDetail: string | null; priceGbp: number }): string {
   return `${row.drink.toLowerCase()}|${row.size}|${row.sizeDetail ?? ""}|${row.priceGbp}`;
 }
@@ -638,8 +628,8 @@ function recordPriceLine(
 ): void {
   for (const evidence of prices) {
     const { raw, admission, label } = evidence;
-    if (admission.kind === "refused") continue;
-    const own = ownPrice(evidence);
+    if (admission.kind === "refused" || evidence.qualifier) continue;
+    const own = printedPriceItem(text, evidence).text;
     // A bare fractional label without an explicit serving still supplies no row.
     if (!SERVING_SIZE.test(own) && !FRACTIONAL_PINT_MEASURE.test(own)) continue;
     const size = sizeOf(own);

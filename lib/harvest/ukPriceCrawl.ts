@@ -286,21 +286,27 @@ function isHalfOfABarePair(after: string, priceGbp: number): boolean {
 }
 
 export const UK_PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
+const PRICE_ONLY_LINE = /^(?:£\s*\d{1,2}(?:\.\d{1,2})?\s*(?:[|/]\s*)?)+$/;
 
 // Item punctuation is a boundary after a known price or measure. Commas inside
 // a drink name remain part of that name. Hyphens need padding to avoid splitting names.
 const PRICE_ITEM_SEPARATOR = /(?:[,.;:•·|!?]|\s+-\s+)/;
 const LEADING_PRICE_ITEM_SEPARATORS = new RegExp(`^\\s*(?:${PRICE_ITEM_SEPARATOR.source}\\s*)+`);
 
-const FRACTIONAL_BEER_MEASURE = /(?:\b0[.,]\d+[ \t]*(?=pints?\b)|\b\d{1,2}[ \t]*[\/⁄][ \t]*[1-9]\d?(?=\b|pints?\b)|[½⅓⅔¼¾⅛⅜⅝⅞⅐⅑⅒⅕⅖⅗⅘⅙⅚]|\b(?:half|halves|one[ \t-]half|one[ \t-]third|two[ \t-]thirds|(?:one[ \t-])?quarter|three[ \t-]quarters?|schooners?)\b)/i;
+const FRACTIONAL_BEER_MEASURES: ReadonlyArray<readonly [RegExp, string | null]> = [
+  [/\b1[ \t]*[\/⁄][ \t]*2(?=\b|pints?\b)|\b0[.,]50?(?=[ \t]*pints?\b)|½|\b(?:half|halves|(?:one[ \t-]|a[ \t]+)half)\b/i, "half"],
+  [/\b1[ \t]*[\/⁄][ \t]*3(?=\b|pints?\b)|⅓|\b(?:one[ \t-]|a[ \t]+)third\b/i, "one-third"],
+  [/\b2[ \t]*[\/⁄][ \t]*3(?=\b|pints?\b)|⅔|\btwo[ \t-]thirds\b/i, "two-thirds"],
+  [/\b(?:(?:one[ \t-])?quarter|three[ \t-]quarters?|schooners?)\b/i, null],
+  [/\b0[.,]\d+[ \t]*(?=pints?\b)|\b\d{1,2}[ \t]*[\/⁄][ \t]*[1-9]\d?(?=\b|pints?\b)/i, null],
+  [/[¼¾⅛⅜⅝⅞⅐⅑⅒⅕⅖⅗⅘⅙⅚]/, null],
+];
+const FRACTIONAL_BEER_MEASURE = new RegExp(FRACTIONAL_BEER_MEASURES.map(([pattern]) => `(?:${pattern.source})`).join("|"), "i");
 
 export function fractionalBeerServing(text: string): string | null {
   const match = FRACTIONAL_BEER_MEASURE.exec(text)?.[0];
   if (!match) return null;
-  if (/^(?:1[ \t]*[\/⁄][ \t]*2|0[.,]50?\s*|½|half|halves|one[ \t-]half)$/i.test(match)) return "half";
-  if (/^(?:1[ \t]*[\/⁄][ \t]*3|⅓|one[ \t-]third)$/i.test(match)) return "one-third";
-  if (/^(?:2[ \t]*[\/⁄][ \t]*3|⅔|two[ \t-]thirds)$/i.test(match)) return "two-thirds";
-  return match.toLowerCase();
+  return FRACTIONAL_BEER_MEASURES.find(([pattern]) => pattern.test(match))?.[1] ?? match.toLowerCase();
 }
 
 const FRACTIONAL_PINT_UNIT = "[ \\t-]*(?:(?:of\\s+)?a\\s+|of\\s+)?pints?\\b";
@@ -620,6 +626,12 @@ function itemNameStatesCocktail(itemName: string): boolean {
   return categoryDecisionFor(name.slice(0, 24), 0)?.category === "cocktail";
 }
 
+export type PrintedPriceItem = {
+  label: string;
+  text: string;
+  pintColumn: boolean;
+};
+
 export type UkPriceCandidate = {
   priceGbp: number;
   category: DrinkCategory;
@@ -630,6 +642,7 @@ export type UkPriceCandidate = {
   /** Trimmed printed menu text beside the figure, when the page named the drink. */
   drinkLabel?: string;
   servingSize?: string;
+  item?: PrintedPriceItem;
 };
 
 export type UkPriceCategoryRow = {
@@ -1441,6 +1454,7 @@ export type PrintedPriceEvidence = {
   scopedOffer?: PrintedSpan;
   pair?: PairedServing;
   label: string;
+  printedLabel: string;
   tail: string;
   statedWine: ReturnType<typeof statedWineIdentity>;
   wine: ReturnType<typeof statedWineIdentity>;
@@ -1473,7 +1487,7 @@ function hasFoodWords(text: string): boolean {
   return FOOD_WORDS.test(text) || FOOD_WEARING_A_DRINK_WORD.test(text);
 }
 
-const DESCRIPTION_PREFIX = /^(?:served(?:\s+with\b|\s*$)|with(?:\s+a\b|\s*$)|when\s+you\b)/i;
+const DESCRIPTION_PREFIX = /^(?:served(?:\s+(?:with|as)\b|\s*$)|with(?:\s+a\b|\s*$)|when\s+you\b)/i;
 const ITEM_DESCRIPTION_LINK = /\b(?:served\s+with|only\s+with|with\s+a|when\s+you)\b/gi;
 
 function finishesDescription(prefix: string, following: string): boolean {
@@ -1689,7 +1703,10 @@ function inheritedServingLabel(
     || hasPrintedName(before) || FRACTIONAL_BEER_MEASURE.test(before)) return null;
   const serving = before.replace(/^[/|\s\u2013\u2014-]+/, "").trim();
   const trailing = LEADING_SERVING.exec(selected.tail.replace(/^[/|\s]+/, ""))?.[0] ?? "";
-  if (!SERVING_SIZE.test(serving) && !SERVING_SIZE.test(trailing)) return null;
+  const lineStart = text.lastIndexOf("\n", selected.raw.at - 1) + 1;
+  const lineEnd = text.indexOf("\n", selected.raw.at);
+  const priceColumns = PRICE_ONLY_LINE.test(text.slice(lineStart, lineEnd < 0 ? text.length : lineEnd).trim());
+  if (!SERVING_SIZE.test(serving) && !SERVING_SIZE.test(trailing) && !priceColumns) return null;
   if (previous.fraction.fractional && !statesFullPint(`${serving} ${trailing}`)) return null;
 
   const between = text.slice(previous.raw.at + previous.raw.verbatim.length, selected.raw.at);
@@ -1700,7 +1717,7 @@ function inheritedServingLabel(
   if (previous.admission.kind === "refused" && !(sameWine && previous.admission.drop === "outside-category-band")) {
     return null;
   }
-  if (PRICE_ITEM_SEPARATOR.test(between)
+  if (PRICE_ITEM_SEPARATOR.test(between) && !priceColumns
     && !(glass && GLASS_ML.has(glass.servingSize) && previousGlass && GLASS_ML.has(previousGlass))) return null;
   const name = previous.statedWine?.drinkLabel ?? cleanListedDrinkName(previous.label);
   return name ? (serving ? name + " " + serving : name) : null;
@@ -1756,6 +1773,7 @@ function buildPriceEvidence(
     scopedOffer: selected.scopedOffer,
     pair,
     label,
+    printedLabel: before,
     tail,
     statedWine: stated,
     wine,
@@ -1941,7 +1959,8 @@ export function printedPriceLayout(
       }
       if (firstIndex === itemIndex) return undefined;
       const note = text.slice(start, item.start).replaceAll("\n", " ");
-      if (!namesGoods(note) && !hasFoodWords(note) && !priceHasOffer(note, 0, note, 0)) return undefined;
+      if (!namesGoods(note) && !hasFoodWords(note) && !priceHasOffer(note, 0, note, 0)
+        && !(DESCRIPTION_PREFIX.test(note) && fractionalBeerServing(note))) return undefined;
       for (const line of lines.slice(firstIndex, itemIndex)) descriptionLines.add(line.start);
       return { start, end: item.start };
     }
@@ -2152,15 +2171,29 @@ export function printedPriceLayout(
   return { lines: parts, prices };
 }
 
+export function printedPriceItem(text: string, evidence: PrintedPriceEvidence): PrintedPriceItem {
+  const { raw, label, printedLabel, tail, line, description, leadingDescription, qualifier } = evidence;
+  const leading = leadingDescription ? text.slice(leadingDescription.start, leadingDescription.end) : "";
+  const continuation = text.slice(line.end, description.end);
+  const serving = qualifier ? text.slice(qualifier.start, qualifier.end) : "";
+  const pricedLine = text.slice(line.start, line.end);
+  return {
+    label,
+    text: `${printedLabel} ${raw.verbatim}${tail} ${continuation} ${serving} ${leading}`.trim(),
+    pintColumn: PRICE_ONLY_LINE.test(pricedLine.trim())
+      && findUkPriceCandidates(pricedLine).length > 1,
+  };
+}
+
 export function pintServingDrop(text: string, evidence: PrintedPriceEvidence): UkPriceDropReason | null {
-  const { raw, label, fraction, qualifier, tail } = evidence;
-  const continuation = text.slice(evidence.line.end, evidence.description.end);
-  const serving = `${label} ${fraction.suffix ?? tail} ${continuation}`;
+  const { raw, fraction, qualifier } = evidence;
+  const serving = printedPriceItem(text, evidence).text;
+  const measure = fractionalBeerServing(serving);
   const after = text.slice(raw.at + raw.verbatim.length, raw.at + raw.verbatim.length + 12);
-  if (fractionalBeerServing(serving) === "half" || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, raw.priceGbp)) {
+  if (measure === "half" || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, raw.priceGbp)) {
     return "half-measure-not-a-pint";
   }
-  if (fraction.fractional || fraction.disputed || qualifier || fractionalBeerServing(serving)) {
+  if (fraction.fractional || fraction.disputed || qualifier || measure) {
     return "fractional-measure-not-a-pint";
   }
   return isBottledMeasure(serving) || inBottledSection(text, raw.at) ? "bottled-measure-not-a-pint" : null;
@@ -2206,6 +2239,7 @@ function decideKeylessPrice(text: string, evidence: PrintedPriceEvidence, offerT
       category,
       verbatim: raw.verbatim,
       context,
+      item: printedPriceItem(text, evidence),
       drinkLabel: category === "wine" ? wine?.drinkLabel ?? label : label || undefined,
       ...(category === "wine" && wine ? { servingSize: wine.servingSize } : {}),
     },
@@ -2235,7 +2269,7 @@ export function decideKeylessUkPriceCandidate(
   return { drop: "not-verbatim-on-page" };
 }
 
-function readPrintedPriceLayout(
+export function readPrintedPriceLayout(
   html: string,
   sourceFormat: UkPriceSourceFormat,
 ): { page: PrintedPage; layout: PrintedPriceLayout } {
@@ -2243,48 +2277,34 @@ function readPrintedPriceLayout(
   return { page, layout: printedPriceLayout(page, { wineOrdinals: wineSectionPriceOrdinals(html), itemHeadings: true }) };
 }
 
-export function readPintServingDrops(html: string, sourceFormat: UkPriceSourceFormat = "text"): Map<number, UkPriceDropReason | null> {
-  const { page, layout } = readPrintedPriceLayout(html, sourceFormat);
-  return new Map([...layout.prices].map(([at, evidence]) => [at, pintServingDrop(page.text, evidence)]));
-}
-
 export function pricedMenuSnippets(markdown: string): string[] {
-  const source = String(markdown ?? "").replace(/\\£/g, "£");
+  const source = String(markdown ?? "").replace(/\\£/g, "£").replace(/^[_*]+|[_*]+$/gm, "");
   const page = printedPageText(source, "text", { preserveSourceLines: true });
-  const evidence = [...printedPriceLayout(page).prices.values()];
-  const compact = page.text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const layout = printedPriceLayout(page);
+  const byLine = new Map<number, PrintedPriceEvidence[]>();
+  for (const item of layout.prices.values()) {
+    const items = byLine.get(item.line.start) ?? [];
+    items.push(item);
+    byLine.set(item.line.start, items);
+  }
   const snippets: string[] = [];
-  let ordinal = 0;
-  for (const [index, line] of compact.entries()) {
-    const prices = findUkPriceCandidates(line);
-    if (!prices.length) continue;
-    let owned = line;
-    for (const [position, raw] of [...prices.entries()].reverse()) {
-      const item = evidence[ordinal + position];
-      const qualifier = item?.qualifier;
-      if (!qualifier) continue;
-      const end = raw.at + raw.verbatim.length;
-      owned = owned.slice(0, end) + " " + page.text.slice(qualifier.start, qualifier.end) + owned.slice(end);
+  for (const items of byLine.values()) {
+    const start = Math.min(...items.map((item) => Math.min(item.name.start, item.leadingDescription?.start ?? item.name.start)));
+    const end = Math.max(...items.map((item) => Math.max(item.line.end, item.description.end)));
+    let snippet = page.text.slice(start, end);
+    for (const item of [...items].reverse()) {
+      const qualifier = item.qualifier;
+      if (!qualifier || (qualifier.start >= start && qualifier.end <= end)) continue;
+      const at = item.raw.at + item.raw.verbatim.length - start;
+      snippet = snippet.slice(0, at) + " " + page.text.slice(qualifier.start, qualifier.end) + snippet.slice(at);
     }
-    ordinal += prices.length;
-    const previous = index > 0 ? compact[index - 1] : "";
-    const priceOnly = /^(?:£\s*\d{1,2}(?:\.\d{1,2})?\s*(?:[|/]\s*)?)+$/.test(line);
-    snippets.push(priceOnly && previous ? `${previous}\n${owned}` : owned);
+    if (PRICE_ONLY_LINE.test(snippet.trim())) {
+      const previous = page.text.slice(0, start).trimEnd().split("\n").at(-1);
+      if (previous) snippet = `${previous}\n${snippet}`;
+    }
+    snippets.push(snippet.replaceAll("\n", "<br>"));
   }
   return snippets;
-}
-
-/**
- * The wine name and glass each figure's printed item states, keyed by the
- * figure's offset in `pageText(html, true, sourceFormat)`. A name wrapped onto
- * the line above its glass prices stays with them.
- */
-export function readStatedWineIdentities(
-  html: string,
-  sourceFormat: UkPriceSourceFormat = "text",
-): Map<number, ReturnType<typeof statedWineIdentity>> {
-  const { layout } = readPrintedPriceLayout(html, sourceFormat);
-  return new Map([...layout.prices].map(([at, evidence]) => [at, evidence.statedWine]));
 }
 
 export function readKeylessUkPriceDecisions(

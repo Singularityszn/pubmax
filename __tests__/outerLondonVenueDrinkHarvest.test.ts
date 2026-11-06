@@ -33,7 +33,7 @@ Espresso martini £12.00
   it("maps a shared reading through venueDrinkPricesFromUkReading", () => {
     const markdown = "Tanqueray gin & tonic £5.50";
     const reading = readVenueDrinkPrices(`<p>${markdown}</p>`);
-    expect(venueDrinkPricesFromUkReading(reading, markdown)).toEqual([
+    expect(venueDrinkPricesFromUkReading(reading)).toEqual([
       expect.objectContaining({ category: "gin", drinkName: "Tanqueray gin & tonic", priceGbp: 5.5 }),
     ]);
   });

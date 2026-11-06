@@ -46,7 +46,7 @@ export async function extractPintPricesForHarvest(markdown, ctx) {
     return { prices: extractPintPrices(markdown), review: [] };
   }
   const { reading, review } = await readVenueDrinkPricesForHarvest(markdown, ctx);
-  return { prices: pintPricesFromUkReading(reading, markdown), review };
+  return { prices: pintPricesFromUkReading(reading), review };
 }
 
 async function extractVenueDrinkPricesJudgedLinewise(markdown, ctx) {
@@ -57,7 +57,7 @@ async function extractVenueDrinkPricesJudgedLinewise(markdown, ctx) {
   for (const snippet of pricedMenuSnippets(markdown)) {
     const judged = await readVenueDrinkPricesForHarvest(snippet, ctx);
     review.push(...judged.review);
-    for (const row of venueDrinkPricesFromUkReading(judged.reading, snippet)) {
+    for (const row of venueDrinkPricesFromUkReading(judged.reading)) {
       const key = `${row.drinkName.toLowerCase()}|${row.category}|${row.priceGbp}`;
       if (seen.has(key)) continue;
       seen.add(key);
