@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildWetherspoonsDealRows,
+  nextDealWindow,
   filterGreaterLondonWetherspoons,
   londonWallClockToIso,
   WETHERSPOONS_DEALS,
@@ -121,6 +122,40 @@ describe("buildWetherspoonsDealRows", () => {
     });
     const now = Date.parse("2026-07-12T12:00:00.000Z");
     expect(isValidWhatsOnRow(rows[0] as unknown, now)).toBe(true);
+  });
+
+  it("lists a window that is open now, not the next opening", () => {
+    // Monday 13:00 London, inside Monday's 11:30-23:00 window.
+    expect(nextDealWindow("Monday", "11:30", "23:00", "2026-07-13T12:00:00.000Z")).toEqual({
+      startsAt: "2026-07-13T11:30:00+01:00",
+      endsAt: "2026-07-13T23:00:00+01:00",
+    });
+  });
+
+  it("closes a 6pm-12am window at midnight on the next day", () => {
+    expect(nextDealWindow("Monday", "18:00", "00:00", observedAt)).toEqual({
+      startsAt: "2026-07-13T18:00:00+01:00",
+      endsAt: "2026-07-14T00:00:00+01:00",
+    });
+  });
+
+  it("keeps a window that runs past midnight, ending on the next day", () => {
+    // Harvested chain pages state windows such as "Fri 21:00-01:00". The deal
+    // day is the day it opens, so it closes at 01:00 on the Saturday.
+    const overnight = { ...defined(WETHERSPOONS_DEALS[0]), dayName: "Friday", startTime: "21:00", endTime: "01:00" };
+    const rows = buildWetherspoonsDealRows({ deals: [overnight], venues: [CORONET], observedAt });
+    expect(rows).toHaveLength(1);
+    expect(defined(rows[0]).startsAt).toBe("2026-07-17T21:00:00+01:00");
+    expect(defined(rows[0]).endsAt).toBe("2026-07-18T01:00:00+01:00");
+  });
+
+  it("keeps an open overnight window until it closes", () => {
+    const overnight = { ...defined(WETHERSPOONS_DEALS[0]), dayName: "Friday", startTime: "21:00", endTime: "01:00" };
+    const rows = buildWetherspoonsDealRows({
+      deals: [overnight], venues: [CORONET], observedAt, asOf: "2026-07-17T23:30:00.000Z",
+    });
+    expect(defined(rows[0]).startsAt).toBe("2026-07-17T21:00:00+01:00");
+    expect(defined(rows[0]).endsAt).toBe("2026-07-18T01:00:00+01:00");
   });
 
   it("resolves a startsAt/endsAt window that lands the right side of a DST switch", () => {

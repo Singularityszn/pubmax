@@ -52,7 +52,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { nextWeeklyOccurrence, isGreaterLondonPostcode } from "./quizParsers.mjs";
+import { DAY_NAMES, nextWeeklyOccurrence, isGreaterLondonPostcode } from "./quizParsers.mjs";
 import { resolveVenueId } from "./resolveVenueId.mjs";
 import { loadCanonicalVenueIndex } from "./loadCanonicalVenueIndex.mjs";
 
@@ -215,6 +215,35 @@ export function filterGreaterLondonWetherspoons(pubs) {
 // observedAt dates the source evidence. asOf selects the occurrence whose
 // closing time is still ahead, so a deal remains available after opening.
 // The seeded callers pass their refresh clock without replacing the source date.
+/**
+ * The weekly window of a deal day whose closing time is still ahead of asOf,
+ * so a deal that has opened stays available until it closes. A window that
+ * closes at or before it opens ("21:00-01:00", "6pm-12am") runs past
+ * midnight: it opens on the deal day and closes on the next calendar day.
+ */
+export function nextDealWindow(dayName, startTime, endTime, asOf) {
+  const dayIndex = DAY_NAMES.indexOf(dayName);
+  if (dayIndex < 0) return null;
+  const overnight = minutesOfDay(endTime) <= minutesOfDay(startTime);
+  const closingDay = overnight ? DAY_NAMES[(dayIndex + 1) % 7] : dayName;
+  const endsAt = nextWeeklyOccurrence(closingDay, endTime, asOf);
+  if (!endsAt) return null;
+  const openingDate = overnight ? previousDate(endsAt.slice(0, 10)) : endsAt.slice(0, 10);
+  const startsAt = londonWallClockToIso(openingDate, startTime);
+  if (!startsAt || Date.parse(startsAt) >= Date.parse(endsAt)) return null;
+  return { startsAt, endsAt };
+}
+
+function minutesOfDay(hhmm) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm ?? ""));
+  return match ? Number(match[1]) * 60 + Number(match[2]) : Number.NaN;
+}
+
+function previousDate(dateStr) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10);
+}
+
 export function buildWetherspoonsDealRows({
   deals,
   venues,
@@ -226,10 +255,9 @@ export function buildWetherspoonsDealRows({
 }) {
   const rows = [];
   for (const deal of deals ?? []) {
-    const endsAt = nextWeeklyOccurrence(deal.dayName, deal.endTime, asOf);
-    if (!endsAt) continue;
-    const startsAt = londonWallClockToIso(endsAt.slice(0, 10), deal.startTime);
-    if (!startsAt || Date.parse(startsAt) >= Date.parse(endsAt)) continue;
+    const window = nextDealWindow(deal.dayName, deal.startTime, deal.endTime, asOf);
+    if (!window) continue;
+    const { startsAt, endsAt } = window;
     const cadence = deal.cadenceLabel ?? `every ${deal.dayName}`;
 
     for (const venue of venues ?? []) {

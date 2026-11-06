@@ -58,6 +58,13 @@ export declare function filterGreaterLondonWetherspoons(
   pubs: WetherspoonsPubRecord[],
 ): WetherspoonsPubRecord[];
 
+export declare function nextDealWindow(
+  dayName: string,
+  startTime: string,
+  endTime: string,
+  asOf: string,
+): { startsAt: string; endsAt: string } | null;
+
 export declare function buildWetherspoonsDealRows(input: {
   deals: WetherspoonsDealDef[];
   venues: WetherspoonsPubRecord[];
