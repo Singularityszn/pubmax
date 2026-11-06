@@ -62,6 +62,16 @@ function londonInstant(day: string, minutes: number): string | null {
   return londonDateTimeInputToIso(input, new Date(first)) ? null : first;
 }
 
+function requestedDay(date: string | undefined, hasNight: boolean, minutes: number | null, now: number): string | null {
+  let day = date ?? null;
+  if (!day && hasNight && minutes !== null) {
+    const current = new Date(now);
+    day = londonDayKey(current);
+    if (minutes < 12 * 60 && londonHour(current) >= NIGHT_SERVICE_END_HOUR) day = nextCalendarDay(day);
+  }
+  return day;
+}
+
 export function parseLateFoodQuestion(query: string, now: number): LateFoodQuestion | null {
   const wording = stripTrailingPunctuation(foodWording(query));
   if (!FOOD_RE.test(wording) || /[.!?;\n]/.test(wording) || !Number.isFinite(now)) return null;
@@ -92,12 +102,7 @@ export function parseLateFoodQuestion(query: string, now: number): LateFoodQuest
     .replace(/\b(?:where|what|which|can|could|would|do|does|i|we|you|me|us|my|our|want|like|need|find|get|have|recommend|suggest|show|tell|help|is|are|there|any|some|something|somewhere|anywhere|places?|options?|open|available|a|an|the|to|for|with|that|please|serving)\b/gi, " ")
     .trim();
   if (rest) return null;
-  let day = date ?? null;
-  if (!day && nights.length && minutes !== null) {
-    const current = new Date(now);
-    day = londonDayKey(current);
-    if (minutes < 12 * 60 && londonHour(current) >= NIGHT_SERVICE_END_HOUR) day = nextCalendarDay(day);
-  }
+  const day = requestedDay(date, nights.length > 0, minutes, now);
   return {
     area: areas[0]![1]!.trim(),
     at: day !== null && minutes !== null ? londonInstant(day, minutes) : null,
