@@ -17,6 +17,11 @@ import type {
   AskSource,
   AskTurn,
 } from "@/lib/ask/types";
+import {
+  pubPalGetHomeRegisterAnswer,
+  regexFenceIntent,
+  resolvePubPalFenceIntent,
+} from "@/lib/pubPalLlmFence";
 
 const MAX_TURNS = 6;
 
@@ -182,12 +187,38 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
 
   const recordedDrinks = recordedDrinkComparison(query);
   const hoursQuestion = isVenueHoursQuestion(query);
-  let toolResults: AskToolResult[] = recordedDrinks || unsupported || hoursQuestion
+  const deterministicOnly = Boolean(recordedDrinks || unsupported || hoursQuestion);
+
+  // The Pub Pal sobriety and get-home fence applies to every Ask answer path.
+  // A fenced turn keeps only sourced transport facts and skips answer routing.
+  // Deterministic answers use the regex table to avoid model providers.
+  const fence = input.skipModel || deterministicOnly
+    ? regexFenceIntent(query, turns)
+    : await resolvePubPalFenceIntent(query, turns);
+  if (fence.fenced) {
+    const transportCalls = routeAskDeterministically(query).filter(
+      (call) => call.name === "journey" || call.name === "city_status",
+    );
+    const transportResults = await Promise.all(transportCalls.map((call) =>
+      runAskTool(call.name, { ...call.args, query }, ctx),
+    ));
+    const merged = mergeToolResults(transportResults);
+    return {
+      answer: pubPalGetHomeRegisterAnswer(merged.hints.join(" "), fence.sobrietyOnly),
+      cards: merged.cards,
+      proposals: merged.proposals,
+      sources: merged.sources,
+      status: merged.degraded ? "degraded" : "ready",
+      toolsUsed: merged.toolsUsed,
+    };
+  }
+
+  let toolResults: AskToolResult[] = deterministicOnly
     ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
     : [];
 
   const allowModel =
-    !unsupported && !recordedDrinks && !hoursQuestion && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
+    !deterministicOnly && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({

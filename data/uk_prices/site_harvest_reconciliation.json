@@ -10394,6 +10394,33 @@
         "rowCount": 7981,
         "siteHarvestRows": 3866
       }
+    },
+    {
+      "decidedOn": "2026-11-06",
+      "rule": "isCategoryQuarantined (lib/ukPriceBundle.ts)",
+      "reason": "insufficient-pint-evidence",
+      "note": "The retained row says 1/3 and has no separate serving field. It does not support a full-pint price. The original row stays in the ledger.",
+      "afterLaterPublications": 75,
+      "rows": [
+        {
+          "sha256": "74c29955e334870ee2024f30bbb80452745fbf01e4b5106fecc4efb1085e7575",
+          "host": "northwestwardho.co.uk",
+          "venueId": "venue-uk-n11469099314",
+          "category": "beer",
+          "drinkLabel": "1/3",
+          "priceGbp": 2.1,
+          "sourceUrl": "https://www.northwestwardho.co.uk/menu",
+          "observedAt": "2026-09-04T14:07:10.622Z"
+        }
+      ],
+      "historicalBundle": {
+        "rowCount": 7194,
+        "siteHarvestRows": 3079
+      },
+      "currentBundle": {
+        "rowCount": 7980,
+        "siteHarvestRows": 3865
+      }
     }
   ]
 }

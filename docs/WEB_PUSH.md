@@ -34,6 +34,11 @@ or Android phone. An iPhone or iPad requires Home Screen install first. The
 native app does not offer Step Out alerts yet. A browser with notifications
 blocked directs the person to its site settings before another attempt.
 
+Turning off the weekly nudge stops Step Out alerts. It preserves the shared
+browser push subscription and its `push_tokens` registry entry, even when all
+other notification preferences are off. Other notifications, including the
+London daily brief and cheap-pint ping, can still use the shared subscription.
+
 Operator / cron:
 
 ```sh

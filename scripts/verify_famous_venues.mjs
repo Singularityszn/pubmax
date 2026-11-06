@@ -10,11 +10,8 @@
  *                --write drops it.
  *   unverified — anything else: no result, no confident or an ambiguous match,
  *                or a temporary closure. The row is left unchanged and listed.
- *                A Places match whose price anchor is missing, redirects to
- *                another page, or sits off the row's own source pages is
- *                unverified too, so a renewal never re-publishes a price from
- *                a page that moved on. A redirect that only adds or drops www.
- *                or a trailing slash is the same page.
+ *                A Places match also needs an acceptable price anchor. See
+ *                docs/FAMOUS_VENUES_REVERIFY_RUNBOOK.md for the renewal rules.
  *                A full run exits nonzero. A --limit batch records them and
  *                exits 0 so the next day can take the rows not yet checked.
  *
@@ -38,6 +35,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { NIGHT_OUT_PLACE_MAX_AGE_HOURS } from "../lib/nightOutPlaceContract.mjs";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy.ts";
 import {
   decidePlacesVerification,
   placesTextQueryForRow,
@@ -115,8 +114,13 @@ function canonicalPage(url) {
   return `${protocol}//${host.replace(/^www\./, "")}${pathname.replace(/\/+$/, "")}${search}`;
 }
 
-/** Asks the anchor page for its status without following a redirect. */
+const checkRobots = createRobotsChecker();
+
+/** Keep redirects manual: permission for the anchor does not permit its target. */
 export async function headAnchorSource(url) {
+  if (!isHarvestableOperatorUrl(url)) throw new Error("Source policy refused anchor URL");
+  const permission = await checkRobots(url);
+  if (!permission.allowed) throw new Error("Robots refused anchor URL");
   const response = await fetch(url, { method: "HEAD", redirect: "manual" });
   return { status: response.status, location: response.headers.get("location") };
 }
@@ -134,13 +138,17 @@ export async function anchorRenewalBlock(row, headSource) {
   } catch {
     return "anchor_source_unreachable";
   }
-  if (
-    head.status >= 300 &&
-    head.status < 400 &&
-    (!head.location ||
-      canonicalPage(new URL(head.location, anchorUrl).href) !== canonicalPage(anchorUrl))
-  ) {
-    return "anchor_source_redirected";
+  if (head.status >= 300 && head.status < 400) {
+    try {
+      if (
+        !head.location ||
+        canonicalPage(new URL(head.location, anchorUrl).href) !== canonicalPage(anchorUrl)
+      ) {
+        return "anchor_source_redirected";
+      }
+    } catch {
+      return "anchor_source_redirected";
+    }
   }
   return null;
 }

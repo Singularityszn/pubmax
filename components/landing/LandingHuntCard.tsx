@@ -7,7 +7,7 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { formatPrice } from "@/lib/venues";
 
 // The first thing the front door shows (captain decisions 2 and 3, 1 Nov
-// 2026): the cheapest pint we can find in Britain right now, with the pub, the
+// 2026): the cheapest pint found across the UK cities on our map, with the pub, the
 // price, who listed it and the day that source was read. It replaced the stock
 // photograph of Tower Bridge.
 //
@@ -17,24 +17,36 @@ import { formatPrice } from "@/lib/venues";
 // take a hook or an event handler.
 //
 // NO JOKE IN SIGHT OF THE FIGURE (docs/VOICE.md, "Where the jokes live"). The
-// heading is the captain's own line; the figure line and the source line say
+// heading sets the scope; the figure line and the source line say
 // what the data says and nothing more. lib/cheapestHunt.ts decides the winner,
 // so this file only prints it: an estimate can never reach it.
 
-/** "21 September 2026", the day a source was read, on the London calendar. */
+/** "21 September 2026", a source read or observation day. */
 function huntReadDay(observedOn: string): string {
   return formatObservedDate(new Date(`${observedOn}T12:00:00.000Z`));
 }
 
-/** "Listed by <publisher>, source read <day>." for one hunted pint. */
-export function HuntSource({ pint, className }: { pint: HuntPint; className: string }) {
+/** Date the evidence beside the amount. A read is not a new observation at the bar. */
+export function HuntSource({
+  pint,
+  className,
+  showCurrentPriceNote = false,
+}: {
+  pint: HuntPint;
+  className: string;
+  showCurrentPriceNote?: boolean;
+}) {
   return (
     <p className={className}>
+      <strong>
+        {pint.standing === "confirmed" ? "Price observed" : "Source read"}{" "}
+        <time dateTime={pint.observedOn}>{huntReadDay(pint.observedOn)}</time>.
+      </strong>{" "}
       {huntSourceVerb(pint.standing)}{" "}
       <a href={pint.publisher.url} target="_blank" rel="noopener noreferrer">
         {pint.publisher.label}
       </a>
-      , source read <time dateTime={pint.observedOn}>{huntReadDay(pint.observedOn)}</time>.
+      .{showCurrentPriceNote ? " Current price may differ." : null}
     </p>
   );
 }
@@ -66,7 +78,7 @@ export default function LandingHuntCard({ pint }: { pint: HuntPint | null }) {
           , {pint.placeName}
         </span>
       </p>
-      <HuntSource pint={pint} className="lpHuntSource" />
+      <HuntSource pint={pint} className="lpHuntSource" showCurrentPriceNote />
     </article>
   );
 }

@@ -144,7 +144,8 @@ const fenceMocks = vi.hoisted(() => ({
   >(async () => ({ fenced: false, sobrietyOnly: false })),
 }));
 
-vi.mock("@/lib/pubPalLlmFence", () => ({
+vi.mock("@/lib/pubPalLlmFence", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/pubPalLlmFence")>(),
   resolvePubPalFenceIntent: fenceMocks.resolvePubPalFenceIntent,
   pubPalGetHomeRegisterAnswer: vi.fn(() => "Getting Home has the trains."),
 }));

@@ -54,7 +54,7 @@ for (const width of [390, 768, 1440]) {
       await page.getByLabel("Find a town").fill("man");
       const lastCity = page.getByRole("list", { name: "Places" }).locator(".placesCityLink").last();
       await expect(lastCity).toBeVisible({ timeout: 20_000 });
-      const obstruction = consent ? prompt : page.locator(".mobileTabList");
+      const obstruction = consent ? prompt : page.getByRole("navigation", { name: "Primary", exact: true }).locator(".mobileTabList");
       if (consent || width === 390) await expect(obstruction).toBeVisible();
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       const last = await lastCity.boundingBox();

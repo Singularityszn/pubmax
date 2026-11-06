@@ -1574,10 +1574,9 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 - **Media path:** the shared upload journey (`lib/uploadedImage.server.ts`,
   the same one the owned profile images take) - declared type, size, magic
   bytes, asserted metadata strip, sharp rotate, resize into the wall's portrait
-  box, JPEG, re-probe. Bytes are staged privately, signed for a short window,
-  and reach the venue's serving key ONLY on an approval from the image scan
-  adapter (`lib/profileAvatarModeration.ts`), which fails closed with no key
-  configured. A refused or unscannable photo leaves nothing public.
+  box, JPEG, re-probe. Bytes are staged privately and signed for a short window.
+  Scan and promotion decisions follow the
+  [owned-image scan policy](rules/lib-images-uploads-and-photo-walls.md#the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net).
 - **Moderation (boundary):** `report` records a per-actor-deduped flag for the
   human queue and never hides; `hide` and `restore` require `isModerator`.
   Hiding is reversible, keeps the row, its bytes and its report provenance, and
@@ -1633,12 +1632,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   account (`countCityPhotosForAuthor`); a pub-linked photo counts against that
   pub's own 100 (`countForAuthorAtVenue`). Both are counted before staging.
 - **Media path:** the pub walls' journey: bytes are prepared, staged privately
-  under `drink-wall/` or the venue's prefix, signed for a short window, scanned
-  (`surface: "drink-wall"`), and promoted to the serving key only on an
-  approval. A refused, unscannable or failed upload discards its staging copy
-  and leaves nothing public.
-- **Moderation and removal:** new rows are approved on a scan approval and
-  join the one admin photo queue. A report, a moderator hide and the author's
+  under `drink-wall/` or the venue's prefix and signed for a short window.
+  The scan uses `surface: "drink-wall"`. Scan and promotion decisions follow the
+  [owned-image scan policy](rules/lib-images-uploads-and-photo-walls.md#the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net).
+- **Moderation and removal:** new rows join the one admin photo queue.
+  A report, a moderator hide and the author's
   delete all use the `venue_photos` row, so one photo linked to a pub leaves the
   Drink Wall and that pub's wall together. Account removal deletes the rows and
   removes the `drink-wall/` bytes with the rest of the account's photos.

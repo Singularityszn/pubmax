@@ -18,7 +18,7 @@ import { PintPriceBadge } from "@/components/PriceBadge";
 import { Button } from "@/components/ui/button";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import { getCity } from "@/lib/cities";
-import { formatObservedDate, formatSnapshotFrom } from "@/lib/dataFreshness";
+import { formatObservedDate, formatSnapshotFrom } from "@/lib/dataFreshnessFormat";
 import { oldestPintRead } from "@/lib/drinks";
 import { LOCATION_FINDING_LABEL, LOCATION_SHARE_LABEL } from "@/lib/locationDisclosure";
 import {

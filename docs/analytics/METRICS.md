@@ -198,7 +198,7 @@ count is never reported as a rate.
 | Night completed | `plan_completed` in the week | `plan_accepted` in the week | Includes solo nights |
 | Crew night completed | `plan_completed` with `crewNight = true` | `plan_completed` rows carrying `crewNight` at all | Never against every completion: a pre-`crewNight` receipt has no answer. See 2.2 |
 | Weekly meaningful pubmaxxers | Distinct `distinct_id` with `meaningful_core_action` | Distinct `distinct_id` with any event | The roll-up in `WEEKLY_MEANINGFUL_CORE_ACTIONS`. Five actions, no impressions |
-| Invite opened | `plan_invite_opened` | `plan_invite_sent` | Sends and opens come from different devices. A weekly ratio, not a funnel |
+| Invite opened | `plan_invite_opened` | `plan_invite_sent` | Use the share actions in [3.2](#32-invitation-response-measures). Share actions and opens can occur on different devices. The weekly ratio does not measure delivery. |
 | Near answers served | `near_answer_ready` with `resultBand` other than `0` | All `near_answer_ready` | An empty answer is reported, so the denominator is honest |
 | Price loop | `price_submitted` | `price_submit_viewed` | The composer's own funnel. `price_submit_failed` is the third line |
 | Loop moments | Each of the six in TRACKING_PLAN 5.10 | Its own pair | Read as pairs. Neither line alone says anything |
@@ -217,6 +217,10 @@ Grouping by `distinct_id` cannot deduplicate one outing across devices.
 No plan identifier may be added to public events to join these devices.
 
 ### 3.2 Invitation response measures
+
+Share actions count `plan_invite_sent` rows whose `channel` is not `copy`.
+Clipboard actions count `plan_invite_link_copied` and `plan_invite_sent` with `channel=copy`.
+`components/share/ShareBar.tsx` still emits the latter. These events do not prove delivery.
 
 | Measure | Numerator | Denominator | Limits |
 |---|---|---|---|

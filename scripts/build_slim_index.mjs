@@ -17,6 +17,7 @@
 // the real TS, so the mirror can never silently drift.
 
 import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -870,6 +871,16 @@ export function buildSlimPriceEvidence(prices, cheapestPrice) {
   };
 }
 
+export function slimLocalityField(locality) {
+  return locality ? { locality } : {};
+}
+
+export function priceDatasetDigestFor(slim, detailText, selectionSources) {
+  const identity = createHash("sha256").update(JSON.stringify(slim)).update(detailText);
+  for (const source of selectionSources) identity.update(source);
+  return identity.digest("base64url").slice(0, 22);
+}
+
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
   const rows = JSON.parse(rawText);
@@ -929,6 +940,7 @@ async function main() {
       offset: detailOffset,
       length: detailLength,
       rowCount,
+      rowDigest: createHash("sha256").update(detailLine).digest("base64url").slice(0, 22),
     };
     detailOffset += detailLength;
     detailLines.push(detailLine);
@@ -978,7 +990,7 @@ async function main() {
       cheapestPrice,
       ...priceEvidence,
       borough: String(first.primary_borough || ""),
-      locality: locality ?? "",
+      ...slimLocalityField(locality),
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
       // null when no station is comparable — kept honest, never bucketed.
       ...(zone !== null ? { zone } : {}),
@@ -1004,7 +1016,6 @@ async function main() {
       lng: row.lng,
       cheapestPrice: row.anchor.price,
       borough: row.borough,
-      locality: "",
       ...(nearest ? { zone: nearest.zone } : {}),
       kind: row.kind,
       priceBand: famousPriceBands.get(row.id),
@@ -1037,13 +1048,22 @@ async function main() {
     applyFeatureHints(venue, feature);
   }
   detailIndex.count = detailLines.length;
+  const detailText = detailLines.join("");
+  // Bind the generated ordered details and actual slim selections, plus the
+  // detail reader's selection rules, rather than guessing their inputs.
+  const selectionSources = await Promise.all(
+    ["lib/venues.ts", "lib/priceRowEligibility.mjs", "lib/legacyPriceEvidence.mjs", "lib/comparablePint.mjs", "lib/priceReadDay.mjs"]
+      .map((file) => readFile(path.join(ROOT, file))),
+  );
+  const priceDatasetDigest = priceDatasetDigestFor(slim, detailText, selectionSources);
+  detailIndex.priceDatasetDigest = priceDatasetDigest;
 
   // Compact JSON (no whitespace) — the map never reads this file by hand.
   const slimText = JSON.stringify({
     ...buildShardPayload(slim),
+    d: priceDatasetDigest,
     generatedAt: builtAt.toISOString(),
   });
-  const detailText = detailLines.join("");
   const detailIndexText = JSON.stringify(detailIndex);
   await mkdir(GENERATED_DIR, { recursive: true });
   // The monolithic index stays the canonical artifact server-side name
@@ -1071,9 +1091,10 @@ async function main() {
     SPATIAL_GRID,
   );
   const manifest = buildSpatialShardManifest(cells, SPATIAL_GRID, coreId);
+  manifest.priceDatasetDigest = priceDatasetDigest;
   const coreCell = cells.get(coreId);
   if (!coreCell) throw new Error(`Spatial core cell ${coreId} is missing`);
-  const coreText = JSON.stringify(buildShardPayload(coreCell.venues));
+  const coreText = JSON.stringify({ ...buildShardPayload(coreCell.venues), d: priceDatasetDigest });
   const manifestText = JSON.stringify(manifest);
   await writeFile(path.join(DATA_DIR, CORE_FILE), coreText);
   await writeFile(path.join(DATA_DIR, MANIFEST_FILE), manifestText);
@@ -1089,7 +1110,7 @@ async function main() {
   const shardReport = [];
   for (const [id, { lat, lon, venues }] of cells) {
     if (id === coreId) continue;
-    const text = JSON.stringify(buildShardPayload(venues));
+    const text = JSON.stringify({ ...buildShardPayload(venues), d: priceDatasetDigest });
     spatialBytesTotal += Buffer.byteLength(text);
     await writeFile(path.join(DATA_DIR, spatialShardFile(lat, lon, SPATIAL_GRID)), text);
     shardReport.push({

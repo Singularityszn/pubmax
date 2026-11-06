@@ -11,9 +11,11 @@ import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import {
   loadTodayOutAnswer,
   loadTodayWhatsOnAnswer,
-  mergeTodayListingRows,
   whatsOnStatusForTonightListings,
 } from "@/lib/todayListings.server";
+import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
+import { tonightLedeComposition } from "@/lib/tonightOutListings";
+import { musicLaneRows } from "@/lib/whatsOn";
 import { BRIEF_DEFAULT_AREA } from "@/lib/todayBrief";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 import { observationFacts } from "@/lib/weatherObservationCopy";
@@ -23,7 +25,7 @@ import { latestWeatherForArea } from "@/lib/weatherSnapshots";
 //
 // Both come from the SAME lanes /today and /tonight read, so the landing can
 // never promise a night the routes behind it do not have. The shaping of the
-// two sentences is lib/landingAnswers.ts; this file only fetches and fails
+// answers is lib/landingAnswers.ts; this file only fetches and fails
 // soft. The landing document is prerendered and revalidates hourly
 // (app/page.tsx), so this runs at build and at most once an hour after that,
 // and nothing here reads the viewer.
@@ -67,20 +69,23 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
   const readStatus = whatsOn?.readStatus ?? "degraded";
   const rows = whatsOn?.rows ?? [];
   const unread = readStatus === "degraded" && out.failed;
-  const count = unread
-    ? 0
-    : mergeTodayListingRows(
-        rows,
-        out,
-        now.getTime(),
-        whatsOnStatusForTonightListings(readStatus, rows.length),
-      ).length;
+  const { primaryListingRows, listingRows } = tonightLedeComposition(
+    rows,
+    out,
+    whatsOnStatusForTonightListings(readStatus, rows.length),
+    now.getTime(),
+  );
+  const events = new Set([...primaryListingRows, ...musicLaneRows(withoutTonightChainRows(listingRows))]
+    .filter((row) => row.kind !== "deal" && (row.confidence === "confirmed" || row.confidence === "listed"))
+    .map((row) => row.id));
+  // Each offer can appear at many branches. Give the deals a door without counting them as events.
+  const hasDeals = listingRows.some((row) => row.kind === "deal");
   // Same page-limited pack /tonight renders, so the card cannot under-count
   // pubs the route will show with "Open on map".
   const hypedCount = unread ? 0 : hypedPubsForPage(hyped.rows, { now }).length;
 
   return {
     today: todayAnswer(weather, stamp),
-    tonight: tonightAnswer({ unread, count, hypedCount }, stamp),
+    tonight: tonightAnswer({ unread, count: events.size, hypedCount, hasDeals }, stamp),
   };
 }
