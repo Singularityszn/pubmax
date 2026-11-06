@@ -71,12 +71,11 @@ const SKIP_ROOT_DIR_NAMES = new Set([
 ]);
 
 /**
- * Other tests create and remove scratch entries under the scanned trees while
- * this walk runs (scriptGeo's `scripts/.locality-symlink-*`), so an entry listed
- * a moment ago can be gone by the time it is read. An entry that vanished
- * mid-walk is not product prose, so it is skipped. Symlinks are not followed:
- * the tree has none of its own, and a scratch link can be removed between
- * collecting it and reading it.
+ * A test that creates and removes scratch entries under the scanned trees
+ * while this walk runs can make an entry vanish between listing and reading.
+ * An entry that vanished mid-walk is not product prose, so it is skipped.
+ * Symlinks are not followed: the tree has none of its own, and a scratch link
+ * can be removed between collecting it and reading it.
  */
 function statIfPresent(abs: string): Stats | undefined {
   try {

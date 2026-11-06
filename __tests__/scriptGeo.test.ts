@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -203,7 +204,7 @@ describe("London locality generator module ownership", () => {
   });
 
   it("enters main when the generator is invoked through a symlink", () => {
-    const tempDirectory = mkdtempSync(join(REPO_ROOT, "scripts", ".locality-symlink-"));
+    const tempDirectory = mkdtempSync(join(tmpdir(), "pubmax-locality-symlink-"));
     const symlinkPath = join(tempDirectory, "gen_london_localities.mjs");
     symlinkSync(LOCALITY_GENERATOR, symlinkPath);
 
