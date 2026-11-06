@@ -60,19 +60,6 @@ function applicationServerKey(value: string): Uint8Array<ArrayBuffer> | null {
   }
 }
 
-async function currentWebSubscriptionToken(): Promise<string | null> {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
-  if (!("PushManager" in window)) return null;
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    if (!subscription) return null;
-    return encodeWebPushSubscription(subscription.toJSON());
-  } catch {
-    return null;
-  }
-}
-
 export type WebPushSupport = "supported" | "unsupported" | "blocked";
 
 /**
@@ -150,24 +137,3 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
   }
 }
 
-/** Unsubscribe the browser PushSubscription and ask the server to drop the
- * identity-free token row. Best-effort; never throws. */
-export async function unregisterWebPush(): Promise<boolean> {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return false;
-  try {
-    const token = await currentWebSubscriptionToken();
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    if (subscription) await subscription.unsubscribe();
-    if (token) {
-      await fetch("/api/push-tokens", {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token }),
-      }).catch(() => null);
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
