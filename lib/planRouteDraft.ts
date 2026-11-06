@@ -485,13 +485,27 @@ function parseLegacyPlanRouteDraft(
       } : {}),
     }, now, false, true);
     const savedAt = canonicalTimestamp(value.savedAt);
+    // A dated V1 copy carries the accepted pub, but V1 has no expiry of its
+    // own. Past the route lifetime it stays a preview: the stops remain, and
+    // it no longer certifies or holds the accepted pub.
+    const expired = savedAt !== null && now >= savedAt.time + PLAN_ROUTE_DRAFT_TTL_MS;
     return parsed
       ? {
           storageVersion: 1,
           savedAt: savedAt && savedAt.time <= now + PLAN_ROUTE_DRAFT_MAX_FUTURE_SKEW_MS ? savedAt.value : null,
           expiresAt: null,
           origin: "manual",
-          value: parsed,
+          value: expired
+            ? {
+                ...parsed,
+                anchorVenueId: null,
+                anchorSource: null,
+                outcome: "unanchored",
+                groundingProof: null,
+                operationKey: null,
+                routeStale: true,
+              }
+            : parsed,
           legacy: true,
         }
       : null;
