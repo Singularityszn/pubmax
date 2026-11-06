@@ -157,6 +157,13 @@ describe("Playwright isolated build configuration", () => {
     expect(source).not.toContain("NEXT_DIST_DIR=.next-e2e npm run build");
   });
 
+  it("keeps test scratch copies outside the typecheck", () => {
+    // A killed vitest run leaves CLI scratch copies of lib/ under
+    // test-results/runner-recovery. Typecheck must not read them.
+    const tsconfig = JSON.parse(readFileSync(path.join(ROOT, "tsconfig.json"), "utf8")) as { exclude?: string[] };
+    expect(tsconfig.exclude).toContain("test-results");
+  });
+
   it("keeps isolated build directories outside lint and git inputs", () => {
     const eslintSource = readFileSync(path.join(ROOT, "eslint.config.mjs"), "utf8");
     const gitignorePath = path.join(ROOT, ".gitignore");
