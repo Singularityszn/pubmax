@@ -436,8 +436,8 @@ async function runAskClaudeLoop(input: {
  * (or a test passes a Claude client), else on OpenRouter. An explicit
  * OpenRouter `apiKey` keeps the OpenRouter loop. Returns null when no key or
  * the request fails before any useful tool result. Traced as one AGENT span with
- * the model rounds and tool executions as children (see
- * lib/observability/arize.ts); inert without the Arize keys.
+ * the model rounds and tool executions as children. See
+ * docs/rules/lib-observability.md for the Arize and PostHog activation rules.
  */
 export async function runAskModelLoop(input: {
   query: string;
