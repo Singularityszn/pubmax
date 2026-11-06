@@ -123,7 +123,7 @@ if (deploy.status === 0) {
   })();
   console.log(
     "\nVerify the running commit with authenticated /api/version metadata.\n" +
-      "  Public {ok:true} is health only. Use an existing target-configured CRON_SECRET\n" +
+      "  A public response names deploymentId only. Use an existing target-configured CRON_SECRET\n" +
       "  from the process environment, never a command argument or log.\n" +
       "  See docs/DEPLOYMENT.md: Which commit is this deploy serving." +
       (head ? `\n  gitCommitSha should read ${head}` : ""),

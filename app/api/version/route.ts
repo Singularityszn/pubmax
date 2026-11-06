@@ -36,15 +36,19 @@ const VERSION_CACHE_HEADERS = {
 };
 
 export function GET(request: Request = new Request("http://localhost/api/version")): NextResponse {
+  // A stale tab compares this id with no credential (lib/deploymentSkewRecovery).
+  // The browser already holds the same value as NEXT_DEPLOYMENT_ID. The commit,
+  // its source and the build time stay behind the cron check.
+  const deploymentId = currentDeploymentId();
   if (!isCronAuthorized(request)) {
-    return NextResponse.json({ ok: true }, { headers: VERSION_CACHE_HEADERS });
+    return NextResponse.json({ ok: true, deploymentId }, { headers: VERSION_CACHE_HEADERS });
   }
 
   const build = currentBuildStamp();
 
   return NextResponse.json(
     {
-      deploymentId: currentDeploymentId(),
+      deploymentId,
       gitCommitSha: build.commitSha,
       // "vercel-git" is a commit Vercel checked out; "working-tree" is the
       // commit of the tree the build ran over. A verifier that wants a pushed

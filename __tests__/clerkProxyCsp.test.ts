@@ -221,6 +221,27 @@ describe("the CSP the proxy actually ships", () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'");
   });
 
+  it("never admits data: or blob: into script-src", () => {
+    const paths = ["/", "/map", "/tonight", "/today", "/near", "/login", "/pal"];
+    const sourcesFor = (path: string) =>
+      (directive(policyFor(path), "script-src") ?? "").split(/\s+/).slice(1);
+    for (const path of paths) {
+      expect(sourcesFor(path), path).not.toContain("data:");
+      expect(sourcesFor(path), path).not.toContain("blob:");
+    }
+    vi.stubEnv("NODE_ENV", "development");
+    try {
+      for (const path of paths) {
+        const sources = sourcesFor(path);
+        expect(sources, `development ${path}`).not.toContain("data:");
+        expect(sources, `development ${path}`).not.toContain("blob:");
+      }
+      expect(directive(policyFor("/login"), "script-src")).toContain("'unsafe-eval'");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("keeps object-src, base-uri and frame-ancestors locked down", () => {
     const policy = policyFor();
     expect(directive(policy, "object-src")).toBe("object-src 'none'");
@@ -402,8 +423,8 @@ describe("the CSP once a Clerk key is configured", () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'");
     // The pre-existing sources are still there.
     expect(scriptSrc).toContain("'self'");
-    expect(scriptSrc).toContain("blob:");
-    expect(scriptSrc).toContain("data:");
+    expect(scriptSrc.split(/\s+/).slice(1)).not.toContain("blob:");
+    expect(scriptSrc.split(/\s+/).slice(1)).not.toContain("data:");
     expect(scriptSrc).toContain("https://va.vercel-scripts.com");
   });
 
