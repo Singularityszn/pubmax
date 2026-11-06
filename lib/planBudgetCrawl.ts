@@ -12,17 +12,17 @@
 // 1. ONE PINT A STOP, PER PERSON. The total is the sum of each stop's listed
 //    pint. Nothing here suggests a second round, and no total rewards drinking
 //    more: a stop is a pub, never a count of pints.
-// 2. EVERY FIGURE CARRIES ITS DAY. A ledger row prints the day its price was
-//    read. A stop whose figure is not a listed price (an estimate, a swapped
-//    pub with no figure) leaves the total out rather than summing a guess.
+// 2. EVERY FIGURE CARRIES ITS RECORD. A ledger row keeps its own serving,
+//    publisher and read day. An estimate or a stop with no price leaves the
+//    total out.
 // 3. A TOTAL THAT DOES NOT FIT SAYS SO. Over the budget is a sentence with the
 //    figure, never a colour.
 //
 // Pure and browser-safe.
 
 import { formatGbp } from "@/lib/formatGbp";
+import { matchingPlanPintPriceEvidence, type PlanPintPriceEvidence } from "@/lib/planPintPrice";
 import { planPriceLimits } from "@/lib/planPriceLimits";
-import { formatTrustDay } from "@/lib/trustPill";
 
 /** The chip's budget: £20 a person, for one pint at each stop. */
 export const PLAN_BUDGET_CRAWL_PENCE = 2_000;
@@ -46,11 +46,11 @@ export function planBudgetCrawlQuery(query: string): string {
 
 /** One stop as the ledger reads it. */
 export type PlanBudgetLedgerStop = {
+  venueId: string;
   venueName: string;
   pricePence: number | null | undefined;
   priceKind?: "listed" | "estimated";
-  /** ISO day or instant the listed price was read. */
-  priceObservedAt?: string | null;
+  pintPriceEvidence?: PlanPintPriceEvidence;
 };
 
 type PlanBudgetLedgerRow = {
@@ -58,8 +58,7 @@ type PlanBudgetLedgerRow = {
   venueName: string;
   /** "£4.80", or null when this stop has no listed figure. */
   price: string | null;
-  /** "listed 2 Oct", "read date not recorded", or null with no figure. */
-  readLine: string | null;
+  pintPriceEvidence: PlanPintPriceEvidence | null;
   /** The running total after this stop, or null once a stop has no figure. */
   runningTotal: string | null;
 };
@@ -71,6 +70,7 @@ export type PlanBudgetLedger = {
   totalPence: number | null;
   /** True or false against the limit, null with no total. */
   fits: boolean | null;
+  allPintServingsKnown: boolean;
   /** The one summary line under the rows. */
   summary: string;
 };
@@ -79,11 +79,6 @@ function listedPence(stop: PlanBudgetLedgerStop): number | null {
   const pence = stop.pricePence;
   if (stop.priceKind === "estimated") return null;
   return typeof pence === "number" && Number.isSafeInteger(pence) && pence > 0 ? pence : null;
-}
-
-function readLine(observedAt: string | null | undefined): string {
-  const at = typeof observedAt === "string" ? Date.parse(observedAt) : Number.NaN;
-  return Number.isFinite(at) ? `listed ${formatTrustDay(at)}` : "read date not recorded";
 }
 
 /** The running ledger for a route under a per-person budget. */
@@ -99,19 +94,19 @@ export function planBudgetLedger(
       position: index + 1,
       venueName: stop.venueName,
       price: pence === null ? null : formatGbp(pence / 100),
-      readLine: pence === null ? null : readLine(stop.priceObservedAt),
+      pintPriceEvidence: matchingPlanPintPriceEvidence(stop.venueId, pence, stop.priceKind, stop.pintPriceEvidence),
       runningTotal: running === null ? null : formatGbp(running / 100),
     };
   });
   const totalPence: number | null = running;
   const limit = formatGbp(limitPence / 100);
   const fits = totalPence === null ? null : totalPence <= limitPence;
+  const allPintServingsKnown = rows.length > 0 && rows.every((row) => row.pintPriceEvidence?.serving === "pint");
+  const basis = allPintServingsKnown ? "for one pint at each stop" : "in listed prices";
   const summary = totalPence === null
     ? `No total yet: a stop has no listed pint price, so we cannot say it fits ${limit}.`
-    : fits
-      ? `${formatGbp(totalPence / 100)} for one pint at each stop, inside your ${limit}.`
-      : `${formatGbp(totalPence / 100)} for one pint at each stop, over your ${limit}.`;
-  return { rows, limit, totalPence, fits, summary };
+    : `${formatGbp(totalPence / 100)} ${basis}, ${fits ? "inside" : "over"} your ${limit}.`;
+  return { rows, limit, totalPence, fits, allPintServingsKnown, summary };
 }
 
 /** One stop of the cheapest route the generator could find, for a refusal. */
