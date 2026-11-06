@@ -36,7 +36,7 @@ describe("famous venue anchor permission", () => {
     ["robots refusal", 403, "Forbidden"],
     ["robots rate limit", 429, "Too many requests"],
   ] as const)("does not request the anchor after %s", async (_label, status, body) => {
-    const fetchMock = vi.fn(async (..._args: unknown[]) => new Response(body, { status }));
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(body, { status }));
     vi.stubGlobal("fetch", fetchMock);
     const { headAnchorSource } = await import("../scripts/verify_famous_venues.mjs");
     await expect(headAnchorSource(row.anchor.sourceUrl)).rejects.toThrow();
@@ -45,7 +45,7 @@ describe("famous venue anchor permission", () => {
   });
 
   it("asks robots before sending an allowed anchor HEAD without redirects", async () => {
-    const fetchMock = vi.fn(async (input: string | URL | Request, ..._rest: unknown[]) =>
+    const fetchMock = vi.fn<typeof fetch>(async (input) =>
       String(input).endsWith("/robots.txt")
         ? new Response("User-agent: *\nDisallow:\n", { status: 200 })
         : new Response(null, { status: 200 }),
@@ -81,7 +81,7 @@ describe("famous venue anchor permission", () => {
     ["www target", "https://www.wongkei.example/menu", "confirmed", "places_operational"],
     ["relative trailing slash", "/menu/", "confirmed", "places_operational"],
   ] as const)("classifies %s without requesting the target", async (_label, location, outcome, result) => {
-    const fetchMock = vi.fn(async (input: string | URL | Request, ..._rest: unknown[]) => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
       if (String(input) === "https://wongkei.example/robots.txt") {
         return new Response("User-agent: *\nDisallow:\n", { status: 200 });
       }
