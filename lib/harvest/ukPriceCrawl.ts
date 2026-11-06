@@ -674,6 +674,39 @@ export function printedPageText(
   };
 }
 
+type PrintedScope = { kind: "container" | "item-host" | "item"; start: number };
+
+function updatePrintedContainerScopes(
+  markers: readonly string[],
+  scopes: PrintedScope[],
+  index: number,
+  servingBlocks: PrintedSpan[],
+): PrintedContainerBreak {
+  let sharedDepth = scopes.length;
+  for (const marker of markers) {
+    if (marker === OPEN_CONTAINER_MARKER || marker === OPEN_SOFT_CONTAINER_MARKER) {
+      scopes.push({ kind: "container", start: index + 1 });
+    } else if (marker === OPEN_ITEM_HOST_MARKER) {
+      scopes.push({ kind: "item-host", start: index + 1 });
+    } else {
+      const kind = marker === CLOSE_CONTAINER_MARKER || marker === CLOSE_SOFT_CONTAINER_MARKER ? "container"
+        : marker === CLOSE_ITEM_HOST_MARKER ? "item-host" : "item";
+      const closed = scopes.findLastIndex((scope) => scope.kind === kind);
+      const host = kind === "item" ? scopes.findLastIndex((scope) => scope.kind === "item-host") : -1;
+      // Opening a sibling item also closes an implicitly ended item.
+      if (closed > host) {
+        for (const scope of scopes.slice(closed)) {
+          if (scope.kind === "item") servingBlocks.push({ start: scope.start, end: index });
+        }
+        scopes.length = closed;
+        sharedDepth = Math.min(sharedDepth, closed);
+      }
+      if (marker === OPEN_ITEM_MARKER) scopes.push({ kind: "item", start: index + 1 });
+    }
+  }
+  return { sharedDepth, nextDepth: scopes.length };
+}
+
 function readPageText(
   html: string,
   preserveItemBoundaries: boolean,
@@ -744,7 +777,7 @@ function readPageText(
     .replace(/&#x([0-9a-f]{1,6});/gi, (_, code) => visibleCodePoint(Number.parseInt(code, 16)));
   let removed = 0;
   let paragraphStart: number | undefined;
-  const scopes: Array<{ kind: "container" | "item-host" | "item"; start: number }> = [];
+  const scopes: PrintedScope[] = [];
   const text = visibleText.replace(/[\s\u0010-\u001f]+/g, (space: string, offset: number) => {
     if (offset + space.length === visibleText.length) return "";
     const heading = breaks && space.match(/[\u0010-\u0015]/g)?.at(-1);
@@ -756,29 +789,7 @@ function readPageText(
     }
     const containers = breaks && space.match(/[\u0016-\u001d]/g);
     if (breaks && containers) {
-      let sharedDepth = scopes.length;
-      for (const marker of containers) {
-        if (marker === OPEN_CONTAINER_MARKER || marker === OPEN_SOFT_CONTAINER_MARKER) {
-          scopes.push({ kind: "container", start: index + 1 });
-        } else if (marker === OPEN_ITEM_HOST_MARKER) {
-          scopes.push({ kind: "item-host", start: index + 1 });
-        } else {
-          const kind = marker === CLOSE_CONTAINER_MARKER || marker === CLOSE_SOFT_CONTAINER_MARKER ? "container"
-            : marker === CLOSE_ITEM_HOST_MARKER ? "item-host" : "item";
-          const closed = scopes.findLastIndex((scope) => scope.kind === kind);
-          const host = kind === "item" ? scopes.findLastIndex((scope) => scope.kind === "item-host") : -1;
-          // Opening a sibling item also closes an implicitly ended item.
-          if (closed > host) {
-            for (const scope of scopes.slice(closed)) {
-              if (scope.kind === "item") breaks.servingBlocks.push({ start: scope.start, end: index });
-            }
-            scopes.length = closed;
-            sharedDepth = Math.min(sharedDepth, closed);
-          }
-          if (marker === OPEN_ITEM_MARKER) scopes.push({ kind: "item", start: index + 1 });
-        }
-      }
-      breaks.containers.set(index, { sharedDepth, nextDepth: scopes.length });
+      breaks.containers.set(index, updatePrintedContainerScopes(containers, scopes, index, breaks.servingBlocks));
     }
     const blockBreak = level !== undefined || /[\u0016-\u001b\u001e-\u001f]/.test(space) || space.includes(structuralBreak);
     const lineBreak = blockBreak || space.includes(inlineBreak) || (preserveItemBoundaries && space.includes("\n"));
@@ -1369,6 +1380,22 @@ function selectLinePrices(
   });
 }
 
+function allowsUkPriceContext(
+  label: string,
+  startsItem: boolean,
+  decision: Exclude<ReturnType<typeof priceItemIdentity>["decision"], "item-name-ambiguous">,
+  stated: ReturnType<typeof statedWineMeasure>,
+  wine: ReturnType<typeof statedWineMeasure>,
+): boolean {
+  // A bare glass measure names no drink, wherever it sits on the line, so the
+  // page around it cannot supply one: "White wine:" over "125ml £7 250ml £14".
+  const bareMeasure = /^[/|\s\u2013\u2014-]*\d{2,3}\s*ml$/i.test(label);
+  return decision !== "no-category-word-nearby" && (Boolean(wine) || !(
+    ((startsItem || bareMeasure) && !hasPrintedName(label))
+    || (stated && (!decision || decision.category === "wine"))
+  ));
+}
+
 function preServingAdmission(
   text: string,
   line: PrintedMenuLine,
@@ -1400,13 +1427,7 @@ function preServingAdmission(
   }
   if (decision === "item-name-ambiguous") return refuse(decision);
   if (typeof decision !== "string" && decision?.fromMixer) return refuse("mixer-serve-not-one-drink");
-  // A bare glass measure names no drink, wherever it sits on the line, so the
-  // page around it cannot supply one: "White wine:" over "125ml £7 250ml £14".
-  const bareMeasure = /^[/|\s\u2013\u2014-]*\d{2,3}\s*ml$/i.test(label);
-  const allowUkContext = decision !== "no-category-word-nearby" && (Boolean(wine) || !(
-    ((selection.startsItem || bareMeasure) && !hasPrintedName(label))
-    || (stated && (!decision || decision.category === "wine"))
-  ));
+  const allowUkContext = allowsUkPriceContext(label, selection.startsItem, decision, stated, wine);
   if (hasFoodWords(claim) || hasFoodWords(unassigned)) {
     return { ...refuse("food-word-nearby"), allowUkContext };
   }
