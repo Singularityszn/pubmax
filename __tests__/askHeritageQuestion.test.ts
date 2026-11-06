@@ -4,6 +4,8 @@ import dataset from "@/evals/pal/fail-closed-heritage.json";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
+import { retrieveHeritageWithStatus } from "@/lib/heritage";
+import { GET } from "@/app/api/heritage/route";
 
 beforeEach(() => {
   vi.stubEnv("OPENROUTER_API_KEY", "");
@@ -102,6 +104,38 @@ describe("typed heritage questions", () => {
     expect(result.cards).toHaveLength(1);
     expect(result.cards[0]).toMatchObject({ venueId, title: "The Lamb", price: null });
     expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue", venueId }));
+    if (venueId === "venue-1yd70c7") {
+      expect(result.cards[0]?.note).toContain("Lamb's Conduit Street, Bloomsbury");
+      expect(result.sources).toContainEqual(expect.objectContaining({
+        url: "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury",
+      }));
+    } else {
+      expect(result.cards[0]?.note).toContain("no fuller story on record");
+      expect(result.sources).toEqual([]);
+    }
+  });
+
+  it.each([
+    { venueId: "venue-1yd70c7", hasBloomsbury: true },
+    { venueId: "venue-uov7ku", hasBloomsbury: false },
+    { venueId: undefined, hasBloomsbury: false },
+  ])("keeps Lamb facts and sources tied to $venueId at the shared retrieval boundary", async ({ venueId, hasBloomsbury }) => {
+    const input = { venueId, venueName: "The Lamb" };
+    const direct = await retrieveHeritageWithStatus(input);
+    const query = new URLSearchParams({ venueName: "The Lamb", ...(venueId ? { venueId } : {}) });
+    const response = await GET(new Request(`http://localhost/api/heritage?${query}`));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    for (const facts of [direct.facts, body.facts]) {
+      if (hasBloomsbury) {
+        expect(facts).toContainEqual(expect.objectContaining({
+          fact: "The Lamb is a Grade II listed public house on Lamb's Conduit Street, Bloomsbury, noted for its surviving Victorian snob screens above the bar.",
+          sourceRef: "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury",
+        }));
+      } else {
+        expect(facts).toEqual([]);
+      }
+    }
   });
 
   it("does not choose the first of several pubs with the same name", async () => {

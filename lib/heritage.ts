@@ -4,20 +4,10 @@
 // no-key path never invents anything — it just reads back the facts on record,
 // or says plainly that there is no fuller story. The LLM path is instructed to
 // do the same and falls back to the honest structured answer on any failure.
-//
-// Trust boundary: ALL venue context is reconstructed server-side. Facts come
-// ONLY from server-owned stores: the shipped heritage_cache.json and the
-// Supabase `pub_heritage` table (keyed by normalised venue name), plus cited
-// harvest overlay lore keyed by OSM id. The route no longer accepts a client
-// `context` object at all, so a client cannot forge pub history — not even as
-// a labelled contributor note. If server facts are missing, the honest
-// fallback stands.
 
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 
 import { traceArizeModelCall } from "@/lib/observability/arize";
 import { discardBody } from "@/lib/responseBody";
@@ -26,15 +16,13 @@ import { heritageFactFromOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { getListedBuilding } from "@/lib/heritageListings";
+import { loadHistoricPubs } from "@/lib/historic";
 import { packWikidataHistoryForVenue } from "@/lib/wikidataHistory.server";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
-import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { getVenueIndexSnapshot, lookupCanonicalVenue } from "@/lib/venueIndex";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 import type { HarvestOverlayVenueResolution } from "@/lib/harvestOverlayVenue";
 
-// Every source is a server-side (sourced) store. There is no client-supplied
-// source anymore — the route reconstructs context from server data only.
 export type HeritageFact = {
   source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle" | "web";
   fact: string;
@@ -68,60 +56,8 @@ export type HeritageResponse = {
   clarifyingQuestion?: string;
 };
 
-const HERITAGE_CACHE_PATH = path.join(
-  process.cwd(),
-  "public",
-  "data",
-  "heritage_cache.json",
-);
-
-// The single honest empty answer. Kept as a constant so the route, the fallback,
-// and the test all agree on the exact wording.
 export const NO_STORY_LINE =
   "I've got the basics but no fuller story on record yet. I won't make one up.";
-
-// Read the cache defensively: subagent C owns this file, it may be missing or
-// malformed. Any problem → treat as {} rather than throwing.
-async function readHeritageCache(): Promise<Record<string, HeritageFact[]>> {
-  try {
-    const raw = await readFile(HERITAGE_CACHE_PATH, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    return parsed as Record<string, HeritageFact[]>;
-  } catch {
-    return {};
-  }
-}
-
-// Keyed by venue_key (= normaliseVenueName), the same key the enrichment
-// script writes and the migration indexes.
-async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
-  if (!venueKey || !isSupabaseConfigured()) return [];
-  try {
-    const admin = getSupabaseAdmin();
-    if (!admin) return [];
-    const { data, error } = await admin
-      .from("pub_heritage")
-      .select("source, fact, source_ref")
-      .eq("venue_key", venueKey);
-    if (error || !Array.isArray(data)) return [];
-    const facts: HeritageFact[] = [];
-    for (const row of data) {
-      if (!row || typeof row.fact !== "string" || !row.fact.trim()) continue;
-      const source = storedFactSource(row.source);
-      if (!source) continue;
-      facts.push({
-        source,
-        fact: row.fact,
-        sourceRef: (row.source_ref as string | null) ?? undefined,
-      });
-    }
-    return facts;
-  } catch {
-    // Best-effort only — the demo must never fall over on a DB hiccup.
-    return [];
-  }
-}
 
 export type HeritageReadResult = {
   status: "ready" | "degraded";
@@ -141,13 +77,17 @@ export async function retrieveHeritageWithStatus(input: {
   const baseVenueLookup = input.venueId
     ? await lookupCanonicalVenue(input.venueId)
     : undefined;
-  const serverVenueName = overlayResolution?.status === "resolved"
-    ? overlayResolution.venue?.name ??
-      (baseVenueLookup?.status === "found" ? baseVenueLookup.venue.name : undefined)
-    : baseVenueLookup?.status === "found"
-      ? baseVenueLookup.venue.name
-      : undefined;
-  const venueKey = normaliseVenueName(input.venueId ? serverVenueName ?? "" : input.venueName);
+  let venueId = baseVenueLookup?.status === "found"
+    ? baseVenueLookup.canonicalId
+    : input.venueId;
+  if (!input.venueId) {
+    const snapshot = await getVenueIndexSnapshot();
+    if (!snapshot.complete) status = "degraded";
+    const matches = [...snapshot.index.values()].filter(
+      (venue) => normaliseVenueName(venue.name) === normaliseVenueName(input.venueName),
+    );
+    venueId = snapshot.complete && matches.length === 1 ? matches[0]?.id : undefined;
+  }
 
   // (0) Listed-building fact first — the official register (Historic England
   // NHLE), keyed by the exact venue id so it can never attach to the wrong
@@ -162,30 +102,19 @@ export async function retrieveHeritageWithStatus(input: {
     });
   }
 
-  // (0b) Wikidata history, through the pub's own OSM wikidata tag: an exact
-  // item, each statement dated and linked (lib/wikidataHistory.ts). Ahead of
-  // the name-keyed cache, so its exact facts win the de-dupe.
   if (input.venueId) facts.push(...(await packWikidataHistoryForVenue(input.venueId)));
 
-  if (!input.venueId || serverVenueName) {
-    // (1) Server facts first — the shipped cache keyed by normalised name.
-    const cache = await readHeritageCache();
-    const cached = cache[venueKey];
-    if (Array.isArray(cached)) {
-      for (const entry of cached) {
+  if (venueId) {
+    const pubs = await loadHistoricPubs();
+    for (const pub of pubs) {
+      if (pub.venueId !== venueId || !Array.isArray(pub.facts)) continue;
+      for (const entry of pub.facts) {
         if (!entry || typeof entry.fact !== "string" || !entry.fact.trim()) continue;
         const source = storedFactSource(entry.source);
         if (!source) continue;
-        facts.push({
-          source,
-          fact: entry.fact,
-          sourceRef: entry.sourceRef,
-        });
+        facts.push({ source, fact: entry.fact, sourceRef: entry.sourceRef });
       }
     }
-
-    // (2) Server rows — Supabase pub_heritage, same venue_key.
-    facts.push(...(await retrieveFromSupabase(venueKey)));
   }
 
   // (3) Harvest overlay lore — OSM id only. Name is never a key. Uncited
@@ -250,11 +179,10 @@ function systemPrompt(venueNoun: string): string {
     `You are the PUBMAXXER, a warm, concise, knowledgeable London local answering questions about one ${venueNoun}.`,
     "Answer ONLY from the CONTEXT facts provided. Never invent history, dates, names, or events.",
     "Do not calculate present-day ages or elapsed years. Quote the supplied dates instead.",
+    "Select the CONTEXT fact that answers the question and repeat its complete text exactly. Do not paraphrase it.",
     "A construction or rebuilding date is not a founding date. Keep each date attached to its stated event.",
     "Each CONTEXT fact is numbered like [F1]. When you use a fact, cite its id inline (e.g. [F1]). Never cite an id that does not appear in the CONTEXT.",
     "If the context does not contain the answer, say so plainly. Do not guess.",
-    "Also name the source of each fact inline (e.g. 'on record', 'Wikipedia').",
-    "Ask ONE short clarifying question only if the question is ambiguous or there is no context at all.",
   ].join(" ");
 }
 
@@ -268,7 +196,6 @@ const LLM_MAX_TOKENS = 400; // answers are a short paragraph; caps cost + runawa
 // the retrieved set is fabrication → reject the whole answer (null). Valid
 // markers are stripped before the answer reaches the client.
 const FACT_ID_RE = /\[F(\d+)\]/g;
-const NUMBER_RE = /\b\d+(?:[.,]\d+)*(?:st|nd|rd|th)?\b/g;
 
 function sanitiseModelAnswer(answer: string, facts: HeritageFact[]): string | null {
   for (const match of answer.matchAll(FACT_ID_RE)) {
@@ -280,12 +207,7 @@ function sanitiseModelAnswer(answer: string, facts: HeritageFact[]): string | nu
     .replace(/\s+([.,;:!?])/g, "$1")
     .replace(/ {2,}/g, " ")
     .trim();
-  // A cited year does not support an age counted from today's date, and a valid
-  // citation does not make an invented date true. Any number the facts do not
-  // state rejects the answer, so the caller reads the sourced facts back instead.
-  const suppliedNumbers = new Set(facts.flatMap(({ fact }) => fact.match(NUMBER_RE) ?? []));
-  if ((cleaned.match(NUMBER_RE) ?? []).some((number) => !suppliedNumbers.has(number))) return null;
-  return cleaned || null;
+  return facts.some(({ fact }) => fact.trim() === cleaned) ? cleaned : null;
 }
 
 async function answerWithModel(
