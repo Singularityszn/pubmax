@@ -285,3 +285,36 @@ it.each(["supabase", "memory"])("refuses a billed spend when the Round closes du
   expect(deleted).toHaveLength(1);
   expect(objects.size).toBe(0);
 });
+
+// The SQL guard is the final authority after the last successful app read.
+it("maps the explicit atomic close refusal and removes only its new bill", async () => {
+  insertFailure = { code: "P0220", message: "round_spend_round_closed", status: 400 };
+  expect(await roundsStore().recordSpend(CODE, spend())).toEqual({ ok: false, error: "closed" });
+  expect(insertAttempts).toBe(1);
+  expect(rows).toEqual([]);
+  expect(uploads).toHaveLength(1);
+  expect(deleted).toHaveLength(1);
+  expect(objects.size).toBe(0);
+});
+
+it.each([
+  { code: "P0001", message: "round_spend_round_closed", status: 400 },
+  { code: "P0220", message: "Some other database refusal", status: 400 },
+])("does not mislabel another database refusal as closed ($code)", async (failure) => {
+  insertFailure = failure;
+  expect(await roundsStore().recordSpend(CODE, spend())).toEqual({ ok: false, error: "error" });
+  expect(rows).toEqual([]);
+  expect(deleted).toHaveLength(1);
+  expect(objects.size).toBe(0);
+});
+
+it("keeps atomic close mapping after the supported pre-0199 receipt fallback", async () => {
+  missingColumn = "PGRST204";
+  insertFailure = { code: "P0220", message: "round_spend_round_closed", status: 400 };
+  expect(await roundsStore().recordSpend(CODE, spend())).toEqual({ ok: false, error: "closed" });
+  expect(insertAttempts).toBe(2);
+  expect(rows).toEqual([]);
+  expect(uploads).toHaveLength(1);
+  expect(deleted).toHaveLength(1);
+  expect(objects.size).toBe(0);
+});
