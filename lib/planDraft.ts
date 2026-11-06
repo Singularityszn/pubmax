@@ -175,7 +175,6 @@ function parseProvisionalStop(
   if (value.provisionalStop === undefined) return value.provisionalSavedAt === undefined ? {} : null;
   if (value.provisionalStop !== true || stops.length !== 1 || !stops[0]?.venueId.trim()
     || (value.routeReference !== undefined && value.routeReference !== null)) return null;
-  if (value.provisionalSavedAt === undefined) return { provisionalStop: true };
   const savedAt = canonicalTimestamp(value.provisionalSavedAt);
   return savedAt && savedAt.time <= now + PLAN_DRAFT_MAX_FUTURE_SKEW_MS
     ? { provisionalStop: true, provisionalSavedAt: savedAt.value } : null;
