@@ -21,6 +21,8 @@ type SearchState = {
 
 const SEARCH_FAILURE = "Couldn't search people. Try again.";
 
+export const RECIPIENT_SEARCH_DEBOUNCE_MS = 220;
+
 /** Only public profile fields enter the picker. */
 export function recipientRows(value: unknown, viewer: string): MessageRecipient[] {
   if (!Array.isArray(value)) return [];
@@ -85,7 +87,7 @@ export function useMessageRecipientSearch(viewer: string) {
           publish([], offlineOrMessage(SEARCH_FAILURE));
         }
       })();
-    }, 220);
+    }, RECIPIENT_SEARCH_DEBOUNCE_MS);
     return () => {
       live = false;
       clearTimeout(timer);

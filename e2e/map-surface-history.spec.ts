@@ -75,9 +75,9 @@ async function selectToolbarVenue(page: Page, query = "The French House"): Promi
     await search.click();
     await search.fill(query);
     await expect(option).toBeVisible({ timeout: 2_000 });
-    await option.evaluate((node) => (node as HTMLElement).click());
+    await option.click();
     await expect(page).toHaveURL(/sel=/, { timeout: 2_000 });
-  }).toPass({ timeout: 120_000 });
+  }).toPass({ timeout: 60_000 });
 }
 
 function planner(page: Page) {
@@ -98,7 +98,7 @@ async function expectSoleDrawer(
 
 test.describe("one Map surface history owner", () => {
   test.use({ serviceWorkers: "block" });
-  test.setTimeout(240_000);
+  test.setTimeout(120_000);
 
   test("venue to planner leaves exactly one desktop drawer", async ({ page }) => {
     await prepareMap(page);
@@ -107,11 +107,21 @@ test.describe("one Map surface history owner", () => {
     await openMap(page, "/map?q=Soho&sel=venue-15i2wst");
     await expectSoleDrawer(page, "venue");
 
-    await page
-      .locator(".mapToolbar")
-      .getByRole("button", { name: "Plan an outing" })
-      .evaluate((button) => (button as HTMLElement).click());
+    // The desktop venue drawer is modal (map-accessibility.spec.ts pins
+    // aria-modal and its focus trap), so the map stage and its toolbar are
+    // inert while it is open. A drinker closes the venue, then plans; the
+    // deep-linked `sel=` must not reopen it over the planner.
+    const closeVenue = venue(page).getByRole("button", { name: /Close/ });
+    await expect(async () => {
+      await closeVenue.click();
+      await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
 
+    const planOuting = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
+    await expect(async () => {
+      await planOuting.click();
+      await expectSoleDrawer(page, "planner", 2_000);
+    }).toPass({ timeout: 30_000 });
     await expectSoleDrawer(page, "planner");
   });
 
@@ -132,7 +142,7 @@ test.describe("one Map surface history owner", () => {
   test("clearing a restored query after closing its Venue does not reopen it", async ({
     page,
   }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(120_000);
     await prepareMap(page);
     // First visit loads the core slim shard only. The French House is unique
     // in that shard, so ?q= restore can select it without waiting for later
@@ -146,10 +156,10 @@ test.describe("one Map surface history owner", () => {
     await expect(search).toHaveValue("The French House");
     await expectSoleDrawer(page, "venue", 120_000);
 
+    const closeVenue = venue(page).getByRole("button", { name: /Close/ });
     await expect(async () => {
-      await venue(page)
-        .getByRole("button", { name: /Close/ })
-        .evaluate((button) => (button as HTMLElement).click());
+      await closeVenue.click();
+      await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
     // Old restore replayed after Close while ?q= still matched one pub, which
     // put detail-open back on #main. That class makes the toolbar ignore
@@ -165,11 +175,19 @@ test.describe("one Map surface history owner", () => {
 
     const searchCell = toolbar.locator(".mapToolbarSearch");
     const clearSearch = searchCell.getByRole("button", { name: "Clear search" });
+    await expect(clearSearch).toBeEnabled();
     await expect(async () => {
-      await expect(clearSearch).toBeVisible({ timeout: 2_000 });
-      await clearSearch.click({ force: true });
+      const reachable = await clearSearch.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return top === element || element.contains(top);
+      });
+      expect(reachable).toBe(true);
+    }).toPass({ timeout: 30_000 });
+    await expect(async () => {
+      await clearSearch.click();
       await expect(search).toHaveValue("", { timeout: 2_000 });
-    }).toPass({ timeout: 60_000 });
+    }).toPass({ timeout: 30_000 });
 
     await expect(venue(page)).toHaveAttribute("aria-hidden", "true", {
       timeout: 60_000,
@@ -245,6 +263,8 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
     await expect(page).toHaveURL(/\/map\?.*sel=/);
 
+    // Click and Back have to share one turn. A Playwright click waits for
+    // actionability, so it cannot race the history pop the way this case does.
     await page
       .locator(".mapToolbar")
       .getByRole("button", { name: "Plan an outing" })

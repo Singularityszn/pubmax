@@ -80,6 +80,17 @@ export const REGENERATED_LANES = [
       /^data\/osm\/uk\/.+/,
     ],
   },
+  {
+    id: "venues_slim",
+    output: /^public\/data\/venues_slim[^/]*\.json$/,
+    inputs: [
+      /^scripts\/build_slim_index\.mjs$/,
+      /^scripts\/lib\/slimShards\.mjs$/,
+      /^public\/data\/pint_prices_app_dataset\.json$/,
+      /^public\/data\/venue_menu_enrichment\.json$/,
+      /^data\/famous_venues\/[^/]+\.json$/,
+    ],
+  },
 ];
 
 const EVIDENCE_PATH = /^(?:docs\/(?:proof|reviews|evidence)|e2e-shots|screenshots)(?:\/|$)/;

@@ -253,6 +253,17 @@ describe("review scope guard", () => {
     expect(report.categoryCounts.regenerated).toBe(1);
   });
 
+  it("permits the slim venue payload when the diff carries the slim builder", () => {
+    const report = summarizeReviewScope([
+      "scripts/build_slim_index.mjs",
+      "public/data/venues_slim.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.categoryCounts).toEqual({ source: 1, regenerated: 1 });
+    expect(report.regeneratedLanes).toEqual(["venues_slim"]);
+  });
+
   it("keeps a lane forbidden when nothing in the diff produced it", () => {
     const report = summarizeReviewScope([
       "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",

@@ -483,10 +483,18 @@ function loadFamousVenues() {
 }
 
 // Mirrors build_slim_index.mjs: a lapsed famous row is withheld from the build,
-// so the expected slim and detail sets only carry currently verified rows.
-function currentFamousVenues(rows) {
-  const now = new Date();
-  return rows.filter((row) => isCurrentNightOutPlace(row, now));
+// so the expected slim and detail sets carry the rows current as of the clock
+// the build kept them by, which it stamps as the slim payload's generatedAt.
+function slimPayloadClock(payload) {
+  const builtAt = Date.parse(payload?.generatedAt);
+  if (!Number.isFinite(builtAt)) {
+    throw new Error("venues_slim.json carries no parseable generatedAt");
+  }
+  return new Date(builtAt);
+}
+
+function currentFamousVenues(rows, builtAt) {
+  return rows.filter((row) => isCurrentNightOutPlace(row, builtAt));
 }
 
 function isReplacedByFamousVenue(first, famousRows) {
@@ -1269,6 +1277,13 @@ function validateSlimVenues() {
     console.log(`FAIL ${name}: expected a revisioned rows payload`);
     return { ok: false, count: 0 };
   }
+  let builtAt;
+  try {
+    builtAt = slimPayloadClock(slim);
+  } catch (e) {
+    console.log(`FAIL ${name}: ${e.message}`);
+    return { ok: false, count: 0 };
+  }
   slim = slim.rows;
   if (!Array.isArray(rows)) {
     console.log(
@@ -1301,7 +1316,7 @@ function validateSlimVenues() {
       errs.add(`famous venue ${row.id}: ${error}`);
     }
   }
-  const liveFamousRows = currentFamousVenues(famousRows);
+  const liveFamousRows = currentFamousVenues(famousRows, builtAt);
 
   const expected = new Map();
   for (const [key, prices] of grouped) {
@@ -2292,10 +2307,13 @@ function validateVenueDetails() {
     return { ok: false, count: 0 };
   }
   try {
-    famousRows = currentFamousVenues(loadFamousVenues());
+    famousRows = currentFamousVenues(
+      loadFamousVenues(),
+      slimPayloadClock(loadJson("venues_slim.json")),
+    );
   } catch (e) {
     console.log(
-      `FAIL ${name}: could not read famous venue seeds (${e.message})`,
+      `FAIL ${name}: could not resolve current famous venues (${e.message})`,
     );
     return { ok: false, count: 0 };
   }
