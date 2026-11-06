@@ -746,6 +746,13 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpHero { padding-top: calc(var(--tabbar-h, 64px) + var(--space-2)); }
   .lpHero .screenHead { gap: var(--space-1); }
   .lpHero .screenAnswer { margin-top: 0; }
+  /* The price keeps its pub on the same row, and the pub line wraps beside
+     the badge instead of under it. A wrapped figure plus the dated source line
+     ("Current price may differ.") put the primary under the docked consent card
+     at 320x568 (e2e/consent-after-first-answer.spec.ts). */
+  .lpHero .lpHuntFigure { flex-wrap: nowrap; }
+  .lpHero .lpHuntFigure .priceBadge { flex: none; }
+  .lpHero .lpHuntWhere { flex: 1 1 auto; }
 }
 
 /* ── The hunt: the cheapest pint we can find in Britain ─────────────────── */
