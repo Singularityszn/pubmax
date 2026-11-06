@@ -55,19 +55,19 @@ describe("the front door's two answers", () => {
     });
   });
 
-  it("counts tonight's listings, and says one thing as one thing", () => {
+  it("counts tonight's pub events", () => {
     expect(tonightAnswer({ unread: false, count: 23 }, STAMP).line).toBe(
-      "23 things on across London tonight.",
+      "23 pub events listed in London tonight.",
     );
     expect(tonightAnswer({ unread: false, count: 1 }, STAMP).line).toBe(
-      "1 thing on across London tonight.",
+      "1 pub event listed in London tonight.",
     );
   });
 
   it("tells a quiet city apart from a lane it could not read", () => {
     const quiet = tonightAnswer({ unread: false, count: 0 }, STAMP);
     expect(quiet).toEqual({
-      line: "The city’s having a quiet one tonight. We only list what’s really on, and nothing’s confirmed yet.",
+      line: "No pub events listed for tonight.",
       stamp: STAMP,
       measured: true,
     });
@@ -81,14 +81,14 @@ describe("the front door's two answers", () => {
 
   it("leads with the /tonight recommendations when listings are empty, names them as recommendations, and says nothing is confirmed", () => {
     expect(tonightAnswer({ unread: false, count: 0, hypedCount: 4 }, STAMP).line).toBe(
-      "4 pubs Londoners keep recommending. Nothing’s confirmed on tonight yet.",
+      "4 pubs Londoners keep recommending. No pub events listed for tonight.",
     );
     expect(tonightAnswer({ unread: false, count: 0, hypedCount: 1 }, STAMP).line).toBe(
-      "A pub Londoners keep recommending. Nothing’s confirmed on tonight yet.",
+      "A pub Londoners keep recommending. No pub events listed for tonight.",
     );
     // Listings still win when both lanes have rows.
     expect(tonightAnswer({ unread: false, count: 3, hypedCount: 4 }, STAMP).line).toBe(
-      "3 things on across London tonight.",
+      "3 pub events listed in London tonight.",
     );
   });
 });

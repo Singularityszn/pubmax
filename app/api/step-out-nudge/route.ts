@@ -101,11 +101,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     if (body.enabled === false) {
-      const previous = await stepOutNudgeStore().get(owner.contributor.actor);
       const pref = await stepOutNudgeStore().withdraw(owner.contributor.actor);
-      if (previous?.subscriptionToken && !previous.cheapPintEnabled) {
-        await pushTokenStore().delete(previous.subscriptionToken).catch(() => undefined);
-      }
       return jsonNoStore(prefResponse(pref), { status: 200 });
     }
 
@@ -151,11 +147,7 @@ export async function DELETE(request: Request): Promise<Response> {
   }
 
   try {
-    const previous = await stepOutNudgeStore().get(owner.contributor.actor);
     const pref = await stepOutNudgeStore().withdraw(owner.contributor.actor);
-    if (previous?.subscriptionToken && !previous.cheapPintEnabled) {
-      await pushTokenStore().delete(previous.subscriptionToken).catch(() => undefined);
-    }
     return jsonNoStore(prefResponse(pref), { status: 200 });
   } catch (err) {
     log("error", "step_out_nudge.delete_failed", {

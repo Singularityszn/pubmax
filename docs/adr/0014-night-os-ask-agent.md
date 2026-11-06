@@ -88,12 +88,29 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    ask there and saves nothing until the drinker acts on it; a Confirm button
    beside that link would be two labels for one action. No silent Plan or
    durable Pal memory writes from Ask.
+   **Amended 3 Nov 2026 (captain): Plan keeps the drafted pubs.** The link used
+   to carry only the ask, so Plan answered it with pubs of its own and the
+   draft vanished. Two halves now hold together. The draft is a crawl Plan can
+   walk: `propose_plan` ranks a wider pool and keeps only three that pass
+   Plan's own walking rule (`walkableDraftRoute` in `lib/palPlanDraft.ts`,
+   asking `straightLineWalkableKm` in `lib/planRouteOptimizer.ts`), or says
+   the pubs are too far apart. And Plan keeps the draft: the session draft
+   rides with its own ask, and `/plan` generates through the anchored path
+   that already keeps an imported pub list (`palDraftAttempts` in
+   `lib/palPlanHandoff.ts`, an anchor whose `venueIds` is the whole draft and
+   whose source is `pal`, or `map-search` for Ask the map). Plan still checks
+   every stop. When it cannot stand behind the whole draft it keeps the first
+   pub and chooses the rest, then plans from the ask, and the route status
+   says which of the three happened (`palDraftOutcomeLine`). Nothing is saved
+   until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
+   `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
 4. **Keyless path (map Ask)** — without `OPENROUTER_API_KEY`, a deterministic
    router picks 1–2 tools on `POST /api/ask` and fills house-voice templates
    (same honesty as heritage structured-only).
 5. **Bounded model loop (map Ask)** — with OpenRouter, tool-calling on
    `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
-   The model selects tools only. For model-routed turns, `composeAnswer`
+   The safety check below precedes this loop. The model selects tools only.
+   For model-routed turns, `composeAnswer`
    builds reader copy from returned hints and cards.
 6. **Pal typed chat and voice (ElevenLabs when configured)** — without
    `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, typed chat on
@@ -120,6 +137,18 @@ the route was ever found in `app`,
 `parseConciergeIntent` is TypeSafe when keyed (`lib/ai/typesafe.server.ts`)
 and the mood/area/group/budget regex table when not. It no longer calls
 OpenRouter.
+
+### Sobriety and getting-home routing
+
+The [Pub Pal feature guide](../../README.md#features) owns the user-facing safety response.
+`runAsk` checks the current query and user history through `lib/pubPalLlmFence.ts`
+before deterministic tools, the OpenRouter loop or fallback routing can answer.
+Assistant history does not trigger the check.
+`skipModel` and deterministic menu, price and hours paths use `regexFenceIntent` without a model provider.
+Other paths use `resolvePubPalFenceIntent`, which uses TypeSafe when available and retains the regex fallback.
+A matched turn runs only deterministically selected `journey` and `city_status` tools.
+It composes the shared response through `pubPalGetHomeRegisterAnswer` and returns before the OpenRouter loop.
+Regression coverage: `__tests__/askSobrietyParity.test.ts`.
 
 ## Consequences
 

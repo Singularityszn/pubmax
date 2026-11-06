@@ -59,6 +59,12 @@ export function generateStaticParams(): Array<{ slug: string }> {
   return [...slugs].map((slug) => ({ slug }));
 }
 
+function sourceReadLabel(observedAt: string | null | undefined): string {
+  return observedAt
+    ? `Source read ${formatPricedLandingCollectedDate(observedAt)}`
+    : "Source read date unknown";
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const landing = await loadAreaLanding(slug);
@@ -66,7 +72,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const firstRow = landing.rows[0];
   const title = `Cheapest pints in ${landing.areaName}`;
-  const description = `${landing.totalPricedVenues} ${landing.areaName} pubs with listed pint prices, from ${formatPrice(firstRow.priceGbp)}. ${formatPricedLandingPublisherStatus(firstRow.publisher)}.`;
+  const description = `${landing.totalPricedVenues} ${landing.areaName} pubs with listed pint prices, from ${formatPrice(firstRow.priceGbp)}. ${sourceReadLabel(firstRow.observedAt)}. ${formatPricedLandingPublisherStatus(firstRow.publisher)}.`;
   const canonical = areaLandingRoute(landing.areaSlug);
   return {
     title,
@@ -110,11 +116,14 @@ export default async function AreaPage({ params }: PageProps) {
           <p className="drinkBrandDirectory__from">
             <strong>From {formatPrice(firstRow.priceGbp)}</strong>
             <PricedLandingPublisher className="drinkBrandDirectory__fromPublisher" row={firstRow} variant="hero" />
+            <span className="drinkBrandDirectory__fromPublisher">
+              {sourceReadLabel(firstRow.observedAt)}
+            </span>
           </p>
           <p className="drinkBrandDirectory__summary">
             {landing.totalPricedVenues} pubs with listed pint prices.
             {landing.collectedAt
-              ? ` Collected ${formatPricedLandingCollectedDate(landing.collectedAt)}.`
+              ? ` Oldest source read shown here: ${formatPricedLandingCollectedDate(landing.collectedAt)}.`
               : null}
           </p>
           <div className="drinkBrandDirectory__actions">

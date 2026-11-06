@@ -12,13 +12,16 @@ import {
   type NightAreaSlug,
 } from "@/lib/nightPlanning";
 import { lastOf } from "@/lib/tuple";
+import { parsePlanExplicitNightContext, parsePlanRouteReference, type StoredPlanDraft } from "@/lib/planDraft";
 import type { CityId } from "@/lib/cities";
 import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
 import {
   DEFAULT_PLAN_STOP_COUNT,
   isPlanStopCount,
+  cleanPlanStopCountSource,
   normalizePlanStopCount,
   type PlanStopCount,
+  type PlanStopCountSource,
 } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -78,6 +81,7 @@ type PlanIntakeAnswers = {
   exactStartIso: string | null;
   groupSize: number | null;
   stopCount?: PlanStopCount;
+  stopCountSource?: PlanStopCountSource;
   budget: Budget | null;
   budgetLimitPence: number | null;
   accessibilityNeeds: PlanAccessibilityNeed[];
@@ -114,6 +118,8 @@ type StoredPlanIntakeEnvelope = {
   savedAt: string;
   expiresAt: string;
   draft: PlanIntakeDraft;
+  routeReference?: StoredPlanDraft["routeReference"];
+  explicitNightContext?: Partial<NightContext>;
 };
 
 export type ParsedPlanIntakeDraft = {
@@ -121,6 +127,8 @@ export type ParsedPlanIntakeDraft = {
   savedAt: string;
   expiresAt: string;
   draft: PlanIntakeDraft;
+  routeReference?: StoredPlanDraft["routeReference"];
+  explicitNightContext?: Partial<NightContext>;
   legacy: false;
 };
 
@@ -456,6 +464,8 @@ function cleanAnswers(value: unknown, now: number): PlanIntakeAnswers | null {
     exactStartIso,
     groupSize,
     ...(row.stopCount !== undefined ? { stopCount: normalizePlanStopCount(row.stopCount) } : {}),
+    ...(cleanPlanStopCountSource(row.stopCountSource, row.stopCount)
+      ? { stopCountSource: cleanPlanStopCountSource(row.stopCountSource, row.stopCount) } : {}),
     budget,
     budgetLimitPence,
     accessibilityNeeds,
@@ -527,6 +537,40 @@ function planIntakeRawBytes(raw: string): number {
   return new TextEncoder().encode(raw).byteLength;
 }
 
+export function parsePlanIntakeRequest(input: unknown, now = Date.now()): PlanIntakeDraft | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const value = input as Record<string, unknown>;
+  if (value.version !== PLAN_INTAKE_VERSION || !isStep(value.currentStep)) return null;
+  const settledSteps = parseStepList(value.settledSteps);
+  const skippedSteps = parseStepList(value.skippedSteps);
+  const answers = cleanAnswers(value.answers, now);
+  if (!settledSteps || !skippedSteps || !answers) return null;
+  if (!skippedSteps.every((step) => settledSteps.includes(step))) return null;
+
+  const canonicalAnswers = skippedSteps.reduce(clearAnswerForStep, answers);
+  if (settledSteps.some((step) => !skippedSteps.includes(step)
+    && !planIntakeStepHasAnswer({
+      version: PLAN_INTAKE_VERSION,
+      currentStep: step,
+      settledSteps,
+      skippedSteps,
+      completed: false,
+      answers: canonicalAnswers,
+    }, step))) return null;
+
+  const firstUnsettled = PLAN_INTAKE_STEPS.find((step) => !settledSteps.includes(step));
+  const terminal = firstUnsettled === undefined;
+  if (value.completed !== terminal) return null;
+  return {
+    version: PLAN_INTAKE_VERSION,
+    currentStep: firstUnsettled ?? lastOf(PLAN_INTAKE_STEPS),
+    settledSteps,
+    skippedSteps,
+    completed: terminal,
+    answers: canonicalAnswers,
+  };
+}
+
 export function parsePlanIntakeDraftWithMetadata(
   raw: string | null,
   now = Date.now(),
@@ -550,40 +594,17 @@ export function parsePlanIntakeDraftWithMetadata(
       || !envelope.draft
       || typeof envelope.draft !== "object"
     ) return null;
-    const value = envelope.draft as unknown as Record<string, unknown>;
-    if (value.version !== PLAN_INTAKE_VERSION || !isStep(value.currentStep)) return null;
-    const settledSteps = parseStepList(value.settledSteps);
-    const skippedSteps = parseStepList(value.skippedSteps);
-    const answers = cleanAnswers(value.answers, now);
-    if (!settledSteps || !skippedSteps || !answers) return null;
-    if (!skippedSteps.every((step) => settledSteps.includes(step))) return null;
-
-    const canonicalAnswers = skippedSteps.reduce(clearAnswerForStep, answers);
-    if (settledSteps.some((step) => !skippedSteps.includes(step)
-      && !planIntakeStepHasAnswer({
-        version: PLAN_INTAKE_VERSION,
-        currentStep: step,
-        settledSteps,
-        skippedSteps,
-        completed: false,
-        answers: canonicalAnswers,
-      }, step))) return null;
-
-    const firstUnsettled = PLAN_INTAKE_STEPS.find((step) => !settledSteps.includes(step));
-    const terminal = firstUnsettled === undefined;
-    if (value.completed !== terminal) return null;
+    const draft = parsePlanIntakeRequest(envelope.draft, now);
+    if (!draft) return null;
+    const routeReference = parsePlanRouteReference(envelope.routeReference);
+    const explicitNightContext = parsePlanExplicitNightContext(envelope.explicitNightContext);
     return {
       storageVersion: PLAN_INTAKE_VERSION,
       savedAt: envelope.savedAt,
       expiresAt: envelope.expiresAt,
-      draft: {
-        version: PLAN_INTAKE_VERSION,
-        currentStep: firstUnsettled ?? lastOf(PLAN_INTAKE_STEPS),
-        settledSteps,
-        skippedSteps,
-        completed: terminal,
-        answers: canonicalAnswers,
-      },
+      ...(explicitNightContext !== undefined ? { explicitNightContext } : {}),
+      ...(routeReference !== undefined ? { routeReference } : {}),
+      draft,
       legacy: false,
     };
   } catch {
@@ -623,22 +644,30 @@ export function writePlanIntakeDraft(
   draft: PlanIntakeDraft,
   storage?: Storage | null,
   now = Date.now(),
-): void {
+  routeReference?: StoredPlanDraft["routeReference"],
+  explicitNightContext?: Partial<NightContext>,
+): boolean {
   const store = resolveStorage(storage);
-  if (!store) return;
+  if (!store) return false;
   try {
+    const reference = parsePlanRouteReference(routeReference);
+    const patch = parsePlanExplicitNightContext(explicitNightContext);
     const next = JSON.stringify({
       storageVersion: PLAN_INTAKE_VERSION,
       savedAt: new Date(now).toISOString(),
       expiresAt: new Date(now + PLAN_INTAKE_DRAFT_TTL_MS).toISOString(),
+      ...(patch !== undefined ? { explicitNightContext: patch } : {}),
+      ...(reference !== undefined ? { routeReference: reference } : {}),
       draft,
     } satisfies StoredPlanIntakeEnvelope);
-    if (planIntakeRawBytes(next) > PLAN_INTAKE_MAX_RAW_BYTES) return;
+    if (planIntakeRawBytes(next) > PLAN_INTAKE_MAX_RAW_BYTES) return false;
     if (store.getItem(PLAN_INTAKE_STORAGE_KEY) !== next) {
       store.setItem(PLAN_INTAKE_STORAGE_KEY, next);
     }
+    return true;
   } catch {
     // Planning remains available in memory when storage is blocked or full.
+    return false;
   }
 }
 
@@ -765,6 +794,8 @@ export type PlanGenerationIntakeBody = {
   context?: Partial<NightContext>;
   cityId?: CityId;
   intake: PlanIntakeHandoff;
+  /** Displayed First pint, used only for the default generation daypart. */
+  planStartIso?: string;
   anchor?: PlanGenerationWireAnchor;
 };
 
@@ -799,15 +830,17 @@ export function buildPlanGenerationIntakeBody(
   currentContext: NightContext | null,
   explicitContext: Partial<NightContext> = {},
   anchor?: PlanGenerationAnchorInput | null,
+  planStartIso?: string | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
   // A sort before the wizard is finished (a held pub seeds only the area)
   // sends what the describe-first entry sends: every step nobody answered is
   // skipped, never left both empty and unskipped, which the API refuses.
   const sent = skipRemainingPlanIntake(draft);
-  // Transport needs come from the current description. Preserve recovered
-  // control choices, whose explicit ownership is not stored across reloads.
-  // Clearing the description keeps the stop count currently shown by the composer.
+  // Transport needs come from the current description. Explicit control choices
+  // arrive through explicitContext and take priority below.
+  // An empty description retains the generated count only without a stopCount override.
+  // The composer supplies requested intent, including undefined, to clear that fallback.
   const retainedStopCount = cleanQuery ? undefined : currentContext?.stopCount;
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
@@ -821,12 +854,15 @@ export function buildPlanGenerationIntakeBody(
     context,
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
     intake: planIntakeHandoff(sent),
+    ...(planStartIso ? { planStartIso } : {}),
     ...(anchor ? {
       anchor: {
         venueId: anchor.venueId,
         source: anchor.source,
         acceptedArea: anchor.acceptedArea,
         startsAt: anchor.startsAt,
+        // A drafted crawl keeps every pub it names (lib/palPlanHandoff.ts).
+        ...(anchor.venueIds ? { venueIds: [...anchor.venueIds] } : {}),
       },
     } : {}),
   };

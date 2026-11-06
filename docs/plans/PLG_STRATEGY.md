@@ -188,6 +188,7 @@ Public comps are not “Twitter for pubs.” Closer economic story: **category-d
 
 ## Wave 0: execution pack price slice
 
+The [5 November weekly evidence](../evidence/search-growth-2026-11-05/weekly.md) records the search, venue and plan checks and the remaining source gaps.
 The [29 October implementation record](../evidence/uk-execution-2026-10-29/implementation.md) tracks the first UK pack slice.
 The [README basket guidance](../../README.md#features) owns the user instructions and subtotal limits.
 `lib/outingQuote.ts` owns the reviewed offer contract. No synthetic offer enters published data.

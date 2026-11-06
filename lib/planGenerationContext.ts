@@ -63,6 +63,7 @@ export function reconcilePlanContext(
   explicit: Partial<NightContext> | null,
   intake: ParsedPlanGenerationIntake | null,
   now: Date,
+  planStartIso?: string,
 ): ReconciledPlanContext {
   const inferred = inferNightContext(query, now);
   const contextPatch = explicit ?? {};
@@ -77,6 +78,10 @@ export function reconcilePlanContext(
         : inferred.reasons.some((reason) => reason.field === field)
           ? "query"
           : "default";
+  }
+  if (fieldSources.daypart === "default" && planStartIso) {
+    // The validated displayed schedule affects only the fallback, never query interpretation.
+    context.daypart = inferNightContext("", new Date(planStartIso)).context.daypart;
   }
   const reasons = inferred.reasons.filter((reason) => fieldSources[reason.field] === "query");
   for (const field of Object.keys(contextPatch) as (keyof NightContext)[]) {

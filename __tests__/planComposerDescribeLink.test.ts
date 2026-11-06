@@ -59,6 +59,7 @@ import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
 import {
   createPlanIntakeDraft,
   readPlanIntakeDraft,
+  reopenPlanIntakeStep,
   skipRemainingPlanIntake,
   writePlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -385,7 +386,7 @@ describe("PlanComposer describe prefill", () => {
     expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
   });
 
-  it("does not replace a recovered concierge line when a session ask prefill lands in describe-first", async () => {
+  it("replaces the recovered concierge line when a confirmed session ask lands in describe-first", async () => {
     writePlanDraftEnvelope(
       {
         title: "Friday plan",
@@ -410,7 +411,7 @@ describe("PlanComposer describe prefill", () => {
     await settleComposerEffects();
 
     expect(describeFieldValue()).toBe("session-only ask");
-    expect(await conciergeFieldValue()).toBe(DRAFT_ASK);
+    expect(await conciergeFieldValue()).toBe("session-only ask");
   });
 
   it("still lands the URL ask when the browser refuses site data", async () => {
@@ -541,8 +542,12 @@ describe("PlanComposer never drops a URL ask", () => {
     expect(body.intake?.area?.id).toBe("camden");
   });
 
+  function progressedWizard() {
+    return reopenPlanIntakeStep(skipRemainingPlanIntake(createPlanIntakeDraft({ kind: "patch", id: "soho" })), "accessibility");
+  }
+
   it("opens describe-first over an unfinished wizard draft", async () => {
-    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    writePlanIntakeDraft(progressedWizard());
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
 
     await mountComposer();
@@ -554,7 +559,7 @@ describe("PlanComposer never drops a URL ask", () => {
     // Only the Pub Pal handoff overrides the wizard. `?occasion=` is a shipped
     // chip link, and CLAUDE.md's rule for those is unqualified: a saved,
     // incomplete wizard draft lands the visitor back on the wizard.
-    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    writePlanIntakeDraft(progressedWizard());
     setSearch("?occasion=coffee");
 
     await mountComposer();
@@ -563,7 +568,7 @@ describe("PlanComposer never drops a URL ask", () => {
   });
 
   it("still opens on the wizard when no ask rides the URL", async () => {
-    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    writePlanIntakeDraft(progressedWizard());
 
     await mountComposer();
 
