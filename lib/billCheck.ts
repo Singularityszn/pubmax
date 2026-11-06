@@ -213,6 +213,8 @@ export type ModeratorBillCheck = {
     id: string;
     handle: string;
     drink: string;
+    /** The serving the drop was sent with, as a surface names it. Absent when it stated none. */
+    serving?: string;
     status: string;
     createdAt: string;
   };
