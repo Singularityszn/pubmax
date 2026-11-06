@@ -183,6 +183,22 @@ describe("requested-count recovery", () => {
     expect(resolveRequestedPlanIntent(plan, { ...plan.draft, requestedStopCount: 3 }, localCount(5, NOW + 1)).stopCount).toBeUndefined();
   });
 
+  it("requires agreement before restoring an undated request's picker count", () => {
+    const saved = v2Plan(NOW, { requestedStopCount: undefined });
+    const legacy: ParsedPlanDraft = { ...saved, storageVersion: 1, savedAt: null, expiresAt: null, legacy: true };
+    const picker = {
+      ...localCount(5, NOW + 1),
+      draft: { ...local.draft, answers: { ...local.draft.answers, stopCount: 5 as const, stopCountSource: "picker" as const } },
+    };
+    expect(resolveRequestedPlanIntent(legacy, legacy.draft, picker)).toEqual({
+      stopCount: undefined, conciergeQuery: "", descriptionUnavailable: true,
+    });
+    const matching = { ...legacy, draft: { ...legacy.draft, requestedStopCount: 5 as const } };
+    expect(resolveRequestedPlanIntent(matching, matching.draft, picker)).toEqual({
+      stopCount: 5, conciergeQuery: "", descriptionUnavailable: true,
+    });
+  });
+
   it("discards a description when only newer local intent survives", () => {
     const stale = v2Plan(NOW, { conciergeQuery: "Six pubs in Clapham tonight", requestedStopCount: 6 });
     const unknown = { ...local, savedAt: new Date(NOW + 1).toISOString() };

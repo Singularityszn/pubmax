@@ -4769,6 +4769,45 @@ it("still revokes and then generates from a genuine new request with a later acc
   expectNoRouteSave();
 });
 
+it.each(["both", "v1-only", "v2-only"] as const)(
+  "marks a clean-device Map acceptance as provisional through %s saves and Release",
+  async (lane) => {
+    const advance = pinClock();
+    expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+    expect(readPlanRouteDraftEnvelope(localStorage)).toBeNull();
+    const accepted = acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }, { storage: sessionStorage });
+    expect(accepted.accepted).toBe(true);
+    if (lane !== "both") rejectSessionRecordWrites([lane === "v1-only" ? PLAN_DRAFT_V2_KEY : PLAN_DRAFT_KEY]);
+    fetchMock.mockImplementation(async () => Response.json([{ id: "venue-new", name: "New Pub" }]));
+    await mountComposer();
+    advance(1000);
+    await editInput("#plan-title", "Our first Map night");
+    const expectProvisional = (held: boolean) => {
+      const draft = readPlanDraftEnvelope(sessionStorage)?.draft;
+      expect(draft).toMatchObject({
+        title: "Our first Map night", provisionalStop: true,
+        stops: [{ venueId: "venue-new", venueName: "New Pub" }],
+      });
+      if (held) expect(draft?.acceptedAnchor?.venueId).toBe("venue-new");
+      else expect(draft?.acceptedAnchor).toBeUndefined();
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBeNull();
+      expect(document.querySelector('[data-result="true"]')).toBeNull();
+    };
+    expectProvisional(true);
+    await remountComposer();
+    expectProvisional(true);
+    advance(2000);
+    await act(async () => action("Release this pub").click());
+    await settle();
+    expectProvisional(false);
+    expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+    await remountComposer();
+    expectProvisional(false);
+    expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  },
+);
+
 it("leaves a genuine one-stop edit unmarked when only the legacy Session write succeeds", async () => {
   const advance = pinClock();
   const session = blockStorageWrites("sessionStorage");

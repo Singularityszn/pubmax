@@ -53,9 +53,6 @@ export function resolveRequestedPlanIntent(
   const count = plan && legacyDraft && !plan.legacy
     ? legacyDraft.requestedStopCount === planCount ? planCount : undefined
     : planCount === intakeCount ? planCount : undefined;
-  if (plan?.legacy && planCount === undefined && intakeSource === "picker") {
-    return { stopCount: intakeCount, stopCountSource: intakeSource, ...unavailable };
-  }
   return { stopCount: count, ...unavailable };
 }
 
