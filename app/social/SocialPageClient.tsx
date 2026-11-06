@@ -12,6 +12,7 @@ import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
+import CrewsPanelPlaceholder from "@/components/social/CrewsPanelPlaceholder";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import ReelsPending from "@/components/social/ReelsPending";
 import SharedSocialPostCard from "@/components/social/SocialPostCard";
@@ -1058,7 +1059,9 @@ function SocialPageAccountState({
             {checkingPosts ? (
               <SampleSkeleton className="socialViewerCards" label="Loading your Social tools">
                 <PubRankingPanel />
-                <CrewsPanel compact />
+                {/* A static shape, not the lazy panel: the wait reserves the
+                    crews card without its download or data read. */}
+                <CrewsPanelPlaceholder />
               </SampleSkeleton>
             ) : null}
             {showViewerCards ? <SocialTagInbox /> : null}
