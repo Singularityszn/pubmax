@@ -151,7 +151,7 @@ describe("foreground viewport reads under shard contention", () => {
     globalThis.fetch = (input: RequestInfo | URL) => {
       const key = String(input);
       if (key === `/data/venues_slim.manifest.json?v=${revision}`) {
-        return Promise.resolve(Response.json({ ...MANIFEST, revision, shards }));
+        return Promise.resolve(Response.json({ ...MANIFEST, revision, priceDatasetDigest: "abcdefghijklmnopqrstuv", shards }));
       }
       requests.push(key);
       const shard = defined(byKey.get(key), `shard for request ${key}`);
@@ -162,7 +162,7 @@ describe("foreground viewport reads under shard contention", () => {
         held.set(key, () => {
           held.delete(key);
           active -= 1;
-          resolve(Response.json({ revision, rows: [rowFor(shard)] }));
+          resolve(Response.json({ revision, d: "abcdefghijklmnopqrstuv", rows: [rowFor(shard)] }));
         });
       });
     };
@@ -439,6 +439,16 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "g1"]);
   });
 
+  it("nearPoint() returns cached rows on repeat and overlapping reads", async () => {
+    const loader = createSlimShardLoader("london");
+    const first = await loader.nearPoint(51.5, -0.001);
+    const repeat = await loader.nearPoint(51.5, -0.001);
+    const overlap = await loader.nearPoint(51.5, 0.001);
+    expect(first.rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "g1"]);
+    expect(repeat.rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "g1"]);
+    expect(overlap.rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "g1"]);
+  });
+
   it("nearPoint() reports unavailable when a radius shard cannot load", async () => {
     installFetch({ "/data/venues_slim.enfield.json": "fail" });
     const loader = createSlimShardLoader("london");
@@ -446,6 +456,18 @@ describe("createSlimShardLoader (London)", () => {
 
     expect(result.rows).toEqual([]);
     expect(result.status).toBe("unavailable");
+  });
+
+  it("reports a partial overlap as unavailable and recovers the missing cell", async () => {
+    installFetch({ "/data/venues_slim.greenwich.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    const partial = await loader.nearPoint(51.5, 0.001);
+    expect(partial.status).toBe("unavailable");
+    expect(partial.rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2"]);
+    installFetch();
+    const recovered = await loader.nearPoint(51.5, 0.001);
+    expect(recovered.status).toBe("ready");
+    expect(recovered.rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "g1"]);
   });
 
   it("all() loads core plus every outer shard", async () => {
@@ -645,6 +667,7 @@ describe("createSlimShardLoader (London)", () => {
   });
 
   it("does not wait for the speculative shard when the manifest names another core", async () => {
+    let finishSpeculative!: (response: Response) => void;
     const renamedCore: ShardManifest = {
       version: 2,
       grid: MANIFEST.grid,
@@ -657,7 +680,7 @@ describe("createSlimShardLoader (London)", () => {
     globalThis.fetch = ((input: RequestInfo | URL) => {
       const url = String(input);
       fetched.push(url);
-      if (url === "/data/venues_slim.core.json") return new Promise<Response>(() => {});
+      if (url === "/data/venues_slim.core.json") return new Promise<Response>((resolve) => { finishSpeculative = resolve; });
       if (url === "/data/venues_slim.manifest.json") {
         return Promise.resolve({
           ok: true,
@@ -685,6 +708,8 @@ describe("createSlimShardLoader (London)", () => {
       "c1",
       "c2",
     ]);
+    finishSpeculative({ ok: true, json: async () => BODIES["/data/venues_slim.core.json"] } as Response);
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
   it("falls back to the single city file when there is no manifest", async () => {
@@ -710,5 +735,84 @@ describe("createSlimShardLoader (London)", () => {
     // No manifest → nothing lazy to resolve.
     expect(await loader.inBounds({ west: -3, south: 53, east: -2, north: 54 })).toEqual([]);
     expect(await loader.nearPoint(53.4, -2.2)).toEqual({ rows: [], status: "ready" });
+  });
+});
+
+
+describe("adopted price snapshot at every shard entry", () => {
+  const bounds = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+  const digest = "abcdefghijklmnopqrstuv";
+  const staleDigest = "zyxwvutsrqponmlkjihgfed";
+  const core = defined(MANIFEST.shards[0]);
+  const manifest = { ...MANIFEST, priceDatasetDigest: digest, shards: [core] };
+
+  beforeEach(() => {
+    vi.spyOn(offlineCache, "get").mockResolvedValue(null);
+    vi.spyOn(offlineCache, "set").mockResolvedValue(true);
+  });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it.each(["core", "initial", "initialResult", "inBounds", "all", "nearPoint"] as const)(
+    "%s refuses a same-revision shard from another snapshot and recovers", async (entry) => {
+      let servedDigest = staleDigest;
+      vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+        ok: true,
+        json: async () => String(input).includes("manifest") ? manifest : {
+          d: servedDigest, rows: [slimRow("selected", 51.5, -0.12)],
+        },
+      })));
+      const loader = createSlimShardLoader("london");
+      const read = async () => {
+        if (entry === "initialResult") return (await loader.initialResult(bounds)).rows;
+        if (entry === "nearPoint") return (await loader.nearPoint(51.5, -0.12)).rows;
+        if (entry === "initial" || entry === "inBounds") return loader[entry](bounds);
+        return loader[entry]();
+      };
+      expect(await read()).toEqual([]);
+      expect(loader.coverageComplete(bounds)).toBe(false);
+      servedDigest = digest;
+      expect((await read()).map((row) => row.id)).toEqual(["selected"]);
+      expect(loader.coverageComplete(bounds)).toBe(true);
+    },
+  );
+
+  it("refuses an offline shard whose stored snapshot differs from its manifest", async () => {
+    vi.mocked(offlineCache.get).mockResolvedValue({ d: staleDigest, rows: [slimRow("stale", 51.5, -0.12)] });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("manifest")) return { ok: true, json: async () => manifest } as Response;
+      throw new Error("offline shard");
+    }));
+    const loader = createSlimShardLoader("london");
+    expect(await loader.core()).toEqual([]);
+    expect(loader.coverageComplete(bounds)).toBe(false);
+    expect(await loader.all()).toEqual([]);
+    expect((await loader.nearPoint(51.5, -0.12)).status).toBe("unavailable");
+  });
+
+  it.each([false, true])("rechecks an early core after adoption with late core=%s", async (lateCore) => {
+    let publishManifest!: (value: Response) => void;
+    let publishCore!: (value: Response) => void;
+    const heldManifest = new Promise<Response>((resolve) => { publishManifest = resolve; });
+    const heldCore = new Promise<Response>((resolve) => { publishCore = resolve; });
+    let coreReads = 0;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      if (String(input).includes("manifest")) return heldManifest;
+      coreReads += 1;
+      if (coreReads === 1) return heldCore;
+      return Promise.resolve({ ok: true, json: async () => ({ d: digest, rows: [slimRow("current", 51.5, -0.12)] }) } as Response);
+    }));
+    const loader = createSlimShardLoader("london");
+    const pending = loader.core();
+    const old = { ok: true, json: async () => ({ d: staleDigest, rows: [slimRow("stale", 51.5, -0.12)] }) } as Response;
+    if (!lateCore) {
+      publishCore(old);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    publishManifest({ ok: true, json: async () => manifest } as Response);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (lateCore) publishCore(old);
+    expect((await pending).map((row) => row.id)).toEqual(["current"]);
+    expect(loader.coverageComplete(bounds)).toBe(true);
+    expect((await loader.nearPoint(51.5, -0.12)).rows.map((row) => row.id)).toEqual(["current"]);
   });
 });

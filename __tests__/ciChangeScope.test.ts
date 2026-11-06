@@ -197,6 +197,24 @@ const LAYOUT_PIN_IF =
   "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 
 describe("what each scope runs", () => {
+  // The captain requires recovery in law pins and onboarding in layout pins.
+  // Execute the workflow commands to reject a spec omitted from its required job.
+  it.each([
+    { jobId: "law-pins", name: "Run law-pinning journeys", spec: "e2e/one-good-night-recovery.spec.ts" },
+    { jobId: "layout-pins-1", name: "Run layout-pinning journeys", spec: "e2e/native-onboarding-actions.spec.ts" },
+    { jobId: "layout-pins-1", name: "Run layout-pinning journeys", spec: "e2e/web-first-run-journey.spec.ts" },
+  ])("runs $spec in $jobId for a spec-only pull request", ({ jobId, name, spec }) => {
+    expect(scopeOf([spec])).toBe("code");
+    const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed;
+    const run = defined(defined(e2e.jobs[jobId]).steps.find((entry) => entry.name === name)?.run);
+    const log = join(mkdtempSync(join(scratch, "journey-npx-")), "npx.log");
+    const result = runStep(run.replaceAll("${{ env.LAYOUT_SHARD }}", "1"), { NPX_LOG: log });
+    expect(result.status, result.stderr).toBe(0);
+    const words = readFileSync(log, "utf8").trim().split("\n");
+    expect(words.slice(0, 2)).toEqual(["playwright", "test"]);
+    expect(words).toContain(spec);
+  });
+
   it("gates every step after the classifier, and never a whole job", () => {
     for (const { where, job: gated } of gatedJobs) {
       if (where === SCOPE_JOB) continue;
@@ -297,9 +315,15 @@ describe("the layout scope", () => {
     { files: ["lib/someView.tsx"], layout: "ui" },
     { files: ["public/fonts/x.woff2"], layout: "ui" },
     { files: ["e2e/mobile-map-chrome-fit.spec.ts"], layout: "ui" },
+    { files: ["e2e/one-good-night-recovery.spec.ts"], layout: "ui" },
+    { files: ["e2e/native-onboarding-actions.spec.ts"], layout: "ui" },
+    { files: ["e2e/web-first-run-journey.spec.ts"], layout: "ui" },
     { files: ["e2e/helpers/mobileMapShell.ts"], layout: "ui" },
     { files: ["e2e/fixtures/venue.json"], layout: "ui" },
     { files: ["e2e/conditional-skips.allowlist.json"], layout: "ui" },
+    { files: ["scripts/e2e/canonical-price-server.ts"], layout: "ui" },
+    { files: ["scripts/e2e/canonical-price-server.ts.bak"], layout: "none" },
+    { files: ["scripts/qa/canonical-price-server.ts"], layout: "none" },
     ...[
       "lib/cities.ts", "lib/cityStoryBands.ts", "lib/contentSecurityPolicy.mjs",
       "lib/deviceAccountSessions.ts", "lib/landingHero.ts", "lib/lateFood.ts",

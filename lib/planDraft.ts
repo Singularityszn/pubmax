@@ -1,3 +1,6 @@
+import { parsePlanIntakeRequest, type PlanIntakeDraft } from "@/lib/planIntake";
+import { cleanPlanStopCountSource, isPlanStopCount, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
+import { cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
 import { DAY_MS } from "@/lib/dayMs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
@@ -25,6 +28,12 @@ export type StoredPlanDraft = {
   startTime: string;
   conciergeQuery: string;
   stops: Array<{ key: number; venueId: string; venueName: string }>;
+  explicitNightContext?: Partial<NightContext>;
+  requestIntake?: PlanIntakeDraft;
+  entryMode?: "wizard";
+  requestedStopCount?: PlanStopCount;
+  requestedStopCountSource?: PlanStopCountSource;
+  routeReference?: { savedAt: string; operationKey: string } | null;
   acceptedAnchor?: {
     venueId: string;
     source: PlanningIntentSource;
@@ -113,17 +122,58 @@ function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
         : undefined;
 }
 
-function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
+function hasDraftKeys(value: Record<string, unknown>): boolean {
+  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference" && key !== "explicitNightContext" && key !== "requestIntake" && key !== "entryMode");
+  return [DRAFT_KEYS, DRAFT_KEYS_WITH_ANCHOR].some((allowed) =>
+    keys.length === allowed.length && keys.every((key) => (allowed as readonly string[]).includes(key)));
+}
+
+export function parsePlanRouteReference(value: unknown): StoredPlanDraft["routeReference"] {
+  if (value === null) return null;
+  if (!isRecord(value) || !hasExactKeys(value, ["savedAt", "operationKey"])) return undefined;
+  const savedAt = canonicalTimestamp(value.savedAt)?.value;
+  const operationKey = boundedText(value.operationKey, 120);
+  return savedAt && operationKey?.trim() === operationKey && operationKey
+    ? { savedAt, operationKey } : undefined;
+}
+
+export function parsePlanExplicitNightContext(value: unknown): Partial<NightContext> | undefined {
+  if (!isRecord(value)) return undefined;
+  if (value.stopCount !== undefined && !isPlanStopCount(value.stopCount)) return undefined;
+  const patch = cleanNightContextPatch(value);
+  if (!patch || Object.keys(value).some((key) => value[key] !== undefined && !Object.hasOwn(patch, key))) return undefined;
+  return patch;
+}
+
+function parseRequestOptions(value: Record<string, unknown>, now: number): Pick<StoredPlanDraft, "requestedStopCount" | "requestedStopCountSource" | "routeReference" | "explicitNightContext" | "requestIntake" | "entryMode"> {
+  const count = isPlanStopCount(value.requestedStopCount) ? value.requestedStopCount : undefined;
+  const source = cleanPlanStopCountSource(value.requestedStopCountSource, count);
+  const routeReference = parsePlanRouteReference(value.routeReference);
+  const explicitNightContext = parsePlanExplicitNightContext(value.explicitNightContext);
+  const requestIntake = parsePlanIntakeRequest(value.requestIntake, now);
+  return {
+    ...(explicitNightContext !== undefined ? { explicitNightContext } : {}),
+    ...(requestIntake ? { requestIntake } : {}),
+    ...(value.entryMode === "wizard" ? { entryMode: "wizard" as const } : {}),
+    ...(count !== undefined ? { requestedStopCount: count } : {}),
+    ...(source ? { requestedStopCountSource: source } : {}),
+    ...(routeReference !== undefined ? { routeReference } : {}),
+  };
+}
+
+function parseStoredPlanDraft(value: unknown, exactKeys: boolean, now: number): StoredPlanDraft | null {
   if (
     !isRecord(value)
-    || (exactKeys && !hasExactKeys(value, DRAFT_KEYS) && !hasExactKeys(value, DRAFT_KEYS_WITH_ANCHOR))
+    || (exactKeys && !hasDraftKeys(value))
   ) return null;
   const title = boundedText(value.title, 200);
   const creatorName = boundedText(value.creatorName, 100);
   const startTime = boundedText(value.startTime, 40);
   const conciergeQuery = boundedText(value.conciergeQuery, 500);
   if (title === null || creatorName === null || startTime === null || conciergeQuery === null) return null;
-  if (!Array.isArray(value.stops) || value.stops.length < 1 || value.stops.length > 12) return null;
+  if (!Array.isArray(value.stops) || value.stops.length > 12) return null;
+  // A request without stops may revoke a route, but cannot bind to one or hold a pub.
+  if (value.stops.length === 0 && (value.acceptedAnchor !== undefined || parsePlanRouteReference(value.routeReference))) return null;
 
   const stops = value.stops.map((candidate, index) => {
     if (
@@ -136,6 +186,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     return { key: index + 1, venueId, venueName };
   });
   if (stops.some((stop) => stop === null)) return null;
+  const options = parseRequestOptions(value, now);
   let acceptedAnchor: StoredPlanDraft["acceptedAnchor"];
   if (value.acceptedAnchor !== undefined) {
     const anchor = value.acceptedAnchor;
@@ -147,6 +198,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
         startTime,
         conciergeQuery,
         stops: stops as StoredPlanDraft["stops"],
+        ...options,
       };
     }
     if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
@@ -171,26 +223,23 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     startTime,
     conciergeQuery,
     stops: stops as StoredPlanDraft["stops"],
+    ...options,
     ...(acceptedAnchor ? { acceptedAnchor } : {}),
   };
 }
 
 function withoutExpiredAcceptedAnchor(draft: StoredPlanDraft, now: number): StoredPlanDraft {
   if (!draft.acceptedAnchor || now < Date.parse(draft.acceptedAnchor.expiresAt)) return draft;
-  return {
-    title: draft.title,
-    creatorName: draft.creatorName,
-    startTime: draft.startTime,
-    conciergeQuery: draft.conciergeQuery,
-    stops: draft.stops,
-  };
+  const unanchored = { ...draft };
+  delete unanchored.acceptedAnchor;
+  return unanchored;
 }
 
 /** Parse the unversioned session draft without inventing storage metadata. */
 export function parsePlanDraft(raw: string | null, now = Date.now()): StoredPlanDraft | null {
   if (!raw || !Number.isFinite(now) || byteLength(raw) > PLAN_DRAFT_MAX_RAW_BYTES) return null;
   try {
-    const draft = parseStoredPlanDraft(JSON.parse(raw), false);
+    const draft = parseStoredPlanDraft(JSON.parse(raw), false, now);
     return draft ? withoutExpiredAcceptedAnchor(draft, now) : null;
   } catch {
     return null;
@@ -212,7 +261,7 @@ function parsePlanDraftV2(
     if (!savedAt || !expiresAt) return null;
     if (savedAt.time > now + PLAN_DRAFT_MAX_FUTURE_SKEW_MS) return null;
     if (expiresAt.time !== savedAt.time + PLAN_DRAFT_TTL_MS || now >= expiresAt.time) return null;
-    const parsedDraft = parseStoredPlanDraft(value.draft, true);
+    const parsedDraft = parseStoredPlanDraft(value.draft, true, now);
     const draft = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
     if (!draft) return null;
     return {
@@ -271,8 +320,9 @@ export function writePlanDraftEnvelope(
   origin: PlanDraftOrigin,
   storage: PlanDraftStorage | null,
   now = Date.now(),
+  options: { requireV1?: boolean } = {},
 ): PlanDraftWriteResult {
-  const parsedDraft = parseStoredPlanDraft(draft, false);
+  const parsedDraft = parseStoredPlanDraft(draft, false, now);
   const canonical = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
   const savedAt = new Date(now);
   const expiresAt = new Date(now + PLAN_DRAFT_TTL_MS);
@@ -301,10 +351,9 @@ export function writePlanDraftEnvelope(
   let v2 = false;
   try {
     storage.setItem(PLAN_DRAFT_KEY, rawV1);
-    v1 = true;
-  } catch {
-    // A blocked legacy write must not prevent an attempted canonical write.
-  }
+    v1 = !options.requireV1 || storage.getItem(PLAN_DRAFT_KEY) === rawV1;
+  } catch {}
+  if (options.requireV1 && !v1) return { v1: false, v2: false, envelope: null };
   try {
     storage.setItem(PLAN_DRAFT_V2_KEY, rawV2);
     v2 = true;
