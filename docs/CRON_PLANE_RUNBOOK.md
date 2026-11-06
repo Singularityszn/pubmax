@@ -39,12 +39,10 @@ net until a successful refresh is merged.
 
 > **Vercel owns server-safe scheduled work.** File-producing acquisition runs through
 > the Mac's local launchd scheduler and review PRs; see
-> [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md). One exception is
-> written down rather than assumed: `.github/workflows/events-refresh.yml` carries a
-> daily 04:00 UTC schedule for the What's-On events refresh, which validates its own
-> output and opens a review PR. GitHub Actions is disabled at the repo level today, so
-> that schedule fires nothing until the captain switches Actions on. Do not add another
-> `.github/workflows/*` schedule without that decision.
+> [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md).
+> `.github/workflows/events-refresh.yml` is a `workflow_dispatch`-only recovery path;
+> [`CI_RUNBOOK.md`](./CI_RUNBOOK.md#scheduled-work-split) owns the GitHub side. Do not
+> add a `.github/workflows/*` schedule without the captain's decision.
 
 ---
 

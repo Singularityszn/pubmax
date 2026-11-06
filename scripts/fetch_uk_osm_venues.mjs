@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Fetch every place in the United Kingdom a drinker or a laptop could sit in -
-// pubs, bars, beer gardens, restaurants that state a bar, late fast food, cafes,
-// coffee shops, coworking desks, libraries, community centres with wifi, hotel
-// bars and off-licences - from Overpass, one grid chunk at a time, then write:
+// pubs, bars, beer gardens, nightclubs, music venues, restaurants, clubs and
+// casinos that state alcohol, late fast food, cafes, coffee shops, coworking
+// desks, libraries, community centres with wifi, hotel bars and off-licences -
+// from Overpass, one grid chunk at a time, then write:
 //   data/osm/uk/raw_venues/<scope>/chunk_<lat>_<lon>.json  (raw, GITIGNORED)
 //   data/osm/uk/venue_chunks.json                          (grid + per-chunk manifest)
 //   data/osm/uk/uk_osm_venues_<group>.json                 (normalized pack, ODbL)

@@ -15,7 +15,13 @@ const clerkState = vi.hoisted(() => ({ configured: true }));
 
 const authAvailability = vi.hoisted(() => ({
   guard: vi.fn(),
-  loadSupabase: vi.fn(async () => ({ google: false, apple: false , microsoft: false })),
+  loadSupabase: vi.fn(
+    async (): Promise<Record<"google" | "apple" | "microsoft", boolean> | null> => ({
+      google: false,
+      apple: false,
+      microsoft: false,
+    }),
+  ),
 }));
 
 const authRedirect = vi.hoisted(() => ({
@@ -354,6 +360,36 @@ describe("shared contribution auth invalidation", () => {
     });
   });
 
+
+  it("reports the provider read as pending until it answers, even with nothing", async () => {
+    let answer: (value: null) => void = () => {};
+    authAvailability.loadSupabase.mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "providers" }),
+        ),
+      );
+      await Promise.resolve();
+    });
+    expect(consumers.get("providers")?.auth.socialProvidersResolved).toBe(false);
+
+    await commitReactWork(async () => {
+      answer(null);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const auth = consumers.get("providers")?.auth;
+    expect(auth?.socialProvidersResolved).toBe(true);
+    expect(auth?.socialProviders).toEqual({ google: false, apple: false, microsoft: false });
+  });
 
   it("starts Microsoft OAuth through Supabase with Azure scopes", async () => {
     const container = globalThis.document.createElement("div");

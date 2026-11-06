@@ -7,6 +7,7 @@ const supabase = vi.hoisted(() => ({ rpc: vi.fn() }));
 vi.mock("@/lib/supabase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/supabase")>()),
   requireSupabaseAdmin: () => ({ rpc: supabase.rpc }),
+  requireDynamicSupabaseAdmin: () => ({ rpc: supabase.rpc }),
 }));
 
 import { SocialCrewStoreError, createSocialCrewStore } from "@/lib/socialCrewStore";

@@ -44,6 +44,8 @@ public/data/wikidata_notable_pubs.json
 public/data/wikidata_notable_pubs.json.tmp
 data/editorial/poll-state.json
 data/osm/uk/**/.*.tmp
+data/places_verification/progress.json
+data/places_verification/*.tmp
 
 # macOS Finder metadata + local co-dev scratch probes — never part of the app.
 .DS_Store

@@ -29,6 +29,7 @@ export default function LandingPhoto({
   resolved,
   sizes,
   priority = false,
+  preloadMedia,
   variant = "card",
   className = "",
 }: {
@@ -37,6 +38,12 @@ export default function LandingPhoto({
   sizes: string;
   /** True on the ONE image that is the route's own largest paint, never more. */
   priority?: boolean;
+  /**
+   * The viewports on which this photograph, not another image, is the largest
+   * paint. A high-priority preload fires only where the query matches, so
+   * other viewports keep the image lazy and fetch it after their own LCP.
+   */
+  preloadMedia?: string;
   /** `card` fills its parent behind content; `band` is a framed picture. */
   variant?: "card" | "band";
   className?: string;
@@ -47,6 +54,17 @@ export default function LandingPhoto({
       className={`landingPhoto landingPhoto--${variant} ${className}`.trim()}
       data-photo-scope={resolved.scope}
     >
+      {preloadMedia ? (
+        <link
+          rel="preload"
+          as="image"
+          type="image/avif"
+          media={preloadMedia}
+          imageSrcSet={landingPhotoSrcSet(photo, "avif")}
+          imageSizes={sizes}
+          fetchPriority="high"
+        />
+      ) : null}
       <picture>
         <source type="image/avif" srcSet={landingPhotoSrcSet(photo, "avif")} sizes={sizes} />
         <source type="image/webp" srcSet={landingPhotoSrcSet(photo, "webp")} sizes={sizes} />

@@ -251,7 +251,7 @@ export function DiscoverBody({
   );
   const [entries, setEntries] = useState<DiscoverBoardRow[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
-    "idle",
+    embedded ? "loading" : "idle",
   );
   // "Then vs Now" is best-effort and independent of the leaderboard: it needs
   // BOTH the dataset (for baseline prices + names) and the community drops. If
@@ -440,6 +440,7 @@ export function DiscoverBody({
     <Root
       id={embedded ? undefined : "main"}
       className={embedded ? "discoverPage discoverPageEmbedded" : "discoverPage"}
+      data-embed-load={embedded ? status : undefined}
       ref={setRevealRoot}
     >
       {!embedded ? <SiteNav active="discover" /> : null}

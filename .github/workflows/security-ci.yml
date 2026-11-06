@@ -1,10 +1,11 @@
 name: Security CI
 
 # zizmor (workflow lint), osv-scanner (lockfile CVEs), Semgrep CE (SAST).
-# Self-hosted pubmax-mac only; tools installed via Homebrew (docs/CI_RUNBOOK.md).
-# These checks are advisory: no branch protection requires them, so a red job
-# here blocks nothing on its own. The weekly run catches a new advisory against
-# a lockfile or a pinned action when no pull request is open.
+# Each job installs its CLI on ubuntu-latest. These checks are advisory: no
+# branch protection requires them, so a red job here blocks nothing on its own.
+# The weekly run catches a new advisory against a lockfile or a pinned action
+# when no pull request is open. The zizmor token is the job token, not a
+# repository secret.
 
 on:
   pull_request:
@@ -18,22 +19,31 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   zizmor:
     name: zizmor (.github)
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
+      - name: Install zizmor
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/zizmor.tar.gz" \
+            https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz
+          echo "e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a  $RUNNER_TEMP/zizmor.tar.gz" \
+            | sha256sum --check
+          tar --extract --gzip --file "$RUNNER_TEMP/zizmor.tar.gz" --directory "$RUNNER_TEMP"
+          sudo mv "$RUNNER_TEMP/zizmor" /usr/local/bin/zizmor
+          zizmor --version
 
       # Online, so the audits that ask GitHub about each pinned action
       # (impostor commits, known-vulnerable actions, ref confusion) run too.
@@ -45,16 +55,25 @@ jobs:
 
   osv-scanner:
     name: osv-scanner (lockfiles)
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
+      - name: Install osv-scanner
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/osv-scanner" \
+            https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64
+          echo "ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108  $RUNNER_TEMP/osv-scanner" \
+            | sha256sum --check
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+          sudo mv "$RUNNER_TEMP/osv-scanner" /usr/local/bin/osv-scanner
+          osv-scanner --version
 
       # Recursive, so scripts/chatgpt-map, the iOS Package.resolved and any
       # lockfile added later are scanned without editing this line. It exits
@@ -64,21 +83,24 @@ jobs:
 
   semgrep:
     name: Semgrep CE (SAST)
-    runs-on: [self-hosted, pubmax-mac]
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
+      - name: Install Semgrep
+        run: |
+          set -euo pipefail
+          pipx install semgrep==1.179.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          semgrep --version
 
       - name: Semgrep
         env:
-          REQUESTS_CA_BUNDLE: /etc/ssl/cert.pem
-          SSL_CERT_FILE: /etc/ssl/cert.pem
           SEMGREP_SEND_METRICS: "off"
         run: |
           semgrep scan \

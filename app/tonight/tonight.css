@@ -806,6 +806,28 @@
   min-height: min(640px, 75vh);
 }
 
+/* The head's lede waits on the listings read, and it sits above
+   the hyped pubs, so landing it on ready pushed the whole lede down the page
+   (CLS 0.10 on throttled cold loads, 3 Oct 2026 remeasure). While the first
+   read runs the head holds an empty line box for it; the same line floor stays
+   on the settled sentence when it is only one line (e.g. a single-kind lede
+   with no map prompt), so the hyped block does not jump up when the hold
+   swaps to copy. Sized in lines: three at 390px, two from 641px. Empty and
+   error answers omit the lede entirely. A retry never brings the hold back. */
+.tonightPage .screenLede {
+  min-height: 3lh;
+}
+
+@media (min-width: 641px) {
+  .tonightPage .screenLede {
+    min-height: 2lh;
+  }
+}
+
+.tonightLedeHold {
+  display: block;
+}
+
 /* While the listings read runs, nothing after the lede may paint: the lede
    answer lands above it and would push it down the page (a layout shift). The
    rail holds the soft plans and the area news, which do not wait on that

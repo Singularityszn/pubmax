@@ -475,8 +475,9 @@ const PIN_READY_CEILING_MS = 12_000;
 // reader is not left watching an empty map with nothing to read.
 const PIN_RETRY_WAIT_MS = 6_000;
 // MapLibre's GeoJSON worker and render events can lead the phone compositor by
-// several frames. Keep honest loading chrome through that observed handoff.
-const PHONE_PIN_COMPOSITE_HOLD_MS = 500;
+// a few frames. Two animation frames after the render that includes the pub
+// layers confirm that paint before the loading chrome lifts.
+const PHONE_PIN_COMPOSITE_CONFIRM_FRAMES = 2;
 // First-painted-frame watchdog. `style.load` is a network/parse event — it can
 // fire (and retire the parent's loading chrome) in a browser whose WebGL
 // context was GRANTED but whose render loop never produces a frame (dead
@@ -1944,7 +1945,11 @@ export default function PubMapCanvas({
       // and retry lane below.
       requiresBasemapPaint: !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
-      visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
+      compositeConfirmFrames: phoneFirstImpression
+        ? PHONE_PIN_COMPOSITE_CONFIRM_FRAMES
+        : 0,
+      scheduleFrame: (callback) => window.requestAnimationFrame(callback),
+      cancelFrame: (handle) => window.cancelAnimationFrame(handle),
       setPinsVisible: (visible) => {
         if (visible) markPubmaxTiming("pubmax:pins-visible");
         for (const id of PUB_PIN_LAYERS) {

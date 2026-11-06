@@ -9,11 +9,14 @@
  *   closed     — one confident match that Places reports CLOSED_PERMANENTLY;
  *                --write drops it.
  *   unverified — anything else: no result, no confident or an ambiguous match,
- *                or a temporary closure. The row is left unchanged and listed,
- *                and the command exits nonzero.
+ *                or a temporary closure. The row is left unchanged and listed.
+ *                A full run exits nonzero. A --limit batch records them and
+ *                exits 0 so the next day can take the rows not yet checked.
  *
- * A failed Places call aborts the run before anything is written, and --write
- * refuses to overwrite an existing artifact for the verified day.
+ * A failed Places call aborts the run before anything is written. --write
+ * refuses to overwrite an existing artifact for the verified day, unless
+ * --limit is set: that day's checks are merged, and a row already checked
+ * in the unfinished re-verification is not sent to Places again.
  *
  * The committed artifact keeps the place id and derived verdict fields only;
  * no Google-sourced names, addresses or statuses are stored (Maps ToS).
@@ -21,9 +24,11 @@
  * Usage:
  *   npm run verify:famous-venues             # report
  *   npm run verify:famous-venues -- --write  # update seeds + verification artifact
+ *   npm run verify:famous-venues -- --write --limit 40
+ *     # oldest observedAt first, at most 40 checks in today's artifact
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -149,19 +154,125 @@ export function summarizeVerification(checks) {
   };
 }
 
+export function parseVerificationLimit(argv) {
+  const index = argv.indexOf("--limit");
+  if (index === -1) return null;
+  const limit = Number(argv[index + 1]);
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error("--limit must be a positive integer");
+  }
+  return limit;
+}
+
+/** How many new Places calls this invocation may make. Today's checks count against --limit. */
+export function remainingBatchSize(limit, alreadyVerifiedToday) {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error("--limit must be a positive integer");
+  }
+  const already = Number.isInteger(alreadyVerifiedToday) ? Math.max(0, alreadyVerifiedToday) : 0;
+  return Math.max(0, limit - already);
+}
+
+/**
+ * Ids already checked in the unfinished re-verification. Artifacts are walked
+ * by date: a re-verification closes once its ids cover every seed id seen in
+ * an artifact so far, so its ids stay eligible. A seed id no artifact has
+ * checked is new and never holds a re-verification open.
+ */
+export function idsCoveredByPartialVerifications(artifacts, seedIds) {
+  const seed = [...seedIds];
+  const byDate = [...artifacts].sort((a, b) =>
+    String(a?.verifiedAt).localeCompare(String(b?.verifiedAt)),
+  );
+  const seen = new Set();
+  let open = new Set();
+  for (const artifact of byDate) {
+    for (const check of artifactChecks(artifact)) {
+      if (typeof check?.id !== "string") continue;
+      seen.add(check.id);
+      open.add(check.id);
+    }
+    if (seed.every((id) => !seen.has(id) || open.has(id))) open = new Set();
+  }
+  return [...open];
+}
+
+/** Oldest observedAt first, then id. skipIds are not sent to Places again. */
+export function selectVerificationBatch(entries, { limit = null, skipIds = [] } = {}) {
+  const skip = new Set(skipIds);
+  const pending = entries
+    .filter((entry) => !skip.has(entry.row.id))
+    .sort((a, b) => {
+      const byDate = String(a.row.observedAt).localeCompare(String(b.row.observedAt));
+      if (byDate !== 0) return byDate;
+      return String(a.row.id).localeCompare(String(b.row.id));
+    });
+  if (limit == null) return pending;
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error("--limit must be a positive integer");
+  }
+  return pending.slice(0, limit);
+}
+
+function artifactChecks(artifact) {
+  return Array.isArray(artifact?.checks) ? artifact.checks : [];
+}
+
+function loadVerificationArtifacts() {
+  return readdirSync(FAMOUS_DIR)
+    .filter((name) => /^verification_\d{4}-\d{2}-\d{2}\.json$/.test(name))
+    .map((name) => JSON.parse(readFileSync(join(FAMOUS_DIR, name), "utf8")));
+}
+
+function mergeChecks(existing, incoming) {
+  const byId = new Map(existing.map((check) => [check.id, check]));
+  for (const check of incoming) byId.set(check.id, check);
+  return [...byId.values()];
+}
+
 async function main() {
   const write = process.argv.includes("--write");
+  const limit = parseVerificationLimit(process.argv);
   const verifiedDay = isoDateOnly(new Date());
   const { byFile, rows } = loadPacks();
 
   console.log(
-    `Famous venue Places verification (${VERIFICATION_WINDOW_DAYS}-day window); verifiedDay=${verifiedDay}; write=${write}`,
+    `Famous venue Places verification (${VERIFICATION_WINDOW_DAYS}-day window); verifiedDay=${verifiedDay}; write=${write}; limit=${limit ?? "none"}`,
   );
 
   const outPath = join(FAMOUS_DIR, `verification_${verifiedDay}.json`);
+  let existingArtifact = null;
   if (write && existsSync(outPath)) {
-    console.error(`${outPath} already exists; refusing to overwrite the verified day's artifact`);
-    process.exit(1);
+    if (limit == null) {
+      console.error(`${outPath} already exists; refusing to overwrite the verified day's artifact`);
+      process.exit(1);
+    }
+    existingArtifact = JSON.parse(readFileSync(outPath, "utf8"));
+  }
+
+  let entries = rows;
+  let skipIds = [];
+  if (limit != null) {
+    const priorArtifacts = loadVerificationArtifacts();
+    const today = priorArtifacts.find((artifact) => artifact.verifiedAt === verifiedDay) ?? null;
+    const checkedToday = artifactChecks(today).length;
+    const room = remainingBatchSize(limit, checkedToday);
+    if (room === 0) {
+      console.log(`Today's batch already has ${checkedToday} checks; not calling Places again`);
+      return;
+    }
+    skipIds = idsCoveredByPartialVerifications(
+      priorArtifacts,
+      rows.map(({ row }) => row.id),
+    );
+    entries = selectVerificationBatch(rows, { limit: room, skipIds });
+    if (entries.length === 0) {
+      console.log("No famous-venue rows left in this re-verification");
+      return;
+    }
+    console.log(
+      `Batch: ${entries.length} row(s), oldest ${entries[0].row.observedAt} ${entries[0].row.id}`,
+    );
   }
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
@@ -169,8 +280,11 @@ async function main() {
     console.error("GOOGLE_PLACES_API_KEY is required");
     process.exit(1);
   }
-  const client = createPlacesTextSearchClient({ apiKey, maxLiveCalls: MAX_LIVE_CALLS });
-  const checks = await mapSequential(rows, ({ row }) =>
+  const client = createPlacesTextSearchClient({
+    apiKey,
+    maxLiveCalls: limit == null ? MAX_LIVE_CALLS : entries.length,
+  });
+  const checks = await mapSequential(entries, ({ row }) =>
     verifyRowWithPlaces(row, client.searchText),
   );
 
@@ -202,16 +316,20 @@ async function main() {
   }
 
   const committedChecks = checks.map(toCommittedPlacesCheck);
+  const mergedChecks = existingArtifact
+    ? mergeChecks(artifactChecks(existingArtifact), committedChecks)
+    : committedChecks;
+  const priorCalls = existingArtifact?.summary?.placesLiveApiCalls ?? 0;
   const artifact = {
     version: 4,
     verifiedAt: verifiedDay,
     method:
       "places_text_search: live Google Places API (New) Text Search on the verified day; committed artifact stores placeId and derived verdict fields only (Maps ToS).",
     summary: {
-      ...summarizeVerification(committedChecks),
-      placesLiveApiCalls: client.getLiveCallCount(),
+      ...summarizeVerification(mergedChecks),
+      placesLiveApiCalls: priorCalls + client.getLiveCallCount(),
     },
-    checks: committedChecks,
+    checks: mergedChecks,
   };
   writeFileSync(outPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(`Wrote ${outPath}`);
@@ -220,10 +338,20 @@ async function main() {
       `Next: add ${closed.map((c) => c.id).join(", ")} to data/famous_venues/removed.json`,
     );
   }
-  console.log("Next: run npm run refresh:slim, then commit the slim");
-  if (unverified.length) {
+  const skipAfter = new Set([...skipIds, ...mergedChecks.map((check) => check.id)]);
+  const stillPending =
+    limit == null ? [] : selectVerificationBatch(rows, { skipIds: [...skipAfter] });
+  if (limit == null || stillPending.length === 0) {
+    console.log("Next: run npm run refresh:slim, then commit the slim");
+  } else {
+    console.log(`Next batch: ${stillPending.length} row(s) remain`);
+  }
+  if (unverified.length && limit == null) {
     console.error(`Still withheld: ${unverified.map((c) => c.id).join(", ")}`);
     process.exit(1);
+  }
+  if (unverified.length) {
+    console.log(`Still withheld: ${unverified.map((c) => c.id).join(", ")}`);
   }
 }
 

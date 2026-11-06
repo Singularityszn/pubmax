@@ -72,6 +72,19 @@ describe("the home document ships the skyline preload", () => {
     expect(html.match(/rel="preload"/g)?.length ?? 0).toBe(1);
     expect(html).toContain("/landing/hero-thames-1024.avif 1024w");
     expect(html).toContain('fetchPriority="high"');
+    // Fail-soft: no answer card, so the skyline preload is not gated to desktop.
+    expect(html).not.toContain('media="(min-width: 960px)"');
+  });
+
+  it("gates the skyline preload to desktop only when an answer card will render", () => {
+    const preload = renderToStaticMarkup(
+      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: true }),
+    );
+    expect(preload).toContain('media="(min-width: 960px)"');
+    const allWidths = renderToStaticMarkup(
+      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: false }),
+    );
+    expect(allWidths).not.toContain('media="(min-width: 960px)"');
   });
 });
 
@@ -101,12 +114,29 @@ describe("the landing hero stands on a photograph", () => {
     expect(html).toContain("data:image/webp;base64,");
   });
 
-  it("preloads only the skyline and gives it the only high-priority image request", () => {
-    const preload = renderToStaticMarkup(createElement(LandingSkylinePreload));
+  it("preloads the skyline on desktop only and keeps it the high-priority image element", () => {
+    const preload = renderToStaticMarkup(
+      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: true }),
+    );
     expect(preload.match(/rel="preload"/g)?.length ?? 0).toBe(1);
     expect(preload).toContain("/landing/hero-thames-1024.avif 1024w");
-    expect(html.match(/fetchPriority="high"|fetchpriority="high"/gi)?.length ?? 0).toBe(1);
-    expect(html).toContain("decoding=\"sync\"");
+    expect(preload).toContain('media="(min-width: 960px)"');
+    const images = html.match(/<img [^>]*>/g) ?? [];
+    const highImages = images.filter((img) => /fetchpriority="high"/i.test(img));
+    expect(highImages).toHaveLength(1);
+    expect(highImages[0]).toContain('class="lpLondonPhoto"');
+    expect(highImages[0]).toContain('decoding="sync"');
+  });
+
+  it("preloads the answer photograph on phone only and leaves its element lazy for desktop", () => {
+    const answerImg = html.match(/<img class="landingPhoto__img"[^>]*>/)?.[0] ?? "";
+    expect(answerImg).toContain('loading="lazy"');
+    expect(answerImg).not.toMatch(/fetchpriority="high"/i);
+    const preloads = html.match(/<link rel="preload"[^>]*>/g) ?? [];
+    expect(preloads).toHaveLength(1);
+    expect(preloads[0]).toContain('media="(max-width: 959px)"');
+    expect(preloads[0]).toContain(`/landing/london/${anchorPhoto.id}-640.avif 640w`);
+    expect(preloads[0]).toMatch(/fetchpriority="high"/i);
   });
 
   it("never prints the venue lane's empty state on a landing", () => {

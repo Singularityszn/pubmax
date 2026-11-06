@@ -1,5 +1,12 @@
 // Founder photographs of London in a mosaic below the hero (captain 26 Sep 2026).
-// Lazy-loaded, no preload: the hero owns LCP; this section is always below the fold.
+// The hero owns LCP; this section is always below the fold. Every tile, frame and
+// caption renders in the first HTML so the mosaic holds its final size; only the
+// pictures mount once the section nears the viewport, so their bytes do not queue
+// behind the answer photo.
+
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 
 import Kicker from "@/components/ui/kicker";
 import {
@@ -19,7 +26,10 @@ const WIDEST = LONDON_COLLAGE_WIDTHS[LONDON_COLLAGE_WIDTHS.length - 1];
 const COLLAGE_SIZES =
   "(max-width: 699px) min(72vw, 280px), (max-width: 959px) 100vw, min(40vw, 500px)";
 
-function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
+/** Tight margin: start fetching only when the reader is about to scroll here. */
+const COLLAGE_ROOT_MARGIN = "80px 0px";
+
+function CollageTile({ photo, showPicture }: { photo: LondonCollagePhoto; showPicture: boolean }) {
   return (
     <li
       className={`lpCollageTile lpCollageTile--${photo.layout}`}
@@ -27,21 +37,23 @@ function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
     >
       <figure className="lpCollageTile__figure">
         <div className="lpCollageTile__frame">
-          <picture>
-            <source type="image/avif" srcSet={londonCollageSrcSet(photo, "avif")} sizes={COLLAGE_SIZES} />
-            <source type="image/webp" srcSet={londonCollageSrcSet(photo, "webp")} sizes={COLLAGE_SIZES} />
-            <img
-              className="lpCollageTile__img"
-              src={londonCollageSrc(photo, WIDEST, "webp")}
-              width={photo.width}
-              height={photo.height}
-              alt={photo.alt}
-              loading="lazy"
-              decoding="async"
-              sizes={COLLAGE_SIZES}
-              style={{ backgroundImage: `url(${photo.blurDataUrl})` }}
-            />
-          </picture>
+          {showPicture ? (
+            <picture>
+              <source type="image/avif" srcSet={londonCollageSrcSet(photo, "avif")} sizes={COLLAGE_SIZES} />
+              <source type="image/webp" srcSet={londonCollageSrcSet(photo, "webp")} sizes={COLLAGE_SIZES} />
+              <img
+                className="lpCollageTile__img"
+                src={londonCollageSrc(photo, WIDEST, "webp")}
+                width={photo.width}
+                height={photo.height}
+                alt={photo.alt}
+                loading="lazy"
+                decoding="async"
+                sizes={COLLAGE_SIZES}
+                style={{ backgroundImage: `url(${photo.blurDataUrl})` }}
+              />
+            </picture>
+          ) : null}
         </div>
         <figcaption className="lpCollageTile__caption">{photo.caption}</figcaption>
       </figure>
@@ -50,8 +62,29 @@ function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
 }
 
 export default function LandingLondonCollage() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [showPictures, setShowPictures] = useState(false);
+
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShowPictures(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: COLLAGE_ROOT_MARGIN },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section className="lpCollage" aria-labelledby="lpCollageHeading">
+    <section className="lpCollage" aria-labelledby="lpCollageHeading" ref={sectionRef}>
       <div className="lpCollageInner">
         <header className="lpCollageHead">
           <Kicker>London</Kicker>
@@ -66,7 +99,7 @@ export default function LandingLondonCollage() {
           tabIndex={0}
         >
           {LONDON_COLLAGE_PHOTOS.map((photo) => (
-            <CollageTile key={photo.id} photo={photo} />
+            <CollageTile key={photo.id} photo={photo} showPicture={showPictures} />
           ))}
         </ul>
 
