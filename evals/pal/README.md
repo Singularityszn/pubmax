@@ -11,7 +11,9 @@ The hidden answer key combines hand-maintained routing constraints (`expectedToo
 
 The key also encodes the current keyless Ask regression baseline at the pinned instant: when Pal behaviour intentionally changes, regenerate the key in the same commit. Known Pal gaps live in `FOLLOW_UPS.md`; update the key and `FOLLOW_UPS.md` together when a gap is fixed or re-baselined.
 
-Invented-venue and directory price checks are absolute: every card `venueId` must exist in `public/data/venues_slim.json`, and directory pint prices must match the slim index within tolerance.
+Every non-empty card `venueId` must exist in `public/data/venues_slim.json`.
+The invented-venue check skips cards without a venue ID, including late-food cards.
+Directory pint prices must match the slim index within tolerance.
 
 A directory card with a price fails when its venue has no recorded price. A null price remains valid.
 These baseline checks score structured cards. The fail-closed subsets below also check answer text, hours and heritage.
@@ -107,6 +109,9 @@ remembers about the person it is talking to (`npm run eval:pal:memory`).
 - `npm run eval:pal` — deterministic gate (`skipModel: true`), fast enough for CI via vitest. CityMCP is the offline stub in `offlineFetch.ts`, `TYPESAFE_API_KEY` is cleared for the run, and every case runs at the `now` pinned in `answer-key.json` (an evening the bundled What's On fixtures cover).
 - `__tests__/askModelLoopMock.test.ts` (part of `npm run test`) — the keyed tool loop without a key or a bill. A local [aimock](https://github.com/CopilotKit/aimock) server answers OpenRouter's chat-completions wire from `__tests__/fixtures/aimock/ask-model-loop.json`, `OPENROUTER_BASE_URL` points `lib/ask/modelLoop.ts` at it, and `runAsk` runs the real tool handlers at this suite's pinned `now`. It pins the allowlist, the rejection of arguments that are not a JSON object, the three-round and three-calls-a-round caps, and the deterministic fallback on a missed deadline. The fixtures are hand-written in aimock's file format, not recorded tapes, so they prove the loop's contract and not a model's choices.
 - `npm run eval:pal:live` — requires `OPENROUTER_API_KEY` (refuses to run without it); exercises the optional OpenRouter tool loop on `runAsk` (map Ask parity), not the ElevenLabs Pal agent. Only OpenRouter goes to the network; every other source stays on the offline stub. Adds a `model_ran` check per case that fails when the model made no tool call, and writes `scoreboard/latest.json` and `latest.md`.
+
+Accepted late-food questions bypass the model loop under [ADR 0014](../../docs/adr/0014-night-os-ask-agent.md).
+The live suite therefore fails `model_ran` for `food-midnight-covent`, even when its recorded answer is correct.
 
 Regenerate data-derived fields after venue, price, What's On, or routing changes:
 

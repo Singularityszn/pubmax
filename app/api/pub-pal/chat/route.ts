@@ -320,7 +320,8 @@ export async function POST(request: Request): Promise<Response> {
       });
       // Discovery ranks on area, mood, budget and group size. Without one,
       // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
-      // results, including refusals and read failures, before this fallback.
+      // and accepted late-food results before this fallback, including
+      // clarification, refusals and read failures.
       if (isVenueDiscoveryAnswer(query, turns, answer)) {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(

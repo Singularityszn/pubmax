@@ -117,9 +117,9 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    says which of the three happened (`palDraftOutcomeLine`). Nothing is saved
    until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
    `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
-4. **Keyless path (map Ask)** — without `OPENROUTER_API_KEY`, a deterministic
-   router picks 1–2 tools on `POST /api/ask` and fills house-voice templates
-   (same honesty as heritage structured-only).
+4. **Keyless path (map Ask)** - without `OPENROUTER_API_KEY`, `POST /api/ask`
+   uses deterministic tools and house-voice templates.
+   Decision 2 defines the recorded-answer routing exceptions.
 5. **Bounded model loop (map Ask)** — with OpenRouter, tool-calling on
    `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
    The safety check below precedes this loop. The model selects tools only.
