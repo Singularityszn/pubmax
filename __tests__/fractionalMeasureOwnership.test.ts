@@ -814,8 +814,9 @@ describe("item evidence and reader policy", () => {
 
   it("checks a complete offer note even when a sibling has a fractional discount", () => {
     const html = "<p>Peroni pint £5.20 2/3 off; Guinness pint £6.20 happy<br>hour</p>";
+    expect(readVenueDrinkPrices(html, "html").kept).toEqual([]);
     expect(readVenueDrinkPrices(html, "html").drops)
-      .toEqual(["offer-not-a-menu-price", "offer-not-a-menu-price"]);
+      .toEqual(["fractional-measure-not-a-pint", "offer-not-a-menu-price"]);
     expect(readChainPintPrices(html).kept).toEqual([]);
     expect(factsFromPage(html, fact).drinks).toEqual([]);
   });

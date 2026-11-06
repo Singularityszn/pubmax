@@ -45,6 +45,21 @@ export function fetchGatedOuterLondonPage(
   },
 ): Promise<unknown>;
 
+export function scrape(
+  url: string,
+  pubName: string,
+  pubWebsite: string,
+  robotsChecker: (url: string) => Promise<{ allowed?: boolean; evidence?: string }>,
+): Promise<{
+  markdown: string;
+  links: string[];
+  finalUrl: string;
+  json: {
+    drinks: import("../lib/harvest/tavilyVenueDrinkPrices").TavilyVenueDrinkPrice[];
+    reading: import("../lib/harvest/ukPriceCrawl").UkPriceReading;
+  };
+}>;
+
 export function verbatimValidateHarvestedDrinks(
   extracted: Array<{ drinkName: string; category: string; priceGbp: number }>,
   pagePounds: Set<string>,

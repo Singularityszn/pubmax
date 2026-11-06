@@ -2402,7 +2402,7 @@ describe("a named Off Menu serving", () => {
     expect(factsFromPage("Off Menu pale ale pint £5.20", pageFact).drinks).toEqual([offMenuPint]);
   });
 
-  it.each([["1/3", "one-third"], ["⅔", "two-thirds"], ["two-thirds", "two-thirds"]] as const)(
+  it.each(["1/3", "⅔", "two-thirds"] as const)(
     "holds the explicit %s serving and its neighbouring prices",
     (fraction) => {
       for (const item of [

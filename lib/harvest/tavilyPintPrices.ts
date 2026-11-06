@@ -16,7 +16,7 @@ function cleanDrinkName(line: string, cutoff: number): string {
   return line
     .slice(0, cutoff)
     .replace(/^[-*#|>\s]+/, "")
-    .replace(/\b(?:draught|draft)\b\s*[:|-]?\s*/gi, "")
+    .replace(/^(?:draught|draft)\b\s*[:|-]?\s*/i, "")
     .replace(/^(?:(?:beer|boards|cider|drinks|flight|menu)\s+){2,}/i, "")
     .replace(/\s+\d{1,2}(?:\.\d+)?%(?=\s|$)/g, "")
     .replace(/\s+/g, " ")

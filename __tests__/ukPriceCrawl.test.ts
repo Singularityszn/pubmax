@@ -52,30 +52,31 @@ describe("what a page states", () => {
     "Guinness pint £6.20 Kernel stout £6.00 (1/3)",
     "Kernel stout £6.00 (⅓) Guinness pint £6.20",
     "Guinness pint £6.20\n2/3 Kernel stout £6.00",
-  ])("keeps a pint beside a fractional pour: %s", (row) => {
+  ])("withholds both prices beside a fractional pour: %s", (row) => {
     for (const format of ["html", "text"] as const) {
       const reading = readVenueDrinkPrices(format === "html" ? `<p>${row.replace(/\n/g, "</p><p>")}</p>` : row, format);
-      expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.2]);
-      expect(reading.drops).toEqual(["fractional-measure-not-a-pint"]);
+      expect(reading.kept).toEqual([]);
+      expect(reading.drops).toEqual(Array(2).fill("fractional-measure-not-a-pint"));
     }
   });
 
-  it("keeps a useful drinks list when a neighbouring pour is fractional", () => {
+  it("withholds neighbouring prices even when the remaining rows are below the list minimum", () => {
     const reading = readVenueDrinkPrices(`<p>Guinness pint £6.20 Kernel stout £6.00 (2/3)</p>
       <p>Madri pint £6.40</p><p>Neck Oil pint £6.80</p><p>House red wine 175ml £7.50</p>`, "html");
-    expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.2, 6.4, 6.8, 7.5]);
-    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.8, 7.5]);
+    expect(reading.drops).toEqual(Array(3).fill("fractional-measure-not-a-pint"));
+    expect(pageStatesADrinksList(reading)).toBe(false);
   });
 
-  it("does not publish Small Beer fractional pours as pints or borrow their measure", () => {
+  it("withholds Small Beer fractional pours and their neighbouring prices", () => {
     // Small Beer drinks page, read 23 October 2026. Each paragraph is one item.
     const menu = `<p>Never Come Back, Hazy IPA, 6.5%, Two Flints (Windsor) £8.60(2/3)</p>
       <p>Locals, IPA, 6%, Beak (Lewes) £7.40 (2/3)</p>
       <p>Dest, Pilsner, 5%, Beak (Lewes) £7.50</p>
       <p>Cascade, Dry Stout, 4.6%, The Kernel (Bermondsey) £6.00(2/3)</p>`;
     const reading = readVenueDrinkPrices(menu, "html");
-    expect(reading.kept.map((row) => row.priceGbp)).toEqual([7.5]);
-    expect(reading.drops).toEqual(Array(3).fill("fractional-measure-not-a-pint"));
+    expect(reading.kept).toEqual([]);
+    expect(reading.drops).toEqual(Array(4).fill("fractional-measure-not-a-pint"));
   });
 
   it("keeps a price-first cocktail attached to its own name", () => {
@@ -486,12 +487,12 @@ describe("what a page states", () => {
     expect(readVenueDrinkPrices("<p>Espresso martini cocktail &pound;14.00</p>").kept).toHaveLength(1);
   });
 
-  it("takes the pint off a draught line and leaves the half behind", () => {
+  it("withholds every price on a draught line containing half measures", () => {
     const reading = readVenueDrinkPrices(
       "<p>Draft beer Pilsner Half &pound;2.50 &pound;5.00 Peroni Half &pound;3.55 &pound;7.10</p>",
     );
-    expect(reading.kept.map((row) => row.priceGbp)).toEqual([5, 7.1]);
-    expect(reading.drops.filter((reason) => reason === "half-measure-not-a-pint")).toHaveLength(2);
+    expect(reading.kept).toEqual([]);
+    expect(reading.drops).toEqual(Array(4).fill("half-measure-not-a-pint"));
   });
 
   it("takes the second figure of a slash pair, because the first is the half", () => {
@@ -501,20 +502,20 @@ describe("what a page states", () => {
     expect(reading.kept.map((row) => row.priceGbp)).toEqual([4.6, 4.7, 5, 4.8]);
   });
 
-  it("takes the pint of a bare pair under Half and Pint column heads", () => {
+  it("withholds prices that share a paragraph with Half and Pint column heads", () => {
     const reading = readVenueDrinkPrices(
       "<p>Draught Half Pint Peroni 5.0% &pound;3.90 &pound;7.70 Carling 4.0% &pound;3.60 &pound;7.20 Jubel 4.0% &pound;4.10 &pound;8.00</p>",
     );
-    expect(reading.kept.map((row) => row.priceGbp)).toEqual([7.7, 7.2, 8]);
-    expect(reading.drops.filter((reason) => reason === "half-measure-not-a-pint")).toHaveLength(3);
+    expect(reading.kept).toEqual([]);
+    expect(reading.drops).toEqual(Array(6).fill("half-measure-not-a-pint"));
   });
 
-  it("drops a figure written as a 1/2 pint when the line never says half", () => {
+  it("withholds all figures beside a 1/2 pint when the line never says half", () => {
     const reading = readVenueDrinkPrices(
       "<p>Paulaner Lager Helles 4.9% 1/2 Pint &pound;4.05 Sierra Nevada IPA 4.2% 1/2 Pint &pound;4.20 Pint &pound;6.50</p>",
     );
-    expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.5]);
-    expect(reading.drops.filter((reason) => reason === "half-measure-not-a-pint")).toHaveLength(2);
+    expect(reading.kept).toEqual([]);
+    expect(reading.drops).toEqual(Array(3).fill("half-measure-not-a-pint"));
   });
 
   it("keeps two neighbouring pints that are not a half and its pint", () => {

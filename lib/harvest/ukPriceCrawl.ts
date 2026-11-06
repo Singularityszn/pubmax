@@ -258,7 +258,7 @@ export const MIN_PRICED_LINES_FOR_LIST = 4;
 function isBottledMeasure(text: string): boolean {
   return /\bbottle[ds]?\b|\bcans?\b/i.test(text)
     || Array.from(text.matchAll(/\b(\d+(?:[.,]\d+)?)\s*ml\b/gi))
-      .some((match) => Number(match[1].replace(",", ".")) !== 568);
+      .some((match) => Number(match[1]!.replace(",", ".")) !== 568);
 }
 
 /**
@@ -310,7 +310,8 @@ const FRACTIONAL_BEER_MEASURE = new RegExp(FRACTIONAL_BEER_MEASURES.map(([patter
 const UNCERTAIN_PINT_SERVING = /\b(?:thirds?|quarters?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?|fractions?|fractional|served[ \t]+as|(?:serving|pour|portion)[ \t]+size|(?:small|sample|taster|tasting)[ \t]+(?:serves?|servings?|pours?|measures?|pints?))\b|\b\d+[ \t]*\/[ \t]*\d+\b|[⁄∕\u2150-\u215f\u2189]/i;
 
 function fractionalServingToken(text: string): RegExpExecArray | null {
-  return FRACTIONAL_BEER_MEASURE.exec(text) ?? UNCERTAIN_PINT_SERVING.exec(text);
+  return FRACTIONAL_PINT_MEASURE.exec(text)
+    ?? FRACTIONAL_BEER_MEASURE.exec(text) ?? UNCERTAIN_PINT_SERVING.exec(text);
 }
 
 export function fractionalBeerServing(text: string): string | null {
@@ -330,7 +331,7 @@ const LEADING_FRACTION_TOKEN = new RegExp(
   `^\\s*\\(?\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?=\\s|[()-]|${PRICE_ITEM_SEPARATOR.source}|$)`, "i",
 );
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
-export const SERVING_WORD = "pints?|halves|half|schooners?|two[\\s-]thirds|kegs?|bottles?|cans?|glasses|glass|measures|measure";
+const SERVING_WORD = "pints?|halves|half|schooners?|two[\\s-]thirds|kegs?|bottles?|cans?|glasses|glass|measures|measure";
 export const SERVING_SIZE = new RegExp(`\\b(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i");
 const POUR_OF = new RegExp(`^(?:(?:a|an)\\s+)?(?:pints?|half|measures?|schooners?|${FRACTIONAL_PINT_MEASURE.source}|${FRACTIONAL_BEER_MEASURE.source}|glass(?:es)?|bottles?|cans?)\\s+of\\s+(?:(?:a|an)\\s+)?(.+)$`, "i");
 
@@ -543,34 +544,6 @@ function statedWineMeasure(label: string | undefined): { drinkLabel: string; ser
     drinkLabel: (match[1] ?? "").replace(/^[/|\s\u2013\u2014-]+$/, "").trim(),
     servingSize: (match[2] ?? "").replace(/\s+/g, "").toLowerCase(),
   };
-}
-
-export function statedWineIdentity(
-  context: string,
-  verbatim: string,
-  priceAt: number,
-): { drinkLabel: string; servingSize: string } | null {
-  const itemStart = context.lastIndexOf("\n", priceAt - 1) + 1;
-  context = context.slice(itemStart);
-  priceAt -= itemStart;
-  let candidateAt = priceAt;
-  let currentMeasure: string | null = null;
-  // A wine's subsequent glass figures carry only their own printed measure.
-  // Walk back across adjacent measure/price pairs, never across another name.
-  for (let i = 0; i < 3; i += 1) {
-    const price = i === 0
-      ? verbatim
-      : context.slice(candidateAt).match(new RegExp(`^(?:${UK_PRICE_PATTERN.source})`, "i"))?.[0];
-    if (!price) return null;
-    const measure = statedWineMeasure(drinkLabelFromPriceContext(context, price, candidateAt) ?? undefined);
-    if (!measure) return null;
-    currentMeasure ??= measure.servingSize;
-    if (measure.drinkLabel) return { drinkLabel: measure.drinkLabel, servingSize: currentMeasure };
-    const prior = [...context.slice(0, candidateAt).matchAll(UK_PRICE_PATTERN)].at(-1);
-    if (!prior) return null;
-    candidateAt = prior.index ?? 0;
-  }
-  return null;
 }
 
 /** One £ figure on a page before category judgment (TypeSafe or regex). */
@@ -1169,6 +1142,8 @@ function isRegularDrinksHeading(line: string): boolean {
   return section?.kind === "drinks" && section.generic;
 }
 
+const OFFER_SERVING_QUALIFIER = /^\s*(?:(?:on|all|selected)\s+)*(?:draught|draft|cask|keg|tap|beers?|lagers?|ales?|pints?)(?:\s+(?:beers?|lagers?|ales?|pints?))?\s*$/i;
+
 function explicitHeadingOffer(text: string): RegExpMatchArray | undefined {
   const [offer] = groupOfferMatches(text);
   if (!offer) return undefined;
@@ -1270,8 +1245,8 @@ export type PrintedPriceEvidence = {
   label: string;
   printedLabel: string;
   tail: string;
-  statedWine: ReturnType<typeof statedWineIdentity>;
-  wine: ReturnType<typeof statedWineIdentity>;
+  statedWine: ReturnType<typeof statedWineMeasure>;
+  wine: ReturnType<typeof statedWineMeasure>;
   admission: PriceAdmission;
   qualifier?: PrintedSpan;
 };
@@ -1409,8 +1384,8 @@ function preServingAdmission(
   selection: SelectedPrice,
   before: string,
   identity: ReturnType<typeof priceItemIdentity>,
-  stated: ReturnType<typeof statedWineIdentity>,
-  wine: ReturnType<typeof statedWineIdentity>,
+  stated: ReturnType<typeof statedWineMeasure>,
+  wine: ReturnType<typeof statedWineMeasure>,
   fullPint: boolean,
   source: ItemCategory["source"],
   malformedPair: boolean,
@@ -1916,7 +1891,7 @@ export function printedPriceItem(text: string, evidence: PrintedPriceEvidence): 
   const serving = qualifier ? text.slice(qualifier.start, qualifier.end) : "";
   const pricedLine = text.slice(line.start, line.end);
   return {
-    label,
+    label: printedLabel || label,
     text: `${printedLabel} ${raw.verbatim}${tail} ${continuation} ${serving} ${leading}`.trim(),
     pintColumn: PRICE_ONLY_LINE.test(pricedLine.trim())
       && findUkPriceCandidates(pricedLine).length > 1,
