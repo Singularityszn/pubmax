@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -6,6 +8,7 @@ import {
   OpenAIProfileAvatarModerationAdapter,
   OpenRouterAvatarModerationAdapter,
 } from "@/lib/profileAvatarModeration";
+import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
 
 function openRouterResponse(content: string): Response {
   return new Response(
@@ -15,6 +18,131 @@ function openRouterResponse(content: string): Response {
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
 }
+
+describe.each([
+  ["OpenAI", OpenAIProfileAvatarModerationAdapter],
+  ["OpenRouter", OpenRouterAvatarModerationAdapter],
+] as const)("%s moderation response deadline", (provider, Adapter) => {
+  it("lets the upload scan recover when headers arrive but the HTTP body stalls", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.write('{"unfinished":');
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address() as AddressInfo;
+    let receivedHeaders = false;
+    let requestSignal: AbortSignal | null | undefined;
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      const scanner = new Adapter({
+        apiKey: "test-key",
+        timeoutMs: 500,
+        fetcher: async (_url, init) => {
+          requestSignal = init?.signal;
+          const response = await fetch(`http://127.0.0.1:${address.port}/moderation`, init);
+          receivedHeaders = true;
+          return response;
+        },
+      });
+      const outcome = await Promise.race([
+        scanUploadedImage({
+          surface: "profile-avatar",
+          signedUrl: "https://storage.test/signed-avatar",
+          adapter: () => scanner,
+        }),
+        new Promise<"deadline_missed">((resolve) => {
+          watchdog = setTimeout(() => resolve("deadline_missed"), 2_000);
+        }),
+      ]);
+
+      expect(receivedHeaders).toBe(true);
+      expect(outcome).toEqual({ verdict: "skipped", reason: "scan_failed" });
+      expect(requestSignal?.aborted).toBe(true);
+      await expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
+        message: `${provider} moderation request failed.`,
+        retryable: true,
+      });
+    } finally {
+      clearTimeout(watchdog);
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
+  });
+
+  it("closes a stalled HTTP error body and preserves its retryable status failure", async () => {
+    let closed: (() => void) | undefined;
+    const responseClosed = new Promise<"closed">((resolve) => {
+      closed = () => resolve("closed");
+    });
+    const server = createServer((_request, response) => {
+      response.once("close", () => closed?.());
+      response.writeHead(500, { "Content-Type": "application/json" });
+      response.write('{"unfinished":');
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address() as AddressInfo;
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    let requestCancellation: {
+      signal: AbortSignal | null | undefined;
+      bodyCancelInvoked: boolean;
+      response: Response;
+    } | undefined;
+
+    try {
+      const scanner = new Adapter({
+        apiKey: "test-key",
+        timeoutMs: 500,
+        fetcher: async (_url, init) => {
+          const response = await fetch(`http://127.0.0.1:${address.port}/moderation`, init);
+          const cancellation = { signal: init?.signal, bodyCancelInvoked: false, response };
+          requestCancellation = cancellation;
+          const body = response.body;
+          if (body) {
+            const originalCancel = body.cancel;
+            body.cancel = function (this: ReadableStream<Uint8Array>, ...args: Parameters<typeof originalCancel>) {
+              cancellation.bodyCancelInvoked = true;
+              return Reflect.apply(originalCancel, this, args);
+            };
+          }
+          return response;
+        },
+      });
+      await expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
+        message: `${provider} moderation returned 500.`,
+        retryable: true,
+      });
+      const outcome = await Promise.race([
+        responseClosed,
+        new Promise<"connection_retained">((resolve) => {
+          watchdog = setTimeout(() => resolve("connection_retained"), 2_000);
+        }),
+      ]);
+
+      expect(outcome).toBe("closed");
+      expect(
+        requestCancellation?.bodyCancelInvoked === true || requestCancellation?.signal?.aborted === true,
+      ).toBe(true);
+      expect(requestCancellation?.response.status).toBe(500);
+    } finally {
+      clearTimeout(watchdog);
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
+  });
+
+  it("keeps a completed malformed JSON body non-retryable", async () => {
+    const scanner = new Adapter({
+      apiKey: "test-key",
+      fetcher: async () => new Response("{invalid", { status: 200 }),
+    });
+
+    await expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
+      message: `${provider} moderation returned invalid JSON.`,
+      retryable: false,
+    });
+  });
+});
 
 describe("OpenAI profile avatar moderation adapter", () => {
   it("uses the direct Moderations API with image-only omni input", async () => {

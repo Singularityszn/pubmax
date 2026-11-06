@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -107,5 +109,99 @@ describe("OpenAI Social post moderation adapter", () => {
 
     expect(outcome).toBe("retryable");
     expect(observedSignals.at(0)?.aborted).toBe(true);
+  });
+
+  it.each([200, 500])("releases a stalled HTTP %i body with a retryable failure", async (status) => {
+    let closed: (() => void) | undefined;
+    const responseClosed = new Promise<"closed">((resolve) => {
+      closed = () => resolve("closed");
+    });
+    const server = createServer((_request, response) => {
+      response.once("close", () => closed?.());
+      response.writeHead(status, { "Content-Type": "application/json" });
+      response.write('{"unfinished":');
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address() as AddressInfo;
+    let receivedHeaders = false;
+    let failureWatchdog: ReturnType<typeof setTimeout> | undefined;
+    let closureWatchdog: ReturnType<typeof setTimeout> | undefined;
+    let requestCancellation: {
+      signal: AbortSignal | null | undefined;
+      bodyCancelInvoked: boolean;
+      response: Response;
+    } | undefined;
+
+    try {
+      const adapter = new OpenAISocialPostModerationAdapter({
+        apiKey: "test-key",
+        timeoutMs: 500,
+        fetcher: async (_url, init) => {
+          const response = await fetch(`http://127.0.0.1:${address.port}/moderation`, init);
+          receivedHeaders = true;
+          if (status === 500) {
+            const cancellation = { signal: init?.signal, bodyCancelInvoked: false, response };
+            requestCancellation = cancellation;
+            const body = response.body;
+            if (body) {
+              const originalCancel = body.cancel;
+              body.cancel = function (this: ReadableStream<Uint8Array>, ...args: Parameters<typeof originalCancel>) {
+                cancellation.bodyCancelInvoked = true;
+                return Reflect.apply(originalCancel, this, args);
+              };
+            }
+          }
+          return response;
+        },
+      });
+      const failure = await Promise.race([
+        adapter.moderate({ postId: "post-1", text: "Held" }).then(
+          () => "unexpected_approval",
+          (error: unknown) => error,
+        ),
+        new Promise<"deadline_missed">((resolve) => {
+          failureWatchdog = setTimeout(() => resolve("deadline_missed"), 2_000);
+        }),
+      ]);
+
+      expect(receivedHeaders).toBe(true);
+      expect(failure).toMatchObject({
+        message: status === 200
+          ? "OpenAI moderation request failed."
+          : "OpenAI moderation returned 500.",
+        retryable: true,
+      });
+      const closure = await Promise.race([
+        responseClosed,
+        new Promise<"connection_retained">((resolve) => {
+          closureWatchdog = setTimeout(() => resolve("connection_retained"), 2_000);
+        }),
+      ]);
+
+      expect(closure).toBe("closed");
+      if (status === 500) {
+        expect(
+          requestCancellation?.bodyCancelInvoked === true || requestCancellation?.signal?.aborted === true,
+        ).toBe(true);
+        expect(requestCancellation?.response.status).toBe(500);
+      }
+    } finally {
+      clearTimeout(failureWatchdog);
+      clearTimeout(closureWatchdog);
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
+  });
+
+  it("keeps a completed malformed JSON body non-retryable", async () => {
+    const adapter = new OpenAISocialPostModerationAdapter({
+      apiKey: "test-key",
+      fetcher: async () => new Response("{invalid", { status: 200 }),
+    });
+
+    await expect(adapter.moderate({ postId: "post-1", text: "Held" })).rejects.toMatchObject({
+      message: "OpenAI moderation returned invalid JSON.",
+      retryable: false,
+    });
   });
 });
