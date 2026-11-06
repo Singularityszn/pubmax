@@ -6,9 +6,44 @@ import { describe, expect, it } from "vitest";
 import {
   formatMonthYear,
   formatObservedDate,
+  formatObservedDayShort,
+  formatSnapshotFrom,
   isoDate,
   PINT_DATASET_OBSERVED_AT,
 } from "@/lib/dataFreshness";
+import * as dateFormat from "@/lib/dataFreshnessFormat";
+
+describe.each([
+  ["dataFreshness", { formatMonthYear, formatObservedDayShort, formatObservedDate, formatSnapshotFrom, isoDate }],
+  ["dataFreshnessFormat", dateFormat],
+] as const)("London date formatters through %s", (_entryPoint, formatters) => {
+  it("keeps the observed day and snapshot wording across the summer clock", () => {
+    const date = new Date("2026-07-03T23:10:47Z");
+    expect(formatters.formatMonthYear(date)).toBe("July 2026");
+    expect(formatters.formatObservedDayShort(date)).toBe("4 Jul");
+    expect(formatters.formatObservedDate(date)).toBe("4 July 2026");
+    expect(formatters.formatSnapshotFrom(date)).toBe("Records from 4 July 2026");
+    expect(formatters.isoDate(date)).toBe("2026-07-03");
+  });
+
+  it("keeps the observed day and snapshot wording in winter", () => {
+    const date = new Date("2026-01-03T23:10:47Z");
+    expect(formatters.formatMonthYear(date)).toBe("January 2026");
+    expect(formatters.formatObservedDayShort(date)).toBe("3 Jan");
+    expect(formatters.formatObservedDate(date)).toBe("3 January 2026");
+    expect(formatters.formatSnapshotFrom(date)).toBe("Records from 3 January 2026");
+    expect(formatters.isoDate(date)).toBe("2026-01-03");
+  });
+
+  it("rejects invalid dates in every formatter", () => {
+    const date = new Date("invalid");
+    expect(() => formatters.formatMonthYear(date)).toThrow(RangeError);
+    expect(() => formatters.formatObservedDayShort(date)).toThrow(RangeError);
+    expect(() => formatters.formatObservedDate(date)).toThrow(RangeError);
+    expect(() => formatters.formatSnapshotFrom(date)).toThrow(RangeError);
+    expect(() => formatters.isoDate(date)).toThrow(RangeError);
+  });
+});
 
 type FreshnessRegistryFile = {
   datasets: { id: string; stamp: { kind: string; value?: string } | null }[];

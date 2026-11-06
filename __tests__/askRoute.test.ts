@@ -1,4 +1,5 @@
 import { VIBE_CHIPS } from "@/lib/vibeChips";
+import { GROUP_MAP_REQUESTS, SOCIAL_MAP_COMMANDS, serviceBesideMap } from "./fixtures/askMapCommands";
 import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -55,6 +56,208 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each(["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp", "How do I get from London Bridge to The Harp?"].flatMap((service) =>
+    ["Open the map", "Open the full map", "View the whole map please", "Open the full map for tonight"].flatMap((map) => serviceBesideMap(service, map)),
+  ))(
+    "separates supported map commands from both journey endpoints: %s", async (query) => {
+      resetJourneyCache();
+      const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
+        if (JSON.parse(init?.body as string).params.name !== "get_journey") return offlineFetch(input, init);
+        return Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } });
+      });
+      vi.stubGlobal("fetch", journeyFetch);
+      const response = await post({ query, cityId: "london" }, "203.0.113.186");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["journey"]);
+      const call = journeyFetch.mock.calls.find(([, init]) => JSON.parse(init?.body as string).params.name === "get_journey");
+      expect(JSON.parse(call?.[1]?.body as string).params.arguments).toEqual({ from: "51.50500,-0.08600", to: "51.50960,-0.12606" });
+      expect(body.cards).toContainEqual(expect.objectContaining({ venueId: "venue-1bz7oic", place: "The Harp" }));
+    },
+  );
+
+  it.each(["Show the map please", "Show me the full map", "View the whole map please"].flatMap((map) => serviceBesideMap("Cheapest pint near Soho", map)))(
+    "separates supported map commands from pint comparisons: %s", async (query) => {
+      const response = await post({ query, cityId: "london" }, "203.0.113.186");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["cheapest_pint_near"]);
+      expect(body.answer).not.toContain("not prices for that item");
+    },
+  );
+
+  it.each([
+    "OK. Show me the map",
+    "Alright, show me the map",
+    "Great. Show the map",
+    "That sounds good. Show me the map",
+    "In fact, show me the map",
+    ...SOCIAL_MAP_COMMANDS,
+  ].flatMap((query) => [false, true].map((withHistory) => ({ query, withHistory }))))(
+    "keeps acknowledgement map actions through HTTP ($withHistory): $query", async ({ query, withHistory }) => {
+      const evidence = "Show the source and date for any price you use";
+      const turns = withHistory ? [{ role: "user", content: "Find four pubs in Camden" }] : [];
+      for (const request of [query, evidence + ". " + query, query + " and " + evidence]) {
+        const response = await post({ query: request, turns, cityId: "london" }, "203.0.113.189");
+        const body = await response.json();
+        expect(response.status).toBe(200);
+        expect(body.toolsUsed).toEqual(["propose_map_action"]);
+        expect(body.cards).toEqual([]);
+        expect(body.proposals).toEqual([]);
+      }
+    },
+  );
+
+  it.each(["Show me the map", "Show the map", "Show The Lamb on the map", "Show The Harp", "Hi. Show me the map", "Show the map. Thanks", "Could you please show me the map", "Thank you and show the map"])("routes genuine map commands beside evidence through HTTP: %s", async (request) => {
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [request, `${evidence}. ${request}`, `${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {
+      const response = await post({ query, cityId: "london" }, "203.0.113.188");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["propose_map_action"]);
+      if (request === "Show The Harp") {
+        expect(body.proposals).toMatchObject([{ kind: "open_venue" }, { kind: "fly_to", place: "The Harp", venueId: "venue-1bz7oic" }]);
+      }
+    }
+  });
+
+  it.each(["any tube delays?", "How much is a pint at The Lamb?"])("keeps journey endpoints and the second HTTP request around evidence: %s", async (other) => {
+    const journey = "Directions to The Lamb from London Bridge";
+    const evidence = "show the source and date for any price you use";
+    for (const [left, right] of [[journey, other], [other, journey]]) {
+      resetJourneyCache();
+      const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
+        if (JSON.parse(init?.body as string).params.name !== "get_journey") return offlineFetch(input, init);
+        return Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } });
+      });
+      vi.stubGlobal("fetch", journeyFetch);
+      const query = `${left} and ${evidence} and ${right}`;
+      const response = await post({ query, cityId: "london" }, "203.0.113.188");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(other.includes("tube") ? ["city_status", "journey"] : ["journey", "venue_prices"]);
+      const call = journeyFetch.mock.calls.find(([, init]) => JSON.parse(init?.body as string).params.name === "get_journey");
+      expect(JSON.parse(call?.[1]?.body as string).params.arguments).toEqual({ from: "51.50500,-0.08600", to: "The Lamb" });
+      if (!other.includes("tube")) expect(body.cards.some((card: { place: string }) => card.place === "The Lamb")).toBe(true);
+    }
+  });
+
+  it.each(["cheap", "somewhere cheap", "cheap and quiet"])("keeps supported cheap follow-up cards in the inherited area: %s", async (request) => {
+    const send = (body: unknown) => post(body, "203.0.113.187");
+    const baseline = await send({ query: `${request} in Camden`, cityId: "london" });
+    const expected = await baseline.json();
+    expect(baseline.status).toBe(200);
+    expect(expected.toolsUsed).toEqual(["search_venues"]);
+    expect(expected.cards.length).toBeGreaterThan(0);
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [request, `${request} and ${evidence}`, `${evidence}. ${request}`, `${evidence}. ${request} and ${evidence}. Include the map`]) {
+      const response = await send({ query, cityId: "london", turns: [{ role: "user", content: "pubs in Camden" }] });
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["search_venues"]);
+      expect(body.cards.map((card: { venueId: string }) => card.venueId)).toEqual(expected.cards.map((card: { venueId: string }) => card.venueId));
+      expect(body.cards.every((card: { place: string }) => /Camden/i.test(card.place))).toBe(true);
+      expect(body.answer).not.toContain("not prices for that item");
+    }
+  });
+
+  it.each([
+    ["cheap burgers", /meal prices|dietary/i],
+    ["cheap wine", /other drinks across pubs/i],
+    ["quiet and cheap", /not prices for that item/i],
+  ])("keeps existing price refusals after an evidence-bearing follow-up: %s", async (request, wording) => {
+    const send = (body: unknown) => post(body, "203.0.113.187");
+    const evidence = "Show the source and date for any price you use";
+    for (const query of [`${request} and ${evidence}`, `${evidence}. ${request} and ${evidence}`]) {
+      const response = await send({ query, cityId: "london", turns: [{ role: "user", content: "pubs in Camden" }] });
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual([]);
+      expect(body.cards).toEqual([]);
+      expect(body.answer).toMatch(wording);
+    }
+  });
+
+  it.each([
+    ["Find pubs in Camden", "somewhere quiet and please include sources and dates for every price you quote"],
+    ["Find pubs in Camden and show the source and date for any price you use", "somewhere quiet"],
+    ["Find pubs and show the source and date for any price you use", "somewhere quiet"],
+  ])("keeps discovery cards after an evidence-bearing follow-up: %s / %s", async (prior, query) => {
+    const response = await post({ query, cityId: "london", turns: [{ role: "user", content: prior }] }, "203.0.113.186");
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    if (prior.includes("Camden")) {
+      expect(body.cards.every((card: { place: string }) => /Camden/i.test(card.place))).toBe(true);
+    }
+    expect(body.answer).not.toContain("not prices for that item");
+  });
+
+  it("keeps mood-only discovery beside evidence and map instructions", async () => {
+    const request = "Quiet-ish near Bank, 4 of us.";
+    const queries = [request, `Show the source and date for any price you use. ${request}`, `${request} Show the map.`, `${request} Show sources for any price you use and include the date. Include the map.`];
+    const choices: string[][] = [];
+    for (const query of queries) {
+      const response = await post({ query, cityId: "london" }, "203.0.113.185");
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.toolsUsed).toEqual(["search_venues"]);
+      expect(body.cards.length).toBeGreaterThan(0);
+      expect(body.cards.every((card: { note: string }) => !/date-night/i.test(card.note))).toBe(true);
+      choices.push(body.cards.map((card: { venueId: string }) => card.venueId));
+    }
+    for (const ids of choices.slice(1)) expect(ids).toEqual(choices[0]);
+  });
+
+  it.each([
+    "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.",
+    "Show the source and date for any price you use. Find three quiet pubs in Soho for tonight.",
+    "Show the source and date for any price you use. Recommend three quiet pubs in Soho.",
+    "Show the source and date for any price you use. Suggest three quiet pubs in Soho.",
+    "Find three quiet pubs in Soho. Show sources for any price you use and show the date for every price you quote.",
+    "Show sources for any price you use and please show the date for every price you quote. Recommend three quiet pubs in Soho.",
+    "Find three quiet pubs in Soho and please include sources and dates for every price you quote",
+  ])("keeps pub discovery when the request asks for price evidence: %s", async (query) => {
+    const response = await post({ query, cityId: "london" }, "203.0.113.184");
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards).toHaveLength(3);
+    expect(body.answer).not.toContain("not prices for that item");
+    expect(body.cards.every((card: { note: string }) => !/date-night/i.test(card.note))).toBe(true);
+  });
+
+  it.each(GROUP_MAP_REQUESTS)("keeps the map-tail group through discovery and Plan: %s", async (query) => {
+    for (const tool of ["search_venues", "propose_plan"] as const) {
+      const result = await runAskTool(tool, { query, limit: 3 }, { query, cityId: "london", skipModel: true });
+      expect(result.ok).toBe(true);
+      expect(result.data).toMatchObject({ intent: { groupSize: 8, area: "Soho" } });
+      if (tool === "propose_plan") {
+        expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "draft_plan", query }));
+      }
+    }
+  });
+
+  it.each([
+    ["search_venues", "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use.", 2, undefined],
+    ["search_venues", "Find three quiet pubs in Soho for four people under £7 a pint and please include sources and dates for every price you quote", 4, 7],
+    ["propose_plan", "Show the source and date for any price you use. Plan a quiet crawl in Soho for four people under £7 a pint.", 4, 7],
+    ["propose_plan", "Show the source and date for any price you use. Sort me a quiet night in Soho for four people under £7 a pint.", 4, 7],
+    ["propose_plan", "Show sources for any price you use and show the date for every price you quote. Sort me a quiet night in Soho for four people under £7 a pint.", 4, 7],
+    ["search_venues", "Find three quiet pubs in Soho for four people under £7 a pint. Show sources for any price you use and show the date for every price you quote.", 4, 7],
+  ] as const)("keeps ranking preferences and the complete %s request", async (tool, query, groupSize, maxPintPrice) => {
+    const result = await runAskTool(tool, { query, limit: 3 }, { query, cityId: "london", skipModel: true });
+    expect(result.ok).toBe(true);
+    expect(result.data).toMatchObject({ intent: { mood: ["quiet"], area: "Soho", groupSize } });
+    expect((result.data as { intent: { maxPintPrice?: number } }).intent.maxPintPrice).toBe(maxPintPrice);
+    expect(result.cards).toHaveLength(3);
+    expect(result.cards.every((card) => !/date-night/i.test(card.note ?? ""))).toBe(true);
+    if (tool === "propose_plan") {
+      expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "draft_plan", query }));
+    }
+  });
+
   it("carries each Soho pint publisher and read date into its answer card", async () => {
     const response = await post({ query: "Find me four pubs in Soho", cityId: "london" }, "203.0.113.183");
     const body = await response.json();
