@@ -9,7 +9,7 @@ import {
   pintPricesFromUkReading,
   type TavilyPintPrice,
 } from "./tavilyPintPrices";
-import { readVenueDrinkPrices, type UkPriceReading } from "./ukPriceCrawl";
+import { pricedMenuSnippets, readVenueDrinkPrices, type UkPriceReading } from "./ukPriceCrawl";
 
 export type TavilyVenueDrinkPrice = {
   drinkName: string;
@@ -26,10 +26,6 @@ function compactLines(markdown: string): string[] {
     .split(/\r?\n/)
     .map((line) => line.replace(/^[_*]+|[_*]+$/g, "").trim())
     .filter(Boolean);
-}
-
-function isPriceOnlyLine(line: string): boolean {
-  return /^(?:£\s*\d{1,2}(?:\.\d{1,2})?\s*(?:[|/]\s*)?)+$/.test(line);
 }
 
 function cleanNamedDrink(line: string, cutoff: number): string {
@@ -122,14 +118,10 @@ export function extractVenueDrinkPricesWithReader(
   markdown: string,
   read: (snippet: string) => UkPriceReading,
 ): TavilyVenueDrinkPrice[] {
-  const compact = compactLines(markdown);
   const prices: TavilyVenueDrinkPrice[] = [];
   const seen = new Set<string>();
 
-  for (const [index, line] of compact.entries()) {
-    if (!/£/.test(line)) continue;
-    const previous = index > 0 ? compact[index - 1] : "";
-    const snippet = isPriceOnlyLine(line) && previous ? `${previous}\n${line}` : line;
+  for (const snippet of pricedMenuSnippets(markdown)) {
     mergeVenueDrinkRows(prices, seen, venueDrinkPricesFromUkReading(read(snippet), snippet));
   }
 

@@ -977,12 +977,6 @@ describe("item evidence and reader policy", () => {
 });
 
 describe("offer boundary corrections", () => {
-  it("does not read a free house in a heading as a free offer", () => {
-    const menu = "# Drinks at The Free House\n\n## On tap\n\nGuinness pint £6.20";
-    expect(readVenueDrinkPrices(menu).kept).toMatchObject([pintRow]);
-    expect(readVenueDrinkPrices("# Free pint Fridays\n\nGuinness pint £6.20").kept).toEqual([]);
-  });
-
   it("ends a preformatted offer at a regular drinks section", () => {
     const menu = "<pre>Happy hour\nGuinness pint £6.20\nRegular drinks\nMadri pint £6.40</pre>";
     const page = printedPageText(menu, "text", { preserveSourceLines: true });

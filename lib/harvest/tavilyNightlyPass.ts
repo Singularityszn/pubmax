@@ -20,6 +20,7 @@ import {
   FRACTIONAL_PINT_MEASURE,
   MIXED_THIRD_PINT_MEASURE,
   fractionalBeerServing,
+  pintServingDrop,
   isLikelyMenuUrl,
   printedPageText,
   printedPriceLayout,
@@ -628,6 +629,7 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
 }
 
 function recordPriceLine(
+  text: string,
   line: string,
   fact: SourcedFact,
   drinks: ListedDrinkLine[],
@@ -635,13 +637,13 @@ function recordPriceLine(
   prices: readonly PrintedPriceEvidence[],
 ): void {
   for (const evidence of prices) {
-    const { raw, admission, qualifier, label } = evidence;
+    const { raw, admission, label } = evidence;
     if (admission.kind === "refused") continue;
     const own = ownPrice(evidence);
     // A bare fractional label without an explicit serving still supplies no row.
     if (!SERVING_SIZE.test(own) && !FRACTIONAL_PINT_MEASURE.test(own)) continue;
     const size = sizeOf(own);
-    if (qualifier && size.size === "pint") continue;
+    if (size.size === "pint" && pintServingDrop(text, evidence)) continue;
     const category = admission.kind === "accepted" ? admission.category.category : undefined;
     if (!category && size.size === "unstated" && !size.sizeDetail) continue;
     const band = category ? CATEGORY_PRICE_BANDS[category] : undefined;
@@ -712,7 +714,7 @@ export function factsFromPage(markdown: string, fact: SourcedFact): PageFacts {
       const evidence = layout.prices.get(at);
       return evidence ? [evidence] : [];
     });
-    recordPriceLine(line, fact, drinks, seenDrinks, prices);
+    recordPriceLine(page.text, line, fact, drinks, seenDrinks, prices);
   }
 
   const excerpt = pageExcerpt(markdown);

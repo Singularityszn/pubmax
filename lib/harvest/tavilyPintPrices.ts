@@ -4,7 +4,7 @@
 // the enrichment lane's own shape: a drink name and a serving size. Judgment
 // stays in the CLI layer (scripts/harvest/uk-prices/readPrices.mjs).
 
-import { readVenueDrinkPrices, type UkPriceReading } from "./ukPriceCrawl";
+import { pricedMenuSnippets, readVenueDrinkPrices, type UkPriceReading } from "./ukPriceCrawl";
 
 export type TavilyPintPrice = {
   drinkName: string;
@@ -116,14 +116,10 @@ export function pintPricesFromUkReading(
  * name-plus-price table pair). That is this caller's shape, not a second table.
  */
 export function extractPintPrices(markdown: string): TavilyPintPrice[] {
-  const compact = compactLines(markdown);
   const prices: TavilyPintPrice[] = [];
   const seen = new Set<string>();
 
-  for (const [index, line] of compact.entries()) {
-    if (!/£/.test(line)) continue;
-    const previous = index > 0 ? compact[index - 1] : "";
-    const snippet = isPriceOnlyLine(line) && previous ? `${previous}\n${line}` : line;
+  for (const snippet of pricedMenuSnippets(markdown)) {
     for (const row of pintPricesFromUkReading(readVenueDrinkPrices(snippet), snippet)) {
       const key = `${row.drinkName.toLowerCase()}|${row.priceGbp}|${row.servingSize}`;
       if (seen.has(key)) continue;

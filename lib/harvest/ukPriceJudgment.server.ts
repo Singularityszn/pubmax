@@ -19,6 +19,7 @@ import {
   pageText,
   readKeylessUkPriceDecisions,
   readStatedWineIdentities,
+  readPintServingDrops,
   readVenueDrinkPrices,
   statedWineIdentity,
   type UkPriceCandidate,
@@ -262,6 +263,7 @@ export async function readVenueDrinkPricesJudged(
   const batches = batchUkPriceCandidates(ctx, candidates);
   const keylessDecisions = readKeylessUkPriceDecisions(html, sourceFormat);
   const printedWines = readStatedWineIdentities(html, sourceFormat);
+  const servingDrops = readPintServingDrops(html, sourceFormat);
 
   for (const batch of batches) {
     const verbatimBatch = batch.filter((raw) => {
@@ -291,6 +293,11 @@ export async function readVenueDrinkPricesJudged(
         continue;
       }
       const outcome = applyJudgmentToCandidate(raw, probs, ctx, printedWines.get(raw.at));
+      const servingDrop = outcome.kept?.category === "beer" ? servingDrops.get(raw.at) : null;
+      if (servingDrop) {
+        drops.push(servingDrop);
+        continue;
+      }
       if (outcome.kept) kept.push(outcome.kept);
       drops.push(...outcome.drops);
       if (outcome.review) review.push(outcome.review);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { factsFromPage } from "@/lib/harvest/tavilyNightlyPass";
+import { extractPintPrices } from "@/lib/harvest/tavilyPintPrices";
+import { extractVenueDrinkPrices } from "@/lib/harvest/tavilyVenueDrinkPrices";
 import { readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
 
 const fact = { sourceUrl: "https://example.test/drinks-menu/", seenOn: "2026-11-06" };
@@ -50,4 +52,45 @@ describe("a sub-pint serving in the item's own label never becomes a beer price"
     expect(kept.filter((row) => row.priceGbp === 3.1)).toEqual([]);
     expect(kept).toEqual([expect.objectContaining({ category: "beer", priceGbp: 6.2 })]);
   });
+});
+
+
+describe("explicit serving sizes override pint wording", () => {
+  it.each([
+    "Kernel Pale Ale £3.10 (1/2 pint)",
+    "Kernel Pale Ale £3.10 (½ pint)",
+    "Kernel Pale Ale £3.10 (half pint)",
+    "Kernel Pale Ale £3.10 (half a pint)",
+    "Kernel Pale Ale ¾ pint £3.10",
+    "Kernel Pale Ale 3/4 pint £3.10",
+    "Kernel Pale Ale three-quarter pint £3.10",
+    "Kernel Pale Ale ¼ pint £3.10",
+    "Kernel Pale Ale 1/4 pint £3.10",
+    "Kernel Pale Ale 1/10 pint £3.10",
+    "Kernel Pale Ale 0.5 pint £3.10",
+    "Kernel Pale Ale 0.75 pint £3.10",
+    "Kernel Pale Ale 1⁄2 pint £3.10",
+    "Kernel Pale Ale schooner £3.10",
+    "Kernel Pale Ale £3.10 (schooner)",
+  ])("never publishes a pint from %s", (item) => {
+    const menu = `${item}\n\nGuinness pint £6.20`;
+    expect(readVenueDrinkPrices(menu).kept.filter((row) => row.priceGbp === 3.1)).toEqual([]);
+    expect(readVenueDrinkPrices(menu).kept).toContainEqual(namedPint);
+    expect(factsFromPage(menu, fact).drinks.filter((row) => row.priceGbp === 3.1 && row.size === "pint")).toEqual([]);
+    expect(extractPintPrices(menu).filter((row) => row.priceGbp === 3.1)).toEqual([]);
+    expect(extractVenueDrinkPrices(menu).filter((row) => row.priceGbp === 3.1)).toEqual([]);
+  });
+
+  it.each(["(1/3 pint)", "(1/2 pint)", "(¾ pint)", "(schooner)"])(
+    "retains the wrapped serving %s through every linewise reader", (serving) => {
+      const menu = `Kernel stout pint £2.10\n${serving}\n\nGuinness pint £6.20`;
+      expect(readVenueDrinkPrices(menu).kept.filter((row) => row.priceGbp === 2.1)).toEqual([]);
+      expect(extractPintPrices(menu)).toEqual([
+        { drinkName: "Guinness", priceGbp: 6.2, servingSize: "pint" },
+      ]);
+      expect(extractVenueDrinkPrices(menu)).toEqual([
+        { drinkName: "Guinness", priceGbp: 6.2, category: "beer" },
+      ]);
+    },
+  );
 });
