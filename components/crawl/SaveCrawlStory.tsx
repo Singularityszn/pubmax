@@ -5,7 +5,13 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 import { BookMarked, Check, Copy, Link2 } from "lucide-react";
 import { useState } from "react";
 
+import {
+  useContributionGate,
+  type ContributionActionResult,
+} from "@/components/identity/ContributionGateDialog";
+import { accountBoundFetch, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { discardBody } from "@/lib/responseBody";
+import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 import { encodeCrawlStory, VIBE_TAGS, type VibeTag } from "@/lib/crawlStory";
 import { authedActionFetch } from "@/lib/authedFetch";
 
@@ -38,6 +44,18 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
   const [permaLink, setPermaLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // A stop price is a price submission, so a priced crawl goes through the
+  // same door as the price form: sign in, a handle and an 18+ answer. The
+  // dialog holds the save and runs it again after the one tap.
+  const { requestContribution, contributionGateDialog } = useContributionGate();
+  // The same test the route applies (`cleanCrawlStopPrice`): a finite figure
+  // of zero or more is a price, anything else is no price at all.
+  const priced = stops.some(
+    (stop) =>
+      typeof stop.priceGbp === "number" &&
+      Number.isFinite(stop.priceGbp) &&
+      stop.priceGbp >= 0,
+  );
 
   function toggleTag(tag: VibeTag) {
     setCopied(false);
@@ -78,6 +96,33 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
     }
   }
 
+  function crawlRequestInit(authorHandle: string): RequestInit {
+    return {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: title.trim() || defaultTitle || "My London crawl",
+        summary: caption.trim(),
+        visibility: "public",
+        vibeTags: tags,
+        ...(authorHandle ? { authorHandle } : {}),
+        stops: stops.map((stop) => ({
+          venueId: stop.venueId,
+          priceGbp: stop.priceGbp ?? null,
+        })),
+      }),
+    };
+  }
+
+  // Attribute the saved crawl to the viewer's self-asserted device handle
+  // (story 35), the same `pubmax_handle` the rest of the app writes. Absent
+  // for a signed-out viewer → an unpriced crawl is saved anonymously.
+  function deviceHandle(): string {
+    return typeof window !== "undefined"
+      ? (window.localStorage.getItem("pubmax_handle") ?? "").trim()
+      : "";
+  }
+
   // Persist the crawl to Supabase (via /api/crawls) so it earns a stable,
   // slug-addressed permalink (/crawls/[slug]) — the durable upgrade over the
   // anonymous ?s= link above. Best-effort: a failure surfaces a friendly message
@@ -88,56 +133,87 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
     setSaveError("");
     setPermaLink("");
     try {
-      // Attribute the saved crawl to the viewer's self-asserted device handle
-      // (story 35), the same `pubmax_handle` the rest of the app writes. Absent
-      // for a signed-out viewer → the crawl is saved anonymously.
-      const authorHandle =
-        typeof window !== "undefined"
-          ? (window.localStorage.getItem("pubmax_handle") ?? "").trim()
-          : "";
-      const res = await authedActionFetch("/api/crawls", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim() || defaultTitle || "My London crawl",
-          summary: caption.trim(),
-          visibility: "public",
-          vibeTags: tags,
-          ...(authorHandle ? { authorHandle } : {}),
-          stops: stops.map((stop) => ({
-            venueId: stop.venueId,
-            priceGbp: stop.priceGbp ?? null,
-          })),
-        }),
-      }, { requiresIdentity: Boolean(authorHandle) });
-      if (!res.ok) {
-        discardBody(res);
-        setSaveError(
-          res.status === 429
-            ? "You're saving crawls too fast. Try again in a minute."
-            : "Couldn't save a permanent link right now.",
-        );
+      if (priced) {
+        await requestContribution(savePricedCrawl);
         return;
       }
-      const body = (await res.json()) as { slug?: string };
-      if (!body.slug) {
-        setSaveError("Couldn't save a permanent link right now.");
-        return;
-      }
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const link = `${origin}/crawls/${body.slug}`;
-      setPermaLink(link);
-      try {
-        await navigator.clipboard.writeText(link);
-      } catch {
-        setCopyError(
-          offlineOrMessage("Could not copy link. Try again.")
-        );
-      }
+      const authorHandle = deviceHandle();
+      const res = await authedActionFetch(
+        "/api/crawls",
+        crawlRequestInit(authorHandle),
+        { requiresIdentity: Boolean(authorHandle) },
+      );
+      await finishSave(res);
     } catch {
       setSaveError(offlineOrMessage("Couldn't save a permanent link right now."));
     } finally {
       setSaving(false);
+    }
+  }
+
+  // The priced save runs under the signed-in account the gate captured. A gate
+  // refusal goes back to the gate, which shows the same dialog the price form
+  // shows; any other failure stays the inline line below.
+  async function savePricedCrawl(
+    auth: AccountAuthSnapshot,
+  ): Promise<ContributionActionResult> {
+    setSaving(true);
+    try {
+      const res = await accountBoundFetch(
+        auth,
+        "/api/crawls",
+        crawlRequestInit(deviceHandle()),
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as
+          | { status?: unknown; error?: unknown }
+          | null;
+        const status = readContributionGateStatus(body?.status);
+        if (status) {
+          return {
+            status,
+            ...(typeof body?.error === "string" ? { error: body.error } : {}),
+          };
+        }
+        showSaveFailure(res.status);
+        return;
+      }
+      await finishSave(res);
+    } catch {
+      setSaveError(offlineOrMessage("Couldn't save a permanent link right now."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function showSaveFailure(status: number) {
+    setSaveError(
+      status === 429
+        ? "You're saving crawls too fast. Try again in a minute."
+        : "Couldn't save a permanent link right now.",
+    );
+  }
+
+  async function finishSave(res: Response) {
+    if (!res.ok) {
+      discardBody(res);
+      showSaveFailure(res.status);
+      return;
+    }
+    const body = (await res.json()) as { slug?: string };
+    if (!body.slug) {
+      setSaveError("Couldn't save a permanent link right now.");
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const link = `${origin}/crawls/${body.slug}`;
+    setPermaLink(link);
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      setCopyError(
+        offlineOrMessage("Could not copy link. Try again.")
+      );
     }
   }
 
@@ -303,6 +379,8 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
           </a>
         </p>
       ) : null}
+
+      {contributionGateDialog}
     </section>
   );
 }
