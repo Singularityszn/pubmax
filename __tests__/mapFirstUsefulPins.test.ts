@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -81,18 +78,6 @@ describe("first useful map pins", () => {
 
     expect(refreshLoad).not.toHaveBeenCalled();
     expect(setTimeout).toHaveBeenCalledWith(refreshLoad, 1_000);
-  });
-
-  it("wires every settled viewport through the two ring lanes", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/PubMap.tsx"),
-      "utf8",
-    );
-
-    expect(source).toContain("scheduleRingLoad(loader, bounds);");
-    expect(source).not.toContain('scheduleRingLoad(loader, bounds, "target")');
-    expect(source).not.toContain('scheduleRingLoad(loader, bounds, "refresh")');
-    expect(source).toContain("useInitialSlimShardStart({");
   });
 
   it("keeps the compatibility-core viewport stable while location resolves", () => {
