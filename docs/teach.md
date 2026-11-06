@@ -285,7 +285,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 - **Server-side validation trust boundary** (text + photo type/size), backed by DB `CHECK` constraints.
 - **Constant-time moderator gate** — `safeTokenEqual` sha256's both sides then `timingSafeEqual`; the token is never echoed.
 - **Rate limiting is durable + IP-hashed** — `check_rate_limit` (atomic RPC); the IP is a *secondary* signal, always `sha256(salt:ip)` before it touches the table or a log.
-- **The Landlord's honest-refusal integrity** — `sanitiseModelAnswer` **rejects the whole answer** (falls back to structured) if it cites a fact id outside the retrieved set. A phantom citation = fabrication.
+- **The Landlord's honest-refusal integrity** — `sanitiseModelAnswer` **rejects the whole answer** (falls back to structured) if it cites a fact id outside the retrieved set. A phantom citation = fabrication. It also rejects an answer that states a number no supplied fact states, such as an age counted from today or an invented founding year.
 - **Provenance never laundered** — client `context` is labelled `contributor` and excluded from the `SOURCED` set; a visitor cannot forge pub history.
 
 ### Robustness notes & known gaps

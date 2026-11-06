@@ -3,6 +3,7 @@ import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { rankConciergeVenues, type ConciergeVenue } from "@/lib/concierge/rank";
 import { buildWhatsOnAnswer, detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
+import { HERITAGE_AMBIGUOUS_PUB_HINT } from "@/lib/ask/heritageQuestion";
 import { refineRoutedAskQuery } from "@/lib/ask/router";
 import { matchVenueByNameKeyless } from "@/lib/ask/venueResolution";
 import { filterRowsByArea, filterRowsByWeekday } from "@/lib/concierge/whatsOn";
@@ -31,7 +32,9 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   "find-desk-angel": { expectedTools: ["find_desk"] },
   "tonight-soho": { expectedTools: ["tonight_now"] },
   "cheapest-no-anchor": { expectedTools: ["venue_prices"], answerIncludes: ["listed pub"] },
-  "heritage-lamb": { expectedTools: ["venue_heritage"], answerIncludes: ["won"] },
+  // Several listed pubs are called The Lamb, so an unqualified question asks the
+  // reader to choose one on the map instead of telling the story of one of them.
+  "heritage-lamb": { expectedTools: ["venue_heritage"], answerIncludes: [HERITAGE_AMBIGUOUS_PUB_HINT] },
   "map-open-lamb": { expectedTools: ["propose_map_action"] },
   "area-buzz-camden": { expectedTools: ["area_buzz", "venue_prices"] },
   "hampstead-quiet": { expectedTools: ["search_venues"] },
@@ -187,6 +190,7 @@ function staticAnswerKeyFields(caseId: string): Partial<PalEvalAnswerExpectation
     case "report-crowd-lamb":
     case "no-seats-lamb":
     case "journey-lamb":
+    case "heritage-lamb":
       return { expectEmpty: true };
     case "tube-delays":
       return { expectEmpty: true, expectDegraded: true };
@@ -194,7 +198,6 @@ function staticAnswerKeyFields(caseId: string): Partial<PalEvalAnswerExpectation
       return { minCards: 1, expectDegraded: true };
     case "tonight-soho":
       return { minCards: 1 };
-    case "heritage-lamb":
     case "heritage-bank":
       return { minCards: 1 };
     default:
