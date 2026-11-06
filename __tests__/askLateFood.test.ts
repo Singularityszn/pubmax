@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { composeAnswer, mergeToolResults, runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
 import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
+import { resolveAskJourney, routeAskDeterministically } from "@/lib/ask/routingPolicy";
 import { resolvePubPalToolQuery } from "@/lib/pubPalToolInvoke.server";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 
@@ -94,6 +95,36 @@ describe("late-food questions through Ask", () => {
     expect(response.cards).toEqual([]);
     expect(response.proposals).toEqual([]);
     expect(response.answer).toContain("pub kitchen hours");
+  });
+
+  it.each(["burgers", "breakfast", "sandwiches"])("requires kitchen evidence for timed pub %s requests", async (food) => {
+    const query = `Find four pubs serving ${food} in Soho tonight at 1am`;
+    const typed = await ask(query);
+    const voice = await runAskTool("search_venues", {}, {
+      query, cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect("answer" in response ? response.answer : response.answerHint).toContain("pub kitchen hours");
+    }
+  });
+
+  it.each(["burgers", "breakfast", "sandwiches"])("does not infer recorded %s service from generic food evidence", async (food) => {
+    const response = await ask(`Find ${food} in Soho tonight at 1am`);
+    expect(response.cards).toEqual([]);
+    expect(response.sources).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.answer).toMatch(/no current.*record/i);
+  });
+
+  it.each([
+    { query: "Directions to St. Pancras from The Blackfriar", from: "The Blackfriar", to: "St. Pancras" },
+    { query: "Directions to The Blackfriar from St. Pancras", from: "St. Pancras", to: "The Blackfriar" },
+    { query: "Directions from St. Pancras to The Blackfriar", from: "St. Pancras", to: "The Blackfriar" },
+  ])("preserves abbreviated journey endpoints: $query", ({ query, from, to }) => {
+    expect(resolveAskJourney(query)).toEqual({ from, to });
+    expect(routeAskDeterministically(query)).toEqual([{ name: "journey", args: { from, to } }]);
   });
 
   it("resolves tonight at 1am to closed Monday service after a Sunday evening request", async () => {
@@ -245,6 +276,12 @@ describe("late-food questions through Ask", () => {
     expect(response.proposals).toEqual([]);
   });
 
+  it("keeps abbreviated transport names out of food constraints", async () => {
+    const response = await ask("Directions to St. Pancras from The Blackfriar. Food at 01:00 on 2026-10-23 near Soho");
+    expect(response.cards).toContainEqual(expect.objectContaining({ title: "Balans No.60", venueId: "", price: null }));
+    expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+  });
+
   it("keeps transport timing separate from the food service date", async () => {
     const response = await ask("Food at 01:00 on 2026-10-23 near Soho. Any tube delays tonight?");
     expect(response.cards).toContainEqual(expect.objectContaining({ title: "Balans No.60", venueId: "", price: null }));
@@ -347,6 +384,9 @@ describe("late-food clarification context", () => {
     { query: "01:00 please", previous: "Food in Soho tonight at 06:00" },
     { query: "Soho?", previous: "Food tonight at 1am" },
     { query: "2026-10-23 please", previous: "Food in Soho at 01:00" },
+    { query: "01:00, please, thanks!", previous: "Food in Soho tonight at 06:00" },
+    { query: "Soho, thanks!", previous: "Food tonight at 1am" },
+    { query: "2026-10-23, thanks!", previous: "Food in Soho at 01:00" },
   ])("normalises the field-only reply in typed and voice requests: $query", async ({ query, previous }) => {
     const turns = [{ role: "user" as const, content: previous }];
     const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
@@ -358,6 +398,33 @@ describe("late-food clarification context", () => {
       expect(response.cards.map((card) => card.title)).toEqual(["Balans No.60"]);
       expect(response.cards[0]).toMatchObject({ venueId: "", price: null });
       expect(response.proposals).toEqual([]);
+    }
+  });
+
+  it.each(["Covent Garden?", "Covent Garden, thanks!", "Mayfair?"])("retains an area reply without food coverage: %s", async (query) => {
+    const turns = [{ role: "user" as const, content: "Food tonight at 1am" }];
+    const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await runAskTool("search_venues", {}, {
+      query: resolvePubPalToolQuery({ turnQuery: query, args: {}, turns }),
+      cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect("answer" in response ? response.answer : response.answerHint).toContain("no current late-food record for");
+    }
+  });
+
+  it.each(["burgers", "breakfast", "sandwiches"])("retains timed pub %s constraints after a correction", async (food) => {
+    const turns = [{ role: "user" as const, content: `Find four pubs serving ${food} near Victoria tonight at 1am` }];
+    const typed = await runAsk({ query: "Soho?", turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await runAskTool("search_venues", {}, {
+      query: resolvePubPalToolQuery({ turnQuery: "Soho?", args: {}, turns }),
+      cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect("answer" in response ? response.answer : response.answerHint).toContain("pub kitchen hours");
     }
   });
 
@@ -383,7 +450,7 @@ describe("late-food clarification context", () => {
     expect(response.cards.map((card) => card.title)).toEqual(titles);
   });
 
-  it.each(["No trains tonight?", "No thanks"])("keeps unrelated or declining replies authoritative: %s", (query) => {
+  it.each(["No trains tonight?", "No thanks", "Thanks!", "Please"])("keeps unrelated or declining replies authoritative: %s", (query) => {
     const turns = [{ role: "user" as const, content: "Food at 01:00 on 2026-10-23 near Soho" }];
     expect(resolveLateFoodQuery(query, turns)).toBe(query);
     expect(resolvePubPalToolQuery({ turnQuery: query, args: {}, turns })).toBe(query);

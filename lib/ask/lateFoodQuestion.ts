@@ -3,7 +3,9 @@ import { londonHour } from "@/lib/londonHour";
 import { NIGHT_SERVICE_END_HOUR } from "@/lib/nightServiceHours";
 import { londonDateTimeInputToIso, parseLondonInput } from "@/lib/planIntake";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
+import placeNames from "@/lib/ask/placeNames.generated.json";
 import { askRequestClauses, stripTrailingPunctuation } from "@/lib/ask/requestPolicy";
+import { FOOD_RE } from "@/lib/ask/routingPolicy";
 
 export type LateFoodQuestion = {
   areas: string[];
@@ -13,7 +15,6 @@ export type LateFoodQuestion = {
   requiresPub: boolean;
 };
 
-const FOOD_WORDS = /\b(?:food|eat|eating|meals?|lunch|dinner|supper|snacks?|restaurants?|pizzas?|kebabs?|cafes?|kitchens?)\b/i;
 const LATE_WORDS = /\b(?:late(?:[- ]night)?|after\s+midnight|midnight)\b/i;
 const CLOCK = /\b(?:at\s+|(?=\d{1,2}(?::\d{2}|\s*[ap]\.?m\.?\b)))(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?\b/gi;
 const CONTEXT_AREA = /\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorrow|after|before|with|that|which|serving|for)\b|\s+\d{1,2}(?::\d{2}|\s*[ap]\.?m\.?\b)|\s+(?:(?:and|actually)\s+)?(?:near|in|around)\b|[?,.!;]|$)/gi;
@@ -23,6 +24,7 @@ const AT_MIDNIGHT = /\bat midnight\b/gi;
 const CUISINES = [
   [/\bpizzas?\b/i, "pizza"], [/\bkebabs?\b/i, "kebab"],
   [/\bcafes?\b/i, "cafe"], [/\brestaurants?\b/i, "restaurant"],
+  [/\bburgers?\b/i, "burger"], [/\bbreakfast\b/i, "breakfast"], [/\bsandwich(?:es)?\b/i, "sandwich"],
 ] as const;
 // An unknown free-from requirement remains a constraint until evidence supports it.
 const FOOD_CONSTRAINT = /\b(?:vegan|vegetarian|halal|kosher|pescatarian|coeliac|celiac|[a-z]+(?:-[a-z]+)*[- ]free|free\s+(?:of|from)\s+[a-z]+(?:-[a-z]+)*|(?:without|no|avoid)\s+(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat|mustard|celery|lupin|sulphites?|sulfites?|meat|fish|seafood|cheese|butter|cream|honey|gelatine|gelatin)|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\b/gi;
@@ -36,8 +38,10 @@ function requiresPubKitchen(query: string): boolean {
 }
 
 function foodRequestWording(query: string): string {
-  return askRequestClauses(foodWording(query))
-    .filter((clause) => FOOD_WORDS.test(clause) || !/\b(?:directions|journey|transport|trains?|tube|buses?|delays?|weather|city status)\b/i.test(clause))
+  return foodWording(query)
+    .split(new RegExp(String.raw`(?<=[.!?])\s+(?=(?:${FOOD_RE.source}|${FOOD_CONSTRAINT.source}|${LATE_WORDS.source}))`, "i"))
+    .flatMap(askRequestClauses)
+    .filter((clause) => FOOD_RE.test(clause) || !/\b(?:directions|journey|transport|trains?|tube|buses?|delays?|weather|city status)\b/i.test(clause))
     .join(" ");
 }
 
@@ -48,7 +52,7 @@ function unrecordedFoodWording(query: string): string {
     .replace(CONTEXT_DATE, " ")
     .replace(CONTEXT_NIGHT, " ")
     .replace(FOOD_CONSTRAINT, " ")
-    .replace(new RegExp(FOOD_WORDS.source, "gi"), " ")
+    .replace(new RegExp(FOOD_RE.source, "gi"), " ")
     .replace(/\b(?:where|what|which|can|could|would|do|does|i|we|you|me|us|my|our|want|like|need|find|get|have|recommend|suggest|show|tell|help|is|are|there|any|some|something|somewhere|anywhere|places?|options?|open|available|a|an|the|to|for|with|that|and|please|after|before|late|night|midnight|pubs?|serving|from|at|one|two|three|four)\b/gi, " ")
     .replace(/[\s,.!?;:'’\-]+/g, " ")
     .trim();
@@ -105,7 +109,7 @@ function londonInstant(day: string, minutes: number): string | null {
 /** Explicit food timing uses service evidence rather than static pub amenities. */
 export function parseLateFoodQuestion(query: string, now: number): LateFoodQuestion | null {
   const wording = foodRequestWording(query);
-  if (!FOOD_WORDS.test(wording) || (!LATE_WORDS.test(wording) && !/\bat\b/i.test(wording) && ![...wording.matchAll(CLOCK)].length)) return null;
+  if (!FOOD_RE.test(wording) || (!LATE_WORDS.test(wording) && !/\bat\b/i.test(wording) && ![...wording.matchAll(CLOCK)].length)) return null;
   const minutes = requestedMinutes(wording);
   const day = minutes === null ? null : requestedDay(wording, minutes, now);
   const at = day === null || minutes === null ? null : londonInstant(day, minutes);
@@ -133,13 +137,13 @@ export function parseLateFoodQuestion(query: string, now: number): LateFoodQuest
 }
 
 function clarificationFields(query: string): string {
-  const polite = stripTrailingPunctuation(foodWording(query)).replace(/\bplease$/i, "");
+  const polite = stripTrailingPunctuation(foodWording(query)).replace(/(?:\b(?:please|thanks)[\s,.!?;:]*)+$/i, "");
   const fragment = stripTrailingPunctuation(polite).replace(/^(?:actually|please|make\s+(?:that|it))\b[\s,:]*/i, "");
   if (/^\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?$/i.test(fragment)
     && requestedMinutes(`at ${fragment}`) !== null) return `at ${fragment}`;
   if (/^\d{4}-\d{2}-\d{2}$/.test(fragment)) return `on ${fragment}`;
-  if (NIGHT_AREAS.some((area) => [area.name, area.slug, ...area.aliases]
-    .some((name) => name.toLowerCase() === fragment.toLowerCase()))) return `near ${fragment}`;
+  if ([...placeNames.localityNames, ...NIGHT_AREAS.flatMap((area) => [area.name, area.slug, ...area.aliases])]
+    .some((name) => name.toLowerCase() === fragment.toLowerCase())) return `near ${fragment}`;
   return fragment;
 }
 
@@ -148,7 +152,8 @@ function foodWording(query: string): string {
 }
 
 function isFoodClarification(query: string): boolean {
-  const rest = foodWording(clarificationFields(query))
+  const fragment = clarificationFields(query);
+  const rest = fragment
     .replace(CONTEXT_AREA, " ")
     .replace(CLOCK, " ")
     .replace(AT_MIDNIGHT, " ")
@@ -158,7 +163,7 @@ function isFoodClarification(query: string): boolean {
     .replace(/\b(?:actually|please|and|make|that|it|for|me)\b/gi, " ")
     .replace(/[,.!?;:]+/g, " ")
     .trim();
-  return rest.length === 0 && /[\p{L}\p{N}]/u.test(query);
+  return rest.length === 0 && /[\p{L}\p{N}]/u.test(fragment);
 }
 
 function retainedFoodConstraints(query: string): string[] {
@@ -189,7 +194,7 @@ function correctFoodQuery(previous: string, rawFragment: string): string {
 
 /** Complete a field-only reply from recent user food context. A new topic ends it. */
 export function resolveLateFoodQuery(query: string, recentTurns: unknown): string {
-  if (FOOD_WORDS.test(foodWording(query)) || !isFoodClarification(query) || !Array.isArray(recentTurns)) return query;
+  if (FOOD_RE.test(foodWording(query)) || !isFoodClarification(query) || !Array.isArray(recentTurns)) return query;
   const users = recentTurns.flatMap((turn) => {
     if (!turn || typeof turn !== "object" || Array.isArray(turn)) return [];
     const row = turn as { role?: unknown; content?: unknown };
@@ -199,7 +204,7 @@ export function resolveLateFoodQuery(query: string, recentTurns: unknown): strin
   const fragments = [query];
   for (const previous of users.reverse()) {
     if (previous === query) continue;
-    if (FOOD_WORDS.test(foodWording(previous))) {
+    if (FOOD_RE.test(foodWording(previous))) {
       return fragments.reverse().reduce(correctFoodQuery, previous);
     }
     if (!isFoodClarification(previous)) return query;
