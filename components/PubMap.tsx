@@ -765,6 +765,8 @@ import { lastOrdersMapRequested } from "@/lib/lastOrdersList";
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
 // when the Near-me sheet opens, and answers from the already-loaded venues.
 const NearMeNow = dynamic(() => import("@/components/nearme/NearMeNow"), { ssr: false });
+// The saved-drink offer reads the account profile only when the Near me sheet opens.
+const NearMeSavedDrink = dynamic(() => import("@/components/nearme/NearMeSavedDrink"), { ssr: false });
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -6642,13 +6644,27 @@ export default function PubMap({
         }
         nearMeContent={
           mapOverlay === "near-me" ? (
-            <NearMeNow
-              cityId={cityId}
-              onSelectVenue={selectVenue}
-              titledByHost
-              initialLocation={userLocation}
-              venues={filteredPubVenues.map(venueToPricedPoint)}
-            />
+            <>
+              <NearMeSavedDrink
+                cityId={cityId}
+                drinkLane={activeMapDrinkLane}
+                noAlcoholView={experienceLens === "no-alcohol"}
+                onShow={(saved) => {
+                  if (saved.kind === "zero-proof") changeExperienceLens("no-alcohol");
+                  else {
+                    if (experienceLens !== "all") changeExperienceLens("all");
+                    changeDrinkLane(saved.category);
+                  }
+                }}
+              />
+              <NearMeNow
+                cityId={cityId}
+                onSelectVenue={selectVenue}
+                titledByHost
+                initialLocation={userLocation}
+                venues={filteredPubVenues.map(venueToPricedPoint)}
+              />
+            </>
           ) : null
         }
         chooseAreaContent={chooseAreaSheet}

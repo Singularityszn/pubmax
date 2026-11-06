@@ -1,0 +1,16 @@
+/* The saved-drink offer above the map's Near me list: one muted line and one
+   secondary action, so it never competes with the answer below it. */
+.nmnSavedDrink {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+
+.nmnSavedDrinkText {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
