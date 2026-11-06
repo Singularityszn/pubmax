@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { usePlanMapScope, useRegisterPlanMapRoute } from "@/components/nav/PlanMapNavigation";
+
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
@@ -10,7 +12,7 @@ import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
-import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
+import { clearPlanMemberProjectionRead, readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
@@ -319,7 +321,10 @@ export default function PlanSummary({
   initialPreview: PlanPrivacyPreviewDTO;
   vibeTally?: VibeTally | null;
 }) {
+  const scope = usePlanMapScope(planId);
   const [state, setState] = useState<PlanState | null>(null);
+  const [memberScope, setMemberScope] = useState("");
+  const lastReadScope = useRef(scope);
   const { identityResolved } = useAuth();
   // The session lane, gated the way PlanCrew gates its own: asking before
   // identity has resolved cannot spend the recovery write, so it would be a
@@ -331,14 +336,24 @@ export default function PlanSummary({
     void restorePlanCapability(planId).catch(() => undefined);
   }, [identityResolved, planId]);
   const readPlan = useCallback((isActive: () => boolean) => {
+    // A previous account or capability cannot lend its pending read to this one.
+    if (lastReadScope.current !== scope) {
+      clearPlanMemberProjectionRead(planId);
+      lastReadScope.current = scope;
+    }
     // One request per Plan, shared with every other surface asking (F-34).
     void readPlanMemberProjection(planId).then((body) => {
       if (!isActive()) return;
       const canonical = canonicalStateFromBody(body);
-      if (canonical) setState(canonical);
-      else if (isPlanPreviewProjection(body)) setState(null);
+      if (canonical) {
+        setState(canonical);
+        setMemberScope(scope);
+      } else if (isPlanPreviewProjection(body)) {
+        setState(null);
+        setMemberScope("");
+      }
     });
-  }, [planId]);
+  }, [planId, scope]);
   usePlanMemberRead(planId, readPlan);
 
   // No rail on the teaser: the rail is the ROUTE's spine, and a preview has no
@@ -356,10 +371,10 @@ export default function PlanSummary({
     );
   }
 
-  return <PlanSummaryMember planId={planId} state={state} />;
+  return <PlanSummaryMember key={`${planId}:${memberScope}`} planId={planId} state={state} scope={memberScope} />;
 }
 
-function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState }) {
+function PlanSummaryMember({ planId, state, scope }: { planId: string; state: PlanState; scope: string }) {
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
   const pendingEvent = `pubmax:pending-route:${planId}`;
@@ -397,6 +412,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   }, [pendingRaw, pending, planId]);
   const initialStops = orderedRouteStops(cleanStops(view.stops));
   const [canonicalStops, setCanonicalStops] = useState<EditableStop[]>(initialStops);
+  useRegisterPlanMapRoute(planId, scope, canonicalStops.map((stop) => stop.venueId));
   const [localStops, setLocalStops] = useState<EditableStop[]>(initialStops);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
