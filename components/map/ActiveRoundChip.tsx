@@ -12,6 +12,7 @@ import {
   subscribeActiveRound,
 } from "@/lib/activeRound";
 import { discardBody } from "@/lib/responseBody";
+import { subscribeVisiblePolling } from "@/lib/visiblePolling";
 
 import "./activeRoundChip.css";
 
@@ -65,17 +66,25 @@ export default function ActiveRoundChip({
   }, [refreshKey, syncFromStorage]);
 
   useEffect(() => {
-    if (!code) return;
+    if (!code || dismissed) return;
     let cancelled = false;
+    let pending: AbortController | null = null;
 
     async function poll() {
+      if (cancelled || document.visibilityState === "hidden") return;
+      if (pending && !pending.signal.aborted) return;
+      const controller = new AbortController();
+      pending = controller;
       try {
-        const res = await fetch(`/api/rounds/${code}`, { cache: "no-store" });
-        if (cancelled) return;
+        const res = await fetch(`/api/rounds/${code}`, { cache: "no-store", signal: controller.signal });
+        if (cancelled || controller.signal.aborted || pending !== controller) {
+          discardBody(res);
+          return;
+        }
         if (res.status === 404) {
           discardBody(res);
           clearActiveRoundCode(code);
-          setCode("");
+          syncFromStorage();
           return;
         }
         if (!res.ok) {
@@ -83,22 +92,24 @@ export default function ActiveRoundChip({
           return;
         }
         const body = (await res.json()) as RoundPollBody;
+        if (cancelled || controller.signal.aborted || pending !== controller) return;
         if (body.round?.closedAt) {
           clearActiveRoundCode(code);
-          setCode("");
+          syncFromStorage();
         }
       } catch {
         // Network blip — keep showing; next poll retries.
+      } finally {
+        if (pending === controller) pending = null;
       }
     }
 
-    void poll();
-    const id = window.setInterval(() => void poll(), POLL_MS);
+    const stop = subscribeVisiblePolling(() => void poll(), POLL_MS, () => pending?.abort());
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      stop();
     };
-  }, [code]);
+  }, [code, dismissed, syncFromStorage]);
 
   async function copyCode() {
     if (!code) return;
