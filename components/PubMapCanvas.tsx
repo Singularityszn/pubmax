@@ -15,6 +15,8 @@ import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/componen
 import { legRouteToLines } from "@/components/map/canvas/legRouteScene";
 import { legRouteForCurrentLeg, readLegRouteOnMap, subscribeLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { trackEvent } from "@/lib/analytics";
+import { deviceAccountOwner, subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { palLeadLine, palLeadPath, planWalkAfterLead } from "@/lib/palLead";
 import { palFirstLegLabel, palPerchSpeechForPin, palWalkLine } from "@/lib/palMapLines";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
@@ -3780,6 +3782,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       enabled: useDomDonutClusters,
     });
     palMarkerRef.current = createPalMapMarker(map);
+    const palOwnerId = deviceAccountOwner(safeLocalStorage());
+    const unsubscribePalIdentity = subscribeDeviceIdentity(() => {
+      if (deviceAccountOwner(safeLocalStorage()) === palOwnerId) return;
+      palMarkerRef.current?.destroy();
+      palMarkerRef.current = null;
+    });
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
     // whole canvas every frame while idle, forcing tile churn that read as
@@ -3950,6 +3958,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
+      unsubscribePalIdentity();
       palMarkerRef.current?.destroy();
       palMarkerRef.current = null;
       // The lead belonged to that marker: after WebGL recovery the new marker

@@ -102,7 +102,12 @@ vi.mock("maplibre-gl", () => ({
 }));
 
 import PubMapCanvas from "@/components/PubMapCanvas";
-import { DEVICE_ACCOUNT_OWNER_KEY } from "@/lib/deviceAccountIdentity";
+import {
+  bindDeviceAccountOwner,
+  DEVICE_ACCOUNT_OWNER_KEY,
+  emitDeviceIdentityChanged,
+  releaseDeviceAccountOwner,
+} from "@/lib/deviceAccountIdentity";
 import { LOCAL_PAL_KEY } from "@/lib/localPal";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import type { LegOption } from "@/lib/legOptions";
@@ -127,7 +132,7 @@ const props: ComponentProps<typeof PubMapCanvas> = {
   poisPath: null, transitLinesPath: null, hideLayersControl: true, ukBaseSuspended: true,
 };
 
-describe("canvas lead delivery under TRACKING_PLAN 5.7: one event per chosen way", () => {
+describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation", () => {
   let root: Root;
   let host: HTMLElement;
   let frames: Map<number, FrameRequestCallback>;
@@ -233,6 +238,53 @@ describe("canvas lead delivery under TRACKING_PLAN 5.7: one event per chosen way
     await frame();
     expect(leads()).toHaveLength(2);
   });
+
+  it.each(["same-tab switch", "cross-tab switch", "sign-out"])(
+    "retires the own marker and its actions under F12 after %s without rebuilding the map",
+    async (transition) => {
+      boundary.reducedMotion = true;
+      const openStop = vi.fn();
+      await render({ onRouteStopClick: openStop });
+      await ready();
+      const marker = host.querySelector<HTMLElement>(".palMapMarker")!;
+      expect(marker.getAttribute("aria-label")).toBe("Next stop: The Crown");
+      marker.click();
+      expect(openStop).toHaveBeenCalledExactlyOnceWith("venue-b");
+      openStop.mockClear();
+
+      await act(async () => emitDeviceIdentityChanged());
+      expect(host.querySelector(".palMapMarker")).toBe(marker);
+
+      await act(async () => {
+        if (transition === "sign-out") {
+          releaseDeviceAccountOwner(window.localStorage, window.sessionStorage);
+        } else {
+          bindDeviceAccountOwner("owner-b", window.localStorage, window.sessionStorage);
+        }
+        if (transition === "cross-tab switch") {
+          window.dispatchEvent(new StorageEvent("storage", { key: DEVICE_ACCOUNT_OWNER_KEY }));
+        } else {
+          emitDeviceIdentityChanged();
+        }
+      });
+      expect(host.querySelector(".palMapMarker")).toBeNull();
+      expect(marker.isConnected).toBe(false);
+      marker.click();
+      marker.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      marker.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+      expect(openStop).not.toHaveBeenCalled();
+
+      await render({ selectedVenueId: "venue-a", onRouteStopClick: openStop });
+      await choose("walk");
+      await frame();
+      await render({ route: [], venues: route, selectedVenueId: "venue-b", onRouteStopClick: openStop });
+      await frame();
+      expect(host.querySelector(".palMapMarker")).toBeNull();
+      expect(leads()).toHaveLength(0);
+      expect(boundary.maps).toHaveLength(1);
+      expect(boundary.maps[0]!.removed).toBe(false);
+    },
+  );
 
   it("does not count a choice cancelled before placement", async () => {
     await render();
