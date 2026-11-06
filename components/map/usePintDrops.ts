@@ -1037,7 +1037,7 @@ export function usePintDrops(
         agedContributorPrice: number | null;
         /** Epoch ms that aged report was logged, or null. */
         agedContributorAt: number | null;
-        /** The handle behind either figure above when it has no bill, or null. */
+        /** The handle behind either figure above when it is unchecked, or null. */
         uncheckedBy: string | null;
         /** The figures this pub's drinkers disagree about, for the sheet and
          *  the peek. Never a band, a bucket or a pin figure: two prices have
