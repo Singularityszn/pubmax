@@ -91,6 +91,17 @@ describe("Tonight's On tonight card", () => {
     expect(html).toContain('data-testid="tonight-answer-last-train"');
     expect(html).toContain("Share location");
   });
+
+  // The location door rendered as a bare <button> with the browser's grey
+  // fill, square corners and outset border (design review, 6 Nov 2026). It is
+  // the shared secondary Button, so components/ui/button.css paints it.
+  it("paints the location door as the shared secondary Button", () => {
+    const html = render(LISTING, null);
+    const door = html.match(/<button[^>]*>(?:(?!<\/button>)[\s\S])*Share location<\/button>/)?.[0];
+    expect(door).toBeDefined();
+    expect(door).toMatch(/class="[^"]*\buiButton\b[^"]*\buiButton--secondary\b/);
+    expect(door).toMatch(/type="button"/);
+  });
 });
 
 describe("tonightOnTonightListing", () => {

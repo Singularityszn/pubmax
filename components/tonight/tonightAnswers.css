@@ -81,9 +81,11 @@
   color: var(--color-text-muted);
 }
 
+/* The Last train card's one action is the shared secondary Button
+   (components/ui/button.css owns its height, padding and radius). It sits at
+   the start of the card rather than stretching across it. */
 .tonightAnswerButton {
   align-self: flex-start;
-  min-height: 44px;
 }
 
 /* The regular nights sit apart from the confirmed listing they stand in for:

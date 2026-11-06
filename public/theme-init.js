@@ -200,6 +200,23 @@
   } catch {}
 })();
 
+// The browser's own text size. A reader who sets a larger default font gets
+// the same large-text shapes the native shell publishes from the OS size
+// (lib/nativeTextScale.ts): the phone tab bar shows its icons alone instead of
+// breaking "Explore" and "Tonight" inside the word (design review, 6 Nov 2026),
+// and the consent card, Social head, profile grids and day chips take their
+// large-text layout. The root font is the reader's default, because no
+// stylesheet sets it. 1.3 is LARGE_TEXT_SCALE_FLOOR, held to it by
+// __tests__/webTextScale.test.ts. The shell publishes its own scale.
+(function () {
+  try {
+    var capacitor = window.Capacitor;
+    if (capacitor && typeof capacitor.isNativePlatform === "function" && capacitor.isNativePlatform() === true) return;
+    var root = parseFloat(window.getComputedStyle(document.documentElement).fontSize);
+    if (root / 16 >= 1.3) document.documentElement.setAttribute("data-text-scale", "large");
+  } catch {}
+})();
+
 // Aperture splash eligibility. This used to live in splash-init.js, a second
 // render-blocking request on every route for a decision only the landing uses.
 // It shares this pre-paint file so the overlay still never flashes and other
