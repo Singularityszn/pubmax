@@ -180,9 +180,8 @@ describe("OpenAI Social post moderation adapter", () => {
 
       expect(closure).toBe("closed");
       if (status === 500) {
-        expect(
-          requestCancellation?.bodyCancelInvoked === true || requestCancellation?.signal?.aborted === true,
-        ).toBe(true);
+        // The unread error body is cancelled explicitly, not left to the deadline.
+        expect(requestCancellation?.bodyCancelInvoked).toBe(true);
         expect(requestCancellation?.response.status).toBe(500);
       }
     } finally {
