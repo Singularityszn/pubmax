@@ -87,7 +87,7 @@ import {
   tonightGlanceReceipt,
   type CheapestGlanceCard,
 } from "@/lib/palGlance";
-import { formatPrice } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 import {
   loadSlimVenuesForCity,
   loadSlimVenuesForCityResult,
@@ -791,7 +791,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
     };
   }, [empty, cheapest]);
   const cheapestLine = useMemo(
-    () => (cheapest ? cheapestGlanceLine(cheapest.areaLabel, cheapest.card, formatPrice) : null),
+    () => (cheapest ? cheapestGlanceLine(cheapest.areaLabel, cheapest.card, formatGbp) : null),
     [cheapest],
   );
 
@@ -935,6 +935,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
                                 stopIds: proposal.stopIds,
                                 stopNames: proposal.stopNames,
                                 createdAt: new Date().toISOString(),
+                                origin: "pal",
                               });
                             }}
                           >

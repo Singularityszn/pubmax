@@ -72,6 +72,8 @@ describe("area root pages", () => {
   it("carry one canonical and noindex an area without a page", async () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: "shoreditch" }) });
     expect(metadata.title).toBe("Cheapest pints in Shoreditch");
+    expect(metadata.description).toMatch(/From £|from £/);
+    expect(metadata.description).toMatch(/Source read \d{1,2} \w+ \d{4}/);
     expect(metadata.alternates?.canonical).toBe("/area/shoreditch");
     const held = await generateMetadata({ params: Promise.resolve({ slug: "barnes" }) });
     expect(held.robots).toEqual({ index: false, follow: false });
@@ -81,6 +83,7 @@ describe("area root pages", () => {
     const html = renderToStaticMarkup(await AreaPage({ params: Promise.resolve({ slug: "piccadilly-soho" }) }));
     expect(html).toContain("Cheapest pints in Piccadilly &amp; Soho");
     expect(html).toMatch(/From £\d+\.\d{2}/);
+    expect(html).toMatch(/Source read \d{1,2} \w+ \d{4}/);
     expect(html).toContain("Piccadilly Circus");
     expect(html).toContain('href="/map?area=piccadilly-soho"');
     expect(html).not.toContain("/map?q=");

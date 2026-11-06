@@ -64,6 +64,7 @@ export type ComposerHydration = {
   heldVenueId: string | null;
   /** Acceptance source when the accepted Venue came from a trusted handoff. */
   acceptedSource: PlanningIntentSource | null;
+  acceptedIntentAt: string | null;
   /** Exact accepted anchor for generation, when its source is known. */
   acceptedAnchor: {
     venueId: string;
@@ -101,6 +102,7 @@ export type ResolveComposerHydrationInput = {
   planDraft: ParsedPlanDraft | null;
   routeDraft: ParsedPlanRouteDraft | null;
   intakeDraft: ParsedPlanIntakeDraft | null;
+  /** The live intent returned by the existing storage reader. */
   planningIntent: PlanningIntentV1 | null;
   rememberedArea: RememberedArea | null;
   url?: Partial<DraftArbitrationUrl> | null;
@@ -122,40 +124,33 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
   const draftAnchor = input.planDraft?.draft.acceptedAnchor?.venueId === acceptedVenueId
     ? input.planDraft.draft.acceptedAnchor
     : null;
-  const acceptedSource = draftAnchor?.source ?? (result.acceptedVenueId.source === "planning-intent"
-    ? input.planningIntent?.source ?? null
-    : result.acceptedVenueId.source === "route-v2" || result.acceptedVenueId.source === "route-legacy"
-      ? result.routePreview?.value.anchorSource ?? null
-      : null);
+  const provenance = result.acceptedVenueId.source;
+  const { planningIntent } = input;
+  const winningIntent = provenance === "planning-intent" ? planningIntent : null;
+  const routeAnchorSource = provenance === "route-v2" || provenance === "route-legacy"
+    ? result.routePreview?.value.anchorSource ?? null
+    : null;
+  const matchedRouteCity = planningIntent
+    && planningIntent.acceptedVenueId === acceptedVenueId
+    && planningIntent.source === routeAnchorSource
+    ? planningIntent.cityId
+    : null;
+  const acceptedSource = draftAnchor?.source ?? winningIntent?.source ?? routeAnchorSource;
   const acceptedAnchor = acceptedVenueId && acceptedSource
     ? draftAnchor ?? {
         venueId: acceptedVenueId,
         source: acceptedSource,
-        cityId: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.cityId
-          : null,
-        acceptedArea: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.acceptedArea
-          : result.area.value,
-        startsAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.startsAt
-          : result.startsAt.value,
-        expiresAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
-          ? input.planningIntent.expiresAt
-          : null,
+        cityId: winningIntent?.cityId ?? matchedRouteCity,
+        acceptedArea: winningIntent ? winningIntent.acceptedArea : result.area.value,
+        startsAt: winningIntent ? winningIntent.startsAt : result.startsAt.value,
+        expiresAt: winningIntent?.expiresAt ?? null,
       }
     : null;
   const heldVenueId = acceptedVenueId
     && (Boolean(draftAnchor) || isAcceptanceSource(result.acceptedVenueId.source))
     ? acceptedVenueId
     : null;
-  const active = Boolean(
-    input.planDraft
-    || input.routeDraft
-    || input.intakeDraft
-    || input.planningIntent
-    || acceptedVenueId,
-  );
+  const active = [input.planDraft, input.routeDraft, input.intakeDraft, input.planningIntent, acceptedVenueId].some(Boolean);
   return {
     active,
     defaultsMayWrite: result.hydration.defaultsMayWrite,
@@ -165,6 +160,7 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     acceptedVenueId,
     heldVenueId,
     acceptedSource,
+    acceptedIntentAt: winningIntent?.acceptedAt ?? null,
     acceptedAnchor,
     area: result.area.value,
     // Accepted context is visible for exactly the pub that is held, so the

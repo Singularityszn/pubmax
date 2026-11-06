@@ -45,10 +45,19 @@ for (const width of [390, 1440]) {
 test.describe("completed public discovery documents without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
+  test("the legacy homepage alias redirects to the canonical homepage", async ({ request }) => {
+    const response = await request.get("/index", { maxRedirects: 0 });
+    expect(response.status()).toBe(308);
+    expect(response.headers().location).toBe("/");
+  });
+
   test("homepage explains planning and price sources in completed HTML", async ({ page }) => {
     expect((await page.goto("/"))?.status()).toBe(200);
     await expect(page).toHaveTitle("London pint prices and pub crawls with friends | PUBMAXX");
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Plan a crawl and share the route with your mates/);
+    await expect(page.getByTestId("landing-hunt-card")).toContainText("Current price may differ.");
+    await expect(page.getByTestId("landing-hunt-card").locator("time")).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}$/);
+    await expect(page.getByRole("link", { name: "London pub crawl routes", exact: true })).toHaveAttribute("href", "/crawls");
     await expect(page.locator("#faq")).toContainText("public directories");
     await expect(page.locator("#faq")).toContainText("source read days where known");
     await expect(page.locator("#faq")).toContainText("sign in if asked");
@@ -114,6 +123,27 @@ test.describe("completed public discovery documents without JavaScript", () => {
     await expect(description).toContainText("Browse and save pubs on this device without an account");
     await expect(description).toContainText("send an invite link to your mates");
     await expect(description).toContainText("Sign in to sync your saves, log prices and use Social when it is available");
+  });
+
+  test("Victoria and Victorian Soho expose dated prices and map arrivals", async ({ page, request }) => {
+    const sitemap = await (await request.get("/sitemap.xml")).text();
+
+    expect((await page.goto("/area/victoria"))?.status()).toBe(200);
+    await expect(page).toHaveTitle("Cheapest pints in Victoria | PUBMAXX");
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://pubmaxxing.com/area/victoria");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /^index, follow/);
+    await expect(page.locator(".drinkBrandDirectory__from")).toContainText(/Source read \d{1,2} \w+ \d{4}/);
+    await expect(page.getByRole("link", { name: "Open Victoria on the map" })).toHaveAttribute("href", "/map?area=victoria");
+    expect(sitemap).toContain("<loc>https://pubmaxxing.com/area/victoria</loc>");
+
+    expect((await page.goto("/routes/victorian-soho"))?.status()).toBe(200);
+    await expect(page).toHaveTitle("Victorian Soho: a free, self-guided London pub crawl | PUBMAXX");
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://pubmaxxing.com/routes/victorian-soho");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /^index, follow/);
+    await expect(page.getByText(/The whole route is.*straight-line estimate/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Plan the Victorian Soho crawl on the map" }))
+      .toHaveAttribute("href", /^\/map\?mode=build&pubs=venue-/);
+    expect(sitemap).toContain("<loc>https://pubmaxxing.com/routes/victorian-soho</loc>");
   });
 
   test("crawl directory exposes the named routes and ordered map links", async ({ page }) => {

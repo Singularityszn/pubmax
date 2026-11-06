@@ -46,11 +46,11 @@ import { buildPubFacts, pickOperatorUrl } from "../../lib/harvest/pubFacts.ts";
 import { findEventsPageUrl, parseVenueEventListings } from "../../lib/harvest/venueEvents.ts";
 import {
   buildWetherspoonsDealRows,
+  nextDealWindow,
   filterGreaterLondonWetherspoons,
   londonWallClockToIso,
 } from "../whatson/dealsRefresh.mjs";
 import { readExistingOwnSiteRows } from "../whatson/eventsRefresh.mjs";
-import { nextWeeklyOccurrence } from "../whatson/quizParsers.mjs";
 import { resolveVenueId } from "../whatson/resolveVenueId.mjs";
 import { loadCanonicalVenueIndex } from "../whatson/loadCanonicalVenueIndex.mjs";
 
@@ -155,12 +155,14 @@ export async function scrapeLanding(url, page, robots) {
 }
 
 /** Pick the soonest occurrence among the days a deal states. */
-function soonestDay(days, startTime, observedAt) {
+// The deal day whose window closes soonest, so a window already open at the
+// harvest stays the one listed (the builder dates rows the same way).
+function soonestDay(days, startTime, endTime, observedAt) {
   let best = null;
   for (const dayName of days) {
-    const startsAt = nextWeeklyOccurrence(dayName, startTime, observedAt);
-    if (!startsAt) continue;
-    if (!best || startsAt < best.startsAt) best = { dayName, startsAt };
+    const window = nextDealWindow(dayName, startTime, endTime, observedAt);
+    if (!window) continue;
+    if (!best || Date.parse(window.endsAt) < Date.parse(best.endsAt)) best = { dayName, endsAt: window.endsAt };
   }
   return best;
 }
@@ -282,7 +284,7 @@ async function harvestDeals({ client, reporter, observedAt, venueIndex, dryRun, 
     if (venuesForChain.length > 0 && ownDeals.length > 0) {
       const defs = [];
       for (const deal of ownDeals) {
-        const soonest = soonestDay(deal.days, deal.startTime, observedAt);
+        const soonest = soonestDay(deal.days, deal.startTime, deal.endTime, observedAt);
         if (!soonest) continue;
         defs.push({
           id: deal.id,

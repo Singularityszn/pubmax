@@ -12,7 +12,7 @@ Source of truth: **issue #252** ("Spec: The Local — companion-led activation, 
 
 | `docs/plans/sol.md` name | Reality | Status |
 | --- | --- | --- |
-| `POST /api/plans/generate` | Editable three-stop route generation | IMPLEMENTED LOCALLY |
+| `POST /api/plans/generate` | Editable route generation | IMPLEMENTED LOCALLY |
 | `PATCH /api/plans/:id` | Status, context, and route replacement | IMPLEMENTED LOCALLY |
 | `POST /api/plans/:id/actions` | Arrived / skipped / swapped | IMPLEMENTED LOCALLY |
 | `GET /api/night-areas/:slug` | Detail plus `GET /api/night-areas?city=` catalogue | IMPLEMENTED LOCALLY |
@@ -239,7 +239,7 @@ Area readiness describes confidence and does not gate Plan generation. A draft c
 
 **Status: IMPLEMENTED LOCALLY.** (This is `docs/plans/sol.md`'s `/api/plans/generate`; supersedes #252's `/api/companion/recommend`.)
 
-Keyless. Produces a grounded three-stop draft route from a Night Area + NightContext, with per-stop reasons and explicit context attribution. Does **not** persist a Plan — it returns a draft the client can then create/save via `POST /api/plans`.
+The endpoint supports keyless generation. It produces a grounded draft route from a Night Area and NightContext, with per-stop reasons and explicit context attribution. The [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) owns the supported counts and default. This endpoint does not persist a Plan. The client can save the returned draft through `POST /api/plans`.
 
 ### Request
 
@@ -248,6 +248,7 @@ type GeneratePlanRequest = {
   cityId?: string;              // default "london"; validated by parseCityId
   query?: string;              // free-text night description; parsed by inferNightContext
   context?: Partial<NightContext> | NightContext; // merged over inference; MUST resolve a nightArea
+  planStartIso?: string;
   anchor?: {                    // the accepted pub, when the person kept one first
     venueId: string;
     source: PlanningIntentSource;   // "near" | "map-search" | "tonight" | "pal"
@@ -274,9 +275,16 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 
 [`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
 
+The optional `planStartIso` request field carries the displayed **First pint** time as a canonical UTC ISO timestamp.
+If present, an invalid value, including `null`, returns `400 MALFORMED_REQUEST` with "Plan start time is invalid."
+When no query, context correction, or completed intake supplies a daypart, generation derives the default daypart from this timestamp.
+This fallback remains attributed to `default`. It creates no explicit time choice or query evidence.
+Without this field, generation retains the request-clock fallback.
+Coverage: `__tests__/planAutomaticStart.test.ts` and `__tests__/planGenerationRequest.test.ts`.
+
 The composer always includes `context` through [`buildPlanGenerationIntakeBody`](../lib/planIntake.ts). It derives transport requirements from the current description, including empty or whitespace-only text. Removing transport wording removes the previous inferred requirement. An `explicitContext.transportConstraints` override still takes precedence. Recovered drink, food, and atmosphere choices remain intact.
 
-Empty or whitespace-only descriptions retain the displayed stop count. New nonempty descriptions can replace the inferred count. Explicit controls and intake answers retain their existing precedence. Request and component coverage live in `__tests__/planIntake.test.ts` and `__tests__/planComposerDescribeLink.test.ts`.
+The composer sends requested stop intent through the [stop-count and draft recovery contract](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary). Request and component coverage live in `__tests__/planIntake.test.ts` and `__tests__/planComposerDescribeLink.test.ts`.
 
 ### Response `200`
 
@@ -288,7 +296,7 @@ type GeneratePlanResponse = {
   stops: Array<{
     venueId: string;
     venueName: string;
-    position: number;                   // 0..2
+    position: number;                   // zero-based stop order
     reason: string;                     // per-stop grounded reason (distance + up to 2 context reasons)
     alternatives: Array<{ venueId: string; venueName: string }>; // next-best swaps
   }>;

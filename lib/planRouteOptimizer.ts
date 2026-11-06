@@ -164,6 +164,25 @@ function distanceKm<T>(left: GroundedPlanRouteCandidate<T>, right: GroundedPlanR
   return haversineKm([left.lng, left.lat], [right.lng, right.lat]);
 }
 
+/**
+ * The walking rule every crawl answers to, read on the straight line: no leg
+ * longer than MAX_PLAN_ROUTE_SEGMENT_KM and no route longer than
+ * MAX_PLAN_ROUTE_WALKING_KM. The Pub Pal's draft (lib/palPlanDraft.ts) asks
+ * this same rule, so the Pal never proposes a crawl Plan would refuse to walk.
+ * Returns the route's straight-line kilometres, or null when it breaks the rule.
+ */
+export function straightLineWalkableKm(points: readonly { lat: number; lng: number }[]): number | null {
+  let walked = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const left = points[index - 1]!;
+    const right = points[index]!;
+    const leg = haversineKm([left.lng, left.lat], [right.lng, right.lat]);
+    if (leg > MAX_PLAN_ROUTE_SEGMENT_KM) return null;
+    walked += leg;
+  }
+  return walked > MAX_PLAN_ROUTE_WALKING_KM ? null : walked;
+}
+
 // The leg the walker actually walks: the street walk where the table holds
 // the pair, else the straight line. The leg and route caps and the visit
 // windows read this; straightLineWalkingKm stays the straight line it says.

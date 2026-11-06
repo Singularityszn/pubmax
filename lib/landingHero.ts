@@ -207,8 +207,8 @@ export type AnswerPublisher = { label: string; url: string };
 
 /**
  * THE ONE place the card's publisher and standing are read off a pub's price
- * rows: the row naming a public page is the publisher, preferring the one that
- * carries the printed figure, and the standing is what `priceStandingFor` says
+ * rows: only a row that carries the printed figure can name its publisher.
+ * The standing is what `priceStandingFor` says
  * about that page and the day THAT ROW was last read at its source. The
  * prerendered anchor and a near-you swap both come through here, so a pub
  * cannot read one way at build and another after a tap.
@@ -224,14 +224,13 @@ export function answerEvidenceFor(
 ): { publisher: AnswerPublisher | null; standing: PriceStanding; observedOn: string | null } {
   let evidence: { row: LegacyPintPrice; publisher: AnswerPublisher } | null = null;
   for (const row of input.prices) {
-    const named = namedLegacyPintPriceSource(row);
-    if (!named) continue;
     const carriesFigure =
       typeof row.price_gbp === "number" && Math.abs(row.price_gbp - input.priceGbp) < 0.005;
-    if (!evidence || carriesFigure) {
-      evidence = { row, publisher: { label: named.label, url: named.url } };
-    }
-    if (carriesFigure) break;
+    if (!carriesFigure) continue;
+    const named = namedLegacyPintPriceSource(row);
+    if (!named) continue;
+    evidence = { row, publisher: { label: named.label, url: named.url } };
+    break;
   }
   const publisher = evidence?.publisher ?? null;
   const observedAt = evidence ? legacyPintPriceObservedAt(evidence.row) : null;

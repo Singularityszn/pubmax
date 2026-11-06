@@ -1,30 +1,16 @@
-// What the front door prints under the picture: what today is, and what is on
-// tonight, one sentence each.
+// The homepage answers keep events, recommendations and recurring deals separate.
 //
 // Captain 7 Sep 2026: "Let's say: What is happening today? What is happening
-// tonight?" The SHAPING of both sentences lives here, in a pure leaf, so it can
+// tonight?" The copy lives here, in a pure leaf, so it can
 // be tested without a weather store or a listings provider, and so the client
 // landing component can take the result as props without pulling a
 // `server-only` module into its own graph. lib/landingAnswers.server.ts does
 // the reading and hands the figures in.
-//
-// Tonight's empty line is the SAME sentence /tonight prints over an empty
-// listings night (`TONIGHT_QUIET_NIGHT_SENTENCE`). The card also counts the
-// hyped-pubs pack /tonight leads with, so a home door that says nothing is on
-// cannot sit above a /tonight page full of pubs Londoners keep recommending.
-// Those pubs are recommendations dated on their own cards, never tonight's
-// listings, so the sentence names them for what they are rather than counting
-// them as things on tonight, and says nothing is confirmed beside the count.
-// The pubs lead and the honest note follows (site review, 18 Oct 2026): a door
-// that opens on "Nothing's confirmed" reads as a dead night on most days, when
-// the page behind it leads with twelve pubs.
-
-import { TONIGHT_QUIET_NIGHT_SENTENCE } from "@/lib/tonightOutListings";
 
 export type LandingAnswer = {
-  /** The one sentence the card prints. */
+  /** The answer the card prints. */
   line: string;
-  /** The London day the sentence speaks for, such as "Saturday 19 July". */
+  /** The London day the answer speaks for, such as "Saturday 19 July". */
   stamp: string;
   /** False when the lane could not be read, so the card prints no count. */
   measured: boolean;
@@ -62,38 +48,36 @@ export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): L
 export type TonightListingFacts = {
   /** True when neither the What's-On lane nor the Out lane could be read. */
   unread: boolean;
-  /** How many listings the merged lanes hold for tonight. */
+  /** How many dated pub events the merged lanes hold for tonight. */
   count: number;
+  hasDeals?: boolean;
   /**
-   * How many hyped pubs /tonight will print. Same pack, same page limit, so the
-   * card and the route cannot disagree about whether anything is on.
+   * The same recommendation pack and page limit as /tonight. These pubs are
+   * recommendations, so this count never enters the dated event total.
    */
   hypedCount?: number;
 };
 
 /**
- * Tonight's sentence. A city with nothing listed and a city we could not read
- * are different answers, so they get different words and only one of them
- * counts as measured. Hyped pubs count when listings are empty, because that
- * is what /tonight leads with on a quiet listings night.
+ * An empty event read differs from a failed read. Recommendations and recurring
+ * deals remain separate claims, so neither can inflate the dated event count.
  */
 export function tonightAnswer(listings: TonightListingFacts, stamp: string): LandingAnswer {
   if (listings.unread) {
     return { line: "We couldn't reach tonight's listings just now.", stamp, measured: false };
   }
+  const dealNote = listings.hasDeals ? " See recurring deals." : "";
   if (listings.count >= 1) {
-    const things = listings.count === 1 ? "1 thing" : `${listings.count} things`;
-    return { line: `${things} on across London tonight.`, stamp, measured: true };
+    const events = listings.count === 1 ? "1 pub event" : `${listings.count} pub events`;
+    return { line: `${events} listed in London tonight.${dealNote}`, stamp, measured: true };
   }
   const hyped = listings.hypedCount ?? 0;
-  if (hyped >= 1) {
-    const pubs =
-      hyped === 1 ? "A pub Londoners keep recommending" : `${hyped} pubs Londoners keep recommending`;
-    return {
-      line: `${pubs}. Nothing’s confirmed on tonight yet.`,
-      stamp,
-      measured: true,
-    };
-  }
-  return { line: TONIGHT_QUIET_NIGHT_SENTENCE, stamp, measured: true };
+  const pubs = hyped === 1
+    ? "A pub Londoners keep recommending. "
+    : hyped > 1 ? `${hyped} pubs Londoners keep recommending. ` : "";
+  return {
+    line: `${pubs}No pub events listed for tonight.${dealNote}`,
+    stamp,
+    measured: true,
+  };
 }

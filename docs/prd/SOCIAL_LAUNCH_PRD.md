@@ -71,9 +71,10 @@ account see nothing personal.
   claimed handle, and 18+ answer are required. It is live by default;
   `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the explicit emergency rollback.
 - Profile pictures: user-uploaded, public on profile.
-- Moderation: OpenAI omni-moderation pre-publish scan on OWNED storage
-  bytes (upload pipeline, never hotlinked URLs), fail-closed, plus a
-  report/takedown lane.
+- Moderation uses owned storage bytes, never hotlinked URLs.
+  A report/takedown lane remains available.
+  The [owned-image scan policy](../rules/lib-images-uploads-and-photo-walls.md#the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net)
+  contains the amended failure behaviour.
 - `OPENAI_API_KEY` reaches Vercel env (captain) when WP2 ships.
 
 ## Work packages
@@ -407,16 +408,13 @@ empty; search finds a handle and follow works from it.
    image URL - never the handle, profile id, account id, or any user text
    alongside it (`__tests__/socialPostModeration.test.ts:53-54` is the
    fence to copy).
-2. **Moderation fail-closed:** posts only. A post the moderation call
-   cannot decide stays unpublished (`lib/socialPostModeration.ts:19-22,67-74`).
-   OWNED IMAGES took the opposite decision on 2026-08-10: an avatar, cover
-   or wall photo whose scan is unconfigured, times out, errors, or returns
-   no usable decision is stored and served, because a broken provider had
-   blocked every upload on the site. A real negative verdict still refuses.
-   See `lib/uploadedImageScan.server.ts` and the AGENTS.md bullet.
+2. **Moderation failure policy:** Social posts follow the
+   [held-content policy](../CRON_PLANE_RUNBOOK.md#failure-posture-never-fake-success).
+   Avatars, covers and wall photos follow the
+   [owned-image scan policy](../rules/lib-images-uploads-and-photo-walls.md#the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net).
 3. **Honest copy and honest fallbacks:** During the explicit rollback, no
    surface may say "Open Social" (the `__tests__/*SocialHonesty.test.ts`
-   fences must keep passing), and a missing, hidden, or unscanned avatar
+   fences must keep passing), and a missing or hidden avatar
    always renders the initials fallback - never a broken image, never a
    placeholder that implies the user chose it.
 4. **Age gate:** Social requires a signed-in account, claimed handle, and 18+

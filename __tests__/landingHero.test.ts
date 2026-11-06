@@ -239,6 +239,20 @@ describe("landing hero policy", () => {
     expect(evidence).toMatchObject({ standing: "listed", observedOn: "2026-10-02" });
   });
 
+  it("does not borrow the publisher or date from a different price", () => {
+    const evidence = answerEvidenceFor({
+      priceGbp: 5.9,
+      prices: [
+        { app_price_id: "cheap", pint_name: "LONDON PRIDE", price_gbp: 5.9 },
+        {
+          app_price_id: "dear", pint_name: "AMSTEL", price_gbp: 6.35,
+          pub_url: "https://example.com/menu", scraped_at_values: "2026-10-02T11:48:33Z",
+        },
+      ],
+    }, NOW);
+    expect(evidence).toEqual({ publisher: null, standing: "none", observedOn: null });
+  });
+
   it("dates the row that carries the printed figure", () => {
     const evidence = answerEvidenceFor(
       {

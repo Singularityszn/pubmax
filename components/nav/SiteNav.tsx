@@ -210,8 +210,9 @@ function glideTo(row: HTMLElement, glide: HTMLElement, link: HTMLElement): void 
   const box = link.getBoundingClientRect();
   const arriving = glide.dataset.visible !== "true";
   if (arriving) glide.style.transition = "none";
-  glide.style.transform = `translateX(${box.left - rowBox.left}px)`;
+  glide.style.transform = `translate(${box.left - rowBox.left}px, ${box.top - rowBox.top}px)`;
   glide.style.width = `${box.width}px`;
+  glide.style.height = `${box.height}px`;
   if (arriving) {
     // Commit the jump before the fade-in, so only the fade is seen.
     void glide.offsetWidth;

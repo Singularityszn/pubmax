@@ -8,9 +8,10 @@
 // three can never name two different winners for one question.
 //
 // WHAT MAY WIN. Only a price the one decider (lib/priceTier.ts) calls `listed`
-// or `confirmed`, carrying a named publisher and the day that publisher's own
-// row was read. An estimate is never called cheapest: nothing here reads the
-// modelling engine, and the bundle is narrowed by `authoritativeBundleRows`
+// or `confirmed`, carrying a named publisher and the source-read day or
+// community observation day for that figure. An estimate is never called
+// cheapest. Nothing here reads the modelling engine, and the bundle is narrowed
+// by `authoritativeBundleRows`
 // before anything else looks at it. A row without a date or a publisher cannot
 // win, because a figure nobody can check is not a claim we make.
 //
@@ -90,7 +91,8 @@ import type { Route } from "next";
 import { CITIES, enabledCityContainingPoint, listEnabledCities, type CityId } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
-import { measureFromServingSize, measureNamedInDrinkText } from "@/lib/drinkMeasure";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { measureFromServingSize } from "@/lib/drinkMeasure";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
@@ -106,11 +108,11 @@ import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { Venue } from "@/lib/venues";
 
-/** The hero card's heading, the captain's own words (launch plan, section 3). */
-export const HUNT_HERO_TITLE = "The cheapest pint we can find in Britain right now";
+/** The hero card describes a search across covered UK cities. */
+export const HUNT_HERO_TITLE = "The cheapest pint we found across UK cities";
 
 /** The city-by-city section's heading. */
-export const HUNT_CITIES_TITLE = "Britain's cheapest pint, city by city";
+export const HUNT_CITIES_TITLE = "Cheapest pint finds, city by city";
 
 /** What a city on the map with no listed price says, and the door it opens. */
 export const HUNT_CITY_EMPTY_LINE = "No prices yet.";
@@ -125,7 +127,7 @@ export const HUNT_CITY_UNNAMED_LINE = "Prices listed, but none says which pint."
 export const HUNT_CITY_UNNAMED_ACTION = "Log yours.";
 
 /** The press card's heading. Never a pin colour and never on the map. */
-export const HUNT_DEAREST_TITLE = "London's dearest pint";
+export const HUNT_DEAREST_TITLE = "London's dearest pint in our pub list";
 
 export type HuntStanding = "listed" | "confirmed";
 
@@ -147,7 +149,7 @@ export type HuntPint = {
   drinkLabel?: string | null;
   servingSize?: string | null;
   publisher: { label: string; url: string };
-  /** ISO day (`YYYY-MM-DD`) the publisher's own row was read at its source. */
+  /** ISO day (`YYYY-MM-DD`) of the source read or community observation, by standing. */
   observedOn: string;
   standing: HuntStanding;
   lane: HuntLane;
@@ -350,7 +352,7 @@ function londonFigureRows(venue: Venue, priceGbp: number): Venue["prices"] {
       typeof price.price_gbp === "number" &&
       Math.abs(price.price_gbp - priceGbp) < 0.005 &&
       huntRowNamesItsDrink({ drinkLabel: price.pint_name }) &&
-      measureNamedInDrinkText(price.pint_name) === null &&
+      isComparablePintServing({ measure: price.measure, cheapestPint: price.pint_name }) &&
       huntPriceIsCorroborated({ lane: "london-list", row: price }),
   );
 }
@@ -393,15 +395,13 @@ export function londonHuntPints(venues: readonly Venue[], now: number = Date.now
 }
 
 /**
- * Whether a bundle row may stand for a PINT. The measure law reads the row's
- * own words and its own serving field; a row that names a half, a third or a
- * bottle is held out, never scaled, and an unstated measure is a pint, as it
- * is on every other lane (lib/drinkMeasure.ts).
+ * Explicit non-pint words or servings exclude a row. Nothing scales a smaller
+ * serving into a pint. An unstated serving still needs to pass the separate
+ * headline evidence and drink-label checks.
  */
 function rowIsAPint(row: UkPriceBundleRow): boolean {
-  if (measureNamedInDrinkText(row.drinkLabel) !== null) return false;
-  if (row.servingSize === undefined) return true;
-  return measureFromServingSize(row.servingSize) === "pint" || /^568 ?ml$/i.test(row.servingSize);
+  return isComparablePintServing({ cheapestPint: row.drinkLabel }) &&
+    (row.servingSize === undefined || servingStatesAPint(row.servingSize));
 }
 
 type BundleFigure = Pick<HuntPint, "priceGbp" | "publisher" | "observedOn" | "standing" | "drinkLabel" | "servingSize">;

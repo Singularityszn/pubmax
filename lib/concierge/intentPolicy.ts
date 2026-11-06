@@ -5,7 +5,7 @@
 // __tests__/fixtures/typesafe/conciergeIntentProbabilities.json
 
 import { CONCIERGE_MOODS, type ConciergeIntent, type ConciergeMood } from "@/lib/concierge/rank";
-import { NIGHT_AREAS } from "@/lib/nightAreas";
+import placeNames from "@/lib/ask/placeNames.generated.json";
 
 /** Keyless cheap-pint cap. Same figure the regex path has always used. */
 export const CHEAP_PINT_GBP = 6;
@@ -19,7 +19,7 @@ export const BUDGET_EXPLICIT = "explicit figure";
 export const BUDGET_CHEAP = "cheap";
 export const BUDGET_UNSTATED = "unstated";
 
-export const NUMBER_WORDS: Record<string, number> = {
+const NUMBER_WORDS: Record<string, number> = {
   one: 1,
   two: 2,
   three: 3,
@@ -31,6 +31,20 @@ export const NUMBER_WORDS: Record<string, number> = {
   nine: 9,
   ten: 10,
   twelve: 12,
+};
+
+const MOOD_TERMS: Record<ConciergeMood, RegExp> = {
+  balanced: /\b(?:balanced|bit of everything|anything)\b/i,
+  quiet: /\b(?:quiet|quiet-ish|calm|chat|low-key)\b/i,
+  lively: /\b(?:lively|buzzing|party|atmosphere)\b/i,
+  cosy: /\b(?:cosy|cozy|snug|fireside)\b/i,
+  garden: /\b(?:garden|outside|outdoor|sunny)\b/i,
+  riverside: /\b(?:riverside|river|waterside|by the water)\b/i,
+  sports: /\b(?:sport|sports|football|rugby|match)\b/i,
+  date: /\b(?:date|romantic)\b/i,
+  food: /\b(?:food|dinner|eat|meal)\b/i,
+  cocktails: /\b(?:cocktail|cocktails|mixed drinks)\b/i,
+  heritage: /\b(?:heritage|historic|history|old pub)\b/i,
 };
 
 /**
@@ -53,7 +67,7 @@ export function isConciergeProbability(value: unknown): value is number {
 export function defaultKnownAreas(): string[] {
   const seen = new Set<string>();
   const areas: string[] = [];
-  for (const area of NIGHT_AREAS) {
+  for (const area of placeNames.nightAreas) {
     for (const label of [area.name, ...area.aliases]) {
       const trimmed = label.trim();
       const key = trimmed.toLocaleLowerCase("en-GB");
@@ -63,6 +77,33 @@ export function defaultKnownAreas(): string[] {
     }
   }
   return areas;
+}
+
+/** Explicit request constraints, before a caller supplies a default group size. */
+export function conciergeConstraintsInText(
+  text: string,
+  knownAreas: readonly string[],
+): Omit<ConciergeIntent, "groupSize"> & { groupSize?: number } {
+  const mood = CONCIERGE_MOODS.filter((candidate) => MOOD_TERMS[candidate].test(text));
+  const numericGroup = text.match(/\b(\d{1,2})\s+(?:of us|people|mates|pax)\b/i)?.[1]
+    ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(?!£)(\d{1,2})\b/i)?.[1];
+  const wordGroup = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\s+(?:of us|people|mates|pax)\b/i)?.[1]
+    ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\b/i)?.[1];
+  const parsedGroup = numericGroup ? Number(numericGroup) : wordGroup ? (NUMBER_WORDS[wordGroup.toLowerCase()] ?? DEFAULT_GROUP_SIZE) : undefined;
+  const groupSize = parsedGroup === undefined ? undefined : Math.min(20, Math.max(1, parsedGroup));
+  const area = deterministicAreaInText(text, knownAreas);
+  const explicitBudget = extractExplicitBudget(text);
+  const maxPintPrice = explicitBudget !== undefined
+    ? explicitBudget
+    : /\b(?:not pricey|cheap(?:est)?|budget|inexpensive|affordable)\b/i.test(text)
+      ? CHEAP_PINT_GBP
+      : undefined;
+  return {
+    mood,
+    ...(groupSize !== undefined ? { groupSize } : {}),
+    ...(area ? { area } : {}),
+    ...(maxPintPrice !== undefined ? { maxPintPrice } : {}),
+  };
 }
 
 function escapeRegExp(value: string): string {

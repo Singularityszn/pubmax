@@ -68,8 +68,7 @@ export default function LandingHuntCities({ hunt }: { hunt: CheapestHunt | null 
         {HUNT_CITIES_TITLE}
       </h2>
       <p className="lpHuntDek">
-        The cheapest listed pint we hold in each city on our map, with who listed it and the day we
-        read it.
+        Prices from our records for each city on the map. Current prices may differ.
       </p>
       <ul className="lpHuntCityList">
         {hunt.cities.map((row) => (
