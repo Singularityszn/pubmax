@@ -4,6 +4,32 @@ The famous bars, late-food spots and restaurants in `data/famous_venues/` (`bars
 
 The app does not check a famous venue's expiry when it serves it. The slim index was built on a fixed date, and every row in it keeps showing until the next `refresh:slim`. The freshness gate is the only warning, and it is set to fire two weeks before the earliest row in the current build expires.
 
+## Publication on 2026-11-06
+
+| | |
+| --- | --- |
+| Slim built at | 2026-11-06 (`venues_slim.json` `generatedAt`, the `famous_venues` literal stamp) |
+| Gate turns red | After 2026-11-22 00:00 UTC, when the 384-hour budget is exceeded |
+| Rows shipping | 66 (26 bars, 18 late food, 22 restaurants) |
+| Those rows lapse | 2026-12-06. After that day the slim still shows them until rebuilt. |
+| Withheld | 4 complete withheld seed rows archived in `data/famous_venues/withheld_2026-11-06.json` |
+
+The full run on 2026-11-06 made 70 Places calls and confirmed 66 rows (`data/famous_venues/verification_2026-11-06.json`).
+Four rows stayed unverified.
+Leaving them in the build would have set the freshness budget to 0 hours.
+On 2026-11-06 the captain authorised withholding these four rows with the withholding procedure in step 3:
+
+| ID | Unverified result |
+| --- | --- |
+| `bar-oriole` | `places_no_confident_match` |
+| `food-antepliler` | `anchor_source_unreachable` |
+| `restaurant-st-john-smithfield` | `anchor_source_redirected` |
+| `restaurant-veeraswamy` | `anchor_source_unreachable` |
+
+The archive keeps each full original row, its failed check and its restoration requirements.
+Withdrawal does not assert that a venue closed.
+The withdrawn IDs also left `data/pub_walk_pairs.json`, and the UK base shards were rebuilt.
+
 ## Publication on 2026-10-21
 
 | | |
