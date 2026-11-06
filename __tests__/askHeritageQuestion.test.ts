@@ -40,7 +40,7 @@ describe("typed heritage questions", () => {
     expect(tool.cards.map((card) => card.venueId)).toEqual(expectedIds);
     if (expectedIds.length === 0) {
       expect(response.sources).toEqual([]);
-      expect(tool.sources).toEqual([]);
+      expect(tool.provenance).toEqual([]);
     }
   });
 
@@ -82,7 +82,7 @@ describe("typed heritage questions", () => {
     expect(result.ok).toBe(expectedIds.length > 0);
     expect(result.cards.map((card) => card.venueId)).toEqual(expectedIds);
     expect(result.proposals.map((proposal) => proposal.kind === "open_venue" ? proposal.venueId : null)).toEqual(expectedIds);
-    if (expectedIds.length === 0) expect(result.sources).toEqual([]);
+    if (expectedIds.length === 0) expect(result.provenance).toEqual([]);
     if (ambiguous) expect(result.answerHint).toContain("cannot tell which pub");
   });
 
@@ -110,7 +110,7 @@ describe("typed heritage questions", () => {
     });
     expect(result.cards).toEqual([]);
     expect(result.proposals).toEqual([]);
-    expect(result.sources).toEqual([]);
+    expect(result.provenance).toEqual([]);
   });
 
   it("preserves a pub name containing a conjunction in a compound question", async () => {
@@ -258,7 +258,7 @@ describe("typed heritage questions", () => {
     const answer = await runAskTool("venue_heritage", { venueId, venueName }, {
       query: `Tell me the history of ${venueName}.`, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
     });
-    expect(answer.sources.some((source) =>
+    expect(answer.provenance.some((source) =>
       source.url === "https://en.wikipedia.org/wiki/Black_Lion,_Kilburn" ||
       source.url === "https://en.wikipedia.org/wiki/Green_Man,_Blackheath",
     )).toBe(false);

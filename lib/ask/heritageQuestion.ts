@@ -8,7 +8,7 @@ export const HERITAGE_AMBIGUOUS_PUB_HINT =
   "I cannot tell which pub you mean. Choose the pub on the map, then ask about its history.";
 
 /** Preserve the complete requested name so a longer namesake cannot become a listed pub. */
-export function heritageQuestionVenueName(query: string): string | null {
+function heritageQuestionVenueName(query: string): string | null {
   const question = semanticAskRequest(query, false).trim().replace(/[.!?]+$/, "").trim();
   const patterns = [
     /^heritage\s+story\s+for\s+(.+)$/i,

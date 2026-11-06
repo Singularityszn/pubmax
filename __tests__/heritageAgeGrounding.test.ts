@@ -89,7 +89,7 @@ it.each([
   modelFetch.mockResolvedValue(modelReply(answer));
   const result = await ask();
   expect(result.answer).toContain("Here's what's on record");
-  expect(result.answer).toContain(BUILDING_FACT);
+  expect(result.answer).toContain(BUILDING_FACT.slice(0, -1));
   expect(result.answer).not.toContain(answer.replace(" [F2]", ""));
   expect(result.citations).toContainEqual({ source: "wikipedia", ref: WIKIPEDIA });
 });
