@@ -103,6 +103,33 @@ describe("GET /api/admin/bill-checks", () => {
     expect(receiptSigning.sign).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [3, 0],
+    [4, 1_000],
+    [3, 1_000],
+  ])("keeps the submitted community drink after correction to £%s at +%sms", async (priceGbp, elapsed) => {
+    const submittedAt = Date.parse("2026-11-05T19:30:00.000Z");
+    const input = { venueId: VENUE, drinkCategory: "coffee" as const, priceGbp: 4, actor: "coffee-drinker" };
+    const { price } = await memoryCommunityPriceStore.submit(input, submittedAt);
+    if (!price) throw new Error("Community price was not saved");
+    const check = await memoryBillCheckStore.record({
+      communityPriceId: price.id, communityPriceSubmittedAt: submittedAt,
+      billHash: "c".repeat(64), venueId: VENUE, priceGbp: 4,
+      result: "mismatch", lines: [{ name: "Coffee", priceGbp: 3 }],
+    });
+    const corrected = await memoryCommunityPriceStore.submit({ ...input, priceGbp }, submittedAt + elapsed);
+    expect(corrected.price).toMatchObject({ id: price.id, priceGbp, submittedAt: submittedAt + elapsed });
+
+    const response = await GET(new Request(URL_BASE));
+    expect(response.status).toBe(200);
+    expect((await response.json()).checks).toEqual([expect.objectContaining({
+      id: check.id, communityPriceId: price.id, submittedDrink: "Coffee", priceGbp: 4,
+      communityOnly: true, receiptPhotoUrl: null,
+      lines: [{ name: "Coffee", priceGbp: 3 }],
+    })]);
+    expect(receiptSigning.sign).not.toHaveBeenCalled();
+  });
+
   it("refuses anybody who is not a moderator", async () => {
     gate.open = false;
     const res = await GET(new Request(URL_BASE));

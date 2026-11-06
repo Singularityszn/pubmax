@@ -163,6 +163,27 @@ describe("judgeBill", () => {
   });
 
   it.each([
+    "Half-pint Guinness",
+    "1/2-pint Guinness",
+    "½-pint Guinness",
+    "Guinness half-pint",
+    "Guinness 1/2-pint",
+    "Guinness ½-pint",
+  ])("checks the complete half-pint serving in %s on either side", (served) => {
+    const servedBill = read([[served, 2.6]]);
+    const plainBill = read([["Guinness", 2.6]]);
+    expect(judgeBill(servedBill, 2.6, "Guinness", "half").result).toBe("match");
+    expect(judgeBill(plainBill, 2.6, served, "half").result).toBe("match");
+    expect(judgeBill(servedBill, 2.6, served, "half").result).toBe("match");
+    expect(judgeBill(servedBill, 2.6, "Guinness half pint", "half").result).toBe("match");
+    expect(judgeBill(servedBill, 2.6, "Guinness", "pint").result).toBe("mismatch");
+    expect(judgeBill(plainBill, 2.6, served, "pint").result).toBe("mismatch");
+    expect(judgeBill(servedBill, 2.6, served, "pint").result).toBe("mismatch");
+    expect(judgeBill(read([["Pint Guinness", 2.6]]), 2.6, served).result).toBe("mismatch");
+    expect(judgeBill(servedBill, 2.6, "Guinness pint").result).toBe("mismatch");
+  });
+
+  it.each([
     ["Half Carlsberg", "Carlsberg", "half", "pint"],
     ["Pint Carlsberg", "Carlsberg", "pint", "half"],
     ["Bottle Carlsberg", "Carlsberg", "bottle", "pint"],

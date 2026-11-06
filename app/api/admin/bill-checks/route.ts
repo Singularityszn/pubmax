@@ -70,8 +70,7 @@ async function withContext(checks: BillCheckRecord[]): Promise<ModeratorBillChec
     const communityOnly = !!check.communityPriceId && !check.pintDropId && !check.roundSource;
     if (communityOnly) {
       const { observation } = await findCommunityPriceObservation(check.communityPriceId!);
-      if (observation && observation.venueId === check.venueId &&
-        observation.submittedAt === check.communityPriceSubmittedAt && observation.priceGbp === check.priceGbp) {
+      if (observation && observation.venueId === check.venueId) {
         submittedDrink = submitCategoryLabel(observation.drinkCategory);
       }
     }
