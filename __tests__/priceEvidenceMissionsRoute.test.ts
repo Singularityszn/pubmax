@@ -64,7 +64,9 @@ import {
 import {
   __resetMemoryIdentityHandles,
 } from "@/lib/identityHandleStore";
-import { __resetPintDrops } from "@/lib/pintDrops";
+import { __resetPintDrops, validatePintDrop } from "@/lib/pintDrops";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
+import { memoryPintDropStore } from "@/lib/pintDropsStore";
 import {
   MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS,
 } from "@/lib/priceEvidenceMissions";
@@ -115,6 +117,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
   if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
   else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
@@ -126,6 +129,82 @@ afterEach(() => {
 });
 
 describe("GET /api/price-missions", () => {
+  async function logPint(
+    accountId: string,
+    createdAt = NOW,
+    status: "visible" | "hidden" | "pending" = "visible",
+  ): Promise<void> {
+    const result = validatePintDrop({
+      venueId: "venue-pint-own", handle: "pint_observer", drink: "Lager", priceGbp: 4.2,
+    });
+    if (!result.ok) throw new Error(result.error);
+    const drop = {
+      ...result.value,
+      status,
+      createdAt: new Date(createdAt).toISOString(),
+      authorityKey: pintDropAuthorityKey(result.value.venueId, accountId),
+    };
+    await memoryPintDropStore.create(drop, {
+      pint: null, venue: null,
+      receipt: new File(["bill"], "bill.jpg", { type: "image/jpeg" }),
+    });
+  }
+
+  it.each(["visible", "hidden", "pending"] as const)("does not repeat a current Pint Drop mission for its owner: %s", async (status) => {
+    await authorizeContributor("user-pint-owner", "pint_observer");
+    await logPint("user-pint-owner", NOW, status);
+
+    const res = await GET(get("?venueId=venue-pint-own"));
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ status: "ready", mission: null });
+  });
+
+  it("keeps a Pint Drop venue mission available to another account", async () => {
+    await authorizeContributor("user-pint-owner", "pint_observer");
+    await logPint("user-pint-owner");
+    await authorizeContributor("user-pint-other", "pint_other");
+
+    const res = await GET(get("?venueId=venue-pint-own"));
+    await expect(res.json()).resolves.toEqual({
+      status: "ready", mission: { venueId: "venue-pint-own", reason: "missing" },
+    });
+  });
+
+  it("keeps a stale Pint Drop eligible for a fresh-price task", async () => {
+    await authorizeContributor("user-pint-owner", "pint_observer");
+    await logPint("user-pint-owner", NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1);
+
+    const res = await GET(get("?venueId=venue-pint-own"));
+    await expect(res.json()).resolves.toEqual({
+      status: "ready", mission: { venueId: "venue-pint-own", reason: "missing" },
+    });
+  });
+
+  it("covers beer through a Pint Drop while keeping another category available", async () => {
+    await authorizeContributor("user-pint-owner", "pint_observer");
+    await logPint("user-pint-owner");
+    for (const drinkCategory of ["beer", "wine"] as const) {
+      await submitCommunityPrice({
+        venueId: "venue-pint-own", drinkCategory, priceGbp: 4.2, actor: "profile:another",
+      }, NOW);
+    }
+
+    const res = await GET(get("?venueId=venue-pint-own"));
+    await expect(res.json()).resolves.toEqual({
+      status: "ready",
+      mission: { venueId: "venue-pint-own", reason: "provisional", drinkCategory: "wine", observedAt: NOW },
+    });
+  });
+
+  it("answers degraded without a mission when Pint Drop coverage fails", async () => {
+    await authorizeContributor("user-pint-owner", "pint_observer");
+    vi.spyOn(memoryPintDropStore, "currentActorCoverage").mockRejectedValueOnce(new Error("Pint Drop read failed"));
+
+    const res = await GET(get("?venueId=venue-pint-own"));
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ status: "degraded", mission: null });
+  });
+
   it("answers 401 when no session is present", async () => {
     const res = await GET(get("?venueId=venue-xjf3n0"));
     expect(res.status).toBe(401);

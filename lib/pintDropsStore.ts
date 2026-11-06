@@ -8,8 +8,11 @@ import "server-only";
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
 import { createHash } from "node:crypto";
-
 import sharp from "sharp";
+
+import { COMMUNITY_PRICE_MAX_AGE_MS, isWithinMaxAge } from "@/lib/communityPrice";
+import { cleanVenueId } from "@/lib/cleanVenueId";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import type { CityId } from "@/lib/cities";
@@ -51,6 +54,7 @@ import {
   cleanVisibility,
   dropMatchesCityScope,
   hasPricedDropToday as hasPricedDropTodayMemory,
+  hasCurrentPricedPintDrop,
   keepHiddenPintDrop,
   listReportedPintDrops,
   listAllVisiblePintDrops,
@@ -265,6 +269,11 @@ export type PintDropStore = {
   listConfirmedVenueIds(
     venueIds: readonly string[],
     now?: number,
+  ): Promise<Set<string>>;
+  currentActorCoverage(
+    storedIdGroups: ReadonlyArray<readonly string[]>,
+    accountId: string,
+    now: number,
   ): Promise<Set<string>>;
   /**
    * Duplicate guard (feat/price-drops-v2): true when `handle` has already logged
@@ -811,6 +820,16 @@ async function attributedAuthorVenueIds(
 }
 
 export const memoryPintDropStore: PintDropStore = {
+  async currentActorCoverage(storedIdGroups, accountId, now) {
+    const covered = new Set<string>();
+    for (const keys of storedIdGroups) {
+      if (keys.some((key) => {
+        const authorityKey = pintDropAuthorityKey(key, accountId);
+        return authorityKey && hasCurrentPricedPintDrop(key, authorityKey, now - COMMUNITY_PRICE_MAX_AGE_MS);
+      })) covered.add(keys[0]);
+    }
+    return covered;
+  },
   async create(input, photos, options) {
     // The evidence is EARNED here, from what arrived, exactly as the Supabase
     // backend earns it: a priced drop with no bill is `unchecked`, whatever the
@@ -1201,6 +1220,38 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
+  async currentActorCoverage(storedIdGroups, accountId, now) {
+    const currentOf = new Map(storedIdGroups.flatMap((keys) => keys.map((key) => [key, keys[0]] as const)));
+    const authorityOf = new Map([...currentOf.keys()].map((key) => [key, pintDropAuthorityKey(key, accountId)]));
+    const limit = 200;
+    const { data, error, count } = await admin()
+      .from(TABLE)
+      .select("venue_id, authority_key, price_gbp, created_at", { count: "exact" })
+      .in("venue_id", [...currentOf.keys()])
+      .in("authority_key", [...authorityOf.values()])
+      .not("price_gbp", "is", null)
+      .gte("created_at", new Date(now - COMMUNITY_PRICE_MAX_AGE_MS).toISOString())
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    if (!Array.isArray(data) || count !== data.length || data.length > limit) {
+      throw new Error("Incomplete Pint Drop coverage read.");
+    }
+    const covered = new Set<string>();
+    for (const raw of data) {
+      if (!raw || typeof raw !== "object") throw new Error("Invalid Pint Drop coverage row.");
+      const row = raw as Record<string, unknown>;
+      const storedId = cleanVenueId(row.venue_id);
+      const venueId = currentOf.get(storedId);
+      if (!venueId || row.authority_key !== authorityOf.get(storedId)
+        || typeof row.price_gbp !== "number" || !Number.isFinite(row.price_gbp)
+        || typeof row.created_at !== "string"
+        || !isWithinMaxAge({ submittedAt: Date.parse(row.created_at) }, now)) {
+        throw new Error("Invalid Pint Drop coverage row.");
+      }
+      covered.add(venueId);
+    }
+    return covered;
+  },
   async create(input, photos, options) {
     // The evidence is EARNED from what arrived (lib/pintDropReceipt.ts). It
     // follows the REQUEST, not the upload: a bill Storage failed to keep below

@@ -55,7 +55,7 @@ export async function GET(request: Request): Promise<Response> {
       const read = await readCommunityPricesWithStatus(venueId, now);
       return { venueId, prices: read.prices, degraded: read.degraded };
     })),
-    readCurrentCommunityPriceActorCoverage(parsed.venueIds, contributor.actor, now),
+    readCurrentCommunityPriceActorCoverage(parsed.venueIds, contributor.actor, contributor.accountId, now),
   ]);
   if (coverage.degraded) return jsonNoStore({ status: "degraded", mission: null });
   // Which of these pubs the public Pint Index can already DATE. ONE read for

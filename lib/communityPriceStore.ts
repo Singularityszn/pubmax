@@ -79,6 +79,7 @@ import type {
 } from "@/lib/contributorLeaderboard";
 import { normalizeHandle } from "@/lib/profiles";
 import { MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS } from "@/lib/priceEvidenceMissionLimits";
+import { pintDropsStore } from "@/lib/pintDropsStore";
 import type { RoundPriceSource } from "@/lib/rounds";
 import {
   markRoundPriceSourcePromoted,
@@ -2113,20 +2114,33 @@ export async function readCommunityPricesWithStatus(
 export async function readCurrentCommunityPriceActorCoverage(
   rawVenueIds: readonly string[],
   actor: string,
+  accountId: string,
   now: number = Date.now(),
 ): Promise<CommunityPriceActorCoverageReadResult> {
   const venueIds = [...new Set(rawVenueIds.map(cleanVenueId).filter(Boolean))];
-  if (venueIds.length > MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS || !actor || !Number.isFinite(now)) {
+  if (venueIds.length > MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS || !actor || !accountId.trim() || !Number.isFinite(now)) {
     return { pairs: [], degraded: true };
   }
   if (venueIds.length === 0) return { pairs: [], degraded: false };
   const aliases = await loadVenueAliasResolver();
-  const coverage = await communityPriceStore().currentActorCoverage(
-    venueIds.map((venueId) => aliases.storedIds(venueId)), actor, now,
-  );
+  const groups = venueIds.map((venueId) => aliases.storedIds(venueId));
+  let coverage: CommunityPriceActorCoverageReadResult;
+  let pintVenueIds: Set<string>;
+  try {
+    [coverage, pintVenueIds] = await Promise.all([
+      communityPriceStore().currentActorCoverage(groups, actor, now),
+      pintDropsStore().currentActorCoverage(groups, accountId, now),
+    ]);
+  } catch {
+    return { pairs: [], degraded: true };
+  }
   if (coverage.degraded) return coverage;
+  const pairs = new Map(coverage.pairs.map((pair) => [`${pair.venueId}\u0000${pair.drinkCategory}`, pair]));
+  for (const venueId of pintVenueIds) {
+    pairs.set(`${venueId}\u0000beer`, { venueId, drinkCategory: "beer" });
+  }
   return {
-    pairs: venueIds.flatMap((venueId) => coverage.pairs
+    pairs: venueIds.flatMap((venueId) => [...pairs.values()]
       .filter((pair) => pair.venueId === aliases.canonical(venueId))
       .map((pair) => ({ ...pair, venueId }))),
     degraded: false,
