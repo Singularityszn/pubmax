@@ -86,6 +86,31 @@ beforeEach(async () => {
 });
 
 describe("GET /api/messages — inbox", () => {
+  it.each([undefined, "handle=ken", "handle=mallory"])(
+    "returns retryable 503 when ownership lookup fails with query %s",
+    async (query) => {
+      asUser("user-ken");
+      const lookup = vi
+        .spyOn(memoryProfileStore, "getByHandle")
+        .mockRejectedValueOnce(new Error("profile store unavailable"));
+      try {
+        const res = await getInbox(query);
+        expect(res.status).toBe(503);
+        expectNoStore(res);
+        expect(await res.json()).toEqual({
+          error: "Profile storage is unavailable.",
+          code: "UNAVAILABLE",
+          retryable: true,
+        });
+      } finally {
+        lookup.mockRestore();
+      }
+      const recovered = await getInbox(query);
+      expect(recovered.status).toBe(200);
+      expect(await recovered.json()).toEqual({ conversations: [], status: "ready" });
+    },
+  );
+
   it("reports a profile lookup outage instead of an empty ready inbox", async () => {
     asUser("user-ken");
     const lookup = vi

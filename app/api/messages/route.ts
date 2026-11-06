@@ -79,12 +79,6 @@ export async function GET(request: Request): Promise<Response> {
     requireAccountOwner: true,
   });
   if (!ownership.allowed) {
-    // Fail-soft on store outage: the page keeps rendering, and the body SAYS the
-    // read failed rather than handing a stranger an empty inbox as an answer.
-    // Keep 401/403 as hard errors so ownership denials stay visible.
-    if (ownership.status === 503) {
-      return jsonNoStore({ conversations: [], status: "degraded" }, { status: 200 });
-    }
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
   // A read that COULD NOT RUN is not an empty inbox. The rows and how well they
