@@ -73,9 +73,9 @@ const SKIP_ROOT_DIR_NAMES = new Set([
 /**
  * A test that creates and removes scratch entries under the scanned trees
  * while this walk runs can make an entry vanish between listing and reading.
- * An entry that vanished mid-walk is not product prose, so it is skipped. Symlinks are not followed:
- * the tree has none of its own, and a scratch link can be removed between
- * collecting it and reading it.
+ * An entry that vanished mid-walk is not product prose, so it is skipped.
+ * Symlinks are not followed: the tree has none of its own, and a scratch link
+ * can be removed between collecting it and reading it.
  */
 function statIfPresent(abs: string): Stats | undefined {
   try {
