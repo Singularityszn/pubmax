@@ -114,6 +114,9 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
   carries position, and a name on a bare span is dropped by assistive tech.
 - A row prints its own drink tag, title-cased when the dataset shouted it. The
   known all-caps beer tokens (IPA, NEIPA and the rest) keep their capitals.
+- London brand rows also show the recorded branch address, or the recorded
+  locality when the address is blank. The ledger link's accessible name
+  includes that text. Without either value, the row keeps its pub name and borough.
 - Every action is at least 44 by 44 CSS pixels and shows visible focus.
 - No horizontal page scroll. Light and dark use existing tokens.
 - Bottom padding carries `env(safe-area-inset-bottom)`, so phone navigation

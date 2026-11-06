@@ -78,9 +78,13 @@ export function drinkBrandCandidateForVenue(
   if (!isPublicRankablePub(venue)) return null;
   const selected = selectDrinkBrandPriceForVenue(venue, brand);
   if (!selected || typeof selected.price_gbp !== "number") return null;
+  // A partial venue record can arrive without an address, so read it defensively.
+  const address = typeof venue.address === "string" ? venue.address.trim() : "";
+  const branchAddress = address || venue.locality?.trim();
   return {
     venueId: venue.id,
     venueName: venue.name,
+    ...(branchAddress ? { branchAddress } : {}),
     borough: venue.primaryBorough,
     pintName: selected.pint_name,
     priceGbp: selected.price_gbp,

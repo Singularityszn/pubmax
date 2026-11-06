@@ -100,6 +100,7 @@ describe("landing hero rhythm", () => {
       averages: { averageGbp: 5.54, cheapAverageGbp: 4.17, sampleSize: 950 },
       priceReadLine: "The average above comes from prices read between 4 July 2026 and 2 October 2026.",
       huntCard: createElement(LandingHuntCard, { pint: huntPint }),
+      discoveryDrinks: [{ href: "/drink/guinness" as Route, label: "Guinness prices" }],
     }),
   );
 
@@ -153,6 +154,17 @@ describe("landing hero rhythm", () => {
     const hero = bare.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero).toContain("Find a London pub, compare listed pint prices and plan your night.");
     expect(bare).not.toContain('class="lpSavingSummary"');
+  });
+
+  it("renders public page links after the complete savings section", () => {
+    const worth = html.match(/<section class="lpWorth"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(worth).not.toBe("");
+    const linksAt = html.indexOf('class="lpDiscovery"');
+    expect(linksAt).toBeGreaterThan(html.indexOf(worth) + worth.length);
+    expect(html).toContain('href="/borough"');
+    expect(html).toContain('href="/historic"');
+    expect(html).toContain('href="/crawls"');
+    expect(html).toContain('href="/drink/guinness"');
   });
 
   it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {
