@@ -16,6 +16,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
@@ -3850,6 +3851,10 @@ export default function PlanComposer() {
     () => true,
     () => false,
   );
+  // The account boundary clears the stored drafts this form recovers from, but
+  // not the copy the mounted form holds. When the live account departs, the
+  // form is mounted again from the cleared storage (#2539).
+  const accountGeneration = useLiveAccountGeneration();
   const recovery = useMemo(() => {
     if (!hydrated) return null;
     try {
@@ -3864,7 +3869,10 @@ export default function PlanComposer() {
       }, routeRecovery);
       return { ...recovery, previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery) };
     } catch { return null; }
-  }, [hydrated]);
+    // `accountGeneration` is read by no line above: it marks the storage this
+    // memo read as cleared, so the next account reads it afresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, accountGeneration]);
   const recoveredDraft = recovery?.recoveredDraft ?? null;
   const recoveredRouteDraft = recovery?.route.route ?? null;
   const handoff = recovery?.handoff ?? null;
@@ -3897,7 +3905,7 @@ export default function PlanComposer() {
   }, [hydrated, handoff, recoveredDraft, recoveredRouteDraft, recoveredIntake]);
   return (
     <PlanComposerForm
-      key={remount ? "hydrated" : "server"}
+      key={`${remount ? "hydrated" : "server"}:${accountGeneration}`}
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
       recoveredIntake={recoveredIntake.draft}

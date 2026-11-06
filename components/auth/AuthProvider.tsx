@@ -71,6 +71,7 @@ import {
   bindDeviceAccountOwner,
   clearDeviceAccountSessionArtifacts,
   emitDeviceIdentityChanged,
+  liveAccountDeparted,
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
 import {
@@ -418,7 +419,7 @@ export function AuthProvider({
       // canonical read, the You tab, every composer) reads that storage.
       // Another tab may already have changed the shared owner stamp. This
       // tab's sessionStorage still belongs to its previous live account.
-      const tabOwnerChanged = previousUserId !== null && previousUserId !== nextUserId;
+      const tabOwnerChanged = liveAccountDeparted(previousUserId, nextUserId);
       if (tabOwnerChanged) clearDeviceAccountSessionArtifacts(browserSessionStorage());
       const deviceOwnerChanged = nextUserId
         ? bindDeviceAccountOwner(nextUserId, browserLocalStorage(), browserSessionStorage())

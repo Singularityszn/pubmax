@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ambientPresenceCurve } from "@/lib/ambientPresence";
+import { ambientPresenceCurve, ambientPresenceRows } from "@/lib/ambientPresence";
 import { demoContentEnabled, demoDrinksEnabled } from "@/lib/demoContent";
 import {
   parseDrinkPriceUpdates,
@@ -144,6 +144,8 @@ describe("demo content opt-in", () => {
     expect(demoDropsFor("venue-16pnwmm")).toEqual([]);
     // 22:00 London on a Friday sits inside the busiest HOUR_BAND.
     expect(ambientPresenceCurve("venue-16pnwmm", new Date("2026-07-17T21:00:00Z"))).toBe(0);
+    // The keyless presence read adds exactly these rows, so it adds none.
+    expect(ambientPresenceRows(new Date("2026-07-17T21:00:00Z"))).toEqual([]);
   });
 
   it("on brings the seeds back for a local demo or the e2e server", () => {

@@ -136,6 +136,21 @@ export function clearDeviceAccountSessionArtifacts(session: WritableStorage | nu
 }
 
 /**
+ * True when a tab's live account leaves a signed-in account, for another
+ * account or for nobody. That is the moment this tab's private artifacts stop
+ * belonging to anyone present: the stored set is cleared here, and a mounted
+ * surface that copied it into memory must drop that copy at the same step.
+ * Signing in from signed out is not a departure. Whatever was typed before the
+ * sign-in belongs to the person who is signing in.
+ */
+export function liveAccountDeparted(
+  previousUserId: string | null,
+  nextUserId: string | null,
+): boolean {
+  return previousUserId !== null && previousUserId !== nextUserId;
+}
+
+/**
  * Bind this device's cached identity to `userId`, clearing everything the
  * previous owner left when the two differ. Returns true when a clear happened,
  * so the caller can tell readers to re-read.
