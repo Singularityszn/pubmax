@@ -4,12 +4,14 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { defined } from "@/__tests__/helpers/defined";
 import {
   parseSiteHarvestLedgerText,
   type SiteHarvestLedgerRow,
 } from "@/lib/siteHarvestLedgerCore";
 import { isHarvestableDrinkUpdateUrl } from "@/lib/harvest/sourcePolicy";
 import { pageNamesAnotherBranch } from "@/lib/harvest/ukPriceCrawl";
+import { isCategoryQuarantined, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 
 type RowIdentity = {
   sha256: string;
@@ -116,7 +118,7 @@ type Reconciliation = {
   bundleWithdrawals?: Array<{
     decidedOn: string;
     rule: string;
-    reason: "source-page-names-another-branch";
+    reason: "source-page-names-another-branch" | "insufficient-pint-evidence";
     note: string;
     /** How many later publications were recorded when this was decided. */
     afterLaterPublications: number;
@@ -560,7 +562,7 @@ describe("site-harvest withdrawal reconciliation", () => {
     const ledgerByIdentity = new Map(rows.map((row) => [rowIdentitySha256(row), row]));
     const bundleRows = JSON.parse(
       readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
-    ) as Array<{ sourceUrl: string | null; lane: string; category: string; priceGbp: number; observedAt: string }>;
+    ) as UkPriceBundleRow[];
     const laterSources = new Set(
       reconciliation.laterPublications.map((later) => `${later.sourceUrl}|${later.sourceObservedAt}`),
     );
@@ -569,18 +571,42 @@ describe("site-harvest withdrawal reconciliation", () => {
     for (const withdrawal of reconciliation.bundleWithdrawals ?? []) {
       expect(withdrawal.rows.length).toBeGreaterThan(0);
       for (const identity of withdrawal.rows) {
-        const ledgerRow = ledgerByIdentity.get(identity.sha256);
-        expect(ledgerRow, `${identity.sha256} stays in the ledger`).toBeDefined();
-        expect(ledgerRow?.sourceUrl).toBe(identity.sourceUrl);
+        const ledgerRow = defined(ledgerByIdentity.get(identity.sha256), `ledger row ${identity.sha256}`);
+        expect(ledgerRow).toMatchObject({
+          host: identity.host,
+          venueId: identity.venueId,
+          category: identity.category,
+          priceGbp: identity.priceGbp,
+          sourceUrl: identity.sourceUrl,
+          observedAt: identity.observedAt,
+        });
+        expect(ledgerRow.drinkLabel ?? null).toBe(identity.drinkLabel);
         if (withdrawal.reason === "source-page-names-another-branch") {
-          expect(pageNamesAnotherBranch(identity.sourceUrl ?? "", { name: ledgerRow?.name ?? null })).toBe(true);
+          expect(pageNamesAnotherBranch(identity.sourceUrl ?? "", { name: ledgerRow.name ?? null })).toBe(true);
+        } else {
+          expect(withdrawal.reason).toBe("insufficient-pint-evidence");
+          expect(isCategoryQuarantined({
+            venueId: defined(ledgerRow.venueId),
+            name: ledgerRow.name ?? null,
+            category: defined(ledgerRow.category),
+            priceGbp: defined(ledgerRow.priceGbp),
+            lane: "site-harvest",
+            standing: "listed",
+            sourceUrl: ledgerRow.sourceUrl ?? null,
+            publisher: ledgerRow.host ?? null,
+            observedAt: defined(ledgerRow.observedAt),
+            basis: null,
+            sampleSize: null,
+            drinkLabel: ledgerRow.drinkLabel,
+          })).toBe(true);
         }
         expect(bundleRows.some((row) =>
           row.lane === "site-harvest" &&
           row.sourceUrl === identity.sourceUrl &&
           row.observedAt === identity.observedAt &&
           row.category === identity.category &&
-          row.priceGbp === identity.priceGbp,
+          row.priceGbp === identity.priceGbp &&
+          (row.drinkLabel ?? null) === identity.drinkLabel,
         )).toBe(false);
       }
       // Each recorded row was one published bundle row.

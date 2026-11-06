@@ -362,6 +362,44 @@ describe("review scope guard", () => {
   });
 
   it.each([
+    "scripts/gen_ask_place_names.ts",
+    "data/tfl_station_zones.json",
+    "public/data/london_localities.json",
+    "lib/nightAreas.ts",
+    "public/data/night_areas/uk_cities.json",
+  ])("permits Ask place names when the diff carries its producer or input: %s", (input) => {
+    const output = "lib/ask/placeNames.generated.json";
+    const report = summarizeReviewScope([input, output]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.categories.regenerated).toEqual([output]);
+    expect(report.regeneratedLanes).toEqual(["ask_place_names"]);
+    expect(report.reviewFileCount).toBe(1);
+  });
+
+  it("refuses Ask place names without a matching producer or input", () => {
+    const output = "lib/ask/placeNames.generated.json";
+
+    for (const paths of [[output], ["scripts/build_uk_pub_search_index.mjs", output]]) {
+      const report = summarizeReviewScope(paths);
+      expect(report.ok).toBe(false);
+      expect(report.forbidden).toEqual([{ category: "generated", path: output }]);
+      expect(report.regeneratedLanes).toEqual([]);
+    }
+  });
+
+  it("keeps other generated Ask files forbidden beside the place-name generator", () => {
+    const output = "lib/ask/placeNames.generated.json";
+    const unrelated = "lib/ask/unrelated.generated.json";
+    const report = summarizeReviewScope(["scripts/gen_ask_place_names.ts", output, unrelated]);
+
+    expect(report.ok).toBe(false);
+    expect(report.categories.regenerated).toEqual([output]);
+    expect(report.forbidden).toEqual([{ category: "generated", path: unrelated }]);
+  });
+
+  it.each([
     "scripts/build_historic_index.mjs",
     "public/data/heritage_cache.json",
     "public/data/pint_prices_app_dataset.json",

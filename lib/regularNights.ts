@@ -26,7 +26,7 @@
 // confirmed listing, and never called tonight's listing. A hidden row and an
 // expired row are dropped here too, whatever the route sent.
 
-import { formatObservedDate } from "@/lib/dataFreshness";
+import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { haversineKm } from "@/lib/haversine";
 import {
   isLiveRegularNightReport,

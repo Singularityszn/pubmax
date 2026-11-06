@@ -1,4 +1,5 @@
 import { traceArizeModelCall } from "@/lib/observability/arize";
+import { fetchModerationPayload } from "@/lib/moderationTransport";
 import type { SocialPostModerationAdapter } from "@/lib/socialPostStore";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
@@ -41,11 +42,10 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
       model: "omni-moderation-latest",
       provider: "openai",
       call: async (span) => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-        let response: Response;
-        try {
-          response = await this.fetcher("https://api.openai.com/v1/moderations", {
+        const payload = await fetchModerationPayload(
+          this.fetcher,
+          "https://api.openai.com/v1/moderations",
+          {
             method: "POST",
             headers: {
               Authorization: `Bearer ${this.apiKey}`,
@@ -60,26 +60,11 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
                   ]
                 : input.text,
             }),
-            signal: controller.signal,
-          });
-        } catch {
-          throw new SocialPostModerationError("OpenAI moderation request failed.", true);
-        } finally {
-          clearTimeout(timeout);
-        }
-        if (!response.ok) {
-          const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
-          throw new SocialPostModerationError(
-            `OpenAI moderation returned ${response.status}.`,
-            retryable,
-          );
-        }
-        let payload: unknown;
-        try {
-          payload = await response.json();
-        } catch {
-          throw new SocialPostModerationError("OpenAI moderation returned invalid JSON.", false);
-        }
+          },
+          this.timeoutMs,
+          "OpenAI",
+          (message, retryable) => new SocialPostModerationError(message, retryable),
+        );
         const result = payload && typeof payload === "object" &&
           Array.isArray((payload as { results?: unknown }).results)
           ? (payload as { results: unknown[] }).results[0]

@@ -3,7 +3,7 @@
    pages and the dark map shell. Three density bands live here:
      · Wide desktop: full link row plus utilities.
      · Laptop/tablet: keep primary links, tighten spacing, and drop nonessential
-       utility chrome so the bar stays one row.
+       utility chrome before wrapping when text needs more room.
      · Phone (≤640px): a compact bar, because MobileTabBar owns primary nav.
    These use their OWN classes (siteNavBar / siteNavLinks / …) — independent of
    the old .siteNav / .appNav globals, which may be cleaned up separately. */
@@ -218,7 +218,7 @@
 
 .siteNavItem {
   display: flex;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -236,8 +236,6 @@
   text-decoration: none;
   min-width: 44px;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   transition:
     color var(--duration-base) var(--ease-out),
@@ -554,9 +552,9 @@ button.siteNavMoreItem {
   }
 }
 
-/* Laptop/tablet density: keep navigation usable but avoid two-row pills that
-   collide with map/search chrome. Primary route links stay visible; ambient
-   utilities collapse away until phone bottom navigation takes over. */
+/* Laptop/tablet density: keep navigation usable before wrapping is needed.
+   Primary route links stay visible; ambient utilities collapse away until
+   phone bottom navigation takes over. */
 @media (max-width: 1279px) {
   .siteNavBar {
     gap: 8px;
@@ -946,8 +944,9 @@ button.siteNavMoreItem {
   mix-blend-mode: normal;
 }
 
-/* Tablet rows keep their intrinsic labels and targets when text grows. */
-@media (min-width: 641px) and (max-width: 900px) {
+/* Every full navigation keeps intrinsic labels when browser text grows.
+   The existing header height measurement reserves the wrapped map lane. */
+@media (min-width: 641px) {
   .siteNavBar {
     flex-wrap: wrap;
   }
@@ -955,6 +954,20 @@ button.siteNavMoreItem {
   .siteNavLinks {
     flex: 1 1 max-content;
     flex-wrap: wrap;
+  }
+}
+
+/* The tablet toolbar already reads this measured height. Wider maps must
+   reserve the same space when enlarged text wraps the full navigation. The
+   rem fallback is the one-row bar at default text (64px) and grows with the
+   reader's text, so the first paint does not reserve a one-row bar under a
+   wrapped one. */
+@media (min-width: 901px) {
+  .appShell:has(.siteNavBarFloating) {
+    --map-top-clearance: max(
+      88px,
+      calc(var(--topbar-inset) + var(--site-nav-floating-height, 4rem) + 12px)
+    );
   }
 }
 
@@ -986,11 +999,10 @@ button.siteNavMoreItem {
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .siteNavGlide {
     position: absolute;
-    top: 50%;
+    top: 0;
     left: 0;
     display: block;
     height: 44px;
-    margin-top: -22px;
     border-radius: var(--radius-pill);
     background: color-mix(in srgb, var(--ink) 6%, transparent);
     opacity: 0;

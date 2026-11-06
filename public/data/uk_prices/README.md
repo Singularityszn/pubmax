@@ -90,7 +90,7 @@ and Simmons in Camden priced off the Shoreditch page.
 **A demo fixture is not a price.** `isDemoDrinkProvenance` spots one and it is
 never carried into a dataset that claims to say what a pint costs.
 
-**Reviewed category contradictions stay in the source ledger.**
+**Reviewed category contradictions and claims without full-pint evidence stay in the source ledger.**
 `CATEGORY_QUARANTINE` in `lib/ukPriceBundle.ts` owns the exact exclusions by
 source URL, printed item, category and price. The builder counts exclusions in
 `manifest.json`; bundle readers also refuse those claims in older files.

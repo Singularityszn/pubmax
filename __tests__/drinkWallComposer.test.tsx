@@ -18,6 +18,18 @@ vi.mock("@/components/profile/ProfileImageCropper", () => ({
 }));
 
 import DrinkWallComposer from "@/components/drink-wall/DrinkWallComposer";
+import { AuthContext, useAuth, type AuthContextValue } from "@/components/auth/authContext";
+
+function ComposerWithViewer() {
+  const defaults = useAuth();
+  return createElement(AuthContext.Provider, {
+    value: {
+      ...defaults,
+      user: { id: "viewer-a" } as NonNullable<AuthContextValue["user"]>,
+      getCurrentUserId: () => "viewer-a",
+    },
+  }, createElement(DrinkWallComposer, { onCancel: () => {}, onPosted: () => {} }));
+}
 
 let host: HTMLDivElement;
 let root: Root;
@@ -43,7 +55,7 @@ beforeEach(async () => {
   document.body.append(host);
   root = createRoot(host);
   await act(async () => {
-    root.render(createElement(DrinkWallComposer, { onCancel: () => {}, onPosted: () => {} }));
+    root.render(createElement(ComposerWithViewer));
   });
 });
 
