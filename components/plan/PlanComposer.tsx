@@ -1783,6 +1783,16 @@ function nextEvening(): string {
 }
 
 /**
+ * A start at or before now belongs to a night that began without this plan.
+ * The lock refuses it, so a request never carries it: a recovered draft keeps
+ * showing what was saved, and the next request takes the current default.
+ */
+function startHasPassed(input: string, now = Date.now()): boolean {
+  const iso = londonDateTimeInputToIso(input);
+  return iso !== null && Date.parse(iso) <= now;
+}
+
+/**
  * The name of the night the late default stepped over, for the one-tap choice
  * beside the field: null whenever `tonightLondonStartInput` has no slot left
  * to offer. Read on every render, and the slot itself read again on the tap,
@@ -3059,6 +3069,13 @@ function PlanComposerForm({
       const area = venueNightArea(venues.find((venue) => venue.id === heldVenueId), acceptedCityId);
       if (area) submittedContext.nightArea = area;
     }
+    // A start that passed while the page stayed open is not sent. The field
+    // takes the current default, and that is the start the request carries.
+    let submittedStart = startTime;
+    if (startHasPassed(submittedStart)) {
+      submittedStart = nextEvening();
+      setStartTime(submittedStart);
+    }
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route and rechecking every stop for your updated night.");
@@ -3073,7 +3090,7 @@ function PlanComposerForm({
           null,
           submittedContext,
           handoff?.acceptedAnchor,
-          londonDateTimeInputToIso(startTime),
+          londonDateTimeInputToIso(submittedStart),
         )),
       });
       responseStatus = response.status;

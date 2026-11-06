@@ -40,7 +40,7 @@ vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 vi.mock("@/components/plan/PlanRouteMiniMap", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined, trackMeaningfulCoreAction: () => undefined, laneSourceFromSearch: () => null }));
 import PlanComposer from "@/components/plan/PlanComposer";
-import { createPlanIntakeDraft, nextLondonOccurrenceIso, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
+import { createPlanIntakeDraft, defaultLondonStartInput, nextLondonOccurrenceIso, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { rememberPlanHostName } from "@/lib/planHostName";
 import { rememberLastCrew } from "@/lib/lastCrew";
@@ -390,6 +390,33 @@ describe("request save age with an unchanged stale route", () => {
       savedAt: "2026-11-03T12:00:02.000Z", draft: { title: "Our night" },
     });
     expect(await saveRoute()).toMatchObject({ title: "Our night", groundingProof: "new-proof" });
+  });
+
+  it("does not submit a recovered start time whose night has passed", async () => {
+    const advance = pinClock();
+    seedStaleRoute();
+    await mountComposer();
+    await editInput("#plan-time", "2026-11-03T20:00");
+    // Two hours after that start, on the same draft, the night has begun
+    // without this plan: the start is in the past and the lock refuses it.
+    advance(10 * 60 * 60 * 1000);
+    await remountComposer();
+    const request = await regenerate();
+    const submitted = request.planStartIso as string | undefined;
+    expect(submitted).toBeDefined();
+    expect(Date.parse(submitted!)).toBeGreaterThan(Date.now());
+    expect(document.querySelector<HTMLInputElement>("#plan-time")!.value).toBe(defaultLondonStartInput());
+  });
+
+  it("refreshes a start that passed while the page stayed open before it submits", async () => {
+    const advance = pinClock();
+    seedStaleRoute();
+    await mountComposer();
+    await editInput("#plan-time", "2026-11-03T20:00");
+    advance(10 * 60 * 60 * 1000);
+    const request = await regenerate();
+    expect(Date.parse(request.planStartIso as string)).toBeGreaterThan(Date.now());
+    expect(document.querySelector<HTMLInputElement>("#plan-time")!.value).toBe(defaultLondonStartInput());
   });
 
   it("restores the latest session start time after an earlier local-only exact-time edit", async () => {
