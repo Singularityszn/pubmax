@@ -4,7 +4,7 @@ import { ArrowRight, ExternalLink, LocateFixed } from "lucide-react";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { ReadyButton } from "@/components/ui/ready-button";
-import { formatSnapshotFrom } from "@/lib/dataFreshness";
+import { firstHttp } from "@/lib/httpUrl.mjs";
 import AddRegularNight from "@/components/tonight/AddRegularNight";
 import RegularNightStillOn from "@/components/tonight/RegularNightStillOn";
 import {
@@ -61,6 +61,9 @@ function mapHref(venueId: string): Route {
 
 function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) {
   if (!cheapest) return null;
+  const sourceUrl = firstHttp(cheapest.publisher?.url);
+  const date = cheapest.observedAt ? new Date(cheapest.observedAt) : null;
+  const readable = date && Number.isFinite(date.getTime());
   return (
     <li className="tonightAnswer" data-testid="tonight-answer-cheapest" data-basis={cheapest.basis}>
       <h2 className="tonightAnswerTitle">{tonightCheapestHeading(cheapest.basis)}</h2>
@@ -75,8 +78,11 @@ function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) 
         <PintPriceBadge priceGbp={cheapest.priceGbp} venueId={cheapest.venueId} />
       </p>
       <p className="tonightAnswerMeta">
-        {cheapest.placeLine}
-        {cheapest.observedAt ? ` · ${formatSnapshotFrom(new Date(cheapest.observedAt))}` : " · No read date on file"}
+        {cheapest.placeLine} · {cheapest.drinkLabel || (cheapest.evidenceUnavailable ? "Drink unavailable" : "Drink not recorded")} · {cheapest.servingSize || (cheapest.evidenceUnavailable ? "Serving unavailable" : "Serving not recorded")} ·{" "}
+        {cheapest.publisher?.label ? (sourceUrl ? (
+          <a className="tonightAnswerSource" href={sourceUrl} target="_blank" rel="noreferrer noopener">{cheapest.publisher.label}</a>
+        ) : <>{cheapest.publisher.label} (link unavailable)</>) : "Publisher not recorded"} ·{" "}
+        {readable ? <time dateTime={cheapest.observedAt ?? undefined}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(date)}</time> : "Read date not recorded"}
       </p>
     </li>
   );
@@ -139,12 +145,23 @@ function DrinkerNightRow({ night }: { night: DrinkerRegularNight }) {
 
 /**
  * The regular nights, in a block of their own. It is never mixed into the
- * confirmed listings and never called one: its heading says "Regular nights",
+ * confirmed listings and never called one: its summary says "Regular nights",
  * its lead says it is not tonight's listing, and every row names its source and
  * the day that source was read. Nights drinkers added sit in a list of their
  * own under it, each "per a drinker, seen <date>".
+ * Keep the native disclosure mounted through loading, failure, empty and ready
+ * states so read updates preserve the reader's opened state and keyboard focus.
  */
 function TonightRegularNights({ view }: { view: TonightRegularNightsView }) {
+  return (
+    <details className="tonightRegular">
+      <summary className="tonightRegularSummary" id="tonight-regular-heading">{REGULAR_NIGHTS_HEADING}</summary>
+      <RegularNightsContent view={view} />
+    </details>
+  );
+}
+
+function RegularNightsContent({ view }: { view: TonightRegularNightsView }) {
   if (view.status === "loading") {
     return <p className="tonightAnswerMeta" role="status">Checking the regular nights.</p>;
   }
@@ -155,16 +172,15 @@ function TonightRegularNights({ view }: { view: TonightRegularNightsView }) {
   const shown = answer.nights.slice(0, TONIGHT_REGULAR_NIGHTS_SHOWN);
   const rest = answer.nights.slice(TONIGHT_REGULAR_NIGHTS_SHOWN);
   const drinker = answer.drinker ?? [];
-  if (shown.length === 0 && answer.sport.length === 0 && drinker.length === 0) return null;
+  if (shown.length === 0 && answer.sport.length === 0 && drinker.length === 0) {
+    return <p className="tonightAnswerMeta">No regular nights recorded for this day.</p>;
+  }
   return (
     <section
-      className="tonightRegular"
+      className="tonightRegularContent"
       aria-labelledby="tonight-regular-heading"
       data-testid="tonight-regular-nights"
     >
-      <h3 className="tonightRegularHeading" id="tonight-regular-heading">
-        {REGULAR_NIGHTS_HEADING}
-      </h3>
       <p className="tonightAnswerMeta">{regularNightsLead(answer)}</p>
       {shown.length > 0 ? (
         <ul className="tonightRegularList">

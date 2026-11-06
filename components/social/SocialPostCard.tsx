@@ -60,7 +60,7 @@ export type SocialPostCardPost = Pick<
 >>;
 
 /** The post's media: a carousel, one photo, or a reel, edge to edge. */
-function PostMedia({ post, onOpenVideo }: { post: SocialPostCardPost; onOpenVideo?: (postId: string) => void }) {
+function PostMedia({ post, onOpenVideo }: { post: SocialPostCardPost; onOpenVideo?: (postId: string, opener: HTMLButtonElement) => void }) {
   return (
     <>
       {post.photo && post.extraPhotos && post.extraPhotos.length > 0 ? (
@@ -91,7 +91,7 @@ function PostMedia({ post, onOpenVideo }: { post: SocialPostCardPost; onOpenVide
         </figure>
       ) : null}
       {post.video ? (
-        <SocialPostVideoPlayer video={post.video} caption={post.body} onOpen={onOpenVideo ? () => onOpenVideo(post.id) : undefined} />
+        <SocialPostVideoPlayer video={post.video} caption={post.body} onOpen={onOpenVideo ? (opener) => onOpenVideo(post.id, opener) : undefined} />
       ) : null}
     </>
   );
@@ -154,7 +154,7 @@ function PostActionRow({ postId, interactive, signedOut }: { postId: string; int
   return interactive ? <SocialPostActions postId={postId} /> : null;
 }
 
-export default function SocialPostCard({ post, lane, editor = null, interactive = false, signedOut = false, onOpenVideo }: { post: SocialPostCardPost; lane?: SocialPostLane; editor?: ReactNode; interactive?: boolean; signedOut?: boolean; onOpenVideo?: (postId: string) => void }) {
+export default function SocialPostCard({ post, lane, editor = null, interactive = false, signedOut = false, onOpenVideo }: { post: SocialPostCardPost; lane?: SocialPostLane; editor?: ReactNode; interactive?: boolean; signedOut?: boolean; onOpenVideo?: (postId: string, opener: HTMLButtonElement) => void }) {
   const area = post.area ? getNightArea(post.area) : null;
   const exactVenueId = post.venueProjected ? post.venueId ?? null : null;
   const venueName = exactVenueId ? post.venueName ?? null : null;

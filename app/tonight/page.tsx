@@ -24,6 +24,7 @@ import {
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import { loadTonightOperatorFacts } from "@/lib/tonightOperatorFacts.server";
+import { tonightNightAreas } from "@/lib/tonightNightAreas.server";
 import TonightClient from "./TonightClient";
 import { initialTonightOutAnswer } from "./initialOutAnswer";
 
@@ -192,6 +193,7 @@ export default async function TonightPage() {
 
   return (
     <TonightClient
+      nightAreas={tonightNightAreas()}
       initialListings={{
         whatsOn,
         out: initialTonightOutAnswer(out, now.getTime()),

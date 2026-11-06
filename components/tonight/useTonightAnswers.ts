@@ -16,6 +16,7 @@ import {
   useLastTrainSummary,
   useRegularNights,
   useTonightNearbyVenues,
+  useTonightPintEvidence,
 } from "@/components/tonight/useTonightAnswerReads";
 import type { PicksStateKind } from "@/lib/picksState";
 import { regularNightsForWeekday, regularNightsWeekday } from "@/lib/regularNights";
@@ -69,7 +70,11 @@ export function useTonightAnswers(input: {
   const patch =
     !origin && tonightNear?.patchLabel ? { label: tonightNear.patchLabel, near: tonightNear.near } : null;
   const nearby = useTonightNearbyVenues(origin ?? patch?.near ?? null);
-  const cheapest = tonightCheapestAnswer({ origin, patch, nearby, cityRows: cheapPints ?? [] });
+  const cheapest = tonightCheapestAnswer({ origin, patch, nearby: nearby.rows, cityRows: cheapPints ?? [] });
+  const detail = useTonightPintEvidence(cheapest && cheapest.basis !== "city" ? cheapest.venueId : null, nearby.priceDatasetDigest);
+  const cheapestWithEvidence = cheapest && cheapest.basis !== "city"
+    ? detail ? { ...cheapest, ...detail, evidenceUnavailable: false } : cheapest
+    : cheapest;
 
   const row = useMemo(() => tonightOnTonightListing(listingRows), [listingRows]);
   const listing = useMemo(() => listingView(row, selectableVenueIds), [row, selectableVenueIds]);
@@ -97,5 +102,5 @@ export function useTonightAnswers(input: {
   }, [wantRegular, regularRead, regularWeekday, near, drinkerNights]);
 
   const lastTrain = useLastTrainSummary(origin);
-  return { cheapest, listing, regular, lastTrain };
+  return { cheapest: cheapestWithEvidence, listing, regular, lastTrain };
 }
