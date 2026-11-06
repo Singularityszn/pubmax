@@ -1,6 +1,7 @@
 # Signed-in review harness
 
-Use this harness for local browser review with one isolated PUBMAXX QA account. It uses the real Supabase project configured in `.env` or `.env.local`.
+The seeded review below uses one PUBMAXX QA account in the Supabase project configured in `.env` or `.env.local`.
+For Plan recovery checks against a temporary local project, use [disposable Plan recovery](#disposable-plan-recovery).
 
 ## Build and seed
 
@@ -53,6 +54,42 @@ PUBMAX_E2E_LOGIN=1 VERCEL_ENV=development npm run e2e:teardown
 ```
 
 The seed and teardown refuse production Vercel environments. CI also refuses remote production targets. Never commit `.e2e/qa-credentials.json`.
+
+## Disposable Plan recovery
+
+`npm run test:e2e:plan-auth` runs `e2e/plan-capability-recovery.spec.ts` against a temporary local Supabase project.
+The runner requires Docker, the Supabase CLI, the project dependencies, and Playwright Chromium.
+`DOCKER_HOST` must name an existing local Unix socket with an absolute `unix://` path.
+Docker context and TLS overrides must be unset.
+
+With the local Docker service running and `DOCKER_HOST` configured, run:
+
+```sh
+npm run test:e2e:plan-auth
+```
+
+The runner creates a unique project in `.plan-auth-*` inside the checkout and selects temporary ports.
+It requires the migration files to match the committed inventory before it copies and applies them to that project.
+It creates local accounts with generated credentials and verifies their sessions through local Supabase Auth.
+It requires no existing account credentials or production data.
+The browser process uses the temporary project's keys.
+Its child environment blanks checkout environment-file variables before it sets local test values.
+The runner builds and serves the app in its own `.next-pubmax-auth-*` directory.
+
+The spec covers these journeys:
+
+- A signed-in host restores a lost Plan cookie on page entry.
+- A signed-in host restores a lost Plan cookie after a mounted status action, then saves the status with another tap.
+- A signed-out browser sends no account recovery write after cookie loss.
+
+The mounted journey checks that recovery causes no document navigation.
+The signed-in journeys are skipped in the normal keyless suite.
+Shared keyless authentication doubles do not verify these account recovery paths.
+
+On exit, the runner stops its child processes and removes its local Supabase project without a backup.
+It removes the temporary configuration and build directories after their dependent processes stop.
+If backend cleanup fails, it reports the project and preserves its configuration directory for recovery.
+Playwright results remain in `test-results/`.
 
 ## PostgreSQL test contention
 

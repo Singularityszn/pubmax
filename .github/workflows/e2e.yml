@@ -131,10 +131,8 @@ jobs:
       # A skipped browser test is a lane nobody proved, so the law pins are held
       # to zero UNARGUED skips. scripts/assert-no-conditional-e2e-skips.mjs
       # refuses one in the source; this refuses one at run time, and both read
-      # the same argued list, which may only shrink. Without the list this step
-      # refused e2e/plan-capability-recovery.spec.ts's one argued skip (no
-      # service-role key in the keyless server, #1300) and took its signed-out
-      # proof down with it.
+      # the same argued list. See docs/rules/scripts-ci-gates-and-audits.md
+      # for the skip policy and docs/testing/signed-in-review.md for Plan recovery.
       - name: Gate the law-pinning run
         if: steps.scope.outputs.scope == 'code'
         run: >-
