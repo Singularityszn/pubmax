@@ -26,7 +26,7 @@ London bar coverage - without scraping Reddit or inventing prices.
 | UK base OSM pubs (`amenity=pub`) | Streamed shards. See the [published coverage source](../../public/data/uk_base/README.md) for current counts. |
 | UK place gazetteer (`places.json`) | Town/city/suburb fly targets |
 | Curated London slim index | ~1,997 priced/product venues |
-| Heritage cache + Landlord | Wikipedia/Wikidata/seed facts per pub name |
+| The Landlord | See the [heritage retrieval contract](../teach.md#heritage-retrieval-and-answers). |
 | Map search suggest | Areas, boroughs, curated pubs, UK places, resident base pubs |
 
 Gaps this PRD closes first: **national pub name search**, **query intent**,

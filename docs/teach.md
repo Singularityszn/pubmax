@@ -71,7 +71,7 @@ PubMaxxing is a **thin, deterministic pipeline** with a small server seam. The d
    ┌──────────────────────────  BACKEND (server-only) ─────────────────────┐
    │  validate → rate-limit → persist + photo (Supabase, service-role)     │
    │  moderation: report → hide@threshold → /admin review                  │
-   │  The Landlord: retrieve facts (venue_key) → grounded answer OR         │
+   │  The Landlord: retrieve facts (venue ID) → grounded answer OR          │
    │                honest "I won't make one up" fallback (LLM bounds)      │
    └───────────────────────────────────────────────────────────────────────┘
 ```
@@ -276,7 +276,11 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 
 **Moderation.** Reports are unauthenticated. One report **never hides content** — a drop leaves public reads only at `REPORT_HIDE_THRESHOLD = 2`, and the increment-stamp-hide happens in **one atomic RPC** (`report_pint_drop`, 0004) so concurrent reports can't lose a count. Hidden drops surface in `/admin` for restore / keep-hidden.
 
-**The Landlord.** [`answerHeritage`](../lib/heritage.ts) uses only server-retrieved facts from the shipped cache, `pub_heritage`, listed-building records, and cited harvest lore. It removes repeated answer facts before either narration or the structured fallback. Matching ignores Unicode composition, case, extra whitespace, and trailing sentence punctuation. Citation collection uses all retrieved rows, so removing repeated text preserves distinct source references. With an OpenRouter key, the model answers from the remaining numbered facts. Without a key or after a model failure, the structured answer returns those facts or `NO_STORY_LINE`.
+<a id="heritage-retrieval-and-answers"></a>
+
+**The Landlord.** [`retrieveHeritageWithStatus`](../lib/heritage.ts) reads the generated historic index by venue ID. It also reads listed-building records, Wikidata history packs, and cited harvest lore through their venue identity lookups. It no longer reads the raw heritage cache or the name-keyed `pub_heritage` table directly. A name-only request reads historic facts only when the complete venue index contains exactly one matching name. The [historic publication rules](rules/scripts-builders-and-publishers.md#the-historic-directory-publishes-through-three-gates-and-each-one-refuses-rather) govern the generated index. The [feature guide](../README.md#features) owns typed-question behaviour.
+
+[`answerHeritage`](../lib/heritage.ts) removes repeated answer facts before narration or the structured fallback. Fact deduplication ignores Unicode composition, case, extra whitespace, and trailing sentence punctuation. Citation collection uses all retrieved rows, so removing repeated text preserves distinct source references. With an OpenRouter key, the model selects one complete supplied fact. `sanitiseModelAnswer` rejects unknown fact IDs and requires the answer to match that fact exactly after citation removal and whitespace cleanup. This preserves each date's event and rejects added ages, including spelled-out ages. Without a key or after a rejected answer or model failure, the structured answer returns the facts or `NO_STORY_LINE`.
 
 ### Security posture
 
@@ -285,8 +289,8 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 - **Server-side validation trust boundary** (text + photo type/size), backed by DB `CHECK` constraints.
 - **Constant-time moderator gate** — `safeTokenEqual` sha256's both sides then `timingSafeEqual`; the token is never echoed.
 - **Rate limiting is durable + IP-hashed** — `check_rate_limit` (atomic RPC); the IP is a *secondary* signal, always `sha256(salt:ip)` before it touches the table or a log.
-- **The Landlord's honest-refusal integrity** — `sanitiseModelAnswer` **rejects the whole answer** (falls back to structured) if it cites a fact id outside the retrieved set. A phantom citation = fabrication. It also rejects an answer that states a number no supplied fact states, such as an age counted from today or an invented founding year.
-- **Provenance never laundered** — client `context` is labelled `contributor` and excluded from the `SOURCED` set; a visitor cannot forge pub history.
+- **The Landlord's honest-refusal integrity** follows the [heritage retrieval and answer checks](#heritage-retrieval-and-answers).
+- **Heritage context comes from the server.** The API ignores client `context`, so a visitor cannot supply pub-history facts.
 
 ### Robustness notes & known gaps
 

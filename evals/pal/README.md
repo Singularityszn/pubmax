@@ -75,9 +75,10 @@ from `fail-closed-heritage.json`. Ten venues have no recorded heritage. The Argy
 Arms and The Clachan have facts with named sources and source URLs. The test
 checks each reference against the current local heritage reader and venue index.
 
-This subset calls `runAskTool("venue_heritage")` with the canonical venue ID.
-It does not test typed-question routing. See the
-[heritage routing follow-up](FOLLOW_UPS.md) for that known product gap.
+This subset calls `runAskTool("venue_heritage")` with the canonical venue ID and the original question.
+The Miller's Well case expects clarification because its name matches distinct venue records without a canonical alias.
+`__tests__/askHeritageQuestion.test.ts` covers typed-question routing through `runAsk` and checks model arguments against the question's subjects.
+The [feature guide](../../README.md#features) owns the user-facing heritage behaviour.
 
 The `heritageAnswer` expectation rejects extra prose in answers and card notes.
 Unknown heritage requires one of four explicit absence statements and no source.
@@ -87,8 +88,7 @@ add dates, people and listing grades, change a fact, and remove or replace sourc
 
 These code checks accept a bounded set of answer forms. They do not judge
 paraphrases. A future wording judge must not replace the fact and source checks.
-The three subsets now hold 30 unknown asks and six known asks. All run in the
-normal offline test lane. The hosted assistant adapters and an opt-in live run
+All three subsets run in the normal offline test lane. The hosted assistant adapters and an opt-in live run
 of these subsets remain unfinished. `eval:pal:live` does not run them.
 Run the heritage subset with `npx vitest run __tests__/palFailClosedHeritage.test.ts`.
 

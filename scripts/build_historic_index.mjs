@@ -1,9 +1,9 @@
 // Build the HISTORIC PUBS index the "Historic Pubs" feature reads.
 //
 // This is a deterministic JOIN of two server-owned files:
-//   • public/data/heritage_cache.json      — cited heritage facts, keyed by the
-//     SAME normalised venue name the app keys by (normaliseVenueName in
-//     lib/curation.ts = trim + lowercase + collapse-spaces).
+//   • public/data/heritage_cache.json      — cited heritage facts grouped by
+//     normalised name (trim + lowercase + collapse-spaces). Publication resolves
+//     venue identity before runtime retrieval reads these facts by venue id.
 //   • public/data/pint_prices_app_dataset.json — the canonical venue rows, from
 //     which we recover the stable "venue-…" id via venueGroupingKey +
 //     stableVenueIdFromKey (the exact id the map + /api/venue/[id] link by).

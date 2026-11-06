@@ -433,7 +433,7 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 | Feature | Spec | Acceptance | Effort | Risk | Depends on |
 |---|---|---|---|---|---|
 | Historic index as a walk | `/historic` becomes ten routes, not a 9,882 px list; borough rows with 0 pubs hidden | If accepted, ten grounded routes replace the long list. Empty boroughs stay hidden; route stops remain valid. | M | none | none |
-| Landmark photos on every historic entry | Wikimedia through the existing path | 342 entries with a photo or the placeholder | M | licensing per file | none |
+| Landmark photos on every historic entry | Wikimedia through the existing path | Every published historic entry has a photo or the placeholder | M | licensing per file | none |
 | Lore card copy | rewrite "menu linked from first-party site" and the "Historic pub in London" stub | Displayed facts use plain source-grounded sentences; missing facts do not become generic invented heritage. | S | none | none |
 
 ### 8.4 Wanteds
