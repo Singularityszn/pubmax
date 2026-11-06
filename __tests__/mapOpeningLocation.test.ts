@@ -2,10 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   readOpeningMapLocation,
-  readMapOpeningLocation,
+  retireMapOpeningLocation,
   resolveMapOpeningLocation,
   resolveMapOpeningView,
-  writeMapOpeningLocation,
 } from "@/lib/mapOpeningLocation";
 import { CITIES } from "@/lib/cities";
 
@@ -51,16 +50,15 @@ describe("map opening location", () => {
       .toEqual({ lat: 51.52, lng: -0.12 });
   });
 
-  it("rejects malformed storage and writes valid coordinates", () => {
+  it("retires exact coordinates without changing other browser data", () => {
     const store = storage();
-    store.setItem("pubmax:map-opening-location:v1", "{bad");
-    expect(readMapOpeningLocation(store)).toBeNull();
-
-    writeMapOpeningLocation({ lat: 51.5, lng: -0.1 }, store);
-    expect(readMapOpeningLocation(store)).toEqual({ lat: 51.5, lng: -0.1 });
-
-    store.setItem("pubmax:map-opening-location:v1", JSON.stringify({ lat: 99, lng: 0 }));
-    expect(readMapOpeningLocation(store)).toBeNull();
+    store.setItem("pubmax:map-opening-location:v1", JSON.stringify({ lat: 51.5, lng: -0.1 }));
+    store.setItem("pubmax-theme", "dark");
+    retireMapOpeningLocation(store);
+    expect(store.getItem("pubmax:map-opening-location:v1")).toBeNull();
+    expect(store.getItem("pubmax-theme")).toBe("dark");
+    retireMapOpeningLocation(store);
+    expect(store.getItem("pubmax-theme")).toBe("dark");
   });
 
   it("reads current coordinates when permission is granted", async () => {

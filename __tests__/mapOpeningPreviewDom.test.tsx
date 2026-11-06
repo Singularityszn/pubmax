@@ -8,7 +8,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
-import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
 import {
   MAP_OPENING_FRAME_EVENT,
   MAP_OPENING_PREVIEW_CAMERA,
@@ -78,10 +77,11 @@ describe("the pre-paint gate in public/theme-init.js", () => {
     expect(document.documentElement.dataset.mapPreview).toBeUndefined();
   });
 
-  it("leaves it off for a visitor whose remembered location moves the camera", () => {
+  it("erases a legacy location before applying the ordinary preview gate", () => {
     localStorage.setItem("pubmax:map-opening-location:v1", JSON.stringify({ lat: 51.5, lng: -0.1 }));
     runThemeInit("/map");
-    expect(document.documentElement.dataset.mapPreview).toBeUndefined();
+    expect(localStorage.getItem("pubmax:map-opening-location:v1")).toBeNull();
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
   });
 });
 
@@ -129,13 +129,6 @@ describe("MapOpeningPreview", () => {
     // know which, so it draws no count at all.
     expect(html).not.toContain(">93<");
     expect(html).not.toContain("pubs<");
-  });
-
-  it("sizes 'from' as the canvas does", () => {
-    const css = readFileSync(join(process.cwd(), "components/map/mapOpeningPreview.css"), "utf8");
-    expect(css).toContain(`calc(var(--figure-size) * ${DONUT_CAPTION_SCALE})`);
-    // The ring is neutral, as the canvas's is: no band, no band mix.
-    expect(css).not.toMatch(/conic-gradient|--segments|--ring\b/);
   });
 
   it("renders nothing when the build found no discs", () => {

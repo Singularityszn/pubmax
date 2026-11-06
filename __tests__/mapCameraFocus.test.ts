@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Picking an area must move the map, every time.
 //
 // DEFECT (captain, live, 2026-09-01, mobile): the map header read
@@ -10,10 +11,12 @@
 // flown at token 1 then picked an area, that pick arrived as token 1, and the
 // canvas read it as a move it had already made.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { act, createElement, useRef } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { describe, expect, it } from "vitest";
+import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
+import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 
 import {
   cameraIntentForFocusSource,
@@ -83,40 +86,6 @@ describe("two camera owners can never mint the same identity", () => {
   });
 });
 
-describe("the canvas holds the identity, never a bare number", () => {
-  const canvas = readFileSync(
-    join(__dirname, "..", "components/PubMapCanvas.tsx"),
-    "utf8",
-  );
-
-  it("compares through the shared rule", () => {
-    expect(canvas).toContain("mapCameraFocusMoves(focusPoint, focusKeyRef.current)");
-    // The number-only compare is what let one owner's move look like another's.
-    expect(canvas).not.toContain("focusPoint.token === focusTokenRef.current");
-  });
-});
-
-describe("both camera owners name themselves", () => {
-  const pubMap = readFileSync(
-    join(__dirname, "..", "components/PubMap.tsx"),
-    "utf8",
-  );
-
-  it("stamps a source on every focus it mints", () => {
-    expect(pubMap).toContain('source: "opening-location"');
-    expect(nextAreaCameraFocus(null, { center: LONDON, zoom: 14 }).source).toBe(
-      "area",
-    );
-  });
-
-  it("keeps the area lane as the ONE deliberate move", () => {
-    // moveMapCameraTo is the single door the choose-area pick, the Area
-    // sheet's "go somewhere else" and a map-search select all go through.
-    expect(pubMap).toContain("const moveMapCameraTo = useCallback(");
-    expect(pubMap).toContain("setAreaFocus((prev) => nextAreaCameraFocus(prev, camera));");
-  });
-});
-
 // The second half of the same defect, surfaced by MapLibre 6.10.0 readying the
 // map early enough that the opening-location answer can fly FIRST.
 //
@@ -139,67 +108,6 @@ describe("each camera owner rides its own intent lane", () => {
     const lanes = sources.map(cameraIntentForFocusSource);
     expect(new Set(lanes).size).toBe(sources.length);
   });
-
-  it("is the rule the canvas asks, rather than a ternary of its own", () => {
-    const canvas = readFileSync(
-      join(__dirname, "..", "components/PubMapCanvas.tsx"),
-      "utf8",
-    );
-    expect(canvas).toContain("cameraIntentForFocusSource(focusPoint.source)");
-  });
-});
-
-// The reader's own pick must KEEP the camera afterwards.
-//
-// The mint effect that re-flies the opening-location answer bails on
-// mapCameraTouchedRef, and cancelOpeningLocation cannot set it: that callback
-// is a no-op once the location has already resolved
-// (openingLocationCancellationAfterAttempt, __tests__/mapFirstUsefulPins.test.ts).
-// So the deliberate move has to take the camera itself, exactly as a gesture
-// does through dismissAmbientBanners. Without it a later locationFirstMapView
-// change re-mints an opening-location focus and yanks the map off the pick.
-describe("a deliberate move takes the camera and keeps it", () => {
-  const pubMap = readFileSync(
-    join(__dirname, "..", "components/PubMap.tsx"),
-    "utf8",
-  );
-  const sliceCallback = (name: string, deps: string) => {
-    const start = pubMap.indexOf(`const ${name} = useCallback(`);
-    expect(start).toBeGreaterThan(-1);
-    const end = pubMap.indexOf(deps, start);
-    expect(end).toBeGreaterThan(start);
-    return pubMap.slice(start, end);
-  };
-  const moveMapCameraTo = sliceCallback("moveMapCameraTo", "[claimMapCamera],");
-  const claimMapCamera = sliceCallback("claimMapCamera", "[cancelOpeningLocation]);");
-
-  it("takes the camera through the one claim a gesture also uses", () => {
-    expect(moveMapCameraTo).toContain("claimMapCamera()");
-    const dismiss = sliceCallback("dismissAmbientBanners", "[claimMapCamera]);");
-    expect(dismiss).toContain("claimMapCamera()");
-  });
-
-  it("marks the camera touched", () => {
-    expect(claimMapCamera).toContain("mapCameraTouchedRef.current = true");
-    expect(claimMapCamera).toContain("setMapCameraTouched(true)");
-  });
-
-  it("marks it before it asks the cancellation that cannot", () => {
-    const touched = claimMapCamera.indexOf("mapCameraTouchedRef.current = true");
-    const cancelled = claimMapCamera.indexOf("cancelOpeningLocation()");
-    expect(touched).toBeGreaterThan(-1);
-    expect(cancelled).toBeGreaterThan(-1);
-    expect(touched).toBeLessThan(cancelled);
-  });
-
-  it("drops the opening focus it just overtook", () => {
-    expect(claimMapCamera).toContain("setOpeningLocationFocus(null)");
-  });
-
-  it("is the guard the opening-location mint effect reads", () => {
-    const mint = pubMap.slice(pubMap.indexOf('source: "opening-location"') - 1200);
-    expect(mint).toContain("mapCameraTouchedRef.current");
-  });
 });
 
 // A cold map opens on the city view and makes its opening turn once the
@@ -221,5 +129,127 @@ describe("the opening answer settles before the turn may start", () => {
     expect(openingCameraSettled({ ...unsettled, resolving: false })).toBe(true);
     expect(openingCameraSettled({ ...unsettled, cancelled: true })).toBe(true);
     expect(openingCameraSettled({ ...unsettled, touched: true })).toBe(true);
+  });
+});
+
+describe("mounted camera focus ownership", () => {
+  let root: Root;
+  let host: HTMLDivElement;
+  let camera: ReturnType<typeof useMapOpeningCamera>;
+  const cinematic = vi.fn();
+  const cancelOpeningLocation = vi.fn();
+  const cancelled = { current: false };
+  const cityView = { center: LONDON, zoom: 12 };
+
+  type Props = {
+    resolved: boolean;
+    viewport?: { center: [number, number]; zoom: number };
+    area?: MapCameraFocus | null;
+    ready?: boolean;
+    shouldResolve?: boolean;
+  };
+
+  function Camera({ resolved, viewport = cityView, area = null, ready = true, shouldResolve = true }: Props) {
+    camera = useMapOpeningCamera({
+      shouldResolveOpeningLocation: shouldResolve,
+      openingLocationResolved: resolved,
+      openingLocationCancelledRef: cancelled,
+      locationFirstMapView: viewport,
+      cancelOpeningLocation,
+    });
+    const applied = useRef<string | null>(null);
+    useMapFocusPoint(ready, area ?? camera.openingLocationFocus, applied, cinematic);
+    return createElement("output", null, String(camera.mapCameraTouched));
+  }
+
+  function render(props: Props) {
+    act(() => root.render(createElement(Camera, props)));
+  }
+
+  beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    cinematic.mockReset();
+    cancelOpeningLocation.mockReset();
+    cancelled.current = false;
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    host.remove();
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
+  });
+
+  it("waits for readiness and applies each owner's first move once", () => {
+    render({ resolved: true, ready: false });
+    expect(cinematic).not.toHaveBeenCalled();
+    render({ resolved: true });
+    expect(cinematic.mock.calls).toEqual([
+      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location"],
+    ]);
+    const area = nextAreaCameraFocus(null, { center: CUMBRIA, zoom: 14 });
+    act(() => camera.claimMapCamera());
+    render({ resolved: true, area });
+    render({ resolved: true, area: { ...area } });
+    expect(cinematic.mock.calls).toEqual([
+      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location"],
+      [{ center: CUMBRIA, zoom: 14, duration: 900 }, "area"],
+    ]);
+    render({ resolved: true, area: nextAreaCameraFocus(area, { center: CUMBRIA, zoom: 14 }) });
+    expect(cinematic).toHaveBeenCalledTimes(3);
+    expect(cinematic).toHaveBeenLastCalledWith(
+      { center: CUMBRIA, zoom: 14, duration: 900 }, "area",
+    );
+  });
+
+  it.each([false, true])("keeps an explicit selection when location resolved is %s", (resolved) => {
+    render({ resolved });
+    cancelOpeningLocation.mockImplementation(() => {
+      expect(camera.mapCameraTouchedRef.current).toBe(true);
+    });
+    act(() => camera.claimMapCamera());
+    expect(cancelOpeningLocation).toHaveBeenCalledOnce();
+    expect(host.textContent).toBe("true");
+    expect(camera.openingLocationFocus).toBeNull();
+    cinematic.mockClear();
+    render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 } });
+    expect(camera.openingLocationFocus).toBeNull();
+    expect(cinematic).not.toHaveBeenCalled();
+  });
+
+  it("keeps a chosen area after a late location answer", () => {
+    render({ resolved: false });
+    act(() => camera.claimMapCamera());
+    const area = nextAreaCameraFocus(null, { center: LONDON, zoom: 14 });
+    render({ resolved: false, area });
+    render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 }, area });
+    expect(camera.openingLocationFocus).toBeNull();
+    expect(cinematic.mock.calls).toEqual([
+      [{ center: LONDON, zoom: 14, duration: 900 }, "area"],
+    ]);
+  });
+
+  it("accepts a location answer while the reader has not claimed the camera", () => {
+    render({ resolved: false });
+    expect(cinematic).not.toHaveBeenCalled();
+    render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 } });
+    expect(host.textContent).toBe("false");
+    expect(cinematic.mock.calls).toEqual([
+      [{ center: CUMBRIA, zoom: 16, duration: 900 }, "opening-location"],
+    ]);
+    render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 } });
+    expect(cinematic).toHaveBeenCalledOnce();
+  });
+
+  it("does not mint an opening focus for a cancelled or intentional arrival", () => {
+    cancelled.current = true;
+    render({ resolved: true });
+    expect(camera.openingLocationFocus).toBeNull();
+    cancelled.current = false;
+    render({ resolved: true, shouldResolve: false });
+    expect(camera.openingLocationFocus).toBeNull();
+    expect(cinematic).not.toHaveBeenCalled();
   });
 });

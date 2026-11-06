@@ -26,16 +26,12 @@ test.use({
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
 });
 
-type Camera = { center: [number, number]; zoom: number } | null;
+type Camera = { center: [number, number]; zoom: number; moving: boolean; settling: boolean };
 
-async function readCamera(page: Page): Promise<Camera> {
-  return page.evaluate((key) => {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-    const viewport = (JSON.parse(raw) as { viewport?: { center: [number, number]; zoom: number } })
-      .viewport;
-    return viewport ? { center: viewport.center, zoom: viewport.zoom } : null;
-  }, SESSION_KEY);
+async function readCamera(page: Page): Promise<Camera | null> {
+  return page.evaluate(() => (
+    window as Window & { __pubmaxMapCamera?: { read: () => Camera } }
+  ).__pubmaxMapCamera?.read() ?? null);
 }
 
 test("typing a whole pub name keeps the field and leaves the camera still", async ({ page }) => {
@@ -65,7 +61,10 @@ test("typing a whole pub name keeps the field and leaves the camera still", asyn
   await expect(field).toBeFocused();
 
   // The camera as the reader starts typing.
-  await expect.poll(() => readCamera(page), { timeout: 20_000 }).not.toBeNull();
+  await expect.poll(async () => {
+    const camera = await readCamera(page);
+    return camera !== null && !camera.moving && !camera.settling;
+  }, { timeout: 20_000 }).toBe(true);
   const before = await readCamera(page);
   expect(before).not.toBeNull();
   const canvas = page.locator(".mapCanvasWrap");

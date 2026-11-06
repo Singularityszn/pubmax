@@ -111,7 +111,7 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
   const located = useMemo(() => unique.filter((venue): venue is ImportCandidate & { lat: number; lng: number } =>
     Number.isFinite(venue.lat) && Number.isFinite(venue.lng)), [unique]);
   const coords = useMemo<LngLat[]>(() => located.map((venue) => [venue.lng, venue.lat]), [located]);
-  const points = useMemo(() => planCrawlRouteGeoJSON({ coords, names: located.map((venue) => venue.name), venueIds: located.map((venue) => venue.id), area: "" }, [], "straight"), [coords, located]);
+  const points = useMemo(() => planCrawlRouteGeoJSON({ coords, names: located.map((venue) => venue.name), venueIds: located.map((venue) => venue.id), areaDescription: "" }, [], "straight"), [coords, located]);
   const routeIds = Array.isArray(route?.stops) ? route.stops.map((stop) => stop.venueId) : [];
   const remaining = unique.filter((venue) => !routeIds.includes(venue.id));
 

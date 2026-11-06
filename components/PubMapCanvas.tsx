@@ -66,10 +66,9 @@ const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
+import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import {
-  cameraIntentForFocusSource,
-  mapCameraFocusKey,
   mapCameraFocusMoves,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
@@ -1487,21 +1486,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // one owner's first move look like the other's and swallowed the pick
   // (lib/mapCameraFocus.ts). cinematic honours reduced-motion (it jumps at
   // duration 0), so this needs no extra guard here.
-  useEffect(() => {
-    if (!mapReady || !focusPoint) return;
-    if (!mapCameraFocusMoves(focusPoint, focusKeyRef.current)) return;
-    focusKeyRef.current = mapCameraFocusKey(focusPoint);
-    cinematic(
-      { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
-      // The kind names the OWNER, not one shared lane, and the rule for which
-      // lane an owner rides lives in lib/mapCameraFocus.ts beside the identity
-      // itself. MapLibre 6.10.0 readies the map early enough that an
-      // opening-location fly can land first, and on one shared kind it both
-      // inflated the area-intent count and shared a dedupe key with the
-      // reader's own pick.
-      cameraIntentForFocusSource(focusPoint.source),
-    );
-  }, [mapReady, focusPoint, cinematic]);
+  useMapFocusPoint(mapReady, focusPoint, focusKeyRef, cinematic);
 
   useEffect(() => {
     if (!hoveredVenueId) return;

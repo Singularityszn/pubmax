@@ -23,9 +23,8 @@ import "./mapOpeningPreview.css";
 
 // THE OPENING PRICES, DRAWN BY THE DOCUMENT (lib/mapOpeningPreview.ts owns the
 // why). The discs ship in the prerendered /map HTML and show from the first
-// paint, but only where public/theme-init.js has set
-// `html[data-map-preview="on"]` before paint: a cold first visit, at /map with
-// no query, with no remembered opening location. Hydration only adds the
+// paint only when public/theme-init.js enables the preview. Its eligibility
+// rules live in docs/rules/components-map-canvas-and-pins.md. Hydration adds the
 // handoff: the preview stands down when the map reveals its own pins, or the
 // moment the frame the map is about to draw differs from the one drawn here
 // (the canvas publishes each one before its reveal, and this re-clusters it:

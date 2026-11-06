@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -81,18 +78,6 @@ describe("first useful map pins", () => {
 
     expect(refreshLoad).not.toHaveBeenCalled();
     expect(setTimeout).toHaveBeenCalledWith(refreshLoad, 1_000);
-  });
-
-  it("wires every settled viewport through the two ring lanes", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/PubMap.tsx"),
-      "utf8",
-    );
-
-    expect(source).toContain("scheduleRingLoad(loader, bounds);");
-    expect(source).not.toContain('scheduleRingLoad(loader, bounds, "target")');
-    expect(source).not.toContain('scheduleRingLoad(loader, bounds, "refresh")');
-    expect(source).toContain("useInitialSlimShardStart({");
   });
 
   it("keeps the compatibility-core viewport stable while location resolves", () => {
@@ -177,23 +162,6 @@ describe("first useful map pins", () => {
     expect(cancelledAndSettled).toEqual({ ready: true, viewport: initialMapView });
     expect(laterResolved).toEqual({ ready: true, viewport: initialMapView });
     expect(laterResolved.viewport).toBe(cancelledAndSettled.viewport);
-  });
-
-  it("owns every opening-location cancellation through one reactive callback", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/PubMap.tsx"),
-      "utf8",
-    );
-
-    expect(source.match(/openingLocationCancelledRef\.current = true/g)).toHaveLength(1);
-    expect(source).toContain("openingLocationCancellationAfterAttempt({");
-    expect(source).toContain(
-      "setOpeningLocationCancelledBeforeResolution(nextCancellation)",
-    );
-    // claimMapCamera is the one caller. A gesture, a deliberate camera move
-    // and a venue pick all claim the camera through it.
-    expect(source.match(/cancelOpeningLocation\(\)/g)).toHaveLength(1);
-    expect(source.match(/claimMapCamera\(\)/g)).toHaveLength(3);
   });
 
   it("does not turn a post-resolution camera move into cancellation", () => {

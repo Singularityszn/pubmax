@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { DONUT_CAPTION_SCALE } from "../lib/donutClusterGeometry";
+
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // THE OPENING PRICES BEFORE THE MAP ENGINE (lib/mapOpeningPreview.ts).
@@ -79,6 +81,49 @@ async function readReveal(page: Page): Promise<Reveal> {
 }
 
 test.describe("the document's opening prices", () => {
+  test("renders a neutral disc and a readable caption in both themes", async ({ page }) => {
+    await installDeterministicMapBasemap(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/map");
+    const disc = page.locator(".mapOpeningPreviewDisc").first();
+    await expect(disc).toBeAttached();
+    for (const theme of ["light", "dark"] as const) {
+      await page.evaluate((value) => {
+        document.documentElement.dataset.theme = value;
+      }, theme);
+      const styles = await disc.evaluate((element, value) => {
+        const caption = element.querySelector(".mapOpeningPreviewFrom")!;
+        const figure = element.querySelector(".mapOpeningPreviewFigure")!;
+        const sample = document.createElement("span");
+        element.append(sample);
+        const colour = (token: string) => {
+          sample.style.color = `var(${token})`;
+          return getComputedStyle(sample).color;
+        };
+        const result = {
+          caption: caption.textContent,
+          captionSize: parseFloat(getComputedStyle(caption).fontSize),
+          figureSize: parseFloat(getComputedStyle(figure).fontSize),
+          captionColour: getComputedStyle(caption).color,
+          expectedInk: colour(value === "dark" ? "--ink" : "--ink-deep"),
+          paper: colour("--panel-raised"),
+          ring: colour("--line"),
+          background: getComputedStyle(element).backgroundImage,
+        };
+        sample.remove();
+        return result;
+      }, theme);
+      expect(styles.caption).toBe("from");
+      expect(styles.figureSize).toBeGreaterThan(0);
+      expect(styles.captionSize).toBeCloseTo(Math.max(11, styles.figureSize * DONUT_CAPTION_SCALE), 1);
+      expect(styles.captionColour).toBe(styles.expectedInk);
+      expect(styles.background).toContain("radial-gradient(");
+      expect(styles.background).toContain(styles.paper);
+      expect(styles.background).toContain(styles.ring);
+      expect(styles.background).toContain(styles.expectedInk);
+    }
+  });
+
   test("ship in the prerendered /map document, with no script of their own", async ({ request }) => {
     const html = await (await request.get("/map")).text();
     expect(html).toContain('class="mapOpeningPreview"');

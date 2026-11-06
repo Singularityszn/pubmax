@@ -76,7 +76,8 @@ the same length.
 
 Separate route visits and earlier root entries keep their own URLs. A clean
 arrival restored from a saved session stays clean until the reader changes
-the crawl state. Saved session filters, viewport and area can return, but a
+the crawl state. Saved session filters and area can return. A viewport returns
+only under the [saved map view rules](#saved-map-views-and-location-privacy). A
 saved venue selection does not reopen its sheet. Initial selection comes from
 the URL or a resume seed (`restoredSessionFrame` in `lib/pubMap.ts`).
 Regression cases live in
@@ -96,6 +97,29 @@ Regression cases live in `__tests__/mapWalkingRouteAdoption.test.tsx` and `e2e/m
 
 The [map camera and search contract](rules/components-map-canvas-and-pins.md#a-camera-move-has-an-owner-and-the-map-a-reader-is-looking-at-loads-first)
 owns query framing, surrounding price pins, and sheet behavior after reload.
+
+## Saved map views and location privacy
+
+A saved viewport contains the map's centre, zoom, pitch and bearing.
+Only an explicit public-place selection can authorise its settled viewport for storage.
+A gesture or a later automatic move invalidates that authorisation.
+The opening-location check and the map's Near me and travel-location requests clear the camera before a location answer arrives.
+A location watch or a location received from another map control also clears it.
+These events cancel pending camera saves and restores.
+Camera storage stays disabled for that map mount after location exposure, including after later public-place selections.
+A document exposure marker also disables camera storage on later map mounts.
+The exposure marker contains no coordinates and does not survive a document reload.
+
+The app deletes the old exact-coordinate opening-location cache instead of using it as a fallback.
+Without a current location answer or an explicit destination, the opening map uses the city's default view.
+Stored cameras without valid public-place provenance are discarded.
+Public venue rows, filters and chosen areas remain available independently of the camera.
+Public venue rows can restore even when a location update cancels an outstanding camera restore.
+
+`lib/mapCameraProvenance.ts` owns camera authorisation.
+`lib/mapResume.ts` and `lib/mobileShell.ts` enforce it in browser storage.
+Regression coverage lives in `__tests__/mapCameraProvenance.test.ts`, `__tests__/mapResume.test.ts`,
+`__tests__/mobileShell.test.ts` and `__tests__/mapReaderLocationExposure.test.tsx`.
 
 ## Named area arrivals
 
