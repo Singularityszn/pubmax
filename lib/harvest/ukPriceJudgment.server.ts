@@ -14,12 +14,13 @@ import {
 } from "@/lib/harvest/ukPriceJudgmentPolicy";
 import {
   coffeePriceExcludedAt,
-  drinkLabelFromPriceContext,
   findUkPriceCandidates,
-  pageText,
   readKeylessUkPriceDecisions,
+  readPrintedPriceLayout,
+  printedPriceItem,
+  pintServingDrop,
   readVenueDrinkPrices,
-  statedWineIdentity,
+  type PrintedPriceEvidence,
   type UkPriceCandidate,
   type UkPriceDropReason,
   type UkPriceRawCandidate,
@@ -139,6 +140,7 @@ function applyJudgmentToCandidate(
   raw: UkPriceRawCandidate,
   probs: UkPriceJudgmentProbabilities,
   ctx: { pubName: string; pageUrl: string },
+  evidence: PrintedPriceEvidence,
 ): {
   kept?: UkPriceCandidate;
   drops: UkPriceDropReason[];
@@ -163,15 +165,8 @@ function applyJudgmentToCandidate(
   }
   if (decision.category) {
     const priceAtInSnippet = raw.at - Math.max(0, raw.at - UK_PRICE_JUDGMENT_SNIPPET_CHARS);
-    const wineIdentity = decision.category === "wine"
-      ? statedWineIdentity(raw.snippet, raw.verbatim, priceAtInSnippet)
-      : null;
-    const drinkLabel =
-      wineIdentity?.drinkLabel ?? drinkLabelFromPriceContext(
-        raw.snippet,
-        raw.verbatim,
-        priceAtInSnippet,
-      ) ?? undefined;
+    const wineIdentity = decision.category === "wine" ? evidence.statedWine : null;
+    const drinkLabel = (wineIdentity?.drinkLabel ?? evidence.label) || undefined;
     if (decision.category === "coffee" && coffeePriceExcludedAt(raw.snippet, priceAtInSnippet, drinkLabel)) {
       return { drops: ["no-category-word-nearby"] };
     }
@@ -248,7 +243,8 @@ export async function readVenueDrinkPricesJudged(
     return { ...readVenueDrinkPrices(html, sourceFormat), review: [] };
   }
 
-  const text = pageText(html, true, sourceFormat);
+  const { page, layout } = readPrintedPriceLayout(html, sourceFormat);
+  const text = page.text;
   const candidates = findUkPriceCandidates(text, UK_PRICE_JUDGMENT_SNIPPET_CHARS);
   if (candidates.length === 0) {
     return { kept: [], drops: ["no-price-on-page"], review: [] };
@@ -287,8 +283,21 @@ export async function readVenueDrinkPricesJudged(
         drops.push("typesafe-judgment-malformed-answer");
         continue;
       }
-      const outcome = applyJudgmentToCandidate(raw, probs, ctx);
-      if (outcome.kept) kept.push(outcome.kept);
+      const evidence = layout.prices.get(raw.at);
+      if (!evidence) {
+        drops.push("not-verbatim-on-page");
+        continue;
+      }
+      const outcome = applyJudgmentToCandidate(raw, probs, ctx, evidence);
+      const servingDrop = outcome.kept?.category === "beer" ? pintServingDrop(text, evidence) : null;
+      if (servingDrop) {
+        drops.push(servingDrop);
+        continue;
+      }
+      if (outcome.kept) {
+        outcome.kept.item = printedPriceItem(text, evidence);
+        kept.push(outcome.kept);
+      }
       drops.push(...outcome.drops);
       if (outcome.review) review.push(outcome.review);
     }

@@ -1,7 +1,9 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { describe, expect, it } from "vitest";
+vi.mock("../scripts/lib/localRefreshProviders.mjs", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../scripts/lib/localRefreshProviders.mjs")>(),
+  fetchRefreshPage: vi.fn(),
+}));
 
 import {
   extractVenueDrinkPrices,
@@ -10,8 +12,15 @@ import {
 import { readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
 import {
   pubDiscoveryAvailable,
+  scrape,
   verbatimValidateHarvestedDrinks,
 } from "../scripts/harvest_outer_london_prices.mjs";
+import { fetchRefreshPage } from "../scripts/lib/localRefreshProviders.mjs";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.clearAllMocks();
+});
 
 describe("outer London full-category drink extraction", () => {
   it("names beer, wine and cocktail rows from a drinks list snippet", () => {
@@ -33,7 +42,7 @@ Espresso martini £12.00
   it("maps a shared reading through venueDrinkPricesFromUkReading", () => {
     const markdown = "Tanqueray gin & tonic £5.50";
     const reading = readVenueDrinkPrices(`<p>${markdown}</p>`);
-    expect(venueDrinkPricesFromUkReading(reading, markdown)).toEqual([
+    expect(venueDrinkPricesFromUkReading(reading)).toEqual([
       expect.objectContaining({ category: "gin", drinkName: "Tanqueray gin & tonic", priceGbp: 5.5 }),
     ]);
   });
@@ -57,12 +66,29 @@ Espresso martini £12.00
     expect(pubDiscoveryAvailable({ EXA_API_KEY: "exa", TAVILY_API_KEY: "tavily" })).toBe(true);
   });
 
-  it("outer London harvest script calls the shared venue drink reader", () => {
-    const source = readFileSync(
-      join(process.cwd(), "scripts/harvest_outer_london_prices.mjs"),
-      "utf8",
-    );
-    expect(source).toMatch(/extractVenueDrinkPricesMaybeJudged/);
-    expect(source).not.toMatch(/extractPintPricesMaybeJudged/);
+  it("returns the menu's wine and cocktail beside its pints from the harvest script", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    const url = "https://thecrown.example/drinks-menu";
+    vi.mocked(fetchRefreshPage).mockResolvedValue({
+      finalUrl: url,
+      links: [],
+      markdown: [
+        "Guinness pint £6.20",
+        "Madri pint £6.40",
+        "Peroni pint £6.60",
+        "Camden lager pint £6.80",
+        "House red wine 175ml £7.50",
+        "Espresso martini £12.00",
+      ].join("\n"),
+    });
+    const page = await scrape(url, "The Crown", url, async () => ({ allowed: true }));
+    expect(page.json.drinks).toEqual([
+      { drinkName: "Guinness", category: "beer", priceGbp: 6.2 },
+      { drinkName: "Madri", category: "beer", priceGbp: 6.4 },
+      { drinkName: "Peroni", category: "beer", priceGbp: 6.6 },
+      { drinkName: "Camden lager", category: "beer", priceGbp: 6.8 },
+      { drinkName: "House red wine 175ml", category: "wine", priceGbp: 7.5 },
+      { drinkName: "Espresso martini", category: "cocktail", priceGbp: 12 },
+    ]);
   });
 });

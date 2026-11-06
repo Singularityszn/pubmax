@@ -1,6 +1,15 @@
 # Nightly Tavily pass
 
-The nightly pass reads each London pub's own site for drink lines. A drink line is kept only when that same line states a pound price and a serving size (a pint, a half, a schooner, a two-thirds, a millilitre amount, a glass, a bottle, a can, a keg, or a measure), and only on a drinks menu page, a drinks title, a drinks heading, or the page that bound the site. A food menu page or section, a served flag, a closure, hours, an amenity, a phone number and a dish are the page URL and a short verbatim excerpt for a curator. A later read keeps an earlier excerpt it does not restate. A 125ml, 175ml or 250ml glass stays unstated. The page that bound the site is read with the menu pages. A site is bound only when a result states that pub's postcode or its exact street address. Otherwise the venue stays unbound, the candidate URLs are kept for a curator, and no extract credit is spent. It does not write a Confirmed price, a community price, or the UK price bundle.
+The nightly pass reads each London pub's own site for drink lines.
+A drink line needs a pound price and a stated serving in its complete printed item.
+A name, serving, and price can span `<br>` wraps.
+The [shared price reader](UK_PRICE_HARVEST.md#what-counts-as-a-price) owns item boundaries and fractional-serving holds.
+The nightly pass excludes every price with a fractional qualifier, including non-beer rows.
+An accepted bottle, can, or keg retains its own size.
+A 125ml, 175ml or 250ml glass stays unstated.
+
+A price is eligible only on a drinks menu page, a drinks title, a drinks heading, or the page that bound the site.
+A food menu page or section, a served flag, a closure, hours, an amenity, a phone number and a dish are the page URL and a short verbatim excerpt for a curator. A later read keeps an earlier excerpt it does not restate. The page that bound the site is read with the menu pages. A site is bound only when a result states that pub's postcode or its exact street address. Otherwise the venue stays unbound, the candidate URLs are kept for a curator, and no extract credit is spent. It does not write a Confirmed price, a community price, or the UK price bundle.
 
 ## Run
 

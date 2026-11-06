@@ -38,7 +38,7 @@ function refuseRobots(): RobotsChecker {
  * a menu a reader could actually stand and read.
  */
 const PRICED_MENU = [
-  "# Drinks at The Free House",
+  "# Drinks at The Local House",
   "",
   "Served from noon until close, seven days a week. Every keg line is listed",
   "below with the price of a pint. Halves are poured at half the listed price.",

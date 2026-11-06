@@ -252,6 +252,11 @@ own `#` or brackets stay.
 The judged reader and its deterministic fallback use the same format and
 boundary-preserving text. Candidate offsets identify figures in that text,
 so failed batches recover the decision for the same item.
+`printedPriceLayout` associates each figure with its printed name, measure,
+description, and section. The pint and venue-drink mappers use that item record
+instead of searching for the first line with the same figure.
+`pricedMenuSnippets` preserves wrapped names and serving qualifiers for callers
+that read menu extracts.
 
 * **Verbatim.** A figure is kept only if it appears literally in the text of the
   page that was read.
@@ -279,13 +284,25 @@ so failed batches recover the decision for the same item.
   The reader emits explicit glass measures separately from the wine name. The
   [bundle reference](../public/data/uk_prices/README.md#what-a-row-is) owns the
   serving field and its publication contract.
-* **Beer servings must be pints.** The pint reader rejects detected half,
-  one-third, two-thirds, bottled, and canned servings. A bottle or can section
-  applies until the next recognised heading. `On Draught`, `Draught Beer`,
-  `Draught Beers`, and the `Draft` variants end bottle scope regardless of letter
-  case. These checks use `beerMeasureDrop` and `inBottledSection` in
-  `lib/harvest/ukPriceCrawl.ts`. The captured menu and heading-variation regressions
-  are in `__tests__/ukPriceCrawl.test.ts`.
+* **Beer servings must be pints.** `pintServingDrop` checks the complete printed
+  item before a beer price can publish. Recognised halves, fractions,
+  schooners, and uncertain serving descriptions withhold the price.
+  The guard also rejects bottles, cans, and any detected millilitre amount
+  other than 568ml. A conflicting 284ml and 568ml item therefore remains excluded.
+  Fractional holds apply before punctuation splits a line into separate items.
+  Every beer price in the same paragraph, list item, or table row is withheld
+  when that block contains a recognised fractional qualifier.
+  Prices on neighbouring lines can also be withheld, including separate HTML
+  paragraphs. Unpriced wrapped notes can extend the qualifier's context.
+  An explicit pint label does not override a hold, and the reader never scales
+  a fractional price into a pint price.
+  A bottle or can section applies until the next recognised heading.
+  `On Draught`, `Draught Beer`, `Draught Beers`, and the `Draft` variants end
+  bottle scope regardless of letter case (`inBottledSection`).
+  Successful model judgments also pass through `pintServingDrop`.
+  Regressions are in `__tests__/subPintMenuGuard.test.ts`,
+  `__tests__/subPintHarvestPaths.test.ts`, and
+  `__tests__/fractionalMeasureOwnership.test.ts`.
 * **Its own category's band.** £14 is a fair cocktail and an impossible pint.
 * **No food word,** checked after the drink word, so a steak-and-a-pint meal
   deal is not the price of the pint.

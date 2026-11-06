@@ -13,6 +13,7 @@ import {
 import {
   CATEGORY_PRICE_BANDS,
   pageStatesADrinksList,
+  pricedMenuSnippets,
   readVenueDrinkPrices,
 } from "../../../lib/harvest/ukPriceCrawl.ts";
 
@@ -45,28 +46,18 @@ export async function extractPintPricesForHarvest(markdown, ctx) {
     return { prices: extractPintPrices(markdown), review: [] };
   }
   const { reading, review } = await readVenueDrinkPricesForHarvest(markdown, ctx);
-  return { prices: pintPricesFromUkReading(reading, markdown), review };
+  return { prices: pintPricesFromUkReading(reading), review };
 }
 
 async function extractVenueDrinkPricesJudgedLinewise(markdown, ctx) {
   const review = [];
-  const unescape = (text) => String(text ?? "").replace(/\\£/g, "£");
-  const compact = unescape(markdown)
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^[_*]+|[_*]+$/g, "").trim())
-    .filter(Boolean);
   const drinks = [];
   const seen = new Set();
 
-  for (let index = 0; index < compact.length; index += 1) {
-    const line = compact[index];
-    if (!/£/.test(line)) continue;
-    const previous = index > 0 ? compact[index - 1] : "";
-    const priceOnly = /^(?:£\s*\d{1,2}(?:\.\d{1,2})?\s*(?:[|/]\s*)?)+$/.test(line);
-    const snippet = priceOnly && previous ? `${previous}\n${line}` : line;
+  for (const snippet of pricedMenuSnippets(markdown)) {
     const judged = await readVenueDrinkPricesForHarvest(snippet, ctx);
     review.push(...judged.review);
-    for (const row of venueDrinkPricesFromUkReading(judged.reading, snippet)) {
+    for (const row of venueDrinkPricesFromUkReading(judged.reading)) {
       const key = `${row.drinkName.toLowerCase()}|${row.category}|${row.priceGbp}`;
       if (seen.has(key)) continue;
       seen.add(key);

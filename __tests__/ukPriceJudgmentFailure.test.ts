@@ -327,3 +327,50 @@ describe("readVenueDrinkPricesJudged batch failures", () => {
     }
   });
 });
+
+
+describe("explicit servings survive successful model judgment", () => {
+  it.each([
+    "Kernel stout £2.10 (1/3 pint)",
+    "Kernel stout pint £2.10\n(1/3 pint)",
+    "Kernel stout £2.10 (1/2 pint)",
+    "Kernel stout ¾ pint £2.10",
+    "Kernel stout schooner £2.10",
+  ])("refuses a confidently misclassified serving in %s", async (item) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockImplementation(async (_state, questions) => mockAnswersForBatch(questions));
+    const menu = [item, "", "Other drinks", "Guinness pint £6.20", "Madri pint £6.40", "Peroni pint £6.60", "Camden lager pint £6.80"].join("\n");
+    const ctx = { pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks" };
+    try {
+      const reading = await readVenueDrinkPricesJudged(menu, ctx);
+      expect(reading.kept.filter((row) => row.priceGbp === 2.1)).toEqual([]);
+      expect(reading.kept).toHaveLength(4);
+      const { extractVenueDrinkPricesForHarvest, extractPintPricesForHarvest } = await import(
+        "../scripts/harvest/uk-prices/readPrices.mjs"
+      );
+      const venue = await extractVenueDrinkPricesForHarvest(menu, ctx);
+      expect(venue.drinks.filter((row: { priceGbp: number }) => row.priceGbp === 2.1)).toEqual([]);
+      expect(venue.drinks).toHaveLength(4);
+      const pints = await extractPintPricesForHarvest(menu, ctx);
+      expect(pints.prices.filter((row: { priceGbp: number }) => row.priceGbp === 2.1)).toEqual([]);
+      expect(pints.prices).toHaveLength(4);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
+  });
+
+  it("retains model-based recovery for a named full pint", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockImplementation(async (_state, questions) => mockAnswersForBatch(questions));
+    try {
+      const reading = await readVenueDrinkPricesJudged("Moonlight £6.20", {
+        pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks",
+      });
+      expect(reading.kept).toEqual([expect.objectContaining({ category: "beer", priceGbp: 6.2 })]);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
+  });
+});

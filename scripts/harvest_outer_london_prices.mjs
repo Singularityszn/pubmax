@@ -223,7 +223,7 @@ export function priorPublishedSourceFor(row, priorEntries) {
   return row.website;
 }
 
-async function scrape(url, pubName, pubWebsite, robotsChecker) {
+export async function scrape(url, pubName, pubWebsite, robotsChecker) {
   const requested = canonicalHarvestUrl(url) ?? url;
   const page = await fetchGatedOuterLondonPage(requested, pubWebsite, {
     fetchRefreshPage,
