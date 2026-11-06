@@ -16,7 +16,7 @@ import type { OutResponse } from "@/lib/out/types";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
-import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
+import { tonightChainLaneOf, withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   WHATS_ON_KINDS,
@@ -239,6 +239,8 @@ export function mergeTonightListingRows(
 export type TonightLedeComposition = {
   /** Every eligible row, including the lanes that may not lead. */
   listingRows: WhatsOnRow[];
+  /** Eligible chain supply retained in the labelled sections below the lede. */
+  secondaryChainListingCount: number;
   /** The rows the first screen is built from: head sentence and card spine. */
   primaryListingRows: WhatsOnRow[];
   /** Status read off the primary rows, so an all-excluded night reads empty. */
@@ -288,15 +290,17 @@ export function tonightLedeComposition(
   const primaryOutAnswer: TonightOutAnswer = outBody
     ? { ...outAnswer, body: { ...outBody, events: primaryOutEvents } }
     : outAnswer;
+  const listingRows = mergeTonightListingRows(
+    rows,
+    outBody?.events ?? [],
+    now,
+    whatsOnStatus,
+    selectable,
+    true,
+  );
   return {
-    listingRows: mergeTonightListingRows(
-      rows,
-      outBody?.events ?? [],
-      now,
-      whatsOnStatus,
-      selectable,
-      true,
-    ),
+    listingRows,
+    secondaryChainListingCount: listingRows.filter((row) => tonightChainLaneOf(row) !== null).length,
     primaryListingRows: mergeTonightListingRows(
       primaryWhatsOnRows,
       primaryOutEvents,
@@ -643,10 +647,12 @@ export function tonightEmptyLead(
   out: TonightOutAnswer,
   pubSuggestionCount = 0,
   musicListingCount = 0,
+  secondaryChainListingCount = 0,
 ): string {
   if (musicListingCount > 0) {
     return `${musicListingCount} sourced live music listing${musicListingCount === 1 ? "" : "s"} below.`;
   }
+  if (secondaryChainListingCount > 0) return "Chain listings are available below.";
   const reports = tonightLaneReports(whatsOn, out);
   if (pubSuggestionCount > 0 && reports.length === 0) {
     return "No confirmed events listed tonight.";
