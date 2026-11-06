@@ -20,6 +20,8 @@ export type PricedLandingRow = {
   rank: number;
   venueId: string;
   venueName: string;
+  /** The recorded address or locality that distinguishes this branch. */
+  branchAddress?: string;
   borough: string;
   pintName: string;
   priceGbp: number;

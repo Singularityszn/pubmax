@@ -14,6 +14,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { SiteNavActions } from "@/components/nav/SiteNav";
 import { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
 import type { LandingAnswers } from "@/lib/landingAnswers";
+import type { LandingDrinkLink } from "@/lib/landingDiscovery.server";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LondonCollageAreaPrice } from "@/lib/landingLondonCollage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
@@ -39,6 +40,7 @@ import type { DotFooterCount } from "@/components/wild/DotFooter";
 
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
+import LandingDiscoveryLinks from "./LandingDiscoveryLinks";
 import LandingHero from "./LandingHero";
 import LandingLondonCollage from "./LandingLondonCollage";
 import LandingLondonFilm from "./LandingLondonFilm";
@@ -82,6 +84,7 @@ export default function LandingPage({
   huntCard = null,
   huntCities = null,
   priceGlass = null,
+  discoveryDrinks = [],
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
 }: {
@@ -117,6 +120,7 @@ export default function LandingPage({
    * only while the wild switch is on; null pours nothing.
    */
   priceGlass?: WildPriceGlass | null;
+  discoveryDrinks?: readonly LandingDrinkLink[];
   socialFriendsLaunchEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -260,6 +264,8 @@ export default function LandingPage({
             Open the map
           </Link>
         </section>
+
+        <LandingDiscoveryLinks drinks={discoveryDrinks} />
 
         <div className="lpDrops">
           <PintDropStrip />

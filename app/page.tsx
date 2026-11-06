@@ -7,6 +7,7 @@ import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { huntSourceVerb, type HuntPint } from "@/lib/cheapestHunt";
 import { loadCheapestHunt } from "@/lib/cheapestHunt.server";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
+import { loadLandingDrinkLinks } from "@/lib/landingDiscovery.server";
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
@@ -103,7 +104,7 @@ export default async function Home() {
   // price archive. A null card renders no card and the plain receipt door,
   // never an invented pub. Passed as plain serialisable props into the client
   // LandingPage.
-  const [{ card, archive, rail, averages, priceReadLine, collagePrices }, answers, hunt] = await Promise.all([
+  const [{ card, archive, rail, averages, priceReadLine, collagePrices }, answers, hunt, discoveryDrinks] = await Promise.all([
     loadLandingHeroData(),
     // What is on today and what is on tonight, read at prerender from the same
     // lanes /today and /tonight read. Both fail soft to an honest line, so a
@@ -113,6 +114,7 @@ export default async function Home() {
     // London's dearest (lib/cheapestHunt.ts). A read that fails renders no
     // claim and no city rows, never an invented pint.
     loadCheapestHunt(),
+    loadLandingDrinkLinks(),
   ]);
   // The Price Glass's pours (round-two wild idea 01, lib/wildPriceGlass.ts):
   // London's average, its cheapest and dearest pints from the hunt above, and
@@ -145,6 +147,7 @@ export default async function Home() {
         priceReadLine={priceReadLine}
         collagePrices={collagePrices}
         answers={answers}
+        discoveryDrinks={discoveryDrinks}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
         ukCoverage={loadUkDirectoryCoverage()}
         // Server components handed in as finished elements, so the hunt costs

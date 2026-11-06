@@ -10,6 +10,8 @@ import {
   DRINK_BRAND_LANDING_PUBLICATION_FLOOR,
   type DrinkBrandLanding,
   buildDrinkBrandLanding,
+  drinkBrandCandidateForVenue,
+  findDrinkBrandLandingBrand,
   listDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding";
 import {
@@ -130,6 +132,16 @@ function venue(
 }
 
 describe("governed drink brand landings", () => {
+  it("carries the recorded branch address and falls back only to its recorded locality", () => {
+    const brand = findDrinkBrandLandingBrand("guinness")!;
+    const pub = venue("same-name-one", [priceRow()], {
+      name: "The Crown", address: " 1 High Street, NW1 1AA ", locality: "Camden Town",
+    });
+    expect(drinkBrandCandidateForVenue(pub, brand)?.branchAddress).toBe("1 High Street, NW1 1AA");
+    expect(drinkBrandCandidateForVenue({ ...pub, address: "" }, brand)?.branchAddress).toBe("Camden Town");
+    expect(drinkBrandCandidateForVenue({ ...pub, address: "", locality: undefined }, brand)?.branchAddress).toBeUndefined();
+  });
+
   it("refuses unknown brands and brands below the publication floor", () => {
     const belowFloor = Array.from(
       { length: DRINK_BRAND_LANDING_PUBLICATION_FLOOR - 1 },
