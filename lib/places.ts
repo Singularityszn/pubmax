@@ -4,12 +4,10 @@
 //
 // Pure by design, so the tab, its tests and any later surface read one answer.
 // Nothing here derives a figure, a date or a coverage claim: prices come from
-// lib/cityCapabilities.ts and areas from lib/nightAreas.ts, and where either has
-// nothing the copy SAYS SO rather than leaving a blank that reads as none.
+// lib/cityCapabilities.ts and areas from lib/nightAreas.ts.
 //
-// The two honest gaps are separate findings with separate sentences. A city with
-// no listed prices is not a city with no areas, and a reader who is told one
-// while the other is true has been misled about which half is missing.
+// The city-picker rule in docs/rules/app-landing-city-and-listing-pages.md
+// owns the separate treatment of price coverage and area coverage.
 
 import type { Route } from "next";
 import {

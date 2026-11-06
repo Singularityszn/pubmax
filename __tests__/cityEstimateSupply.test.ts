@@ -10,12 +10,10 @@
 //
 // The temptation that finding creates is to seed a region so the map fills in.
 // `scripts/build_price_estimate_baselines.mjs` already forbids that in words;
-// this file forbids it in a test, and the alarm below makes the day supply
-// really arrives the day somebody has to revisit the capability copy with it.
+// this file checks the bundled supply. The estimate-supply rule lives in
+// `docs/rules/lib-prices-trust-and-drinks.md`.
 //
-// Birmingham and Leeds are deliberately absent from the per-city sweeps: they
-// are not `CityId`s, and `lib/cities.ts` is owned by the night-areas-cities
-// lane. When they land there, `listEnabledCities()` picks them up here for free.
+// `listEnabledCities()` includes Birmingham and Leeds in the per-city checks.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -45,12 +43,9 @@ describe("the estimate basis a city would need", () => {
     expect(isEstimateBaselines(baselines)).toBe(true);
   });
 
-  // THE ALARM. Every basis this tree holds is a London borough. The moment a
-  // postcode-area region or a chain qualifies, some city outside London can
-  // show a modelled figure for the first time, and the sentence
-  // `lib/cityCapabilities.ts` prints for that city stops being the whole truth.
-  // This fails then, on purpose, so the copy is revisited in the same commit
-  // rather than a release later.
+  // Every current basis is a London borough. A new postcode-area region or
+  // chain changes the supported estimate supply, so this check requires a
+  // review of that scope. The neutral city explanation remains accurate.
   it("covers London and nowhere else, and says so the day that changes", () => {
     const { chains, regions } = baselines as EstimateBaselines;
     const kinds = [...new Set(regions.map((region) => region.kind))];
