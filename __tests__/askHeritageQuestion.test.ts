@@ -23,22 +23,59 @@ afterEach(() => {
 
 describe("typed heritage questions", () => {
   it.each([
-    { venueName: "The Blackfriar" },
-    { name: "The Blackfriar" },
-    { venueId: "venue-eltcmh" },
-    { venueId: "venue-eltcmh", venueName: "The Blackfriar Arms" },
-  ].flatMap((args) => [
-    { args, query: "Tell me the history of The Blackfriar Arms." },
-    { args, query: "Tell me the history of The Blackfriar Arms and The Clachan." },
-  ]))("rejects a model-proposed identity for an unlisted longer name: %j", async ({ args, query }) => {
+    ...[
+      { venueName: "The Blackfriar" },
+      { name: "The Blackfriar" },
+      { venueId: "venue-eltcmh" },
+      { venueId: "venue-eltcmh", venueName: "The Blackfriar Arms" },
+    ].flatMap((args) => [
+      { query: "Tell me the history of The Blackfriar Arms.", args, expectedIds: [], ambiguous: false },
+      { query: "Tell me the history of The Blackfriar Arms and The Clachan.", args, expectedIds: [], ambiguous: false },
+    ]),
+    ...[{}, { venueName: "The Blackfriar" }, { venueId: "venue-eltcmh" }].map((args) => ({
+      query: "Tell me the history of The Blackfriar.", args, expectedIds: ["venue-eltcmh"], ambiguous: false,
+    })),
+    ...[{}, { venueName: "The Lamb" }, { venueId: "venue-1yd70c7" }, { venueId: "venue-uov7ku" }].map((args) => ({
+      query: "Tell me the heritage of The Lamb", args, expectedIds: [], ambiguous: true,
+    })),
+    ...[
+      "The Blackfriar Arms and The Clachan",
+      "The Clachan and The Blackfriar Arms",
+      "The Blackfriar Arms and The Clachan and The Imaginary Copper Narwhal",
+    ].flatMap((subject) => [
+      {}, { venueName: "The Clachan" }, { venueId: "venue-4pqtn7" },
+    ].map((args) => ({
+      query: `Tell me the history of ${subject}.`, args, expectedIds: ["venue-4pqtn7"], ambiguous: false,
+    }))),
+    { query: "Tell me the history of The Clachan.", args: { venueName: "The Imaginary Copper Narwhal" }, expectedIds: [], ambiguous: false },
+    { query: "Tell me the history of The Clachan.", args: { venueId: "venue-unknown" }, expectedIds: [], ambiguous: false },
+    { query: "Tell me the history of The Lamb and The Clachan.", args: {}, expectedIds: ["venue-4pqtn7"], ambiguous: true },
+    { query: "Tell me the history of The Clachan and The Lamb.", args: {}, expectedIds: ["venue-4pqtn7"], ambiguous: true },
+    { query: "Tell me the history of The Lamb and The Clachan.", args: { venueId: "venue-1yd70c7" }, expectedIds: [], ambiguous: true },
+    { query: "Tell me the history of The Blackfriar and The Clachan.", args: {}, expectedIds: ["venue-eltcmh", "venue-4pqtn7"], ambiguous: false },
+  ])("resolves each question subject before model arguments: %j", async ({ query, args, expectedIds, ambiguous }) => {
     const result = await runAskTool("venue_heritage", args, {
-      query,
-      cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+      query, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
     });
-    expect(result.ok).toBe(false);
-    expect(result.cards).toEqual([]);
-    expect(result.proposals).toEqual([]);
-    expect(result.sources).toEqual([]);
+    expect(result.ok).toBe(expectedIds.length > 0);
+    expect(result.cards.map((card) => card.venueId)).toEqual(expectedIds);
+    expect(result.proposals.map((proposal) => proposal.kind === "open_venue" ? proposal.venueId : null)).toEqual(expectedIds);
+    if (expectedIds.length === 0) expect(result.sources).toEqual([]);
+    if (ambiguous) expect(result.answerHint).toContain("cannot tell which pub");
+  });
+
+  it.each([
+    "The Blackfriar Arms and The Clachan",
+    "The Clachan and The Blackfriar Arms",
+    "The Lamb and The Clachan",
+    "The Clachan and The Lamb",
+  ])("keeps the valid sibling through the keyless Ask path: %s", async (subject) => {
+    const result = await runAsk({
+      query: `Tell me the history of ${subject}.`, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(result.cards.map((card) => card.venueId)).toEqual(["venue-4pqtn7"]);
+    expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue", venueId: "venue-4pqtn7" }));
+    if (subject.includes("The Lamb")) expect(result.answer).toContain("cannot tell which pub");
   });
 
   it.each([
@@ -149,24 +186,6 @@ describe("typed heritage questions", () => {
     expect(result.answer).toContain("cannot tell which pub");
   });
 
-  it.each(["venue-1yd70c7", "venue-uov7ku"])("preserves the selected Lamb identity %s", async (venueId) => {
-    const result = await runAskTool("venue_heritage", { venueId }, {
-      query: "Tell me the heritage of The Lamb", cityId: "london", skipModel: true, fetchImpl: offlineFetch,
-    });
-    expect(result.cards).toHaveLength(1);
-    expect(result.cards[0]).toMatchObject({ venueId, title: "The Lamb", price: null });
-    expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue", venueId }));
-    if (venueId === "venue-1yd70c7") {
-      expect(result.cards[0]?.note).toContain("Lamb's Conduit Street, Bloomsbury");
-      expect(result.sources).toContainEqual(expect.objectContaining({
-        url: "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury",
-      }));
-    } else {
-      expect(result.cards[0]?.note).toContain("no fuller story on record");
-      expect(result.sources).toEqual([]);
-    }
-  });
-
   it.each([
     { venueId: "venue-1yd70c7", hasBloomsbury: true },
     { venueId: "venue-uov7ku", hasBloomsbury: false },
@@ -223,12 +242,8 @@ describe("typed heritage questions", () => {
     )).toBe(false);
     expect(answer.cards[0]?.note ?? "").not.toContain("pub in Kilburn, London");
     expect(answer.cards[0]?.note ?? "").not.toContain("demolished pub in Blackheath");
-    if (expected) {
-      expect(answer.cards[0]?.note).toContain(expected);
-      expect(answer.sources).toContainEqual(expect.objectContaining({
-        url: "https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith",
-      }));
-    }
+    expect(answer.cards).toEqual([]);
+    expect(answer.answerHint).toContain("cannot tell which pub");
   });
 
   it("does not choose the first of several pubs with the same name", async () => {

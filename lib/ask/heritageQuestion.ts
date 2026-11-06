@@ -33,19 +33,22 @@ export function heritageVenueNameMatches<T extends VenueNameMatchInput>(venues: 
   return venues.filter((venue) => venueSearchNames(venue).some((alias) => normalize(alias) === subject));
 }
 
-export function heritageQuestionVenueMatches<T extends VenueNameMatchInput>(venues: readonly T[], query: string): T[] {
+export function heritageQuestionVenueSubjects<T extends VenueNameMatchInput>(venues: readonly T[], query: string): T[][] {
   const subject = heritageQuestionVenueName(query);
   if (!subject) return [];
-  const matchSubjects = (name: string): T[] => {
+  const matchSubjects = (name: string): T[][] => {
     const exact = heritageVenueNameMatches(venues, name);
-    if (exact.length) return exact;
-    for (const separator of name.matchAll(/\s+(?:and|&)\s+/gi)) {
+    if (exact.length) return [exact];
+    const separators = [...name.matchAll(/\s+(?:and|&)\s+/gi)];
+    for (const separator of [...separators].reverse()) {
       const left = heritageVenueNameMatches(venues, name.slice(0, separator.index));
       if (!left.length) continue;
-      const right = matchSubjects(name.slice(separator.index + separator[0].length));
-      if (right.length) return [...left, ...right];
+      return [left, ...matchSubjects(name.slice(separator.index + separator[0].length))];
     }
-    return [];
+    const separator = separators[0];
+    return separator
+      ? [[], ...matchSubjects(name.slice(separator.index + separator[0].length))]
+      : [[]];
   };
   return matchSubjects(subject);
 }

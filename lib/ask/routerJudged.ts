@@ -71,14 +71,8 @@ function defaultCall(
     case "search_venues":
       return { name, args: { query, limit: 4 } };
     case "whats_on":
-      return { name, args: { query } };
     case "venue_heritage":
-      return {
-        name,
-        args: overlays.venueName
-          ? { venueName: overlays.venueName, query }
-          : { query },
-      };
+      return { name, args: { query } };
     case "venue_prices":
       return {
         name,
