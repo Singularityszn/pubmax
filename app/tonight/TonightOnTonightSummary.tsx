@@ -7,7 +7,7 @@
 import Link from "next/link";
 import { CalendarClock, Timer } from "lucide-react";
 
-import { dealsEndingSoon } from "@/lib/dealsHonesty";
+import { dealsEndingSoon } from "@/lib/dealsHonestyCore";
 import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import type { WhatsOnKindFacet } from "@/lib/whatsOnBadges";

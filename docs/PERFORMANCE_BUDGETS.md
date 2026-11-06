@@ -4,7 +4,7 @@ Speed is the promise this product makes. A promise nobody counts is a wish, so
 every budgeted route has a number, the number is tracked in the repository, and
 CI refuses a change that goes past it.
 
-- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 47 rows
+- The ceilings and current route list: [`perf/route-budgets.json`](../perf/route-budgets.json)
 - The pawl on the ratchet: [`scripts/check-budget-ratchet.mjs`](../scripts/check-budget-ratchet.mjs), which refuses a ceiling taken up against the base branch without a record
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
@@ -597,6 +597,22 @@ Owner: `redirectsTo` in `lib/performanceBudgets.ts`, `measurePerfRedirect` in
 `e2e/helpers/perfMeasurement.ts`. Pin: `__tests__/performanceBudgets.test.ts`, "a budgeted
 route that redirects".
 
+### Document status before readiness
+
+`loadPerfRoute` validates `expectedStatus` before navigation. Only numeric `200`
+and `404` are valid. An omitted field defaults to `200`. Any other explicit
+value fails before navigation. The helper checks the actual navigation response
+status before it waits for `readySelector`.
+
+The `/area/clapham/drink/guinness` row retains its four ceilings and requires
+HTTP 404 with `main#main` readiness. Its figures measure the 404 page and do not
+prove live area-brand price coverage. Its former `main.drinkBrandAreaLanding`
+boundary measured a different page. Measurements across these boundaries are
+not comparable. Declared redirects retain the separate measurement method above.
+
+Implementation: `e2e/helpers/perfMeasurement.ts`. Regression coverage:
+`__tests__/perfMeasurement.test.ts`, "route navigation status".
+
 ### Where counting stops, and whose clock stops it
 
 Counting stops at an APP-DEFINED moment, not a wall clock: the later of the
@@ -901,13 +917,15 @@ Every route the site serves a stranger. That is two lists.
 said so by falling back to the harness clock - which is the fallback earning its
 place on its first sweep.
 
-**And ten routes that DO carry one**, added on 7 September 2026. A dynamic
-family is measured through ONE concrete instance, because that is what a browser
-can open: `/borough/westminster` (the heaviest borough, 200 priced pubs on a
+Dynamic families use concrete URLs that a browser can open. The original
+additions on 7 September 2026 included `/borough/westminster` (the heaviest borough, 200 priced pubs on a
 33,441px page), `/historic/prospect-of-whitby`, `/landmark/big-ben`,
 `/ledger/venue-eltcmh`, `/bar-tab/venue-eltcmh`, `/drink/guinness`,
 `/area/clapham/drink/guinness`, `/pint-index/2026-06`, plus the two static
 pages that had been missed, `/spoons-value` and `/account/delete`.
+
+The retired area-brand entry follows the
+[document status contract](#document-status-before-readiness).
 
 `/board/venue-eltcmh` joined on 30 October 2026: the board reader, a private
 tool the venue sheet links from every pub. It is not sitemap-listed and is
