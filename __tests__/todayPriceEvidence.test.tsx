@@ -75,6 +75,16 @@ describe("Today's row price evidence", () => {
     expect(row.querySelector("time")?.textContent).toBe("15 January 2026");
   });
 
+  it("reads a shouted drink tag in title case and keeps known beer capitals", async () => {
+    const pub = venue({ cheapestPint: "BUD LIGHT SESSION IPA" });
+    pub.prices[0]!.pint_name = "BUD LIGHT SESSION IPA";
+    const pints = buildTodayPintsForPatch(CENTRAL_PATCH, [pub])!;
+    const host = await mount(<TodayPintsCard index={{ [CENTRAL_PATCH.id]: pints }} />);
+    const row = host.querySelector("li")!;
+    expect(row.textContent).toContain("Bud Light Session IPA · Pint");
+    expect(row.textContent).not.toContain("BUD LIGHT");
+  });
+
   it("keeps a contributor amount's own source and date when a listed row has the same amount", async () => {
     const pints = buildTodayPintsForPatch(CENTRAL_PATCH, [venue({
       latestContributorPrice: 4.8,

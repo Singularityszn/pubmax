@@ -1,6 +1,7 @@
 import { selectedComparableVenuePint, type ComparablePintVenue } from "@/lib/comparableVenuePint";
 import { pintObservationTime } from "@/lib/comparablePint.mjs";
 import { DRINK_MEASURE_LABEL, statedDrinkMeasure } from "@/lib/drinkMeasure";
+import { formatDrinkTagName } from "@/lib/drinkTagName";
 import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 
 export type VenuePriceEvidence = {
@@ -39,9 +40,10 @@ export function venuePriceEvidence(
   const measure = statedDrinkMeasure("measure" in selected ? selected.measure : null);
   const read = pintObservationTime(selected.priceObservedAt);
   const observedAt = read === null ? null : selected.priceObservedAt ?? null;
+  const drinkLabel = "cheapestPint" in selected ? selected.cheapestPint?.trim() : null;
   return {
     priceGbp,
-    drinkLabel: "cheapestPint" in selected ? selected.cheapestPint?.trim() || null : null,
+    drinkLabel: drinkLabel ? formatDrinkTagName(drinkLabel) : null,
     servingSize: measure ? DRINK_MEASURE_LABEL[measure] : null,
     publisher: named ?? (sourceLabel ? { label: sourceLabel, url: null } : null),
     sourceKind: contributor ? "reported" : "listed",
