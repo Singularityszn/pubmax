@@ -122,23 +122,11 @@
   margin-top: 0;
 }
 
-/* Content pages embed the bar inside a narrow reading column (~880px), which
-   cannot fit the full eight-label link row — labels used to ellipsize into
-   unreadable fragments at 1440px even with nothing else crowding them. On
-   desktop the bar now self-sizes: a centred pill up to the room the VIEWPORT
-   actually has, escaping the host column symmetrically via the auto-negative
-   margin pair below (still centred because every host column is itself
-   centred). The floating map variant and the ≤640px compact bar keep their
-   own geometry — this rule is scoped away from both. */
-/* ONE ROW AT DEFAULT TEXT, AND THE MAP BAR'S CAP. The bar wraps only when
-   enlarged text needs the room (the wrap rule near the end of this file), so
-   its cap must hold the whole default-text row. Measured 6 Nov 2026 on /plan
-   from 1280px up: brand 75 + six links with icons 528 + actions 452, plus
-   gaps and padding, is 1109px signed out; the bell and messages bring it to
-   about 1213px signed in. The old 1100px cap wrapped every inner page onto
-   two rows. 1240px is the floating map bar's own cap
-   (--desktop-map-surface-width), so the bar keeps one width between Map and
-   the tabs on a wide screen. */
+/* Viewport-based width lets the bar escape a narrow reading column while
+   keeping it centred. The floating map and compact phone bars use separate
+   geometry. The layout contract and regression coverage are in
+   docs/rules/components-design-system-and-launch-primitives.md,
+   "A text button is one row of tokens, and the tablet bar is measured". */
 @media (min-width: 641px) {
   .siteNavBar:not(.siteNavBarFloating) {
     --site-nav-width: min(1240px, 100vw - 48px);
