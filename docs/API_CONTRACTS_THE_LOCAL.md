@@ -676,8 +676,10 @@ Contract requirements:
 - `GET` returns `200 { profile: NightProfile | null }`; it requires verified auth and is always `no-store`.
 - `PUT` body is `{ profile: NightProfileInput, expectedUpdatedAt: string | null }`. `null` is create-only; stale writes return `409 NIGHT_PROFILE_CONFLICT` with the current profile in `details`.
 - The route validates that `pubPalId`, when present, belongs to the caller. Pal name/species stay canonical in `pub_pals`.
-- Anonymous profile stays under the validated versioned key `pubmaxx.night-profile.v1:device`. No coordinates, location history, voice content, secrets or Pal memories are stored.
-- Account Hub shows device/account differences and requires an explicit “Bring this device” choice before PUT. “Keep account preferences” performs no account mutation.
+- The validated full device profile stays under `pubmaxx.night-profile.v1:device`. The separate `pubmaxx.night-profile-drink.v1:device` record stores only `cityId`, `zeroProof`, and `drinkCategory`. No coordinates, location history, voice content, secrets, or Pal memories are stored.
+- The drink category remains device-only and does not sync across devices. [`nightProfileStore.ts`](../lib/nightProfileStore.ts) owns the durable field mapping. When the separate record is absent, `readDeviceNightDrink` accepts a validated legacy device-owned profile, including one without a source stamp. It rejects account-owned profiles. Before account mirroring replaces that legacy profile, `writeDeviceNightProfile` preserves only its drink fields in the separate record.
+- Account mirroring refreshes the full profile, including the budget, and preserves the separate drink record. A local planning edit retains the full profile's ownership stamp. The [device identity rule](rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device) governs account cleanup. Regression coverage is in `__tests__/savedDrinkPreference.test.tsx` and `__tests__/pubmaxxAccountHubRecapClaim.test.tsx`.
+- Account Hub excludes `drinkCategory` from device/account conflict detection. Other differences still require an explicit "Bring this device" choice before import. "Keep account preferences" performs no account mutation and uses the same device mirroring path as import and save.
 - Reads are limited to 60/minute and writes to 30/minute per verified user/IP.
 
 ---

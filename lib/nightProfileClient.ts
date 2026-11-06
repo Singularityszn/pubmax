@@ -112,7 +112,7 @@ export function writeDeviceNightProfile(
   }
 }
 
-/** Mirror a loaded account Night Profile onto this device for signed-out continuity. */
+/** Refresh the account-owned device copy without replacing the separate drink choice. */
 export function mirrorAccountNightProfileToDevice(
   account: NightProfile | null,
   storage = browserStorage(),
@@ -126,7 +126,8 @@ export function mirrorAccountNightProfileToDevice(
 }
 
 /**
- * Persists only the validated planning context and optional public city id.
+ * Save planning context without changing the full profile's ownership stamp.
+ * Keep the device drink separate so account cleanup can remove copied account fields.
  * NightContext has no coordinates or voice transcript fields, so callers
  * cannot accidentally turn a planning edit into location or speech history.
  */
