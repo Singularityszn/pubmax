@@ -1,9 +1,9 @@
 import { londonDayKey } from "@/lib/pintContributions";
 import { londonHour } from "@/lib/londonHour";
-import { NIGHT_SERVICE_END_HOUR, NIGHT_SERVICE_START_HOUR } from "@/lib/nightServiceHours";
+import { NIGHT_SERVICE_END_HOUR } from "@/lib/nightServiceHours";
 import { londonDateTimeInputToIso, parseLondonInput } from "@/lib/planIntake";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
-import { askRequestClauses } from "@/lib/ask/requestPolicy";
+import { askRequestClauses, stripTrailingPunctuation } from "@/lib/ask/requestPolicy";
 
 export type LateFoodQuestion = {
   areas: string[];
@@ -15,8 +15,8 @@ export type LateFoodQuestion = {
 
 const FOOD_WORDS = /\b(?:food|eat|eating|meals?|lunch|dinner|supper|snacks?|restaurants?|pizzas?|kebabs?|cafes?|kitchens?)\b/i;
 const LATE_WORDS = /\b(?:late(?:[- ]night)?|after\s+midnight|midnight)\b/i;
-const CLOCK = /\bat\s+(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?\b/gi;
-const CONTEXT_AREA = /\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorrow|after|before|with|that|which|serving|for)\b|\s+(?:(?:and|actually)\s+)?(?:near|in|around)\b|[?,.!;]|$)/gi;
+const CLOCK = /\b(?:at\s+|(?=\d{1,2}(?::\d{2}|\s*[ap]\.?m\.?\b)))(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?\b/gi;
+const CONTEXT_AREA = /\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorrow|after|before|with|that|which|serving|for)\b|\s+\d{1,2}(?::\d{2}|\s*[ap]\.?m\.?\b)|\s+(?:(?:and|actually)\s+)?(?:near|in|around)\b|[?,.!;]|$)/gi;
 const CONTEXT_DATE = /\bon\s+\d{4}-\d{2}-\d{2}\b/gi;
 const CONTEXT_NIGHT = /\b(?:tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi;
 const AT_MIDNIGHT = /\bat midnight\b/gi;
@@ -32,9 +32,7 @@ function foodConstraints(query: string): string[] {
 }
 
 function requiresPubKitchen(query: string): boolean {
-  const wording = query.replace(/\b(?:after|before)\s+(?:(?:a|the|some)\s+)?pubs?\b/gi, " ");
-  const requirement = /\b(?:pubs?\s+(?:(?:that|which)\s+)?(?:with|for|serving|serves?)|pub\s+(?:food|kitchens?)|(?:food|eat|eating|meals?|lunch|dinner|supper|snacks?)\s+(?:at|in|from)\s+(?:(?:a|the|some)\s+)?pubs?)\b/i;
-  return requirement.test(wording) || requirement.test(wording.replace(CONTEXT_AREA, " "));
+  return /\bpubs?\b/i.test(query);
 }
 
 function foodRequestWording(query: string): string {
@@ -107,17 +105,11 @@ function londonInstant(day: string, minutes: number): string | null {
 /** Explicit food timing uses service evidence rather than static pub amenities. */
 export function parseLateFoodQuestion(query: string, now: number): LateFoodQuestion | null {
   const wording = foodRequestWording(query);
-  if (!FOOD_WORDS.test(wording) || (!LATE_WORDS.test(wording) && ![...wording.matchAll(CLOCK)].length)) return null;
+  if (!FOOD_WORDS.test(wording) || (!LATE_WORDS.test(wording) && !/\bat\b/i.test(wording) && ![...wording.matchAll(CLOCK)].length)) return null;
   const minutes = requestedMinutes(wording);
   const day = minutes === null ? null : requestedDay(wording, minutes, now);
   const at = day === null || minutes === null ? null : londonInstant(day, minutes);
   const requiresPub = requiresPubKitchen(wording);
-  // Daytime pub/lunch discovery keeps its existing route. A standalone timed
-  // food-service request still needs evidence, including a 06:00 request.
-  if (!LATE_WORDS.test(wording) && (requiresPub || /\blunch\b/i.test(wording))
-    && minutes !== null && minutes >= NIGHT_SERVICE_END_HOUR * 60
-    && minutes < NIGHT_SERVICE_START_HOUR * 60
-    && !unrecordedFoodWording(wording) && foodConstraints(wording).length === 0) return null;
   const areas = [...wording.matchAll(CONTEXT_AREA)]
     .map((match) => match[1]!.trim());
   const dietary = [
@@ -141,7 +133,8 @@ export function parseLateFoodQuestion(query: string, now: number): LateFoodQuest
 }
 
 function clarificationFields(query: string): string {
-  const fragment = query.trim().replace(/^(?:actually|please|make\s+(?:that|it))\b[\s,:]*/i, "");
+  const polite = stripTrailingPunctuation(foodWording(query)).replace(/\bplease$/i, "");
+  const fragment = stripTrailingPunctuation(polite).replace(/^(?:actually|please|make\s+(?:that|it))\b[\s,:]*/i, "");
   if (/^\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?$/i.test(fragment)
     && requestedMinutes(`at ${fragment}`) !== null) return `at ${fragment}`;
   if (/^\d{4}-\d{2}-\d{2}$/.test(fragment)) return `on ${fragment}`;

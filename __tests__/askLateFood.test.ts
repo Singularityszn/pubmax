@@ -67,6 +67,35 @@ describe("late-food questions through Ask", () => {
     expect(response.proposals).toEqual([]);
   });
 
+  it.each([
+    "Food in Soho tonight 1am",
+    "Food in Soho 01:00 on 2026-10-23",
+  ])("uses recorded food evidence without an at prefix: %s", async (query) => {
+    const typed = await ask(query);
+    const tool = await runAskTool("propose_plan", {}, {
+      query, cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, tool]) {
+      expect(response.cards.map((card) => card.title)).toEqual(["Balans No.60"]);
+      expect(response.cards[0]).toMatchObject({ venueId: "", price: null });
+      expect(response.proposals).toEqual([]);
+    }
+  });
+
+  it.each(["25:00", "1", "an unknown time", "01:00 and 02:00"])("clarifies unresolved food timing: %s", async (clock) => {
+    const response = await ask(`Food in Soho tonight at ${clock}`);
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.answer).toContain("Which night and time");
+  });
+
+  it("requires pub kitchen evidence when auxiliary verbs describe food service", async () => {
+    const response = await ask("Which pubs are serving food in Soho tonight at 1am");
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.answer).toContain("pub kitchen hours");
+  });
+
   it("resolves tonight at 1am to closed Monday service after a Sunday evening request", async () => {
     const response = await ask("Where can I eat in Soho tonight at 1am?", Date.parse("2026-10-25T18:00:00.000Z"));
     expect(response.cards).toEqual([]);
@@ -133,11 +162,11 @@ describe("late-food questions through Ask", () => {
     "Find four pubs with food in Soho at 13:00 on 2026-10-23",
     "Find four pubs for lunch in Soho at 13:00 on 2026-10-23",
     "Find four pubs with food in Soho at 13:00",
-  ])("retains timed ordinary daytime discovery: %s", async (query) => {
+  ])("requires kitchen evidence for timed daytime pub discovery: %s", async (query) => {
     const response = await ask(query);
-    expect(response.cards.length).toBeGreaterThan(0);
-    expect(response.cards.every((card) => card.venueId.startsWith("venue-"))).toBe(true);
-    expect(response.cards.some((card) => card.key.startsWith("late-food-evidence-"))).toBe(false);
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.answer).toMatch(/pub kitchen hours|Which night and time/);
   });
 
   it.each(["23:00", "16:00", "03:59"])("requires pub kitchen evidence outside daytime at %s", async (clock) => {
@@ -161,11 +190,11 @@ describe("late-food questions through Ask", () => {
     expect(response.proposals).toEqual([]);
   });
 
-  it("allows recorded restaurant food after a pub visit", async () => {
+  it("requires pub kitchen evidence for food after a pub visit", async () => {
     const response = await ask("Food after the pub in Soho tonight at 1am");
-    expect(response.cards.map((card) => card.title)).toEqual(["Balans No.60"]);
-    expect(response.cards[0]).toMatchObject({ venueId: "", price: null });
-    expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.answer).toContain("pub kitchen hours");
   });
 
   it.each([
@@ -200,6 +229,20 @@ describe("late-food questions through Ask", () => {
     expect(response.cards).toContainEqual(expect.objectContaining({ title: "Balans No.60", venueId: "", price: null }));
     expect(response.cards).toContainEqual(expect.objectContaining({ note: "12 min" }));
     expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+  });
+
+  it.each([".", "?", "!"])("separates a food sentence after transport at %s", async (separator) => {
+    const response = await runAsk({
+      query: `Directions to London Bridge from The Blackfriar${separator} Food at 01:00 on 2026-10-23 near Soho`,
+      now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true,
+      fetchImpl: async () => Response.json({ jsonrpc: "2.0", result: { structuredContent: {
+        journeys: [{ durationMinutes: 12, legs: [] }],
+      } } }),
+    });
+    expect(response.cards).toContainEqual(expect.objectContaining({ title: "Balans No.60", venueId: "", price: null }));
+    expect(response.cards).toContainEqual(expect.objectContaining({ note: "12 min" }));
+    expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+    expect(response.proposals).toEqual([]);
   });
 
   it("keeps transport timing separate from the food service date", async () => {
@@ -301,6 +344,9 @@ describe("late-food clarification context", () => {
     { query: "01:00", previous: "Food in Soho tonight at 06:00" },
     { query: "Soho", previous: "Food tonight at 1am" },
     { query: "2026-10-23", previous: "Food in Soho at 01:00" },
+    { query: "01:00 please", previous: "Food in Soho tonight at 06:00" },
+    { query: "Soho?", previous: "Food tonight at 1am" },
+    { query: "2026-10-23 please", previous: "Food in Soho at 01:00" },
   ])("normalises the field-only reply in typed and voice requests: $query", async ({ query, previous }) => {
     const turns = [{ role: "user" as const, content: previous }];
     const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
@@ -326,9 +372,10 @@ describe("late-food clarification context", () => {
   });
 
   it.each([
-    { previous: "Food after the pub near Victoria tonight at 1am", titles: ["Balans No.60"] },
+    { previous: "Food after the pub near Victoria tonight at 1am", titles: [] },
     { previous: "Food from a pub near Victoria tonight at 1am", titles: [] },
-  ])("retains the pub requirement only when explicit: $previous", async ({ previous, titles }) => {
+    { previous: "Which pubs are serving food near Victoria tonight at 1am", titles: [] },
+  ])("retains every pub requirement after an area correction: $previous", async ({ previous, titles }) => {
     const response = await runAsk({
       query: "Soho", now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
       turns: [{ role: "user", content: previous }],
