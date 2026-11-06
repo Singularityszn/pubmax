@@ -25,14 +25,14 @@ describe("city capability profiles", () => {
     expect(london.transport.availability).toBe("available");
   });
 
-  it("does not imply that non-London cities have observed pint prices", () => {
+  it("describes non-London coverage without claiming prices are absent", () => {
     for (const city of listEnabledCities()) {
       if (city.id === "london") continue;
       const profile = getCityCapabilityProfile(city.id);
       expect(profile.prices.availability).toBe("unavailable");
       expect(profile.prices.asOf).toBeNull();
       expect(profile.prices.explanation).toBe(
-        "We haven't yet collected pint prices for this city.",
+        "Price coverage varies by place and source.",
       );
     }
   });

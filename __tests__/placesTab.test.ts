@@ -203,7 +203,7 @@ describe("Places city chooser", () => {
 // ---------------------------------------------------------------------------
 
 describe("Places capability copy", () => {
-  it("marks a city with no collected prices as prices coming", () => {
+  it("marks an unavailable city price capability as prices coming", () => {
     const rows = placesCityRows();
     const london = rows.find((row) => row.cityId === "london")!;
     const manchester = rows.find((row) => row.cityId === "manchester")!;
@@ -219,7 +219,7 @@ describe("Places capability copy", () => {
         getCityCapabilityProfile(city.id).prices.explanation,
       );
     }
-    expect(placesPricesLine("manchester")).toMatch(/haven't yet collected pint prices/i);
+    expect(placesPricesLine("manchester")).toBe("Price coverage varies by place and source.");
   });
 
   it("every row's price claim matches the one capability profile", () => {
@@ -227,6 +227,9 @@ describe("Places capability copy", () => {
       const profile = getCityCapabilityProfile(row.cityId);
       expect(row.pricesListed).toBe(profile.prices.availability === "available");
       expect(row.pricesAsOf).toBe(profile.prices.asOf);
+      if (row.cityId !== "london") {
+        expect(row.pricesLine).toBe("Price coverage varies by place and source.");
+      }
     }
   });
 
@@ -592,8 +595,21 @@ describe("Places screen", () => {
     );
     expect(panel).toContain(PLACES_SET_CITY_LABEL);
     expect(panel.match(/data-primary-action/g)?.length).toBe(1);
-    expect(panel).toContain("haven&#x27;t yet collected pint prices");
+    expect(panel).toContain("Price coverage varies by place and source.");
     expect(panel).toContain("Where to drink in Manchester");
+  });
+
+  it("describes every non-London city's price coverage without claiming absence", async () => {
+    const { default: PlacesClient } = await import("@/app/places/PlacesClient");
+
+    for (const city of listEnabledCities()) {
+      if (city.id === "london") continue;
+      const panel = renderToStaticMarkup(createElement(PlacesClient, { cityId: city.id }));
+      expect(panel, city.id).toContain("Pint price coverage</h2>");
+      expect(panel, city.id).toContain("Price coverage varies by place and source.");
+      expect(panel, city.id).not.toContain("No pint prices here yet");
+      expect(panel, city.id).not.toContain("haven&#x27;t yet collected pint prices");
+    }
   });
 
   it("shows London its areas, and every other city the honest gap", () => {
@@ -602,6 +618,8 @@ describe("Places screen", () => {
         createElement(PlacesClient, { cityId: "london" as const }),
       );
       expect(london).toContain("Clapham");
+      expect(london).toContain("Listed pint prices</h2>");
+      expect(london).toContain("London pint prices are available with visible collection dates.");
       expect(london).toContain("Where to drink in London");
       expect(london).toMatch(/<a[^>]*href="\/map\?area=piccadilly-soho"[^>]*>Piccadilly &amp; Soho<\/a>/);
 

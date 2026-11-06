@@ -334,7 +334,7 @@ function CityPanel({
           <h2 id="places-prices-title" className="placesSectionTitle">
             {row.pricesListed
               ? "Listed pint prices"
-              : "No pint prices here yet"}
+              : "Pint price coverage"}
           </h2>
           <p className="placesSectionLine">{placesPricesLine(cityId)}</p>
         </section>

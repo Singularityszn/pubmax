@@ -119,7 +119,8 @@ test.describe("places tab @390", () => {
     ).toBeVisible();
     await expect(page.getByText(/mapped areas in Bath/)).toBeVisible();
     await expect(page.getByText("Areas coming", { exact: true })).toBeVisible();
-    await expect(page.getByText(/haven't yet collected pint prices/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pint price coverage", exact: true })).toBeVisible();
+    await expect(page.getByText("Price coverage varies by place and source.", { exact: true })).toBeVisible();
     // London's areas are London's: they may never appear under another city.
     await expect(page.getByText("Clapham", { exact: true })).toHaveCount(0);
   });

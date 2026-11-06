@@ -104,14 +104,11 @@ describe("what a city's price capability may claim", () => {
     expect(getCityCapabilityProfile("london").prices.asOf).toBe(isoDate(PINT_DATASET_OBSERVED_AT));
   });
 
-  it("keeps the non-London sentence about COLLECTED prices, which an estimate is not", () => {
-    // The wording survives estimates existing, because a modelled figure was
-    // never collected from anybody. It would stop being true only if a city
-    // gained observed prices, which is the case the sweep above already fails.
+  it("keeps non-London coverage neutral across listed and estimated prices", () => {
     for (const city of listEnabledCities()) {
       if (city.id === "london") continue;
       expect(getCityCapabilityProfile(city.id).prices.explanation, city.id).toBe(
-        "We haven't yet collected pint prices for this city.",
+        "Price coverage varies by place and source.",
       );
     }
   });
