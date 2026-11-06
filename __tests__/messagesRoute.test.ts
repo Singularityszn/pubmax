@@ -86,6 +86,49 @@ beforeEach(async () => {
 });
 
 describe("GET /api/messages — inbox", () => {
+  it.each([undefined, "handle=ken", "handle=mallory"])(
+    "returns retryable 503 when ownership lookup fails with query %s",
+    async (query) => {
+      asUser("user-ken");
+      const lookup = vi
+        .spyOn(memoryProfileStore, "getByHandle")
+        .mockRejectedValueOnce(new Error("profile store unavailable"));
+      try {
+        const res = await getInbox(query);
+        expect(res.status).toBe(503);
+        expectNoStore(res);
+        expect(await res.json()).toEqual({
+          error: "Profile storage is unavailable.",
+          code: "UNAVAILABLE",
+          retryable: true,
+        });
+      } finally {
+        lookup.mockRestore();
+      }
+      const recovered = await getInbox(query);
+      expect(recovered.status).toBe(200);
+      expect(await recovered.json()).toEqual({ conversations: [], status: "ready" });
+    },
+  );
+
+  it("reports a profile lookup outage instead of an empty ready inbox", async () => {
+    asUser("user-ken");
+    const lookup = vi
+      .spyOn(memoryProfileStore, "getHandleByUserId")
+      .mockRejectedValueOnce(new Error("profile store unavailable"));
+    try {
+      const res = await getInbox();
+      expect(res.status).toBe(503);
+      expectNoStore(res);
+      expect(await res.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    } finally {
+      lookup.mockRestore();
+    }
+    const recovered = await getInbox();
+    expect(recovered.status).toBe(200);
+    expect(await recovered.json()).toEqual({ conversations: [], status: "ready" });
+  });
+
   it("returns an empty inbox for a missing handle (never 500)", async () => {
     const res = await getInbox();
     expect(res.status).toBe(200);
@@ -133,6 +176,28 @@ describe("GET /api/messages — inbox", () => {
 });
 
 describe("POST /api/messages — open + send validation", () => {
+  it("refuses a profile lookup outage before claiming an asserted handle or sending", async () => {
+    const userId = "user-new";
+    await memoryAdultSelfAssertionStore.record(userId);
+    asUser(userId);
+    const lookup = vi.spyOn(memoryProfileStore, "getHandleByUserId").mockRejectedValueOnce(new Error("profile store unavailable"));
+    try {
+      const res = await postInbox({
+        action: "send",
+        handle: "newhandle",
+        other: "sam",
+        body: "hello",
+      });
+      expect(res.status).toBe(503);
+      expectNoStore(res);
+      expect(await res.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+      expect(await memoryProfileStore.getByHandle("newhandle")).toBeNull();
+      expect((await memoryMessagesStore.listConversations("sam")).conversations).toEqual([]);
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
   it("rejects a malformed body", async () => {
     asUser("user-ken");
     const res = await POST_INBOX(new Request(BASE, { method: "POST", body: "not json" }));
