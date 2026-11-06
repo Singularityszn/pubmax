@@ -115,7 +115,7 @@ Free space stayed above the required 20 GiB reserve.
 The temporary focused type configuration was removed after execution.
 
 Logs and source hashes remain under `artifacts/client-map-fix/`.
-A separate test-evidence copy is under `/Users/karanmanoharan/.no-mistakes/evidence/01M6KG5SPKPXTN8CB7RNMPRZNJ/client-map-fix/`.
+A separate test-evidence copy is in the local validation evidence store.
 The original red log and intermediate failures remain unchanged.
 
 No production build, app server, browser acceptance, microphone, provider, push or pipeline-control command ran during this fix.

@@ -53,7 +53,7 @@ Focused TypeScript passed with the repository's ambient declarations and the cha
 The existing isolated locked dependencies passed the repository freshness check.
 
 Logs, configuration, source hashes, dependency hashes, and the complete working delta remain under `artifacts/generic-map-policy-fix/`.
-A separate test-evidence copy remains under `/Users/karanmanoharan/.no-mistakes/evidence/01M6KG5SPKPXTN8CB7RNMPRZNJ/generic-map-policy-fix/`.
+A separate test-evidence copy remains in the local validation evidence store.
 The original red logs and intermediate verification failures remain unchanged.
 The final source manifest identifies the tested working files, not a future child commit.
 

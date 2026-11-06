@@ -2,7 +2,9 @@
 
 import {
   askRequestClauses,
+  GENERIC_MAP_COMMAND_RE,
   ITEM_PRICE_RE,
+  navigationIsRefused,
   NON_PINT_DRINK_RE,
   semanticAskRequest,
   stripTrailingPunctuation,
@@ -14,7 +16,7 @@ import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
-import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
+import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { conciergeConstraintsInText, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
 
 export type RoutedToolCall = {
@@ -189,7 +191,7 @@ function priceComparisonSubject(query: string): string | null {
       const conjunction = place.search(/\s+and\b/i);
       return conjunction < 0 ? " " : place.slice(conjunction);
     }).trim();
-    return normalizeSubject(subject.replace(/^(?:and|with)\s+/i, ""))
+    return normalizeSubject(subject.replace(/^(?:and|with)(?:\s+|$)/i, ""))
       .replace(PRICE_COMPARISON_RE, "").replace(/\s+/g, " ").trim();
   });
   return subjects.filter(Boolean).join(" ");
@@ -488,6 +490,24 @@ function mapActionRequest(serviceText: string, mapText: string): string | null {
   return request;
 }
 
+// A capitalised word inside a sentence names something ("The Lamb", "near
+// Soho"). "I" and its contractions name nothing.
+const NAMED_WORD_RE = /\s(?!I(?:'m|'ve|'d|'ll)?\b)\p{Lu}/u;
+
+/**
+ * Is this the plain map, asked for in the person's own words, with no pub or
+ * place named beside it ("OK. Show me the map")? Such a request opens the map
+ * itself, so no tool may read a pub name out of its leftover words.
+ */
+export function isGenericMapAsk(query: string): boolean {
+  const mapText = semanticAskRequest(query);
+  if (!GENERIC_MAP_COMMAND_RE.test(mapText) || navigationIsRefused(query)) return false;
+  if (palMapAskTarget(query) !== null || palAsksForCurrentMap(query)) return false;
+  return !semanticAskRequest(query, false)
+    .split(/(?<=[.!?,;])\s+/)
+    .some((sentence) => NAMED_WORD_RE.test(sentence.trim()));
+}
+
 export function askHasPriorityOverMap(query: string): boolean {
   const serviceText = semanticAskRequest(query, false);
   if (unsupportedPriceComparison(serviceText)) return true;
@@ -573,9 +593,11 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     push("propose_plan", { query: rawQuery });
   }
 
-  const mapRequest = calls.length === 0 ? mapActionRequest(text, mapText) : null;
+  // A refused command proposes no map move, and a generic one names no pub.
+  const mapRequest = calls.length === 0 && !navigationIsRefused(rawQuery)
+    ? mapActionRequest(text, mapText) : null;
   if (mapRequest) {
-    const venueName = stripIntentWords(mapRequest);
+    const venueName = isGenericMapAsk(rawQuery) ? "" : stripIntentWords(mapRequest);
     push("propose_map_action", venueName ? { venueName } : { query: rawQuery });
   }
 

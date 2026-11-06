@@ -43,8 +43,9 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    Removal preserves boundaries between surviving requests and punctuation inside venue names.
    Explicit map commands are checked after service intents and before the default venue search.
    Greetings and acknowledgements cannot replace a map command with a default search.
-   In `lib/palVoiceTranscript.ts`, a refusal before or after navigation text prevents navigation across punctuation.
+   A refusal before or after navigation text prevents navigation across punctuation (`navigationIsRefused` in `lib/ask/requestPolicy.ts`).
    The noun in "next stop" does not count as a refusal.
+   A "not" inside an ordinary clause, as in "I'm not sure where I am", does not count as a refusal either.
    Shared concierge constraints preserve implicit discovery without treating a default group size as a request.
    Real food and non-pint price subjects remain visible to the coverage guards.
    Replies, memory and tool context retain the complete original question.
@@ -80,6 +81,7 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
 3. **Propose, never apply** - Ask mutates nothing. `propose_map_action` returns
    a proposal the client applies only after an explicit Confirm.
    A person's explicit generic map command uses client-owned navigation without requiring a server proposal or invented venue cards.
+   On the server, `isGenericMapAsk` (`lib/ask/routingPolicy.ts`) keeps any pub name out of such a command, so neither its leftover words nor a model's guess become a venue.
    Assistant suggestions still require confirmation.
    `propose_plan` returns a draft the client carries to `/plan` behind one "Open in Plan" link
    (`planPalRouteHandoffHref` in `lib/planOccasion.ts`), which prefills the same

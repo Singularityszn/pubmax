@@ -15,7 +15,7 @@
 
 import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { GENERIC_MAP_COMMAND_RE, semanticAskRequest } from "@/lib/ask/requestPolicy";
+import { GENERIC_MAP_COMMAND_RE, navigationIsRefused, semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { askHasPriorityOverMap } from "@/lib/ask/routingPolicy";
 
 export type PalVoiceSpeaker = "you" | "pal";
@@ -100,16 +100,6 @@ export function tentativeUserTranscriptFrom(event: unknown): string | null {
   return typeof text === "string" ? text.trim() : null;
 }
 
-const NAVIGATION_NEGATION_RE = /\b(?:don'?t|do not|dont|never|no need to|not|stop|hold off)\b/;
-
-function navigationIsRefused(text: string): boolean {
-  const normalized = text
-    .toLowerCase()
-    .replace(/[’`]/g, "'")
-    .replace(/\s+/g, " ")
-    .replace(/\bnext[\s\p{Pd}]+stop\b/gu, "");
-  return NAVIGATION_NEGATION_RE.test(normalized);
-}
 
 /** Does the person ask, in their own words, to see the map? */
 export function palAsksForMap(text: string): boolean {

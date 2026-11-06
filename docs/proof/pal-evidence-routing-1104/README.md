@@ -443,11 +443,7 @@ Its temporary configuration added the existing Next and GeoJSON ambient types.
 No Next compiler or type-generation command ran.
 
 Dependency provenance was checked before and after execution.
-The temporary `node_modules` link targeted the authorised existing dependency directory:
-
-```text
-/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M6GWEEP8SGPYQ524JFJT6YSQ/node_modules
-```
+The temporary `node_modules` link targeted the authorised existing dependency directory of the validation worktree.
 
 Both worktrees retained these exact SHA256 hashes:
 
