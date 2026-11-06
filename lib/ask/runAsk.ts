@@ -190,8 +190,8 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   const deterministicOnly = Boolean(recordedDrinks || unsupported || hoursQuestion);
 
   // The Pub Pal sobriety and get-home fence applies to every Ask answer path.
-  // A fenced turn keeps only sourced transport facts and never reaches the model.
-  // Deterministic answers bypass every provider, so they use the regex table.
+  // A fenced turn keeps only sourced transport facts and skips answer routing.
+  // Deterministic answers use the regex table to avoid model providers.
   const fence = input.skipModel || deterministicOnly
     ? regexFenceIntent(query, turns)
     : await resolvePubPalFenceIntent(query, turns);

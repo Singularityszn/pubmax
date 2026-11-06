@@ -93,7 +93,8 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    (same honesty as heritage structured-only).
 5. **Bounded model loop (map Ask)** — with OpenRouter, tool-calling on
    `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
-   The model selects tools only. For model-routed turns, `composeAnswer`
+   The safety check below precedes this loop. The model selects tools only.
+   For model-routed turns, `composeAnswer`
    builds reader copy from returned hints and cards.
 6. **Pal typed chat and voice (ElevenLabs when configured)** — without
    `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, typed chat on
@@ -120,6 +121,18 @@ the route was ever found in `app`,
 `parseConciergeIntent` is TypeSafe when keyed (`lib/ai/typesafe.server.ts`)
 and the mood/area/group/budget regex table when not. It no longer calls
 OpenRouter.
+
+### Sobriety and getting-home routing
+
+The [Pub Pal feature guide](../../README.md#features) owns the user-facing safety response.
+`runAsk` checks the current query and user history through `lib/pubPalLlmFence.ts`
+before deterministic tools, the OpenRouter loop or fallback routing can answer.
+Assistant history does not trigger the check.
+`skipModel` and deterministic menu, price and hours paths use `regexFenceIntent` without a model provider.
+Other paths use `resolvePubPalFenceIntent`, which uses TypeSafe when available and retains the regex fallback.
+A matched turn runs only deterministically selected `journey` and `city_status` tools.
+It composes the shared response through `pubPalGetHomeRegisterAnswer` and returns before the OpenRouter loop.
+Regression coverage: `__tests__/askSobrietyParity.test.ts`.
 
 ## Consequences
 

@@ -88,6 +88,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   An unmatched or ambiguous pub name prompts a question. A failed record read produces a separate failure message.
   This lookup does not confirm live open-now status or holiday hours.
 
+  Map Ask uses the same safety response as Pub Pal for sobriety and getting-home questions.
+  It does not assess sobriety or recommend another drink.
+  It points you to **Getting Home** on the venue sheet and retains sourced transport facts.
+
   Voice starts only after your action. You can cancel startup or choose **Ask in writing** if voice cannot connect. The status line tells you when your chosen voice falls back to the default. Configured voice shows transcripts, returned pub cards and their map.
 
   Memory cards in text and voice need your confirmation. Approved past-night reports can retain your stated visits, drinks and spending. Recorded pint prices never establish your bill. Correct or delete memories on your Pal page.
