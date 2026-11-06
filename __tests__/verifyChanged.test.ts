@@ -57,6 +57,7 @@ describe("the full-suite escalation", () => {
     "next.config.mjs",
     "__tests__/helpers/defined.ts",
     "scripts/verify-changed.mjs",
+    "scripts/run-with-restored-bundled-data.mjs",
   ])("runs the whole merge bar when %s changes", (path) => {
     expect(fullSuiteReason(modified(path), new Map())).toContain(path);
   });
