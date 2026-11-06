@@ -549,6 +549,7 @@ for (const width of [390, 320]) {
 
 for (const width of [1280, 1440]) {
   test(`${width}px OpenStreetMap credit owns its hit target and opens`, async ({
+    context,
     page,
   }) => {
     test.setTimeout(90_000);
@@ -591,6 +592,23 @@ for (const width of [1280, 1440]) {
       hit.isCredit,
       `credit centre belongs to ${JSON.stringify(hit)}`,
     ).toBe(true);
+
+    // The popup's first request needs a browser-context route.
+    await context.route("https://www.openstreetmap.org/copyright", (route) => {
+      const request = route.request();
+      if (
+        request.method() !== "GET" ||
+        !request.isNavigationRequest() ||
+        request.resourceType() !== "document"
+      ) {
+        return route.fallback();
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "text/html; charset=utf-8",
+        body: "<!doctype html><title>OpenStreetMap copyright</title>",
+      });
+    });
 
     const opened = Promise.any([
       page.waitForEvent("popup", { timeout: 5_000 }).then((popup) => ({
