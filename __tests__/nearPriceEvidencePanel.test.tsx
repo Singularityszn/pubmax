@@ -410,3 +410,29 @@ it.each(["signed-out", "unverified", "different-owner", "disabled"] as const)("d
   expect(host!.querySelector(".pemOpen")?.textContent).toBe("Log it");
   expect(document.activeElement).toBe(outside);
 });
+
+it("draws no row above the Pint cards while the first price-check import is held", async () => {
+  // Most readers have no price check, and the mission then renders nothing. A
+  // visible wait row would push the cards down and pull them back up.
+  const Panel = createNearPriceEvidencePanel(() => new Promise<MissionModule>(() => {}));
+  host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  await act(async () => root!.render(<Panel cards={cards} enabled />));
+  const status = host.querySelector('[role="status"]')!;
+  expect(status.textContent).toBe("Loading price check.");
+  expect(status.classList.contains("sr-only")).toBe(true);
+  expect(status.classList.contains("nmnStatus")).toBe(false);
+});
+
+it("shows a visible wait after a retry, in the space the failure row held", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  const load = vi.fn<() => Promise<MissionModule>>()
+    .mockRejectedValueOnce(new Error("ChunkLoadError"))
+    .mockImplementation(() => new Promise<MissionModule>(() => {}));
+  const Panel = createNearPriceEvidencePanel(load);
+  host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+  await act(async () => root!.render(<Panel cards={cards} enabled />));
+  await settle();
+  act(() => host!.querySelector<HTMLButtonElement>('[role="alert"] button')!.click());
+  await settle();
+  expect(host.querySelector('[role="status"]')?.classList.contains("nmnStatus")).toBe(true);
+});

@@ -68,7 +68,10 @@ export function createNearPriceEvidencePanel(load: MissionLoader): ComponentType
           </ReadyButton>
         </div></MissionFocus>}
       >
-        <Suspense fallback={<MissionFocus key="loading" transfer={transfer}><div className="nmnStatus" role="status">Loading price check.</div></MissionFocus>}>
+        {/* Most readers have no price check, so the first wait draws no row
+            above the Pint cards. After a retry the wait takes the space the
+            failure row held, so nothing moves either way. */}
+        <Suspense fallback={<MissionFocus key="loading" transfer={transfer}><div className={attempt === 0 ? "sr-only" : "nmnStatus"} role="status">Loading price check.</div></MissionFocus>}>
           <MissionFocus key="ready" transfer={transfer}><Mission {...props} /></MissionFocus>
         </Suspense>
       </MissionBoundary>
