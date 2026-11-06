@@ -124,6 +124,7 @@ jobs:
           e2e/visit-reports.spec.ts
           e2e/landing-find-my-pint.spec.ts
           e2e/out-tab.spec.ts
+          e2e/one-good-night-recovery.spec.ts
           --project=chromium
           --workers=1
 
@@ -199,6 +200,7 @@ jobs:
               { files++ }
               /^__tests__\// || /^data\// || /^public\/data\// { next }
               /^supabase\/(migrations|rollbacks)\// || /^docs\// || /\.md$/ { next }
+              /^scripts\/e2e\/canonical-price-server\.ts$/ { ui++; next }
               /^scripts\// || /^app\/api\// || /^app\/(.*\/)?route\.[cm]?[jt]sx?$/ { next }
               { ui++ }
               END { if (ui || !files) print "ui"; else print "none" }')"
@@ -309,6 +311,7 @@ jobs:
           e2e/mobile-pal-layout.spec.ts
           e2e/mobile-profile.spec.ts
           e2e/mobile-venue-sheet-tabs.spec.ts
+          e2e/native-onboarding-actions.spec.ts
           e2e/night-mode-chrome.spec.ts
           e2e/pal-chat-composer.spec.ts
           e2e/passport-and-activity.spec.ts
@@ -330,6 +333,7 @@ jobs:
           e2e/ux-consent-chrome.spec.ts
           e2e/venue-sheet-tablet-command-bar.spec.ts
           e2e/venue-tabs-fit.spec.ts
+          e2e/web-first-run-journey.spec.ts
           e2e/wordmark-chrome.spec.ts
           --project=chromium
           --project=chromium-gl

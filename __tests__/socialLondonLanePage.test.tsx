@@ -16,6 +16,7 @@ const viewer = vi.hoisted(() => ({
   session: {} as ViewerSession,
 }));
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
+const loadedPrivateTools = vi.hoisted(() => ({ composer: 0, outbox: 0, tags: 0, ranking: 0, crews: 0 }));
 
 vi.mock("next/link", () => ({
   useLinkStatus: () => ({ pending: false }),
@@ -35,16 +36,17 @@ vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: transport.request, auth
 vi.mock("@/lib/deviceAccountIdentity", () => ({ subscribeDeviceIdentity: () => () => undefined }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/profile/HandleAvatar", () => ({ default: () => null }));
-vi.mock("@/components/social/CrewsPanel", () => ({ default: () => null }));
+vi.mock("@/components/social/CrewsPanel", () => { loadedPrivateTools.crews++; return { default: () => null }; });
+vi.mock("@/components/social/PubRankingPanel", () => { loadedPrivateTools.ranking++; return { default: () => null }; });
 vi.mock("@/components/social/CreatorListsLane", () => ({ default: () => null }));
 vi.mock("@/components/social/PeopleDirectory", () => ({ default: () => null }));
 vi.mock("@/components/social/StarterPacks", () => ({ default: () => null }));
 vi.mock("@/components/social/FindYourLot", () => ({ default: () => null }));
 vi.mock("@/components/founding/FoundersWallLink", () => ({ default: () => null }));
 vi.mock("@/app/discover/DiscoverPageClient", () => ({ DiscoverBody: () => null }));
-vi.mock("@/app/social/SocialComposer", () => ({ default: () => createElement("p", null, "composer") }));
-vi.mock("@/app/social/SocialOutbox", () => ({ default: () => null }));
-vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
+vi.mock("@/app/social/SocialComposer", () => { loadedPrivateTools.composer++; return { default: () => createElement("p", null, "composer") }; });
+vi.mock("@/app/social/SocialOutbox", () => { loadedPrivateTools.outbox++; return { default: () => null }; });
+vi.mock("@/app/social/SocialTagInbox", () => { loadedPrivateTools.tags++; return { default: () => null }; });
 
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
@@ -152,6 +154,11 @@ async function renderSocial(londonLaneOpen: boolean, publicAlternatives?: Social
 }
 
 describe("/social signed out, London lane open", () => {
+  it("shows the public lane without loading private posting tools", async () => {
+    await renderSocial(true);
+    expect(host.textContent).toContain("Proper pint at the Lamb");
+    expect(loadedPrivateTools).toEqual({ composer: 0, outbox: 0, tags: 0, ranking: 0, crews: 0 });
+  });
   it("puts real crawls, dated prices and a plan action before the empty lane's sign-in offer", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
     await renderSocial(true, ALTERNATIVES);

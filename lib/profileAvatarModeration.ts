@@ -1,6 +1,7 @@
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
 import { traceArizeModelCall } from "@/lib/observability/arize";
+import { fetchModerationPayload } from "@/lib/moderationTransport";
 
 const DEFAULT_MODERATION_TIMEOUT_MS = 10_000;
 const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -22,10 +23,6 @@ export class ProfileAvatarModerationError extends Error {
 export type ProfileAvatarModerationAdapter = {
   moderate(imageUrl: string): Promise<{ decision: "approved" | "needs_review" }>;
 };
-
-function moderationRetryable(status: number): boolean {
-  return status === 408 || status === 429 || status >= 500;
-}
 
 /** Tolerant JSON object extraction for model replies (fenced blocks or inline braces). */
 export function extractModerationJsonObject(text: string): unknown {
@@ -91,11 +88,10 @@ export class OpenAIProfileAvatarModerationAdapter implements ProfileAvatarModera
       model: "omni-moderation-latest",
       provider: "openai",
       call: async (span) => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-        let response: Response;
-        try {
-          response = await this.fetcher("https://api.openai.com/v1/moderations", {
+        const payload = await fetchModerationPayload(
+          this.fetcher,
+          "https://api.openai.com/v1/moderations",
+          {
             method: "POST",
             headers: {
               Authorization: `Bearer ${this.apiKey}`,
@@ -105,25 +101,11 @@ export class OpenAIProfileAvatarModerationAdapter implements ProfileAvatarModera
               model: "omni-moderation-latest",
               input: [{ type: "image_url", image_url: { url: imageUrl } }],
             }),
-            signal: controller.signal,
-          });
-        } catch {
-          throw new ProfileAvatarModerationError("OpenAI moderation request failed.", true);
-        } finally {
-          clearTimeout(timeout);
-        }
-        if (!response.ok) {
-          throw new ProfileAvatarModerationError(
-            `OpenAI moderation returned ${response.status}.`,
-            moderationRetryable(response.status),
-          );
-        }
-        let payload: unknown;
-        try {
-          payload = await response.json();
-        } catch {
-          throw new ProfileAvatarModerationError("OpenAI moderation returned invalid JSON.", false);
-        }
+          },
+          this.timeoutMs,
+          "OpenAI",
+          (message, retryable) => new ProfileAvatarModerationError(message, retryable),
+        );
         const result = payload && typeof payload === "object" &&
           Array.isArray((payload as { results?: unknown }).results)
           ? (payload as { results: unknown[] }).results[0]
@@ -183,11 +165,10 @@ export class OpenRouterAvatarModerationAdapter implements ProfileAvatarModeratio
       model: this.model,
       provider: "openrouter",
       call: async (span) => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-        let response: Response;
-        try {
-          response = await this.fetcher(OPENROUTER_CHAT_URL, {
+        const payload = await fetchModerationPayload(
+          this.fetcher,
+          OPENROUTER_CHAT_URL,
+          {
             method: "POST",
             headers: {
               Authorization: `Bearer ${this.apiKey}`,
@@ -207,25 +188,11 @@ export class OpenRouterAvatarModerationAdapter implements ProfileAvatarModeratio
                 },
               ],
             }),
-            signal: controller.signal,
-          });
-        } catch {
-          throw new ProfileAvatarModerationError("OpenRouter moderation request failed.", true);
-        } finally {
-          clearTimeout(timeout);
-        }
-        if (!response.ok) {
-          throw new ProfileAvatarModerationError(
-            `OpenRouter moderation returned ${response.status}.`,
-            moderationRetryable(response.status),
-          );
-        }
-        let payload: unknown;
-        try {
-          payload = await response.json();
-        } catch {
-          throw new ProfileAvatarModerationError("OpenRouter moderation returned invalid JSON.", false);
-        }
+          },
+          this.timeoutMs,
+          "OpenRouter",
+          (message, retryable) => new ProfileAvatarModerationError(message, retryable),
+        );
         const payloadRecord =
           payload && typeof payload === "object" ? payload as { usage?: {
             prompt_tokens?: number;

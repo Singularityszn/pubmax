@@ -48,7 +48,7 @@ describe("the £20 crawl option", () => {
     const onSubmit = vi.fn();
     await render("Quiet in Clapham for 4", onSubmit);
     await act(async () => button("Plan it").click());
-    expect(onSubmit).toHaveBeenCalledWith("Quiet in Clapham for 4", 3);
+    expect(onSubmit).toHaveBeenCalledWith("Quiet in Clapham for 4", undefined);
   });
 
   it("adds the £20 crawl to the ask once tapped, and says it is on", async () => {
@@ -59,7 +59,7 @@ describe("the £20 crawl option", () => {
     await act(async () => chip.click());
     expect(button("£20 crawl").getAttribute("aria-pressed")).toBe("true");
     await act(async () => button("Plan it").click());
-    expect(onSubmit).toHaveBeenCalledWith("Quiet in Clapham for 4, a £20 crawl", 3);
+    expect(onSubmit).toHaveBeenCalledWith("Quiet in Clapham for 4, a £20 crawl", undefined);
   });
 
   it("leaves a budget the reader typed alone", async () => {
@@ -67,6 +67,6 @@ describe("the £20 crawl option", () => {
     await render("Soho for 3, £30.00 per person", onSubmit);
     await act(async () => button("£20 crawl").click());
     await act(async () => button("Plan it").click());
-    expect(onSubmit).toHaveBeenCalledWith("Soho for 3, £30.00 per person", 3);
+    expect(onSubmit).toHaveBeenCalledWith("Soho for 3, £30.00 per person", undefined);
   });
 });

@@ -98,7 +98,12 @@ describe("GET/POST/DELETE /api/step-out-nudge", () => {
     });
   });
 
-  it("enables with a web subscription and withdraws cleanly", async () => {
+  it.each([
+    { method: "DELETE", cheapPintEnabled: false },
+    { method: "DELETE", cheapPintEnabled: true },
+    { method: "POST", cheapPintEnabled: false },
+    { method: "POST", cheapPintEnabled: true },
+  ])("preserves shared push after $method withdrawal with cheap-pint=$cheapPintEnabled", async ({ method, cheapPintEnabled }) => {
     const enable = await POST(
       new Request("http://localhost/api/step-out-nudge", {
         method: "POST",
@@ -108,39 +113,25 @@ describe("GET/POST/DELETE /api/step-out-nudge", () => {
     expect(enable.status).toBe(200);
     await expect(enable.json()).resolves.toMatchObject({ enabled: true });
     expect(__listMemoryPushTokens().some((row) => row.token === TOKEN)).toBe(true);
+    if (cheapPintEnabled) {
+      await memoryStepOutNudgeStore.optInCheapPint(ACTOR, TOKEN);
+    }
 
-    const withdraw = await DELETE(
-      new Request("http://localhost/api/step-out-nudge", { method: "DELETE" }),
-    );
-    expect(withdraw.status).toBe(200);
-    await expect(withdraw.json()).resolves.toMatchObject({ enabled: false });
-    expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
-      enabled: false,
-      subscriptionToken: null,
+    const request = new Request("http://localhost/api/step-out-nudge", {
+      method,
+      ...(method === "POST" ? { body: JSON.stringify({ enabled: false }) } : {}),
     });
-    expect(__listMemoryPushTokens().some((row) => row.token === TOKEN)).toBe(false);
-  });
-
-  it("keeps the push token when cheap pint ping stays enabled", async () => {
-    const enable = await POST(
-      new Request("http://localhost/api/step-out-nudge", {
-        method: "POST",
-        body: JSON.stringify({ enabled: true, token: TOKEN }),
-      }),
-    );
-    expect(enable.status).toBe(200);
-    await memoryStepOutNudgeStore.optInCheapPint(ACTOR, TOKEN);
-
-    const withdraw = await DELETE(
-      new Request("http://localhost/api/step-out-nudge", { method: "DELETE" }),
-    );
+    const withdraw = await (method === "POST" ? POST(request) : DELETE(request));
     expect(withdraw.status).toBe(200);
+    await expect(withdraw.json()).resolves.toMatchObject({ enabled: false, canSend: false });
     expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
       enabled: false,
-      cheapPintEnabled: true,
-      subscriptionToken: TOKEN,
+      cheapPintEnabled,
+      subscriptionToken: cheapPintEnabled ? TOKEN : null,
     });
     expect(__listMemoryPushTokens().some((row) => row.token === TOKEN)).toBe(true);
+    const read = await GET(new Request("http://localhost/api/step-out-nudge"));
+    await expect(read.json()).resolves.toMatchObject({ enabled: false, canSend: false });
   });
 
   it("refuses enable without a valid web token", async () => {
