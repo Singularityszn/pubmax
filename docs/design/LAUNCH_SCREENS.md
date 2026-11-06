@@ -2,8 +2,8 @@
 
 The screen table for the September 2026 relaunch (issue #1354). One row per
 route a visitor can reach from the phone chrome or a shared link. Each row
-names the kicker, the heading, the ONE primary action and at most one
-secondary, in the order the `Screen` primitive renders them
+names the kicker, the heading, the primary action and the secondary actions,
+in the order the `Screen` primitive renders them
 (`components/ui/screen.tsx`). The surface audit PR walks this table route by
 route; `__tests__/coreUiAudit.test.ts` counts one primary action per route.
 
