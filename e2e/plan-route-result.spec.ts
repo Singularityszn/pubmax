@@ -45,9 +45,17 @@ async function sortARoute(page: Page): Promise<void> {
   });
   await page.goto("/plan");
   await page.waitForLoadState("networkidle");
-  await page.getByRole("textbox", { name: "Where, how many, what budget" }).fill("Quiet in Clapham for 4");
-  await page.getByRole("button", { name: "Plan it", exact: true }).click();
-  await expect(page.getByTestId("plan-route-summary")).toBeVisible({ timeout: 30_000 });
+  // A server-painted Plan it is tappable before React attaches, and that tap
+  // is dropped with nothing on screen to say so (e2e/AGENTS.md, "A LONE CLICK
+  // IS NOT A WAIT FOR HYDRATION"). Retry the fill and the tap, not the wait.
+  const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
+  const planIt = page.getByRole("button", { name: "Plan it", exact: true });
+  const summary = page.getByTestId("plan-route-summary");
+  await expect(async () => {
+    await description.fill("Quiet in Clapham for 4");
+    await planIt.click();
+    await expect(summary).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 45_000 });
 }
 
 test.describe("the Plan result is a route", () => {
