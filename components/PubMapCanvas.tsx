@@ -922,10 +922,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       publishMapReady(true);
       publishMapErrored(true);
       // First writer wins. Several independent watchdogs can lapse inside the
-      // same dead episode, and the LATER one is the vaguer one: a tile source
-      // that refused is diagnosed by `surfaceBasemapFailure` at 8s, and the
-      // first-frame watchdog would overwrite it at 10s with "this browser
-      // cannot show the map", blaming the device for an unreachable server.
+      // same dead episode. A conclusive initial fallback-style failure can
+      // reach `surfaceBasemapFailure` before the style timeout. The first-frame
+      // watchdog must not replace that diagnosis with a browser failure.
       // Retry clears mapError, so the next episode reports freely.
       setMapError((current) => current ?? error);
     },
@@ -2736,11 +2735,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     };
     // --- Basemap fallback: OpenFreeMap is community-run, so if the primary style
     // hasn't loaded within a timeout (or errors before first load), swap to
-    // CARTO's keyless styles; if that also fails, surface the same graceful
-    // notice as a WebGL failure rather than a blank map.
+    // CARTO's keyless styles. If that also fails, surface the tiles error
+    // rather than blaming the browser for an unreachable server.
     let styleLoaded = false;
     let styleEverLoaded = false;
     let usingFallback = false;
+    let pendingFallbackStyleUrl: string | null = null;
     let sceneSettled = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
     let hardFailTimer: ReturnType<typeof setTimeout> | undefined;
@@ -3031,6 +3031,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (supersede) queuedProtectedStyle = null;
       protectedStyleInFlight = true;
       usingFallback = fallback;
+      pendingFallbackStyleUrl = fallback ? style : null;
       armStyleLoadProtection();
       styleStructureReadyRef.current = false;
       try {
@@ -3070,6 +3071,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       styleStructureReadyRef.current = true;
       styleLoaded = true;
       styleEverLoaded = true;
+      pendingFallbackStyleUrl = null;
       clearStyleLoadProtection();
       if (!protectedStyleInFlight) return;
       protectedStyleInFlight = false;
@@ -3300,9 +3302,40 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         message || "Tile source failure after style load",
       );
     };
+    // Only the pending URL from the live MapLibre Style can end this wait.
+    // While a theme is queued, a failed predecessor does not end the wait
+    // early. The queue drains only on `style.load`, so in that case the
+    // failure surfaces at the style-load timeout.
+    function isCurrentFallbackStyleError(event: {
+      error?: { url?: unknown };
+      style?: unknown;
+      sourceId?: unknown;
+      tile?: unknown;
+    }): boolean {
+      return mapRef.current === map &&
+        usingFallback &&
+        pendingFallbackStyleUrl !== null &&
+        queuedProtectedStyle === null &&
+        event.error?.url === pendingFallbackStyleUrl &&
+        event.style === map.style &&
+        event.tile === undefined &&
+        event.sourceId === undefined;
+    }
+    function handleInitialStyleFailure(event: Parameters<typeof isCurrentFallbackStyleError>[0], message: string): boolean {
+      if (styleLoaded || styleEverLoaded) return false;
+      // Tile, worker and stale-style errors do not spend the pending timeout.
+      if (isCurrentFallbackStyleError(event)) {
+        clearStyleLoadProtection();
+        surfaceBasemapFailure(message || "Fallback style request failed");
+      } else {
+        swapToBasemapFallback();
+      }
+      return true;
+    }
     map.on("error", (event) => {
       const mapError = event as {
-        error?: { message?: unknown };
+        error?: { message?: unknown; url?: unknown };
+        style?: unknown;
         sourceId?: unknown;
         source?: { type?: unknown };
         tile?: { tileID?: { key?: unknown; canonical?: { x: number; y: number; z: number } } };
@@ -3337,10 +3370,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         mapError.source?.type === "vector" &&
         mapError.tile !== undefined &&
         (silentSourceRetries >= TILE_SILENT_RETRY_MAX || tileSpend.retrySpent);
-      if (!styleLoaded && !styleEverLoaded) {
-        swapToBasemapFallback();
-        return;
-      }
+      if (handleInitialStyleFailure(mapError, message)) return;
       if (tileSpend.surfaced || mapRef.current !== map) return;
       const now = performance.now();
       tileFailureStamps = pruneTileFailures(tileFailureStamps, now);

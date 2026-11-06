@@ -67,7 +67,7 @@ import {
   useNearPriceTrust,
   type NearPriceTrustView,
 } from "@/components/nearme/useNearPriceTrust";
-import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
+import NearPriceEvidencePanel from "@/components/nearme/NearPriceEvidencePanel";
 import NearCheapestAnything from "@/components/nearme/NearCheapestAnything";
 import {
   nearGuinnessRows,
@@ -219,7 +219,7 @@ function AnswerCards({
         <p className="nmnAcceptReceipt">{receipt}</p>
       ) : null}
       {accept && cards.length > 0 ? (
-        <NearPriceEvidenceMission cards={cards} enabled />
+        <NearPriceEvidencePanel cards={cards} enabled />
       ) : null}
       <NearMeCardList
         cards={cards}

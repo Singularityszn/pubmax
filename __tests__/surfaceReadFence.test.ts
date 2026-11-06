@@ -1,7 +1,14 @@
+// @vitest-environment jsdom
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import TonightAnswerCards from "@/components/tonight/TonightAnswerCards";
+import { useTonightAnswers } from "@/components/tonight/useTonightAnswers";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 
 /**
  * Direct client fetches that are not reusable painted reads.
@@ -59,6 +66,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/useCrawlJourneys.ts", fetchCount: 1, reason: "crawl journey reads are live route interaction" },
   { path: "components/map/usePintDrops.ts", fetchCount: 3, reason: "map Pint Drop reads and writes use the map feed lane" },
   { path: "components/tonight/AddRegularNight.tsx", fetchCount: 1, reason: "the regular-night form's pub search is a debounced typeahead read per keystroke, never a painted reload surface" },
+  { path: "components/tonight/useTonightAnswerReads.ts", fetchCount: 1, reason: "one selected venue detail validates its venue ID and priceDatasetDigest before publishing. Its AbortSignal retires the read on winner or snapshot changes. The shared cache alone cannot establish that selected published snapshot. Other hook reads retain their existing transports. Executed by this file and tonightAnswerEvidence.test.tsx" },
   { path: "components/map/inspector/VenueKitchenReport.tsx", fetchCount: 1, reason: "a kitchen report is a drinker's word that goes quiet after 90 minutes and is confirmed or replaced by the next tap, so a held snapshot could print a word after it has gone quiet; the drinker regular-night read beside Tonight now rides authedFetch so the reader's own rows are marked" },
   { path: "components/map/useVenueJourney.ts", fetchCount: 1, reason: "venue journey is location and route interaction" },
   { path: "components/map/useVenueOccupancy.ts", fetchCount: 2, reason: "occupancy now-read is fail-soft and must never cache as an empty pub; flag fallback uses bare fetch when auth is absent, and the report beside it is a write" },
@@ -268,5 +276,144 @@ describe("painted reads", () => {
       orphaned: [],
       invalid: [],
     });
+  });
+});
+
+
+describe("Tonight selected-detail exemption behaviour", () => {
+  const digest = "abcdefghijklmnopqrstuv";
+  const origin = { lat: 51.51, lng: -0.13 };
+  let root: ReturnType<typeof createRoot>;
+  let container: HTMLDivElement;
+  let reply: (response: Response) => void;
+  let reject: (error: Error) => void;
+  let signal: AbortSignal | undefined;
+  let detailRequests: string[];
+  const cityRows = [{ venueId: "city", name: "City Arms", borough: "Soho", priceGbp: 5, chain: null,
+    drinkLabel: "City lager", servingSize: "Pint", publisher: { label: "City menu", url: "https://city.example/menu" }, observedAt: "2026-07-04" }];
+
+  function Probe({ area = false, located = true }: { area?: boolean; located?: boolean }) {
+    const answers = useTonightAnswers({
+      origin: located && !area ? origin : null,
+      tonightNear: located && area ? { patchLabel: "Soho", near: origin } : null,
+      listingRows: [], listingsStateKind: "refreshing", selectableVenueIds: new Set<string>(),
+      cheapPints: cityRows, renderedAt: 1793707200000,
+    });
+    return createElement(TonightAnswerCards, { ...answers, onShareLocation: () => undefined });
+  }
+
+  async function render(props: Parameters<typeof Probe>[0] = {}) {
+    await act(async () => root.render(createElement(Probe, props)));
+    await vi.waitFor(async () => {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(container.querySelector('[data-testid="tonight-answer-cheapest"]')?.textContent)
+        .toContain(props.located === false ? "City Arms" : "Near Arms");
+    });
+  }
+
+  function detail(overrides: Record<string, unknown> = {}): Response {
+    return { ok: true, json: async () => ({ priceDatasetDigest: digest,
+      venue: { id: "near", prices: [
+        { price_gbp: 4.5, pint_name: "Selected lager", measure: "pint", pub_url: "https://selected.example/menu", scraped_at_values: "2026-07-03T12:00:00Z" },
+        { price_gbp: 4.5, pint_name: "Other lager", measure: "pint", pub_url: "https://other.example/menu", scraped_at_values: "2026-07-04T12:00:00Z" },
+      ] }, ...overrides,
+    }) } as Response;
+  }
+
+  function expectUnavailable() {
+    const card = container.querySelector('[data-testid="tonight-answer-cheapest"]');
+    expect(card?.textContent).toContain("Near Arms");
+    expect(card?.textContent).toContain("Drink unavailable");
+    expect(card?.textContent).toContain("Serving unavailable");
+    expect(card?.textContent).toContain("Publisher not recorded");
+    expect(card?.textContent).toContain("Read date not recorded");
+    expect(card?.textContent).not.toContain("Slim lager");
+    expect(card?.textContent).not.toContain("Slim menu");
+    expect(card?.querySelector("time")).toBeNull();
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    clearSurfaceCache();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    detailRequests = [];
+    signal = undefined;
+    const held = new Promise<Response>((resolve, fail) => { reply = resolve; reject = fail; });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input).split("?")[0];
+      if (path?.startsWith("/api/venue/")) {
+        detailRequests.push(path);
+        signal = init?.signal ?? undefined;
+        return held;
+      }
+      if (path === "/data/venues_slim.manifest.json") return { ok: true, json: async () => ({
+        version: 2, priceDatasetDigest: digest,
+        grid: { originLat: 0, originLon: 0, latStep: 1, lonStep: 1 },
+        shards: [{ id: "core", core: true, url: "/data/venues_slim.core.json", count: 1, bbox: [-0.2, 51.45, 0, 51.55] }],
+      }) } as Response;
+      if (path === "/data/venues_slim.core.json") return { ok: true, json: async () => ({ d: digest, rows: [{
+        id: "near", name: "Near Arms", lat: origin.lat, lng: origin.lng, borough: "Soho", cheapestPrice: 4.5,
+        priceSource: "Slim menu", priceSourceUrl: "https://slim.example/menu", priceObservedAt: "2026-07-03",
+        cheapestPint: "Slim lager", measure: "pint",
+      }] }) } as Response;
+      return { ok: true, json: async () => ({ rows: [] }) } as Response;
+    }));
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    clearSurfaceCache();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([false, true])("withholds all nearby facts until matching detail succeeds, area=%s", async (area) => {
+    await render({ area });
+    expectUnavailable();
+    expect(detailRequests).toEqual(["/api/venue/near"]);
+    await act(async () => { reply(detail()); });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    const card = container.querySelector('[data-testid="tonight-answer-cheapest"]');
+    expect(card?.textContent).toContain("Selected lager");
+    expect(card?.textContent).toContain("3 Jul 2026");
+    expect(card?.querySelector('a[href="https://selected.example/menu"]')).not.toBeNull();
+    expect(card?.textContent).not.toContain("Other lager");
+  });
+
+  it.each(["failed", "http", "snapshot", "venue", "missing"])("keeps facts unavailable after a %s detail read", async (failure) => {
+    await render();
+    await act(async () => {
+      if (failure === "failed") reject(new Error("offline"));
+      else if (failure === "http") reply({ ok: false } as Response);
+      else if (failure === "snapshot") reply(detail({ priceDatasetDigest: "other" }));
+      else if (failure === "venue") reply(detail({ venue: { id: "other", prices: [{ pint_name: "Wrong lager" }] } }));
+      else reply(detail({ venue: { id: "near", prices: [] } }));
+    });
+    expectUnavailable();
+  });
+
+  it("cancels detail when the nearby winner disappears and preserves city evidence", async () => {
+    await render();
+    expect(signal?.aborted).toBe(false);
+    await render({ located: false });
+    expect(signal?.aborted).toBe(true);
+    await act(async () => { reply(detail()); });
+    expect(container.textContent).toContain("City lager");
+    expect(container.textContent).toContain("4 Jul 2026");
+    expect(container.textContent).not.toContain("Selected lager");
+    expect(container.querySelector('a[href="https://city.example/menu"]')).not.toBeNull();
+  });
+
+  it("cancels the selected read on unmount", async () => {
+    await render();
+    expect(signal?.aborted).toBe(false);
+    await act(async () => root.unmount());
+    expect(signal?.aborted).toBe(true);
+    await act(async () => { reply(detail()); });
+    root = createRoot(container);
+    expect(container.textContent).toBe("");
   });
 });
