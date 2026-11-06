@@ -141,31 +141,17 @@ describe("similarly named pubs in different areas", () => {
   });
 });
 
-describe("the shipped index keeps the three Cheshire Cheeses apart", () => {
-  const crutchedFriars = bySlug("cheshire-cheese");
-  const strand = bySlug("the-cheshire-cheese");
-  const fleetStreet = bySlug("ye-olde-cheshire-cheese");
-
-  it("gives each one its own identity", () => {
-    const ids = [crutchedFriars.venueId, strand.venueId, fleetStreet.venueId];
-    expect(new Set(ids).size).toBe(3);
-    expect(new Set([crutchedFriars.lat, strand.lat, fleetStreet.lat]).size).toBe(3);
+describe("the shipped index requires an address for the Cheshire Cheese identity", () => {
+  it("keeps the Crutched Friars fact on its own verified venue", () => {
+    const pub = bySlug("cheshire-cheese");
+    expect(pub.borough).toBe("City of London");
+    expect(defined(pub.facts[0]).fact).toContain("48 Crutched Friars");
   });
 
-  it("labels the Crutched Friars pub with the borough its own description names", () => {
-    expect(crutchedFriars.borough).toBe("City of London");
-    expect(defined(crutchedFriars.facts[0]).fact).toContain("48 Crutched Friars");
-  });
-
-  it("leaves the Strand pub with only the fact that is about it", () => {
-    expect(strand.borough).toBe("Westminster");
-    expect(strand.facts.map((f) => f.fact)).toEqual(["pub in Essex Street, Strand, London"]);
-    expect(JSON.stringify(strand)).not.toContain("Crutched Friars");
-  });
-
-  it("leaves the Fleet Street pub untouched and distinct", () => {
-    expect(fleetStreet.borough).toBe("City of London");
-    expect(fleetStreet.name).toBe("Ye Olde Cheshire Cheese");
+  it("withholds the Strand and Fleet Street records with no verified address", () => {
+    const rows = historicRows();
+    expect(rows.find((row) => row.slug === "the-cheshire-cheese")).toBeUndefined();
+    expect(rows.find((row) => row.slug === "ye-olde-cheshire-cheese")).toBeUndefined();
   });
 });
 

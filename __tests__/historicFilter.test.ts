@@ -246,13 +246,10 @@ describe("venueStatusBadge", () => {
     }
   });
 
-  it("named audit pubs carry a recorded status in the bundle", () => {
+  it("withholds status-only facts without verified venue addresses", () => {
     const pubs = bundledHistoricPubs();
-    const colony = pubs.find((p) => p.slug === "the-colony-room");
-    const blackCap = pubs.find((p) => p.slug === "the-black-cap");
-    const robey = pubs.find((p) => p.slug === "the-sir-george-robey");
-    expect(colony?.venueStatus).toBe("closed");
-    expect(blackCap?.venueStatus).toBe("closed");
-    expect(robey?.venueStatus).toBe("demolished");
+    for (const slug of ["the-colony-room", "the-black-cap", "the-sir-george-robey"]) {
+      expect(pubs.find((pub) => pub.slug === slug)).toBeUndefined();
+    }
   });
 });

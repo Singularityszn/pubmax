@@ -138,6 +138,47 @@ describe("typed heritage questions", () => {
     }
   });
 
+  it.each([
+    { venueId: "venue-fudfew", venueName: "Black Lion", expected: "pub in Hammersmith, London" },
+    { venueId: "venue-1embrnu", venueName: "Black Lion", expected: null },
+    { venueId: "venue-s68ndf", venueName: "Green Man", expected: null },
+    { venueId: "venue-xwic8m", venueName: "Green Man", expected: null },
+  ])("keeps facts and sources attached to the verified address for $venueId", async ({ venueId, venueName, expected }) => {
+    const direct = await retrieveHeritageWithStatus({ venueId, venueName });
+    const query = new URLSearchParams({ venueId, venueName });
+    const response = await GET(new Request(`http://localhost/api/heritage?${query}`));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    for (const facts of [direct.facts, body.facts]) {
+      expect(facts.some((fact: { sourceRef?: string }) =>
+        fact.sourceRef === "https://en.wikipedia.org/wiki/Black_Lion,_Kilburn" ||
+        fact.sourceRef === "https://en.wikipedia.org/wiki/Green_Man,_Blackheath",
+      )).toBe(false);
+      expect(facts.some((fact: { fact: string }) =>
+        fact.fact === "pub in Kilburn, London" || fact.fact === "demolished pub in Blackheath, London, England",
+      )).toBe(false);
+      if (expected) {
+        expect(facts).toContainEqual({ source: "wikidata", fact: expected,
+          sourceRef: "https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith" });
+      }
+    }
+    const answer = await runAskTool("venue_heritage", { venueId, venueName }, {
+      query: `Tell me the history of ${venueName}.`, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(answer.sources.some((source) =>
+      source.url === "https://en.wikipedia.org/wiki/Black_Lion,_Kilburn" ||
+      source.url === "https://en.wikipedia.org/wiki/Green_Man,_Blackheath",
+    )).toBe(false);
+    expect(answer.cards[0]?.note ?? "").not.toContain("pub in Kilburn, London");
+    expect(answer.cards[0]?.note ?? "").not.toContain("demolished pub in Blackheath");
+    if (expected) {
+      expect(answer.cards[0]?.note).toContain(expected);
+      expect(answer.sources).toContainEqual(expect.objectContaining({
+        url: "https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith",
+      }));
+    }
+  });
+
   it("does not choose the first of several pubs with the same name", async () => {
     const result = await runAsk({
       query: "Tell me the history of The Crown.", cityId: "london", skipModel: true, fetchImpl: offlineFetch,
