@@ -216,9 +216,15 @@ async function regenerate(): Promise<Record<string, unknown>> {
 
 async function saveRoute(): Promise<Record<string, unknown>> {
   await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
-  const post = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
-  expect(post, document.querySelector("#plan-composer-error")?.textContent ?? "No plan save request").toBeDefined();
-  return JSON.parse(String(post[1]?.body));
+  // The save runs through several awaits before it posts. A loaded runner can
+  // need more than one flush, so wait for the request rather than assume it.
+  let post: (typeof fetchMock.mock.calls)[number] | undefined;
+  await vi.waitFor(async () => {
+    await act(async () => { await Promise.resolve(); });
+    post = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans");
+    expect(post, document.querySelector("#plan-composer-error")?.textContent ?? "No plan save request").toBeDefined();
+  });
+  return JSON.parse(String(post![1]?.body));
 }
 
 describe("request save age with an unchanged stale route", () => {
