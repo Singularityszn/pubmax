@@ -16,7 +16,9 @@ const VENUE_ID = "venue-xjf3n0";
 const CRAWL = "venue-1ufn31x,venue-1t8siin,venue-xiesdn";
 const PLAN_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-async function seedPal(page: Page, hidden = false, ownerId = "owner-e2e"): Promise<void> {
+async function seedPal(page: Page, hidden = false): Promise<void> {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.addInitScript(({ appearance, personality, voice, hidden: palHidden, ownerId: palOwnerId }) => {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
@@ -30,7 +32,7 @@ async function seedPal(page: Page, hidden = false, ownerId = "owner-e2e"): Promi
       adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: palHidden,
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     }));
-  }, { ...DEFAULT_PAL_DRAFT, hidden, ownerId });
+  }, { ...DEFAULT_PAL_DRAFT, hidden, ownerId: ACCOUNTS.A.id });
 }
 
 test.describe("the Pal on the map", () => {
@@ -38,9 +40,7 @@ test.describe("the Pal on the map", () => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await installAuthDoubles(page);
-    await seedSignedIn(page, "A");
-    await seedPal(page, false, ACCOUNTS.A.id);
+    await seedPal(page);
     const stops = CRAWL.split(",");
     await page.route(`**/api/plans/${PLAN_ID}`, (route) => route.fulfill({
       json: { stops: stops.map((venueId, position) => ({ venueId, venueName: venueId, position })) },

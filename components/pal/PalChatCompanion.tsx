@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { DEFAULT_PAL_DRAFT, type PalAnimationState, type PubPal } from "@/lib/pubPal";
 import { palGenomeFor } from "@/lib/palGenome";
@@ -13,8 +13,10 @@ export default function PalChatCompanion({ owner, state }: { owner: string | nul
   const localPal = useOwnPal();
   const { user, loading, getCurrentUserId } = useAuth();
   const accountId = !loading && user && getCurrentUserId() === user.id ? user.id : null;
-  const [pal, setPal] = useState<PubPal | null>(null);
+  const source = useMemo(() => ({ owner, accountId, localPal }), [owner, accountId, localPal]);
+  const [loaded, setLoaded] = useState<{ pal: PubPal | null; source: typeof source } | null>(null);
   useEffect(() => {
+    const { owner, accountId } = source;
     if (!accountId || owner !== accountId) return;
     const request = new AbortController();
     void authedActionFetch("/api/pub-pal", { signal: request.signal }, { requiresIdentity: true })
@@ -22,12 +24,12 @@ export default function PalChatCompanion({ owner, state }: { owner: string | nul
         if (!response.ok) return;
         const body = await response.json() as { pal?: PubPal | null };
         if (request.signal.aborted) return;
-        setPal(body.pal?.ownerId === owner ? body.pal : null);
+        setLoaded({ pal: body.pal?.ownerId === owner ? body.pal : null, source });
       })
       .catch(() => {});
     return () => request.abort();
-  }, [owner, accountId, localPal]);
-  const candidate = localPal ?? pal;
+  }, [source]);
+  const candidate = loaded?.source === source ? loaded.pal : localPal;
   const ownedPal = owner === accountId && candidate?.ownerId === accountId && !candidate.hidden ? candidate : null;
   return (
     <div className="palChatCompanion">
