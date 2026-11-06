@@ -1901,7 +1901,7 @@ span.socialPostAvatar {
   min-height: 44px;
   padding: 0 20px;
   border: 1px solid color-mix(in srgb, #fff 70%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: #fff;
   font: inherit;
