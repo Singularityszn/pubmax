@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { DEFAULT_PAL_DRAFT } from '../lib/pubPal';
 import { ACCOUNTS, AUTH_STORAGE_KEY, DEVICE_ACCOUNTS_KEY, installAuthDoubles, seedSignedIn } from './helpers/authDoubles';
 import { installDeterministicMapBasemap } from './helpers/mapNetworkFixtures';
+import { createPlanIntakeDraft } from '../lib/planIntake';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -42,6 +43,38 @@ async function shot(page: Page, name: string) {
     await page.screenshot({path:`${EVIDENCE}/${name}.png`});
   }
 }
+
+test('account B opens Plan without account A\'s saved request or accessibility answers', async ({ page }) => {
+  await seed(page);
+  await page.goto('/pal/chat');
+  const intake = createPlanIntakeDraft({kind:'patch',id:'soho'});
+  intake.answers.accessibilityNeeds = ['step-free'];
+  await page.evaluate(({intake, stops}) => {
+    const now = new Date().toISOString();
+    const draft = {
+      title: 'A private night', creatorName: 'Private host A', startTime: now,
+      conciergeQuery: 'A private outing in Soho',
+      stops: stops.map((venueId, key) => ({key,venueId,venueName:venueId})),
+      requestIntake: intake,
+    };
+    sessionStorage.setItem('pubmaxx:plan-draft:v1',JSON.stringify(draft));
+    localStorage.setItem('pubmax:plan-intake:v1',JSON.stringify({
+      storageVersion:1,savedAt:now,expiresAt:new Date(Date.now()+86400000).toISOString(),draft:intake,
+    }));
+  }, {intake,stops:STOPS});
+  await page.goto('/plan');
+  await expect(page.locator('#plan-describe-first-query, #plan-concierge-query').first()).toHaveValue('A private outing in Soho');
+  await page.goto('/pal/chat');
+  await switchToB(page);
+  expect(await page.evaluate(() => sessionStorage.getItem('pubmaxx:plan-draft:v1'))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('pubmax:plan-intake:v1'))).toBeNull();
+  await page.goto('/plan');
+  await expect(page.locator('#plan-describe-first-query')).toHaveValue('');
+  const values = await page.locator('input').evaluateAll(inputs => inputs.map(input => input.value));
+  expect(values).not.toContain('A private night');
+  expect(values).not.toContain('Private host A');
+  await expect(page.getByRole('button',{name:/Step.free/i,pressed:true})).toHaveCount(0);
+});
 
 // F12 is the oracle: personal shortcuts and portraits belong to the live account.
 // These checks reject a retained marker, a detached callable action, and a stale chat portrait.

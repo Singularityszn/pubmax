@@ -14,6 +14,7 @@ import {
 import { LOCAL_PAL_KEY } from "@/lib/localPal";
 import { OPTIMISTIC_SPILL_STORAGE_KEY } from "@/lib/optimisticSpillPost";
 import { NIGHT_PROFILE_DEVICE_KEY } from "@/lib/nightProfileDeviceProvenance";
+import { readLegRouteOnMap, showLegRouteOnMap } from "@/lib/legRouteOnMap";
 
 function fakeStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
@@ -98,6 +99,32 @@ describe("device account identity", () => {
       false,
     );
     expect(device.local.getItem("pubmax_handle")).toBe("karan");
+  });
+
+  it.each(["switch", "sign-out"])("retires personal Plan drafts after %s", (transition) => {
+    const localKeys = ["pubmaxx:plan-route-draft:v1", "pubmax:plan-route-draft:v2", "pubmax:plan-intake:v1"];
+    const sessionKeys = ["pubmaxx:plan-draft:v1", "pubmax:plan-draft:v2"];
+    const personalDraft = JSON.stringify({ conciergeQuery: "A's private outing", accessibilityNeeds: ["step-free"] });
+    for (const key of localKeys) device.local.setItem(key, personalDraft);
+    for (const key of sessionKeys) device.session.setItem(key, personalDraft);
+    bindDeviceAccountOwner("user-a", device.local, device.session);
+    for (const key of localKeys) expect(device.local.getItem(key)).toBe(personalDraft);
+    for (const key of sessionKeys) expect(device.session.getItem(key)).toBe(personalDraft);
+    if (transition === "switch") bindDeviceAccountOwner("user-b", device.local, device.session);
+    else releaseDeviceAccountOwner(device.local, device.session);
+    for (const key of localKeys) expect(device.local.getItem(key)).toBeNull();
+    for (const key of sessionKeys) expect(device.session.getItem(key)).toBeNull();
+  });
+
+  it("preserves a chosen way for the same owner and retires it for the next owner", () => {
+    showLegRouteOnMap({ legKey: "venue-a>venue-b", option: {
+      id: "walk", kind: "walk", minutes: 6, farePence: 0, parts: [],
+      estimate: false, fastest: true, cheapest: true,
+    } });
+    bindDeviceAccountOwner("user-a", device.local, device.session);
+    expect(readLegRouteOnMap()?.legKey).toBe("venue-a>venue-b");
+    bindDeviceAccountOwner("user-b", device.local, device.session);
+    expect(readLegRouteOnMap()).toBeNull();
   });
 
   it("treats an unstamped device as somebody else's", () => {

@@ -127,6 +127,7 @@ import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMissi
 import PubMapCanvas from "@/components/PubMapCanvas";
 import {
   bindDeviceAccountOwner,
+  clearDeviceAccountSessionArtifacts,
   DEVICE_ACCOUNT_OWNER_KEY,
   emitDeviceIdentityChanged,
   releaseDeviceAccountOwner,
@@ -134,7 +135,7 @@ import {
 import { announceLocalPalChange, LOCAL_PAL_KEY } from "@/lib/localPal";
 import { markActivePlan, readActivePlan, setActivePlanPalContext } from "@/lib/activePlan";
 import { useActivePlanRoute, useActivePlanPalNextStop } from "@/components/map/pubmap/useActivePlanRoute";
-import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { readLegRouteOnMap, showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import type { LegOption } from "@/lib/legOptions";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import type { Venue } from "@/lib/venues";
@@ -317,6 +318,41 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
       expect(boundary.maps[0]!.removed).toBe(false);
     },
   );
+
+  it.each(["switch", "provider sign-out"])("retires A's chosen path before B activates the same leg after %s", async (transition) => {
+    boundary.reducedMotion = true;
+    await render();
+    await ready();
+    await choose("walk");
+    expect(readLegRouteOnMap()?.option.id).toBe("walk");
+    expect(leads()).toHaveLength(1);
+    const oldPal = JSON.parse(localStorage.getItem(LOCAL_PAL_KEY)!);
+    if (transition === "provider sign-out") {
+      await act(async () => {
+        auth.userId = auth.liveId = null;
+        clearDeviceAccountSessionArtifacts(sessionStorage);
+        emitDeviceIdentityChanged();
+      });
+      expect(readLegRouteOnMap()).toBeNull();
+      expect(host.querySelector(".palMapMarker")).toBeNull();
+    }
+    await act(async () => {
+      auth.userId = auth.liveId = "owner-b";
+      bindDeviceAccountOwner("owner-b", localStorage, sessionStorage);
+      localStorage.setItem(LOCAL_PAL_KEY, JSON.stringify({ ...oldPal, id: "pal-b", ownerId: "owner-b", name: "Moss" }));
+      markActivePlan("22222222-2222-4222-8222-222222222222", new Date().toISOString(), Date.now(), "owner-b");
+      emitDeviceIdentityChanged();
+      announceLocalPalChange();
+    });
+    await render();
+    await frame();
+    expect(readLegRouteOnMap()).toBeNull();
+    expect(host.querySelector(".palMapMarker")?.getAttribute("aria-label")).toBe("Next stop: The Crown");
+    expect(leads()).toHaveLength(1);
+    await choose("walk");
+    expect(leads()).toHaveLength(2);
+    expect(boundary.maps).toHaveLength(1);
+  });
 
   it.each(["account switch", "provider sign-out"])(
     "isolates every mounted cached Pal consumer on /map after %s under F12",

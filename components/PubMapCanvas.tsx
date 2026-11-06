@@ -4500,6 +4500,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // perches beside the selected pin.
   const routeIds = route.map((v) => v.id).join(",");
   useLayoutEffect(() => {
+    palVisitKeyRef.current = "";
+    palLeadKeyRef.current = null;
+    palLeadReportedRef.current = null;
+    palWalkRef.current = null;
+    palNextRef.current = null;
+    palSpokeWalkRef.current = "";
+    palSpokePerchRef.current = "";
+  }, [ownPal?.ownerId]);
+  useLayoutEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map || !ownPal) return;
     const marker = createPalMapMarker(map, { pal: ownPal });
