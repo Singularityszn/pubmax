@@ -14,6 +14,8 @@ import {
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
+import { walkableDraftAround, walkableDraftRoute } from "@/lib/palPlanDraft";
+import { straightLineWalkableKm } from "@/lib/planRouteOptimizer";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import {
   rankConciergeVenues,
@@ -708,23 +710,39 @@ async function toolProposePlan(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
-    const ranked = rankConciergeVenues(venues, parsed.intent, {
-      limit: 3,
+    // Rank a wider pool than the three stops, then keep only a crawl that
+    // walks under Plan's own rule (lib/palPlanDraft.ts), so "Open in Plan"
+    // hands over pubs Plan can keep rather than three that merely rank well.
+    const pool = rankConciergeVenues(venues, parsed.intent, {
+      limit: 10,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
       now: ctx.now,
     });
-    if (ranked.length < 3) {
+    const asCandidate = (row: (typeof pool)[number]) =>
+      ({ value: row, lat: row.venue.lat, lng: row.venue.lng, score: row.score });
+    // An ask with no area ranks across London, so its best pubs rarely share
+    // a street: then each ranked pub in turn gets its best companions from
+    // the pubs one walking leg away.
+    const ranked = walkableDraftRoute(pool.map(asCandidate), 3)
+      ?? walkableDraftAround(pool.map(asCandidate), (seed) => rankConciergeVenues(
+        venues.filter((venue) => venue.id !== seed.value.venue.id
+          && straightLineWalkableKm([seed, venue]) !== null),
+        parsed.intent,
+        { limit: 10, now: ctx.now },
+      ).map(asCandidate), 3);
+    if (!ranked) {
       return {
         ok: false,
         tool: "propose_plan",
         data: { intent: parsed.intent },
         provenance: [directoryProvenance()],
-        cards: ranked.map((row) =>
+        cards: pool.slice(0, 3).map((row) =>
           venueCard(row.venue, rankedNote(row), undefined, ctx.now),
         ),
         proposals: [],
-        answerHint:
-          "No three-stop route meets that ask with the information available.",
+        answerHint: pool.length < 3
+          ? "No three-stop route meets that ask with the information available."
+          : "These pubs are too far apart to walk as one crawl. Pick one to start, or name a smaller area.",
       };
     }
     const cards = ranked.map((row, index) =>
@@ -763,7 +781,7 @@ async function toolProposePlan(
       provenance: [{ label: "On record", kind: "plan" }],
       cards,
       proposals: [proposal, ...openProposals],
-      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Open in Plan to carry this ask over. Nothing is saved until you do.`,
+      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Open in Plan to keep these pubs. Plan checks every stop, and nothing is saved until you do.`,
     };
   } catch {
     return {

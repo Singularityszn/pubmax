@@ -88,6 +88,22 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    ask there and saves nothing until the drinker acts on it; a Confirm button
    beside that link would be two labels for one action. No silent Plan or
    durable Pal memory writes from Ask.
+   **Amended 3 Nov 2026 (captain): Plan keeps the drafted pubs.** The link used
+   to carry only the ask, so Plan answered it with pubs of its own and the
+   draft vanished. Two halves now hold together. The draft is a crawl Plan can
+   walk: `propose_plan` ranks a wider pool and keeps only three that pass
+   Plan's own walking rule (`walkableDraftRoute` in `lib/palPlanDraft.ts`,
+   asking `straightLineWalkableKm` in `lib/planRouteOptimizer.ts`), or says
+   the pubs are too far apart. And Plan keeps the draft: the session draft
+   rides with its own ask, and `/plan` generates through the anchored path
+   that already keeps an imported pub list (`palDraftAttempts` in
+   `lib/palPlanHandoff.ts`, an anchor whose `venueIds` is the whole draft and
+   whose source is `pal`, or `map-search` for Ask the map). Plan still checks
+   every stop. When it cannot stand behind the whole draft it keeps the first
+   pub and chooses the rest, then plans from the ask, and the route status
+   says which of the three happened (`palDraftOutcomeLine`). Nothing is saved
+   until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
+   `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
 4. **Keyless path (map Ask)** — without `OPENROUTER_API_KEY`, a deterministic
    router picks 1–2 tools on `POST /api/ask` and fills house-voice templates
    (same honesty as heritage structured-only).

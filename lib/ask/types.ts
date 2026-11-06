@@ -160,4 +160,6 @@ export type AskPlanDraft = {
   stopIds: string[];
   stopNames: string[];
   createdAt: string;
+  /** Who drafted it; Plan keeps the pubs and names whose they were (lib/palPlanHandoff.ts). */
+  origin?: "pal" | "map";
 };
