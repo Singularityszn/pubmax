@@ -46,6 +46,7 @@ describe("webPushNeedsHomeScreenInstall", () => {
 });
 
 const registerWebPush = vi.hoisted(() => vi.fn());
+const unregisterWebPush = vi.hoisted(() => vi.fn());
 const webPushSupport = vi.hoisted(() => vi.fn());
 const authedActionFetch = vi.hoisted(() => vi.fn());
 
@@ -60,7 +61,7 @@ vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
 vi.mock("@/lib/webPush", () => ({
   registerWebPush,
-  unregisterWebPush: vi.fn(),
+  unregisterWebPush,
   webPushSupport,
 }));
 
@@ -86,13 +87,29 @@ beforeEach(() => {
     value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
   });
   registerWebPush.mockReset();
+  unregisterWebPush.mockReset().mockResolvedValue(true);
   webPushSupport.mockReset().mockReturnValue("supported");
   authedActionFetch.mockReset().mockImplementation(async (_input: string, init?: { method?: string }) =>
     init?.method === "POST"
-      ? new Response(JSON.stringify({ enabled: true, lastSentAt: null, canSend: true }), { status: 200 })
-      : new Response(JSON.stringify({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 }), {
-          status: 200,
-        }),
+      ? new Response(
+          JSON.stringify({
+            enabled: true,
+            lastSentAt: null,
+            canSend: true,
+            subscriptionRetained: true,
+          }),
+          { status: 200 },
+        )
+      : new Response(
+          JSON.stringify({
+            enabled: false,
+            lastSentAt: null,
+            canSend: false,
+            maxPerWeek: 1,
+            subscriptionRetained: false,
+          }),
+          { status: 200 },
+        ),
   );
   container = document.createElement("div");
   document.body.append(container);
@@ -180,6 +197,50 @@ describe("StepOutNudgePref in a browser tab", () => {
   });
 });
 
+// The browser push subscription is shared with the cheap-pint ping. Turning the
+// weekly nudge off may only remove it when the server says nothing else holds it.
+describe("StepOutNudgePref turning the weekly nudge off", () => {
+  async function withdrawWith(answer: Record<string, unknown>): Promise<void> {
+    setUserAgent(CHROME_DESKTOP);
+    authedActionFetch.mockReset().mockImplementation(async (_input: string, init?: { method?: string }) =>
+      new Response(
+        JSON.stringify(
+          init?.method === "DELETE"
+            ? { enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1, ...answer }
+            : { enabled: true, lastSentAt: null, canSend: true, maxPerWeek: 1, subscriptionRetained: true },
+        ),
+        { status: 200 },
+      ),
+    );
+    await render();
+    const turnOff = [...container.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent?.trim() === "Turn weekly nudge off",
+    )!;
+    await act(async () => {
+      turnOff.click();
+    });
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    expect(container.textContent).toContain("Weekly nudge is off. Nothing will be sent.");
+  }
+
+  it("removes the browser subscription when nothing else uses it", async () => {
+    await withdrawWith({ subscriptionRetained: false });
+    expect(unregisterWebPush).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the browser subscription when the cheap-pint ping still uses it", async () => {
+    await withdrawWith({ subscriptionRetained: true });
+    expect(unregisterWebPush).not.toHaveBeenCalled();
+  });
+
+  it("keeps the browser subscription when the server does not say", async () => {
+    await withdrawWith({});
+    expect(unregisterWebPush).not.toHaveBeenCalled();
+  });
+});
+
 describe("StepOutNudgePref inside the native app", () => {
   afterEach(() => {
     delete (window as { Capacitor?: unknown }).Capacitor;
@@ -222,7 +283,13 @@ describe("StepOutNudgePref across an account change", () => {
     signedInAuth.user = { id: "user-2" };
     authedActionFetch.mockReset().mockImplementation(async () =>
       new Response(
-        JSON.stringify({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 }),
+        JSON.stringify({
+          enabled: false,
+          lastSentAt: null,
+          canSend: false,
+          maxPerWeek: 1,
+          subscriptionRetained: false,
+        }),
         { status: 200 },
       ),
     );
@@ -246,7 +313,16 @@ describe("StepOutNudgePref across an account change", () => {
       () => new Promise<string>((resolve) => { finishRegistration = resolve; }),
     );
     authedActionFetch.mockReset().mockImplementation(async () =>
-      new Response(JSON.stringify({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          enabled: false,
+          lastSentAt: null,
+          canSend: false,
+          maxPerWeek: 1,
+          subscriptionRetained: false,
+        }),
+        { status: 200 },
+      ),
     );
     await render();
     await act(async () => {

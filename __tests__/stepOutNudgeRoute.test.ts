@@ -95,6 +95,7 @@ describe("GET/POST/DELETE /api/step-out-nudge", () => {
     await expect(response.json()).resolves.toMatchObject({
       enabled: false,
       maxPerWeek: 1,
+      subscriptionRetained: false,
     });
   });
 
@@ -106,14 +107,20 @@ describe("GET/POST/DELETE /api/step-out-nudge", () => {
       }),
     );
     expect(enable.status).toBe(200);
-    await expect(enable.json()).resolves.toMatchObject({ enabled: true });
+    await expect(enable.json()).resolves.toMatchObject({
+      enabled: true,
+      subscriptionRetained: true,
+    });
     expect(__listMemoryPushTokens().some((row) => row.token === TOKEN)).toBe(true);
 
     const withdraw = await DELETE(
       new Request("http://localhost/api/step-out-nudge", { method: "DELETE" }),
     );
     expect(withdraw.status).toBe(200);
-    await expect(withdraw.json()).resolves.toMatchObject({ enabled: false });
+    await expect(withdraw.json()).resolves.toMatchObject({
+      enabled: false,
+      subscriptionRetained: false,
+    });
     expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
       enabled: false,
       subscriptionToken: null,
@@ -135,6 +142,10 @@ describe("GET/POST/DELETE /api/step-out-nudge", () => {
       new Request("http://localhost/api/step-out-nudge", { method: "DELETE" }),
     );
     expect(withdraw.status).toBe(200);
+    await expect(withdraw.json()).resolves.toMatchObject({
+      enabled: false,
+      subscriptionRetained: true,
+    });
     expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
       enabled: false,
       cheapPintEnabled: true,
