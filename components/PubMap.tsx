@@ -553,6 +553,7 @@ import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import MapSearchEmptyState from "@/components/map/MapSearchEmptyState";
 import { useMapOpeningArrival, useNamedMapAreaArrival } from "@/components/map/useMapOpeningArrival";
+import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { mapAreaOpeningView } from "@/lib/mapAreaArrival";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { useMapSecondaryStreamHold } from "@/components/map/useMapSecondaryStreamHold";
@@ -1354,23 +1355,11 @@ export default function PubMap({
     locationAllowsInterruptivePrompt,
     () => false,
   );
-  /**
-   * Has the reader moved the camera themselves yet?
-   *
-   * Display rules: docs/CITYMCP_LONDON.md, Runtime API surfaces.
-   * This is session state, not a dismissal. It never writes to per-banner
-   * dismissal stores, because moving the camera does not dismiss an offer.
-   */
-  const [mapCameraTouched, setMapCameraTouched] = useState(false);
-  const mapCameraTouchedRef = useRef(false);
-  const [openingLocationFocus, setOpeningLocationFocus] =
-    useState<MapCameraFocus | null>(null);
   const openingLocationCancelledRef = useRef(false);
   const [
     openingLocationCancelledBeforeResolution,
     setOpeningLocationCancelledBeforeResolution,
   ] = useState(false);
-  const ambientBannerLane = !mobileViewport && !mapCameraTouched;
   const railViewport = useSyncExternalStore(
     subscribeDesktopRailViewport,
     desktopRailViewportSnapshot,
@@ -1464,20 +1453,6 @@ export default function PubMap({
     openingLocationCancelledRef.current = true;
     setOpeningLocationCancelledBeforeResolution(nextCancellation);
   }, [openingLocationCancelledBeforeResolution, openingLocationResolved]);
-  const claimMapCamera = useCallback(() => {
-    mapCameraTouchedRef.current = true;
-    setMapCameraTouched(true);
-    cancelOpeningLocation();
-    setOpeningLocationFocus(null);
-  }, [cancelOpeningLocation]);
-  const dismissAmbientBanners = useCallback(() => {
-    // The reader's own first move on the map answers the first-visit ask. See
-    // lib/mapFirstVisitArrival.ts; this fires on a GESTURE only, never on a
-    // camera move the app made for them (PubMapCanvas emitUserCameraMove).
-    dismissMapFirstVisitArrivalOnMapUse();
-    cameraOwnership.invalidate();
-    claimMapCamera();
-  }, [cameraOwnership, claimMapCamera]);
   useEffect(() => {
     if (!shouldResolveOpeningLocation) return;
     invalidatePrivateCamera();
@@ -1658,6 +1633,27 @@ export default function PubMap({
     openingLocationResolved,
     city.mapView,
   ]);
+  const {
+    mapCameraTouched,
+    mapCameraTouchedRef,
+    openingLocationFocus,
+    claimMapCamera,
+  } = useMapOpeningCamera({
+    shouldResolveOpeningLocation,
+    openingLocationResolved,
+    openingLocationCancelledRef,
+    locationFirstMapView,
+    cancelOpeningLocation,
+  });
+  const ambientBannerLane = !mobileViewport && !mapCameraTouched;
+  const dismissAmbientBanners = useCallback(() => {
+    // The reader's own first move on the map answers the first-visit ask. See
+    // lib/mapFirstVisitArrival.ts; this fires on a GESTURE only, never on a
+    // camera move the app made for them (PubMapCanvas emitUserCameraMove).
+    dismissMapFirstVisitArrivalOnMapUse();
+    cameraOwnership.invalidate();
+    claimMapCamera();
+  }, [cameraOwnership, claimMapCamera]);
   const openingLoadViewport = useMemo(
     () => mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView,
     [locationFirstMapView, mapResumeSeed, restoredMobileSession],
@@ -2532,31 +2528,6 @@ export default function PubMap({
     });
   }, []);
 
-  useEffect(() => {
-    if (
-      !shouldResolveOpeningLocation ||
-      !openingLocationResolved ||
-      openingLocationCancelledRef.current ||
-      mapCameraTouchedRef.current
-    ) return;
-    const viewport = locationFirstMapView;
-    setOpeningLocationFocus((current) => {
-      if (
-        current?.center[0] === viewport.center[0] &&
-        current.center[1] === viewport.center[1] &&
-        current.zoom === viewport.zoom
-      ) {
-        return current;
-      }
-      return {
-        center: viewport.center,
-        zoom: viewport.zoom,
-        source: "opening-location",
-        token: (current?.token ?? 0) + 1,
-      };
-    });
-  }, [locationFirstMapView, openingLocationResolved, shouldResolveOpeningLocation]);
-
   const scheduleRingLoad = useCallback(
     (
       loader: SlimShardLoader,
@@ -2860,8 +2831,6 @@ export default function PubMap({
             if (
               !isCurrentLoader() ||
               !snapshot ||
-              !cameraReadIsCurrent() ||
-              mapCameraTouchedRef.current ||
               liveShardRowsCommittedRef.current
             ) return;
             setSlimPins(slimVenuesToPins(snapshot.rows));
@@ -2869,7 +2838,10 @@ export default function PubMap({
             setLoaded(true);
             markPubmaxTiming("pubmax:first-pins");
             markPubmaxTiming("pubmax:slim-venues-ready");
-            if (!snapshot.viewport) { setMapResumeUpdating(false); return; }
+            if (!cameraReadIsCurrent() || mapCameraTouchedRef.current || !snapshot.viewport) {
+              setMapResumeUpdating(false);
+              return;
+            }
             setMapResumeViewport(snapshot.viewport);
             const refreshVersion = ++resumeRefreshVersion;
             setMapResumeUpdating(true);

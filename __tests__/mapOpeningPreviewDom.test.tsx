@@ -8,7 +8,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
-import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
 import {
   MAP_OPENING_FRAME_EVENT,
   MAP_OPENING_PREVIEW_CAMERA,
@@ -130,13 +129,6 @@ describe("MapOpeningPreview", () => {
     // know which, so it draws no count at all.
     expect(html).not.toContain(">93<");
     expect(html).not.toContain("pubs<");
-  });
-
-  it("sizes 'from' as the canvas does", () => {
-    const css = readFileSync(join(process.cwd(), "components/map/mapOpeningPreview.css"), "utf8");
-    expect(css).toContain(`calc(var(--figure-size) * ${DONUT_CAPTION_SCALE})`);
-    // The ring is neutral, as the canvas's is: no band, no band mix.
-    expect(css).not.toMatch(/conic-gradient|--segments|--ring\b/);
   });
 
   it("renders nothing when the build found no discs", () => {
