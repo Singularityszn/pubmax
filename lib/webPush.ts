@@ -136,4 +136,3 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
     scope?.dispose();
   }
 }
-
