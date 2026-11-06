@@ -717,6 +717,7 @@ describe("POST /api/pint-drops (create)", () => {
     billChecks.keyed = false;
     reportAuth.userId = "account-keyless";
     await memoryProfileStore.createOwned("keyless_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const res = await post({ venueId: VENUE, handle: "keyless_drinker", priceGbp: 4.5 });
     billChecks.keyed = true;
     expect(res.status).toBe(201);
@@ -730,6 +731,7 @@ describe("POST /api/pint-drops (create)", () => {
     billChecks.schedule.mockClear();
     reportAuth.userId = "account-nobill";
     await memoryProfileStore.createOwned("no_bill", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const typed = await postWithoutBill({ venueId: VENUE, handle: "no_bill", priceGbp: 4.5 });
     expect(typed.status).toBe(201);
     expect(await typed.json()).not.toHaveProperty("billCheck");
