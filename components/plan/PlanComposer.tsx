@@ -3054,15 +3054,11 @@ function PlanComposerForm({
     );
   }
 
-  async function sortWithConcierge(
+  function prepareConciergeRequest(
     queryOverride?: string,
     intakeOverride?: PlanIntakeDraft,
     context: Partial<NightContext> = requestContext,
   ) {
-    const lifetimeSignal = formLifetime.current?.signal;
-    if (!lifetimeSignal) return;
-    const signal = AbortSignal.any([lifetimeSignal, readProviderAccountSignal()]);
-    if (signal.aborted) return;
     // Both overrides (from the describe-first entry surface) are threaded
     // through explicitly before React re-renders, so state reads here cannot
     // send the pre-skip intake to the server.
@@ -3094,10 +3090,10 @@ function PlanComposerForm({
         ? resolveNightPatch(queryArea.patchId)
         : null;
     const blockedUnsupportedPatch = intakeUnsupportedPatch ?? queryUnsupportedPatchForSort;
-    if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
+    if (queryOverride === undefined && !canSortWithCurrentGenerator) return null;
     if (blockedUnsupportedPatch) {
       setConciergeNote(conciergeStatusText(false, blockedUnsupportedPatch, ""));
-      return;
+      return null;
     }
     pendingDraftSave.current = true;
     if (queryOverride !== undefined) setPlanIntake(intake);
@@ -3110,6 +3106,21 @@ function PlanComposerForm({
       const area = venueNightArea(venues.find((venue) => venue.id === heldVenueId), acceptedCityId);
       if (area) submittedContext.nightArea = area;
     }
+    return { query, intake, submittedContext };
+  }
+
+  async function sortWithConcierge(
+    queryOverride?: string,
+    intakeOverride?: PlanIntakeDraft,
+    context: Partial<NightContext> = requestContext,
+  ) {
+    const lifetimeSignal = formLifetime.current?.signal;
+    if (!lifetimeSignal) return;
+    const signal = AbortSignal.any([lifetimeSignal, readProviderAccountSignal()]);
+    if (signal.aborted) return;
+    const request = prepareConciergeRequest(queryOverride, intakeOverride, context);
+    if (!request) return;
+    const { query, intake, submittedContext } = request;
     // A crawl the Pal (or Ask the map) drafted for THIS ask is kept: spent
     // here, once, by the generation that answers it.
     const palDraft = takePalDraft(palDraftRef, query);
@@ -3247,12 +3258,7 @@ function PlanComposerForm({
     }
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const lifetimeSignal = formLifetime.current?.signal;
-    if (!lifetimeSignal) return;
-    const signal = AbortSignal.any([lifetimeSignal, readProviderAccountSignal()]);
-    if (signal.aborted) return;
+  function validatePlanSubmission(): boolean {
     const validationError = planLockValidationError({
       title,
       creatorName,
@@ -3266,21 +3272,31 @@ function PlanComposerForm({
     if (validationError) {
       setError(validationError.message);
       if (validationError.focus === "name") nameInputRef.current?.focus();
-      return;
+      return false;
     }
     if (!distinctStops) {
       setError(PLAN_DISTINCT_STOPS_ERROR);
-      return;
+      return false;
     }
     if (stopCountError) {
       setError(stopCountError);
-      return;
+      return false;
     }
     if (routeSaveRevoked.current || routeStale) {
       setError("Refresh the route before locking it in. Your previous preview is still safe.");
       setRouteStatus("The route is still a preview because its context changed. Refresh it before locking.");
-      return;
+      return false;
     }
+    return true;
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const lifetimeSignal = formLifetime.current?.signal;
+    if (!lifetimeSignal) return;
+    const signal = AbortSignal.any([lifetimeSignal, readProviderAccountSignal()]);
+    if (signal.aborted) return;
+    if (!validatePlanSubmission()) return;
     setSubmitting(true);
     setError("");
     try {
