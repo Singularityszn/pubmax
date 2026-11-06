@@ -4769,6 +4769,78 @@ it("still revokes and then generates from a genuine new request with a later acc
   expectNoRouteSave();
 });
 
+it.each(
+  (["mounted", "recovered", "recovered without intent"] as const).flatMap((composer) =>
+    (["intent", "Plan", "route", "all"] as const).map((replacement) => ({ composer, replacement }))),
+)("protects newer $replacement records after generation with the $composer acceptance", async ({ composer, replacement }) => {
+  const { advance } = await seedLaterMapAcceptance("v2");
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "Three pubs in Clapham tonight" }));
+  await remountComposer();
+  advance(CLIENT_PROOF_LIFETIME + 2000);
+  const generated = {
+    ...generatedProofFixture(3), operationKey: "owned-generated-route",
+    groundingProof: clientProof("owned-generated-route"),
+    anchored: true, grounded: true, outcome: "route", anchorVenueId: "venue-new", anchorSource: "map-search",
+    stops: [{ venueId: "venue-new", venueName: "New Pub" }, ...generatedProofFixture(3).stops.slice(1)],
+  };
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generated : [{ id: "venue-new", name: "New Pub" }],
+  ));
+  await act(async () => action("Make a plan").click());
+  await settle();
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    legacy: false, draft: { routeReference: { operationKey: generated.operationKey } },
+  });
+  expect(JSON.parse(sessionStorage.getItem(PLAN_DRAFT_KEY)!)).toMatchObject({
+    routeReference: { operationKey: generated.operationKey },
+  });
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.provisionalStop).toBeUndefined();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).not.toBeNull();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).not.toBeNull();
+  if (composer === "recovered without intent") sessionStorage.removeItem(PLANNING_INTENT_STORAGE_KEY);
+  if (composer !== "mounted") await remountComposer();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+  advance(CLIENT_PROOF_LIFETIME + 3000);
+  await editInput("#plan-title", "Our generated night");
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.title).toBe("Our generated night");
+  expect(document.body.textContent).not.toContain("could not be saved");
+
+  advance(CLIENT_PROOF_LIFETIME + 4000);
+  if (replacement === "intent" || replacement === "all") {
+    expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-foreign" }).accepted).toBe(true);
+  }
+  if (replacement === "Plan" || replacement === "all") {
+    expect(writePlanDraftEnvelope({
+      ...CLEAR_REQUEST, title: "Newer saved night",
+      stops: [{ key: 1, venueId: "venue-foreign", venueName: "Foreign Pub" }],
+    }, "manual", sessionStorage).v2).toBe(true);
+  }
+  if (replacement === "route" || replacement === "all") {
+    expect(transferGeneratedRouteToDraft({
+      ...generatedProofFixture(3), operationKey: "newer-foreign-route", groundingProof: clientProof("foreign-route"),
+      outcome: "route", anchorVenueId: "venue-a", anchorSource: "near",
+    }, localStorage, "map-generated")).toBe(true);
+  }
+  const records = () => [
+    sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY),
+    sessionStorage.getItem(PLAN_DRAFT_KEY), sessionStorage.getItem(PLAN_DRAFT_V2_KEY),
+    localStorage.getItem(PLAN_ROUTE_DRAFT_KEY), localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY),
+    localStorage.getItem(PLAN_INTAKE_STORAGE_KEY),
+  ];
+  const newerRecords = records();
+  advance(CLIENT_PROOF_LIFETIME + 5000);
+  await editInput("#plan-title", "Do not replace newer records");
+  expect(records()).toEqual(newerRecords);
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(records()).toEqual(newerRecords);
+  advance(CLIENT_PROOF_LIFETIME + 6000);
+  await editInput("#plan-name", "Do not replace newer records after Release");
+  expect(records()).toEqual(newerRecords);
+});
+
 it.each(["both", "v1-only", "v2-only"] as const)(
   "marks a clean-device Map acceptance as provisional through %s saves and Release",
   async (lane) => {
