@@ -130,16 +130,18 @@
    margin pair below (still centred because every host column is itself
    centred). The floating map variant and the ≤640px compact bar keep their
    own geometry — this rule is scoped away from both. */
-/* Issue #215 — re-verified at 1440/1280/1180/1024/900px on /pubs, /feed,
-   /crawls, /borough, /discover: with the compact single-"Sign in" disclosure
-   above (auth.css .authUserNav hides the two full provider buttons in every
-   nav host) every link's scrollWidth already fits its clientWidth — 0 of the
-   9 labels ellipsis-clip at any of those widths. --site-nav-width keeps a
-   little extra headroom over that measured floor (1100px, up from 1080px) so
-   future label/utility additions don't reopen the clip. */
+/* ONE ROW AT DEFAULT TEXT, AND THE MAP BAR'S CAP. The bar wraps only when
+   enlarged text needs the room (the wrap rule near the end of this file), so
+   its cap must hold the whole default-text row. Measured 6 Nov 2026 on /plan
+   from 1280px up: brand 75 + six links with icons 528 + actions 452, plus
+   gaps and padding, is 1109px signed out; the bell and messages bring it to
+   about 1213px signed in. The old 1100px cap wrapped every inner page onto
+   two rows. 1240px is the floating map bar's own cap
+   (--desktop-map-surface-width), so the bar keeps one width between Map and
+   the tabs on a wide screen. */
 @media (min-width: 641px) {
   .siteNavBar:not(.siteNavBarFloating) {
-    --site-nav-width: min(1100px, 100vw - 48px);
+    --site-nav-width: min(1240px, 100vw - 48px);
     width: var(--site-nav-width);
     margin-inline: calc((100% - var(--site-nav-width)) / 2);
   }
