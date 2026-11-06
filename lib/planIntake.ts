@@ -861,6 +861,8 @@ export function buildPlanGenerationIntakeBody(
         source: anchor.source,
         acceptedArea: anchor.acceptedArea,
         startsAt: anchor.startsAt,
+        // A drafted crawl keeps every pub it names (lib/palPlanHandoff.ts).
+        ...(anchor.venueIds ? { venueIds: [...anchor.venueIds] } : {}),
       },
     } : {}),
   };

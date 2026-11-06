@@ -935,6 +935,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
                                 stopIds: proposal.stopIds,
                                 stopNames: proposal.stopNames,
                                 createdAt: new Date().toISOString(),
+                                origin: "pal",
                               });
                             }}
                           >
