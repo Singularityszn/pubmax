@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { loadCityCrawlGroups } from "@/lib/cityCrawlDirectory.server";
+import { decodeCrawlStory } from "@/lib/crawlStory";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { routePlacePhoto, type PlacePhoto } from "@/components/listing/placePhotoRules";
 import CrawlsPageClient from "./CrawlsPageClient";
@@ -76,10 +77,11 @@ export default async function CrawlsPage({
   const params = searchParams ? await searchParams : {};
   const pack = Array.isArray(params.pack) ? params.pack[0] : params.pack;
   const encodedStory = Array.isArray(params.s) ? params.s[0] : params.s;
+  const story = decodeCrawlStory(encodedStory);
   // Only the featured crawl wears a photograph, so only its photograph ships.
-  const featured: CuratedCrawl | undefined = encodedStory ? undefined : visibleCuratedCrawls(pack)[0];
+  const featured: CuratedCrawl | undefined = story ? undefined : visibleCuratedCrawls(pack)[0];
   const featuredPhoto = featured ? ((await crawlPhotos())[featured.id] ?? null) : null;
-  const cityCrawlGroups = encodedStory ? [] : await loadCityCrawlGroups();
+  const cityCrawlGroups = story ? [] : await loadCityCrawlGroups();
   return (
     <CrawlsPageClient pack={pack} encodedStory={encodedStory} featuredPhoto={featuredPhoto} cityCrawlGroups={cityCrawlGroups} />
   );
