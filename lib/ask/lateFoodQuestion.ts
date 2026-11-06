@@ -115,7 +115,7 @@ function londonInstant(day: string, minutes: number): string | null {
 /** Explicit food timing uses service evidence rather than static pub amenities. */
 export function parseLateFoodQuestion(query: string, now: number): LateFoodQuestion | null {
   const wording = foodRequestWording(query);
-  if (!FOOD_RE.test(wording) || (!LATE_WORDS.test(wording) && !/\bat\b/i.test(wording) && ![...wording.matchAll(CLOCK)].length)) return null;
+  if (!FOOD_RE.test(wording) || (!LATE_WORDS.test(wording) && !/\b(?:tonight|tomorrow|time)\b/i.test(wording) && ![...wording.matchAll(CLOCK)].length)) return null;
   const minutes = requestedMinutes(wording);
   const day = minutes === null ? null : requestedDay(wording, minutes, now);
   const at = day === null || minutes === null ? null : londonInstant(day, minutes);

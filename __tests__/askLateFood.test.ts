@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { composeAnswer, mergeToolResults, runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
 import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
+import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
 import { resolveAskJourney, routeAskDeterministically } from "@/lib/ask/routingPolicy";
 import { resolvePubPalToolQuery } from "@/lib/pubPalToolInvoke.server";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
@@ -88,6 +89,34 @@ describe("late-food questions through Ask", () => {
     expect(response.cards).toEqual([]);
     expect(response.proposals).toEqual([]);
     expect(response.answer).toContain("Which night and time");
+  });
+
+  it.each([
+    "Find pubs with food at The Devonshire in Soho",
+    "Food at The Devonshire in Soho",
+  ])("does not treat a food location as timing: %s", async (query) => {
+    expect(answerLateFoodQuestion({ query, cityId: "london", now: OCTOBER_REVIEW_NOW })).toBeNull();
+    const typed = await ask(query);
+    const tool = await runAskTool("search_venues", {}, {
+      query, cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(typed.answer).not.toContain("Which night and time");
+    expect(tool.answerHint).not.toContain("Which night and time");
+  });
+
+  it.each([
+    "Food in Soho at an unknown time",
+    "Food at The Devonshire in Soho at an unknown time",
+  ])("clarifies unresolved timing without a night word: %s", async (query) => {
+    const typed = await ask(query);
+    const tool = await runAskTool("search_venues", {}, {
+      query, cityId: "london", now: OCTOBER_REVIEW_NOW, skipModel: true, fetchImpl: offlineFetch,
+    });
+    for (const response of [typed, tool]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect("answer" in response ? response.answer : response.answerHint).toContain("Which night and time");
+    }
   });
 
   it("requires pub kitchen evidence when auxiliary verbs describe food service", async () => {
