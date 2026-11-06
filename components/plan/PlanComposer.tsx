@@ -106,6 +106,7 @@ import { canonicalPlanDraftForWrite, parsePlanDraft, parsePlanDraftEnvelope, PLA
 import { parsePlanRouteDraftV2, reconcilePlanRouteDrafts, PLAN_ROUTE_DRAFT_V2_KEY, type ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
 import {
   PLANNING_INTENT_SOURCES,
+  PLANNING_INTENT_STORAGE_KEY,
   readPlanningIntent,
   settlePlanningIntent,
   type PlanningIntentArea,
@@ -121,7 +122,6 @@ import {
   UNRESOLVED_ACCEPTED_STOP_LABEL,
   UNRESOLVED_ACCEPTED_VENUE_LABEL,
   UNRESOLVED_ACCEPTED_VENUE_NAME,
-  type AcceptedContextStorages,
   type ComposerHydration,
 } from "@/lib/planComposerHandoff";
 import {
@@ -499,9 +499,11 @@ export function createdPlanMetadataPatch(
   };
 }
 
-function settleConsumedPlanningIntent(stops: ReadonlyArray<{ venueId: string }>): void {
-  if (planCreationConsumesPlanningIntent(readPlanningIntent(), stops)) {
-    settlePlanningIntent("plan-created");
+function settleConsumedPlanningIntent(stops: ReadonlyArray<{ venueId: string }>, owner: ComposerRequestOwner | null): void {
+  if (!ownsAcceptance(owner)) return;
+  const storage = composerAcceptanceStorage(safeSessionStorage(), owner, "session");
+  if (planCreationConsumesPlanningIntent(readPlanningIntent({ storage, cleanupInvalid: false }), stops)) {
+    settlePlanningIntent("plan-created", { storage });
   }
 }
 
@@ -788,12 +790,61 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
   }
 }
 
+const COMPOSER_OWNERSHIP_CHANGED = "The saved planning request changed. Reload the plan before continuing.";
+
 type ComposerDraftPair = { v1: string | null; v2: string | null };
-type ComposerRequestOwner = { sessionPair: ComposerDraftPair | null; routePair: ComposerDraftPair | null };
+type ComposerRequestOwner = {
+  session: Record<string, string | null> | null;
+  local: Record<string, string | null> | null;
+};
+
+function readComposerAcceptanceRecords(): ComposerRequestOwner {
+  function read(storage: Storage | null, keys: string[]): Record<string, string | null> | null {
+    if (!storage) return null;
+    try { return Object.fromEntries(keys.map((key) => [key, storage.getItem(key)])); } catch { return null; }
+  }
+  return {
+    session: read(safeSessionStorage(), [PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, PLANNING_INTENT_STORAGE_KEY]),
+    local: read(safeLocalStorage(), [PLAN_INTAKE_STORAGE_KEY, PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]),
+  };
+}
+
+function ownsAcceptance(owner: ComposerRequestOwner | null): boolean {
+  if (!owner) return true;
+  const current = readComposerAcceptanceRecords();
+  return (["session", "local"] as const).every((scope) => {
+    const expected = owner[scope];
+    const stored = current[scope];
+    return expected !== null && stored !== null
+      && Object.entries(expected).every(([key, value]) => stored[key] === value);
+  });
+}
+
+function composerAcceptanceStorage(
+  storage: Storage | null,
+  owner: ComposerRequestOwner | null,
+  scope: "session" | "local",
+): Storage | null {
+  if (!storage || !owner) return storage;
+  function write(key: string, value: string | null) {
+    if (!ownsAcceptance(owner)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
+    if (value === null) storage!.removeItem(key);
+    else storage!.setItem(key, value);
+    const expected = owner![scope];
+    if (expected && Object.hasOwn(expected, key)) expected[key] = value;
+  }
+  return {
+    getItem: (key) => storage.getItem(key),
+    setItem: (key, value) => write(key, value),
+    removeItem: (key) => write(key, null),
+    key: (index) => storage.key(index),
+    get length() { return storage.length; },
+    clear: () => { throw new Error("Clear individual planning records instead."); },
+  };
+}
 type ComposerGeneratedRelease = {
   operationKey: string;
   provisionalSavedAt: string;
-  routePair: ComposerDraftPair | null;
 };
 
 function readComposerDraftBytes(storage: Storage | null, v1Key: string, v2Key: string) {
@@ -809,7 +860,6 @@ function readComposerSessionDraft() {
   const session = readComposerDraftBytes(safeSessionStorage(), PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY);
   const now = Date.now();
   return {
-    pair: session.pair,
     plan: session.pair ? parsePlanDraftEnvelope(session.v2, session.v1, now) : null,
     legacyDraft: parsePlanDraft(session.v1, now),
     legacyDraftMissing: session.pair?.v1 === null,
@@ -987,36 +1037,6 @@ function sameComposerDraftPair(left: ComposerDraftPair | null, right: ComposerDr
   return Boolean(left && right && left.v1 === right.v1 && left.v2 === right.v2);
 }
 
-function releaseComposerAcceptance(storages: AcceptedContextStorages, release: ComposerGeneratedRelease | null): ComposerDraftPair | null {
-  const storage = storages.routeDraft;
-  if (!storage) {
-    releaseAcceptedPlanContext(storages);
-    return null;
-  }
-  let v1: string | undefined;
-  let v2: string | undefined;
-  releaseAcceptedPlanContext({
-    ...storages,
-    routeDraft: {
-      getItem: (key) => storage.getItem(key),
-      setItem: (key, value) => {
-        storage.setItem(key, value);
-        if (key === PLAN_ROUTE_DRAFT_KEY) v1 = value;
-        if (key === PLAN_ROUTE_DRAFT_V2_KEY) v2 = value;
-      },
-      removeItem: (key) => storage.removeItem(key),
-    },
-  });
-  if (v1 === undefined || v2 === undefined) return null;
-  const { pair, envelope } = readComposerRouteDraft();
-  if (!sameComposerDraftPair(pair, { v1, v2 })) return null;
-  if (release) {
-    if (envelope?.value.operationKey !== release.operationKey || !isProoflessReleasedRoute(envelope.value)) return null;
-    release.routePair = pair;
-  }
-  return pair;
-}
-
 function canCopyRecoveredRoute(
   corroboratedSessionDate: string | null,
   stored: ReturnType<typeof readComposerRouteDraft>,
@@ -1054,89 +1074,6 @@ function selectRecoveredComposerIntake(recovery: ReturnType<typeof projectCompos
 function acceptedAnchorForPlanDraft(anchor: ComposerHydration["acceptedAnchor"] | undefined, firstVenueId: string | undefined): StoredPlanDraft["acceptedAnchor"] {
   return anchor?.expiresAt && firstVenueId === anchor.venueId
     ? { ...anchor, expiresAt: anchor.expiresAt } : undefined;
-}
-
-function confirmedComposerSessionPair(
-  storage: Storage | null,
-  previous: ComposerDraftPair,
-  written: PlanDraftWriteResult,
-  draft: StoredPlanDraft,
-  savedAt: number,
-): ComposerDraftPair | null {
-  if (!written.v1 && !written.v2) return null;
-  const savedDraft = written.envelope?.draft ?? canonicalPlanDraftForWrite(draft, savedAt);
-  if (!savedDraft) return null;
-  const { pair } = readComposerDraftBytes(storage, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY);
-  const expected = {
-    v1: written.v1 ? JSON.stringify(savedDraft) : previous.v1,
-    v2: written.v2 ? JSON.stringify(written.envelope) : previous.v2,
-  };
-  return sameComposerDraftPair(pair, expected) ? pair : null;
-}
-
-function intentBelongsToAcceptance(intent: ReturnType<typeof readPlanningIntent>, anchor: StoredPlanDraft["acceptedAnchor"]): boolean {
-  return Boolean(intent && anchor && intent.acceptedVenueId === anchor.venueId
-    && intent.source === anchor.source && intent.expiresAt === anchor.expiresAt && intent.cityId === anchor.cityId
-    && intent.startsAt === anchor.startsAt && JSON.stringify(intent.acceptedArea) === JSON.stringify(anchor.acceptedArea));
-}
-
-function ownedRequestAnchor(
-  owner: ComposerRequestOwner | null,
-  heldVenueId: string | null,
-  hydratedAnchor: ComposerHydration["acceptedAnchor"] | undefined,
-): StoredPlanDraft["acceptedAnchor"] {
-  if (!heldVenueId) return undefined;
-  const pair = owner?.sessionPair;
-  const storedAnchor = pair ? parsePlanDraftEnvelope(pair.v2, pair.v1)?.draft.acceptedAnchor : undefined;
-  return acceptedAnchorForPlanDraft(hydratedAnchor, heldVenueId)
-    ?? (storedAnchor?.venueId === heldVenueId ? storedAnchor : undefined);
-}
-
-function ownedRequestSessionPair(
-  owner: ComposerRequestOwner,
-  storage: Storage | null,
-  heldAnchor: StoredPlanDraft["acceptedAnchor"],
-): ComposerDraftPair | null {
-  const { pair } = readComposerDraftBytes(storage, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY);
-  if (!sameComposerDraftPair(owner.sessionPair, pair)) return null;
-  if (!sameComposerDraftPair(owner.routePair, readComposerRouteDraft().pair)) return null;
-  const intent = readPlanningIntent({ storage, cleanupInvalid: false });
-  if (!heldAnchor) return intent ? null : pair;
-  return !intent || intentBelongsToAcceptance(intent, heldAnchor) ? pair : null;
-}
-
-function composerRequestOwnership(
-  owner: ComposerRequestOwner | null,
-  heldVenueId: string | null,
-  acceptedAnchor: ComposerHydration["acceptedAnchor"] | undefined,
-  session: Storage | null,
-  release: ComposerGeneratedRelease | null,
-) {
-  const heldAnchor = ownedRequestAnchor(owner, heldVenueId, acceptedAnchor);
-  const ownedSessionPair = owner && ownedRequestSessionPair(owner, session, heldAnchor);
-  if (owner && !ownedSessionPair) return null;
-  if (release && !sameComposerDraftPair(release.routePair, readComposerRouteDraft().pair)) {
-    if (owner) owner.sessionPair = null;
-    return null;
-  }
-  return { ownedSessionPair };
-}
-
-function updateComposerRequestOwnership(input: {
-  owner: ComposerRequestOwner | null;
-  ownedSessionPair: ComposerDraftPair | null;
-  session: Storage | null;
-  writtenSession: PlanDraftWriteResult;
-  sessionDraft: StoredPlanDraft;
-  sessionSavedAt: number;
-  routeSaved: boolean;
-}) {
-  const { owner, ownedSessionPair, session, writtenSession, sessionDraft, sessionSavedAt, routeSaved } = input;
-  if (owner && ownedSessionPair) {
-    const confirmed = confirmedComposerSessionPair(session, ownedSessionPair, writtenSession, sessionDraft, sessionSavedAt);
-    if (confirmed) owner.sessionPair = confirmed;
-    if (routeSaved) owner.routePair = readComposerRouteDraft().pair;
-  }
 }
 
 function keepsProvisionalComposerIntake(input: {
@@ -1181,21 +1118,6 @@ function composerSessionDraftForSave(
     ...(requestedStopCount !== undefined ? { requestedStopCount } : {}),
     ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
   };
-}
-
-function composerOwnsAcceptedRoute(
-  anchor: GeneratedPlanAnchor | null,
-  savedAt: string | undefined,
-  operationKey: string | null,
-  stops: DraftStop[],
-): boolean {
-  if (!anchor) return false;
-  const stored = readComposerRouteDraft();
-  const envelope = stored.envelope;
-  return Boolean(stored.pair && !stored.ambiguous && envelope
-    && envelope.savedAt === (savedAt ?? null) && envelope.value.operationKey === operationKey
-    && envelope.value.anchorVenueId === anchor.venueId && envelope.value.anchorSource === anchor.source
-    && composerStopIdentity(envelope.value.stops) === composerStopIdentity(stops));
 }
 
 function pendingComposerAcceptanceTime(
@@ -1285,19 +1207,16 @@ function persistComposerRouteDraft(
   routeDraft: StoredRouteDraft,
   mayWrite: boolean,
   passivePreview: ComposerPreviewCopy | null,
-  expectedReleasePair: ComposerDraftPair | null,
+  owner: ComposerRequestOwner | null,
 ) {
   const hasRouteDetails = Boolean(routeDraft.nightContext || routeDraft.routeNight || routeDraft.routeRevision !== null
     || routeDraft.groundingProof || routeDraft.createOperationKey || routeDraft.planAnchor
     || routeDraft.stops.some((stop) => stop.alternatives.length > 0));
-  const routeStorage = safeLocalStorage();
+  const routeStorage = composerAcceptanceStorage(safeLocalStorage(), owner, "local");
   let routeSaved = false;
   let previewSaved = false;
   if (hasRouteDetails || routeDraft.routeStale) {
     const storedRecovery = readComposerRouteDraft();
-    if (expectedReleasePair && !sameComposerDraftPair(expectedReleasePair, storedRecovery.pair)) {
-      return { hasRouteDetails, routeSaved: false, previewSaved: false, routeReference: undefined, releaseOwnershipLost: true };
-    }
     const stored = storedRecovery.route;
     const storedTime = Date.parse(stored?.savedAt ?? "");
     const copyTime = Date.parse(routeDraft.savedAt ?? "");
@@ -1324,7 +1243,7 @@ function persistComposerRouteDraft(
     routeSaved = Boolean(remaining && remaining.savedAt === routeDraft.savedAt
       && composerRouteContent(remaining) === composerRouteContent(routeDraft));
   }
-  return { hasRouteDetails, routeSaved, previewSaved, routeReference: composerRouteReference(routeDraft, routeSaved), releaseOwnershipLost: false };
+  return { hasRouteDetails, routeSaved, previewSaved, routeReference: composerRouteReference(routeDraft, routeSaved) };
 }
 
 function composerRouteReference(routeDraft: StoredRouteDraft, saved: boolean): StoredPlanDraft["routeReference"] {
@@ -1367,7 +1286,7 @@ function saveComposerRouteCopy(
     preserveStoredDrafts: boolean;
     recoveredRouteDraft: StoredRouteDraft | null;
     recoveredPreviewToCopy: ComposerPreviewCopy | null;
-    expectedReleasePair: ComposerDraftPair | null;
+    owner: ComposerRequestOwner | null;
   },
 ) {
   const { savedAt, successfulGeneration, actualMutation, preserveStoredDrafts, recoveredRouteDraft, recoveredPreviewToCopy } = input;
@@ -1390,8 +1309,8 @@ function saveComposerRouteCopy(
   const routeToRead = passivePreview?.route ?? { ...routeDraft, savedAt: routeCopy.current.savedAt };
   const mayWriteRoute = actualMutation ? mayWrite : passivePreview !== null;
   const saved = mayPersistRoute
-    ? persistComposerRouteDraft(routeToRead, mayWriteRoute, passivePreview, input.expectedReleasePair)
-    : { hasRouteDetails: false, routeSaved: false, previewSaved: false, routeReference: undefined, releaseOwnershipLost: false };
+    ? persistComposerRouteDraft(routeToRead, mayWriteRoute, passivePreview, input.owner)
+    : { hasRouteDetails: false, routeSaved: false, previewSaved: false, routeReference: undefined };
   return { routeChanged, ...saved };
 }
 
@@ -1476,10 +1395,12 @@ function persistComposerIntake(
     hasRequestWork: boolean;
     previousIntake: ReturnType<typeof readPlanIntakeDraftWithMetadata>;
     requestedStopCount: PlanStopCount | undefined;
+    owner: ComposerRequestOwner | null;
   },
 ): boolean {
+  if (!ownsAcceptance(input.owner)) return false;
   return !input.retainedPreview && (input.hasDurableIntakeDraft || input.hasRequestWork || (!input.previousIntake && input.requestedStopCount !== undefined))
-    ? actualMutation && writePlanIntakeDraft(draft, undefined, savedAt, request.routeReference, request.explicitNightContext)
+    ? actualMutation && writePlanIntakeDraft(draft, composerAcceptanceStorage(safeLocalStorage(), input.owner, "local"), savedAt, request.routeReference, request.explicitNightContext)
     : false;
 }
 
@@ -1555,8 +1476,7 @@ function certifyComposerRecovery(input: {
   return { requestLoss, stopsLost, routeDetailsLost };
 }
 
-function readComposerIntakeForSave(cleanupInvalid = false): ReturnType<typeof readPlanIntakeDraftWithMetadata> {
-  if (cleanupInvalid) return readPlanIntakeDraftWithMetadata();
+function readComposerIntakeForSave(): ReturnType<typeof readPlanIntakeDraftWithMetadata> {
   try {
     return parsePlanIntakeDraftWithMetadata(safeLocalStorage()?.getItem(PLAN_INTAKE_STORAGE_KEY) ?? null);
   } catch {
@@ -1578,9 +1498,10 @@ function composerRequestSaveStatus(input: {
 }) {
   const { draft, intakeDraft, writtenSession, writtenIntake, savedAt, routeDraft, routeSorted } = input;
   const { routeStale } = routeDraft;
-  const canonicalRequest = (value: StoredPlanDraft) => JSON.stringify(parsePlanDraft(JSON.stringify({
-    ...value, provisionalSavedAt: undefined,
-  })));
+  const canonicalRequest = (value: StoredPlanDraft) => {
+    const canonical = canonicalPlanDraftForWrite(value, Date.now());
+    return JSON.stringify(canonical && { ...canonical, provisionalSavedAt: undefined });
+  };
   const canonical = canonicalRequest(draft);
   const { plan: envelope, legacyDraft, legacyDraftMissing } = readComposerSessionDraft();
   let v2Draft = envelope?.draft;
@@ -2369,9 +2290,7 @@ function PlanComposerForm({
   requestAmbiguous,
   preserveStoredDrafts,
   provisionalRequest,
-  datedProvisionalSuccessor,
-  requestRoutePair,
-  requestSessionPair,
+  acceptedOwner,
   handoff: hydratedHandoff,
   canPersist,
   allowUrlPrefill,
@@ -2386,9 +2305,7 @@ function PlanComposerForm({
   requestAmbiguous: boolean;
   preserveStoredDrafts: boolean;
   provisionalRequest: boolean;
-  datedProvisionalSuccessor: boolean;
-  requestRoutePair: ComposerDraftPair | null;
-  requestSessionPair: ComposerDraftPair | null;
+  acceptedOwner: ComposerRequestOwner | null;
   handoff: ComposerHydration | null;
   canPersist: boolean;
   allowUrlPrefill: boolean;
@@ -2421,8 +2338,7 @@ function PlanComposerForm({
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const automaticCreatorName = useRef<string | null>(null);
   const pendingDraftSave = useRef(false);
-  const requestOwner = useRef<ComposerRequestOwner | null>(provisionalRequest || datedProvisionalSuccessor || hydratedHandoff?.heldVenueId
-    ? { sessionPair: requestSessionPair, routePair: requestRoutePair } : null);
+  const requestOwner = useRef(acceptedOwner);
   const generatedRelease = useRef<ComposerGeneratedRelease | null>(null);
   const requestEditTime = useRef<number | null>(null);
   const [initialStartTime] = useState(draftFields.startTime);
@@ -2904,21 +2820,20 @@ function PlanComposerForm({
     generatedRelease.current = null;
     const acceptedAnchor = handoff?.acceptedAnchor;
     const persistedAcceptedAnchor = acceptedAnchorForPlanDraft(acceptedAnchor, stops[0]?.venueId);
-    const session = safeSessionStorage();
+    const owner = requestOwner.current;
+    const session = composerAcceptanceStorage(safeSessionStorage(), owner, "session");
     const previousSession = readPlanDraftEnvelope(session);
     const acceptedIntentTime = pendingComposerAcceptanceTime(handoff, persistedAcceptedAnchor, previousSession);
     if (!actualMutation && !canSaveRecoveredComposerDraft(
       stops, preserveStoredDrafts, recoveredRouteDraft, acceptedIntentTime, recoveredPreviewReference,
     )) return;
-    const owner = requestOwner.current;
-    const ownership = composerRequestOwnership(owner, heldVenueId, acceptedAnchor, session, release);
-    if (!ownership) return showSaveFailure("request");
+    if (!ownsAcceptance(owner)) return showSaveFailure("request");
     const savedAt = Date.now();
     const keepsHiddenIntake = keepsProvisionalComposerIntake({
       provisionalRequest, routeSorted, hasRequestWork, conciergeQuery, recoveredQuery: recoveredIntent.conciergeQuery,
       startTime, recoveredRequestStart, wizardChosen, recoveredDraft,
     });
-    const previousIntake = readComposerIntakeForSave(actualMutation && !keepsHiddenIntake);
+    const previousIntake = readComposerIntakeForSave();
     const sameIntake = previousIntake && samePlanIntake(planIntake, previousIntake.draft);
     const routeDraft = {
       stops,
@@ -2938,15 +2853,10 @@ function PlanComposerForm({
       sameIntake, previousIntake,
     });
     if (retainedPreview && !retainedPreview.routeReference) return showSaveFailure("request");
-    const savedRoute = retainedPreview ? { ...retainedPreview, releaseOwnershipLost: false }
-      : saveComposerRouteCopy(routeDraft, routeCopy, {
-        savedAt, successfulGeneration, actualMutation, preserveStoredDrafts, recoveredRouteDraft, recoveredPreviewToCopy,
-        expectedReleasePair: release?.routePair ?? null,
-      });
-    if (savedRoute.releaseOwnershipLost) {
-      if (owner) owner.sessionPair = null;
-      return showSaveFailure("request");
-    }
+    const savedRoute = retainedPreview ?? saveComposerRouteCopy(routeDraft, routeCopy, {
+      savedAt, successfulGeneration, actualMutation, preserveStoredDrafts, recoveredRouteDraft, recoveredPreviewToCopy, owner,
+    });
+    if (!ownsAcceptance(owner)) return showSaveFailure("request");
     const { routeChanged, hasRouteDetails, routeSaved, previewSaved, routeReference } = savedRoute;
     if (!actualMutation && !canSaveRecoveredComposerRequest(requestAmbiguous, routeCopy.current.savedAt, acceptedIntentTime)) return;
     const keepRevocation = (provisionalStop && acceptanceReleased) || preserveComposerRouteRevocation(routeSorted, recoveredDraft, previousIntake);
@@ -2984,19 +2894,17 @@ function PlanComposerForm({
     const sessionSavedAt = planRequestSaveTime(requestEditTime.current, savedAt, {
       routeSavedAt: routeCopy.current.savedAt, sameRequest, previousSession, sameIntake, previousIntake, acceptedIntentTime,
     });
+    if (!ownsAcceptance(owner)) return showSaveFailure("request");
     const writtenSession = writePlanDraftEnvelope(sessionDraft,
       persistedAcceptedAnchor ? "planning-intent" : "manual", session, sessionSavedAt,
       { requireV1: retainedPreview !== null });
-    updateComposerRequestOwnership({
-      owner, ownedSessionPair: ownership.ownedSessionPair, session, writtenSession,
-      sessionDraft, sessionSavedAt, routeSaved,
-    });
+    if (!ownsAcceptance(owner)) return showSaveFailure("request");
     const releaseReference = releasedComposerRouteReference(release, previousSession, writtenSession, {
       routeChanged, routeSaved, savedAt: routeCopy.current.savedAt,
     });
     const intakeRequest = releaseReference ? { ...sessionDraft, routeReference: releaseReference } : sessionDraft;
     const writtenIntake = !keepsHiddenIntake && persistComposerIntake(planIntake, sessionSavedAt, intakeRequest, actualMutation, {
-      retainedPreview, hasDurableIntakeDraft, hasRequestWork, previousIntake, requestedStopCount,
+      retainedPreview, hasDurableIntakeDraft, hasRequestWork, previousIntake, requestedStopCount, owner,
     });
     const { sessionWrite, intakeSaved, certificate } = composerRequestSaveStatus({
       draft: sessionDraft, intakeDraft: planIntake, writtenSession, writtenIntake, savedAt: sessionSavedAt,
@@ -3230,32 +3138,24 @@ function PlanComposerForm({
   function dropAcceptance() {
     const session = canPersist ? safeSessionStorage() : null;
     const owner = requestOwner.current;
-    const anchor = ownedRequestAnchor(owner, heldVenueId, handoff?.acceptedAnchor);
-    const currentIntent = owner ? readPlanningIntent({ storage: session, cleanupInvalid: false }) : null;
-    const ownsIntent = intentBelongsToAcceptance(currentIntent, anchor);
-    const ownsRequest = Boolean(composerRequestOwnership(owner, heldVenueId, handoff?.acceptedAnchor, session, null));
-    const ownsRoute = canPersist && routeSorted && planAnchor?.venueId === heldVenueId
-      && composerOwnsAcceptedRoute(planAnchor, routeCopy.current.savedAt, createOperationKey, stops);
-    pendingDraftSave.current = ownsRequest && (!currentIntent || ownsIntent);
-    if (owner && pendingDraftSave.current && ownsRoute && createOperationKey && groundingProof) {
+    const ownsRequest = ownsAcceptance(owner);
+    const currentIntent = readPlanningIntent({ storage: session, cleanupInvalid: false });
+    const ownsRoute = canPersist && routeSorted && planAnchor?.venueId === heldVenueId;
+    pendingDraftSave.current = ownsRequest;
+    if (owner && ownsRequest && ownsRoute && createOperationKey && groundingProof) {
       const plan = readPlanDraftEnvelope(session);
       const stored = readComposerRouteDraft().envelope;
       const provisionalSavedAt = plan?.draft.provisionalSavedAt;
       if (provisionalSavedAt && stored && stored.value.groundingProof === groundingProof && !stored.value.routeStale
         && Date.parse(stored.savedAt ?? "") > Date.parse(provisionalSavedAt)) {
-        generatedRelease.current = { operationKey: createOperationKey, provisionalSavedAt, routePair: null };
+        generatedRelease.current = { operationKey: createOperationKey, provisionalSavedAt };
       }
     }
-    const releasedRoutePair = releaseComposerAcceptance({
-      intent: ownsRequest && ownsIntent ? session : null,
-      planDraft: pendingDraftSave.current ? session : null,
-      routeDraft: ownsRoute && pendingDraftSave.current ? safeLocalStorage() : null,
-    }, generatedRelease.current);
-    if (owner) {
-      owner.sessionPair = pendingDraftSave.current
-        ? readComposerDraftBytes(session, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY).pair : null;
-      if (pendingDraftSave.current && ownsRoute) owner.routePair = releasedRoutePair;
-    }
+    if (ownsAcceptance(owner)) releaseAcceptedPlanContext({
+      intent: currentIntent ? composerAcceptanceStorage(session, owner, "session") : null,
+      planDraft: composerAcceptanceStorage(session, owner, "session"),
+      routeDraft: ownsRoute ? composerAcceptanceStorage(safeLocalStorage(), owner, "local") : null,
+    });
     setPlanAnchor(null);
     setGroundingProof(null);
     if (owner && !routeSorted) setRouteStale(true);
@@ -3493,6 +3393,7 @@ function PlanComposerForm({
       );
       if (signal.aborted) return;
       responseStatus = response.status;
+      if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
       // The kept route's own length is the night it answers.
       Object.assign(submittedContext, taken.context);
       const kept = taken.keeps;
@@ -3635,6 +3536,10 @@ function PlanComposerForm({
     const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
     if (signal.aborted) return;
     if (!validatePlanSubmission()) return;
+    if (!ownsAcceptance(requestOwner.current)) {
+      setError(COMPOSER_OWNERSHIP_CHANGED);
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -3656,14 +3561,17 @@ function PlanComposerForm({
       });
       const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload, signal);
       if (signal.aborted) return;
+      if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
       const response = await fetch("/api/plans", {
         signal,
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
         body: JSON.stringify(createPayload),
       });
+      if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
       const body = await response.json();
       if (signal.aborted) return;
+      if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
       if (!response.ok || !body?.plan?.plan?.id) {
         // Surface anchored-lock failures honestly: 422 for invalid or expired
         // proof, and 409 for replay conflict.
@@ -3673,7 +3581,6 @@ function PlanComposerForm({
       const planId = body.plan.plan.id as string;
       const attribution = serverPlanCreationAttribution(body);
       if (!attribution) throw new Error("We could not check the route details. Reload the plan before continuing.");
-      settleConsumedPlanningIntent(completeStops);
       const { grounded } = attribution;
       const acceptanceTelemetry = planAcceptanceTelemetry(body, completeStops.length);
       const draftSavedTelemetry = planDraftSavedTelemetry(body, planAnchor, completeStops);
@@ -3710,6 +3617,7 @@ function PlanComposerForm({
         writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });
         const metadataPatch = createdPlanMetadataPatch(body.plan as PlanState, nightContext);
         if (metadataPatch) {
+          if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
           const metadataResponse = await fetch(`/api/plans/${planId}`, {
             signal,
             method: "PATCH",
@@ -3720,6 +3628,7 @@ function PlanComposerForm({
             body: JSON.stringify(metadataPatch),
           });
           if (signal.aborted) return;
+          if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
           if (!metadataResponse.ok) {
             discardBody(metadataResponse);
             throw new Error("The route was created, but its details could not be saved. Try again.");
@@ -3729,8 +3638,14 @@ function PlanComposerForm({
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
       rememberPlanHostName(safeLocalStorage(), creatorName);
-      clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
-      clearPlanIntakeDraft();
+      const owner = requestOwner.current;
+      if (!ownsAcceptance(owner)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
+      settleConsumedPlanningIntent(completeStops, owner);
+      clearPersistedPlanDrafts({
+        planDraft: composerAcceptanceStorage(safeSessionStorage(), owner, "session"),
+        routeDraft: composerAcceptanceStorage(safeLocalStorage(), owner, "local"),
+      });
+      if (ownsAcceptance(owner)) clearPlanIntakeDraft(composerAcceptanceStorage(safeLocalStorage(), owner, "local"));
       clearPersistentPlanMutationKey("create", operationKey);
       haptic("plan-locked");
       rememberLockedReportLine(planId, generatedReportRef.current, completeStops);
@@ -4251,16 +4166,22 @@ export default function PlanComposer() {
   const recovery = useMemo(() => {
     if (!hydrated || accountGeneration > 0) return null;
     try {
+      const acceptedRecords = readComposerAcceptanceRecords();
       const session = readComposerSessionDraft();
       const routeRecovery = readComposerRouteDraft();
       const recovery = projectComposerRecovery({
         plan: session.plan,
         legacyDraft: session.legacyDraft,
         legacyDraftMissing: session.legacyDraftMissing,
-        intake: readPlanIntakeDraftWithMetadata(),
+        intake: readComposerIntakeForSave(),
         planningIntent: readPlanningIntent({ cleanupInvalid: false }),
       }, routeRecovery);
-      return { ...recovery, sessionPair: session.pair, previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery) };
+      return {
+        ...recovery,
+        acceptedOwner: recovery.provisionalRequest || recovery.datedProvisionalSuccessor || recovery.handoff?.heldVenueId
+          ? acceptedRecords : null,
+        previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery),
+      };
     } catch { return null; }
   }, [hydrated, accountGeneration]);
   const recoveredDraft = recovery?.recoveredDraft ?? null;
@@ -4306,9 +4227,7 @@ export default function PlanComposer() {
       requestAmbiguous={recovery?.requestAmbiguous ?? false}
       preserveStoredDrafts={recovery?.preserveStoredDrafts ?? false}
       provisionalRequest={recovery?.provisionalRequest ?? false}
-      datedProvisionalSuccessor={recovery?.datedProvisionalSuccessor ?? false}
-      requestRoutePair={recovery?.route.pair ?? null}
-      requestSessionPair={recovery?.sessionPair ?? null}
+      acceptedOwner={recovery?.acceptedOwner ?? null}
       handoff={handoff}
       canPersist={hydrated}
       allowUrlPrefill={accountGeneration === 0}

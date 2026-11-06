@@ -4547,8 +4547,6 @@ it.each([
       const foreignOffset = interposeAtIntake ? effectOffset : releaseOffset + 500;
       const intentBytes = sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY);
       let releaseWritten = false;
-      let releasedPairReads = 0;
-      let pairReadsAtIntake = 0;
       let intakeReadAt = 0;
       let foreignRoutePair: { v1: string | null; v2: string | null } | null = null;
       advance(releaseOffset);
@@ -4583,9 +4581,7 @@ it.each([
       const interposeIntake = vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (this: Storage, key) {
         const value = readStorage.call(this, key);
         if (!interposeAtIntake || !releaseWritten || foreignRoutePair || this !== localStorage) return value;
-        if (key === PLAN_ROUTE_DRAFT_V2_KEY) releasedPairReads += 1;
         if (key === PLAN_INTAKE_STORAGE_KEY) {
-          pairReadsAtIntake = releasedPairReads;
           intakeReadAt = Date.now();
           writeForeignRoute();
         }
@@ -4601,7 +4597,6 @@ it.each([
       }
       if (interposeBeforeEffect || interposeAtIntake) {
         if (interposeAtIntake) {
-          expect(pairReadsAtIntake).toBeGreaterThanOrEqual(2);
           expect(intakeReadAt).toBe(T0 + effectOffset);
         }
         expect(foreignRoutePair).not.toBeNull();
@@ -4839,6 +4834,123 @@ it.each(
   advance(CLIENT_PROOF_LIFETIME + 6000);
   await editInput("#plan-name", "Do not replace newer records after Release");
   expect(records()).toEqual(newerRecords);
+});
+
+function acceptanceRecords() {
+  return [
+    sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY),
+    sessionStorage.getItem(PLAN_DRAFT_KEY), sessionStorage.getItem(PLAN_DRAFT_V2_KEY),
+    localStorage.getItem(PLAN_ROUTE_DRAFT_KEY), localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY),
+    localStorage.getItem(PLAN_INTAKE_STORAGE_KEY),
+  ];
+}
+
+async function generateAcceptedRouteForLock() {
+  const clock = await seedLaterMapAcceptance("v2");
+  const advance = (offset: number) => clock.advance(CLIENT_PROOF_LIFETIME + 1000 + offset);
+  const generated = {
+    ...generatedProofFixture(3), anchored: true, grounded: true,
+    groundingProof: clientProof("accepted-lock-route"),
+    outcome: "route", anchorVenueId: "venue-new", anchorSource: "map-search",
+    stops: [{ venueId: "venue-new", venueName: "New Pub" }, ...generatedProofFixture(3).stops.slice(1)],
+  };
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generated : [{ id: "venue-new", name: "New Pub" }],
+  ));
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "Three pubs in Clapham tonight" }));
+  await remountComposer();
+  advance(1000);
+  await act(async () => action("Make a plan").click());
+  await settle();
+  await editInput("#plan-title", "Our accepted night");
+  await editInput("#plan-name", "Captain");
+  expect(lockButton().getAttribute("aria-disabled")).toBeNull();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.provisionalStop).toBeUndefined();
+  expect(acceptanceRecords().every((record) => record !== null)).toBe(true);
+  fetchMock.mockClear();
+  return { advance, generated };
+}
+
+function createdAcceptedPlan(generated: Pick<ReturnType<typeof generatedProofFixture>, "stops">) {
+  return {
+    created: true, grounded: true, memberToken: "test-host-capability",
+    plan: { plan: { id: "accepted-lock-plan", status: "draft" }, stops: generated.stops },
+  };
+}
+
+it.each(
+  (["route V1", "route V2", "Plan V1", "Plan V2", "intake", "intent"] as const).flatMap((record) =>
+    (["before Lock", "during POST", "during PATCH"] as const).map((when) => ({ record, when }))),
+)("preserves all records when another tab replaces $record $when", async ({ record, when }) => {
+  const { advance, generated } = await generateAcceptedRouteForLock();
+  let newerRecords: ReturnType<typeof acceptanceRecords> | null = null;
+  function replaceRecord() {
+    advance(2000);
+    if (record === "intent") {
+      const previous = readPlanningIntent()!;
+      expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+      expect(readPlanningIntent()?.acceptedAt).not.toBe(previous.acceptedAt);
+      expect(readPlanningIntent()?.acceptedVenueId).toBe(previous.acceptedVenueId);
+    } else {
+      const storage = record.startsWith("Plan") ? sessionStorage : localStorage;
+      const key = record === "Plan V1" ? PLAN_DRAFT_KEY : record === "Plan V2" ? PLAN_DRAFT_V2_KEY
+        : record === "route V1" ? PLAN_ROUTE_DRAFT_KEY : record === "route V2" ? PLAN_ROUTE_DRAFT_V2_KEY
+          : PLAN_INTAKE_STORAGE_KEY;
+      const replacement = JSON.parse(storage.getItem(key)!);
+      if (record === "Plan V1") replacement.title = "Newer night";
+      if (record === "Plan V2") replacement.draft.title = "Newer night";
+      if (record === "route V1") replacement.createOperationKey = "newer-route-operation";
+      if (record === "route V2") replacement.value.operationKey = "newer-route-operation";
+      if (record === "intake") replacement.draft.answers.groupSize = 7;
+      storage.setItem(key, JSON.stringify(replacement));
+    }
+    newerRecords = acceptanceRecords();
+  }
+  fetchMock.mockImplementation(async (input, init) => {
+    if (String(input) === "/api/plans") {
+      if (when === "during POST") replaceRecord();
+      return Response.json(createdAcceptedPlan(generated));
+    }
+    if (String(input) === "/api/plans/accepted-lock-plan" && init?.method === "PATCH") {
+      if (when === "during PATCH") replaceRecord();
+      return Response.json({});
+    }
+    return Response.json([]);
+  });
+  if (when === "before Lock") replaceRecord();
+  await act(async () => lockButton().click());
+  await settle();
+  expect(newerRecords).not.toBeNull();
+  expect(acceptanceRecords()).toEqual(newerRecords);
+  expect(document.querySelector("#plan-composer-error")?.textContent).toContain("The saved planning request changed");
+  const posts = fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans");
+  expect(posts).toHaveLength(when === "before Lock" ? 0 : 1);
+  const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+  expect(patches).toHaveLength(when === "during PATCH" ? 1 : 0);
+  await editInput("#plan-title", "Do not replace the newer night");
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(acceptanceRecords()).toEqual(newerRecords);
+});
+
+it("clears owned acceptance records only after Lock metadata succeeds", async () => {
+  const { generated } = await generateAcceptedRouteForLock();
+  const heldRecords = acceptanceRecords();
+  let patched = false;
+  fetchMock.mockImplementation(async (input, init) => {
+    if (String(input) === "/api/plans") return Response.json(createdAcceptedPlan(generated));
+    if (String(input) === "/api/plans/accepted-lock-plan" && init?.method === "PATCH") {
+      expect(acceptanceRecords()).toEqual(heldRecords);
+      patched = true;
+      return Response.json({});
+    }
+    return Response.json([]);
+  });
+  await act(async () => lockButton().click());
+  await settle();
+  expect(patched).toBe(true);
+  expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]);
+  expect(document.querySelector("#plan-composer-error")).toBeNull();
 });
 
 it.each(["both", "v1-only", "v2-only"] as const)(

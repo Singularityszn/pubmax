@@ -1213,13 +1213,11 @@ describe("request-only recovery", () => {
   });
 
   it.each([
-    { transition: "released", dated: false },
-    { transition: "expired acceptance", dated: false },
-    { transition: "released", dated: true },
-    { transition: "expired acceptance", dated: true },
+    { transition: "released" },
+    { transition: "expired acceptance" },
   ] as const)(
-    "orders Local generation after a $transition provisional request with a date: $dated",
-    ({ transition, dated }) => {
+    "orders Local generation after a dated $transition provisional request",
+    ({ transition }) => {
       const intent = createPlanningIntent({ ...options, acceptedVenueId: "venue-a" }, NOW)!;
       const generationAt = Date.parse(intent.expiresAt) - 1000;
       const reloadAt = Date.parse(intent.expiresAt);
@@ -1235,15 +1233,10 @@ describe("request-only recovery", () => {
       });
       expect(writePlanDraftEnvelope(provisional, anchor ? "planning-intent" : "manual", session, NOW + 1000))
         .toMatchObject({ v1: true, v2: false });
-      if (!dated) {
-        const old = JSON.parse(session.getItem(PLAN_DRAFT_KEY)!);
-        delete old.provisionalSavedAt;
-        session.setItem(PLAN_DRAFT_KEY, JSON.stringify(old));
-      }
       const plan = readPlanDraftEnvelope(session, reloadAt)!;
       expect(plan).toMatchObject({ savedAt: null, legacy: true, draft: { provisionalStop: true } });
       expect(plan.draft.acceptedAnchor).toBeUndefined();
-      expect(plan.draft.provisionalSavedAt).toBe(dated ? new Date(NOW + 1000).toISOString() : undefined);
+      expect(plan.draft.provisionalSavedAt).toBe(new Date(NOW + 1000).toISOString());
 
       const nightContext = { ...inferNightContext("Clapham tonight").context, stopCount: 3 as const };
       const operationKey = "later-generation";
@@ -1277,8 +1270,8 @@ describe("request-only recovery", () => {
       const expired = readPlanRouteDraftEnvelope(local, reloadAt + 60_001)!;
       expect(expired.value).toMatchObject({ routeStale: true, groundingProof: null });
       expect(recoverPlanDrafts({ ...records, route: expired })).toMatchObject({
-        routeWins: dated, retainedPreviewReference: dated ? reference : null,
-        ...(dated ? { acceptanceUnavailable: true, planningIntent: null, intakeDraft: { routeReference: reference } } : {}),
+        routeWins: true, retainedPreviewReference: reference,
+        acceptanceUnavailable: true, planningIntent: null, intakeDraft: { routeReference: reference },
       });
       expect(recoverPlanDrafts({ ...records, planningIntent: createPlanningIntent(options, reloadAt) }).routeWins).toBe(false);
 
@@ -1286,7 +1279,6 @@ describe("request-only recovery", () => {
       expect(recoverPlanDrafts({ ...records, plan: { ...plan, draft: genuineEdit }, legacyDraft: genuineEdit }))
         .toMatchObject({ routeWins: false, provisionalRequest: false });
 
-      if (!dated) return;
       const equalDate = { ...plan.draft, provisionalSavedAt: reference.savedAt };
       expect(recoverPlanDrafts({ ...records, plan: { ...plan, draft: equalDate }, legacyDraft: equalDate }).routeWins).toBe(false);
       const releaseAt = reloadAt + 1000;

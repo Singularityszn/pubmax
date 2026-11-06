@@ -377,14 +377,6 @@ function provisionalAcceptanceMatches(plan: ParsedPlanDraft, intent: PlanningInt
     && (plan.legacy || (plan.origin === "planning-intent" && Date.parse(plan.savedAt ?? "") >= Date.parse(intent.acceptedAt))));
 }
 
-function intakeBelongsToProvisionalRequest(plan: ParsedPlanDraft, intake: ParsedPlanIntakeDraft | null): boolean {
-  const savedAt = plan.draft.provisionalSavedAt ?? plan.savedAt;
-  return Boolean(intake && !intake.routeReference && plan.draft.requestIntake
-    && (!savedAt || intake.savedAt === savedAt)
-    && JSON.stringify(intake.draft) === JSON.stringify(plan.draft.requestIntake)
-    && JSON.stringify(intake.explicitNightContext) === JSON.stringify(plan.draft.explicitNightContext));
-}
-
 function recoverMarkedProvisionalPlan({ plan, legacyDraft, legacyDraftMissing }: DraftRecoveryInput): ParsedPlanDraft | null {
   if (!plan?.draft.provisionalStop) return null;
   const canonicalOnly = !plan.legacy && plan.draft.provisionalSavedAt && legacyDraftMissing && !legacyDraft;
@@ -402,31 +394,14 @@ function laterDatedProvisionalRoute(
   return correlatedPreviewRouteReference(intake, route, planningIntent, true) ? "preview" : null;
 }
 
-function legacyProvisionalGenerationWins(
-  { route, intake, planningIntent }: DraftRecoveryInput,
-  provisionalPlan: ParsedPlanDraft | null,
-): boolean {
-  // The V1 request has no clock. Require current generation evidence before
-  // preferring the route to the marked request.
-  return Boolean(provisionalPlan?.legacy && !provisionalPlan.draft.acceptedAnchor
-    && route && !route.ambiguous && !route.value.routeStale && intake
-    && Number.isFinite(Date.parse(route.savedAt ?? "")) && matchingIntakeRoute(intake, route)
-    && (!planningIntent || Date.parse(planningIntent.acceptedAt)
-      <= latestKnownTime(route.savedAt, route.otherSavedAt, intake.savedAt)));
-}
-
 function provisionalRequestMasksRoute(
   { plan, legacyDraft, route, intake, planningIntent }: DraftRecoveryInput,
   provisionalPlan: ParsedPlanDraft | null,
 ): boolean {
   if (!route || route.ambiguous || !Number.isFinite(Date.parse(route.savedAt ?? ""))) return false;
-  if (provisionalPlan?.draft.provisionalSavedAt) return true;
-  if (provisionalPlan && !provisionalPlan.draft.acceptedAnchor) {
-    return provisionalPlan.legacy || Date.parse(provisionalPlan.savedAt ?? "") > Date.parse(route.savedAt ?? "");
-  }
-  if (!route.value.routeStale || !planningIntent || ((plan || legacyDraft) && !provisionalPlan)) return false;
-  const competingIntakeDate = provisionalPlan && intakeBelongsToProvisionalRequest(provisionalPlan, intake) ? null : intake?.savedAt;
-  return Date.parse(planningIntent.acceptedAt) > latestKnownTime(route.savedAt, route.otherSavedAt, competingIntakeDate);
+  if (provisionalPlan) return true;
+  if (!route.value.routeStale || !planningIntent || plan || legacyDraft) return false;
+  return Date.parse(planningIntent.acceptedAt) > latestKnownTime(route.savedAt, route.otherSavedAt, intake?.savedAt);
 }
 
 function selectProvisionalRouteOrder(records: DraftRecoveryInput) {
@@ -436,8 +411,7 @@ function selectProvisionalRouteOrder(records: DraftRecoveryInput) {
     || (planningIntent && provisionalAcceptanceMatches(markedPlan, planningIntent))) ? markedPlan : null;
   const matchingDatedProvisional = markedPlan?.draft.provisionalSavedAt;
   const datedSuccessor = matchingDatedProvisional ? laterDatedProvisionalRoute(records, matchingDatedProvisional) : null;
-  const generatedRouteWins = matchingDatedProvisional ? datedSuccessor !== null
-    : legacyProvisionalGenerationWins(records, provisionalPlan);
+  const generatedRouteWins = datedSuccessor !== null;
   const provisionalRequest = !generatedRouteWins && (records.route
     ? provisionalRequestMasksRoute(records, provisionalPlan)
     : provisionalPlan !== null);

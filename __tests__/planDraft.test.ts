@@ -212,10 +212,7 @@ describe("provisional Stop 1 requests", () => {
     expect(values.has(v2)).toBe(!refuseV2);
   });
 
-  it("keeps old provisional requests undated and rejects invalid date provenance", () => {
-    const old = JSON.stringify(request);
-    expect(parsePlanDraftEnvelope(null, old, now)).toMatchObject({ legacy: true, savedAt: null, draft: request });
-    expect(parsePlanDraft(old, now)?.provisionalSavedAt).toBeUndefined();
+  it("rejects invalid provisional date provenance", () => {
     for (const provisionalSavedAt of ["bad", new Date(now + 6 * 60_000).toISOString()]) {
       expect(parsePlanDraft(JSON.stringify({ ...request, provisionalSavedAt }), now)).toBeNull();
     }
@@ -237,10 +234,10 @@ describe("provisional Stop 1 requests", () => {
       { ...request, stops: [{ key: 1, venueId: "", venueName: "" }] },
     ];
     for (const draft of invalid) {
-      expect(parsePlanDraft(JSON.stringify(draft), now)).toBeNull();
+      expect(parsePlanDraft(JSON.stringify({ ...draft, provisionalSavedAt: new Date(now).toISOString() }), now)).toBeNull();
       expect(writePlanDraftEnvelope(draft, "manual", storage, now)).toEqual({ v1: false, v2: false, envelope: null });
     }
-    expect(parsePlanDraft(JSON.stringify({ ...request, provisionalStop: false }), now)).toBeNull();
+    expect(parsePlanDraft(JSON.stringify({ ...request, provisionalStop: false, provisionalSavedAt: new Date(now).toISOString() }), now)).toBeNull();
     expect(parsePlanDraft(JSON.stringify({ ...request, provisionalStop: undefined }), now)).toEqual({
       title: request.title, creatorName: request.creatorName, startTime: request.startTime,
       conciergeQuery: request.conciergeQuery, stops: request.stops, routeReference: null,
