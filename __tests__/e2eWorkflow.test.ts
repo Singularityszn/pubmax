@@ -36,7 +36,7 @@ const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
 // without them (fail closed). The nightly and a dispatch skip them, because
 // the full suite runs every layout spec on the same commit.
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
+  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 // The nightly full suite: the plain Chromium project in count-cut shards, and
 // every other project the default run covers in one job of its own.
 const FULL_SUITE_JOBS = ["full-suite", "full-suite-gl"];

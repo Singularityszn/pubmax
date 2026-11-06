@@ -39,8 +39,9 @@ jobs:
   # From 6 to 15 September 2026 the measurement ran on a 4 vCPU runner (Avrea,
   # then Blacksmith). A private repository's 2 vCPU `ubuntu-latest` could not
   # measure itself, which is one reason the sweep left the pull-request path.
-  # This job stays on macos-latest: its route budgets were measured there,
-  # and a Linux figure is a different measurement. The
+  # This job runs on macOS, on the pubmax-mac self-hosted pool: its route
+  # budgets were measured on macOS, and a Linux figure is a different
+  # measurement. The
   # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
   # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
   # a route flipped between pass and fail on one commit. A ceiling is only a
@@ -53,15 +54,17 @@ jobs:
   # inside the old wall, since that work only happens on `if: failure()`.
   performance-budget:
     name: Performance budget
-    runs-on: macos-latest
+    runs-on: pubmax-mac
     timeout-minutes: 55
     steps:
       # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
       # measuring deadline from the wall MINUS what the sweep and the merge-base
       # build have already spent, because a share of a wall that is gone is not
-      # a share. `date +%s%3N` is epoch milliseconds.
+      # a share. It runs before Setup Node, so it asks the shell rather than
+      # Node, and a self-hosted runner has no Node of its own. macOS `date`
+      # has no milliseconds, so it records whole seconds as milliseconds.
       - name: Record the job start
-        run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(node -p "Date.now()")" >> "$GITHUB_ENV"
+        run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(( $(date +%s) * 1000 ))" >> "$GITHUB_ENV"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,6 +73,9 @@ jobs:
           # The ratchet check compares this branch's ceilings against the base
           # branch's, so it needs the base branch to compare against.
           fetch-depth: 0
+
+      - name: Keep caches inside the job
+        uses: ./.github/actions/pubmax-job-local-caches
 
       - name: Setup Node
         timeout-minutes: 5
@@ -200,13 +206,16 @@ jobs:
   ux-lane-performance:
     name: UX lane performance
     needs: [performance-budget]
-    runs-on: macos-latest
+    runs-on: pubmax-mac
     timeout-minutes: 17
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Keep caches inside the job
+        uses: ./.github/actions/pubmax-job-local-caches
 
       - name: Setup Node
         timeout-minutes: 5

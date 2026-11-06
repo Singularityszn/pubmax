@@ -1,16 +1,18 @@
-// A PUBLIC REPO DOES NOT RUN CI ON A PERSONAL MACHINE.
+// A FORK'S CODE DOES NOT RUN ON THE MAC.
 //
 // Every job uses GitHub-hosted ubuntu-latest, except the closed list of
-// Playwright jobs in MACOS_JOBS. Pull request workflows do not reference the
-// secrets context, so a fork cannot read a repository secret.
-// docs/CI_RUNBOOK.md is the runbook.
+// Playwright jobs in MACOS_JOBS, which run on the self-hosted pubmax-mac pool.
+// A pull request from a fork never starts one of those jobs. Pull request
+// workflows do not reference the secrets context, so a fork cannot read a
+// repository secret. docs/CI_RUNBOOK.md is the runbook.
 //
 //   1. no dependency runs an install script unless the allowlist says so;
 //   2. no pre/post npm hook exists for `ignore-scripts` to skip in silence;
 //   3. every checkout drops its credential, and every remote action is pinned
 //      to a commit;
-//   4. only the jobs in MACOS_JOBS use macos-latest, every other job uses
-//      ubuntu-latest, and a pull request workflow has no secrets.
+//   4. only the jobs in MACOS_JOBS use pubmax-mac, every other job uses
+//      ubuntu-latest, a fork pull request starts no pubmax-mac job, and a
+//      pull request workflow has no secrets.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -31,6 +33,7 @@ const ROOT = process.cwd();
 type Step = { name?: string; uses?: string; run?: string; with?: Record<string, unknown> };
 type Job = {
   "runs-on": string;
+  if?: string;
   permissions?: Record<string, string>;
   steps: Step[];
 };
@@ -192,8 +195,9 @@ describe("workflow credentials and pins", () => {
   });
 });
 
-// The free plan runs 5 macOS jobs at once and about 20 Linux jobs, so a job
-// stays on macOS only with a reason. Each one here runs Playwright.
+// The self-hosted Mac pool is one machine's worth of places, against about 20
+// hosted Linux jobs at once, so a job runs on macOS only with a reason. Each
+// one here runs Playwright.
 const MACOS_JOBS: Record<string, string> = {
   // Proved on macOS glyph widths. On ubuntu-latest (16 Oct 2026) four layout
   // specs failed on a measured edge and the full suite failed 19 more tests.
@@ -210,17 +214,83 @@ const MACOS_JOBS: Record<string, string> = {
   "prod-smoke.yml / smoke": "proved on macOS, one run per deploy",
 };
 
-describe("hosted runners", () => {
-  it("runs every job on ubuntu-latest except the closed macOS list", () => {
+// The label runner-up serves this repository's self-hosted Mac places with.
+const MAC_POOL = "pubmax-mac";
+
+// A job-level `if` that holds this clause starts only for a pull request whose
+// head branch lives in this repository. It is true for every other event.
+const FORK_GUARD =
+  "(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)";
+
+// The events a job-level `if` admits when it is nothing but
+// `github.event_name == '<event>'` clauses joined by `||`. Any other condition
+// answers ["pull_request"], so the fork guard is still required for it.
+function onlyNamedEvents(condition: string): string[] {
+  const body = condition.trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1").trim();
+  const events = body
+    .split("||")
+    .map((clause) => /^github\.event_name == '([a-z_]+)'$/.exec(clause.trim())?.[1]);
+  return body && events.every((event) => event !== undefined) ? (events as string[]) : ["pull_request"];
+}
+
+describe("runners", () => {
+  it("runs every job on ubuntu-latest except the closed macOS list, which runs on the Mac pool", () => {
     const seen: string[] = [];
     for (const { file, parsed } of workflows) {
       for (const [jobId, job] of Object.entries(parsed.jobs)) {
         const where = `${file} / ${jobId}`;
-        if (job["runs-on"] === "macos-latest") seen.push(where);
-        expect(job["runs-on"], where).toBe(where in MACOS_JOBS ? "macos-latest" : "ubuntu-latest");
+        if (job["runs-on"] === MAC_POOL) seen.push(where);
+        expect(job["runs-on"], where).toBe(where in MACOS_JOBS ? MAC_POOL : "ubuntu-latest");
       }
     }
     expect(seen.sort()).toEqual(Object.keys(MACOS_JOBS).sort());
+  });
+
+  // Playwright starts half the machine's cores as workers when CI leaves the
+  // count unset. A hosted macOS runner gave one; the Mac pool would give 9,
+  // and four already killed the single production server on this rig.
+  it("holds every Mac pool Playwright run to one worker", () => {
+    for (const where of Object.keys(MACOS_JOBS)) {
+      const [file, jobId] = where.split(" / ");
+      const job = defined(workflows.find((entry) => entry.file === file)?.parsed.jobs[defined(jobId)], where);
+      for (const step of job.steps) {
+        if (typeof step.run !== "string" || !/\bplaywright test\b/.test(step.run)) continue;
+        // The prod-smoke config sets `workers: 1` itself.
+        if (step.run.includes("--config=playwright.prod-smoke.config.ts")) {
+          expect(readFileSync(join(ROOT, "playwright.prod-smoke.config.ts"), "utf8"), where).toMatch(/^\s*workers: 1,$/m);
+          continue;
+        }
+        expect(step.run.split(/\s+/), `${where} / ${step.name}`).toContain("--workers=1");
+      }
+    }
+  });
+
+  it("never starts a Mac pool job for a pull request from a fork", () => {
+    for (const where of Object.keys(MACOS_JOBS)) {
+      const [file, jobId] = where.split(" / ");
+      const workflow = defined(workflows.find((entry) => entry.file === file), where).parsed;
+      const events = triggers(workflow);
+      // pull_request_target runs with the base repository's token and secrets,
+      // so no workflow with a Mac job may listen for it at all.
+      expect(events, where).not.toContain("pull_request_target");
+      if (!events.includes("pull_request")) continue;
+      const condition = defined(workflow.jobs[defined(jobId)], where).if ?? "";
+      if (onlyNamedEvents(condition).every((event) => !event.startsWith("pull_request"))) continue;
+      expect(condition, where).toContain(FORK_GUARD);
+      // The guard must bind the whole condition, so no top-level `||` may
+      // offer a second way in around it.
+      expect(condition.replace(/\([^()]*(\([^()]*\)[^()]*)*\)/g, ""), where).not.toContain("||");
+    }
+  });
+
+  it("reads a job that only names its events, and nothing else, as one a fork cannot start", () => {
+    expect(onlyNamedEvents("github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'")).toEqual([
+      "schedule",
+      "workflow_dispatch",
+    ]);
+    // Anything more than a list of named events is not read as one.
+    expect(onlyNamedEvents("github.event_name == 'schedule' || always()")).toEqual(["pull_request"]);
+    expect(onlyNamedEvents("")).toEqual(["pull_request"]);
   });
 
   it("keeps the macOS list to Playwright jobs", () => {

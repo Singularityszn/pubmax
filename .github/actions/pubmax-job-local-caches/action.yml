@@ -1,0 +1,19 @@
+name: PubMax job-local caches
+description: >-
+  Point the npm cache and the Playwright browser folder at this job's own
+  RUNNER_TEMP. A self-hosted runner keeps its HOME between jobs, so the
+  default ~/.npm and ~/Library/Caches/ms-playwright would carry one job's
+  downloads into the next. The runner empties RUNNER_TEMP at the start and
+  end of every job. Run it after Checkout and before Setup Node, because
+  setup-node reads the npm cache path when it restores the npm cache.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      # Two fixed names, each set to a path under the runner's own
+      # RUNNER_TEMP, so GITHUB_ENV never receives text from the event.
+      run: | # zizmor: ignore[github-env]
+        set -euo pipefail
+        echo "npm_config_cache=${RUNNER_TEMP}/npm-cache" >> "$GITHUB_ENV"
+        echo "PLAYWRIGHT_BROWSERS_PATH=${RUNNER_TEMP}/ms-playwright" >> "$GITHUB_ENV"
+        echo "npm cache and Playwright browsers live under ${RUNNER_TEMP}"

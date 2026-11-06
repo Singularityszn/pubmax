@@ -12,8 +12,8 @@
 // Security CI are not gated at all. docs/CI_RUNBOOK.md is the runbook.
 //
 // The macOS layout pins are the one exception (owner decision, 17 Oct 2026).
-// The free plan runs only 5 macOS jobs at once, and a job that starts only to
-// skip its steps still holds a macOS runner while it waits. So one Linux job,
+// The Mac pool has few places, and a job that starts only to skip its steps
+// still holds a Mac place while it waits. So one Linux job,
 // "Change scope", classifies the diff, and the three layout-pin jobs are
 // skipped whole when it succeeds and says no screen code changed (captain,
 // 23 Oct 2026). Main still runs them on every push. They are named
@@ -194,7 +194,7 @@ const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
 // change merge without them (fail closed). The nightly and a dispatch skip
 // them, because the full suite runs every layout spec on the same commit.
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
+  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 
 describe("what each scope runs", () => {
   // The captain requires recovery in law pins and onboarding in layout pins.
@@ -256,7 +256,7 @@ describe("what each scope runs", () => {
     expect(scopeJob.if).toBeUndefined();
     for (const id of LAYOUT_PIN_JOBS) {
       const layout = defined(e2e[id], id);
-      expect(layout["runs-on"], id).toBe("macos-latest");
+      expect(layout["runs-on"], id).toBe("pubmax-mac");
       expect(layout.needs, id).toEqual(["change-scope"]);
       expect(layout.if, id).toBe(LAYOUT_PIN_IF);
       // A matrix job skipped whole reports under its unexpanded name.

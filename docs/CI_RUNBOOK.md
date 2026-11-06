@@ -4,11 +4,12 @@ GitHub Actions workflows live under `.github/workflows/`. The merge bar for
 application code is still `npm run verify` locally; Actions is the PR status
 check layer.
 
-## GitHub-hosted runners
+## Runners
 
-Jobs use `ubuntu-latest` by default, including Browser law pins. The
-`MACOS_JOBS` list in `__tests__/ciRunnerIsolation.test.ts` owns the exceptions
-and their reasons:
+Jobs use GitHub-hosted `ubuntu-latest` by default, including Browser law
+pins. The `MACOS_JOBS` list in `__tests__/ciRunnerIsolation.test.ts` owns the
+exceptions and their reasons. They run on the self-hosted `pubmax-mac` pool
+(see "Self-hosted Mac runners" below):
 
 - The layout pins and the two nightly full-suite jobs. Their specs were proved on
   macOS glyph widths. Both use the same self-hosted webfonts, but Linux
@@ -18,31 +19,31 @@ and their reasons:
 - The two `performance.yml` jobs. Their route budgets were measured on macOS.
 - `prod-smoke.yml`. It runs once per production deploy.
 
-The repository is public, so both are GitHub's free hosted runners. The free
-plan runs about 20 Linux jobs at once but only 5 macOS jobs. A pull request
-that changes code takes 3 macOS jobs (the layout shards). A docs or data pull
-request takes none (see "What a pull request runs"). The performance
-sweep once failed to measure itself on a private repository's 2 vCPU
-runner; that is why it is not on the pull-request path. It is not a reason
-to run a public repository's CI on a personal machine.
+GitHub's free plan runs about 20 hosted Linux jobs at once. Hosted macOS
+jobs waited a long time in GitHub's queue, so the macOS jobs moved to the
+`pubmax-mac` pool (captain, 6 Nov 2026). A pull request that changes code
+takes 3 Mac jobs (the layout shards). A docs or data pull request takes none
+(see "What a pull request runs"). The performance sweep once failed to
+measure itself on a private repository's 2 vCPU runner; that is why it is
+not on the pull-request path.
 
 ```yaml
 # every job, including Browser law pins
 runs-on: ubuntu-latest
 # the MACOS_JOBS list only
-runs-on: macos-latest
+runs-on: pubmax-mac
 ```
 
-`__tests__/ciRunnerIsolation.test.ts` holds those labels, and it holds the
-secret rule: a workflow that runs on `pull_request` does not reference
-`secrets`. Refresh workflows that open a review PR do not trigger on
+`__tests__/ciRunnerIsolation.test.ts` holds those labels. It also holds the
+fork guard and the secret rule: a workflow that runs on `pull_request` does
+not reference `secrets`. Refresh workflows that open a review PR do not trigger on
 `pull_request`, so a fork never receives their job token or a repository
 secret.
 
 ### What a job installs
 
-The hosted image does not carry the tools the Mac used to. Each job that
-needs them installs them:
+A runner image does not carry the tools a job needs. Each job that needs
+them installs them:
 
 - **Node 22** via `actions/setup-node`, which matches `engines.node` in
   `package.json`. Jobs that run `npm ci` set `cache: npm`. The old ban on
@@ -53,24 +54,57 @@ needs them installs them:
   apt package and the checksummed `postgrest-v14.16` static binary. It does
   not use a service container.
 - **Playwright Chromium** with `npx playwright install --with-deps chromium`
-  in the browser and performance jobs.
+  in the browser and performance jobs. On macOS `--with-deps` installs
+  nothing, so a Mac job needs no `sudo`.
 - **zizmor 1.30.1, osv-scanner 2.6.0 and Semgrep 1.179.0** in
   `security-ci.yml`, each checksummed or version-pinned.
 
 `PW_PORT` still comes from `.github/actions/pubmax-playwright-port`. Each
-hosted job has its own network namespace, so two jobs cannot collide. The
-action still gives one job a single port.
+hosted job has its own network namespace, so two jobs cannot collide. A Mac
+place derives its port from its runner name, or takes `PW_PORT` from the
+runner environment. The action gives one job a single port.
 
-### Retired Mac runners
+### Self-hosted Mac runners
 
-The self-hosted runners (`karan-mac-pubmax`, `-2`, `-3` with label
-`pubmax-mac`, and `karan-mac-pubmax-refresh` with label `pubmax-mac-refresh`)
-are retired. Do not register them again. A public repository's pull request
-code must not run on a personal machine, and that shared Mac was the
-browser-test timeout of 3-4 Oct 2026.
+runner-up serves this repository's Mac places under the label `pubmax-mac`.
+Today the pool has one host place on studio-1. Two tart virtual machine
+places will join it. A place runs one job at a time, as its own macOS user,
+with no `sudo`. So a Mac job:
 
-There is no console-user guard and no shared browser queue: each hosted job
-is its own machine.
+- **Keeps its caches in the job.** The first step after Checkout is
+  `.github/actions/pubmax-job-local-caches`. It points `npm_config_cache` and
+  `PLAYWRIGHT_BROWSERS_PATH` at `RUNNER_TEMP`, which the runner empties at the
+  start and end of every job. The default `~/.npm` and
+  `~/Library/Caches/ms-playwright` would carry one job's downloads into the
+  next. `actions/setup-node` still restores and saves the npm cache through
+  GitHub's cache.
+- **Installs Node with `actions/setup-node`** before any step that runs
+  `node`. The place has no Node of its own. `Performance budget` records its
+  start time with the shell for that reason.
+- **Runs Playwright with one worker.** CI leaves Playwright's worker count
+  unset, and Playwright then starts half the machine's cores. A hosted macOS
+  runner gave one worker. studio-1 has 18 cores and would give 9, and four
+  workers killed the single production server on 3-4 Oct 2026. Every Mac
+  Playwright run passes `--workers=1`, or uses the prod-smoke config, which
+  sets `workers: 1`.
+
+The repository is public, so a pull request from a fork never starts a Mac
+job. The layout pins are the only Mac jobs on the pull-request path, and
+their `if` carries the fork guard:
+
+```yaml
+(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+```
+
+The other Mac jobs run only on `schedule`, `workflow_dispatch` or
+`deployment_status`, which a fork cannot start. No workflow with a Mac job
+listens for `pull_request_target`. A skipped job counts as passed in branch
+protection, so a fork pull request reports its layout pins as skipped. Read
+such a pull request's screen changes by hand, or push its branch to this
+repository to run the pins.
+
+Browser jobs need no shared queue: one place runs one job at a time, and
+each hosted Linux job is its own machine.
 `__tests__/browserJobConcurrency.test.ts` holds the browser jobs to that.
 
 ### Install scripts and credentials
@@ -115,7 +149,8 @@ keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
 the shard matrix and project lists. Each Chromium shard builds one server.
 `Full browser suite (WebGL and keyless)` builds both the normal and keyless
 servers. Each job uses Playwright's default worker count. `playwright.config.ts`
-leaves that count unset in CI, and a hosted macOS runner resolves it to one worker.
+leaves that count unset in CI, so the Mac jobs pass `--workers=1` (see
+"Self-hosted Mac runners").
 Scheduled runs and manual dispatches skip the layout-pin jobs because the full
 suite covers those specs on the same commit.
 
@@ -229,7 +264,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | CI / Data validation | runs | runs | runs |
 | Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
-| Browser tests / layout pins (1-3/3) | skipped, no macOS runner | skipped, no macOS runner | runs for a `ui` change, skipped for `none` |
+| Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | runs for a `ui` change, skipped for `none` and for a fork |
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
@@ -240,7 +275,12 @@ The named-test step covers fences that read the very file a pull request changed
 
 `self-hosted-probe.yml` is `workflow_dispatch` only. It checks out, installs
 Node 22 and prints `node --version` on `ubuntu-latest`. It does not check a
-Mac user.
+Mac place. To see which place ran a Mac job, read the job log's "Runner name"
+line, or list the jobs of a run:
+
+```sh
+gh api repos/Singularityszn/pubmax/actions/runs/<run-id>/jobs --jq '.jobs[] | [.name, .runner_name, (.labels | join(","))] | @tsv'
+```
 
 ```sh
 gh workflow run self-hosted-probe.yml

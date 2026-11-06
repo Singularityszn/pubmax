@@ -1,0 +1,6 @@
+# The self-hosted runner labels actionlint cannot know. runner-up serves
+# this repository's Mac places under pubmax-mac (docs/CI_RUNBOOK.md,
+# "Self-hosted Mac runners").
+self-hosted-runner:
+  labels:
+    - pubmax-mac
