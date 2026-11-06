@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "@/e2e/helpers/mapNetworkFixtures";
 import { priceBandLegendLabel } from "@/lib/priceBand";
-import { expectMapLoadingFrameReleased, mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
@@ -434,7 +434,7 @@ for (const width of [390, 320]) {
     await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
-    await expectMapLoadingFrameReleased(page);
+    await expectMobileMapShellReady(page);
 
     const attribution = page.locator(".maplibregl-ctrl-attrib");
     await expect(attribution).toBeVisible({ timeout: 45_000 });

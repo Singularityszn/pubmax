@@ -308,15 +308,19 @@ test.describe("the stop cards under a thumb", () => {
       features: [{ name: "pointer", value: "coarse" }, { name: "hover", value: "none" }],
     });
     await sortARoute(page);
-    await page.evaluate(() => {
-      const top = document.querySelector(".planStops")!.getBoundingClientRect().top + window.scrollY;
+    const stops = page.locator(".planStops");
+    await expect(stops).toBeVisible();
+    await stops.evaluate((node) => {
+      const top = node.getBoundingClientRect().top + window.scrollY;
       window.scrollTo(0, top - 150);
     });
     await page.waitForTimeout(300);
     const touch = (type: string, x: number, y: number) =>
       cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }] } as never);
     const surface = async (index: number) => {
-      const box = await page.locator(".planStop__surface").nth(index).boundingBox();
+      const card = page.locator(".planStop__surface").nth(index);
+      await expect(card).toBeVisible();
+      const box = await card.boundingBox();
       if (!box) throw new Error(`no card ${index}`);
       return box;
     };

@@ -68,7 +68,7 @@
      offsets itself (see .siteNavBarFloating) and is scoped out below. */
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 12px;
   /* min-width:0 lets the bar shrink inside any flex/grid host without forcing a
      horizontal scrollbar; box-sizing keeps padding inside the 100% width. */
   width: 100%;
@@ -132,6 +132,16 @@
     --site-nav-width: min(1240px, 100vw - 48px);
     width: var(--site-nav-width);
     margin-inline: calc((100% - var(--site-nav-width)) / 2);
+  }
+}
+
+@media (min-width: 1280px) {
+  .siteNavBar:not(.siteNavBarFloating) {
+    gap: 4px;
+  }
+
+  .siteNavBar:not(.siteNavBarFloating) .siteNavActions {
+    gap: 2px;
   }
 }
 
@@ -275,7 +285,7 @@
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
-  gap: 2px;
+  gap: 8px;
   margin-left: auto;
 }
 
