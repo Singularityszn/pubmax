@@ -336,7 +336,18 @@ export function usePintDrops(
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
+  const [dropMsg, setDropMsgState] = useState<DropMsg | null>(null);
+  // Every message belongs to the account it was written for. One written
+  // without an explicit account takes the current one, so a later account
+  // never reads another's receipt, recovery or report notice.
+  const setDropMsg = useCallback((next: DropMsg | null | ((current: DropMsg | null) => DropMsg | null)) => {
+    setDropMsgState((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      return value && value.accountRevision === undefined
+        ? { ...value, accountRevision: readProviderAccountRevision() }
+        : value;
+    });
+  }, []);
   const accountRevision = useSyncExternalStore(
     subscribeProviderIdentityRevision,
     readProviderAccountRevision,
@@ -344,9 +355,9 @@ export function usePintDrops(
   );
   const ageAsserted = useCallback(() => {
     setDropMsg((message) => message?.ageRecovery?.accountRevision === readProviderAccountRevision()
-      ? { ok: true, text: "Age confirmation saved. Submit your price again." }
+      ? { ok: true, text: "Age confirmation saved. Submit your price again.", accountRevision: message.ageRecovery.accountRevision }
       : message);
-  }, []);
+  }, [setDropMsg]);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -546,6 +557,16 @@ export function usePintDrops(
     if (venueInputRef.current) venueInputRef.current.value = "";
     if (receiptInputRef.current) receiptInputRef.current.value = "";
   }, []);
+
+  // A different account does not inherit an unsent draft: its text, price and
+  // photos belong to the account that typed and picked them. Deferred out of
+  // the effect body (react-hooks/set-state-in-effect).
+  const composerAccount = useRef(accountRevision);
+  useEffect(() => {
+    if (composerAccount.current === accountRevision) return;
+    composerAccount.current = accountRevision;
+    void Promise.resolve().then(() => resetComposer());
+  }, [accountRevision, resetComposer]);
 
   // Revoke every preview URL still held when the component unmounts. Empty
   // deps on purpose: a cleanup keyed on the slots ran with the previous
@@ -886,6 +907,7 @@ export function usePintDrops(
         ok: true,
         text: dropReceiptText(addedToNight, outcome, submittedPrice, isUncheckedPrice(data.drop)),
         links,
+        accountRevision: submittedAccountRevision,
       });
     } catch {
       markFailed("Network or storage error. Try again.");
@@ -962,7 +984,7 @@ export function usePintDrops(
     setDropMsg(null);
     setComposerOpen(false);
     setConfirmSeed(null);
-  }, []);
+  }, [setDropMsg]);
 
   const mapDropsByVenueId = useMemo(
     () =>
@@ -1075,8 +1097,7 @@ export function usePintDrops(
     removePhoto,
     resetComposer,
     submitting,
-    dropMsg: dropMsg?.accountRevision !== undefined && dropMsg.accountRevision !== accountRevision
-      ? null : dropMsg,
+    dropMsg: dropMsg && dropMsg.accountRevision === accountRevision ? dropMsg : null,
     ageAsserted,
     submitDrop,
     reportDrop,

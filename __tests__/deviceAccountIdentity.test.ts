@@ -12,6 +12,7 @@ import {
   subscribeDeviceIdentity,
 } from "@/lib/deviceAccountIdentity";
 import { LOCAL_PAL_KEY } from "@/lib/localPal";
+import { OPTIMISTIC_SPILL_STORAGE_KEY } from "@/lib/optimisticSpillPost";
 import { NIGHT_PROFILE_DEVICE_KEY } from "@/lib/nightProfileDeviceProvenance";
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -135,6 +136,20 @@ describe("device account identity", () => {
     });
     clearDeviceAccountArtifacts(legacy);
     expect(legacy.getItem(NIGHT_PROFILE_DEVICE_KEY)).not.toBeNull();
+  });
+
+  it("takes the unconfirmed Pint Drops with the account, on a switch and on sign-out", () => {
+    // A failed or still-confirming drop of account A must not show in account
+    // B's feed, and Feed's Retry must not post it under B's name.
+    expect(DEVICE_IDENTITY_LOCAL_KEYS).toContain(OPTIMISTIC_SPILL_STORAGE_KEY);
+    const spills = JSON.stringify([{ clientRequestId: "a-1", drop: { id: "optimistic-a-1" } }]);
+    const switched = fakeStorage({ [DEVICE_ACCOUNT_OWNER_KEY]: "user-a", [OPTIMISTIC_SPILL_STORAGE_KEY]: spills });
+    expect(bindDeviceAccountOwner("user-b", switched)).toBe(true);
+    expect(switched.getItem(OPTIMISTIC_SPILL_STORAGE_KEY)).toBeNull();
+
+    const signedOut = fakeStorage({ [DEVICE_ACCOUNT_OWNER_KEY]: "user-a", [OPTIMISTIC_SPILL_STORAGE_KEY]: spills });
+    releaseDeviceAccountOwner(signedOut);
+    expect(signedOut.getItem(OPTIMISTIC_SPILL_STORAGE_KEY)).toBeNull();
   });
 
   it("takes the stored Pub Pal with the account, on a switch and on sign-out", () => {

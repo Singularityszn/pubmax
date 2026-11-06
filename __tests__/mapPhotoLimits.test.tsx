@@ -105,7 +105,7 @@ describe("the full Pint Drop composer photo boundary", () => {
     const input = document.createElement("input");
     input.value = "selected-file";
     await act(async () => { drops.pickPhoto(slot, photo(UPLOAD_PHOTO_MAX_BYTES + 1), input); });
-    expect(drops.dropMsg).toEqual({ ok: false, text: "Each photo must be under 4\u00a0MB." });
+    expect(drops.dropMsg).toMatchObject({ ok: false, text: "Each photo must be under 4\u00a0MB." });
     expect(drops[`${slot}Photo`]?.file).toBe(accepted);
     expect(input.value).toBe("");
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1);

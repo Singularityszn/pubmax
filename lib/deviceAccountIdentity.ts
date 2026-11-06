@@ -58,6 +58,9 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
   "pubmax:pal-night-answer:v1",
   // The Pal's stamp book of answered price quests (lib/palQuest.ts).
   "pubmax:pal-quest-stamps:v1",
+  // This account's unconfirmed Pint Drops (lib/optimisticSpillPost.ts): a
+  // failed one carries a Retry that would post it under whoever is signed in.
+  "pubmax:optimistic-spill-posts:v1",
 ] as const;
 
 /** The sessionStorage half of the same set. */
