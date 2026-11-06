@@ -528,6 +528,9 @@ function SocialPageAccountState({
   const [assertError, setAssertError] = useState<string | null>(null);
   const [draftScope, setDraftScope] = useState<string | null>(null);
   const [viewerHandle, setViewerHandle] = useState<string | null>(null);
+  // Find your lot mounts in the door while the session resolves and in the
+  // rail after, so the typed handle lives here and survives that swap.
+  const [findLotQuery, setFindLotQuery] = useState("");
   const [submittedPost, setSubmittedPost] = useState<SocialPostDTO | null>(null);
   const [accessAttempt, setAccessAttempt] = useState(0);
   const [feedAttempt, setFeedAttempt] = useState(0);
@@ -939,7 +942,7 @@ function SocialPageAccountState({
                 button that answered 401 would be a second door. */}
             {packsBesideTheDoor ? <StarterPacks readOnly /> : null}
             {/* ONE live copy of the search-and-invite surface on this page. */}
-            <FindYourLot myHandle={viewerHandle} compact />
+            <FindYourLot myHandle={viewerHandle} compact query={findLotQuery} onQueryChange={setFindLotQuery} />
             {/* The founders wall: one quiet link, no count, and no branch on the
                 reader (lib/foundingMembers.ts). */}
             <FoundersWallLink className="socialFoundersLink" />
@@ -1141,7 +1144,7 @@ function SocialPageAccountState({
                 same invite button twice at 1440 and stacked at 390 - and both
                 copies carried `id="find-lot-title"`, which left every
                 `aria-labelledby` on the page pointing at the first. */}
-            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
+            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact query={findLotQuery} onQueryChange={setFindLotQuery} /> : null}
           </aside>
 
           {showPostsControls ? (

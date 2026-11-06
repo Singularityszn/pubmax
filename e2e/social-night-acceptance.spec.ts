@@ -72,6 +72,9 @@ test("handle search shows loading and refusal, retries, and clears without follo
   });
   page.on("request", request => { if (request.method() === "POST" && request.url().endsWith("/follow")) writes += 1; });
   await page.goto("/social");
+  // The lane moves from the door to the rail once the session resolves. Type
+  // after that move, so the held first request belongs to the field under test.
+  await expect(page.getByRole("button", { name: "Post", exact: true })).toBeEnabled();
   const panel = page.getByRole("region", { name: "Find your lot", exact: true });
   const field = panel.getByRole("searchbox", { name: "Search handles" });
   await field.fill("al");
