@@ -1,6 +1,7 @@
 import "server-only";
 
 import { promises as fs } from "fs";
+import { createHash } from "node:crypto";
 import path from "path";
 
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
@@ -29,10 +30,12 @@ type VenueDetailManifestEntry = {
   offset: number;
   length: number;
   rowCount: number;
+  rowDigest?: string;
 };
 
 type VenueDetailManifest = {
   version: 1;
+  priceDatasetDigest?: string;
   detailsFile: string;
   count: number;
   venues: Record<string, VenueDetailManifestEntry>;
@@ -91,9 +94,9 @@ const VENUE_ID_RE =
 // A read refreshes an entry, so the order is least recently used.
 const VENUE_DETAIL_CACHE_MAX_ENTRIES = 1_000;
 let venueDetailCacheMax = VENUE_DETAIL_CACHE_MAX_ENTRIES;
-const cachedDetails = new Map<string, { venue: Venue; overlayVenueIds?: string[] }>();
+const cachedDetails = new Map<string, { venue: Venue; overlayVenueIds?: string[]; priceDatasetDigest?: string }>();
 
-function setCachedDetail(id: string, entry: { venue: Venue; overlayVenueIds?: string[] }): void {
+function setCachedDetail(id: string, entry: { venue: Venue; overlayVenueIds?: string[]; priceDatasetDigest?: string }): void {
   if (cachedDetails.has(id)) cachedDetails.delete(id);
   cachedDetails.set(id, entry);
   while (cachedDetails.size > venueDetailCacheMax) {
@@ -127,13 +130,13 @@ let manifestReadAttemptsForTests = 0;
  * a retired id as a live pub.
  */
 export type VenueDetailLookupResult =
-  | { status: "found"; venue: Venue }
+  | { status: "found"; venue: Venue; priceDatasetDigest?: string }
   | { status: "retired"; venue: Venue }
   | { status: "missing" }
   | { status: "unavailable" };
 
 type ArtifactLookupResult =
-  | { status: "found"; venue: Venue }
+  | { status: "found"; venue: Venue; priceDatasetDigest?: string }
   | { status: "missing" }
   | { status: "unavailable"; allowFallback: boolean };
 
@@ -243,8 +246,11 @@ async function readVenueFromArtifact(id: string): Promise<ArtifactLookupResult> 
     if (bytesRead !== entry.length) return { status: "unavailable", allowFallback: false };
     const artifact = JSON.parse(buffer.toString("utf8").trim()) as VenueDetailArtifact;
     const venue = venueFromDetailArtifact(artifact, id);
+    const digest = manifestResult.manifest.priceDatasetDigest;
+    const validDigest = typeof digest === "string" && /^[A-Za-z0-9_-]{22}$/.test(digest) &&
+      typeof entry.rowDigest === "string" && createHash("sha256").update(buffer).digest("base64url").slice(0, 22) === entry.rowDigest;
     return venue
-      ? { status: "found", venue }
+      ? { status: "found", venue, ...(validDigest ? { priceDatasetDigest: digest } : {}) }
       : { status: "unavailable", allowFallback: false };
   } catch {
     return { status: "unavailable", allowFallback: false };
@@ -298,6 +304,10 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   return fallbackIndex;
 }
 
+function foundDetail(venue: Venue, digest?: string): VenueDetailLookupResult {
+  return digest ? { status: "found", venue, priceDatasetDigest: digest } : { status: "found", venue };
+}
+
 async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLookupResult> {
   if (!isVenueDetailId(requestedId) || isVerifiedClosedCuratedVenue(requestedId)) {
     return { status: "missing" };
@@ -321,21 +331,21 @@ async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLo
           cached.overlayVenueIds = overlayVenueIds;
         }
       }
-      if (!overlayVenueIds?.length) return { status: "found", venue: cached.venue };
+      if (!overlayVenueIds?.length) return foundDetail(cached.venue, cached.priceDatasetDigest);
       const reads = await Promise.all(
         overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
       );
       if (reads.some((read) => read.status === "degraded")) {
-        return { status: "found", venue: cached.venue };
+        return foundDetail(cached.venue, cached.priceDatasetDigest);
       }
       const venue = reads.reduce(
         (current, read) =>
           read.status === "ready" ? applyHarvestWebsiteMenu(current, read.overlay) : current,
         cached.venue,
       );
-      return { status: "found", venue };
+      return foundDetail(venue, cached.priceDatasetDigest);
     } catch {
-      return { status: "found", venue: cached.venue };
+      return foundDetail(cached.venue, cached.priceDatasetDigest);
     }
   }
 
@@ -347,6 +357,7 @@ async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLo
   }
 
   const artifactResult = await readVenueFromArtifact(id);
+  const priceDatasetDigest = artifactResult.status === "found" ? artifactResult.priceDatasetDigest : undefined;
   let venue: Venue | null = artifactResult.status === "found" ? artifactResult.venue : null;
   if (
     !venue &&
@@ -374,20 +385,20 @@ async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLo
     } catch {
       overlayVenueIds = undefined;
     }
-    setCachedDetail(id, { venue: enriched, ...(overlayVenueIds ? { overlayVenueIds } : {}) });
-    if (!overlayVenueIds?.length) return { status: "found", venue: enriched };
+    setCachedDetail(id, { venue: enriched, ...(overlayVenueIds ? { overlayVenueIds } : {}), ...(priceDatasetDigest ? { priceDatasetDigest } : {}) });
+    if (!overlayVenueIds?.length) return foundDetail(enriched, priceDatasetDigest);
     const reads = await Promise.all(
       overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
     );
-    if (reads.some((read) => read.status === "degraded")) return { status: "found", venue: enriched };
+    if (reads.some((read) => read.status === "degraded")) return foundDetail(enriched, priceDatasetDigest);
     const mergedVenue = reads.reduce(
       (current, read) =>
         read.status === "ready" ? applyHarvestWebsiteMenu(current, read.overlay) : current,
       enriched,
     );
-    return { status: "found", venue: mergedVenue };
+    return foundDetail(mergedVenue, priceDatasetDigest);
   } catch {
-    return { status: "found", venue };
+    return foundDetail(venue, priceDatasetDigest);
   }
 }
 
