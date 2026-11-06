@@ -133,3 +133,22 @@ describe("a historic pub leads with the pint the app lists for it", () => {
     expect(html).toContain("/map?sel=venue-16pnwmm&amp;log=1");
   });
 });
+
+describe("the provenance footer names no source the record does not use", () => {
+  it("credits the record's own sources, not a blanket Wikipedia and Wikidata claim", () => {
+    const pub: HistoricPub = {
+      ...PROSPECT,
+      hook: "",
+      facts: [
+        { source: "osm", fact: "Serves real ale since 1740." },
+        { source: "nhle", fact: "Grade II listed public house on the riverside." },
+      ],
+    };
+    const html = renderToStaticMarkup(createElement(HistoricPubDetail, { pub }));
+    const footer = /<footer class="hdProvenance">([\s\S]*?)<\/footer>/.exec(html)?.[1] ?? "";
+    expect(footer).toContain('href="/credits"');
+    expect(footer).not.toMatch(/Wikipedia|Wikidata/);
+    expect(html).toContain("From OpenStreetMap");
+    expect(html).toContain("From Historic England");
+  });
+});

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SITE_ORGANIZATION_ID } from "@/lib/siteJsonLd";
 
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
@@ -72,7 +73,7 @@ function datasetJsonLd(edition: ArchivedPintIndexSnapshot, boroughCount: number,
     url: `${SITE_URL}/pint-index/${month}`,
     identifier: edition.snapshotId,
     version: String(revision),
-    creator: { "@type": "Organization", name: "PUBMAXX", url: SITE_URL },
+    creator: { "@id": SITE_ORGANIZATION_ID },
     isAccessibleForFree: true,
     datePublished: publishedAt,
     dateModified: publishedAt,
