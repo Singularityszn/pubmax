@@ -550,8 +550,17 @@ for (const width of [390, 320]) {
 for (const width of [1280, 1440]) {
   test(`${width}px OpenStreetMap credit owns its hit target and opens`, async ({
     page,
+    context,
   }) => {
     test.setTimeout(90_000);
+    const copyrightUrl = "https://www.openstreetmap.org/copyright";
+    // Context routing also intercepts the first request from a new tab.
+    await context.route(copyrightUrl, (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: "<!doctype html><title>OpenStreetMap copyright</title>",
+      }),
+    );
     await page.setViewportSize({ width, height: 900 });
     await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
@@ -600,25 +609,13 @@ for (const width of [1280, 1440]) {
       `credit centre belongs to ${JSON.stringify(hit)}`,
     ).toBe(true);
 
-    const opened = Promise.any([
-      page.waitForEvent("popup", { timeout: 5_000 }).then((popup) => ({
-        kind: "popup",
-        url: popup.url(),
-      })),
-      page
-        .waitForURL(/^https?:\/\/(?:www\.)?openstreetmap\.org\//, {
-          timeout: 5_000,
-        })
-        .then(() => ({ kind: "navigation", url: page.url() })),
+    // Credits can redraw before the physical click. Give the popup wait more
+    // time than the click, and check its URL without waiting for a network load.
+    const [popup] = await Promise.all([
+      page.waitForEvent("popup", { timeout: 30_000 }),
+      openStreetMap.click({ timeout: 20_000 }),
     ]);
-    // Rail credits can redraw this link after the hit check. A locator click
-    // uses its current centre and waits for a stable physical click target.
-    await openStreetMap.click();
-    const destination = await opened;
-    expect(destination.kind).toMatch(/^(popup|navigation)$/);
-    expect(destination.url).toMatch(
-      /^https?:\/\/(?:www\.)?openstreetmap\.org\//,
-    );
+    await expect(popup).toHaveURL(copyrightUrl);
   });
 }
 
