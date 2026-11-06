@@ -255,11 +255,10 @@ export const MIN_PRICED_LINES_FOR_LIST = 4;
  * would publish it as the pub's beer price, which is a real figure for a drink
  * that is not the one the price is being read as.
  */
-function isBottledMeasure(before: string): boolean {
-  // 568ml is a UK pint, not a bottle. The generic ml pattern would otherwise
-  // drop every drinks list that writes the measure in millilitres.
-  if (/\b568\s*ml\b/i.test(before)) return false;
-  return /(\d{2,3}\s?ml|\bbottle[ds]?\b|\bcans?\b)/i.test(before);
+function isBottledMeasure(text: string): boolean {
+  return /\bbottle[ds]?\b|\bcans?\b/i.test(text)
+    || Array.from(text.matchAll(/\b(\d+(?:[.,]\d+)?)\s*ml\b/gi))
+      .some((match) => Number(match[1].replace(",", ".")) !== 568);
 }
 
 /**
@@ -327,15 +326,8 @@ export const FRACTIONAL_PINT_MEASURE = new RegExp(
 export const MIXED_THIRD_PINT_MEASURE = new RegExp(
   `(?<![\\w.])\\d{1,2}(?:(?:[ \\t-]+|[ \\t]+and[ \\t]+)(?:${FRACTIONAL_BEER_MEASURE.source})|[ \\t]*[⅓⅔])${FRACTIONAL_PINT_UNIT}`, "i",
 );
-const FRACTIONAL_SERVING = `(?:${MIXED_THIRD_PINT_MEASURE.source}|(?:${FRACTIONAL_BEER_MEASURE.source})(?:${FRACTIONAL_PINT_UNIT})?)`;
-const LEADING_FRACTIONAL_BEER_MEASURE = new RegExp(
-  `^\\s*(?:\\(\\s*${FRACTIONAL_SERVING}(?:[ \\t]*,[^()£\\r\\n]*)?\\s*\\)|${FRACTIONAL_SERVING})(?=\\s|${PRICE_ITEM_SEPARATOR.source}|$)`, "i",
-);
 const LEADING_FRACTION_TOKEN = new RegExp(
   `^\\s*\\(?\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?=\\s|[()-]|${PRICE_ITEM_SEPARATOR.source}|$)`, "i",
-);
-const FRACTIONAL_PRICE_DISCOUNT = new RegExp(
-  `(?:\\([ \\t]*)?(?:${FRACTIONAL_BEER_MEASURE.source})[ \\t]*\\)?[ \\t]*(?:off\\b(?![ \\t-]+menu\\b)|discount(?:ed)?\\b)(?:[ \\t]+offer\\b)?`, "i",
 );
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
 export const SERVING_WORD = "pints?|halves|half|schooners?|two[\\s-]thirds|kegs?|bottles?|cans?|glasses|glass|measures|measure";
@@ -371,12 +363,6 @@ const TRAILING_FULL_PINT = new RegExp(
   `^(?:[ \\t]+|[ \\t]*\\/[ \\t]*)(?:pints?|568[ \\t]*ml)\\b(?=\\s*$|\\s*${PRICE_ITEM_SEPARATOR.source})`, "i",
 );
 
-type FractionGap = {
-  suffix: string;
-  disputedEarlier?: boolean;
-  disputedLater?: boolean;
-};
-
 function statesFullPint(label: string): boolean {
   return FULL_PINT_WORD.test(label) && !FRACTIONAL_BEER_MEASURE.test(label)
     && !isBottledMeasure(label);
@@ -384,189 +370,6 @@ function statesFullPint(label: string): boolean {
 
 function namesPricedItem(label: string): boolean {
   return /\p{L}/u.test(label.replace(FULL_PINT_WORD, ""));
-}
-
-const OFFER_SERVING_QUALIFIER = /^\s*(?:(?:on|all|selected)\s+)*(?:draught|draft|cask|keg|tap|beers?|lagers?|ales?|pints?)(?:\s+(?:beers?|lagers?|ales?|pints?))?\s*$/i;
-
-/** A clear boundary after a discount suffix, before the next price. */
-function offerSuffixBoundary(afterOffer: string): number {
-  if (LEADING_PRICE_ITEM_SEPARATORS.test(afterOffer)) return 0;
-  const hardBoundary = afterOffer.search(/[;|]/);
-  if (hardBoundary >= 0) return hardBoundary;
-  // A soft separator ends a recognised serving qualifier. A period inside
-  // a printed name, such as St. Austell, does not prove a new priced item.
-  const boundary = afterOffer.search(/[.,!?](?=\s*[\p{L}\p{N}])/u);
-  if (boundary < 0 || !OFFER_SERVING_QUALIFIER.test(afterOffer.slice(0, boundary))) return -1;
-  const nextLabel = afterOffer.slice(boundary + 1);
-  return statesFullPint(nextLabel) && namesPricedItem(nextLabel) ? boundary : -1;
-}
-
-/** The end of the earlier item's offer within one gap between printed prices. */
-function fractionalOfferSuffixEnd(gap: string, hasLaterPrice: boolean): number | null {
-  const offer = FRACTIONAL_PRICE_DISCOUNT.exec(gap);
-  if (!offer) return null;
-  const offerAt = offer.index;
-  // A strong break before the offer ends the earlier item. A colon, comma,
-  // or intervening offer wording does not by itself start a new priced item.
-  const beforeOffer = gap.slice(0, offerAt);
-  if (/[;|]/.test(beforeOffer) || /^[ \t]*[.!?]/.test(beforeOffer)) return null;
-  if (!hasLaterPrice) return gap.length;
-  const offerEnd = offerAt + offer[0].length;
-  const boundary = offerSuffixBoundary(gap.slice(offerEnd));
-  if (boundary < 0) return null;
-  const splitAt = offerEnd + boundary;
-  const followingLabel = gap.slice(splitAt);
-  // A colon before an amount can sit inside the next item's offer.
-  // A hard break can end a suffix even when the next figure is unnamed.
-  return namesPricedItem(followingLabel) || /^\s*[;|]/.test(followingLabel) ? splitAt : null;
-}
-
-/** Decide what belongs to the earlier price before reading the next item. */
-function fractionalGap(gap: string, earlierLabel: string, laterTail: string | null): FractionGap | null {
-  if (laterTail !== null && POUR_OF.test(gap.replace(LEADING_PRICE_ITEM_SEPARATORS, "").trim())) return null;
-  const offerEnd = fractionalOfferSuffixEnd(gap, laterTail !== null);
-  if (offerEnd !== null) {
-    return {
-      suffix: gap.slice(0, offerEnd),
-      disputedLater: laterTail !== null && !namesPricedItem(gap.slice(offerEnd)),
-    };
-  }
-  const marker = LEADING_FRACTIONAL_BEER_MEASURE.exec(gap)?.[0];
-  if (!marker) {
-    if (!LEADING_FRACTION_TOKEN.test(gap)) return null;
-    return {
-      suffix: "",
-      disputedEarlier: laterTail === null || !statesFullPint(earlierLabel),
-      disputedLater: laterTail !== null,
-    };
-  }
-  const laterLabel = gap.slice(marker.length);
-  if (LEADING_PRICE_ITEM_SEPARATORS.test(laterLabel)) {
-    return {
-      suffix: marker,
-      disputedLater: laterTail !== null && !laterLabel.replace(LEADING_PRICE_ITEM_SEPARATORS, "").trim(),
-    };
-  }
-  if (laterTail === null && !laterLabel.trim()) return { suffix: marker };
-  // Parentheses do not settle ownership. Keep a pint with its own explicit
-  // measure and withhold the adjacent figure when the fraction could be its own.
-  if (laterTail !== null && statesFullPint(earlierLabel)) {
-    return { suffix: "", disputedLater: true };
-  }
-  if (laterTail !== null && laterLabel.trim()
-    && (statesFullPint(laterLabel) || TRAILING_FULL_PINT.test(laterTail))) {
-    return { suffix: marker, disputedEarlier: true };
-  }
-  return { suffix: "", disputedEarlier: true, disputedLater: laterTail !== null };
-}
-
-type PriceFraction = {
-  fractional: boolean;
-  disputed: boolean;
-  suffix: string | null;
-  previousSuffixEnd: number | null;
-};
-
-function lineFractions(
-  line: PrintedMenuLine,
-  prices: readonly UkPriceRawCandidate[],
-): Array<{ raw: UkPriceRawCandidate; fraction: PriceFraction }> {
-  let previousEnd = 0;
-  let previousLabel = "";
-  return prices.map((price, index) => {
-    const at = price.at - line.start;
-    const end = at + price.verbatim.length;
-    const before = line.text.slice(previousEnd, at);
-    const remainder = line.text.slice(end);
-    const previous = index > 0 ? fractionalGap(before, previousLabel, remainder) : null;
-    const label = before.slice(previous?.suffix.length ?? 0).replace(LEADING_PRICE_ITEM_SEPARATORS, "");
-    const next = prices[index + 1];
-    const nextAt = next ? next.at - line.start : line.text.length;
-    const after = fractionalGap(
-      line.text.slice(end, nextAt),
-      label,
-      next ? line.text.slice(nextAt + next.verbatim.length) : null,
-    );
-    const fraction = {
-      fractional: FRACTIONAL_BEER_MEASURE.test(label) || Boolean(after?.suffix),
-      disputed: Boolean(previous?.disputedLater || after?.disputedEarlier),
-      suffix: after?.suffix ?? null,
-      previousSuffixEnd: previous?.suffix ? line.start + previousEnd + previous.suffix.length : null,
-    };
-    previousEnd = end;
-    previousLabel = label;
-    return { raw: price, fraction };
-  });
-}
-
-type OwnedFractionalOffer = { priceAt: number; start: number; end: number };
-
-function delimitedOfferClause(text: string, priorEnd: number, start: number, end: number, boundary: number): PrintedSpan {
-  let clauseStart = priorEnd;
-  for (const separator of text.slice(priorEnd, start).matchAll(new RegExp(PRICE_ITEM_SEPARATOR.source, "g"))) {
-    const after = priorEnd + (separator.index ?? 0) + separator[0].length;
-    // A colon directly introducing the discount stays inside its clause.
-    if (separator[0] === ":" && !text.slice(after, start).trim()) continue;
-    clauseStart = after;
-  }
-  const following = PRICE_ITEM_SEPARATOR.exec(text.slice(end, boundary));
-  return { start: clauseStart, end: following ? end + following.index : boundary };
-}
-
-/** Locate the offer text only when it belongs to a printed price. */
-function fractionalOfferOwner(text: string, start: number, end: number): OwnedFractionalOffer | null {
-  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
-  const lineEnd = text.indexOf("\n", end);
-  const before = text.slice(lineStart, start);
-  const after = text.slice(end, lineEnd < 0 ? text.length : lineEnd);
-  const prior = [...before.matchAll(UK_PRICE_PATTERN)].at(-1);
-  const next = NEXT_UK_PRICE.exec(after);
-  const priorAt = lineStart + (prior?.index ?? 0);
-  const priorEnd = priorAt + (prior?.[0].length ?? 0);
-  const nextAt = end + (next?.index ?? after.length);
-  let nextItemStart = priorEnd;
-  if (prior) {
-    const suffixEnd = fractionalOfferSuffixEnd(text.slice(priorEnd, nextAt), next !== null);
-    if (suffixEnd !== null) {
-      const boundary = priorEnd + suffixEnd;
-      if (end <= boundary) {
-        const following = text.slice(boundary, nextAt);
-        const separator = LEADING_PRICE_ITEM_SEPARATORS.exec(following);
-        const delimited = next && separator && (/[;|]/.test(separator[0])
-          || namesFullPint(following.slice(separator[0].length), ""));
-        return {
-          priceAt: priorAt,
-          ...(delimited ? delimitedOfferClause(text, priorEnd, start, end, boundary) : { start, end }),
-        };
-      }
-      // A second offer can be part of the next named item, after this suffix.
-      nextItemStart = boundary;
-    }
-  }
-  if (next && (!prior || LEADING_PRICE_ITEM_SEPARATORS.test(text.slice(nextItemStart, start)))) {
-    return { priceAt: nextAt, start, end };
-  }
-  return null;
-}
-
-function fractionalOfferOwners(text: string, context: string, contextStart: number): Array<OwnedFractionalOffer | null> {
-  return Array.from(context.matchAll(new RegExp(FRACTIONAL_PRICE_DISCOUNT.source, "gi")), (match) => {
-    const start = contextStart + (match.index ?? 0);
-    return fractionalOfferOwner(text, start, start + match[0].length);
-  });
-}
-
-function priceHasOffer(text: string, at: number, context: string, contextStart: number): boolean {
-  if (!FRACTIONAL_PRICE_DISCOUNT.test(context)) return OFFER_WORDS.test(context);
-  let otherOfferWords = context;
-  for (const owner of fractionalOfferOwners(text, context, contextStart)) {
-    if (!owner || owner.priceAt === at) return true;
-    // Mask the proven clause at its source width. Leave unresolved words visible.
-    const from = Math.max(0, owner.start - contextStart);
-    const to = Math.min(context.length, owner.end - contextStart);
-    otherOfferWords = otherOfferWords.slice(0, from) + " ".repeat(to - from) + otherOfferWords.slice(to);
-  }
-  return OFFER_WORDS.test(otherOfferWords);
 }
 
 // A zero-strength claim in the printed item name beats spirit or cocktail
@@ -1314,14 +1117,8 @@ function inBottledSection(text: string, at: number): boolean {
 
 type PrintedSpan = { start: number; end: number };
 
-function unpricedFractionToken(line: PrintedMenuLine): string | undefined {
-  if (NEXT_UK_PRICE.test(line.text) || FRACTIONAL_PRICE_DISCOUNT.test(line.text)) return undefined;
-  return LEADING_FRACTIONAL_BEER_MEASURE.exec(line.text)?.[0];
-}
-
 function unpricedFraction(line: PrintedMenuLine): PrintedSpan | null {
-  if (NEXT_UK_PRICE.test(line.text) || FRACTIONAL_PRICE_DISCOUNT.test(line.text)
-    || !fractionalBeerServing(line.text)) return null;
+  if (NEXT_UK_PRICE.test(line.text) || !fractionalBeerServing(line.text)) return null;
   return { start: line.start, end: line.start + line.text.length };
 }
 
@@ -1476,7 +1273,6 @@ export type PrintedPriceEvidence = {
   statedWine: ReturnType<typeof statedWineIdentity>;
   wine: ReturnType<typeof statedWineIdentity>;
   admission: PriceAdmission;
-  fraction: PriceFraction;
   qualifier?: PrintedSpan;
 };
 
@@ -1509,12 +1305,6 @@ function finishesDescription(prefix: string, following: string): boolean {
   return /\bwith(?: a)?$/i.test(prefix) || (/\bserved$/i.test(prefix) && /^with\b/i.test(following));
 }
 
-function joinsFractionalDiscount(before: string, after: string): boolean {
-  const discount = FRACTIONAL_PRICE_DISCOUNT.exec(before + " " + after);
-  return discount !== null && discount.index < before.length
-    && discount.index + discount[0].length > before.length;
-}
-
 export const GLASS_ML = new Set(["125ml", "175ml", "250ml"]);
 
 const LEADING_SERVING = new RegExp("^(?:" + SERVING_WORD + "|\\d{2,4}\\s*ml|½|1/2)\\b", "i");
@@ -1536,14 +1326,6 @@ function startsPrintedDrinkName(text: string, explicitBoundary = false): boolean
 
 type PriceGap = { owned: string; unassigned: string; nextStart?: number; startsItem?: boolean };
 
-function startsNamedDiscountedItem(text: string): boolean {
-  const discount = FRACTIONAL_PRICE_DISCOUNT.exec(text);
-  if (!discount) return false;
-  const ordinary = OFFER_WORDS.exec(text);
-  const name = text.slice(0, Math.min(discount.index, ordinary?.index ?? Infinity));
-  return !/[;|,]/.test(name) && hasPrintedName(name) && SERVING_SIZE.test(name);
-}
-
 function selectPriceGap(gap: string, hasNextPrice: boolean): PriceGap {
   const atSeparator = (at: number, length: number): PriceGap => {
     const nextStart = at + length;
@@ -1558,11 +1340,6 @@ function selectPriceGap(gap: string, hasNextPrice: boolean): PriceGap {
   if (hard) return atSeparator(hard.index, hard[0].length);
   if (!hasNextPrice) return { owned: gap, unassigned: "" };
 
-  const offerEnd = fractionalOfferSuffixEnd(gap, true);
-  const remainder = offerEnd === null ? "" : gap.slice(offerEnd);
-  const offerBoundary = LEADING_PRICE_ITEM_SEPARATORS.exec(remainder);
-  if (offerEnd !== null && offerBoundary) return atSeparator(offerEnd, offerBoundary[0].length);
-
   let first: RegExpMatchArray | undefined;
   for (const boundary of gap.matchAll(new RegExp(PRICE_ITEM_SEPARATOR.source, "g"))) {
     const at = boundary.index ?? 0;
@@ -1574,8 +1351,7 @@ function selectPriceGap(gap: string, hasNextPrice: boolean): PriceGap {
       if (prefix.trim() && !pricedServing && !namesGoods(prefix)) continue;
     }
     if (!namesPricedItem(sibling)) continue;
-    if ((OFFER_WORDS.test(sibling) || FRACTIONAL_PRICE_DISCOUNT.test(sibling))
-      && !startsNamedDiscountedItem(sibling)) continue;
+    if (OFFER_WORDS.test(sibling)) continue;
     if (!first) {
       first = boundary;
     } else if (namesGoods(gap.slice(first.index, at))) {
@@ -1615,7 +1391,6 @@ type SelectedPrice = {
   unassigned: string;
   startsItem: boolean;
   startsTitle: boolean;
-  fraction: PriceFraction;
   leadingDescription?: PrintedSpan;
   continuationEnd?: number;
   scopedOffer?: PrintedSpan;
@@ -1629,15 +1404,15 @@ function selectLinePrices(
   let start = line.start;
   let startsItem = true;
   let startsTitle = true;
-  return lineFractions(line, prices).map(({ raw, fraction }, index) => {
+  return prices.map((raw, index) => {
     const next = prices[index + 1];
     const priceEnd = raw.at + raw.verbatim.length;
     const rawGap = line.text.slice(priceEnd - line.start, next ? next.at - line.start : undefined);
     const gap = selectPriceGap(rawGap, Boolean(next));
     const nameStart = printedHeadStart(
-      line.text, Math.max(start, fraction.previousSuffixEnd ?? start) - line.start, raw.at - line.start,
+      line.text, start - line.start, raw.at - line.start,
     ) + line.start;
-    const selected = { raw, nameStart, tail: gap.owned, unassigned: gap.unassigned, startsItem, startsTitle, fraction };
+    const selected = { raw, nameStart, tail: gap.owned, unassigned: gap.unassigned, startsItem, startsTitle };
     start = priceEnd + (gap.nextStart ?? 0);
     startsItem = gap.startsItem === true;
     startsTitle = startsItem && (gap.nextStart ?? 0) > 0;
@@ -1657,7 +1432,7 @@ function preServingAdmission(
   source: ItemCategory["source"],
   malformedPair: boolean,
 ): PriceAdmission {
-  const { raw, tail, unassigned, fraction } = selection;
+  const { raw, tail, unassigned } = selection;
   const { drinkLabel, decision } = identity;
   const label = drinkLabel ?? before;
   const categoryName = typeof decision === "string" ? undefined : decision?.category ?? (wine ? "wine" : undefined);
@@ -1671,20 +1446,10 @@ function preServingAdmission(
     : "";
   const continuation = text.slice(lineEnd, selection.continuationEnd ?? lineEnd).replaceAll("\n", " ");
   const claim = `${leading}${before} ${raw.verbatim}${tail}${continuation}`;
-  const claimPriceAt = leading.length + before.length + 1;
   if (namesGoods(claim)) return refuse("no-drink-word-nearby");
-  // The full owned claim and the unresolved same-line context are separate.
-  // A sibling's fractional offer cannot replace the owned claim check.
-  function hasOffer(): boolean {
-    const priceAtInLine = raw.at - line.start;
-    const blockingFraction = FRACTIONAL_PRICE_DISCOUNT.test(line.text)
-      && fractionalOfferOwners(line.text, line.text, 0).some((owner) => !owner || owner.priceAt === priceAtInLine);
-    const unassignedStart = priceAtInLine + raw.verbatim.length + tail.length;
-    const unassignedOffer = unassigned.length > 0 && priceHasOffer(line.text, priceAtInLine, unassigned, unassignedStart);
-    return Boolean(selection.scopedOffer || priceHasOffer(claim, claimPriceAt, claim, 0) || blockingFraction || unassignedOffer);
+  if (selection.scopedOffer || OFFER_WORDS.test(claim) || OFFER_WORDS.test(unassigned)) {
+    return refuse("offer-not-a-menu-price");
   }
-  if (hasOffer()) return refuse("offer-not-a-menu-price");
-  if (fraction.disputed) return refuse("fractional-measure-not-a-pint");
   if (decision === "item-name-ambiguous") return refuse(decision);
   if (typeof decision !== "string" && decision?.fromMixer) return refuse("mixer-serve-not-one-drink");
   // A bare glass measure names no drink, wherever it sits on the line, so the
@@ -1723,7 +1488,6 @@ function inheritedServingLabel(
   const lineEnd = text.indexOf("\n", selected.raw.at);
   const priceColumns = PRICE_ONLY_LINE.test(text.slice(lineStart, lineEnd < 0 ? text.length : lineEnd).trim());
   if (!SERVING_SIZE.test(serving) && !SERVING_SIZE.test(trailing) && !priceColumns) return null;
-  if (previous.fraction.fractional && !statesFullPint(`${serving} ${trailing}`)) return null;
 
   const between = text.slice(previous.raw.at + previous.raw.verbatim.length, selected.raw.at);
   if (/[.;!?]/.test(between)) return null;
@@ -1749,7 +1513,7 @@ function buildPriceEvidence(
   pair?: PairedServing,
   malformedPair = false,
 ): PrintedPriceEvidence {
-  const { raw, tail, fraction } = selected;
+  const { raw, tail } = selected;
   const end = raw.at + raw.verbatim.length;
   const lineEnd = line.start + line.text.length;
   const local = text.slice(nameStart, raw.at).replace(LEADING_PRICE_ITEM_SEPARATORS, "").replaceAll("\n", " ").trim();
@@ -1769,11 +1533,8 @@ function buildPriceEvidence(
     ? stated : null;
   const hasItemName = hasPrintedName(label);
   const directCategory = identity.decision && typeof identity.decision !== "string" && !identity.decision.fromMixer;
-  function isFullPint(): boolean {
-    return !fraction.fractional && !fraction.disputed && namesFullPint(label, tail)
-      && (/\bpints?\b/i.test(`${label} ${tail}`) || Boolean(directCategory && hasItemName));
-  }
-  const fullPint = isFullPint();
+  const fullPint = namesFullPint(label, tail)
+    && (/\bpints?\b/i.test(`${label} ${tail}`) || Boolean(directCategory && hasItemName));
   const admission: PriceAdmission = end > lineEnd
     ? { kind: "refused", drop: "not-verbatim-on-page" }
     : preServingAdmission(
@@ -1794,7 +1555,6 @@ function buildPriceEvidence(
     statedWine: stated,
     wine,
     admission,
-    fraction,
     qualifier: selected.qualifier,
   };
 }
@@ -1896,11 +1656,9 @@ export function printedPriceLayout(
         const start = first.start + (match.index ?? 0);
         return { start, end: start + match[0].length };
       };
-      const fractional = Array.from(prefix.matchAll(new RegExp(FRACTIONAL_PRICE_DISCOUNT.source, "gi")), cueSpan);
       const itemLinks = Array.from(prefix.matchAll(ITEM_DESCRIPTION_LINK), cueSpan);
       for (const match of groupOfferMatches(prefix)) {
         const cue = cueSpan(match);
-        if (fractional.some(({ start, end }) => start <= cue.start && cue.end <= end)) continue;
         for (const line of prefixLines) {
           const lineEnd = line.start + line.text.length;
           if (cue.start >= lineEnd || cue.end <= line.start) continue;
@@ -1967,11 +1725,6 @@ export function printedPriceLayout(
         if (!next || selectedByLine.get(next.start)?.length || nameLines.has(next.start)
           || blockOfferCues.has(next.start)) break;
         const nextEnd = next.start + next.text.length;
-        const after = nextIndex + 1 < blockEnd && inlineBreaks.has(nextEnd) ? lines[nextIndex + 1] : undefined;
-        if (unpricedFractionToken(next)) {
-          if (!after || selectedByLine.get(after.start)?.length
-            || nameLines.has(after.start) || !joinsFractionalDiscount(next.text, after.text)) break;
-        }
         const sectionHeading = isPrintedSectionHeading(next.text);
         if (sectionHeading || printedMenuHeading(next.text)) {
           const prefix = text.slice(priceEnd, end).replaceAll("\n", " ").trimEnd();
@@ -1997,10 +1750,6 @@ export function printedPriceLayout(
           || descriptionLines.has(prior.start) || blockOfferCues.has(prior.start)) break;
         const opener = firstIndex - 2 >= blockStart && inlineBreaks.has(prior.start - 1)
           ? lines[firstIndex - 2] : undefined;
-        if (unpricedFractionToken(prior)) {
-          const after = firstIndex < itemIndex && lines[firstIndex];
-          if (!after || !joinsFractionalDiscount(prior.text, after.text)) break;
-        }
         if (printedMenuHeading(prior.text) || isPrintedSectionHeading(prior.text)) {
           if (!DESCRIPTION_PREFIX.test(prior.text)
             && !(opener && finishesDescription(opener.text, prior.text))) break;
@@ -2010,7 +1759,7 @@ export function printedPriceLayout(
       }
       if (firstIndex === itemIndex) return undefined;
       const note = text.slice(start, item.start).replaceAll("\n", " ");
-      if (!namesGoods(note) && !hasFoodWords(note) && !priceHasOffer(note, 0, note, 0)
+      if (!namesGoods(note) && !hasFoodWords(note) && !OFFER_WORDS.test(note)
         && !fractionalBeerServing(note)) return undefined;
       for (const line of lines.slice(firstIndex, itemIndex)) descriptionLines.add(line.start);
       return { start, end: item.start };
@@ -2193,14 +1942,14 @@ export function printedPriceItem(text: string, evidence: PrintedPriceEvidence): 
 }
 
 export function pintServingDrop(text: string, evidence: PrintedPriceEvidence): UkPriceDropReason | null {
-  const { raw, fraction, qualifier } = evidence;
+  const { raw, qualifier } = evidence;
   const serving = printedPriceItem(text, evidence).text;
   const measure = fractionalBeerServing(serving);
   const after = text.slice(raw.at + raw.verbatim.length, raw.at + raw.verbatim.length + 12);
   if (measure === "half" || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, raw.priceGbp)) {
     return "half-measure-not-a-pint";
   }
-  if (fraction.fractional || fraction.disputed || qualifier || measure) {
+  if (qualifier || measure) {
     return "fractional-measure-not-a-pint";
   }
   return isBottledMeasure(serving) || inBottledSection(text, raw.at) ? "bottled-measure-not-a-pint" : null;
@@ -2213,7 +1962,7 @@ function decideKeylessPrice(text: string, evidence: PrintedPriceEvidence, offerT
   const contextStart = Math.max(0, raw.at - PRICE_CONTEXT_CHARS);
   const contextEnd = raw.at + raw.verbatim.length + PRICE_CONTEXT_CHARS;
   const context = text.slice(contextStart, contextEnd);
-  if (priceHasOffer(text, raw.at, offerText.slice(contextStart, contextEnd), contextStart)) {
+  if (OFFER_WORDS.test(offerText.slice(contextStart, contextEnd))) {
     return { drop: "offer-not-a-menu-price" };
   }
   if (admission.kind === "refused") {

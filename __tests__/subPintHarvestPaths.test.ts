@@ -93,32 +93,81 @@ afterEach(() => {
   vi.mocked(systemOneOutcome).mockReset();
 });
 
+async function expectOnlyFullPints(menu: string): Promise<void> {
+  const reading = readVenueDrinkPrices(menu);
+  expect(reading.kept.map(({ drinkLabel, priceGbp }) => ({ drinkLabel, priceGbp }))).toEqual(
+    fullPints.map(({ drinkName, priceGbp }) => ({ drinkLabel: `${drinkName} pint`, priceGbp })),
+  );
+  expectNamedPints(pintPricesFromUkReading(reading));
+  expectNamedPints(venueDrinkPricesFromUkReading(reading));
+  expectNamedPints(extractPintPrices(menu));
+  expectNamedPints(extractVenueDrinkPrices(menu));
+  const nightly = factsFromPage(menu, fact).drinks.filter((row) => row.size === "pint");
+  expectNamedPints(nightly.map(({ drink, priceGbp }) => ({ drinkName: drink, priceGbp })));
+  for (const key of ["", "test-key"]) {
+    vi.stubEnv("TYPESAFE_API_KEY", key);
+    const harvested = await readVenueDrinkPricesForHarvest(menu, ctx);
+    expectNamedPints(pintPricesFromUkReading(harvested.reading));
+    expectNamedPints((await extractPintPricesForHarvest(menu, ctx)).prices);
+    expectNamedPints((await extractVenueDrinkPricesForHarvest(menu, ctx)).drinks);
+  }
+  const judged = await readVenueDrinkPricesJudged(menu, ctx);
+  expect(judged.kept).toHaveLength(4);
+  expectNamedPints(pintPricesFromUkReading(judged));
+  expectNamedPints(venueDrinkPricesFromUkReading(judged));
+  expect(systemOneOutcome).toHaveBeenCalled();
+}
+
 describe.each(layouts)("the required serving exclusions %s", (_layout, item) => {
   it.each(servings)("publishes only the four full pints beside %s through every path", async (serving) => {
     const menu = item(serving) + "<p>Other drinks</p>" + siblings;
-    const reading = readVenueDrinkPrices(menu);
-    expect(reading.kept.map(({ drinkLabel, priceGbp }) => ({ drinkLabel, priceGbp }))).toEqual(
-      fullPints.map(({ drinkName, priceGbp }) => ({ drinkLabel: `${drinkName} pint`, priceGbp })),
-    );
-    expectNamedPints(pintPricesFromUkReading(reading));
-    expectNamedPints(venueDrinkPricesFromUkReading(reading));
-    expectNamedPints(extractPintPrices(menu));
-    expectNamedPints(extractVenueDrinkPrices(menu));
-    const nightly = factsFromPage(menu, fact).drinks.filter((row) => row.size === "pint");
-    expectNamedPints(nightly.map(({ drink, priceGbp }) => ({ drinkName: drink, priceGbp })));
-    for (const key of ["", "test-key"]) {
-      vi.stubEnv("TYPESAFE_API_KEY", key);
-      const harvested = await readVenueDrinkPricesForHarvest(menu, ctx);
-      expectNamedPints(pintPricesFromUkReading(harvested.reading));
-      expectNamedPints((await extractPintPricesForHarvest(menu, ctx)).prices);
-      expectNamedPints((await extractVenueDrinkPricesForHarvest(menu, ctx)).drinks);
-    }
-    const judged = await readVenueDrinkPricesJudged(menu, ctx);
-    expect(judged.kept).toHaveLength(4);
-    expectNamedPints(pintPricesFromUkReading(judged));
-    expectNamedPints(venueDrinkPricesFromUkReading(judged));
-    expect(systemOneOutcome).toHaveBeenCalled();
+    await expectOnlyFullPints(menu);
   });
+});
+
+it.each([
+  "Guinness 284ml £3.00 (568ml also available)",
+  "Guinness 568ml £3.00 (284ml also available)",
+  "Guinness pint 284ml £3.00",
+  "Guinness pint £3.00 (284ml)",
+  "Guinness pint £3.00 (568ml / 284ml)",
+  "Guinness pint £3.00 (284 ml / 568 ml)",
+  "Guinness 284ml £3.00<br>(568ml also available)",
+  "Guinness 568ml £3.00<br>(284ml also available)",
+  "Guinness 1000ml £3.00 (568ml also available)",
+  "Guinness 0.568ml £3.00 (568ml also available)",
+  "Guinness 56.8ml £3.00 (568ml also available)",
+  "Guinness 56,8ml £3.00 (568ml also available)",
+  "Guinness 568ml bottle £3.00",
+  "Guinness pint £3.00 (330ml can)",
+])("withholds non-pint volumes through every path: %s", async (item) => {
+  await expectOnlyFullPints(`<p>${item}</p><p>Other drinks</p>${siblings}`);
+});
+
+it.each([
+  "Kernel stout 568ml £6.20",
+  "Kernel stout 568 ml £6.20",
+  "Kernel stout 568ml £6.20 (568ml)",
+])("keeps the UK pint volume: %s", async (item) => {
+  const menu = `<p>${item}</p>${siblings}`;
+  const expected = [{ drinkName: "Kernel stout", priceGbp: 6.2 }, ...fullPints];
+  const named = (rows: Array<{ drinkName: string; priceGbp: number }>) => (
+    rows.map(({ drinkName, priceGbp }) => ({ drinkName, priceGbp }))
+  );
+  expect(readVenueDrinkPrices(menu).kept.map(({ category, priceGbp }) => ({ category, priceGbp }))).toEqual(
+    expected.map(({ priceGbp }) => ({ category: "beer", priceGbp })),
+  );
+  expect(named(extractPintPrices(menu))).toEqual(expected);
+  expect(named(extractVenueDrinkPrices(menu))).toEqual(expected);
+  expect(factsFromPage(menu, fact).drinks.map(({ drink, size, priceGbp }) => ({ drink, size, priceGbp }))).toEqual(
+    expected.map(({ drinkName, priceGbp }) => ({ drink: drinkName, size: "pint", priceGbp })),
+  );
+  for (const key of ["", "test-key"]) {
+    vi.stubEnv("TYPESAFE_API_KEY", key);
+    expect(named((await extractPintPricesForHarvest(menu, ctx)).prices)).toEqual(expected);
+    expect(named((await extractVenueDrinkPricesForHarvest(menu, ctx)).drinks)).toEqual(expected);
+  }
+  expect(named(pintPricesFromUkReading(await readVenueDrinkPricesJudged(menu, ctx)))).toEqual(expected);
 });
 
 it("retains the reported wrapped serving description without a pint label", () => {

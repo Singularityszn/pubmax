@@ -690,7 +690,7 @@ describe("item evidence and reader policy", () => {
     expect(factsFromPage(menu, fact).drinks).toEqual([]);
   });
 
-  it("keeps the UK contextual offer check after it resolves a sibling's fractional discount", () => {
+  it("keeps the UK contextual offer check beside a fractional discount", () => {
     const menu = "<p>Peroni pint happy hour £5.20 2/3 off; Guinness pint £6.20</p>";
     expect(readVenueDrinkPrices(menu, "html").drops)
       .toEqual(["offer-not-a-menu-price", "offer-not-a-menu-price"]);
@@ -820,8 +820,8 @@ describe("item evidence and reader policy", () => {
     ["served<br>with olives", "food-word-nearby"],
     ["happy<br>hour", "offer-not-a-menu-price"],
     ["when you order a meal", "offer-not-a-menu-price"],
-    ["2/3 off", "offer-not-a-menu-price"],
-    ["2/3<br>off", "offer-not-a-menu-price"],
+    ["2/3 off", "fractional-measure-not-a-pint"],
+    ["2/3<br>off", "fractional-measure-not-a-pint"],
   ])("passes the same-item note %s to the shared refusal policy", (note, reason) => {
     const html = "<p>Guinness pint £6.20<br>" + note + "</p>";
     expect(readVenueDrinkPrices(html, "html").drops).toEqual([reason]);
@@ -899,7 +899,7 @@ describe("item evidence and reader policy", () => {
 
   it("checks a discount split across lines before the named price", () => {
     const html = "<p>2/3<br>off<br>Guinness pint £6.20</p>";
-    expect(readVenueDrinkPrices(html, "html").drops).toEqual(["offer-not-a-menu-price"]);
+    expect(readVenueDrinkPrices(html, "html").drops).toEqual(["fractional-measure-not-a-pint"]);
     expect(readChainPintPrices(html).kept).toEqual([]);
     expect(factsFromPage(html, fact).drinks).toEqual([]);
   });
@@ -1089,4 +1089,21 @@ describe("owned offer scope corrections", () => {
       expect(factsFromPage(menu, fact).drinks).toEqual([{ ...pint, drink: "Madri", priceGbp: 6.4 }]);
     },
   );
+});
+
+describe("ordinary non-beer offer checks", () => {
+  it("does not add a fractional-discount rule for a wine glass", () => {
+    const menu = "House wine 175ml £6.50 (2/3 off)";
+    expect(readVenueDrinkPrices(menu).kept).toMatchObject([
+      { drinkLabel: "House wine", category: "wine", servingSize: "175ml", priceGbp: 6.5 },
+    ]);
+  });
+
+  it("does not mask a sibling discount in the ordinary offer window", () => {
+    const menu = "House wine 175ml £6.50; Tanqueray gin 25ml £5.00 2/3 discount";
+    expect(readVenueDrinkPrices(menu).kept).toEqual([]);
+    expect(readVenueDrinkPrices(menu).drops).toEqual([
+      "offer-not-a-menu-price", "offer-not-a-menu-price",
+    ]);
+  });
 });
