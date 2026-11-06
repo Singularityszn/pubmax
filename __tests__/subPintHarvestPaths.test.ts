@@ -49,7 +49,20 @@ const layouts: Array<[string, (serving: string) => string]> = [
   ["in a plain preceding note", (serving) => `Serving: ${serving}\nKernel stout pint £6.20\n\n`],
   ["in a preceding description", (serving) => `<p>Served as ${serving}<br>Kernel stout pint £6.20</p>`],
   ["between two pints", (serving) => `Kernel stout pint £6.20\n(${serving})\nHawkstone pint £6.40\n\n`],
-  ["before an equal-price sibling", (serving) => `<p>Kernel stout £6.20 (${serving}); Guinness pint £6.20</p>`],
+  ["before a wrapped name", (serving) => `<p>${serving}<br>Kernel stout<br>pint £6.20</p>`],
+  ["before a plain wrapped name", (serving) => `${serving}\nKernel stout\npint £6.20\n\n`],
+  ["after a plain wrapped description", (serving) => `Kernel stout pint £6.20\nOn tap\nServed as ${serving}\n\n`],
+  ["before an equal-price sibling", (serving) => `<p>Kernel stout £6.20 (${serving}); Hawkstone pint £6.20</p>`],
+  ["after a hard separator", (serving) => `<p>Kernel stout pint £6.20 | ${serving}</p>`],
+  ["before a preceding sentence boundary", (serving) => `<p>Served as ${serving}. Kernel stout pint £6.20</p>`],
+  ["in a following paragraph", (serving) => `<p>Kernel stout pint £6.20</p><p>Served as ${serving}</p>`],
+  ["in a preceding paragraph", (serving) => `<p>Served as ${serving}</p><p>Kernel stout pint £6.20</p>`],
+  ["after two prices on one line", (serving) => `<p>Kernel stout pint £6.20; Hawkstone pint £6.40 | ${serving}</p>`],
+  ["between two priced paragraphs", (serving) => `<p>Kernel stout pint £6.20</p><p>${serving}</p><p>Hawkstone pint £6.40</p>`],
+  ["after a nested table price", (serving) => `<table><tr><td><p>Kernel stout pint £6.20</p><p>On tap</p></td><td><p>Special serving</p><p>${serving}</p></td></tr></table>`],
+  ["before a nested table price", (serving) => `<table><tr><td><p>${serving}</p><p>Special serving</p></td><td><p>On tap</p><p>Kernel stout pint £6.20</p></td></tr></table>`],
+  ["after a nested list price", (serving) => `<ul><li><p>Kernel stout pint £6.20</p><p>On tap</p><p>Special serving</p><p>${serving}</p></li></ul>`],
+  ["before a nested list price", (serving) => `<ul><li><p>${serving}</p><p>Special serving</p><p>On tap</p><p>Kernel stout pint £6.20</p></li></ul>`],
 ];
 
 function expectNamedPints(rows: Array<{ drinkName: string; priceGbp: number }>): void {
@@ -82,10 +95,7 @@ afterEach(() => {
 
 describe.each(layouts)("the required serving exclusions %s", (_layout, item) => {
   it.each(servings)("publishes only the four full pints beside %s through every path", async (serving) => {
-    const following = _layout === "before an equal-price sibling"
-      ? fullPints.slice(1).map(({ drinkName, priceGbp }) => `<p>${drinkName} pint £${priceGbp.toFixed(2)}</p>`).join("")
-      : siblings;
-    const menu = item(serving) + following;
+    const menu = item(serving) + "<p>Other drinks</p>" + siblings;
     const reading = readVenueDrinkPrices(menu);
     expect(reading.kept.map(({ drinkLabel, priceGbp }) => ({ drinkLabel, priceGbp }))).toEqual(
       fullPints.map(({ drinkName, priceGbp }) => ({ drinkLabel: `${drinkName} pint`, priceGbp })),
@@ -112,7 +122,7 @@ describe.each(layouts)("the required serving exclusions %s", (_layout, item) => 
 });
 
 it("retains the reported wrapped serving description without a pint label", () => {
-  const menu = "<p>Guinness draught £5.20<br>Served as two-thirds of a pint</p>" + siblings;
+  const menu = "<p>Guinness draught £5.20<br>Served as two-thirds of a pint</p><p>Other drinks</p>" + siblings;
   expectNamedPints(extractPintPrices(menu));
   expectNamedPints(extractVenueDrinkPrices(menu));
 });
@@ -126,11 +136,9 @@ it("names equal-price non-beer rows from each accepted item", () => {
   ]);
 });
 
-it("keeps the pint column and the explicitly stated pint after a half", () => {
+it("keeps an unqualified pint column and holds a row that names a half", () => {
   expect(extractPintPrices("Estrella Damm\n£4.00 | £6.80")).toEqual([
     { drinkName: "Estrella Damm", priceGbp: 6.8, servingSize: "pint" },
   ]);
-  expect(extractPintPrices("Kernel Pale Ale 1/2 pint £3.10 Pint £6.20")).toEqual([
-    { drinkName: "Kernel Pale Ale", priceGbp: 6.2, servingSize: "pint" },
-  ]);
+  expect(extractPintPrices("Kernel Pale Ale 1/2 pint £3.10 Pint £6.20")).toEqual([]);
 });

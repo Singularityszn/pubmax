@@ -310,9 +310,13 @@ const FRACTIONAL_BEER_MEASURES: ReadonlyArray<readonly [RegExp, string | null]> 
 const FRACTIONAL_BEER_MEASURE = new RegExp(FRACTIONAL_BEER_MEASURES.map(([pattern]) => `(?:${pattern.source})`).join("|"), "i");
 const UNCERTAIN_PINT_SERVING = /\b(?:thirds?|quarters?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?|fractions?|fractional|served[ \t]+as|(?:serving|pour|portion)[ \t]+size|(?:small|sample|taster|tasting)[ \t]+(?:serves?|servings?|pours?|measures?|pints?))\b|\b\d+[ \t]*\/[ \t]*\d+\b|[⁄∕\u2150-\u215f\u2189]/i;
 
+function fractionalServingToken(text: string): RegExpExecArray | null {
+  return FRACTIONAL_BEER_MEASURE.exec(text) ?? UNCERTAIN_PINT_SERVING.exec(text);
+}
+
 export function fractionalBeerServing(text: string): string | null {
-  const match = FRACTIONAL_BEER_MEASURE.exec(text)?.[0];
-  if (!match) return UNCERTAIN_PINT_SERVING.exec(text)?.[0].toLowerCase() ?? null;
+  const match = fractionalServingToken(text)?.[0];
+  if (!match) return null;
   return FRACTIONAL_BEER_MEASURES.find(([pattern]) => pattern.test(match))?.[1] ?? match.toLowerCase();
 }
 
@@ -842,6 +846,8 @@ const OPEN_ITEM_MARKER = "\u001a";
 const CLOSE_ITEM_MARKER = "\u001b";
 const OPEN_SOFT_CONTAINER_MARKER = "\u001c";
 const CLOSE_SOFT_CONTAINER_MARKER = "\u001d";
+const OPEN_PARAGRAPH_MARKER = "\u001e";
+const CLOSE_PARAGRAPH_MARKER = "\u001f";
 
 function headingMarker(level: number): string {
   return HEADING_MARKERS.charAt(level - 1);
@@ -874,6 +880,7 @@ type PrintedContainerBreak = { sharedDepth: number; nextDepth: number };
 
 type PrintedPage = {
   text: string;
+  servingBlocks: readonly PrintedSpan[];
   structuralBreaks: ReadonlySet<number>;
   inlineBreaks: ReadonlySet<number>;
   headings: ReadonlyMap<number, number>;
@@ -886,6 +893,7 @@ export function printedPageText(
   options?: { preserveSourceLines?: boolean },
 ): PrintedPage {
   const breaks = {
+    servingBlocks: [] as PrintedSpan[],
     structural: new Set<number>(),
     inline: new Set<number>(),
     headings: new Map<number, number>(),
@@ -893,7 +901,8 @@ export function printedPageText(
   };
   const text = readPageText(html, true, sourceFormat, breaks, options?.preserveSourceLines);
   return {
-    text, structuralBreaks: breaks.structural, inlineBreaks: breaks.inline, headings: breaks.headings,
+    text, servingBlocks: breaks.servingBlocks, structuralBreaks: breaks.structural,
+    inlineBreaks: breaks.inline, headings: breaks.headings,
     containerBreaks: breaks.containers,
   };
 }
@@ -903,6 +912,7 @@ function readPageText(
   preserveItemBoundaries: boolean,
   sourceFormat: UkPriceSourceFormat,
   breaks?: {
+    servingBlocks: PrintedSpan[];
     structural: Set<number>;
     inline: Set<number>;
     headings: Map<number, number>;
@@ -913,9 +923,9 @@ function readPageText(
   // Keep one character per break so judged candidates keep their fallback offsets.
   const structuralBreak = breaks ? "\v" : "\n";
   const inlineBreak = breaks ? "\f" : "\n";
-  const visibleCodePoint = (code: number) => code === 11 || code === 12 || (code >= 16 && code <= 29)
+  const visibleCodePoint = (code: number) => code === 11 || code === 12 || (code >= 16 && code <= 31)
     ? " " : String.fromCodePoint(code);
-  const tagged = html.replace(/[\u0010-\u001d]/g, " ")
+  const tagged = html.replace(/[\u0010-\u001f]/g, " ")
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ");
@@ -949,7 +959,11 @@ function readPageText(
       if (!breaks) return " ";
       return closing ? CLOSE_SOFT_CONTAINER_MARKER : OPEN_SOFT_CONTAINER_MARKER;
     })
-    .replace(/<\/?(?:p|h[1-6])\b[^>]*>/gi, structuralBreak)
+    .replace(/<(\/?)p\b[^>]*>/gi, (_match, closing: string) => {
+      if (!breaks) return structuralBreak;
+      return closing ? CLOSE_PARAGRAPH_MARKER : OPEN_PARAGRAPH_MARKER;
+    })
+    .replace(/<\/?h[1-6]\b[^>]*>/gi, structuralBreak)
     .replace(/<\/?br(?=[\s/>])[^>]*>/gi, preserveItemBoundaries ? inlineBreak : " ")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/gi, " ")
@@ -962,36 +976,44 @@ function readPageText(
     .replace(/&#(\d{1,7});/g, (_, code) => visibleCodePoint(Number(code)))
     .replace(/&#x([0-9a-f]{1,6});/gi, (_, code) => visibleCodePoint(Number.parseInt(code, 16)));
   let removed = 0;
-  const scopes: Array<"container" | "item-host" | "item"> = [];
-  return visibleText.replace(/[\s\u0010-\u001d]+/g, (space: string, offset: number) => {
+  let paragraphStart: number | undefined;
+  const scopes: Array<{ kind: "container" | "item-host" | "item"; start: number }> = [];
+  const text = visibleText.replace(/[\s\u0010-\u001f]+/g, (space: string, offset: number) => {
     if (offset + space.length === visibleText.length) return "";
     const heading = breaks && space.match(/[\u0010-\u0015]/g)?.at(-1);
     const level = heading ? HEADING_MARKERS.indexOf(heading) + 1 : undefined;
     const index = offset === 0 ? -1 : offset - removed;
+    for (const marker of space.match(/[\u001e-\u001f]/g) ?? []) {
+      if (paragraphStart !== undefined) breaks?.servingBlocks.push({ start: paragraphStart, end: index });
+      paragraphStart = marker === OPEN_PARAGRAPH_MARKER ? index + 1 : undefined;
+    }
     const containers = breaks && space.match(/[\u0016-\u001d]/g);
     if (breaks && containers) {
       let sharedDepth = scopes.length;
       for (const marker of containers) {
         if (marker === OPEN_CONTAINER_MARKER || marker === OPEN_SOFT_CONTAINER_MARKER) {
-          scopes.push("container");
+          scopes.push({ kind: "container", start: index + 1 });
         } else if (marker === OPEN_ITEM_HOST_MARKER) {
-          scopes.push("item-host");
+          scopes.push({ kind: "item-host", start: index + 1 });
         } else {
           const kind = marker === CLOSE_CONTAINER_MARKER || marker === CLOSE_SOFT_CONTAINER_MARKER ? "container"
             : marker === CLOSE_ITEM_HOST_MARKER ? "item-host" : "item";
-          const closed = scopes.lastIndexOf(kind);
-          const host = kind === "item" ? scopes.lastIndexOf("item-host") : -1;
+          const closed = scopes.findLastIndex((scope) => scope.kind === kind);
+          const host = kind === "item" ? scopes.findLastIndex((scope) => scope.kind === "item-host") : -1;
           // Opening a sibling item also closes an implicitly ended item.
           if (closed > host) {
+            for (const scope of scopes.slice(closed)) {
+              if (scope.kind === "item") breaks.servingBlocks.push({ start: scope.start, end: index });
+            }
             scopes.length = closed;
             sharedDepth = Math.min(sharedDepth, closed);
           }
-          if (marker === OPEN_ITEM_MARKER) scopes.push("item");
+          if (marker === OPEN_ITEM_MARKER) scopes.push({ kind: "item", start: index + 1 });
         }
       }
       breaks.containers.set(index, { sharedDepth, nextDepth: scopes.length });
     }
-    const blockBreak = level !== undefined || /[\u0016-\u001b]/.test(space) || space.includes(structuralBreak);
+    const blockBreak = level !== undefined || /[\u0016-\u001b\u001e-\u001f]/.test(space) || space.includes(structuralBreak);
     const lineBreak = blockBreak || space.includes(inlineBreak) || (preserveItemBoundaries && space.includes("\n"));
     if (offset === 0) {
       if (level !== undefined) breaks?.headings.set(0, level);
@@ -1012,6 +1034,11 @@ function readPageText(
     }
     return preserveItemBoundaries && space.includes("\n") ? "\n" : " ";
   });
+  for (const scope of scopes) {
+    if (scope.kind === "item") breaks?.servingBlocks.push({ start: scope.start, end: text.length });
+  }
+  if (paragraphStart !== undefined) breaks?.servingBlocks.push({ start: paragraphStart, end: text.length });
+  return text;
 }
 
 type HtmlNode = DefaultTreeAdapterTypes.Node;
@@ -1592,6 +1619,7 @@ type SelectedPrice = {
   leadingDescription?: PrintedSpan;
   continuationEnd?: number;
   scopedOffer?: PrintedSpan;
+  qualifier?: PrintedSpan;
 };
 
 function selectLinePrices(
@@ -1767,15 +1795,53 @@ function buildPriceEvidence(
     wine,
     admission,
     fraction,
+    qualifier: selected.qualifier,
   };
+}
+
+function servingQualifiersByPrice(
+  { text, servingBlocks, structuralBreaks }: PrintedPage,
+  rawPrices: readonly UkPriceRawCandidate[],
+): Map<number, PrintedSpan> {
+  const qualifiers = new Map<number, PrintedSpan>();
+  let start = 0;
+  const lines = text.split("\n").map((line) => {
+    const span = { start, end: start + line.length, priced: NEXT_UK_PRICE.test(line) };
+    start = span.end + 1;
+    return span;
+  });
+  function holdPrices(block: PrintedSpan, context = block): void {
+    const token = fractionalServingToken(text.slice(context.start, context.end));
+    if (!token) return;
+    const at = context.start + token.index;
+    for (const raw of rawPrices) {
+      if (raw.at >= block.start && raw.at < block.end) {
+        qualifiers.set(raw.at, { start: at, end: at + token[0].length });
+      }
+    }
+  }
+  for (const [index, line] of lines.entries()) {
+    if (!line.priced) continue;
+    let first = Math.max(0, index - 1);
+    let last = Math.min(lines.length - 1, index + 1);
+    while (first > 0 && !structuralBreaks.has(lines[first]!.start - 1)
+      && !lines[first]!.priced && !lines[first - 1]!.priced) first -= 1;
+    while (last + 1 < lines.length && !structuralBreaks.has(lines[last]!.end)
+      && !lines[last]!.priced && !lines[last + 1]!.priced) last += 1;
+    holdPrices(line, { start: lines[first]!.start, end: lines[last]!.end });
+  }
+  for (const block of servingBlocks) holdPrices(block);
+  return qualifiers;
 }
 
 /** The printed item and admission record retain the original price offset. */
 export function printedPriceLayout(
-  { text, structuralBreaks, inlineBreaks, headings, containerBreaks }: PrintedPage,
+  page: PrintedPage,
   options: { wineOrdinals?: ReadonlySet<number>; itemHeadings?: boolean } = {},
 ): PrintedPriceLayout {
+  const { text, structuralBreaks, inlineBreaks, headings, containerBreaks } = page;
   const rawPrices = findUkPriceCandidates(text);
+  const servingQualifiers = servingQualifiersByPrice(page, rawPrices);
   const wineOffsets = new Set(rawPrices.filter((_raw, index) => options.wineOrdinals?.has(index)).map(({ at }) => at));
   const prices = new Map<number, PrintedPriceEvidence>();
   const parts: PricedMenuPart[] = [];
@@ -2004,6 +2070,7 @@ export function printedPriceLayout(
           const finalPrice = position === selected.length - 1;
           const owned = {
             ...price,
+            qualifier: servingQualifiers.get(price.raw.at),
             scopedOffer: blockOffer ?? headingOffers.get(line.start),
             leadingDescription: firstPrice ? leadingDescription(index, nameStart) : undefined,
             continuationEnd: finalPrice ? continuationEnd(index, line, price) : undefined,
@@ -2018,47 +2085,6 @@ export function printedPriceLayout(
       }
     }
     recordPrices();
-
-    function edge(line: PrintedMenuLine | undefined, side: "first" | "last"): PrintedPriceEvidence | undefined {
-      if (!line) return undefined;
-      const selected = selectedByLine.get(line.start);
-      const price = side === "first" ? selected?.[0] : selected?.at(-1);
-      return price && prices.get(price.raw.at);
-    }
-
-    function applyFractionQualifiers(): void {
-      for (let index = blockStart; index < blockEnd;) {
-        const line = lines[index];
-        const qualifier = line && !descriptionLines.has(line.start) && unpricedFraction(line);
-        if (!qualifier) {
-          index += 1;
-          continue;
-        }
-        const earlier = edge(index > blockStart ? lines[index - 1] : undefined, "last");
-        index += 1;
-        let following = lines[index];
-        while (index < blockEnd && following && unpricedFraction(following)) {
-          index += 1;
-          following = lines[index];
-        }
-
-        let after = index < blockEnd ? lines[index] : undefined;
-        if (after && !selectedByLine.get(after.start)?.length) {
-          const nameStart = after.start;
-          let priceLine = index + 1;
-          let following = lines[priceLine];
-          while (priceLine < blockEnd && following && canContinue(following)) {
-            priceLine += 1;
-            following = lines[priceLine];
-          }
-          if (priceLine < blockEnd && following && nameStarts.get(following.start) === nameStart) after = following;
-        }
-        const later = edge(after, "first");
-        if (earlier) earlier.qualifier = qualifier;
-        if (later) later.qualifier = qualifier;
-      }
-    }
-    applyFractionQualifiers();
   }
 
   function readLines(): void {
@@ -2233,21 +2259,12 @@ export function decideKeylessUkPriceCandidate(
   inWineSection = false,
 ): KeylessPriceDecision {
   if (!text.startsWith(raw.verbatim, raw.at)) return { drop: "not-verbatim-on-page" };
-  const lineStart = text.lastIndexOf("\n", raw.at - 1) + 1;
-  const lineEnd = text.indexOf("\n", raw.at);
-  const line = { start: lineStart, text: text.slice(lineStart, lineEnd < 0 ? text.length : lineEnd) };
-  const candidates = findUkPriceCandidates(line.text).map((candidate) => ({ ...candidate, at: lineStart + candidate.at }));
-  let previous: PrintedPriceEvidence | undefined;
-  for (const selected of selectLinePrices(line, candidates)) {
-    if (selected.raw.at > raw.at) break;
-    const found = selected.raw.at === raw.at;
-    const evidence = buildPriceEvidence(
-      text, line, found ? { ...selected, raw } : selected, selected.nameStart, inWineSection, previous,
-    );
-    if (found) return decideKeylessPrice(text, evidence);
-    previous = evidence;
-  }
-  return { drop: "not-verbatim-on-page" };
+  const layout = printedPriceLayout({
+    text, servingBlocks: [], structuralBreaks: new Set(), inlineBreaks: new Set(),
+    headings: new Map(), containerBreaks: new Map(),
+  }, { wineOrdinals: inWineSection ? new Set(findUkPriceCandidates(text).map((_candidate, index) => index)) : undefined });
+  const evidence = layout.prices.get(raw.at);
+  return evidence ? decideKeylessPrice(text, { ...evidence, raw }) : { drop: "not-verbatim-on-page" };
 }
 
 export function readPrintedPriceLayout(

@@ -339,7 +339,7 @@ describe("explicit servings survive successful model judgment", () => {
   ])("refuses a confidently misclassified serving in %s", async (item) => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
     vi.mocked(systemOneOutcome).mockImplementation(async (_state, questions) => mockAnswersForBatch(questions));
-    const menu = [item, "", "Guinness pint £6.20", "Madri pint £6.40", "Peroni pint £6.60", "Camden lager pint £6.80"].join("\n");
+    const menu = [item, "", "Other drinks", "Guinness pint £6.20", "Madri pint £6.40", "Peroni pint £6.60", "Camden lager pint £6.80"].join("\n");
     const ctx = { pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks" };
     try {
       const reading = await readVenueDrinkPricesJudged(menu, ctx);

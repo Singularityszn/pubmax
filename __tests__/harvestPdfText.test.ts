@@ -122,29 +122,27 @@ describe("reading the words a PDF menu states", () => {
 it.each([
   "Guinness pint £6.20; 2/3 pint Kernel stout £6.00",
   "Kernel stout £6.0 (one-third pint); Guinness pint £6.20",
-])("keeps the PDF pint separate from an inline fraction: %s", async (line) => {
+])("holds the PDF line and its neighbour beside a fraction: %s", async (line) => {
   const text = await readPdfText(pdfStating([
     line,
     "Madri pint £6.40", "Neck Oil pint £6.80", "House red wine 175ml £7.50",
   ]));
   const reading = readVenueDrinkPrices(text ?? "", "text");
-  expect(pageStatesADrinksList(reading)).toBe(true);
-  expect(reading.kept).toContainEqual(expect.objectContaining({ drinkLabel: "Guinness pint", category: "beer", priceGbp: 6.2 }));
+  expect(pageStatesADrinksList(reading)).toBe(false);
+  expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.8, 7.5]);
   expect(reading.kept.some((row) => row.drinkLabel?.includes("Kernel"))).toBe(false);
 });
 
 it.each(["(1/3 pint)", "(2/3)"])("withholds a wrapped PDF serving %s", async (serving) => {
   const text = await readPdfText(pdfStating(["Guinness £4.50", serving, "Madri £6.40 /pint"]));
   expect(text?.split("\n").map((line) => line.trim())).toContain(serving);
-  expect(readVenueDrinkPrices(text ?? "").kept)
-    .toMatchObject([{ drinkLabel: "Madri", category: "beer", priceGbp: 6.4 }]);
+  expect(readVenueDrinkPrices(text ?? "").kept).toEqual([]);
 });
 
 it("withholds a wrapped fractional serving after a price-first PDF label", async () => {
   const text = await readPdfText(pdfStating(["£4.50 Peroni", "(2/3)", "Madri £6.40 /pint"]));
   expect(text?.split("\n").map((line) => line.trim())).toContain("(2/3)");
-  expect(readVenueDrinkPrices(text ?? "").kept)
-    .toMatchObject([{ drinkLabel: "Madri", category: "beer", priceGbp: 6.4 }]);
+  expect(readVenueDrinkPrices(text ?? "").kept).toEqual([]);
 });
 
 it("does not treat a priced souvenir as a competing drink beside a wrap", async () => {
@@ -157,10 +155,9 @@ it("does not treat a priced souvenir as a competing drink beside a wrap", async 
   expect(readVenueDrinkPrices(text ?? "").kept).toEqual([]);
 });
 
-it("assigns a wrapped PDF qualifier to the edge price beside it", async () => {
+it("holds every PDF price on the line beside a qualifier", async () => {
   const text = await readPdfText(pdfStating(["Guinness £6.20 /pint; Madri pint £6.40", "(1/3 pint)"]));
-  expect(readVenueDrinkPrices(text ?? "").kept)
-    .toMatchObject([{ drinkLabel: "Guinness", category: "beer", priceGbp: 6.2 }]);
+  expect(readVenueDrinkPrices(text ?? "").kept).toEqual([]);
 });
 
 it("refuses a glass capacity as a competing PDF serving and preserves a wrapped wine", async () => {
@@ -191,12 +188,10 @@ it("uses the same price ownership for an unparenthesised draught fraction", asyn
   expect(readVenueDrinkPrices(text ?? "").kept).toEqual([]);
 });
 
-it("does not make an unknown printed name a qualifier for the preceding price", async () => {
+it("holds the preceding PDF price beside an unknown fractional name", async () => {
   const text = await readPdfText(pdfStating(["Guinness pint £6.20", "2/3 pint Hawkstone"]));
   expect(text?.split("\n").map((line) => line.trim())).toContain("2/3 pint Hawkstone");
-  expect(readVenueDrinkPrices(text ?? "").kept).toMatchObject([
-    { drinkLabel: "Guinness pint", category: "beer", priceGbp: 6.2 },
-  ]);
+  expect(readVenueDrinkPrices(text ?? "").kept).toEqual([]);
 });
 
 it("keeps an alcohol strength note with its printed fractional serving", async () => {

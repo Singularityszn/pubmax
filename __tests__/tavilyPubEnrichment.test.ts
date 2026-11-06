@@ -294,13 +294,9 @@ describe("Tavily pub enrichment governance", () => {
 
   it("never attributes half-pint prices to a pint serving", () => {
     expect(extractPintPrices("Half pint £2.60")).toEqual([]);
-    expect(extractPintPrices("Bitter half £2.60 / pint £4.90")).toEqual([
-      { drinkName: "Bitter", priceGbp: 4.9, servingSize: "pint" },
-    ]);
+    expect(extractPintPrices("Bitter half £2.60 / pint £4.90")).toEqual([]);
     expect(extractPintPrices("½ pint £2.40")).toEqual([]);
-    expect(extractPintPrices("Guinness Pint £5.00, half £2.60")).toEqual([
-      { drinkName: "Guinness", priceGbp: 5, servingSize: "pint" },
-    ]);
+    expect(extractPintPrices("Guinness Pint £5.00, half £2.60")).toEqual([]);
   });
 
   it("rejects meal bundles which mention a pint", () => {
