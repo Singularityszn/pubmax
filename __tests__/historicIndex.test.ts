@@ -351,6 +351,17 @@ describe("the shipped historic index (generated artifact)", () => {
     );
   });
 
+  it("buildHistoricIndex preserves the committed historic_pubs.json byte contract", () => {
+    const records = buildHistoricIndex({
+      heritageCache: JSON.parse(readFileSync("public/data/heritage_cache.json", "utf8")),
+      dataset: JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")),
+      venueAliases: JSON.parse(readFileSync("public/data/venue_id_aliases.json", "utf8")).aliases,
+    });
+    expect(Buffer.from(`${JSON.stringify(records, null, 2)}\n`)).toEqual(
+      readFileSync("public/data/historic_pubs.json"),
+    );
+  });
+
   it("names no venue the map cannot open", () => {
     const historic = JSON.parse(
       readFileSync("public/data/historic_pubs.json", "utf8"),
@@ -629,15 +640,19 @@ describe("shared heritage names require one address, postcode or coordinate matc
     })).toEqual([]);
   });
 
-  it("matches namesakes by source coordinates within 150 metres", () => {
+  it.each([[hammersmith, kilburn], [kilburn, hammersmith]])("matches nearby namesakes and rejects swapped coordinates in either dataset order", (...dataset) => {
     const fact = { source: "wikidata", fact: "An old riverside public house.",
       sourceRef: "https://example.org/riverside", latitude: 51.4915, longitude: -0.24209 };
     const records: HistoricPub[] = buildHistoricIndex({
-      heritageCache: { "black lion": [fact] }, dataset: [kilburn, hammersmith],
+      heritageCache: { "black lion": [fact] }, dataset,
     });
     expect(records).toHaveLength(1);
     expect(records[0]?.venueId).toBe("venue-fudfew");
     expect(records[0]?.facts).toEqual([{ source: fact.source, fact: fact.fact, sourceRef: fact.sourceRef }]);
+    expect(buildHistoricIndex({
+      heritageCache: { "black lion": [{ ...fact, latitude: fact.longitude, longitude: fact.latitude }] },
+      dataset,
+    })).toEqual([]);
   });
 
   it.each([
