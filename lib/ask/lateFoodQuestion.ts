@@ -11,7 +11,7 @@ export type LateFoodQuestion = {
   areas: string[];
   at: string | null;
   dietary: string[];
-  cuisine: string | null;
+  cuisines: string[];
   requiresPub: boolean;
 };
 
@@ -130,8 +130,10 @@ export function parseLateFoodQuestion(query: string, now: number): LateFoodQuest
       ...(foodConstraints(wording).some((constraint) => !/^(?:vegan|vegetarian|gluten[- ]free|halal)$/i.test(constraint))
         ? ["unrecorded-dietary-constraint"] : []),
     ],
-    cuisine: unrecordedFoodWording(wording) ? "unrecorded-food-constraint"
-      : CUISINES.find(([pattern]) => pattern.test(wording))?.[1] ?? null,
+    cuisines: [
+      ...CUISINES.filter(([pattern]) => pattern.test(wording)).map(([, category]) => category),
+      ...(unrecordedFoodWording(wording) ? ["unrecorded-food-constraint"] : []),
+    ],
     requiresPub,
   };
 }

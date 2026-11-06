@@ -28,7 +28,7 @@ export function answerLateFoodQuestion(ctx: AskToolContext): AskToolResult | nul
   if (!question.at) return emptyFoodAnswer("Which night and time do you want food?", ["requested_time"]);
   if (question.requiresPub) return emptyFoodAnswer("I have no recorded pub kitchen hours for that time.", ["pub_kitchen_hours"]);
   const terminals = shortlistFoodHandoffs(getLateFoodForArea(area, [], { now, at: question.at })
-    .filter((terminal) => !question.cuisine || terminal.category === question.cuisine)
+    .filter((terminal) => question.cuisines.length <= 1 && question.cuisines.every((category) => terminal.category === category))
     .filter((terminal) => question.dietary.every((tag) => terminal.dietary.some((choice) => choice === tag))));
   if (terminals.length === 0) {
     return emptyFoodAnswer(
