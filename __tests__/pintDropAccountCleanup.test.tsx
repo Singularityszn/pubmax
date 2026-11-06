@@ -23,6 +23,7 @@ import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/components/map/usePintDrops";
 import { readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
+import { defined } from "@/__tests__/helpers/defined";
 
 type PriceRequest = {
   signal: AbortSignal;
@@ -86,7 +87,7 @@ async function startPrice(withBill: boolean, withPint = true) {
   });
   let pending: void | Promise<void>;
   await act(async () => { pending = drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
-  return { pending: pending!, optimistic: drops.dropsByVenueId.get("venue-1")![0] };
+  return { pending: pending!, optimistic: defined(drops.dropsByVenueId.get("venue-1")?.[0]) };
 }
 
 beforeEach(async () => {
@@ -150,8 +151,8 @@ afterEach(async () => {
 it.each([false, true])("disposes the abandoned account's pending price after a real abort (bill: %s)", async (withBill) => {
   const { pending, optimistic } = await startPrice(withBill);
   expect(requests).toHaveLength(1);
-  expect(requests[0].signal.aborted).toBe(false);
-  expect(requests[0].body.has("receipt_photo")).toBe(withBill);
+  expect(defined(requests[0]).signal.aborted).toBe(false);
+  expect(defined(requests[0]).body.has("receipt_photo")).toBe(withBill);
   expect(optimistic.optimistic?.state).toBe("uploading");
   expect(optimistic.priceEvidence).toBe(withBill ? "receipt" : "unchecked");
   expect(storedIds()).toContain(optimistic.id);
@@ -164,7 +165,7 @@ it.each([false, true])("disposes the abandoned account's pending price after a r
     await pending;
   });
   expect(aborted).toBe(1);
-  expect(requests[0].signal.aborted).toBe(true);
+  expect(defined(requests[0]).signal.aborted).toBe(true);
   expect(mapIds()).toEqual(["existing-public-price", "optimistic-other-request"]);
   expect(storedIds()).toEqual(["existing-public-price", "optimistic-other-request"]);
   expect(drops.dropMsg).toBeNull();
@@ -194,18 +195,33 @@ it("removes a pending price with no photo after the account changes", async () =
   expect(requests).toHaveLength(1);
 });
 
-it("releases only handed-off previews and keeps the unsubmitted photo slot", async () => {
+it("releases the handed-off preview and clears the unsubmitted photo slot on an account change", async () => {
+  // A photo account A picked after submitting is A's draft. Account B must not
+  // see it in the composer, or post it under B's name
+  // (docs/rules/lib-identity-accounts-and-sessions.md: a different account
+  // loses the whole device set).
   const { pending } = await startPrice(false);
   await act(async () => { drops.pickPhoto("venue", photo("next-venue.jpg"), null); });
   await act(async () => {
     switchAccount("pending-account-b", "bob");
     await pending;
   });
-  expect(revoked()).toEqual(["blob:pending-preview-1"]);
-  expect(drops.venuePhoto?.previewUrl).toBe("blob:pending-preview-2");
+  expect(drops.venuePhoto).toBeNull();
+  expect(revoked()).toEqual(["blob:pending-preview-1", "blob:pending-preview-2"]);
   await act(async () => root.unmount());
   expect(revoked()).toEqual(["blob:pending-preview-1", "blob:pending-preview-2"]);
   root = createRoot(container);
+});
+
+it("does not show account A's saved-price receipt to account B", async () => {
+  const { pending } = await startPrice(false);
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({ drop: serverDrop("server-saved-receipt") }), { status: 201 }));
+    await pending;
+  });
+  expect(drops.dropMsg?.ok).toBe(true);
+  await act(async () => { switchAccount("pending-account-b", "bob"); });
+  expect(drops.dropMsg).toBeNull();
 });
 
 it.each([false, true])("preserves a saved price when the account changes during the Round append (bill: %s)", async (withBill) => {
@@ -214,7 +230,7 @@ it.each([false, true])("preserves a saved price when the account changes during 
   const { pending, optimistic } = await startPrice(withBill);
   const saved = { ...serverDrop("server-saved-price"), priceEvidence: withBill ? "receipt" : "unchecked" };
   await act(async () => {
-    requests[0].resolve(new Response(JSON.stringify({ drop: saved }), { status: 201 }));
+    defined(requests[0]).resolve(new Response(JSON.stringify({ drop: saved }), { status: 201 }));
   });
   expect(answerRound).toBeTypeOf("function");
   expect(mapIds()).toEqual(["server-saved-price", "existing-public-price", "optimistic-other-request"]);
@@ -242,13 +258,13 @@ it.each([false, true])("preserves a saved price when the account changes during 
 it("keeps a same-account transport failure retryable without retrying automatically", async () => {
   const { pending, optimistic } = await startPrice(true);
   await act(async () => {
-    requests[0].reject(new TypeError("Network failed"));
+    defined(requests[0]).reject(new TypeError("Network failed"));
     await pending;
   });
   expect(drops.dropsByVenueId.get("venue-1")?.[0]).toMatchObject({
     id: optimistic.id, optimistic: { state: "failed", canRetry: true },
   });
-  expect(readOptimisticSpills(localStorage)[0].drop).toMatchObject({
+  expect(defined(readOptimisticSpills(localStorage)[0]).drop).toMatchObject({
     id: optimistic.id, optimistic: { state: "failed", canRetry: true },
   });
   expect(drops.dropMsg?.text).toBe("Network or storage error. Try again.");
