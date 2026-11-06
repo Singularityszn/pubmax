@@ -553,8 +553,8 @@ button.siteNavMoreItem {
 }
 
 /* Laptop/tablet density: keep navigation usable before wrapping is needed.
-   Primary route links stay visible; ambient
-   utilities collapse away until phone bottom navigation takes over. */
+   Primary route links stay visible; ambient utilities collapse away until
+   phone bottom navigation takes over. */
 @media (max-width: 1279px) {
   .siteNavBar {
     gap: 8px;
@@ -958,12 +958,15 @@ button.siteNavMoreItem {
 }
 
 /* The tablet toolbar already reads this measured height. Wider maps must
-   reserve the same space when enlarged text wraps the full navigation. */
+   reserve the same space when enlarged text wraps the full navigation. The
+   rem fallback is the one-row bar at default text (64px) and grows with the
+   reader's text, so the first paint does not reserve a one-row bar under a
+   wrapped one. */
 @media (min-width: 901px) {
   .appShell:has(.siteNavBarFloating) {
     --map-top-clearance: max(
       88px,
-      calc(var(--topbar-inset) + var(--site-nav-floating-height, 64px) + 12px)
+      calc(var(--topbar-inset) + var(--site-nav-floating-height, 4rem) + 12px)
     );
   }
 }
