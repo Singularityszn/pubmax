@@ -65,6 +65,8 @@ beforeEach(() => {
   mock.clearRequests();
   modelSignals.length = 0;
   vi.stubEnv("OPENROUTER_API_KEY", "aimock");
+  // This suite drives the OpenRouter half; a Claude key would take the Claude half.
+  vi.stubEnv("ANTHROPIC_API_KEY", undefined);
   vi.stubEnv("OPENROUTER_BASE_URL", `${mock.url}/api/v1`);
   vi.stubEnv("TYPESAFE_API_KEY", undefined);
   return () => vi.unstubAllEnvs();

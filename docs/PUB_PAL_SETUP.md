@@ -25,6 +25,11 @@ same prompt rules (`lib/palVoicePrompt.mjs`, without the spoken parts). Our
 server runs each tool itself, so no webhook is involved. To go back to
 ElevenLabs for typed chat, remove the key.
 
+The same key also moves map Ask's model loop (`/api/ask`) from OpenRouter to
+Claude. The client, the prompt cache markers and the `claude.usage` log line
+are shared (`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling. Set
+`ASK_CLAUDE_MODEL` to change its model; the default is `claude-haiku-5-5`.
+
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 (ADR 0006).

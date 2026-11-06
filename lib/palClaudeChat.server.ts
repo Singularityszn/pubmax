@@ -1,7 +1,18 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 
+import {
+  CLAUDE_CHAT_DEFAULT_MODEL,
+  claudeApiKey,
+  claudeCachedSystem,
+  claudeChatModel,
+  claudeClient,
+  claudeConfigured,
+  claudePromptTokens,
+  logClaudeUsage,
+  type ClaudeClient,
+} from "@/lib/claudeClient.server";
 import { PalChatDeadlineExceeded, beforePalChatDeadline } from "@/lib/palChatDeadline";
 import {
   PAL_RECALL_MEMORIES_TOOL,
@@ -34,12 +45,11 @@ import { readPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurn
 // Typed Pub Pal chat on the Claude API. It answers the same turn the ElevenLabs
 // agent answers (lib/palElevenLabsChat.server.ts): the same owned history,
 // safety fence, record answers, memories, prompt rules and tools. Only the
-// model call differs. Voice stays on ElevenLabs.
-//
-// The host is named here so /privacy can be held to it (__tests__/legalPages.test.ts).
-const PAL_CLAUDE_API_HOST = "api.anthropic.com";
+// model call differs. Voice stays on ElevenLabs. The client, key and cache
+// markers are shared with map Ask (lib/claudeClient.server.ts).
+const TRACE_ROUTE = "api/pub-pal/chat";
 /** A fast, low-cost model. `PUB_PAL_CLAUDE_MODEL` overrides it without a deploy of code. */
-export const PAL_CLAUDE_DEFAULT_MODEL = "claude-haiku-5-5";
+export const PAL_CLAUDE_DEFAULT_MODEL = CLAUDE_CHAT_DEFAULT_MODEL;
 // Each round is one model call. Four leaves room for a memory read, two
 // factual tools and the reply; the turn deadline still bounds the whole loop.
 const MAX_ROUNDS = 4;
@@ -53,22 +63,11 @@ const TOOL_RESULT_CHAR_LIMIT = 24_000;
 
 /** Whether this deploy sends typed Pub Pal chat to Claude. */
 export function palClaudeConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  return claudeConfigured();
 }
-
-function palClaudeModel(): string {
-  return process.env.PUB_PAL_CLAUDE_MODEL?.trim() || PAL_CLAUDE_DEFAULT_MODEL;
-}
-
-type PalClaudeStream = {
-  on(event: "text", listener: (delta: string) => void): unknown;
-  finalMessage(): Promise<Anthropic.Message>;
-};
 
 /** The one SDK call the turn makes, so a test can pass a fake. */
-export type PalClaudeClient = {
-  stream(body: Anthropic.MessageStreamParams, options: { signal: AbortSignal }): PalClaudeStream;
-};
+export type PalClaudeClient = ClaudeClient;
 
 type PalClaudeToolRunner = (
   name: string,
@@ -80,12 +79,6 @@ export type PalClaudeDependencies = {
   client?: PalClaudeClient;
   runTool?: PalClaudeToolRunner;
 };
-
-function sdkClient(apiKey: string): PalClaudeClient {
-  // One retry: the turn deadline is short, and the caller retries a 503.
-  const anthropic = new Anthropic({ apiKey, baseURL: `https://${PAL_CLAUDE_API_HOST}`, maxRetries: 1 });
-  return { stream: (body, options) => anthropic.messages.stream(body, options) };
-}
 
 /** Runs a tool in this process, through the same code the ElevenLabs webhooks call. */
 async function runPalTool(
@@ -153,7 +146,7 @@ export async function runPalClaudeChatTurn(
   dependencies: PalClaudeDependencies = {},
 ): Promise<PalElevenLabsChatOutcome> {
   const recordFailure = palChatFailureRecorder(input);
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const apiKey = claudeApiKey();
   if (!apiKey && !dependencies.client) {
     recordFailure("UNAVAILABLE", "configuration");
     return { ok: false, code: "UNAVAILABLE" };
@@ -193,9 +186,9 @@ export async function runPalClaudeChatTurn(
     return { ok: false, code };
   }
 
-  const client = dependencies.client ?? sdkClient(apiKey!);
+  const client = dependencies.client ?? claudeClient(apiKey!);
   const runTool = dependencies.runTool ?? runPalTool;
-  const model = palClaudeModel();
+  const model = claudeChatModel("PUB_PAL_CLAUDE_MODEL");
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), Math.max(0, deadline - Date.now()));
   const onCallerAbort = () => abort.abort();
@@ -209,7 +202,7 @@ export async function runPalClaudeChatTurn(
 
   try {
     return await traceArizeModelLoop({
-      route: "api/pub-pal/chat",
+      route: TRACE_ROUTE,
       model,
       provider: "anthropic",
       prompt: query,
@@ -226,10 +219,12 @@ export async function runPalClaudeChatTurn(
               {
                 model,
                 max_tokens: MAX_TOKENS,
-                system: pubPalTypedChatSystemPrompt(),
+                // The tools and prompt are the same for every caller: the
+                // marker on the prompt caches both across turns, and the
+                // top-level marker lets a later round of this turn read the
+                // earlier rounds from the cache too.
+                system: claudeCachedSystem(pubPalTypedChatSystemPrompt()),
                 tools: PAL_TOOLS,
-                // The prompt and tools are the same every round, so a later
-                // round of this turn reads them from the cache.
                 cache_control: { type: "ephemeral" },
                 output_config: { effort: EFFORT },
                 messages,
@@ -249,12 +244,10 @@ export async function runPalClaudeChatTurn(
             return failed(abort.signal.aborted ? "TIMEOUT" : "PROVIDER_UNAVAILABLE");
           }
           span.setUsage({
-            promptTokens:
-              message.usage.input_tokens +
-              (message.usage.cache_read_input_tokens ?? 0) +
-              (message.usage.cache_creation_input_tokens ?? 0),
+            promptTokens: claudePromptTokens(message.usage),
             completionTokens: message.usage.output_tokens,
           });
+          logClaudeUsage(TRACE_ROUTE, model, message.usage);
           const reply = replyText(message);
           span.setOutput(reply);
           span.end();

@@ -41,7 +41,7 @@ environment reads and nothing else.
 
 | Route tag (`metadata.route`) | Call site | Span shape |
 | --- | --- | --- |
-| `ask/model-loop` (default), `api/ask` | `lib/ask/modelLoop.ts` OpenRouter tool loop | one AGENT span, one LLM span per round (input: the messages added since the previous round), one TOOL span per tool call |
+| `ask/model-loop` (default), `api/ask` | `lib/ask/modelLoop.ts` tool loop (Claude when `ANTHROPIC_API_KEY` is set, else OpenRouter) | one AGENT span, one LLM span per round (input: the messages added since the previous round), one TOOL span per tool call |
 | `api/pub-pal/chat` | `lib/ask/runAsk.ts` with `skipModel: true` when ElevenLabs is off | TOOL spans from the deterministic router only; no OpenRouter LLM span |
 | `api/heritage` | `lib/heritage.ts` narrations | one LLM span |
 | `search-gateway` | `lib/searchProvider.server.ts` AI SDK `generateText` via the gateway | AI SDK spans (`gen_ai.agent.name = search-gateway`) |
@@ -64,7 +64,7 @@ OpenInference filter and the masking exporter the rest of this module uses.
 
 It patches the `openai` npm SDK on require. **No module in this app imports
 that SDK today**: every model call is a raw `fetch` (OpenRouter in the ask
-loop, heritage and concierge; `https://api.openai.com/v1/moderations` in the
+loop without a Claude key, heritage and concierge; `https://api.openai.com/v1/moderations` in the
 two moderation adapters), so the instrumentation currently emits nothing and
 the `openai` dependency exists only so the patch target resolves. It is here
 for the first call site that does adopt the SDK. Do not read the table above
