@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/og", () => ({
   ImageResponse: class extends Response {
-    constructor(element: ReactElement) {
-      super(renderToStaticMarkup(element));
+    constructor(element: ReactElement, options?: ResponseInit) {
+      super(renderToStaticMarkup(element), options);
     }
   },
 }));
@@ -88,6 +88,24 @@ async function imageLines(card: OpenCrawlShareCard): Promise<string[]> {
 }
 
 describe("open crawl share image text", () => {
+  it("prevents caching a public card and the poster after the crew becomes private", async () => {
+    vi.mocked(loadOpenCrawlShareCard)
+      .mockResolvedValueOnce({
+        ok: true,
+        card: CARD,
+        meetingPoint: { kind: "venue", name: CARD.meetingPubName, lat: 51.51, lng: -0.13 },
+      })
+      .mockResolvedValueOnce({ ok: false, reason: "missing" });
+
+    const card = await Image({ params: Promise.resolve({ crewId: CARD.crewId }) });
+    expect(card.headers.get("cache-control")).toBe("private, no-store");
+    expect(await card.text()).toContain(CARD.title);
+
+    const poster = await Image({ params: Promise.resolve({ crewId: CARD.crewId }) });
+    expect(poster.headers.get("cache-control")).toBe("private, no-store");
+    expect(await poster.text()).not.toContain(CARD.title);
+  });
+
   it("renders the ordinary title, host, area, meeting pub and crawl facts", async () => {
     const lines = await imageLines(CARD);
     expect(lines).toContain("Thursday in Soho");
