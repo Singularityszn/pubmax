@@ -148,34 +148,55 @@ export type NearestPub = Pick<NearMeCard, "id" | "name" | "borough"> & {
   walkMinutes: number;
 };
 
-/** The closest listed public pub, including pubs without a recorded pint price. */
+/**
+ * The closest listed public pub, including pubs without a recorded pint price.
+ * `shownIds` names the pubs already on screen beside it: when one of them
+ * shares this pub's name, both read with their branch, as the cards do.
+ */
 export function nearestListedPub(
   lat: number,
   lng: number,
   venues: readonly PricedPoint[],
+  shownIds: readonly string[] = [],
 ): NearestPub | null {
   const validLocation = (latitude: number, longitude: number) => (
     Number.isFinite(latitude) && Math.abs(latitude) <= 90 &&
     Number.isFinite(longitude) && Math.abs(longitude) <= 180
   );
   if (!validLocation(lat, lng)) return null;
-  let nearest: NearestPub | null = null;
+  let nearest: { venue: PricedPoint; distanceKm: number } | null = null;
   for (const venue of venues) {
     if (!isPublicRankablePub(venue) || !validLocation(venue.lat, venue.lng)) continue;
     const distanceKm = haversineKm([lng, lat], [venue.lng, venue.lat]);
     if (
       nearest && (distanceKm > nearest.distanceKm ||
-        (distanceKm === nearest.distanceKm && venue.id >= nearest.id))
+        (distanceKm === nearest.distanceKm && venue.id >= nearest.venue.id))
     ) continue;
-    nearest = {
-      id: venue.id,
-      name: venue.name,
-      borough: venue.borough,
-      distanceKm,
-      walkMinutes: walkMinutesFromKm(distanceKm),
-    };
+    nearest = { venue, distanceKm };
   }
-  return nearest;
+  if (!nearest) return null;
+  const shown = new Set(shownIds);
+  const beside = venues.filter((venue) => shown.has(venue.id) && venue.id !== nearest.venue.id);
+  const { venue, distanceKm } = nearest;
+  const label = branchLabeller([...beside, venue].map(toBranchNamed));
+  return {
+    id: venue.id,
+    name: label(toBranchNamed(venue)).name,
+    borough: venue.borough,
+    distanceKm,
+    walkMinutes: walkMinutesFromKm(distanceKm),
+  };
+}
+
+function toBranchNamed(point: PricedPoint): BranchNamed {
+  const address = point.address?.trim() || addressFromSlimSearchText(point);
+  return {
+    id: point.id,
+    name: point.name,
+    ...(address ? { address } : {}),
+    ...(point.locality ? { locality: point.locality } : {}),
+    borough: point.borough,
+  };
 }
 
 export type NearMeScope = "walkable" | "widened" | "none";
@@ -245,25 +266,35 @@ function toCard(entry: Measured): NearMeCard {
   };
 }
 
+type BranchNamed = Pick<NearMeCard, "id" | "name" | "address" | "locality" | "borough">;
+
+/**
+ * Names namesake pubs apart. Two pubs whose names match (ignoring case and a
+ * leading "The") each gain their street, area or borough in brackets.
+ */
+function branchLabeller(named: Iterable<BranchNamed>): <T extends BranchNamed>(item: T) => T {
+  const counts = new Map<string, number>();
+  const nameKey = (name: string) => name.trim().toLowerCase().replace(/^the\s+/, "");
+  for (const item of named) {
+    const key = nameKey(item.name);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return (item) => {
+    if ((counts.get(nameKey(item.name)) ?? 0) < 2) return item;
+    const parts = item.address?.split(",").map((part) => part.trim()) ?? [];
+    const street = /^\d+\w?$/.test(parts[0] ?? "") ? parts.slice(0, 2).join(" ") : parts[0];
+    const branch = street || item.locality?.trim() || item.borough.trim();
+    return branch ? { ...item, name: `${item.name} (${branch})` } : item;
+  };
+}
+
 function nameNearMeBranches(
   cards: NearMeCard[],
   nearest: NearMeCard | null = null,
 ): Pick<NearMeAnswer, "cards" | "nearest"> {
   const named = new Map(cards.map((card) => [card.id, card]));
   if (nearest) named.set(nearest.id, nearest);
-  const counts = new Map<string, number>();
-  const nameKey = (name: string) => name.trim().toLowerCase().replace(/^the\s+/, "");
-  for (const card of named.values()) {
-    const key = nameKey(card.name);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  const label = (card: NearMeCard): NearMeCard => {
-    if ((counts.get(nameKey(card.name)) ?? 0) < 2) return card;
-    const parts = card.address?.split(",").map((part) => part.trim()) ?? [];
-    const street = /^\d+\w?$/.test(parts[0] ?? "") ? parts.slice(0, 2).join(" ") : parts[0];
-    const branch = street || card.locality?.trim() || card.borough.trim();
-    return branch ? { ...card, name: `${card.name} (${branch})` } : card;
-  };
+  const label = branchLabeller(named.values());
   return { cards: cards.map(label), nearest: nearest ? label(nearest) : null };
 }
 
@@ -413,15 +444,7 @@ export function rankCityCheapest(
 }
 
 function toCheapestCard(point: PricedPoint): NearMeCard {
-  const address = point.address?.trim() || addressFromSlimSearchText(point);
-  return {
-    id: point.id,
-    name: point.name,
-    ...(address ? { address } : {}),
-    ...(point.locality ? { locality: point.locality } : {}),
-    borough: point.borough,
-    cheapestPrice: point.cheapestPrice as number,
-  };
+  return { ...toBranchNamed(point), cheapestPrice: point.cheapestPrice as number };
 }
 
 /** Boroughs (from the slim index) that actually have at least one priced pub,

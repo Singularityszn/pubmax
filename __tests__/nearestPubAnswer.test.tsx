@@ -19,12 +19,14 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: boundary.track }));
 
 const HERE = { lat: 51.5136, lng: -0.1365 };
 const MOVED = { lat: HERE.lat + 0.003, lng: HERE.lng };
+// A listed price is shown only with its source and read day.
+const EVIDENCE = { priceSource: "Pub menu", priceObservedAt: "2026-01-01" } as const;
 const VENUES: PricedPoint[] = [
-  { id: "spoons", name: "The Example - JD Wetherspoon", lat: HERE.lat + 0.002, lng: HERE.lng, cheapestPrice: 3.2, borough: "Westminster" },
+  { id: "spoons", name: "The Example - JD Wetherspoon", lat: HERE.lat + 0.002, lng: HERE.lng, cheapestPrice: 3.2, borough: "Westminster", ...EVIDENCE },
   { id: "unpriced", name: "The Nearest Local", lat: HERE.lat + 0.0001, lng: HERE.lng, cheapestPrice: null, borough: "Westminster" },
-  { id: "expensive", name: "The Expensive Pub", lat: HERE.lat + 0.001, lng: HERE.lng, cheapestPrice: 7, borough: "Westminster" },
-  { id: "middle", name: "The Other Pub", lat: MOVED.lat, lng: MOVED.lng, cheapestPrice: 5, borough: "Westminster" },
-  { id: "cafe", name: "The Nearest Cafe", lat: HERE.lat, lng: HERE.lng, cheapestPrice: 2, borough: "Westminster", kind: "cafe" },
+  { id: "expensive", name: "The Expensive Pub", lat: HERE.lat + 0.001, lng: HERE.lng, cheapestPrice: 7, borough: "Westminster", ...EVIDENCE },
+  { id: "middle", name: "The Other Pub", lat: MOVED.lat, lng: MOVED.lng, cheapestPrice: 5, borough: "Westminster", ...EVIDENCE },
+  { id: "cafe", name: "The Nearest Cafe", lat: HERE.lat, lng: HERE.lng, cheapestPrice: 2, borough: "Westminster", kind: "cafe", ...EVIDENCE },
 ];
 
 function deferred<T>() {
