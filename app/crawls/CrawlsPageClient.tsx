@@ -12,8 +12,8 @@ import { landmarks } from "@/lib/landmarks";
 import { namedRoutePathForCrawl } from "@/lib/namedRoutes";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
 import { formatGbp } from "@/lib/formatGbp";
-import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
-import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
+import { formatObservedDate } from "@/lib/dataFreshnessFormat";
+import { loadSlimVenuesForCityResult, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
 import HostOnDate from "@/components/crawls/HostOnDate";
@@ -146,11 +146,11 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
   );
   useEffect(() => {
     let active = true;
-    void loadSlimVenues()
-      .then((venues) => {
+    void loadSlimVenuesForCityResult()
+      .then(({ rows, status }) => {
         if (!active) return;
-        setSlimVenues(venues);
-        setVenueIndexStatus("ready");
+        setSlimVenues(rows);
+        setVenueIndexStatus(status === "ready" ? "ready" : "error");
       })
       .catch(() => {
         if (active) setVenueIndexStatus("error");
@@ -334,7 +334,11 @@ function CrawlPriceEvidence({ range, status }: {
               {point.evidence.servingSize ? <>{" · "}{point.evidence.servingSize}</> : null}
               {" at "}{point.venueName}.
             </p>
-            <p className="crawlPriceSource">{listedPriceReceipt({ priceSource: point.evidence.publisher?.label, priceObservedAt: point.evidence.observedOn ?? undefined })}</p>
+            <p className="crawlPriceSource">
+              {point.evidence.publisher?.label || "Publisher not recorded"}. {point.evidence.observedOn
+                ? `Source read ${formatObservedDate(new Date(point.evidence.observedOn))}`
+                : "Source read date unknown"}.
+            </p>
           </li>
         ))}
       </ul>
@@ -362,7 +366,7 @@ function FeaturedCrawlCard({
   const originName = startLandmarkName(crawl);
   const routePath = namedRoutePathForCrawl(crawl.id);
   const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
-  const priceRange = crawlPriceRange(crawl.venueIds, slimById);
+  const priceRange = priceStatus === "ready" ? crawlPriceRange(crawl.venueIds, slimById) : undefined;
   const stops = crawl.venueIds.length;
   const hostStops = curatedStops(crawl, slimById);
   const meta = [
@@ -445,7 +449,7 @@ function CompactCrawlRow({
   priceStatus: "loading" | "ready" | "error";
 }) {
   const originName = startLandmarkName(crawl);
-  const priceRange = crawlPriceRange(crawl.venueIds, slimById);
+  const priceRange = priceStatus === "ready" ? crawlPriceRange(crawl.venueIds, slimById) : undefined;
   const stopCount = crawl.venueIds.length;
   const hostStops = curatedStops(crawl, slimById);
 

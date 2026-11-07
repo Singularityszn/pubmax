@@ -30,7 +30,7 @@ const fixtures: SlimVenue[] = [
 let host: HTMLDivElement;
 let root: Root;
 let reads: ReturnType<typeof vi.fn<typeof fetch>>;
-let rows: SlimVenue[];
+let rows: unknown;
 let priceReadFails: boolean;
 
 beforeEach(() => {
@@ -54,6 +54,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -132,4 +133,42 @@ describe("crawl catalogue price evidence", () => {
     expect(featured?.textContent).not.toContain("No comparable listed pint prices recorded");
     expect(featured?.textContent).not.toMatch(/£\d/);
   });
+
+  it.each([
+    { name: "invalid rows field", value: "bad" },
+    { name: "rejected rows", value: [null] },
+    { name: "partially rejected rows", value: [...fixtures, null] },
+  ])("withholds price claims after HTTP 200 with $name", async ({ value }) => {
+    rows = value;
+    await act(async () => root.render(createElement(CrawlsPageClient, { pack: "quiet-table" })));
+    const cards = host.querySelectorAll(".curatedFeaturedCard, .crawlCompactRow");
+    expect(cards.length).toBeGreaterThan(1);
+    for (const card of cards) {
+      expect(card.textContent).toContain("Price evidence unavailable.");
+      expect(card.textContent).not.toContain("No comparable listed pint prices recorded");
+      expect(card.textContent).not.toContain("Other stops have no comparable listed pint price");
+      expect(card.textContent).not.toContain("Listed pint prices for");
+      expect(card.textContent).not.toMatch(/£\d/);
+      expect(card.querySelector('ul[aria-label="Price range endpoints"]')).toBeNull();
+    }
+  });
+
+  it.each(["2026-07-04", "2026-07-03T23:15:00Z"])(
+    "shows the selected London day before UTC midnight for %s",
+    async (day) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-07-03T23:30:00Z"));
+      rows = fixtures.map((row) => row.priceSource === "Future menu"
+        ? row
+        : { ...row, priceObservedAt: day });
+      await act(async () => root.render(createElement(CrawlsPageClient, { pack: "quiet-table" })));
+      const featured = host.querySelector("#pint-park-view");
+      expect(featured?.textContent).toContain("Low directory. Source read 4 July 2026.");
+      expect(featured?.textContent).toContain("High menu. Source read 4 July 2026.");
+      const soho = host.querySelector('a[aria-label="Plan the Soho small plates crawl on the map"]')?.closest("li");
+      expect(soho?.textContent).toContain("Soho low menu. Source read 4 July 2026.");
+      expect(soho?.textContent).toContain("Soho high menu. Source read 4 July 2026.");
+      expect(host.textContent).not.toContain("Source read date unknown");
+    },
+  );
 });
