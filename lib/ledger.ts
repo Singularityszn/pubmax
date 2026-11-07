@@ -168,14 +168,10 @@ export function buildFamilyTableEntries(drops: LedgerSourceDrop[]): FamilyTableE
 }
 
 // ── F4: public-page redaction for the Family Table ─────────────────────────
-// /ledger/[id] is a PUBLIC page, but legacy ("ledger-only") drops are the
-// family lane — before this, the page rendered their full handle, price, and
-// note body to anyone with the URL, which made "Legacy" visibility a label,
-// not a promise. Until Supabase Auth exists there is no viewer to gate on, so
-// the honest posture is REDACTION: the public page shows that a family entry
-// exists (date, era, an initials-style attribution) and nothing more. TRUE
-// viewer-gating — the family actually reading the note — waits for Supabase
-// Auth (Epic D); this is deliberately a redaction seam, not a gate.
+// Full entries contain private fields and must not reach other readers.
+// resolveFamilyTableDisplay below owns the author-versus-reader projection.
+// readLedgerLog in lib/ledgerLog.server.ts applies it before returning rows
+// through /api/ledger/[id].
 
 /** The fallback attribution when a handle is empty/unresolvable. */
 export const REDACTED_ANON_LABEL = "A regular";
