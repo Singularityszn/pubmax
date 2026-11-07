@@ -254,7 +254,7 @@ Local corrections:
 
 ### maplibre/maplibre-agent-skills (added)
 
-Same commit as the MapLibre refresh above. `maplibre-cartography`, `maplibre-fonts-glyphs`.
+See the [MapLibre refresh](#maplibremaplibre-agent-skills) for the source commit and installed skills.
 
 ## Machine-wide design addition, 4 Oct 2026
 
