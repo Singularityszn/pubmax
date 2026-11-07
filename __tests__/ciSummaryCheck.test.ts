@@ -37,10 +37,10 @@ const REQUIRED_CHECKS = [
 ] as const;
 
 // Jobs that never run for a pull request or the merge queue, so the summary
-// does not wait for them: the nightly and dispatched full browser suite.
+// does not wait for them: the full browser suite and its scheduled failure report.
 const NOT_PULL_REQUEST_JOBS: Record<string, string[]> = {
   "ci.yml": [],
-  "e2e.yml": ["full-suite", "full-suite-gl"],
+  "e2e.yml": ["full-suite", "full-suite-gl", "nightly-failure-issue"],
   "rls-session.yml": [],
   "security-ci.yml": [],
   "freshness.yml": [],

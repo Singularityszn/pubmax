@@ -166,7 +166,7 @@ describe("browser CI policy", () => {
     });
   });
 
-  it.each(["schedule", "push", "pull_request", "workflow_dispatch"])(
+  it.each(["schedule", "push", "pull_request", "merge_group", "workflow_dispatch"])(
     "reports only scheduled failures or cancellations for %s",
     (event) => {
       const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;

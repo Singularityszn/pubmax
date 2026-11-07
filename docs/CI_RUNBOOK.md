@@ -30,6 +30,9 @@ resharded with no settings change. A new pull-request job must be added to its
 summary's `needs`. `__tests__/ciSummaryCheck.test.ts` holds each summary to
 every pull-request job in its workflow and runs its script.
 
+The browser summary excludes the two full-suite jobs and `nightly-failure-issue`.
+These jobs never run for pull requests or the merge queue.
+
 The five workflows also listen for `merge_group`. The queue tests each pull
 request on top of `main` and the pull requests ahead of it, so a change that
 is green alone but red beside another one never reaches `main`. The general change classifiers read `merge_group` as `code`, so those Linux jobs run in full.
@@ -438,6 +441,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
 | Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | runs for a `ui` change, skipped for `none` and for a fork |
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
+| Browser tests / nightly failure report | not run on pull requests (schedule only) | same | same |
 | Browser tests / Browser tests check (required) | runs | runs | runs |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | RLS session tests / RLS session check (required) | runs | runs | runs |
