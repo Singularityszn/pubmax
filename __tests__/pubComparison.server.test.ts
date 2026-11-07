@@ -32,7 +32,7 @@ beforeEach(() => {
 describe("comparison service", () => {
   it("uses exact branch identity and labels the source read date", async () => {
     const result = await loadPubComparison(request, undefined, now);
-    expect(result.venues[0]).toMatchObject({ name: "The Crown", address: "1 Upper Street", totalPence: 500, mapHref: "/map?sel=venue-a", planHref: null });
+    expect(result.venues[0]).toMatchObject({ name: "The Crown", address: "1 Upper Street", totalPence: 500, mapHref: "/map?sel=venue-a" });
     expect(result.venues[0]?.items[0]?.evidence).toMatchObject({ date: "2026-10-01T00:00:00.000Z", dateMeaning: "source-read", sourceKind: "directory" });
   });
 

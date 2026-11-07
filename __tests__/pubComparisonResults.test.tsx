@@ -21,13 +21,13 @@ const result: PubComparisonResponse = {
         sourceClass: "listed", sourceKind: "directory", sourceUrl: "https://example.org/menu", publisher: "Example pub",
         date: "2026-10-01", dateMeaning: "source-read", eligible: true } }],
     knownSubtotalPence: 500, totalPence: 500,
-    walk: { status: "routed", minutes: 5, method: "ors", timing: "shared-walking-pace" }, mapHref: "/map?sel=venue-a", planHref: null,
+    walk: { status: "routed", minutes: 5, method: "ors", timing: "shared-walking-pace" }, mapHref: "/map?sel=venue-a",
   }, {
     id: "venue-b", name: "The Crown", address: "2 Test Road", borough: "Islington",
     items: [{ requested: { category: "beer", drinkLabel: "Guinness", serving: "pint", quantity: 1 },
       status: "missing", reason: "Serving size not recorded.", lineTotalPence: null, evidence: null }],
     knownSubtotalPence: 0, totalPence: null,
-    walk: { status: "unavailable", minutes: null, method: null, timing: null }, mapHref: "/map?sel=venue-b", planHref: null,
+    walk: { status: "unavailable", minutes: null, method: null, timing: null }, mapHref: "/map?sel=venue-b",
   }],
 };
 

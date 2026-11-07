@@ -22,7 +22,7 @@ for (const width of [390, 1440]) {
       const output: PubComparisonResponse = { status: "ready", completeVenueCount: 1, meetingPoint: { id: "big-ben", name: "Big Ben" },
         venues: choices.map((pub, index) => ({
           id: pub.id, name: pub.name, address: pub.address, borough: pub.area, knownSubtotalPence: index ? 0 : 1000,
-          totalPence: index ? null : 1000, mapHref: `/map?sel=${pub.id}`, planHref: null,
+          totalPence: index ? null : 1000, mapHref: `/map?sel=${pub.id}`,
           walk: { status: "unavailable", minutes: null, method: null, timing: null },
           items: input.order.map((requested) => ({ requested, status: index ? "missing" : "matched", reason: index ? "Serving size is not recorded." : null,
             lineTotalPence: index ? null : 1000, evidence: index ? null : { ...drink, pricePence: 500, serving: "pint", sourceClass: "listed",

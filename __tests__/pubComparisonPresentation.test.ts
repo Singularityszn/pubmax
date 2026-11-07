@@ -7,7 +7,7 @@ function venue(overrides: Partial<PubComparisonResultVenue> = {}): PubComparison
     id: "venue-a", name: "The Crown", address: "1 Test Street", borough: "Islington",
     items: [], knownSubtotalPence: 1000, totalPence: 1000,
     walk: { status: "routed", minutes: 5, method: "ors", timing: "shared-walking-pace" },
-    mapHref: "/map?sel=venue-a", planHref: null, ...overrides,
+    mapHref: "/map?sel=venue-a", ...overrides,
   };
 }
 

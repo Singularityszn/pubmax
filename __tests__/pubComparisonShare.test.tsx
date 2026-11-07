@@ -15,7 +15,7 @@ import PubComparisonShare from "@/components/tools/PubComparisonShare";
 const venues: PubComparisonResultVenue[] = ["a", "b"].map((id) => ({
   id: `venue-${id}`, name: "The Crown", address: `${id} Street`, borough: "Islington", items: [],
   knownSubtotalPence: 500, totalPence: 500, walk: { status: "not-requested", minutes: null, method: null, timing: null },
-  mapHref: `/map?sel=venue-${id}`, planHref: null,
+  mapHref: `/map?sel=venue-${id}`,
 }));
 let container: HTMLDivElement;
 let root: Root;

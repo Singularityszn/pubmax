@@ -52,6 +52,7 @@ describe("pub comparison HTTP contract", () => {
   it("rejects an unknown origin field instead of silently dropping a constraint", async () => {
     const response = await POST(request({ ...input, origin: { latitude: 51.5, longitude: 0 } }));
     expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(reads.compare).not.toHaveBeenCalled();
   });
 
@@ -69,6 +70,7 @@ describe("pub comparison HTTP contract", () => {
       method: "POST", headers: { "Content-Type": "application/json" }, body: "{",
     }));
     expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(await response.json()).toMatchObject({ code: "INVALID_REQUEST", retryable: false });
   });
 
@@ -93,12 +95,35 @@ describe("pub comparison HTTP contract", () => {
 
 
 describe("private error responses", () => {
-  it.each([400, 404, 503] as const)("returns the envelope with no shared cache on data status %s", async (status) => {
+  it.each([
+    ["GET", 400], ["GET", 404], ["GET", 503],
+    ["POST", 400], ["POST", 404], ["POST", 503],
+  ] as const)("keeps %s data status %s private", async (method, status) => {
     reads.catalogue.mockRejectedValue(new PubComparisonReadError(status, "A selected pub cannot be read."));
-    const response = await GET(new Request("https://pubmaxxing.com/api/pub-comparison?venues=venue-a"));
+    reads.compare.mockRejectedValue(new PubComparisonReadError(status, "A selected pub cannot be read."));
+    const response = method === "GET"
+      ? await GET(new Request("https://pubmaxxing.com/api/pub-comparison?venues=venue-a"))
+      : await POST(request());
     expect(response.status).toBe(status);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(await response.json()).toMatchObject({ error: "A selected pub cannot be read.", retryable: status === 503 });
+  });
+  it.each(["GET", "POST"])("keeps %s rate limits private and stops the data read", async (method) => {
+    reads.limited.mockResolvedValue(true);
+    const response = method === "GET"
+      ? await GET(new Request("https://pubmaxxing.com/api/pub-comparison"))
+      : await POST(request());
+    expect(response.status).toBe(429);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(reads.catalogue).not.toHaveBeenCalled();
+    expect(reads.compare).not.toHaveBeenCalled();
+  });
+  it("keeps an unexpected catalogue failure private", async () => {
+    reads.catalogue.mockRejectedValue(new Error("internal path"));
+    const response = await GET(new Request("https://pubmaxxing.com/api/pub-comparison"));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
   });
   it("rejects a non-JSON request without a shared cache", async () => {
     const response = await POST(new Request("https://pubmaxxing.com/api/pub-comparison", { method: "POST", body: "private order" }));

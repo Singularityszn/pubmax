@@ -80,7 +80,7 @@ async function readComparisonVenues(ids: readonly string[], now: number): Promis
     for (const row of evidence) row.eligible = comparisonEvidenceEligible(row, now);
     return { id: lookup.canonicalId, name: lookup.venue.name, address: venue?.address || null,
       borough: lookup.venue.borough, evidence, readUnavailable: bundle.status === "unavailable",
-      point: [lookup.venue.lng, lookup.venue.lat], mapHref: venueMapUrl(lookup.canonicalId), planHref: null };
+      point: [lookup.venue.lng, lookup.venue.lat], mapHref: venueMapUrl(lookup.canonicalId) };
   });
 }
 

@@ -48,7 +48,6 @@ export type PubComparisonWalk = {
 export type PubComparisonVenueInput = PubComparisonVenue & {
   evidence: PubComparisonEvidence[];
   mapHref: string;
-  planHref: string | null;
   readUnavailable?: boolean;
 };
 export type PubComparisonItem = {
@@ -64,7 +63,6 @@ export type PubComparisonResultVenue = PubComparisonVenue & {
   totalPence: number | null;
   walk: PubComparisonWalk;
   mapHref: string;
-  planHref: string | null;
 };
 export type PubComparisonResponse = {
   status: "ready";
@@ -187,7 +185,7 @@ export function comparePubOrders(request: PubComparisonRequest, venues: readonly
       items, knownSubtotalPence,
       totalPence: items.every((line) => line.status === "matched") ? knownSubtotalPence : null,
       walk: { status: "not-requested", minutes: null, method: null, timing: null } as PubComparisonWalk,
-      mapHref: venue.mapHref, planHref: venue.planHref,
+      mapHref: venue.mapHref,
     };
   });
   return { status: "ready", venues: results, completeVenueCount: results.filter((venue) => venue.totalPence !== null).length, meetingPoint: null };

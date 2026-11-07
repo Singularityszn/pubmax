@@ -7,7 +7,7 @@ function evidence(overrides: Partial<PubComparisonEvidence> = {}): PubComparison
   return { category: "beer", drinkLabel: "Guinness", serving: "pint", pricePence: 500, sourceClass: "listed", sourceKind: "directory", sourceUrl: "https://example.com/pub", publisher: "Example", date: "2026-10-01", dateMeaning: "source-read", eligible: true, ...overrides };
 }
 function venue(id: string, prices: PubComparisonEvidence[]): PubComparisonVenueInput {
-  return { id, name: "The Crown", address: `${id} High Street`, borough: "Islington", evidence: prices, mapHref: `/map?sel=${id}`, planHref: null };
+  return { id, name: "The Crown", address: `${id} High Street`, borough: "Islington", evidence: prices, mapHref: `/map?sel=${id}` };
 }
 
 describe("pub order comparison", () => {
