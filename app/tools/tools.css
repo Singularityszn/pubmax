@@ -7,8 +7,9 @@
 .pubToolsPage .screen { padding-inline: 0; }
 .pubComparisonForm, .pubComparisonResults, .pubToolsMethod { margin-block-start: var(--space-8); }
 .pubComparisonForm fieldset { border: 0; padding: 0; margin: 0 0 var(--space-6); min-width: 0; }
-.pubComparisonForm legend, .pubToolsPage h2 { font-size: var(--text-xl); font-weight: 650; }
-.pubToolsPage h3 { font-size: var(--text-lg); }
+/* Section heads sit one step under the page title. */
+.pubComparisonForm legend, .pubToolsPage h2 { padding: 0; font-size: var(--text-lg); font-weight: 650; }
+.pubToolsPage h3 { font-size: var(--text-md); }
 .pubToolsPage p { margin-block: var(--space-3); line-height: 1.6; }
 .pubToolsPage label { display: block; margin-block: var(--space-3) var(--space-2); }
 .pubToolsPage input, .pubToolsPage select, .pubToolsPage textarea {
