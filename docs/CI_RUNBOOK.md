@@ -173,6 +173,21 @@ servers. These jobs use the worker limit defined above.
 Scheduled runs and manual dispatches skip the layout-pin jobs because the full
 suite covers those specs on the same commit.
 
+The full suite runs only on the nightly schedule and on a manual dispatch,
+never on a pull request or a push to `main`. The schedule is set for 20:17 UTC.
+From 29 Oct to 7 Nov 2026, GitHub started the old 03:17 UTC schedule between
+09:40 and 11:11 UTC, about six to eight hours late. The full-suite jobs then
+held the `pubmax-mac` pool in the working day while pull requests waited. With the same
+delay, a 20:17 schedule starts in the early morning. GitHub does not promise a
+start time, so a late run can still land in the day.
+
+When either scheduled full-suite job fails or is cancelled, the
+`nightly-failure-issue` job reports the result. This includes timeout cancellations.
+The job comments on an open issue with the exact title "Nightly full browser suite failed".
+If no open issue has that exact title, the job creates one.
+The job uses the run's own `GITHUB_TOKEN` and needs no configured secret.
+Close the issue when the nightly is green again.
+
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite and manual dispatches never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
 Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push starts three layout-pin jobs. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
@@ -253,7 +268,7 @@ A pull request that changes only docs or only data skips the heavy jobs (owner d
 
 - **docs**: every changed file is under `docs/` or ends in `.md`.
 - **data**: every changed file is docs or data, and at least one is data (`data/**/*.json` or anything under `public/data/`).
-- **code**: anything else. That includes an empty diff, any other file under `data/`, every `.github/` file that is not Markdown, and every event that is not a pull request. A push to `main` always runs in full.
+- **code**: anything else. That includes an empty diff, any other file under `data/`, every `.github/` file that is not Markdown, and every event that is not a pull request. A push to `main` always gets the `code` scope. The [browser job schedule](#timeouts-and-job-shape) controls which browser jobs run.
 
 The diff runs with `--no-renames`, so a file moved counts under both its old and its new path. A pull request that moves `lib/` code into `docs/` reads as code, not docs.
 
@@ -293,7 +308,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
 
-The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A browser pin or a unit test that reads data without naming the file is not run until the merge reaches `main`, which runs everything. The local merge bar, `npm run verify`, is unchanged.
+The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A unit test that reads data without naming the file waits until the merge reaches `main`, which runs the whole unit suite. The [browser job schedule](#timeouts-and-job-shape) controls browser coverage. The local merge bar, `npm run verify`, is unchanged.
 
 ### Prove the runner
 
