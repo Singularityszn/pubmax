@@ -1,11 +1,22 @@
 import type { ReactElement } from "react";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
+import type { VenuePriceEvidence } from "@/lib/venuePriceEvidence";
 
 import { formatPrice } from "@/lib/venues";
 import {
   factBlockSentences,
+  factCoverageSentence,
   hasFactData,
   type PintFactStats,
 } from "@/lib/pintFacts";
+
+function PintReceipt({ evidence }: { evidence: VenuePriceEvidence | null }) {
+  if (!evidence) return null;
+  return <>
+    <div>{evidence.drinkLabel ?? "Pint name unavailable"} · {evidence.servingSize ?? "Serving size not recorded"}</div>
+    <ListedPriceSource evidence={evidence} />
+  </>;
+}
 
 // Server-rendered fact block (Wave S3.1): extractable prose + a small stat table
 // derived entirely from the area's tracked pint prices. Renders NOTHING when the
@@ -51,14 +62,17 @@ export default function FactBlock({
         <tbody>
           <tr>
             <th scope="row">Average pint</th>
-            <td>{formatPrice(stats.averageGbp)}</td>
+            <td>{formatPrice(stats.averageGbp)}
+              <div>Across {stats.pubCount} tracked {stats.pubCount === 1 ? "pub" : "pubs"}.</div>
+              <div>{factCoverageSentence(stats)}</div>
+            </td>
           </tr>
           <tr>
             <th scope="row">
               Cheapest pint
               {stats.minPubName ? ` · ${stats.minPubName}` : ""}
             </th>
-            <td>{formatPrice(stats.minGbp)}</td>
+            <td>{formatPrice(stats.minGbp)}<PintReceipt evidence={stats.minEvidence} /></td>
           </tr>
           {stats.maxGbp !== null &&
           stats.minGbp !== null &&
@@ -68,7 +82,7 @@ export default function FactBlock({
                 Dearest tracked pint
                 {stats.maxPubName ? ` · ${stats.maxPubName}` : ""}
               </th>
-              <td>{formatPrice(stats.maxGbp)}</td>
+              <td>{formatPrice(stats.maxGbp)}<PintReceipt evidence={stats.maxEvidence} /></td>
             </tr>
           ) : null}
           <tr>

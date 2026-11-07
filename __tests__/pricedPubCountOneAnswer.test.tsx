@@ -51,7 +51,7 @@ vi.mock("@/lib/pricedPubCount.server", () => ({
 import AboutPage from "@/app/about/page";
 import ListedDrinkCoverage from "@/components/pintindex/ListedDrinkCoverage";
 import { PINT_INDEX_NOT_READY_LINE, pintIndexLeagueReady, type PintIndexSnapshot } from "@/lib/pintIndex";
-import { averageBasePhrase, listedPriceCohort, pricedPubsSentence } from "@/lib/pricedPubCount";
+import { averageBasePhrase, listedPriceCohort, pricedPubCountFromCoverage, pricedPubsSentence } from "@/lib/pricedPubCount";
 import { strangerSavingLine } from "@/lib/pintSavings";
 
 function text(html: string): string {
@@ -114,5 +114,19 @@ describe("one priced-pub count", () => {
       { kind: "pub", cheapestPrice: null },
     ] as never[]);
     expect(cohort).toHaveLength(2);
+  });
+
+  it("excludes explicit non-pints from the mean without changing broad price coverage", () => {
+    const rows = [
+      { kind: "pub", cheapestPrice: 5, cheapestPint: "Lager" },
+      { kind: "pub", cheapestPrice: 6 },
+      { kind: "pub", cheapestPrice: 2, prices: [{ price_gbp: 2, pint_name: "Half pint lager" }] },
+      { kind: "pub", cheapestPrice: 9, cheapestPint: "Lager", prices: [
+        { price_gbp: 9, pint_name: "BOTTLED BEER" },
+        { price_gbp: 9, pint_name: "Lager", measure: "pint" },
+      ] },
+    ] as const;
+    expect(listedPriceCohort(rows)).toEqual(rows.slice(0, 2));
+    expect(pricedPubCountFromCoverage(fixtures.read.coverage)).toEqual(fixtures.read.count);
   });
 });
