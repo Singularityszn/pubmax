@@ -104,6 +104,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
 `lib/comparablePint.mjs` owns price eligibility for cheapest-pint answers, pint-price sorting, and pint-price limits, including the Last Orders builder.
 It requires a finite positive price, a named source, and a valid observation date with a full calendar day.
+Date-only values use `YYYY-MM-DD`. Timestamps must state UTC or a numeric timezone offset. A timestamp without a timezone cannot qualify.
 A day after the comparison's London day fails. A timestamp after the comparison instant also fails.
 The optional `now` argument fixes the comparison instant. Without it, the policy uses the current clock.
 

@@ -260,8 +260,8 @@
 
 /* --- CityMCP pint-price line (A1) ------------------------------------------ */
 
-/* A sourced figure from someone else, said in one quiet line. Its source is a
-   provenance stamp (caps are stamps), in the neutral badge trio. */
+/* Keep the upstream average separate from the local pint's evidence.
+   The CityMCP source label uses the neutral badge tokens. */
 .boroughPintChip {
   display: grid;
   gap: var(--space-2);

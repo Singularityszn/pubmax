@@ -30,8 +30,8 @@ export type BoroughSummary = {
   slug: string;
   name: string;
   pubCount: number;
-  // The cheapest pint in the borough, in GBP, or null when no pub there carries
-  // a usable price (so the page can render "—" instead of crashing).
+  // The cheapest qualifying public pint in GBP, or null when none qualifies.
+  // cheapestPint carries the same winner's venue and selected price evidence.
   cheapestGbp: number | null;
   cheapestPint: { venueId: string; venueName: string; evidence: VenuePriceEvidence } | null;
 };

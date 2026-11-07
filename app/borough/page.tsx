@@ -94,16 +94,16 @@ export default async function BoroughIndexPage() {
                     <ListedPriceSource evidence={borough.cheapestPint.evidence} kind={borough.cheapestPint.evidence.sourceKind} />
                   </> : undefined}
                   trailing={
-  borough.cheapestGbp === null ? (
-                        <span className="listingNoFigure">No price yet</span>
-                      ) : (
-                        <>
-                          <span className="listingFrom">from</span>
-                          <PriceBadge variant="current" band={priceBand(borough.cheapestGbp, { city: "london" })}>
-                            {formatPrice(borough.cheapestGbp)}
-                          </PriceBadge>
-                        </>
-                      )
+                    borough.cheapestGbp === null ? (
+                      <span className="listingNoFigure">No price yet</span>
+                    ) : (
+                      <>
+                        <span className="listingFrom">from</span>
+                        <PriceBadge variant="current" band={priceBand(borough.cheapestGbp, { city: "london" })}>
+                          {formatPrice(borough.cheapestGbp)}
+                        </PriceBadge>
+                      </>
+                    )
                   }
                 />
               );
