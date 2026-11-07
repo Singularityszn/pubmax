@@ -17,6 +17,7 @@
 import { CREW_MAX_MEMBERS } from "@/lib/crew";
 import { PLAN_STOP_MAX } from "@/lib/plan";
 import { londonDateTimeInputToIso } from "@/lib/planIntake";
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 
 /** The smallest open crawl worth listing for strangers. */
 export const OPEN_CRAWL_CAPACITY_MIN = 4;
@@ -279,8 +280,9 @@ export type StoryStopInput = { venueId?: string | null; venueName?: string | nul
 
 /**
  * The plan's stops, in the story's own order. A stop with no listed venue id
- * cannot be planned and is left out; a pub that appears twice is kept at its
- * first place; and the plan's own cap applies. Nothing is reordered.
+ * cannot be planned and is left out, and so is a bar whose name says the
+ * public cannot walk in; a pub that appears twice is kept at its first place;
+ * and the plan's own cap applies. Nothing is reordered.
  */
 export function planStopsFromStory(
   stops: readonly StoryStopInput[],
@@ -291,6 +293,9 @@ export function planStopsFromStory(
     const venueId = typeof stop.venueId === "string" ? stop.venueId.trim() : "";
     const venueName = typeof stop.venueName === "string" ? stop.venueName.trim() : "";
     if (!venueId || !venueName || seen.has(venueId)) continue;
+    // A hosted night is for people who may never have met: a bar the public
+    // cannot walk into is left out (lib/venueKindFilters.ts).
+    if (isNonPublicVenueName(venueName)) continue;
     seen.add(venueId);
     out.push({ venueId, venueName });
     if (out.length === PLAN_STOP_MAX) break;

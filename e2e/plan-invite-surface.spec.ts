@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -105,7 +106,7 @@ test("the invitee teaser draws no route rail over its own copy at 390", async ({
 }) => {
   const venues = ((await (await request.get("/data/venues_slim.json")).json() as {
     rows: Array<{ id: string; name: string }>;
-  }).rows).slice(0, 3);
+  }).rows).filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   const created = await request.post("/api/plans", {
     headers: { "idempotency-key": randomUUID() },
     data: {

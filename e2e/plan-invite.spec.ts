@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -18,7 +19,7 @@ test("public invite page renders a Plan and accepts a handle-free RSVP", async (
     id: string;
     name: string;
     cheapestPrice: number | null;
-  }> }).rows).slice(0, 3);
+  }> }).rows).filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   expect(venues.length).toBe(3);
 
   const created = await request.post("/api/plans", {
@@ -342,7 +343,7 @@ test("a fresh guest opens the host's private one-use invite and joins the crew",
   const venues = ((await (await page.request.get("/data/venues_slim.json")).json() as { rows: Array<{
     id: string;
     name: string;
-  }> }).rows).slice(0, 3);
+  }> }).rows).filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   expect(venues.length).toBe(3);
   // The browser context's own request keeps the host's member session cookie.
   const created = await page.request.post("/api/plans", {

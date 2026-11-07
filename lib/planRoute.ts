@@ -4,6 +4,7 @@ import { cultureWaypointPois } from "@/lib/cultureCrawl.server";
 import { classifyOpenMeetingPoint, OPEN_PLAN_PLACE_PREFIX } from "@/lib/openSocialCrew";
 import type { PlanStopDTO } from "@/lib/plan";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 
 export type PlanStopTarget = { venueId: string; venueName: string };
 
@@ -12,6 +13,8 @@ export type PlanStopTarget = { venueId: string; venueName: string };
  * Two id shapes resolve, both against server-owned data: a listed venue from
  * the Venue Dataset, and a `place:<poi id>` meeting point from the ambient POI
  * layer. Free text resolves to nothing, so it can never be stored.
+ * Public eligibility uses the resolved venue name, so a caller cannot bypass
+ * the check with a different label for the same venue ID.
  *
  * Creation is city-scoped and route replacement is not (a Plan persists no
  * city), so the caller says which cities may answer; the rule itself is the
@@ -42,15 +45,16 @@ export async function planStopResolver(
         : null;
     }
     const venue = venuesById.get(classified.venueId);
-    return venue ? { venueId: venue.id, venueName: venue.name } : null;
+    return venue && !isNonPublicVenueName(venue.name)
+      ? { venueId: venue.id, venueName: venue.name }
+      : null;
   };
 }
 
 /**
  * Rebuild a proposed route from the server-owned data. A Plan does not persist
- * a city yet, so replacement accepts only ids that occur in a shipped city
- * dataset (or that city's POI layer) and always returns their canonical
- * display names.
+ * a city yet, so replacement resolves every ID through planStopResolver
+ * across the shipped cities. Any refused stop invalidates the whole route.
  */
 export async function canonicalPlanRoute(raw: unknown): Promise<PlanStopDTO[] | null> {
   if (!Array.isArray(raw) || !isPlanStopCount(raw.length)) return null;

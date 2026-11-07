@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 const INTENT_KEY = "pubmax:planning-intent:v1";
@@ -7,7 +8,7 @@ async function firstVenue(request: APIRequestContext) {
   const venues = ((await (await request.get("/data/venues_slim.json")).json()) as { rows: Array<{
     id: string;
     name: string;
-  }> }).rows;
+  }> }).rows.filter((venue) => !isNonPublicVenueName(venue.name));
   const venue = venues[0];
   expect(venue).toBeTruthy();
   return venue!;
