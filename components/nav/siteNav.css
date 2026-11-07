@@ -135,12 +135,15 @@
   }
 }
 
+/* Keep both header variants in this rule so the named Pal control cannot
+   push the search toolbar down. The layout contract lives in the navigation
+   density rule linked above. */
 @media (min-width: 1280px) {
-  .siteNavBar:not(.siteNavBarFloating) {
+  .siteNavBar {
     gap: 4px;
   }
 
-  .siteNavBar:not(.siteNavBarFloating) .siteNavActions {
+  .siteNavBar .siteNavActions {
     gap: 2px;
   }
 }
