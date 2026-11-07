@@ -7,6 +7,11 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
+const viewer = vi.hoisted(() => ({
+  signedIn: false,
+  user: { id: "11111111-1111-4111-8111-111111111111" },
+}));
+
 vi.mock("server-only", () => ({}));
 
 vi.mock("next/link", () => ({
@@ -27,7 +32,21 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: null, session: null, loading: false, identityResolved: true }),
+  useAuth: () => ({ user: viewer.signedIn ? viewer.user : null, session: null, loading: false, identityResolved: true }),
+}));
+
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({
+    user: viewer.signedIn ? viewer.user : null,
+    session: null,
+    identityResolved: true,
+    providerAuthState: viewer.signedIn ? "authenticated" : "signed-out",
+    accountRevision: 1,
+  }),
+}));
+
+vi.mock("@/lib/useSavedNightProfile", () => ({
+  useSavedNightProfile: () => ({ profile: null, status: "ready" }),
 }));
 
 vi.mock("@/components/plan/PlanIntake", () => ({ default: () => null }));
@@ -42,6 +61,10 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
+import NearMeSavedDrink from "@/components/nearme/NearMeSavedDrink";
+import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
+import { mirrorAccountNightProfileToDevice, readDeviceNightDrink } from "@/lib/nightProfileClient";
+import { releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
@@ -69,6 +92,7 @@ let host: HTMLElement | null = null;
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
 
 beforeEach(() => {
+  viewer.signedIn = false;
   fetchMock = vi.fn<typeof fetch>(async (input) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     return new Response(JSON.stringify(url.includes("/api/plans/generate") ? GENERATED : []), {
@@ -244,12 +268,107 @@ async function nameRouteCreator(): Promise<void> {
 async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
   await nameRouteCreator();
   await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+  await vi.waitFor(() => {
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/plans")).toBe(true);
+  });
   const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
   expect(creation).toBeDefined();
   return JSON.parse(String(creation[1]?.body));
 }
 
 describe("the Plan result", () => {
+  it("keeps the Near me Wine offer after sign-out and a new Plan budget edit", async () => {
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    await act(async () => {
+      const drinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")!;
+      drinks.value = "wine";
+      drinks.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    mirrorAccountNightProfileToDevice({
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:00:00Z",
+    });
+    releaseDeviceAccountOwner(localStorage, sessionStorage);
+    await remountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    await act(async () => {
+      const budget = document.querySelector<HTMLSelectElement>("#plan-context-budget")!;
+      budget.value = "treat";
+      budget.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-budget")?.value).toBe("treat");
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBe("wine");
+    await act(async () => {
+      root!.render(createElement(NearMeSavedDrink, { cityId: "london", drinkLane: "beer", noAlcoholView: false, onShow: vi.fn() }));
+    });
+    expect(host?.textContent).toContain("Your saved drink is Wine.");
+  });
+
+  it("keeps Wine chosen while a Plan response is pending in the Near me offer", async () => {
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    let answer: (response: Response) => void = () => { throw new Error("No pending Plan request"); };
+    fetchMock.mockImplementation((input) => String(input).includes("/api/plans/generate")
+      ? new Promise<Response>((resolve) => { answer = resolve; })
+      : Promise.resolve(new Response("[]", { status: 200 })));
+    const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find((button) => button.textContent === "Plan it again")!;
+    await act(async () => { again.click(); });
+    expect(again.textContent).toBe("Planning…");
+    await act(async () => {
+      const drinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")!;
+      drinks.value = "wine";
+      drinks.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBe("wine");
+
+    await act(async () => {
+      answer(new Response(JSON.stringify(GENERATED), { status: 200, headers: { "content-type": "application/json" } }));
+    });
+    await settle();
+    expect(document.querySelector("[role='dialog']")).toBeNull();
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBe("wine");
+    const onShow = vi.fn();
+    await act(async () => {
+      root!.render(createElement(NearMeSavedDrink, { cityId: "london", drinkLane: "beer", noAlcoholView: false, onShow }));
+    });
+    expect(host?.textContent).toContain("Your saved drink is Wine.");
+    expect(onShow).not.toHaveBeenCalled();
+    await act(async () => host!.querySelector<HTMLButtonElement>("button")!.click());
+    expect(onShow).toHaveBeenCalledWith({ kind: "lane", category: "wine", label: "Wine" });
+  });
+
+  it.each([false, true])("offers Wine in Near me after choosing it in Plan with signedIn=%s", async (signedIn) => {
+    viewer.signedIn = signedIn;
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    const drinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof");
+    expect(drinks).not.toBeNull();
+    await act(async () => {
+      drinks!.value = "wine";
+      drinks!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    mirrorAccountNightProfileToDevice({
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:00:00Z",
+    });
+    const onShow = vi.fn();
+    await act(async () => {
+      root!.render(createElement(NearMeSavedDrink, { cityId: "london", drinkLane: "beer", noAlcoholView: false, onShow }));
+    });
+    expect(host?.textContent).toContain("Your saved drink is Wine.");
+    expect(onShow).not.toHaveBeenCalled();
+    await act(async () => host!.querySelector<HTMLButtonElement>("button")!.click());
+    expect(onShow).toHaveBeenCalledWith({ kind: "lane", category: "wine", label: "Wine" });
+  });
+
   it("dates a new session Ask after a locally saved picker edit on an unchanged route", async () => {
     let now = Date.now();
     const clock = vi.spyOn(Date, "now").mockImplementation(() => now);

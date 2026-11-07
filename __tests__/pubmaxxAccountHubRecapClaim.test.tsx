@@ -23,6 +23,9 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => auth.session.access_token }));
 
 import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
+import NearMeSavedDrink from "@/components/nearme/NearMeSavedDrink";
+import { DEFAULT_NIGHT_PROFILE_INPUT, type NightProfile } from "@/lib/nightProfile";
+import { readDeviceNightProfile, writeDeviceNightContext, writeDeviceNightProfile } from "@/lib/nightProfileClient";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { readProviderIdentityRevision, setProviderAuthState, setProviderIdentity } from "@/lib/authProviderRevision";
@@ -39,6 +42,8 @@ let mounted = false;
 let posts: Array<{ path: string; init: RequestInit }>;
 let save: (path: string, init: RequestInit) => Promise<Response>;
 let savedMemories: Array<{ id: string; title: string; createdAt: string }>;
+let accountNightProfile: NightProfile | null;
+let profileWrites: unknown[];
 
 function draft(planId: string, completionId: string): PendingPlanRecap {
   return {
@@ -95,10 +100,24 @@ beforeEach(() => {
   publishAuthActionState({ status: "signed-in", identityResolved: true });
   posts = [];
   savedMemories = [];
+  accountNightProfile = null;
+  profileWrites = [];
   save = async (path) => saved(path);
   vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input, init = {}) => {
     const raw = input instanceof Request ? input.url : String(input);
     const path = new URL(raw, "http://localhost").pathname;
+    if (path === "/api/me/night-profile") {
+      if (init.method === "PUT") {
+        profileWrites.push(JSON.parse(String(init.body)));
+        accountNightProfile = {
+          ...DEFAULT_NIGHT_PROFILE_INPUT,
+          context: { ...DEFAULT_NIGHT_PROFILE_INPUT.context, budget: "treat" },
+          createdAt: "2026-11-06T12:00:00Z",
+          updatedAt: "2026-11-06T12:01:00Z",
+        };
+      }
+      return Response.json({ profile: accountNightProfile });
+    }
     if (init.method === "POST") {
       posts.push({ path, init });
       return save(path, init);
@@ -126,6 +145,74 @@ afterEach(async () => {
   publishAuthActionState({ status: "unknown", identityResolved: false });
   localStorage.clear();
   vi.unstubAllGlobals();
+});
+
+describe("AccountHub's device-only drink choice", () => {
+  async function mountNightProfile(legacy = false) {
+    accountNightProfile = {
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:00:00Z",
+    };
+    await act(async () => root.render(createElement("div", null,
+      createElement(PubmaxxAccountHub),
+      createElement(NearMeSavedDrink, { cityId: "london", drinkLane: "beer", noAlcoholView: false, onShow: vi.fn() }),
+    )));
+    mounted = true;
+    await vi.waitFor(() => expect(host.textContent).toContain("Night Profile synced"));
+    await act(async () => {
+      const context = {
+        ...DEFAULT_NIGHT_PROFILE_INPUT.context,
+        drinkCategory: "wine" as const,
+        budget: "value" as const,
+      };
+      if (legacy) writeDeviceNightProfile({ ...DEFAULT_NIGHT_PROFILE_INPUT, context });
+      else writeDeviceNightContext(context, "london");
+    });
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  }
+
+  it.each([false, true])("keeps Wine and refreshes the device budget after an account save with legacy=%s", async (legacy) => {
+    await mountNightProfile(legacy);
+    const budget = [...host.querySelectorAll("label")].find((label) => label.textContent?.startsWith("Budget"))?.querySelector("select");
+    expect(budget).toBeDefined();
+    await act(async () => {
+      budget!.value = "treat";
+      budget!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const saveButton = host.querySelector<HTMLButtonElement>(".accountHubNightProfileSave");
+    expect(saveButton).not.toBeNull();
+    await act(async () => saveButton!.click());
+    await vi.waitFor(() => expect(host.textContent).toContain("Night Profile saved to your account."));
+    expect(profileWrites).toEqual([expect.objectContaining({ profile: expect.objectContaining({ context: expect.objectContaining({ budget: "treat" }) }) })]);
+    expect(budget!.value).toBe("treat");
+    expect(readDeviceNightProfile()?.context.budget).toBe("treat");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+    expect(host.querySelector('[aria-labelledby="night-profile-merge-title"]')).toBeNull();
+  });
+
+  it.each([false, true])("keeps Wine after choosing Keep account preferences with legacy=%s", async (legacy) => {
+    await mountNightProfile(legacy);
+    const group = host.querySelector('[aria-labelledby="night-profile-merge-title"]');
+    const keep = [...(group?.querySelectorAll("button") ?? [])].find((button) => button.textContent?.trim() === "Keep account preferences");
+    expect(keep).toBeDefined();
+    await act(async () => keep!.click());
+    expect(profileWrites).toEqual([]);
+    expect(readDeviceNightProfile()?.context.budget).toBe("standard");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+    expect(host.querySelector('[aria-labelledby="night-profile-merge-title"]')).toBeNull();
+  });
+
+  it("keeps legacy Wine after importing device preferences", async () => {
+    await mountNightProfile(true);
+    const group = host.querySelector('[aria-labelledby="night-profile-merge-title"]');
+    const bring = [...(group?.querySelectorAll("button") ?? [])].find((button) => button.textContent?.trim() === "Bring this device");
+    expect(bring).toBeDefined();
+    await act(async () => bring!.click());
+    await vi.waitFor(() => expect(profileWrites).toHaveLength(1));
+    expect(readDeviceNightProfile()?.context.budget).toBe("treat");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
 });
 
 describe("AccountHub's confirmed private recap claim", () => {

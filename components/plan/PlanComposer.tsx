@@ -3030,7 +3030,9 @@ function PlanComposerForm({
     const exactStartInput = reconciled.draft.answers.exactStartIso && londonDateTimeInputFromIso(reconciled.draft.answers.exactStartIso);
     if (patch.daypart !== undefined && exactStartInput) setStartTime(exactStartInput);
     setExplicitNightContext((current) => ({ ...current, ...patch }));
-    if (!user) writeDeviceNightContext(reconciled.context ?? next);
+    if (!user || patch.drinkCategory !== undefined || patch.zeroProof !== undefined) {
+      writeDeviceNightContext(reconciled.context ?? next, acceptedCityId, undefined, editableContext);
+    }
   }
 
   function swapStop(key: number) {
@@ -3214,7 +3216,6 @@ function PlanComposerForm({
       });
       if (reconciled) {
         setNightContext(reconciled);
-        if (!user) writeDeviceNightContext(reconciled);
       }
       setRouteNight(routeNightOf(reconciled ?? submittedContext));
       setRouteRevision(routeRevisionFromState(body));

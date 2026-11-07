@@ -11,6 +11,9 @@ import { MobilePlanActivation } from "@/components/plan/MobilePlanActivation";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { writePlannerHandoff } from "@/lib/onboardingFlow";
+import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
+import { mirrorAccountNightProfileToDevice, readDeviceNightDrink, writeDeviceNightContext } from "@/lib/nightProfileClient";
+import { releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -78,6 +81,21 @@ async function generate() {
 }
 
 describe("map drink default in the phone planner", () => {
+  it("keeps the device Wine choice after sign-out and a default-drink response", async () => {
+    writeDeviceNightContext({ ...DEFAULT_NIGHT_PROFILE_INPUT.context, drinkCategory: "wine" }, "london");
+    mirrorAccountNightProfileToDevice({
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:00:00Z",
+    });
+    releaseDeviceAccountOwner(localStorage, sessionStorage);
+    await render({ drinkCategory: "", drinkBrand: "", drinkSubtype: "" });
+    await generate();
+    expect(requests).toHaveLength(1);
+    expect(container.querySelector(".mobilePlannerConfidence")).not.toBeNull();
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBe("wine");
+  });
+
   it("submits a decimal budget through the button and the Go keyboard action", async () => {
     await render(wine, "Quiet in Soho");
     const query = container.querySelector<HTMLInputElement>("#mobile-plan-query")!;
