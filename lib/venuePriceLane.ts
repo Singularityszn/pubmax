@@ -42,8 +42,8 @@ export const PRICE_PENDING_LINE = "Checking prices…";
 export const AGED_PRICE_LINE = `Over ${PRICE_AUTHORITY_MAX_AGE_DAYS} days old, needs a fresh drinker`;
 
 /**
- * The ONE line an UNCHECKED report prints beside its figure (captain decision
- * 9, 1 Nov 2026): a typed price with no bill. It says what the price is still
+ * The line an unchecked report prints beside its figure. lib/pintDropReceipt.ts
+ * defines unchecked evidence. The line says what the price is still
  * waiting for and what that buys, in the words the rest of this lane uses.
  * Copy may claim the map only through the second drinker, never through the
  * drinker who typed it.
@@ -83,9 +83,8 @@ export type ProvisionalPriceInput = {
   priceGbp: number;
   observedAt: string | number | null;
   /**
-   * The public handle an UNCHECKED report was logged under (a typed price with
-   * no bill, captain decision 9), or absent on a report with a bill and on
-   * every row written before the decision. Its presence is the whole signal:
+   * The public handle an unchecked report was logged under, or absent when
+   * `isUncheckedPrice` (lib/pintDropReceipt.ts) is false. Its presence is the signal:
    * the lane that carries it prints no band, and the trust chip reads
    * `unchecked` on the in-window lane (lib/pintTrust.ts `trustChipStateFor`).
    */
@@ -143,7 +142,7 @@ export type VenuePriceLane =
       lane: "provisional";
       provisionalPrice: number;
       observedAt: string | number | null;
-      /** Present when this report has no bill (see `ProvisionalPriceInput`). */
+      /** Present when this report is unchecked (see `ProvisionalPriceInput`). */
       uncheckedBy?: string;
     }
   | {
@@ -169,7 +168,7 @@ export type VenuePriceLane =
       lane: "aged";
       agedPrice: number;
       observedAt: string | number | null;
-      /** Present when this report has no bill (see `ProvisionalPriceInput`). */
+      /** Present when this report is unchecked (see `ProvisionalPriceInput`). */
       uncheckedBy?: string;
     }
   | { lane: "estimate"; estimate: EstimatedPriceInput };

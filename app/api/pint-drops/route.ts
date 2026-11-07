@@ -14,6 +14,7 @@ import { contributionAdultRefusal } from "@/lib/contributionGateStatus";
 // truth: backend failures return a 503 instead of acknowledging data that
 // would only live in process memory.
 
+import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
 import { qualifyCheapPintForAccountId } from "@/lib/cheapPintPingQualify.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -365,6 +366,22 @@ async function settleConfirmation(
   return { confirmation: confirmationOutcome.confirmation, confirmationOutcome };
 }
 
+/**
+ * Hand a priced drop's bill to the background bill check, or nothing. Only a
+ * priced drop that arrived with a bill is read, and only a deployment with the
+ * vision key can read one; a keyless one leaves the price `unchecked` and says
+ * nothing about a read that will never happen.
+ */
+function scheduleDropBillCheck(
+  drop: PintDropDTO,
+  priceGbp: number | null,
+  receipt: File | null,
+): "reading" | null {
+  if (priceGbp === null || !receipt || !billReaderKeyed()) return null;
+  scheduleBillCheck({ photo: receipt, venueId: drop.venueId, priceGbp, drink: drop.drink, measure: drop.measure, pintDropId: drop.id });
+  return "reading";
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
@@ -489,10 +506,13 @@ export async function POST(request: Request): Promise<Response> {
   // A PRICE WITHOUT THE BILL IS UNCHECKED, NOT REFUSED (captain decision 9,
   // 1 Nov 2026, amending the 7 Sept bill rule at this door). The verified
   // actor above, the rate limit and the daily cap below all still apply to
-  // it. The store EARNS the drop's evidence from what arrived
-  // (lib/pintDropReceipt.ts `priceEvidenceFor`), so nothing here stamps it and
-  // no body field can claim a bill: a typed price lands `unchecked`, shows on
-  // the pub's own sheet, and reaches the pin only through a second drinker.
+  // it. The store STAMPS the drop's evidence (lib/pintDropReceipt.ts
+  // `priceEvidenceFor`), so nothing here stamps it and no body field can claim
+  // a bill: every price lands `unchecked`, shows on the pub's own sheet, and
+  // reaches the pin through a second drinker or through its bill. A price sent
+  // WITH the bill is read after the answer (captain 5 Nov 2026,
+  // lib/billCheck.server.ts), and only a bill that shows the price earns
+  // `receipt`.
   const dropPayload = {
     ...canonicalDrop,
     handle: ownership.handle,
@@ -561,11 +581,16 @@ export async function POST(request: Request): Promise<Response> {
     if (ownership.callerUserId) {
       void qualifyCheapPintForAccountId(ownership.callerUserId);
     }
+    // THE BILL IS READ AFTER THE ANSWER, never before it: the drinker's 201
+    // does not wait on a vision model. `billCheck: "reading"` tells the
+    // composer to say so, and is said only when this deployment can read.
+    const billCheck = scheduleDropBillCheck(drop, dropPayload.priceGbp, photos.receipt);
     return jsonNoStore(
       {
         drop,
         ...(confirmation ? { confirmation } : {}),
         ...(confirmationOutcome ? { confirmationOutcome } : {}),
+        ...(billCheck ? { billCheck } : {}),
       },
       { status: 201 },
     );

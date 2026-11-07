@@ -19,6 +19,7 @@
 // anyone who knows it can read + (as a member) build the Round. Writes are
 // rate-limited per handle + IP.
 
+import { billReaderKeyed, scheduleBillChecks, type BillCheckObservation } from "@/lib/billCheck.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
@@ -57,6 +58,7 @@ import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { FUNCTION_REQUEST_BODY_LIMIT_BYTES } from "@/lib/uploadBodyLimit";
+import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -182,11 +184,21 @@ async function promoteReadyRoundPrices(input: {
   stored: RoundSpendDTO;
   contributor: ResolvedContributor;
   request: Request;
+  receipt: File | null;
+  created: boolean;
 }): Promise<Response> {
   const ready = input.stored.items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.promotionStatus === "ready");
   let completed = 0;
+  const observations: BillCheckObservation[] = [];
+  let receipt = input.receipt;
+  if (!input.created && ready.length > 0 && billReaderKeyed()) {
+    const saved = input.stored.receiptPhotoKey
+      ? await downloadUploadedImageObject(input.stored.receiptPhotoKey)
+      : null;
+    receipt = saved ? new File([new Uint8Array(saved.bytes)], "bill.jpg", { type: saved.contentType }) : null;
+  }
   const recordedAt = Date.parse(input.stored.recordedAt);
   for (const { item, index } of ready) {
     const write = await submitCommunityPrice(
@@ -206,8 +218,21 @@ async function promoteReadyRoundPrices(input: {
       typeof write.sourceBecameOwner === "boolean"
     ) {
       completed += 1;
+      if (write.sourceBecameOwner && receipt && billReaderKeyed()) {
+        observations.push({
+          venueId: input.stored.venueId,
+          priceGbp: item.pricePence / 100,
+          drink: item.drinkName,
+          ...(item.drinkCategory === "beer" ? { measure: "pint" as const } : {}),
+          communityPriceId: write.price.id,
+          communityPriceSubmittedAt: write.price.submittedAt,
+          roundSource: { spendId: input.stored.id, lineIndex: index },
+        });
+      }
     }
   }
+
+  if (receipt && observations.length > 0) scheduleBillChecks(receipt, observations);
 
   if (completed !== ready.length) {
     return publicApiError("Your round is kept, but some prices need another try.", "UNAVAILABLE", 503, { retryable: true });
@@ -338,6 +363,8 @@ async function recordSpend(
     stored: prepared.stored,
     contributor,
     request,
+    receipt,
+    created: result.created,
   });
 }
 

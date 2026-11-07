@@ -932,6 +932,9 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/analyticsReceiptStore.ts": {
     excluded: "Keyed on an event id and a token digest; no account id is stored.",
   },
+  "lib/billCheckStore.ts": {
+    excluded: "Bill check verdicts, keyed on a price and a pub; they hold no account and nothing read off the bill about a person.",
+  },
   "lib/areaDemandStore.ts": { excluded: "Per-area demand counters, keyed on a night area rather than on any account." },
   "lib/checkInStore.ts": { lane: "checkIns" },
   "lib/cityEnrichmentCheckpointStore.server.ts": {

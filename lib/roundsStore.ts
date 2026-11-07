@@ -84,6 +84,7 @@ type ReconcilePromotionKeysResult =
 export type RoundsStore = {
   create(input: { title?: unknown; createdByHandle?: unknown }): Promise<CreateResult>;
   getByCode(code: string): Promise<RoundState | null>;
+  getSpendById(id: string): Promise<RoundSpendDTO | null>;
   join(code: string, handle: string): Promise<JoinResult>;
   addStop(
     code: string,
@@ -287,6 +288,12 @@ const supabaseRoundsStore: RoundsStore = {
       console.error("[rounds] getByCode failed:", err instanceof Error ? err.message : err);
       return null;
     }
+  },
+
+  async getSpendById(id) {
+    const { data, error } = await admin().from(SPENDS).select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? spendFromRow(data as Record<string, unknown>) : null;
   },
 
   async join(code, handle) {
@@ -634,6 +641,14 @@ export const memoryRoundsStore: RoundsStore = {
     if (!key) return null;
     const round = memoryRounds.get(key);
     return round ? stateFrom(round) : null;
+  },
+
+  async getSpendById(id) {
+    for (const round of memoryRounds.values()) {
+      const spend = stateFrom(round).spends.find((row) => row.id === id);
+      if (spend) return spend;
+    }
+    return null;
   },
 
   async join(code, handle) {

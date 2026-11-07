@@ -1624,7 +1624,16 @@ describe("price observation and its confirmation", () => {
     expect(first.status, await first.clone().text()).toBe(201);
     const firstBody = await readJson<PriceSubmitBody>(first);
     expect(firstBody.confirmationOutcome?.status).toBe("awaiting_second_drinker");
-    expect(firstBody.pintTrust).toBe("logged-once");
+    // A photo attached is not a bill read (captain 5 Nov 2026): the price
+    // lands unchecked, and only the background bill check's match moves it.
+    expect(firstBody.pintTrust).toBe("unchecked");
+    // The bill check's one write on a match, as `grantBillMatch` makes it.
+    truth(
+      `update public.pint_drops set price_evidence = 'receipt' where venue_id = '${PRICE_VENUE}' and price_evidence = 'unchecked' and price_gbp is not null`,
+    );
+    expect(truth(
+      `select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}' and price_evidence = 'receipt'`,
+    )).toBe("1");
 
     // A second REPORT, not a second tap: a different figure, so the
     // duplicate-tap window (battle test D10) leaves it alone. Since 7 Sept 2026

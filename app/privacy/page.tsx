@@ -787,6 +787,15 @@ export default function PrivacyPage() {
             </dd>
           </div>
           <div className="legalRow">
+            <dt>Bill photos</dt>
+            <dd>
+              When you send a photo of your bill with a price, we strip the photo&rsquo;s metadata and
+              send it to OpenRouter, using providers that do not retain it, to check that the bill shows
+              the price you typed. We keep only the result and the item lines and prices the check
+              needs. We do not keep names, card numbers or the date read from the bill.
+            </dd>
+          </div>
+          <div className="legalRow">
             <dt>AI features</dt>
             <dd>
               If you ask The Landlord about a pub, or talk to Pub Pal by typing

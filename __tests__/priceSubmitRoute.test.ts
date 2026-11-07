@@ -1,4 +1,9 @@
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { __resetBillChecks, memoryBillCheckStore } from "@/lib/billCheckStore";
+import type { BillCheckRun } from "@/lib/billCheck.server";
+import type { PersistableDrop } from "@/lib/pintDropsStore";
+import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 
 // Two Vercel-vs-local seams to pin (both would otherwise pass locally and fail
 // on Vercel - the classic green-local/red-Vercel trap):
@@ -88,6 +93,13 @@ const oneTapState = vi.hoisted(() => ({
 const trustSyncState = vi.hoisted(() => ({
   override: null as { status: "synced" | "unavailable" } | null,
   calls: 0,
+}));
+// The bill check runs AFTER the answer (lib/billCheck.server.ts), so the route
+// is pinned on what it hands over and what it says, never on a model call.
+const billChecks = vi.hoisted(() => ({ keyed: true, schedule: vi.fn() }));
+vi.mock("@/lib/billCheck.server", () => ({
+  billReaderKeyed: () => billChecks.keyed,
+  scheduleBillCheck: billChecks.schedule,
 }));
 vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/oneTapPintDrop.server")>();
@@ -225,7 +237,7 @@ function jpegFile(name: string): File {
  * 2026, lib/pintDropReceipt.ts). Every other body - a report, a venue signal -
  * stays JSON, which is what those doors send.
  */
-function post(body: unknown): Request {
+function post(body: unknown, receipt: File = jpegFile("bill.jpg")): Request {
   const fields = (body ?? {}) as Record<string, unknown>;
   if (!priceNeedsReceipt(fields.priceGbp)) {
     return new Request("http://localhost/api/price-submit", {
@@ -239,7 +251,7 @@ function post(body: unknown): Request {
     if (value === undefined || value === null) continue;
     form.set(key, String(value));
   }
-  form.set("receipt_photo", jpegFile("bill.jpg"));
+  form.set("receipt_photo", receipt);
   return new Request("http://localhost/api/price-submit", { method: "POST", body: form });
 }
 
@@ -881,6 +893,153 @@ describe("POST /api/price-submit measures the serving (F-2)", () => {
     const data = (await res.json()) as PriceBody;
     expect(data.price?.priceGbp).toBe(12);
     expect(listVisiblePintDrops("venue-xjf3n0")).toEqual([]);
+  });
+});
+
+// Captain 5 Nov 2026: every price at this door arrives with its bill, and the
+// bill is read after the answer against the rows it names.
+describe("POST /api/price-submit hands its bill to the bill check", () => {
+  beforeEach(() => {
+    billChecks.keyed = true;
+    billChecks.schedule.mockClear();
+    __resetBillChecks();
+  });
+
+  function scheduled(): Record<string, unknown>[] {
+    return billChecks.schedule.mock.calls.map(([run]) => run as Record<string, unknown>);
+  }
+
+  it("names the community price AND its paired Pint Drop on a pint of beer", async () => {
+    const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { billCheck?: string; price?: { id?: string } };
+    expect(data.billCheck).toBe("reading");
+    const [drop] = listVisiblePintDrops("venue-xjf3n0");
+    expect(drop?.priceEvidence).toBe("unchecked");
+    expect(scheduled()).toEqual([
+      expect.objectContaining({
+        venueId: "venue-xjf3n0",
+        priceGbp: 5.5,
+        drink: "Beer",
+        measure: "pint",
+        communityPriceSubmittedAt: expect.any(Number),
+        communityPriceId: data.price?.id,
+        pintDropId: drop?.id,
+        photo: expect.any(File),
+      }),
+    ]);
+  });
+
+  it("names the drop alone on a half, which writes no community price", async () => {
+    const res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 2.6, measure: "half" }),
+    );
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as { billCheck?: string }).billCheck).toBe("reading");
+    const [run] = scheduled();
+    expect(run).toMatchObject({ priceGbp: 2.6, drink: "Beer", measure: "half", pintDropId: listVisiblePintDrops("venue-xjf3n0")[0]?.id });
+    expect(run).not.toHaveProperty("communityPriceId");
+  });
+
+  it("names the community price alone on a drink that pairs no Pint Drop", async () => {
+    const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "cocktail", priceGbp: 12 }));
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { billCheck?: string; price?: { id?: string } };
+    expect(data.billCheck).toBe("reading");
+    const [run] = scheduled();
+    expect(run).toMatchObject({ priceGbp: 12, communityPriceId: data.price?.id });
+    expect(run).not.toHaveProperty("pintDropId");
+  });
+
+  it.each([["beer", 5.5], ["beer", 7.5], ["cocktail", 5.5], ["cocktail", 7.5]] as const)("does not bind the new bill to a newer community %s observation at £%s", async (drinkCategory, newerPrice) => {
+    const body = { venueId: "venue-xjf3n0", drinkCategory, priceGbp: 5.5 };
+    const contributor = await resolveContributionIdentity(post(body));
+    if (!contributor.ok) throw new Error("Contributor was not authorised");
+    const newer = await memoryCommunityPriceStore.submit({
+      ...body,
+      priceGbp: newerPrice,
+      actor: contributor.actor,
+      contributorHandle: contributor.handle,
+    }, Date.now() + 60_000);
+    expect(newer.price?.priceGbp).toBe(newerPrice);
+    const response = await POST(post(body));
+    expect(response.status).toBe(201);
+    expect(await readCommunityPrices(body.venueId)).toEqual([expect.objectContaining({ priceGbp: newerPrice })]);
+    if (drinkCategory === "beer") {
+      expect(scheduled()).toEqual([expect.objectContaining({
+        priceGbp: 5.5, pintDropId: listVisiblePintDrops(body.venueId)[0]?.id,
+      })]);
+      expect(scheduled()[0]).not.toHaveProperty("communityPriceId");
+      expect(scheduled()[0]).not.toHaveProperty("communityPriceSubmittedAt");
+    } else {
+      expect(billChecks.schedule).not.toHaveBeenCalled();
+    }
+  });
+
+  it("reads nothing, and says nothing about reading, on a keyless deployment", async () => {
+    billChecks.keyed = false;
+    const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
+    expect(res.status).toBe(201);
+    expect(await res.json()).not.toHaveProperty("billCheck");
+    expect(billChecks.schedule).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing when the paired drop did not land", async () => {
+    oneTapState.forcedOutcome = { ok: false, kind: "storage", message: "Could not save your pint drop right now." };
+    const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
+    expect(res.status).toBe(503);
+    expect(billChecks.schedule).not.toHaveBeenCalled();
+  });
+
+  it.each(["pint", "half"])("does not check a new bill for a duplicate %s drop that arrived without a bill", async (measure) => {
+    const { POST: postDrop } = await import("@/app/api/pint-drops/route");
+    const form = new FormData();
+    form.set("venueId", "venue-xjf3n0");
+    form.set("drink", "Beer");
+    form.set("handle", "default_contributor");
+    form.set("measure", measure);
+    form.set("priceGbp", "5.50");
+    const prior = await postDrop(new Request("http://localhost/api/pint-drops", { method: "POST", body: form }));
+    expect(prior.status).toBe(201);
+    billChecks.schedule.mockClear();
+    expect((await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure }))).status).toBe(201);
+    expect(billChecks.schedule).not.toHaveBeenCalled();
+  });
+
+  it.each(["pint", "half", "other"])("keeps the original check and photo on a six-second %s repeat", async (measure) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-05T19:30:00.000Z"));
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure, measureLabel: "330ml" };
+      const first = await POST(post(body, jpegFile("original.jpg")));
+      expect(first.status).toBe(201);
+      const [run] = billChecks.schedule.mock.calls[0] as [BillCheckRun];
+      const stored = listVisiblePintDrops("venue-xjf3n0")[0] as PersistableDrop;
+      stored.receiptPhotoKey = `${stored.venueId}/${stored.id}/receipt.jpg`;
+      const originalPhotoKey = stored.receiptPhotoKey;
+      const check = await memoryBillCheckStore.record({
+        pintDropId: run.pintDropId,
+        communityPriceId: run.communityPriceId,
+        communityPriceSubmittedAt: run.communityPriceSubmittedAt,
+        billHash: createHash("sha256").update(Buffer.from(await run.photo.arrayBuffer())).digest("hex"),
+        venueId: run.venueId,
+        priceGbp: run.priceGbp,
+        result: "mismatch",
+        lines: [{ name: "Beer", priceGbp: 6.5 }],
+      });
+      const replacement = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 1])], "replacement.jpg", { type: "image/jpeg" });
+      vi.setSystemTime(new Date("2026-11-05T19:30:01.000Z"));
+      const again = await POST(post(body, replacement));
+      expect(again.status).toBe(201);
+      expect(await again.json()).not.toHaveProperty("billCheck");
+      expect(billChecks.schedule).toHaveBeenCalledTimes(1);
+      expect(run.photo.name).toBe("original.jpg");
+      expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
+      expect((listVisiblePintDrops("venue-xjf3n0")[0] as PersistableDrop).receiptPhotoKey).toBe(originalPhotoKey);
+      expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([check]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -1568,6 +1727,12 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
     // one repeated report, and the outcome says so - with ONE drinker behind
     // them, because both carry this account's own authority key.
     await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
+    // The first figure's bill has been read and shows it (captain 5 Nov 2026):
+    // a split is read over a price that stands on its bill, never over two
+    // prices still waiting on theirs.
+    const { grantPintDropReceipt } = await import("@/lib/pintDrops");
+    const [first] = listVisiblePintDrops(venueId);
+    expect(grantPintDropReceipt(defined(first).id)).toBe(true);
     const res = await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.6 });
     expect(res.status).toBe(201);
     const body = (await res.json()) as ConfirmationBody;

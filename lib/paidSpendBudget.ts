@@ -67,6 +67,7 @@ export const PAID_SPEND_LANES = [
   "pub-pal-voice",
   "pub-list-import",
   "board-read",
+  "bill-read",
   "typesafe",
 ] as const;
 
@@ -98,6 +99,11 @@ export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   // One photo of a price board read by a vision model (review item A4). An
   // image call costs more than a text one, so its day is smaller.
   "board-read": 300,
+  // One photo of a bill read by the same vision model, in the background after
+  // a priced Pint Drop or community price lands (captain 5 Nov 2026). Its own
+  // lane, so a busy night of bills cannot switch the board reader off, and a
+  // spent day leaves each new price unchecked rather than refusing it.
+  "bill-read": 500,
   typesafe: 5_000,
 };
 

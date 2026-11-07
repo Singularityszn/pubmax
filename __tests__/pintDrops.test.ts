@@ -102,6 +102,13 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 // the whole run. The nudge itself is pinned in pintDropsBroadcast.test.ts.
 const signalPintDropLanded = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/pintDropsBroadcast.server", () => ({ signalPintDropLanded }));
+// The bill check runs AFTER the answer (lib/billCheck.server.ts), so the route
+// is pinned on what it hands over and what it says, never on a model call.
+const billChecks = vi.hoisted(() => ({ keyed: true, schedule: vi.fn() }));
+vi.mock("@/lib/billCheck.server", () => ({
+  billReaderKeyed: () => billChecks.keyed,
+  scheduleBillCheck: billChecks.schedule,
+}));
 vi.mock("@/lib/venueAliases", () => {
   const aliases: Record<string, string> = {
     "legacy-pub": "canonical-pub",
@@ -686,13 +693,51 @@ describe("POST /api/pint-drops (create)", () => {
     expect((await (await get(VENUE)).json()).drops).toEqual([]);
   });
 
-  it("stamps a price that came with the bill as receipt, exactly as before", async () => {
+  // Captain 5 Nov 2026: a photo attached is not a bill read. The price lands
+  // unchecked, the answer goes at once, and the bill is read after it.
+  it("lands a price sent with its bill unchecked and hands the bill to the bill check", async () => {
+    billChecks.schedule.mockClear();
+    billChecks.keyed = true;
     reportAuth.userId = "account-billed";
     await memoryProfileStore.createOwned("billed_drinker", reportAuth.userId);
     await memoryAdultSelfAssertionStore.record(reportAuth.userId);
     const res = await post({ venueId: VENUE, handle: "billed_drinker", priceGbp: 4.5 });
     expect(res.status).toBe(201);
-    expect((await res.json()).drop.priceEvidence).toBe("receipt");
+    const body = await res.json();
+    expect(body.drop.priceEvidence).toBe("unchecked");
+    expect(body.billCheck).toBe("reading");
+    expect(billChecks.schedule).toHaveBeenCalledTimes(1);
+    const [run] = billChecks.schedule.mock.calls[0] as [Record<string, unknown>];
+    expect(run).toMatchObject({ venueId: VENUE, priceGbp: 4.5, drink: body.drop.drink, measure: body.drop.measure, pintDropId: body.drop.id });
+    expect(run.photo).toBeInstanceOf(File);
+  });
+
+  it("says nothing about reading a bill on a keyless deployment, and reads nothing", async () => {
+    billChecks.schedule.mockClear();
+    billChecks.keyed = false;
+    reportAuth.userId = "account-keyless";
+    await memoryProfileStore.createOwned("keyless_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    const res = await post({ venueId: VENUE, handle: "keyless_drinker", priceGbp: 4.5 });
+    billChecks.keyed = true;
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.drop.priceEvidence).toBe("unchecked");
+    expect(body).not.toHaveProperty("billCheck");
+    expect(billChecks.schedule).not.toHaveBeenCalled();
+  });
+
+  it("hands nothing to the bill check for a price with no bill or a note", async () => {
+    billChecks.schedule.mockClear();
+    reportAuth.userId = "account-nobill";
+    await memoryProfileStore.createOwned("no_bill", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    const typed = await postWithoutBill({ venueId: VENUE, handle: "no_bill", priceGbp: 4.5 });
+    expect(typed.status).toBe(201);
+    expect(await typed.json()).not.toHaveProperty("billCheck");
+    const note = await postWithoutBill({ venueId: "venue-eltcmh", handle: "no_bill", passedDownNote: "Old local." });
+    expect(note.status).toBe(201);
+    expect(billChecks.schedule).not.toHaveBeenCalled();
   });
 
   it("never lets a body claim a bill it did not send", async () => {

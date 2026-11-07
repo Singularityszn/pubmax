@@ -3,11 +3,10 @@ import "server-only";
 // The board reader's model call (review item A4). One photo of a price board
 // in, proposed line items out, and nothing written anywhere.
 //
-// THE SAME LANE AS THE OTHER OPENROUTER READERS: a direct chat completions call
-// with `OPENROUTER_API_KEY`, the model from `OPENROUTER_MODEL` or the named
-// default, zero data retention required of the provider, a strict JSON schema,
-// a timeout and a token cap, and an Arize span through `traceArizeModelCall`
-// with a static route tag. The paid ceiling is spent by the route
+// THE SHARED VISION LANE (lib/openRouterVision.server.ts): zero data retention
+// required of the provider, a strict JSON schema, a timeout and a token cap,
+// and an Arize span with a static route tag. The bill check reads bills through
+// the same client. The paid ceiling is spent by the route
 // (`paidSpendBudgetRefusal("board-read")`) before this is called.
 //
 // FAIL CLOSED. No key answers `keyless` before anything is sent; a provider or
@@ -23,18 +22,16 @@ import { z } from "zod";
 import { parseBoardReadAnswer, type BoardRead } from "@/lib/boardRead";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
 import { DRINK_MEASURES } from "@/lib/drinkMeasure";
-import { traceArizeModelCall } from "@/lib/observability/arize";
-import { discardBody } from "@/lib/responseBody";
+import {
+  openRouterVisionKeyed,
+  readPhotoAsJson,
+  type VisionReadDependencies,
+} from "@/lib/openRouterVision.server";
 
-const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_BOARD_READ_MODEL = "anthropic/claude-sonnet-4-5";
 const BOARD_READ_TIMEOUT_MS = 20_000;
 const BOARD_READ_MAX_TOKENS = 2_000;
 
-export type BoardReadDependencies = {
-  fetcher?: typeof fetch;
-  env?: Record<string, string | undefined>;
-};
+export type BoardReadDependencies = VisionReadDependencies;
 
 export type BoardReadOutcome =
   | { status: "keyless" }
@@ -43,7 +40,7 @@ export type BoardReadOutcome =
 
 /** Whether this deployment can read a board at all. The page asks the same question. */
 export function boardReaderKeyed(env: Record<string, string | undefined> = process.env): boolean {
-  return Boolean(env.OPENROUTER_API_KEY?.trim());
+  return openRouterVisionKeyed(env);
 }
 
 // Basic types only: provider schemas do not take enums on every model, and the
@@ -80,74 +77,19 @@ export async function readBoardPhoto(
   jpeg: Buffer,
   deps: BoardReadDependencies = {},
 ): Promise<BoardReadOutcome> {
-  const env = deps.env ?? process.env;
-  const key = env.OPENROUTER_API_KEY?.trim();
-  if (!key) return { status: "keyless" };
-  const fetcher = deps.fetcher ?? fetch;
-  const model = env.OPENROUTER_MODEL?.trim() || DEFAULT_BOARD_READ_MODEL;
-  const imageUrl = `data:image/jpeg;base64,${jpeg.toString("base64")}`;
-
-  return traceArizeModelCall({
-    route: "api/board-reads",
-    model,
-    provider: "openrouter",
-    invocationParameters: { temperature: 0, max_tokens: BOARD_READ_MAX_TOKENS },
-    call: async (span) => {
-      try {
-        const response = await fetcher(OPENROUTER_CHAT_URL, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            temperature: 0,
-            max_tokens: BOARD_READ_MAX_TOKENS,
-            provider: { require_parameters: true, zdr: true },
-            response_format: {
-              type: "json_schema",
-              json_schema: {
-                name: "price_board",
-                strict: true,
-                schema: z.toJSONSchema(z.object({ rows: z.array(modelRowSchema) })),
-              },
-            },
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: BOARD_READ_PROMPT },
-                  { type: "image_url", image_url: { url: imageUrl } },
-                ],
-              },
-            ],
-          }),
-          signal: AbortSignal.timeout(BOARD_READ_TIMEOUT_MS),
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          discardBody(response);
-          span.setError(new Error("Board read failed."));
-          return { status: "failed" };
-        }
-        const envelope = z.object({
-          choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1),
-          usage: z.object({
-            prompt_tokens: z.number().nonnegative().optional(),
-            completion_tokens: z.number().nonnegative().optional(),
-            total_tokens: z.number().nonnegative().optional(),
-          }).optional(),
-        }).parse(await response.json());
-        span.setUsage({
-          promptTokens: envelope.usage?.prompt_tokens,
-          completionTokens: envelope.usage?.completion_tokens,
-          totalTokens: envelope.usage?.total_tokens,
-        });
-        const read = parseBoardReadAnswer(JSON.parse(envelope.choices[0]!.message.content));
-        return { status: "read", ...read };
-      } catch {
-        // Provider and parser errors can carry the model's text. A fixed error only.
-        span.setError(new Error("Board read failed."));
-        return { status: "failed" };
-      }
+  const read = await readPhotoAsJson(
+    {
+      jpeg,
+      route: "api/board-reads",
+      prompt: BOARD_READ_PROMPT,
+      schemaName: "price_board",
+      schema: z.object({ rows: z.array(modelRowSchema) }),
+      maxTokens: BOARD_READ_MAX_TOKENS,
+      timeoutMs: BOARD_READ_TIMEOUT_MS,
+      failure: "Board read failed.",
     },
-  });
+    deps,
+  );
+  if (read.status !== "read") return read;
+  return { status: "read", ...parseBoardReadAnswer(read.answer) };
 }

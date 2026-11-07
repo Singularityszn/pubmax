@@ -2966,6 +2966,69 @@ export type Database = {
           },
         ];
       };
+      price_bill_checks: {
+        Row: {
+          id: string;
+          pint_drop_id: string | null;
+          community_price_id: string | null;
+          community_price_submitted_at: string | null;
+          bill_hash: string;
+          community_price_round_source: Json | null;
+          venue_id: string;
+          price_pennies: number;
+          result: string;
+          lines: Json;
+          checked_at: string;
+          reviewed_at: string | null;
+          review_decision: string | null;
+        };
+        Insert: {
+          id?: string;
+          pint_drop_id?: string | null;
+          community_price_id?: string | null;
+          community_price_submitted_at?: string | null;
+          bill_hash: string;
+          community_price_round_source?: Json | null;
+          venue_id: string;
+          price_pennies: number;
+          result: string;
+          lines?: Json;
+          checked_at?: string;
+          reviewed_at?: string | null;
+          review_decision?: string | null;
+        };
+        Update: {
+          id?: string;
+          pint_drop_id?: string | null;
+          community_price_id?: string | null;
+          community_price_submitted_at?: string | null;
+          bill_hash?: string;
+          community_price_round_source?: Json | null;
+          venue_id?: string;
+          price_pennies?: number;
+          result?: string;
+          lines?: Json;
+          checked_at?: string;
+          reviewed_at?: string | null;
+          review_decision?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_bill_checks_community_price_id_fkey";
+            columns: ["community_price_id"];
+            isOneToOne: false;
+            referencedRelation: "community_prices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "price_bill_checks_pint_drop_id_fkey";
+            columns: ["pint_drop_id"];
+            isOneToOne: false;
+            referencedRelation: "pint_drops";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       price_confirms: {
         Row: {
           id: string;

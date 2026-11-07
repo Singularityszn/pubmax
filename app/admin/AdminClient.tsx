@@ -39,6 +39,7 @@ import { moveTablistFocus } from "@/components/ui/tabs";
 import AdminSessionEntry from "./AdminSessionEntry";
 import RegularNightModeration from "./RegularNightModeration";
 import VenueCorrectionModeration from "./VenueCorrectionModeration";
+import BillCheckModeration from "./BillCheckModeration";
 import VenueSubmissionModeration, { type AdminRequest } from "./VenueSubmissionModeration";
 
 import "./admin.css";
@@ -186,10 +187,18 @@ export function profileCoverFromAvatar(avatar: ModeratorProfileAvatar): Moderato
   };
 }
 
-type AdminTab = "moderation" | "import" | "operators" | "pubs" | "corrections" | "regular-nights";
+type AdminTab =
+  | "moderation"
+  | "bills"
+  | "import"
+  | "operators"
+  | "pubs"
+  | "corrections"
+  | "regular-nights";
 
 const ADMIN_TABS: ReadonlyArray<{ key: AdminTab; label: string }> = [
   { key: "moderation", label: "Moderation" },
+  { key: "bills", label: "Bills" },
   { key: "import", label: "Import note" },
   { key: "operators", label: "Operators" },
   { key: "pubs", label: "Added pubs" },
@@ -2448,6 +2457,8 @@ export default function AdminClient() {
         <VenueSubmissionModeration request={adminRequest} />
       ) : tab === "corrections" ? (
         <VenueCorrectionModeration request={adminRequest} />
+      ) : tab === "bills" ? (
+        <BillCheckModeration request={adminRequest} />
       ) : tab === "regular-nights" ? (
         <RegularNightModeration request={adminRequest} />
       ) : (

@@ -6,6 +6,7 @@ import {
   countCorroboratedCommunityCategories,
   listCommunityContributorCounts,
   moderateCommunityPrice,
+  moderateCommunityPriceWithState,
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
   readCommunityVenueSignals,
@@ -43,6 +44,22 @@ describe("communityPriceStore (memory backend)", () => {
     } else {
       process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
     }
+  });
+
+  it("hides only the observation checked by a bill, including corrections at the same clock tick", async () => {
+    const input = { venueId: "v1", drinkCategory: "beer" as const, priceGbp: 4.5, actor: "a" };
+    const original = await submitCommunityPrice(input, 1_793_900_000_000);
+    const correction = await submitCommunityPrice({ ...input, priceGbp: 6.2 }, 1_793_900_000_000);
+    expect(original.price?.id).toBe(correction.price?.id);
+    const stale = await moderateCommunityPriceWithState(original.price!.id!, true, "Bill mismatch", {
+      submittedAt: 1_793_900_000_000, priceGbp: 4.5,
+    });
+    expect(stale).toMatchObject({ status: "ok", changed: false });
+    expect((await readCommunityPrices("v1", 1_793_900_000_000))[0]?.priceGbp).toBe(6.2);
+    expect(await moderateCommunityPriceWithState(correction.price!.id!, true, "Bill mismatch", {
+      submittedAt: 1_793_900_000_000, priceGbp: 6.2,
+    })).toMatchObject({ status: "ok", changed: true });
+    expect(await readCommunityPrices("v1", 1_793_900_000_000)).toEqual([]);
   });
 
   it("stores an observation stamped community, at the server's clock", async () => {

@@ -193,8 +193,8 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
 
 /**
  * What the record's public report hands `venuePriceLane`, one lane per trust
- * state. A typed price with no bill rides the same lone-report slot as one with
- * a bill, carrying the name it was logged under, so the lane prints it "not
+ * state. An unchecked price uses the same lone-report slot as a receipt-backed
+ * price, carrying the name it was logged under, so the lane prints it "not
  * checked" and unbanded (captain decision 9, lib/venuePriceLane.ts).
  */
 function ledgerReportLanes(publicPint: LedgerPintPrice | null | undefined) {

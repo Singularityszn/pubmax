@@ -46,10 +46,12 @@
 // authentication plus a completed account profile.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
+  submitCategoryLabel,
   validateCommunityPrice,
 } from "@/lib/communityPrice";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
@@ -76,6 +78,7 @@ import {
 import {
   revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
+  type OneTapPintDropInput,
 } from "@/lib/oneTapPintDrop.server";
 import { readVenuePintTrust, runSecondReporterPass } from "@/lib/pintDropConfirm.server";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
@@ -285,15 +288,15 @@ export async function POST(request: Request): Promise<Response> {
 
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
+  const submittedAt = Date.now();
   const { price, failed } = await submitCommunityPrice({
     ...submission,
     actor: contributor.actor,
     contributorHandle: contributor.handle,
-  });
+  }, submittedAt);
   if (failed || !price) {
     return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
   }
-
   // Pint Drops are a pint-priced surface: pin colour, cheapest-pint buckets,
   // the Confirmed standing and the Pint Index all read this lane on the
   // assumption every row in it is a beer price. Pairing a non-beer submission
@@ -311,8 +314,12 @@ export async function POST(request: Request): Promise<Response> {
   // disagreed. Null means the read could not be taken, and the receipt then
   // claims nothing rather than borrowing the weaker lane's stronger word.
   let pintTrust: PintTrustState | null = null;
+  // The bill behind this figure, handed to the background bill check once the
+  // rows it names exist (captain 5 Nov 2026). Read after the answer.
+  let pairedDropId: string | undefined;
+  let duplicateDrop = false;
   if (pairsPintDrop) {
-    const pintDrop = await writeOneTapPintDrop(
+    const pairing = await pairSubmittedPintDrop(
       {
         venueId: submission.venueId,
         handle: contributor.handle,
@@ -325,34 +332,25 @@ export async function POST(request: Request): Promise<Response> {
         verifiedAccountId: contributor.accountId,
       },
       pintDropPhotos,
+      { actor: contributor.actor, priceId: price.id },
     );
-    if (!pintDrop.ok) {
-      return failedPairingResponse(pintDrop, {
-        priceId: price.id,
-        venueId: submission.venueId,
-        drinkCategory: submission.drinkCategory,
-      });
-    } else {
-      void qualifyCheapPintForOwnerActor(contributor.actor);
-      // The paired drop is a real priced observation, so it can complete a
-      // confirmation exactly as a Pint Drop posted through /api/pint-drops can.
-      // Running the pass here too is what stops the two write lanes disagreeing
-      // about whether a pub is confirmed. It never throws and never fails the
-      // price that has already landed.
-      // The caller's own authority key rides in, so `same_reporter` is only
-      // ever said to the drinker whose earlier report it is about (D08). It is
-      // the SAME key the paired drop was written with, derived from the same
-      // verified account id, so the pass and the row cannot disagree.
-      confirmationOutcome = await runSecondReporterPass(
-        submission.venueId,
-        Date.now(),
-        pintDropAuthorityKey(submission.venueId, contributor.accountId),
-      );
-      // Read AFTER the pass, so a receipt that says "trusted" is saying it
-      // over the confirmation the pass may have just minted.
-      pintTrust = await readVenuePintTrust(submission.venueId);
-    }
+    if (!pairing.ok) return pairing.response;
+    pairedDropId = pairing.pintDropId;
+    duplicateDrop = pairing.duplicateDrop;
+    confirmationOutcome = pairing.confirmationOutcome;
+    pintTrust = pairing.pintTrust;
   }
+
+  const billCheck = scheduleCommunityPriceBillCheck({
+    receipt: pintDropPhotos.receipt,
+    submission,
+    price,
+    submittedAt,
+    pairsPintDrop,
+    measure,
+    pairedDropId,
+    duplicateDrop,
+  });
 
   const trust = await syncTrustAfterPriceWrite(
     submission.venueId,
@@ -391,6 +389,7 @@ export async function POST(request: Request): Promise<Response> {
         trust.status === "synced" ? "synced" : "pending",
       ...(confirmationOutcome ? { confirmationOutcome } : {}),
       ...(pintTrust ? { pintTrust } : {}),
+      ...(billCheck ? { billCheck } : {}),
       price:
         record ??
         {
@@ -401,6 +400,90 @@ export async function POST(request: Request): Promise<Response> {
     },
     { status: 201 },
   );
+}
+
+async function pairSubmittedPintDrop(
+  input: OneTapPintDropInput,
+  photos: PintDropPhotos,
+  context: { actor: string; priceId?: string },
+) {
+  const pintDrop = await writeOneTapPintDrop(input, photos);
+  if (!pintDrop.ok) {
+    return {
+      ok: false as const,
+      response: await failedPairingResponse(pintDrop, {
+        priceId: context.priceId,
+        venueId: input.venueId,
+        drinkCategory: input.drinkCategory,
+      }),
+    };
+  }
+  const pintDropId = pintDrop.drop.id;
+  const duplicateDrop = !pintDrop.created;
+  void qualifyCheapPintForOwnerActor(context.actor);
+  // Confirm the paired observation with the same account authority as its row.
+  const confirmationOutcome = await runSecondReporterPass(
+    input.venueId,
+    Date.now(),
+    pintDropAuthorityKey(input.venueId, input.verifiedAccountId),
+  );
+  // Read trust after confirmation, so the response uses the resulting state.
+  const pintTrust = await readVenuePintTrust(input.venueId);
+  return {
+    ok: true as const,
+    pintDropId,
+    duplicateDrop,
+    confirmationOutcome,
+    pintTrust,
+  };
+}
+
+function scheduleCommunityPriceBillCheck(input: {
+  receipt: File | null;
+  submission: { venueId: string; priceGbp: number; drinkCategory: DrinkCategory };
+  price: { id?: string; submittedAt: number; priceGbp: number };
+  submittedAt: number;
+  pairsPintDrop: boolean;
+  measure: DrinkMeasure;
+  pairedDropId?: string;
+  duplicateDrop: boolean;
+}): "reading" | null {
+  if (input.duplicateDrop) return null;
+  const { submission, price } = input;
+  const ownsCommunityObservation = price.submittedAt === input.submittedAt && price.priceGbp === submission.priceGbp;
+  return scheduleSubmitBillCheck(input.receipt, {
+    venueId: submission.venueId,
+    priceGbp: submission.priceGbp,
+    drink: submitCategoryLabel(submission.drinkCategory),
+    ...(input.pairsPintDrop ? { measure: input.measure } : {}),
+    ...(ownsCommunityObservation ? { communityPriceId: price.id, communityPriceSubmittedAt: price.submittedAt } : {}),
+    pintDropId: input.pairedDropId,
+  });
+}
+
+/**
+ * Hand this door's bill to the background bill check (captain 5 Nov 2026), or
+ * nothing on a keyless deployment. Every price here arrived with its bill
+ * (`priceNeedsReceipt` above), so the bill is read against the rows it names:
+ * the community price, the paired Pint Drop, or both. A match grants the drop
+ * `receipt`; a mismatch goes to the moderation queue.
+ */
+function scheduleSubmitBillCheck(
+  receipt: File | null,
+  subject: { venueId: string; priceGbp: number; drink: string; measure?: DrinkMeasure; communityPriceId?: string; communityPriceSubmittedAt?: number; pintDropId?: string },
+): "reading" | null {
+  if (!receipt || !billReaderKeyed()) return null;
+  if (!subject.communityPriceId && !subject.pintDropId) return null;
+  scheduleBillCheck({
+    photo: receipt,
+    venueId: subject.venueId,
+    priceGbp: subject.priceGbp,
+    drink: subject.drink,
+    measure: subject.measure,
+    ...(subject.communityPriceId ? { communityPriceId: subject.communityPriceId, communityPriceSubmittedAt: subject.communityPriceSubmittedAt } : {}),
+    ...(subject.pintDropId ? { pintDropId: subject.pintDropId } : {}),
+  });
+  return "reading";
 }
 
 /**
@@ -500,10 +583,18 @@ async function nonPintPriceResponse(input: {
     }
     return publicApiError(drop.message, "UNAVAILABLE", 503, { retryable: true });
   }
+  const billCheck = drop.created ? scheduleSubmitBillCheck(input.photos.receipt, {
+    venueId: input.venueId,
+    priceGbp: input.priceGbp,
+    drink: drop.drop.drink,
+    measure: input.measure,
+    pintDropId: drop.drop.id,
+  }) : null;
   return jsonNoStore(
     {
       ok: true,
       attribution: { status: "credited", handle: input.handle },
+      ...(billCheck ? { billCheck } : {}),
       // No community price exists for this figure, and saying so explicitly is
       // what stops a client inferring one from an omitted field.
       price: null,

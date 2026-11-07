@@ -288,13 +288,14 @@ describe("toDTO", () => {
 describe("the memory store earns a priced drop's evidence from what arrived", () => {
   const bill = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "bill.jpg", { type: "image/jpeg" });
 
-  it("stamps receipt with a bill, unchecked without one, and nothing on a note", async () => {
+  it("stamps every price unchecked, bill or not, and nothing on a note", async () => {
     const billed = await memoryPintDropStore.create(drop({ id: "m-billed" }), {
       pint: null,
       venue: null,
       receipt: bill,
     });
-    expect(billed.priceEvidence).toBe("receipt");
+    // A photo attached is not a bill read (captain 5 Nov 2026).
+    expect(billed.priceEvidence).toBe("unchecked");
     const typed = await memoryPintDropStore.create(drop({ id: "m-typed", priceEvidence: "receipt" }), {
       pint: null,
       venue: null,
@@ -306,6 +307,20 @@ describe("the memory store earns a priced drop's evidence from what arrived", ()
       { pint: null, venue: null, receipt: null },
     );
     expect(note.priceEvidence).toBeUndefined();
+  });
+
+  it("grants receipt once on a bill match, and never to a note or an unknown drop", async () => {
+    await memoryPintDropStore.create(drop({ id: "m-match" }), { pint: null, venue: null, receipt: bill });
+    expect(await memoryPintDropStore.grantBillMatch("m-match")).toBe(true);
+    const [moderated] = await memoryPintDropStore.listForModerationByIds(["m-match", "m-unknown"]);
+    expect(moderated?.priceEvidence).toBe("receipt");
+    expect(await memoryPintDropStore.grantBillMatch("m-match")).toBe(false);
+    await memoryPintDropStore.create(
+      drop({ id: "m-note-2", priceGbp: null, passedDownNote: "Old local." }),
+      { pint: null, venue: null, receipt: null },
+    );
+    expect(await memoryPintDropStore.grantBillMatch("m-note-2")).toBe(false);
+    expect(await memoryPintDropStore.grantBillMatch("m-unknown")).toBe(false);
   });
 });
 
@@ -731,6 +746,62 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
       ),
     ).rejects.toBeInstanceOf(UncheckedPriceNotStorableError);
     expect(insertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("missing evidence column: refuses an unchecked price even with its bill", async () => {
+    insertMock.mockReset();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    insertMock
+      .mockResolvedValueOnce({
+        error: { code: "42703", message: 'column "price_evidence" of relation "pint_drops" does not exist' },
+      })
+      .mockResolvedValueOnce({ error: null });
+    const { default: sharp } = await import("sharp");
+    const jpeg = await sharp({ create: { width: 4, height: 4, channels: 3, background: "#ffffff" } })
+      .jpeg()
+      .toBuffer();
+    const bill = new File([new Uint8Array(jpeg)], "bill.jpg", { type: "image/jpeg" });
+    await expect(supabasePintDropStore.create(
+      drop() as Parameters<typeof supabasePintDropStore.create>[0],
+      { pint: null, venue: null, receipt: bill },
+    )).rejects.toBeInstanceOf(UncheckedPriceNotStorableError);
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    expect(defined(insertMock.mock.calls[0])[0]).toHaveProperty("price_evidence", "unchecked");
+    warn.mockRestore();
+  });
+
+  it("grants receipt on a bill match with ONE guarded update: only a priced drop still unchecked moves", async () => {
+    const filters: string[] = [];
+    const chain = {
+      eq: vi.fn((column: string, value: unknown) => {
+        filters.push(`${column}=${String(value)}`);
+        return chain;
+      }),
+      not: vi.fn((column: string, op: string, value: unknown) => {
+        filters.push(`${column} not ${op} ${String(value)}`);
+        return chain;
+      }),
+      select: vi.fn(async () => ({ data: [{ id: "drop-1" }], error: null })),
+    };
+    updateMock.mockImplementationOnce(((values: Record<string, unknown>) => {
+      expect(values).toEqual({ price_evidence: "receipt" });
+      return chain;
+    }) as never);
+    expect(await supabasePintDropStore.grantBillMatch("drop-1")).toBe(true);
+    expect(filters).toEqual(["id=drop-1", "price_evidence=unchecked", "price_gbp not is null"]);
+  });
+
+  it("missing evidence column: a bill match grants nothing and does not throw", async () => {
+    const chain = {
+      eq: vi.fn(() => chain),
+      not: vi.fn(() => chain),
+      select: vi.fn(async () => ({
+        data: null,
+        error: { code: "42703", message: 'column "price_evidence" of relation "pint_drops" does not exist' },
+      })),
+    };
+    updateMock.mockImplementationOnce((() => chain) as never);
+    expect(await supabasePintDropStore.grantBillMatch("drop-1")).toBe(false);
   });
 
   it("missing evidence column: a row that is not unchecked retries without it", async () => {
