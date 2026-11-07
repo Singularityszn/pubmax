@@ -188,7 +188,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "lib/thenVsNow.ts": [
     {"owner": "computeThenVsNow", "count": 1, "reason": "Compares historical baselines with community reports."},
-    {"owner": "computeVenuePriceStory", "count": 1, "reason": "Builds a selected venue history without choosing a cheapest winner."},
+    {"owner": "selectedPriceRecord", "count": 1, "reason": "Builds a selected venue history without choosing a cheapest winner."},
   ],
   "lib/tonightAnswers.ts": [
     {"owner": "tonightCheapestAnswer", "count": 2, "reason": "Prints the qualified nearby winner."},
