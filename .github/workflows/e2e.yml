@@ -5,11 +5,8 @@ on:
   push:
     branches: [main]
   schedule:
-    # 20:17 UTC on purpose. GitHub started this schedule 7 to 8 hours late on
-    # every day from 29 Oct to 7 Nov 2026 (cron "17 3 * * *", created 09:40 to
-    # 11:11 UTC), so the nine full-suite jobs held the pubmax-mac pool in the
-    # working day while pull requests waited. From 20:17 the same delay lands
-    # in the early morning (docs/CI_RUNBOOK.md, "Timeouts and job shape").
+    # The evening schedule reduces overlap with daytime pull-request checks.
+    # See docs/CI_RUNBOOK.md, "Timeouts and job shape", for the delay evidence.
     - cron: "17 20 * * *"
   workflow_dispatch:
 
@@ -509,11 +506,9 @@ jobs:
 
   nightly-failure-issue:
     name: Report a nightly full-suite failure
-    # Nobody watches a scheduled run, and alert-on-failure.yml posts only when
-    # its webhook secret is set. So a scheduled full-suite failure, or a shard
-    # cancelled at its time limit, opens one GitHub issue, or comments on the
-    # one still open. It uses the run's own GITHUB_TOKEN, checks out nothing
-    # and runs no repository code.
+    # alert-on-failure.yml requires a webhook secret, so this job reports
+    # without one. It checks out nothing and runs no repository code.
+    # docs/CI_RUNBOOK.md, "Timeouts and job shape", owns the reporting policy.
     needs: [full-suite, full-suite-gl]
     if: ${{ always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
     runs-on: ubuntu-latest
