@@ -1,9 +1,9 @@
 # Secret scanning for the Security CI gitleaks job. The default rules stay on.
-# Every allowance here matches a VALUE or a LINE shape, never a whole folder,
-# so a real key pasted into a test, a fixture or a proof file still fails the
-# job. A one-off match that fits no shape below is listed by its exact
-# fingerprint (commit, file, rule and line) in .gitleaksignore, which never
-# covers a later commit. Add an entry only with its reason, and never to
+# Every allowance here matches a value, line, or rule-match shape, never a
+# whole folder, so a real key pasted into a test, a fixture or a proof file
+# still fails the job. A one-off match that fits no shape below is listed by
+# its exact fingerprint (commit, file, rule and line) in .gitleaksignore, which
+# never covers a later commit. Add an entry only with its reason, and never to
 # silence a real credential: rotate it first.
 
 [extend]
@@ -58,6 +58,21 @@ regexes = [
   '''^pre-0125-''',
   '''^completion-''',
 ]
+
+# OpenStreetMap tags a venue's LinkedIn page as contact:linkedin. A 16-letter
+# handle such as "thejollybotanist" fits the linkedin-client-secret value
+# shape, so a harvested OSM file read as a leak on every scan of history. All
+# three conditions must hold: only that rule, only a file under data/osm/, and
+# only a match whose key is the bare word linkedin (the rule's match starts
+# after the "contact:" prefix). A linkedin_client_secret key, the same field
+# outside data/osm/, and every other rule on the same line are still reported.
+[[allowlists]]
+description = "OpenStreetMap contact:linkedin handles in harvested data/osm files."
+targetRules = ["linkedin-client-secret"]
+condition = "AND"
+paths = ['''^data/osm/''']
+regexTarget = "match"
+regexes = ['''^linkedin"\s*:\s*"[a-z0-9]{16}"$''']
 
 [[allowlists]]
 description = "The counting placeholder for a plan crew invite token in the Pal's Who's coming? tests. The crew link takes exactly 32 hex characters (isClassicPlanInviteToken), so it cannot carry a fixture- prefix. Only this one sequence matches, never another hex value."

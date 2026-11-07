@@ -1,7 +1,8 @@
 name: Security CI
 
 # zizmor (workflow lint), osv-scanner (lockfile CVEs), Semgrep CE (SAST),
-# gitleaks (secrets in the full git history).
+# gitleaks (secrets in git history; the range each event scans is set at the
+# gitleaks step).
 # Each job installs its CLI on ubuntu-latest. These checks are advisory: no
 # branch protection requires them, so a red job here blocks nothing on its own.
 # The weekly run catches a new advisory against a lockfile or a pinned action
@@ -112,11 +113,36 @@ jobs:
 
       # --redact keeps a found value out of the job log. The allowlists and
       # their reasons are in .gitleaks.toml.
-      # A PR scans its complete history. Main and scheduled scans retain all refs.
+      # A PR scans its complete history. A push to main scans only the commits
+      # that push added: with --all it also read every other branch, so a
+      # finding on an unmerged branch turned main red on every push. When the
+      # previous head is all zeros or missing from the clone, the push scans
+      # the new head's complete history instead. The weekly and manual runs
+      # still read every ref, so a secret on any branch is still found.
       - name: gitleaks
         env:
-          GITLEAKS_LOG_OPTS: ${{ github.event_name == 'pull_request' && '--full-history HEAD' || '--full-history --all' }}
-        run: gitleaks git --redact --verbose --no-banner --config .gitleaks.toml --log-opts="$GITLEAKS_LOG_OPTS" .
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          case "$EVENT_NAME" in
+            pull_request)
+              log_opts="--full-history HEAD"
+              ;;
+            push)
+              if [[ "$PUSH_BEFORE" =~ ^0+$ ]] || ! git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+                log_opts="--full-history $PUSH_AFTER"
+              else
+                log_opts="--full-history $PUSH_BEFORE..$PUSH_AFTER"
+              fi
+              ;;
+            *)
+              log_opts="--full-history --all"
+              ;;
+          esac
+          echo "gitleaks log range: $log_opts"
+          gitleaks git --redact --verbose --no-banner --config .gitleaks.toml --log-opts="$log_opts" .
 
   semgrep:
     name: Semgrep CE (SAST)

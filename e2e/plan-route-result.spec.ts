@@ -283,16 +283,20 @@ test.describe("the lock fields at 1440px", () => {
     await sortARoute(page);
     await expect(page.locator(".planRouteMiniMap")).toBeVisible();
     for (const id of ["plan-title", "plan-time"]) {
-      const field = page.locator(`#${id}`);
-      await field.evaluate((node) => node.scrollIntoView({ block: "center", behavior: "instant" }));
-      const box = (await field.boundingBox())!;
-      for (const x of [box.x + 8, box.x + box.width / 2, box.x + box.width - 8]) {
-        const hit = await page.evaluate(
-          ([px, py, target]) => document.elementFromPoint(px, py)?.closest(`#${target}`) !== null,
-          [x, box.y + box.height / 2, id] as const,
-        );
-        expect(hit, `${id} at x=${Math.round(x)}`).toBe(true);
-      }
+      // The mini map's chunk and its rise can move the page between two
+      // round trips, so a box read in one and hit-tested in the next could
+      // point at a field that had already moved (layout shard, 6 Nov 2026).
+      // Scroll, measure and hit-test in one task, so they see one layout.
+      const hits = await page.locator(`#${id}`).evaluate((field) => {
+        field.scrollIntoView({ block: "center", behavior: "instant" });
+        const box = field.getBoundingClientRect();
+        const y = box.top + box.height / 2;
+        return [box.left + 8, box.left + box.width / 2, box.right - 8].map((x) => ({
+          x: Math.round(x),
+          hit: document.elementFromPoint(x, y)?.closest(`#${field.id}`) === field,
+        }));
+      });
+      for (const { x, hit } of hits) expect(hit, `${id} at x=${x}`).toBe(true);
     }
   });
 });
