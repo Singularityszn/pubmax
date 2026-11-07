@@ -112,7 +112,8 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 ## Surface
 
 - One H1, one immediate `From {price}` answer, the publisher status, the count
-  and the collection date, all above the fold at 320, 390 and 430 CSS pixels.
+  and the date required by [the page claim rules](#what-a-page-may-claim),
+  all above the fold at 320, 390 and 430 CSS pixels.
 - One cheapest-first list. The rank is presentational: the ordered list already
   carries position, and a name on a bare span is dropped by assistive tech.
 - A row prints its own drink tag, title-cased when the dataset shouted it. The
