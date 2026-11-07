@@ -433,12 +433,23 @@ test("mounted Map answer keeps the updated location when a saved drink removes t
   await page.context().setGeolocation({ ...CAMDEN, accuracy: 10 });
   await answer.getByRole("button", { name: "Update location", exact: true }).click();
   await expect(nearest(answer)).toContainText("Camden Cheap");
+  // An unrelated map render must keep the accepted location. Denying further
+  // reads makes an unwanted location request during filter refresh visible.
+  const cdp = await page.context().newCDPSession(page);
+  const { targetInfo } = await cdp.send("Target.getTargetInfo");
+  await cdp.send("Browser.setPermission", {
+    permission: { name: "geolocation" }, setting: "denied", origin: new URL(page.url()).origin,
+    browserContextId: targetInfo.browserContextId,
+  });
+  await page.setViewportSize({ width: 400, height: 844 });
+  await expect(nearest(answer)).toContainText("Camden Cheap");
   await answer.getByRole("button", { name: "Show Cocktails on the map", exact: true }).click();
   await expect(nearest(answer)).toContainText("Camden Doorstep");
   await expect(nearest(answer)).toContainText("right here");
   await expect(answer.locator(".nmnList")).toContainText("Camden Doorstep");
   await expect(answer.locator(".nmnList")).not.toContainText("Start Cheap Pub");
   await page.screenshot({ path: testInfo.outputPath("map-refresh-current-location.png") });
+  await cdp.detach();
   expect(errors).toEqual([]);
 });
 
