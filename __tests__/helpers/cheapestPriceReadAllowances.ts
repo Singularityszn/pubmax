@@ -109,7 +109,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "lib/nearMeAnswer.ts": [
     {"owner": "venueToPricedPoint", "count": 2, "reason": "Carries the selected serving and evidence across the map boundary."},
-    {"owner": "toCard", "count": 1, "reason": "Copies prices only after Near qualification."},
     {"owner": "byPriceThenDistance", "count": 4, "reason": "Sorts Near cards created only from qualified points."},
     {"owner": "nearSavingLine", "count": 3, "reason": "Compares two already qualified Near cards."},
     {"owner": "pricedWithinWalk", "count": 1, "reason": "Filters with the policy before collecting budget figures."},
