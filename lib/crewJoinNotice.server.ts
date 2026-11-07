@@ -23,7 +23,7 @@ import { notificationsStore } from "@/lib/notificationsStore";
 import type { SocialCrewPublicPreviewSource, SocialCrewReadDTO } from "@/lib/socialCrew";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
-export type CrewJoinNoticeKind = "crew_join_request" | "crew_join_accepted";
+type CrewJoinNoticeKind = "crew_join_request" | "crew_join_accepted";
 
 export type CrewJoinNotice = {
   kind: CrewJoinNoticeKind;
@@ -74,7 +74,7 @@ function escapeHtml(value: string): string {
 }
 
 /** The email for one notice: plain text plus the same lines as inline-styled HTML. */
-export function crewJoinNoticeEmail(
+function crewJoinNoticeEmail(
   notice: CrewJoinNotice,
   origin: string,
 ): { subject: string; text: string; html: string } {
