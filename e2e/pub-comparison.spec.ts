@@ -33,8 +33,12 @@ for (const width of [390, 1440]) {
     await page.goto("/tools");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Same order. Which pub?");
     for (const pub of choices) {
-      await page.getByLabel("Pub name", { exact: true }).fill("Crown");
-      await page.getByRole("button", { name: `Add ${pub.name}, ${pub.area}`, exact: true }).click();
+      // The field is painted on the server, so a fill before hydration is lost.
+      // Retry the action, as e2e/AGENTS.md describes.
+      await expect(async () => {
+        await page.getByLabel("Pub name", { exact: true }).fill("Crown");
+        await page.getByRole("button", { name: `Add ${pub.name}, ${pub.area}`, exact: true }).click({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
     }
     await page.getByLabel("Drink and serving", { exact: true }).selectOption(comparisonDrinkKey(drink));
     await page.getByLabel("Number in your order", { exact: true }).fill("2");

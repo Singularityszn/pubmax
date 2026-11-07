@@ -43,8 +43,8 @@ export default function PubComparisonResults({ result }: { result: PubComparison
             : `${comparisonMoney(Math.abs(detour.savingPence))} ${detour.savingPence > 0 ? "less" : "more"}`}, and {detour.extraMinutes === 0 ? "the same walk time"
               : `${Math.abs(detour.extraMinutes)} minutes ${detour.extraMinutes > 0 ? "more" : "less"} walking`}.</p> : null}
           <div className="pubComparisonActions">
-            <a href={venue.mapHref} onClick={() => trackEvent("pub_comparison_map_requested")}>Open this pub to plan<span className="sr-only">: {comparisonPubLabel(venue)}</span></a>
-            <a href={`/ledger/${encodeURIComponent(venue.id)}`}>Read the pub record<span className="sr-only">: {comparisonPubLabel(venue)}</span></a>
+            <a href={venue.mapHref} aria-label={`Open this pub to plan: ${comparisonPubLabel(venue)}`} onClick={() => trackEvent("pub_comparison_map_requested")}>Open this pub to plan</a>
+            <a href={`/ledger/${encodeURIComponent(venue.id)}`} aria-label={`Read the pub record: ${comparisonPubLabel(venue)}`}>Read the pub record</a>
           </div>
           <p>On the map, keep this pub for your plan. Your comparison order stays here. The planner uses its own drink choices and invitation.</p>
         </li>;
