@@ -76,6 +76,26 @@ Most THE LOCAL routes are `Cache-Control: no-store` (`jsonNoStore` and flat `pub
 
 `cityId` is validated by `parseCityId` (`lib/cities.ts`); `DEFAULT_CITY_ID = "london"`. A Night Area belongs to exactly one city; generate returns `422` if the selected area's `cityId` ≠ the request `cityId`. IMPLEMENTED LOCALLY.
 
+### 1.4 Public venue eligibility
+
+[`isNonPublicVenueName`](../lib/venueKindFilters.ts) detects names that indicate access for members, students or staff.
+This name check does not confirm current admission rules.
+
+The affected paths apply these checks.
+
+- Plan generation excludes matching venues from its candidates, including swap alternatives and ending extensions.
+- Pub Pal's `propose_plan` excludes matching venues before ranking its draft stops.
+- The Plan pub picker uses `isPublicRankablePub`, which also checks [venue kind](rules/lib-venues-areas-listings-and-nights.md#a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n).
+- **Host this on a date** first omits story stops whose supplied names match, through `planStopsFromStory`.
+- Plan creation and route replacement resolve each venue ID through [`planStopResolver`](../lib/planRoute.ts) before checking its canonical name.
+  A public-looking caller label cannot bypass this check.
+  Creation returns `400 PLAN_VENUES_INVALID` with "Choose listed venues." for a refused stop.
+  Route replacement returns `400 PLAN_ROUTE_INVALID` for a refused stop.
+  Both reject the request rather than save a shortened route.
+  Listed `place:<poi id>` meeting points retain their separate resolver path.
+
+Regression coverage: `__tests__/planNonPublicVenueFence.test.ts`, `__tests__/palProposePlanNonPublicVenue.test.ts`, `__tests__/planVenueOptions.test.ts`, and `__tests__/planStopPublicEligibility.test.ts`.
+
 ---
 
 ## 2. Core lifecycle types (per #252 TL-1)
@@ -391,7 +411,10 @@ type PatchPlanRequest = {
 ```
 
 Rules:
-- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (3 to 6 distinct ids, per `isPlanStopCount`, that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`.
+  `canonicalPlanRoute` requires distinct IDs and a supported count under the [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary).
+  Each ID must resolve under the [public venue eligibility rules](#14-public-venue-eligibility), which return canonical names.
+  Replacing the route increments `routeRevision`.
 - Route replacement uses the first-pub and completed-prefix checks described in [§5.5](#55-night-feature-contracts).
 - The grounded upgrade is permanent and unflagged: a `stops` replacement carrying a `groundingProof` plus an `operationKey` is verified against the exact new order, and only that path raises a one-Stop anchor draft to a grounded route and emits `plan_accepted` once. A legacy V1 creation proof is not an upgrade claim and takes the ordinary update path. Every V2 proof failure is a `422`.
 - `context` must pass strict `cleanNightContext` or `400`.
