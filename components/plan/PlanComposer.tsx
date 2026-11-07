@@ -3139,8 +3139,7 @@ function PlanComposerForm({
     setRouteStatus(palDraftCheckingLine(palDraft, "Refreshing the route and rechecking every stop for your updated night."));
     let responseStatus: number | null = null;
     try {
-      // Keep every drafted pub, else keep the first and choose the rest, else
-      // plan from the ask; a plain ask is the last attempt alone.
+      // The handoff policy owns fallback order and protects an accepted first pub.
       const baseContext = { ...submittedContext };
       const { response, body: rawBody, attempt: taken } = await requestPlanGeneration(
         palDraft,

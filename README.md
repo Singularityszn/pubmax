@@ -128,6 +128,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Choose the number of pubs with the stop picker or name the number in your description. The [draft recovery contract](docs/rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) explains how the planner restores your request. If a save notice appears, keep the page open to retain unsaved changes. If the latest description cannot be restored, enter it again.
 
+  Use **Open in Plan** to continue a Pub Pal draft in the planner. The [draft handoff rules](docs/adr/0014-night-os-ask-agent.md#decision) explain how Plan handles your chosen pub, requested stop count, and incomplete routes.
+
   The [account isolation contract](docs/rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device) explains what resets when you switch accounts or sign out with the planner open.
 
   If **Tonight near me** cannot select a checked area, type an area in the description. Choose **Plan it**. You can still make an editable draft. Check the [opening and travel notice beside the stops](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it) before you go. Restored drafts also show when these checks are unavailable.
