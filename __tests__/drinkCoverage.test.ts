@@ -24,6 +24,66 @@ describe("public drink coverage", () => {
     const bottle: DrinkPriceUpdate = { ...updates[0]!, venueKey: venueMenuLookupKeys(venues[1]!)[0]!, drinkName: "Bottled lager", category: "beer", servingSize: "330ml" };
     expect(listedDrinkCoverage(venues, [bottle])).toMatchObject({ pricedPubs: 1, counts: { beer: 1 } });
   });
+  it.each([
+    { pint_name: "BOTTLED BEER" },
+    { pint_name: "Lager", measure: "half" },
+    { pint_name: "330ml lager" },
+    { pint_name: "Canned lager", measure: "pint" },
+  ])("rejects explicit non-pint baseline rows: %j", (row) => {
+    const pubs = groupVenuePrices([{ ...venues[0]!.prices[0], ...row }] as VenuePrice[]);
+    expect(listedDrinkCoverage(pubs, [])).toMatchObject({ total: 1, pricedPubs: 0, counts: { beer: 0 } });
+  });
+  it("retains a dearer qualifying pint without using a bottle's measure", () => {
+    const base = venues[0]!.prices[0]!;
+    const pubs = groupVenuePrices([
+      { ...base, app_price_id: "bottle", price_gbp: 3, pint_name: "BOTTLED BEER" },
+      { ...base, app_price_id: "pint", price_gbp: 5, pint_name: "Lager", measure: "pint" },
+    ] as VenuePrice[]);
+    expect(listedDrinkCoverage(pubs, [])).toMatchObject({ total: 1, pricedPubs: 1, counts: { beer: 1 } });
+  });
+  it("keeps an unknown legacy serving and counts a same-price independent pint", () => {
+    expect(listedDrinkCoverage([{ ...first, prices: [], cheapestPint: "Legacy lager", measure: undefined }], []))
+      .toMatchObject({ total: 1, pricedPubs: 1, counts: { beer: 1 } });
+    const base = first.prices[0]!;
+    const pubs = groupVenuePrices([
+      { ...base, app_price_id: "bottle", pint_name: "BOTTLED BEER" },
+      { ...base, app_price_id: "pint", pint_name: "Lager", measure: "pint" },
+    ] as VenuePrice[]);
+    expect(listedDrinkCoverage(pubs, [])).toMatchObject({ total: 1, pricedPubs: 1, counts: { beer: 1 } });
+  });
+  it("preserves alcohol-free coverage for a half without calling it a priced pint", () => {
+    const pubs = groupVenuePrices([{ ...first.prices[0], pint_name: "Alcohol free lager", measure: "half" }] as VenuePrice[]);
+    expect(listedDrinkCoverage(pubs, [])).toMatchObject({ pricedPubs: 0, counts: { beer: 0, "alcohol-free": 1 } });
+  });
+  it.each([
+    { drinkName: "Lager", servingSize: "pint", priced: 2 },
+    { drinkName: "Lager", servingSize: "568 ml", priced: 2 },
+    { drinkName: "Lager", servingSize: undefined, priced: 2 },
+    { drinkName: "Lager", servingSize: "330ml", priced: 1 },
+    { drinkName: "Lager", servingSize: "half pint", priced: 1 },
+    { drinkName: "Bottled lager", servingSize: "pint", priced: 1 },
+  ])("counts only qualifying pint menu updates: %j", ({ priced, ...row }) => {
+    const update: DrinkPriceUpdate = { ...updates[0]!, ...row,
+      venueKey: venueMenuLookupKeys(venues[1]!)[0]!, category: "beer" };
+    expect(listedDrinkCoverage(venues, [update])).toMatchObject({ pricedPubs: priced, counts: { beer: priced } });
+  });
+  it.each([
+    { drinkLabel: "Lager", servingSize: "pint", priced: 2 },
+    { drinkLabel: "Lager", servingSize: "568ml", priced: 2 },
+    { drinkLabel: "Lager", servingSize: undefined, priced: 2 },
+    { drinkLabel: "Lager", servingSize: "Btl", priced: 1 },
+    { drinkLabel: "Lager", servingSize: "half", priced: 1 },
+    { drinkLabel: "BOTTLED BEER", servingSize: "pint", priced: 1 },
+  ])("counts only qualifying bundle pints: %j", ({ priced, ...serving }) => {
+    const row: UkPriceBundleRow = { venueId: venues[1]!.id, name: "The Two", category: "beer",
+      priceGbp: 5, lane: "site-harvest", standing: "listed", sourceUrl: "https://example.com/menu",
+      publisher: "Pub menu", observedAt: "2026-10-01", basis: null, sampleSize: null, ...serving };
+    expect(listedDrinkCoverage(venues, [], new Map([[row.venueId, [row]]]), Date.parse("2026-10-23")))
+      .toMatchObject({ pricedPubs: priced, counts: { beer: priced } });
+    const pint: UkPriceBundleRow = { ...row, drinkLabel: "Stout", servingSize: "pint", priceGbp: 6 };
+    expect(listedDrinkCoverage(venues, [], new Map([[row.venueId, [row, pint]]]), Date.parse("2026-10-23")))
+      .toMatchObject({ pricedPubs: 2, counts: { beer: 2 } });
+  });
   it("includes authoritative UK menu rows once without admitting estimates or other venue ids", () => {
     const row: UkPriceBundleRow = {
       venueId: venues[1]!.id, name: "The Two", category: "coffee", priceGbp: 3,

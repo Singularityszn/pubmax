@@ -123,6 +123,22 @@ Slim-only records use their flat evidence. The slim builder preserves refused se
 A refused figure cannot rank. Its venue and ordinary price display remain available. Last Orders can retain hours without a qualifying price.
 Named routes also apply this policy to the selected pint in the stop list, Pint Line and receipt.
 A refused price leaves the stop in place and outside the selected-pint subtotal. See `__tests__/namedRouteServing.test.tsx`.
-Community corroboration, other drink-lens rules, area averages and medians, and the stronger cheapest hunt keep their existing contracts.
-Behaviour regressions cover these boundaries in `__tests__/comparablePintRankingBoundaries.test.ts` and `__tests__/comparablePintProducer.test.ts`.
+Community corroboration, other drink-lens rules and the stronger cheapest hunt keep their existing contracts.
+Fact averages and the listed mean/median cohort omit only explicit non-pint serving contradictions.
+`pintFactStats` and `listedPriceCohort` apply the existing serving guard to the selected same-price row.
+An unstated legacy serving retains its calculation default. Missing publishers and full read days remain in the population.
+Other cohort membership and numeric rules stay unchanged.
+Priced-pub coverage rejects explicit non-pint servings in baseline prices, menu rows, updates and bundle rows.
+A separate qualifying pint keeps its pub in the count. Legacy prices with no stated serving stay in the count.
+Coverage can include qualifying menu prices and updates that do not supply a pub minimum for the average.
+Minimum and maximum claims retain the stricter comparable-pint eligibility, non-public exclusions and alphabetical ties.
+Each extreme carries its own `VenuePriceEvidence`, including its drink, stated serving, publisher and full source day.
+`faqItems` supplies identical answer strings to the visible FAQ and its FAQ JSON-LD.
+`factCoverageSentence` counts publishers and full read days from the average population. It never assigns one publisher to the whole calculation.
+The [borough feature guide](../../README.md#features) owns the visible fact and share-image disclosures.
+A later equal-price row cannot lend its source or day to the selected row. A collection stamp cannot replace a source day.
+Ranking regressions cover these boundaries in `__tests__/comparablePintRankingBoundaries.test.ts` and `__tests__/comparablePintProducer.test.ts`.
+Fact evidence and FAQ parity are covered in `__tests__/factBlockPriceEvidence.test.tsx`.
+Share-image captions are covered in `__tests__/boroughOgPriceEvidence.test.tsx`.
+Coverage and count boundaries are covered in `__tests__/drinkCoverage.test.ts` and `__tests__/pricedPubCountOneAnswer.test.tsx`.
 The separate source-read contract and its limits are documented beside `cheapestPriceReads` in `__tests__/helpers/cheapestPriceReadFence.ts`.

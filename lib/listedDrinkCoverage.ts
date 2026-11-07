@@ -4,6 +4,9 @@ import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import { authoritativeBundleRows, strongestBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
+import { measureFromServingSize } from "@/lib/drinkMeasure";
 import type { Venue } from "@/lib/venues";
 
 export type ListedDrinkCoverage = {
@@ -11,6 +14,11 @@ export type ListedDrinkCoverage = {
   pricedPubs: number;
   counts: Record<DrinkCategory, number>;
 };
+
+function pintServing(name: string | undefined, serving: string | undefined): boolean {
+  return isComparablePintServing({ cheapestPint: name }) &&
+    (serving === undefined || measureFromServingSize(serving) === "pint" || /^568 ?ml$/i.test(serving.trim()));
+}
 
 /** Count pub identities, never menu rows or a separate venue inventory. */
 export function listedDrinkCoverage(
@@ -34,16 +42,24 @@ export function listedDrinkCoverage(
     const categories = new Set<DrinkCategory>();
     for (const drink of menu) {
       if (!Number.isFinite(drink.priceGbp) || drink.priceGbp < 0 || isDemoDrinkProvenance(drink.provenance)) continue;
-      if (drink.category !== "beer") categories.add(drink.category);
+      if (drink.category !== "beer" || (
+        drink.provenance.lane !== "dataset" && drink.priceGbp > 0 && pintServing(drink.name, drink.servingSize)
+      )) categories.add(drink.category);
       if (drink.alcoholType === "low-no") categories.add("alcohol-free");
     }
     // The bundle reader owns source quarantine, measure rules and price age.
     const bundleRows = authoritativeBundleRows(bundleByVenue.get(venue.id) ?? []);
     for (const category of DRINK_CATEGORIES) {
-      const decision = strongestBundleRow(bundleRows.filter((row) => row.category === category), now);
+      const decision = strongestBundleRow(bundleRows.filter((row) =>
+        row.category === category && (category !== "beer" || pintServing(row.drinkLabel, row.servingSize))
+      ), now);
       if (decision.standing === "listed") categories.add(category);
     }
-    if (typeof venue.cheapestPrice === "number" && Number.isFinite(venue.cheapestPrice)) categories.add("beer");
+    if (venue.prices.some((row) => isLivePriceRow(row) &&
+      typeof row.price_gbp === "number" && Number.isFinite(row.price_gbp) && row.price_gbp > 0 &&
+      isComparablePintServing({ measure: row.measure, cheapestPint: row.pint_name }))) categories.add("beer");
+    const price = venue.cheapestPrice;
+    if (typeof price === "number" && Number.isFinite(price) && price > 0 && isComparablePintServing(selectedVenuePintEvidence(venue))) categories.add("beer");
     if (categories.has("beer")) pricedPubs += 1;
     for (const category of categories) counts[category] += 1;
   }

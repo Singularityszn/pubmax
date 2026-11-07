@@ -5,6 +5,7 @@ import { loadCheapestHunt } from "@/lib/cheapestHunt.server";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import type { LegacyPintPrice } from "@/lib/drinks";
 import { pintPriceAverages } from "@/lib/pintSavings";
+import { listedPriceCohort } from "@/lib/pricedPubCount";
 import { median, MIN_PRICED_VENUES } from "@/lib/zones";
 import {
   boroughMedians,
@@ -146,6 +147,22 @@ describe("the boroughs", () => {
 });
 
 describe("the read range", () => {
+  it("keeps the mean, borough median and read denominator on the same non-bottle cohort", () => {
+    const bottle = pub("Bottle", "Enfield", 50, "2026-01-01T10:00:00Z");
+    bottle.prices[0]!.pint_name = "BOTTLED BEER";
+    const unknown = pub("Unknown", "Enfield", 6, null);
+    const venues = [...VENUES, bottle, unknown];
+    const glass = buildWildPriceGlass({ venues, cheapest: pint(), dearest: pint({ priceGbp: 9.5 }) });
+    const london = glass!.pours.find((pour) => pour.id === "london")!;
+    const retained = [...VENUES, unknown];
+    expect(london.priceGbp).toBe(pintPriceAverages(retained.map((row) => row.cheapestPrice!))!.averageGbp);
+    expect(text(london.what)).toContain(`across ${retained.length} pubs`);
+    expect(text(london.source)).toBe(`From prices read on 2 October 2026. 1 of the ${retained.length} pubs records no read day.`);
+    const enfield = boroughMedians(listedPriceCohort(venues)).find((row) => row.slug === "enfield")!;
+    expect(enfield.medianGbp).toBe(median([...cheapBorough, unknown].map((row) => row.cheapestPrice!)));
+    expect(enfield.pubs).not.toContain(bottle);
+  });
+
   it("names the oldest and newest read and counts the undated pubs out loud", () => {
     const pubs = [
       pub("A", "Hackney", 5, "2026-07-04T10:00:00Z"),

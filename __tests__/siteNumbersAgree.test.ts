@@ -8,6 +8,8 @@ import { loadAboutStats } from "@/lib/aboutStats";
 import { HOME_CARD_SUPPORT } from "@/lib/homeOgCard";
 import { landingPriceReadLine, loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { loadPricedPubCount } from "@/lib/pricedPubCount.server";
+import { loadGroupedVenues } from "@/lib/venueDataset";
+import { listedPriceCohort } from "@/lib/pricedPubCount";
 
 // Site review, 18 Oct 2026: "The numbers disagree with each other. Homepage:
 // average listed pint £5.54 across 950 London pubs. About page: average £5.72."
@@ -66,5 +68,16 @@ describe("the homepage dates the prices behind its average", () => {
       "The average above comes from prices read on 2 October 2026. 1 of its 2 pubs records no read day.",
     );
     expect(landingPriceReadLine([undated] as never)).toBeNull();
+  });
+
+  it("keeps the real mean and read sentence on the same population after explicit bottles leave", async () => {
+    const pubs = await loadGroupedVenues();
+    const cohort = listedPriceCohort(pubs);
+    expect(cohort.some((pub) => pub.name === "Bbar")).toBe(false);
+    expect(pubs.some((pub) => pub.name === "Bbar")).toBe(true);
+    const [stats, hero] = await Promise.all([loadAboutStats(), loadLandingHeroData()]);
+    expect(stats.pubsTracked).toBe(cohort.length);
+    expect(hero.averages?.sampleSize).toBe(cohort.length);
+    expect(hero.priceReadLine).toBe(landingPriceReadLine(cohort));
   });
 });

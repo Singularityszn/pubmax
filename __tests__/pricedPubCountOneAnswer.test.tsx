@@ -1,6 +1,5 @@
-import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Launch review, 30 Oct 2026, section 3.2: the landing and /about said "942
 // priced London pubs" while /pint-index said "960 of 2,034 pubs", and /about
@@ -17,9 +16,16 @@ const fixtures = vi.hoisted(() => ({
       beer: 960, coffee: 0, "alcohol-free": 0, wine: 0, cocktail: 0, "soft-drink": 0,
       whisky: 0, gin: 0, vodka: 0, rum: 0, shot: 0, other: 0,
     } },
-    status: "ready" as const,
+    status: "partial" as const,
   },
   calls: 0,
+  snapshot: {
+    schemaVersion: 1 as const, snapshotId: "controlled-empty", status: "empty" as const,
+    generatedAt: "2026-10-01T00:00:00Z", observationWindow: null,
+    classification: { version: "test", method: "point_in_polygon" as const,
+      sourceArtifact: "test-boundaries", licence: "Open Government Licence v3.0" },
+    sources: [], observations: [], excluded: [],
+  },
 }));
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -37,9 +43,7 @@ vi.mock("@/lib/aboutStats", () => ({
   }),
 }));
 vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
-  loadPublicPintIndexSnapshot: async () => ({
-    ...JSON.parse(readFileSync("public/data/pint_index_snapshot.json", "utf8")),
-  }),
+  loadPublicPintIndexSnapshot: async () => fixtures.snapshot,
 }));
 vi.mock("@/lib/pricedPubCount.server", () => ({
   loadPricedPubCount: async () => {
@@ -48,44 +52,49 @@ vi.mock("@/lib/pricedPubCount.server", () => ({
   },
 }));
 
+vi.mock("@/lib/pintIndexSnapshot.server", () => ({
+  loadPublicPintIndexSnapshotOrThrow: async () => fixtures.snapshot,
+  loadPintIndexArchive: async () => [],
+}));
+vi.mock("@/lib/venueDataset", () => ({ loadGroupedVenues: async () => [] }));
+vi.mock("@/lib/zonePintIndex.server", () => ({ loadZonePintIndex: async () => null }));
+vi.mock("@/lib/boroughCoverageStatus.server", () => ({ loadSeedBoroughCoverage: async () => [] }));
+vi.mock("@/lib/ukDirectoryCoverage.server", () => ({ loadUkDirectoryCoverage: async () => null }));
+
 import AboutPage from "@/app/about/page";
-import ListedDrinkCoverage from "@/components/pintindex/ListedDrinkCoverage";
-import { PINT_INDEX_NOT_READY_LINE, pintIndexLeagueReady, type PintIndexSnapshot } from "@/lib/pintIndex";
-import { averageBasePhrase, listedPriceCohort, pricedPubsSentence } from "@/lib/pricedPubCount";
+import PintIndexPage from "@/app/pint-index/page";
+import { listedDrinkCoverage } from "@/lib/listedDrinkCoverage";
+import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { PINT_INDEX_NOT_READY_LINE, pintIndexLeagueReady } from "@/lib/pintIndex";
+import { averageBasePhrase, listedPriceCohort, pricedPubCountFromCoverage, pricedPubsSentence } from "@/lib/pricedPubCount";
 import { strangerSavingLine } from "@/lib/pintSavings";
+
+beforeEach(() => {
+  fixtures.calls = 0;
+  fixtures.read.count = { listPubs: 2_034, pricedPubs: 960 };
+  fixtures.read.coverage = { ...fixtures.read.coverage, total: 2_034, pricedPubs: 960,
+    counts: { ...fixtures.read.coverage.counts, beer: 960 } };
+});
 
 function text(html: string): string {
   return html.replace(/<[^>]+>/g, "").replace(/&#x27;|&rsquo;/g, "'").replace(/\s+/g, " ");
 }
 
 describe("one priced-pub count", () => {
-  it("is read by /about and /pint-index through the same loader", () => {
-    for (const file of ["app/about/page.tsx", "app/pint-index/page.tsx"]) {
-      const source = readFileSync(file, "utf8");
-      expect(source, file).toContain('import { loadPricedPubCount } from "@/lib/pricedPubCount.server";');
-      expect(source, file).toMatch(/loadPricedPubCount\(/);
-      expect(source, file).toContain("pintIndexLeagueReady(");
-      expect(source, file).toContain("PINT_INDEX_NOT_READY_LINE");
-      expect(source, file).not.toContain("No borough league yet");
+  it.each([
+    { listPubs: 2_034, pricedPubs: 960, sentence: "960 of the 2,034 pubs in our London pub list have a pint price on record." },
+    { listPubs: 10, pricedPubs: 3, sentence: "3 of the 10 pubs in our London pub list have a pint price on record." },
+  ])("prints the specified count on both pages for $pricedPubs priced pubs", async ({ listPubs, pricedPubs, sentence }) => {
+    fixtures.read.count = { listPubs, pricedPubs };
+    fixtures.read.coverage = { ...fixtures.read.coverage, total: listPubs, pricedPubs,
+      counts: { ...fixtures.read.coverage.counts, beer: pricedPubs } };
+    expect(pricedPubsSentence(fixtures.read.count)).toBe(sentence);
+    for (const page of [AboutPage, PintIndexPage]) {
+      const callsBefore = fixtures.calls;
+      const output = text(renderToStaticMarkup(await page()));
+      expect(fixtures.calls).toBe(callsBefore + 1);
+      expect(output).toContain(sentence);
     }
-    // The /pint-index sentence is printed by the coverage block, from the same
-    // sentence function /about prints.
-    expect(readFileSync("components/pintindex/ListedDrinkCoverage.tsx", "utf8")).toContain("pricedPubsSentence(");
-    expect(readFileSync("app/about/page.tsx", "utf8")).toContain("pricedPubsSentence(");
-  });
-
-  it("prints the same sentence on both pages for the same count", async () => {
-    const sentence = pricedPubsSentence(fixtures.read.count);
-    expect(sentence).toBe("960 of the 2,034 pubs in our London pub list have a pint price on record.");
-
-    const about = text(renderToStaticMarkup(await AboutPage()));
-    expect(fixtures.calls).toBeGreaterThan(0);
-    expect(about).toContain(sentence);
-
-    const index = text(renderToStaticMarkup(
-      <ListedDrinkCoverage coverage={fixtures.read.coverage} status="partial" />,
-    ));
-    expect(index).toContain(sentence);
   });
 
   it("names the base of every average in the same words on the landing and /about", async () => {
@@ -95,13 +104,13 @@ describe("one priced-pub count", () => {
     expect(about).toContain(`The average listed pint across ${averageBasePhrase(939)} is`);
   });
 
-  it("says the dated league is not ready on /about while the citable snapshot is empty", async () => {
-    const snapshot = JSON.parse(readFileSync("public/data/pint_index_snapshot.json", "utf8")) as PintIndexSnapshot;
-    if (snapshot.status === "empty") {
-      expect(pintIndexLeagueReady(snapshot)).toBe(false);
-      const about = text(renderToStaticMarkup(await AboutPage()));
-      expect(about).toContain(PINT_INDEX_NOT_READY_LINE);
-      expect(about).toContain("See the borough list");
+  it("shows the unavailable league on both pages for a controlled empty snapshot", async () => {
+    expect(pintIndexLeagueReady(fixtures.snapshot)).toBe(false);
+    for (const page of [AboutPage, PintIndexPage]) {
+      const output = text(renderToStaticMarkup(await page()));
+      expect(output).toContain(PINT_INDEX_NOT_READY_LINE);
+      expect(output).not.toContain("No borough league yet");
+      expect(output).not.toContain("The Pint Index currently ranks");
     }
     expect(pintIndexLeagueReady(null)).toBe(false);
   });
@@ -114,5 +123,25 @@ describe("one priced-pub count", () => {
       { kind: "pub", cheapestPrice: null },
     ] as never[]);
     expect(cohort).toHaveLength(2);
+  });
+
+  it("excludes bottle-only pubs while counting an independent pint", () => {
+    const rows = [
+      { kind: "pub", cheapestPrice: 5, cheapestPint: "Lager" },
+      { kind: "pub", cheapestPrice: 6 },
+      { kind: "pub", cheapestPrice: 2, prices: [{ price_gbp: 2, pint_name: "Half pint lager" }] },
+      { kind: "pub", cheapestPrice: 9, cheapestPint: "Lager", prices: [
+        { price_gbp: 9, pint_name: "BOTTLED BEER" },
+        { price_gbp: 9, pint_name: "Lager", measure: "pint" },
+      ] },
+    ] as const;
+    expect(listedPriceCohort(rows)).toEqual(rows.slice(0, 2));
+    const pubs = groupVenuePrices([
+      { pub_name: "Bottle only", pint_name: "BOTTLED BEER", price_gbp: 9 },
+      { pub_name: "Mixed", pint_name: "BOTTLED BEER", price_gbp: 4 },
+      { pub_name: "Mixed", pint_name: "Lager", measure: "pint", price_gbp: 6 },
+      { pub_name: "Legacy", pint_name: "Lager", price_gbp: 5 },
+    ].map((row) => ({ address: "1 Test Road", latitude: 51.5, longitude: -0.1, ...row })) as VenuePrice[]);
+    expect(pricedPubCountFromCoverage(listedDrinkCoverage(pubs, []))).toEqual({ listPubs: 3, pricedPubs: 2 });
   });
 });

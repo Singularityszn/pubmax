@@ -77,7 +77,7 @@ describe("a price is dated by its own row's read", () => {
     const stats = pintFactStats([venue("cheap", 3.5, JULY), venue("dear", 7, OCTOBER)], "Camden", "camden");
     const [cheapest] = faqItems(stats, { monthYear: "October 2026", year: "2026" });
     expect(defined(cheapest).answer).toBe(
-      "The cheapest tracked pint in Camden is £3.50 at The cheap, as collected on 3 July 2026.",
+      "The cheapest tracked pint in Camden is £3.50 at The cheap. Guinness (Serving size not recorded). Listed by Pint Prices, collected on 3 July 2026.",
     );
     const unread = faqItems(
       pintFactStats([venue("cheap", 3.5, undefined)], "Camden", "camden"),
@@ -91,24 +91,24 @@ describe("a price is dated by its own row's read", () => {
     const mixed = pintFactStats([venue("cheap", 4, JULY), venue("dear", 6, OCTOBER)], "Camden", "camden");
     const [average] = factBlockSentences(mixed, opts);
     expect(average).toBe(
-      "From prices read between July 2026 and October 2026, the average pint in Camden costs £5.00 across 2 tracked pubs.",
+      "From prices read between 3 July 2026 and 2 October 2026, the average pint in Camden costs £5.00 across 2 tracked pubs. 2 of 2 prices name a publisher. 2 of 2 record a full read day.",
     );
     const answer = faqItems(mixed, opts).find((item) => item.question.startsWith("How much is a pint"));
     expect(defined(answer).answer).toBe(average);
 
     const july = pintFactStats([venue("a", 4, JULY), venue("b", 6, JULY)], "Camden", "camden");
     expect(factBlockSentences(july, opts)[0]).toBe(
-      "As of July 2026, the average pint in Camden costs £5.00 across 2 tracked pubs.",
+      "From prices read on 3 July 2026, the average pint in Camden costs £5.00 across 2 tracked pubs. 2 of 2 prices name a publisher. 2 of 2 record a full read day.",
     );
 
     const partly = pintFactStats([venue("a", 4, JULY), venue("b", 6, undefined)], "Camden", "camden");
     expect(factBlockSentences(partly, opts)[0]).toBe(
-      "As of July 2026, the average pint in Camden costs £5.00 across 2 tracked pubs. 1 of those prices records no read date.",
+      "From prices read on 3 July 2026, the average pint in Camden costs £5.00 across 2 tracked pubs. 1 of those prices records no read date. 2 of 2 prices name a publisher. 1 of 2 records a full read day.",
     );
 
     const unread = pintFactStats([venue("a", 4, undefined)], "Camden", "camden");
     expect(factBlockSentences(unread, opts)[0]).toBe(
-      "The average pint in Camden costs £4.00 across 1 tracked pub. That price records no read date.",
+      "The average pint in Camden costs £4.00 across 1 tracked pub. That price records no read date. 1 of 1 price names a publisher. 0 of 1 record a full read day.",
     );
   });
 
