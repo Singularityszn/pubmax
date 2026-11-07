@@ -7,7 +7,7 @@
 
 import { trackEvent } from "@/lib/analytics";
 import { parseCrewArrivedReceipts } from "@/lib/crew";
-import type { SocialCrewReadDTO } from "@/lib/socialCrew";
+import type { SocialCrewPublicPreviewDTO, SocialCrewReadDTO } from "@/lib/socialCrew";
 import type { CrewMutationOutcome } from "@/lib/socialCrewsUi";
 
 export type HostLoopStep = "open" | "request" | "decide";
@@ -16,13 +16,13 @@ export type HostLoopStep = "open" | "request" | "decide";
 export function trackHostLoopStep(
   step: HostLoopStep,
   outcome: CrewMutationOutcome | null,
-  crew?: SocialCrewReadDTO | null,
+  crew?: SocialCrewReadDTO | SocialCrewPublicPreviewDTO | null,
 ): void {
   if (!outcome || outcome.replayed) return;
   if (step === "open" && outcome.code === "created" && outcome.crewId) trackEvent("open_crawl_opened");
   if (
     step === "request" && outcome.code === "requested" &&
-    crew?.kind === "preview" && typeof crew.hostHandle === "string"
+    (crew?.kind === "public" || (crew?.kind === "preview" && typeof crew.hostHandle === "string"))
   ) trackEvent("crew_join_requested");
   if (step === "decide" && outcome.code === "accepted") trackEvent("crew_join_accepted");
 }

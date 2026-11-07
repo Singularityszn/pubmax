@@ -13,8 +13,9 @@ import CrewDetailClient from "@/app/social/crews/[crewId]/CrewDetailClient";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
+import { trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import { discardBody } from "@/lib/responseBody";
-import { parseCrewRead, parsePublicCrewPreview, crewIdempotencyKey } from "@/lib/socialCrewsUi";
+import { parseCrewRead, parseCrewMutation, parsePublicCrewPreview, crewIdempotencyKey } from "@/lib/socialCrewsUi";
 import { socialBoundaryCopy } from "@/lib/socialLaunch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import type {
@@ -292,6 +293,7 @@ export default function PublicCrewRouteClient({
       ) {
         return;
       }
+      trackHostLoopStep("request", parseCrewMutation(body), currentPreview);
       setJoinState("pending");
       setJoinScope(operationScope);
     } catch (error) {
