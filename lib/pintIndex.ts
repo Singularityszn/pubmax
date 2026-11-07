@@ -187,14 +187,21 @@ export type LeagueRow = {
   maxPubName: string;
 };
 
-export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
+/** The latest observation per pub, shared by the league and its diagnostic. */
+export function latestPintIndexObservations(
+  observations: readonly PintIndexObservation[],
+): PintIndexObservation[] {
   const latest = new Map<string, PintIndexObservation>();
-  for (const observation of snapshot.observations) {
+  for (const observation of observations) {
     const prior = latest.get(observation.venueId);
     if (!prior || Date.parse(observation.observedAt) > Date.parse(prior.observedAt)) latest.set(observation.venueId, observation);
   }
+  return [...latest.values()];
+}
+
+export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
   const grouped = new Map<string, PintIndexObservation[]>();
-  for (const observation of latest.values()) {
+  for (const observation of latestPintIndexObservations(snapshot.observations)) {
     const rows = grouped.get(observation.boroughCode) ?? [];
     rows.push(observation);
     grouped.set(observation.boroughCode, rows);
