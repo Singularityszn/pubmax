@@ -110,8 +110,8 @@ export type NearMeNowProps = {
   /** Request geolocation as soon as the surface mounts (landing hero / /near). */
   autoLocate?: boolean;
   /**
-   * Map mode: priced points already in memory (the map's loaded venues),
-   * so the sheet answers without re-fetching the slim index.
+   * Map mode supplies filtered pubs, including those without a price.
+   * A new array refreshes the current answer without fetching the city index.
    */
   venues?: PricedPoint[];
   /**
@@ -394,8 +394,8 @@ export default function NearMeNow({
   // already in memory, so that read has plainly run.
   const [slimRead, setSlimRead] = useState<SlimReadState>(venues ? "ready" : "unknown");
   // What the reader last asked for, so a retry re-answers THAT rather than
-  // dropping them back on the idle screen. Recorded as the ask itself rather
-  // than as a closure over the answer path, so neither path has to name itself.
+  // dropping them back on the idle screen. Store the target instead of a
+  // callback so the answer paths do not need to reference themselves.
   const retryTargetRef = useRef<RetryTarget | null>(null);
   const answerGenerationRef = useRef(0);
   const mountedRef = useRef(false);
@@ -449,8 +449,8 @@ export default function NearMeNow({
 
   const resolvedMapHref = mapHref ?? mapHrefForCity(cityId);
 
-  // Resolve the priced index once and memoise on the instance. In map mode the
-  // caller hands us `venues` already in memory; otherwise fetch the slim index.
+  // Cache the city index on this instance. In map mode, supplied venues replace
+  // that cache when filters change, so each answer uses the current pub list.
   // Never throws to the caller — a miss yields an empty list so the surface
   // degrades to the patch answer rather than a crash.
   const loadSlim = useCallback(async (): Promise<PricedPoint[]> => {

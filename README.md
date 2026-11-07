@@ -167,7 +167,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   With a location, **Nearest listed pub** separately names the closest public pub in the available list, including pubs without a pint price. It shows distance and an estimated walk based on straight-line distance, without a price. On `/near`, it uses the current city's listed pubs. On the map, it uses the pubs allowed by the current filters, including **Saved only**. It does not claim the nearest pub outside that list. **View pub** opens that pub on the map.
 
-  Area answers hide the nearest result. A location update also hides it until a new location answer arrives.
+  Area answers hide the nearest result. A location update also hides it until a new location answer arrives. When map filters change, the answers refresh for the same location or area without another location request.
 - **Lucia 🐐** - open **Drink** on the map. Under **Soft drinks**, choose **Lucia 🐐** for the Coke Zero and Diet Coke price list. The link opens `/soft-drinks-and-water?sub=soft-drink-lucia-special` on mobile and desktop. The mobile Drink panel opens at full height.
 
 - **Spoons** - on desktop, the Spoons tab opens `/spoons-value`. On a phone, open **Drink** on the map and choose **Spoons value** instead. Search the published ranking by pub, town or postcode. Open **Round costs** to read each drink's recorded cost and units, the round total and the source date. These figures come from SpoonMe's dated report, so prices may have changed. They describe recorded rounds, not complete current menus. The page links each matched pub to the Spoons map.
