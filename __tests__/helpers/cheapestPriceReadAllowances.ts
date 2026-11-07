@@ -311,9 +311,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "app/borough/[slug]/page.tsx": [
     {"owner": "BoroughPubRow", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
   ],
-  "app/crawls/routeSummary.ts": [
-    {"owner": "crawlPriceRange", "count": 1, "reason": "Estimates a predetermined route without cheapest selection."},
-  ],
   "app/invite/[token]/opengraph-image.tsx": [
     {"owner": "loadStops", "count": 4, "reason": "Displays the explicitly shared plan stops."},
   ],

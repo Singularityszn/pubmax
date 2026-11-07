@@ -131,7 +131,7 @@ Other cohort membership and numeric rules stay unchanged.
 Priced-pub coverage rejects explicit non-pint servings in baseline prices, menu rows, updates and bundle rows.
 A separate qualifying pint keeps its pub in the count. Legacy prices with no stated serving stay in the count.
 Coverage can include qualifying menu prices and updates that do not supply a pub minimum for the average.
-Minimum and maximum claims retain the stricter comparable-pint eligibility, non-public exclusions and alphabetical ties.
+Borough minimum and maximum claims retain the stricter comparable-pint eligibility, non-public exclusions and alphabetical ties.
 Each extreme carries its own `VenuePriceEvidence`, including its drink, stated serving, publisher and full source day.
 `faqItems` supplies identical answer strings to the visible FAQ and its FAQ JSON-LD.
 `factCoverageSentence` counts publishers and full read days from the average population. It never assigns one publisher to the whole calculation.

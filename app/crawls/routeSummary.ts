@@ -1,13 +1,15 @@
 // Pure, client-safe route metrics for the /crawls cards (E4). Derives an
 // HONEST straight-line summary for a curated crawl from the slim venue index
 // (lib/venuesSlim — the only client-side source of venue coords + price):
-// haversine leg distances at the shared WALK_KMH pace, and a "pints from"
-// range off each stop's cheapestPrice. A route estimate needs every stop.
+// haversine leg distances at the shared WALK_KMH pace, and a "Listed pints"
+// range off each stop's comparable listed pint. A route estimate needs every stop.
 // Missing coordinates withhold the total rather than shorten the route.
 // Mirrors lib/routeLegs semantics ("straight-line", ceil to a
 // whole minute, never "0 min") without importing the Venue-typed leg builder.
 
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { venuePriceEvidence, type VenuePriceEvidence } from "@/lib/venuePriceEvidence";
 import { formatGbp } from "@/lib/formatGbp";
 import { getRoutePack } from "@/lib/routePacks";
 import { haversineKm } from "@/lib/haversine";
@@ -50,29 +52,59 @@ export function buildCrawlRouteSummary(
   return { totalKm, totalMinutes, points };
 }
 
-export type CrawlPriceRange = { minGbp: number; maxGbp: number };
+type CrawlPriceEndpoint = {
+  venueId: string;
+  venueName: string;
+  priceGbp: number;
+  evidence: VenuePriceEvidence;
+};
+
+export type CrawlPriceRange = {
+  minGbp: number;
+  maxGbp: number;
+  min: CrawlPriceEndpoint;
+  max: CrawlPriceEndpoint;
+  pricedStops: number;
+  totalStops: number;
+};
 
 /**
- * Range of the resolved stops' cheapestPrice values. Stops without a price
- * (null / unresolved) are skipped; no priced stops → undefined (show nothing
- * rather than a fake figure).
+ * Range of the resolved stops' comparable listed pints, with each endpoint's
+ * own evidence. The first stop at an equal price keeps the endpoint. Missing
+ * or refused figures stay outside the range and its priced-stop count.
  */
 export function crawlPriceRange(
   venueIds: readonly string[],
   slimById: ReadonlyMap<string, SlimVenue>,
+  now?: number,
 ): CrawlPriceRange | undefined {
-  const prices: number[] = [];
+  const prices: CrawlPriceEndpoint[] = [];
   for (const id of venueIds) {
-    const price = slimById.get(id)?.cheapestPrice;
-    if (typeof price === "number" && Number.isFinite(price)) prices.push(price);
+    const venue = slimById.get(id);
+    if (!venue) continue;
+    const price = comparableVenuePint(venue, null, false, now);
+    if (price === null) continue;
+    prices.push({
+      venueId: venue.id,
+      venueName: venue.name,
+      priceGbp: price,
+      evidence: venuePriceEvidence(venue, price, false),
+    });
   }
   if (prices.length === 0) return undefined;
-  return { minGbp: Math.min(...prices), maxGbp: Math.max(...prices) };
+  let min = prices[0]!;
+  let max = min;
+  for (const price of prices) {
+    if (price.priceGbp < min.priceGbp) min = price;
+    if (price.priceGbp > max.priceGbp) max = price;
+  }
+  return { minGbp: min.priceGbp, maxGbp: max.priceGbp, min, max,
+    pricedStops: prices.length, totalStops: venueIds.length };
 }
 
 /** "£4.20-£6.50", collapsing to "£4.20" when min === max. A hyphen, never an
  * en dash (docs/VOICE.md, "The em-dash law"). */
-export function formatPriceRange(range: CrawlPriceRange): string {
+export function formatPriceRange(range: Pick<CrawlPriceRange, "minGbp" | "maxGbp">): string {
   return range.minGbp === range.maxGbp
     ? formatGbp(range.minGbp)
     : `${formatGbp(range.minGbp)}-${formatGbp(range.maxGbp)}`;
