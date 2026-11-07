@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -36,7 +37,7 @@ async function createInvite(
   request: APIRequestContext,
   stopCount = 3,
 ): Promise<{ token: string; venues: Venue[] }> {
-  const venues = ((await (await request.get("/data/venues_slim.json")).json()) as { rows: Venue[] }).rows.slice(0, stopCount);
+  const venues = ((await (await request.get("/data/venues_slim.json")).json()) as { rows: Venue[] }).rows.filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, stopCount);
   expect(venues).toHaveLength(stopCount);
 
   const created = await request.post("/api/plans", {

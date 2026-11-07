@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test } from "@playwright/test";
 
 import { installNativeShell } from "@/e2e/helpers/nativeShell";
@@ -22,7 +23,7 @@ for (const platform of ["ios", "android"] as const) {
         const response = await request.get("/data/venues_slim.json");
         expect(response.ok()).toBe(true);
         const { rows } = await response.json() as { rows: Array<{ id: string; name: string }> };
-        const venues = rows.slice(0, 3);
+        const venues = rows.filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
         const id = "00000000-0000-4000-8000-000000000085";
         const startTime = new Date().toISOString();
         await page.route(`**/api/plans/${id}`, (route) => route.fulfill({

@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
@@ -14,7 +15,7 @@ import { mkdir } from "node:fs/promises";
 test("completed Plan recap stays inside 320px viewport and explicit discard survives remount", async ({ page, request }) => {
   const startTime = new Date().toISOString();
   const venueResponse = await request.get("/data/venues_slim.json");
-  const venues = ((await venueResponse.json() as { rows: Array<{ id: string; name: string }> }).rows).slice(0, 3);
+  const venues = ((await venueResponse.json() as { rows: Array<{ id: string; name: string }> }).rows).filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   expect(venues).toHaveLength(3);
   const createdResponse = await request.post("/api/plans", {
     headers: { "idempotency-key": randomUUID() },
