@@ -1,6 +1,11 @@
 // Client-safe scraped-pub types and source helpers.
 // Server listing lives in lib/scrapedPubs.server.ts (fs + enrichment join).
 
+import type { DrinkMeasure } from "@/lib/drinkMeasure";
+import type { VenueListedPint } from "@/lib/venueListedPint";
+
+type ScrapedPubPriceEvidence = VenueListedPint & { measure: DrinkMeasure | null };
+
 export type ScrapedPubSourceId =
   | "greene-king.co.uk"
   | "nicholsonspubs.co.uk"
@@ -18,6 +23,8 @@ export type ScrapedPub = {
   /** Real scraped/menu photo when present (Greene King tiles, venue image). */
   photoUrl?: string;
   cheapestPrice: number | null;
+  /** Evidence from the same first minimum-price row, never the chain menu link. */
+  priceEvidence?: ScrapedPubPriceEvidence;
   /** Nearest-station TfL fare zone (1–6), or null when unknown. */
   zone: number | null;
 };

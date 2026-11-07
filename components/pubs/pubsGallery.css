@@ -270,6 +270,22 @@
   min-height: 28px;
 }
 
+.pubsCardServing,
+.pubsCardPriceSource {
+  min-width: 0;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+
+/* The price publisher remains reachable above the card's stretched map link. */
+.pubsCardPriceSource a {
+  position: relative;
+  z-index: 1;
+}
+
 /* Words, so the body face; the figure that is not there is not mono. */
 .pubsCardNoPrice {
   color: var(--color-text-muted);
