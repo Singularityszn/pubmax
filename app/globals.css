@@ -546,6 +546,10 @@
    on single sheets predate it. */
 html {
   -webkit-tap-highlight-color: transparent;
+  /* The body gradient paints the canvas from the root box. A short page left
+     the root shorter than the screen, so the gradient tiled and drew a seam
+     halfway down (the open crawl page at 390x844). */
+  min-height: 100%;
 }
 
 body {

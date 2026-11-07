@@ -50,6 +50,9 @@ function preview(crewId: string, title = crewId === CREW_A ? "Friday in Camden" 
       lat: 51.541,
       lng: -0.142,
     },
+    area: null,
+    placesLeft: null,
+    spendBand: null,
   };
 }
 

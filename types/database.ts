@@ -8328,6 +8328,12 @@ export type Database = {
         };
         Returns: Json;
       };
+      read_social_crew_share_card: {
+        Args: {
+          p_crew_id: string | null;
+        };
+        Returns: Json;
+      };
       read_social_crew_snapshot: {
         Args: {
           p_viewer_account_id: string | null;
