@@ -103,6 +103,18 @@ create table public.message_flag_reviews (
   reviewed_at timestamptz not null default now()
 );
 
+create table public.message_flag_evidence_audit (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid references public.messages(id) on delete set null,
+  staff_role_id uuid references public.private_social_staff_roles(id) on delete set null,
+  staff_display_name text not null,
+  attachment_kind text not null check (attachment_kind in ('photo', 'poll', 'venue', 'contact', 'event')),
+  viewed_at timestamptz not null default now()
+);
+
+create index message_flag_evidence_audit_message_idx on public.message_flag_evidence_audit(message_id);
+create index message_flag_evidence_audit_staff_idx on public.message_flag_evidence_audit(staff_role_id);
+
 create table public.social_account_moderation_audit (
   id uuid primary key default gen_random_uuid(),
   -- No foreign key: the ledger outlives any change to the account row.
@@ -128,12 +140,15 @@ create index if not exists messages_flagged_at_idx
   on public.messages (flagged_at, id) where flagged_at is not null;
 
 alter table public.message_flag_reviews enable row level security;
+alter table public.message_flag_evidence_audit enable row level security;
 alter table public.social_account_moderation_audit enable row level security;
 
 -- Default privileges hand service_role every right on a new table, so the
 -- revoke names it too before granting back only what each table needs.
 revoke all on table public.message_flag_reviews from public, anon, authenticated, service_role;
 revoke all on table public.social_account_moderation_audit from public, anon, authenticated, service_role;
+revoke all on table public.message_flag_evidence_audit from public, anon, authenticated, service_role;
+grant select, insert on table public.message_flag_evidence_audit to service_role;
 grant select, insert on table public.message_flag_reviews to service_role;
 grant select, insert on table public.social_account_moderation_audit to service_role;
 
@@ -243,6 +258,7 @@ begin
           'messageId', message.id,
           'conversationId', message.conversation_id,
           'body', left(message.body, 1000),
+          'hasAttachment', message.attachment_kind is not null,
           'senderHandle', message.sender_handle,
           'senderProfileId', sender.id,
           'senderAccountState', sender_account.ownership_state,
@@ -287,6 +303,49 @@ begin
 end;
 $$;
 
+create or replace function public.read_flagged_message_evidence_admin(p_staff_role_id uuid, p_message_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_staff public.private_social_staff_roles;
+  v_message public.messages;
+  v_evidence jsonb;
+begin
+  select * into v_staff from public.private_social_staff_roles
+  where id = p_staff_role_id and active and revoked_at is null and role = 'moderator';
+  if v_staff.id is null then raise exception 'staff required'; end if;
+  select * into v_message from public.messages
+  where id = p_message_id and flagged_at is not null and attachment_kind is not null
+  for share;
+  if v_message.id is null then return null; end if;
+  case v_message.attachment_kind
+    when 'photo' then
+      if v_message.attachment_object_key is distinct from
+        'messages/' || v_message.conversation_id::text || '/' || v_message.id::text || '.jpg' then
+        return null;
+      end if;
+      v_evidence := jsonb_build_object('kind', 'photo', 'messageId', v_message.id,
+        'conversationId', v_message.conversation_id, 'objectKey', v_message.attachment_object_key);
+    when 'poll' then
+      v_evidence := jsonb_build_object('kind', 'poll', 'question', v_message.attachment_poll_question,
+        'options', v_message.attachment_poll_options);
+    when 'venue' then
+      v_evidence := jsonb_build_object('kind', 'venue', 'venueId', v_message.attachment_venue_id);
+    when 'contact' then
+      v_evidence := jsonb_build_object('kind', 'contact', 'handle', v_message.attachment_contact_handle);
+    when 'event' then
+      v_evidence := jsonb_build_object('kind', 'event', 'planId', v_message.attachment_plan_id);
+    else return null;
+  end case;
+  insert into public.message_flag_evidence_audit(message_id, staff_role_id, staff_display_name, attachment_kind)
+  values (v_message.id, v_staff.id, v_staff.display_name, v_message.attachment_kind);
+  return v_evidence;
+end;
+$$;
+
 create or replace function public.set_social_account_suspension_admin(
   p_staff_role_id uuid,
   p_profile_id uuid,
@@ -301,7 +360,9 @@ as $$
 declare
   v_staff public.private_social_staff_roles;
   v_account public.private_social_accounts;
-  v_handle text;
+  v_profile public.profiles;
+  v_user uuid;
+  v_created boolean := false;
   v_reason text := btrim(coalesce(p_reason, ''));
   v_next text;
   v_audit uuid;
@@ -309,7 +370,7 @@ begin
   select * into v_staff from public.private_social_staff_roles
   where id = p_staff_role_id and active and revoked_at is null and role = 'moderator';
   if v_staff.id is null then raise exception 'staff required'; end if;
-  if p_action not in ('suspend', 'reinstate') or char_length(v_reason) not between 3 and 500 then
+  if p_action is null or p_action not in ('suspend', 'reinstate') or char_length(v_reason) not between 3 and 500 then
     return jsonb_build_object('ok', false, 'code', 'invalid');
   end if;
   if p_report_id is not null and not exists (
@@ -317,9 +378,26 @@ begin
   ) then
     return jsonb_build_object('ok', false, 'code', 'invalid');
   end if;
+  select user_id into v_user from public.profiles where id = p_profile_id;
+  if v_user is not null then
+    perform pg_advisory_xact_lock(hashtextextended('supabase:' || v_user::text, 0));
+  end if;
+  select * into v_profile from public.profiles where id = p_profile_id for update;
+  if v_profile.id is null then
+    return jsonb_build_object('ok', false, 'code', 'not_found');
+  end if;
+  if v_profile.user_id is distinct from v_user then
+    return jsonb_build_object('ok', false, 'code', 'invalid');
+  end if;
   select * into v_account from public.private_social_accounts
   where profile_id = p_profile_id
   for update;
+  if v_account.id is null and p_action = 'suspend' and v_profile.user_id is not null then
+    insert into public.private_social_accounts(clerk_user_id, supabase_user_id, profile_id, ownership_state)
+    values ('supabase:' || v_profile.user_id::text, v_profile.user_id, v_profile.id, 'suspended')
+    returning * into v_account;
+    v_created := true;
+  end if;
   if v_account.id is null then
     return jsonb_build_object('ok', false, 'code', 'not_found');
   end if;
@@ -329,17 +407,18 @@ begin
     return jsonb_build_object('ok', false, 'code', 'gone');
   end if;
   v_next := case when p_action = 'suspend' then 'suspended' else 'active' end;
-  if v_account.ownership_state = v_next then
+  if not v_created and v_account.ownership_state = v_next then
     return jsonb_build_object('ok', true, 'code', 'unchanged', 'state', v_next);
   end if;
-  select handle into v_handle from public.profiles where id = p_profile_id;
-  update public.private_social_accounts
-  set ownership_state = v_next, ownership_changed_at = now(), updated_at = now()
-  where id = v_account.id;
+  if not v_created then
+    update public.private_social_accounts
+    set ownership_state = v_next, ownership_changed_at = now(), updated_at = now()
+    where id = v_account.id;
+  end if;
   insert into public.social_account_moderation_audit(
     social_account_id, profile_handle, action, reason, staff_role_id, staff_display_name, report_id
   ) values (
-    v_account.id, coalesce(v_handle, 'unknown'), p_action, v_reason, v_staff.id, v_staff.display_name, p_report_id
+    v_account.id, v_profile.handle, p_action, v_reason, v_staff.id, v_staff.display_name, p_report_id
   ) returning id into v_audit;
   return jsonb_build_object('ok', true, 'code', case when p_action = 'suspend' then 'suspended' else 'reinstated' end,
     'state', v_next, 'auditId', v_audit);
@@ -348,11 +427,13 @@ $$;
 
 revoke all on function public.read_social_report_queue_admin(uuid, integer) from public, anon, authenticated;
 revoke all on function public.resolve_social_report_admin(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.read_flagged_message_evidence_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.read_flagged_messages_admin(uuid, integer) from public, anon, authenticated;
 revoke all on function public.review_flagged_message_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.set_social_account_suspension_admin(uuid, uuid, text, text, uuid) from public, anon, authenticated;
 grant execute on function public.read_social_report_queue_admin(uuid, integer) to service_role;
 grant execute on function public.resolve_social_report_admin(uuid, uuid) to service_role;
+grant execute on function public.read_flagged_message_evidence_admin(uuid, uuid) to service_role;
 grant execute on function public.read_flagged_messages_admin(uuid, integer) to service_role;
 grant execute on function public.review_flagged_message_admin(uuid, uuid) to service_role;
 grant execute on function public.set_social_account_suspension_admin(uuid, uuid, text, text, uuid) to service_role;

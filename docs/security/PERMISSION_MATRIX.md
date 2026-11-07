@@ -113,6 +113,9 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Hidden rows and `actor` or `hidden_at` columns at the table | denied | denied | denied | n/a |
 | Pint Drop and structured visit rows at the table, including an anonymous author's handle and moderator notes | denied | denied | denied | n/a |
 | `community_prices.contributor_handle` at the table | denied | denied | denied | n/a |
+| Read Social reports or flagged DMs, resolve a report, review a DM, suspend or reinstate (`/api/admin/social-safety`) | 403 | 403 | 403 | `ADMIN_TOKEN` or admin session plus an active moderator staff role |
+| View a flagged DM attachment (`POST /api/admin/social-safety`, `view_message_evidence`) | 403 | 403 | 403 | moderator only; one flagged message; every read audited; photo URL expires after 180 seconds |
+| `message_flag_reviews`, `message_flag_evidence_audit`, `social_account_moderation_audit` at the table | denied | denied | denied | no browser grant or RLS policy; service role only |
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |
 | Delete account (`DELETE /api/account`) | 401 | own account only, whatever the body names | own account only | n/a |
 | Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |

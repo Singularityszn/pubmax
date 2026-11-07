@@ -40,6 +40,10 @@ const REVOKED_PROFILE = "e2000000-0000-4000-8000-000000000223";
 const POST = "f0000000-0000-4000-8000-000000000223";
 const CONVERSATION = "f1000000-0000-4000-8000-000000000223";
 const FLAGGED = "f2000000-0000-4000-8000-000000000223";
+const LEGACY_USER = "d0000000-0000-4000-8000-000000000224";
+const LEGACY_PROFILE = "d1000000-0000-4000-8000-000000000224";
+const LEGACY_CONVERSATION = "d3000000-0000-4000-8000-000000000224";
+const LEGACY_MESSAGE = "d2000000-0000-4000-8000-000000000224";
 const UNFLAGGED = "f3000000-0000-4000-8000-000000000223";
 
 let session: PostgresSession | null = null;
@@ -54,7 +58,7 @@ function last(said: string): string {
 }
 
 function json(statement: string): unknown {
-  return JSON.parse(last(db().sql(asServiceRole(statement))));
+  return JSON.parse(last(db().sql(asServiceRole(statement))) || "null");
 }
 
 function scalar(statement: string): string {
@@ -75,10 +79,14 @@ function suspend(action: "suspend" | "reinstate", staff = STAFF, profile = TARGE
 
 function seed(): void {
   db().sql(`
+    delete from public.message_flag_evidence_audit;
+    delete from public.messages where id='${LEGACY_MESSAGE}';
     delete from public.social_account_moderation_audit;
+    delete from public.private_social_accounts where profile_id='${LEGACY_PROFILE}';
     delete from public.message_flag_reviews;
     delete from public.social_content_reports;
     update public.private_social_accounts set ownership_state='active' where id='${TARGET_ACCOUNT}';
+    update public.messages set flagged_at=null, flagged_by=null where id='${UNFLAGGED}';
     update public.messages set flagged_at=now()-interval '1 hour', flagged_by='reporter' where id='${FLAGGED}';
   `);
 }
@@ -87,12 +95,13 @@ beforeAll(async () => {
   if (skipReason) return;
   session = await startMigratedPostgres({ label: "social-safety-0223", database: "pubmax_social_safety_0223" });
   session.sql(`
-    insert into auth.users(id) values ('${MOD_USER}'),('${REPORTER_USER}'),('${TARGET_USER}');
+    insert into auth.users(id) values ('${MOD_USER}'),('${REPORTER_USER}'),('${TARGET_USER}'),('${LEGACY_USER}');
     insert into public.profiles(id,user_id,handle) values
       ('${MOD_PROFILE}','${MOD_USER}','modcarol'),
       ('${REPORTER_PROFILE}','${REPORTER_USER}','reporter'),
       ('${TARGET_PROFILE}','${TARGET_USER}','targetted'),
       ('${GONE_PROFILE}',null,'goneaway'),
+      ('${LEGACY_PROFILE}','${LEGACY_USER}','returning'),
       ('${REVOKED_PROFILE}',null,'oldmod');
     insert into public.private_social_accounts(id,clerk_user_id,supabase_user_id,profile_id,ownership_state) values
       ('${REPORTER_ACCOUNT}','clerk-0223-reporter','${REPORTER_USER}','${REPORTER_PROFILE}','active'),
@@ -104,7 +113,8 @@ beforeAll(async () => {
     insert into public.social_posts (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, moderation_state)
       values ('${POST}','${TARGET_PROFILE}','targetted','standard','public','Meet me outside, I know where you live','open','approved');
     insert into public.conversations (id, handle_a, handle_b, user_id_a, user_id_b)
-      values ('${CONVERSATION}','reporter','targetted','${REPORTER_USER}','${TARGET_USER}');
+      values ('${CONVERSATION}','reporter','targetted','${REPORTER_USER}','${TARGET_USER}'),
+      ('${LEGACY_CONVERSATION}','reporter','returning','${REPORTER_USER}','${LEGACY_USER}');
     insert into public.messages (id, conversation_id, sender_handle, body) values
       ('${FLAGGED}','${CONVERSATION}','targetted','You will regret coming tonight'),
       ('${UNFLAGGED}','${CONVERSATION}','targetted','See you at eight');
@@ -213,6 +223,124 @@ describe.skipIf(skipReason !== null)("0223 social safety moderation applied to P
     expect(rows).toBe("suspend:targetted:Carol:Threats in DMs,reinstate:targetted:Carol:Appeal upheld");
   });
 
+  it("provisions a linked sender as suspended with one audit and preserves suspension on later provisioning", () => {
+    db().sql(`insert into public.messages(id,conversation_id,sender_handle,body,flagged_at)
+      values ('${LEGACY_MESSAGE}','${LEGACY_CONVERSATION}','returning','Threat',now())`);
+    expect(json(`select public.read_flagged_messages_admin('${STAFF}',20)`)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ messageId: LEGACY_MESSAGE, senderProfileId: LEGACY_PROFILE, senderAccountState: null }),
+    ]));
+    expect(suspend("suspend", STAFF, LEGACY_PROFILE)).toMatchObject({ code: "suspended", state: "suspended" });
+    expect(json(`select to_jsonb(a) from public.private_social_accounts a where profile_id='${LEGACY_PROFILE}'`)).toMatchObject({
+      profile_id: LEGACY_PROFILE, supabase_user_id: LEGACY_USER, clerk_user_id: `supabase:${LEGACY_USER}`, ownership_state: "suspended",
+    });
+    expect(auditRows()).toBe(1);
+    expect(suspend("suspend", STAFF, LEGACY_PROFILE)).toMatchObject({ code: "unchanged" });
+    scalar(`select public.provision_social_product_account('${LEGACY_USER}')`);
+    expect(scalar(`select ownership_state from public.private_social_accounts where profile_id='${LEGACY_PROFILE}'`)).toBe("suspended");
+    expect(auditRows()).toBe(1);
+    expect(suspend("reinstate", STAFF, LEGACY_PROFILE)).toMatchObject({ code: "reinstated" });
+    expect(auditRows()).toBe(2);
+  });
+
+  it("serializes new-account suspension with ordinary provisioning", async () => {
+    await db().concurrent([
+      asServiceRole(`select public.set_social_account_suspension_admin('${STAFF}','${LEGACY_PROFILE}','suspend','Threats in DMs',null)`),
+      asServiceRole(`select public.set_social_account_suspension_admin('${STAFF}','${LEGACY_PROFILE}','suspend','Threats in DMs',null)`),
+      asServiceRole(`select public.provision_social_product_account('${LEGACY_USER}')`),
+    ]);
+    expect(scalar(`select ownership_state from public.private_social_accounts where profile_id='${LEGACY_PROFILE}'`)).toBe("suspended");
+    expect(auditRows()).toBe(1);
+  });
+
+  it("rolls back suspension provisioning if its audit cannot be written", () => {
+    db().sql(`create function public.reject_0223_audit() returns trigger language plpgsql as $$
+      begin raise exception 'audit unavailable'; end; $$;
+      create trigger reject_0223_audit before insert on public.social_account_moderation_audit
+        for each row execute function public.reject_0223_audit();`);
+    try {
+      expect(db().expectRefusal(asServiceRole(`select public.set_social_account_suspension_admin(
+        '${STAFF}','${LEGACY_PROFILE}','suspend','Threats in DMs',null)`))).toMatch(/audit unavailable/);
+      expect(scalar(`select count(*) from public.private_social_accounts where profile_id='${LEGACY_PROFILE}'`)).toBe("0");
+    } finally {
+      db().sql(`drop trigger reject_0223_audit on public.social_account_moderation_audit; drop function public.reject_0223_audit()`);
+    }
+  });
+
+  it("returns only a flagged attachment and audits every evidence read", () => {
+    db().sql(`update public.messages set body='', attachment_kind='photo',
+      attachment_object_key='messages/${CONVERSATION}/${FLAGGED}.jpg', attachment_width=800, attachment_height=1000
+      where id='${FLAGGED}'`);
+    try {
+      const call = `select public.read_flagged_message_evidence_admin('${STAFF}','${FLAGGED}')`;
+      for (let view = 1; view <= 2; view += 1) {
+        expect(json(call)).toEqual({ kind: "photo", conversationId: CONVERSATION, messageId: FLAGGED,
+          objectKey: `messages/${CONVERSATION}/${FLAGGED}.jpg` });
+        expect(scalar(`select count(*) from public.message_flag_evidence_audit where message_id='${FLAGGED}' and staff_role_id='${STAFF}'`)).toBe(String(view));
+      }
+      expect(json(`select public.read_flagged_message_evidence_admin('${STAFF}','${UNFLAGGED}')`)).toBeNull();
+      expect(json(`select public.read_flagged_message_evidence_admin('${STAFF}','${POST}')`)).toBeNull();
+      expect(scalar(`select count(*) from public.message_flag_evidence_audit`)).toBe("2");
+      db().sql(`update public.messages set flagged_at=null where id='${FLAGGED}'`);
+      expect(json(call)).toBeNull();
+      expect(scalar(`select count(*) from public.message_flag_evidence_audit`)).toBe("2");
+    } finally {
+      db().sql(`update public.messages set body='You will regret coming tonight', attachment_kind=null,
+        attachment_object_key=null, attachment_width=null, attachment_height=null where id='${FLAGGED}'`);
+    }
+  });
+
+  it("refuses an unflagged photo without writing an evidence audit", () => {
+    db().sql(`update public.messages set body='', attachment_kind='photo',
+      attachment_object_key='messages/${CONVERSATION}/${UNFLAGGED}.jpg', attachment_width=800, attachment_height=1000
+      where id='${UNFLAGGED}'`);
+    try {
+      expect(json(`select public.read_flagged_message_evidence_admin('${STAFF}','${UNFLAGGED}')`)).toBeNull();
+      expect(scalar(`select count(*) from public.message_flag_evidence_audit`)).toBe("0");
+    } finally {
+      db().sql(`update public.messages set body='See you at eight', attachment_kind=null,
+        attachment_object_key=null, attachment_width=null, attachment_height=null where id='${UNFLAGGED}'`);
+    }
+  });
+
+  it("returns a flagged poll ballot without votes or other messages", () => {
+    db().sql(`update public.messages set body='', attachment_kind='poll',
+      attachment_poll_question='Who should we threaten?', attachment_poll_options='["Alice","Bob"]'
+      where id='${FLAGGED}'`);
+    try {
+      expect(json(`select public.read_flagged_message_evidence_admin('${STAFF}','${FLAGGED}')`)).toEqual({
+        kind: "poll", question: "Who should we threaten?", options: ["Alice", "Bob"],
+      });
+      expect(scalar(`select count(*) from public.message_flag_evidence_audit`)).toBe("1");
+    } finally {
+      db().sql(`update public.messages set body='You will regret coming tonight', attachment_kind=null,
+        attachment_poll_question=null, attachment_poll_options=null where id='${FLAGGED}'`);
+    }
+  });
+
+  it.each([
+    ["venue", "attachment_venue_id", "pub-1", { kind: "venue", venueId: "pub-1" }],
+    ["contact", "attachment_contact_handle", "alice", { kind: "contact", handle: "alice" }],
+    ["event", "attachment_plan_id", CONVERSATION, { kind: "event", planId: CONVERSATION }],
+  ])("returns only the reported %s reference", (kind, column, value, expected) => {
+    db().sql(`update public.messages set body='', attachment_kind='${kind}', ${column}='${value}' where id='${FLAGGED}'`);
+    try {
+      expect(json(`select public.read_flagged_message_evidence_admin('${STAFF}','${FLAGGED}')`)).toEqual(expected);
+      expect(scalar(`select count(*) from public.message_flag_evidence_audit`)).toBe("1");
+    } finally {
+      db().sql(`update public.messages set body='You will regret coming tonight', attachment_kind=null, ${column}=null where id='${FLAGGED}'`);
+    }
+  });
+
+  it("refuses evidence access for active non-moderator staff", () => {
+    db().sql(`update public.private_social_staff_roles set role='product_staff' where id='${STAFF}'`);
+    try {
+      expect(db().expectRefusal(asServiceRole(`select public.read_flagged_message_evidence_admin('${STAFF}','${FLAGGED}')`))).toMatch(/staff required/);
+      expect(scalar(`select count(*) from public.message_flag_evidence_audit`)).toBe("0");
+    } finally {
+      db().sql(`update public.private_social_staff_roles set role='moderator' where id='${STAFF}'`);
+    }
+  });
+
   it("refuses a short reason, an unknown person and a deleted account, and writes nothing", () => {
     expect(suspend("suspend", STAFF, TARGET_PROFILE, "x")).toMatchObject({ ok: false, code: "invalid" });
     expect(suspend("suspend", STAFF, POST)).toMatchObject({ ok: false, code: "not_found" });
@@ -227,6 +355,7 @@ describe.skipIf(skipReason !== null)("0223 social safety moderation applied to P
       for (const call of [
         `select public.read_social_report_queue_admin('${staff}',20)`,
         `select public.read_flagged_messages_admin('${staff}',20)`,
+        `select public.read_flagged_message_evidence_admin('${staff}','${FLAGGED}')`,
         `select public.review_flagged_message_admin('${staff}','${FLAGGED}')`,
         `select public.resolve_social_report_admin('${staff}','${POST}')`,
         `select public.set_social_account_suspension_admin('${staff}','${TARGET_PROFILE}','suspend','Threats in DMs',null)`,
@@ -238,12 +367,14 @@ describe.skipIf(skipReason !== null)("0223 social safety moderation applied to P
     expect(auditRows()).toBe(0);
   });
 
-  it("keeps every browser role out of the functions and the two new tables", () => {
+  it("keeps every browser role out of the functions and the private moderation tables", () => {
     for (const role of ["anon", "authenticated"] as const) {
       const sub = role === "anon" ? null : TARGET_USER;
       for (const statement of [
         `select public.read_social_report_queue_admin('${STAFF}',20)`,
         `select public.read_flagged_messages_admin('${STAFF}',20)`,
+        `select public.read_flagged_message_evidence_admin('${STAFF}','${FLAGGED}')`,
+        `select count(*) from public.message_flag_evidence_audit`,
         `select public.set_social_account_suspension_admin('${STAFF}','${REPORTER_PROFILE}','suspend','Threats in DMs',null)`,
         `select count(*) from public.social_account_moderation_audit`,
         `select count(*) from public.message_flag_reviews`,
@@ -253,6 +384,12 @@ describe.skipIf(skipReason !== null)("0223 social safety moderation applied to P
       }
     }
     expect(accountState(REPORTER_ACCOUNT)).toBe("active");
+    db().sql(`insert into public.message_flag_evidence_audit(message_id,staff_role_id,staff_display_name,attachment_kind)
+      values ('${FLAGGED}','${STAFF}','Carol','photo')`);
+    expect(last(db().sql(`begin; grant select on public.message_flag_evidence_audit to authenticated;
+      set role authenticated; select count(*) from public.message_flag_evidence_audit; rollback;`))).toBe("0");
+    expect(last(db().sql(`select relrowsecurity from pg_class where oid='public.message_flag_evidence_audit'::regclass`))).toBe("t");
+    expect(last(db().sql(`select count(*) from pg_policy where polrelid='public.message_flag_evidence_audit'::regclass`))).toBe("0");
   });
 
   it("keeps the audit ledger append-only, even for the service role", () => {
@@ -264,6 +401,8 @@ describe.skipIf(skipReason !== null)("0223 social safety moderation applied to P
       db().expectRefusal(asServiceRole(`update public.social_account_moderation_audit set reason='edited'`)),
     ).toMatch(/permission denied/i);
     expect(auditRows()).toBe(1);
+    expect(db().expectRefusal(asServiceRole(`delete from public.message_flag_evidence_audit`))).toMatch(/permission denied/i);
+    expect(db().expectRefusal(asServiceRole(`update public.message_flag_evidence_audit set staff_display_name='edited'`))).toMatch(/permission denied/i);
   });
 
   it("rolls back to the 0073 report kinds, and the forward file applies again", () => {

@@ -2,14 +2,17 @@ import "server-only";
 
 import {
   parseFlaggedMessages,
+  parseMessageEvidence,
   parseSafetyReports,
   parseSuspensionOutcome,
   SAFETY_QUEUE_LIMIT,
+  type MessageEvidence,
   type SafetyModerationAction,
   type SafetyQueues,
   type SuspensionOutcome,
 } from "@/lib/socialSafetyModeration";
-import { requireSupabaseAdmin } from "@/lib/supabase";
+import { isMessagePhotoServingKey } from "@/lib/messageAttachments";
+import { requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
 /**
@@ -20,6 +23,7 @@ import type { Database } from "@/types/database";
 type SocialSafetyRpcName =
   | "read_social_report_queue_admin"
   | "read_flagged_messages_admin"
+  | "read_flagged_message_evidence_admin"
   | "resolve_social_report_admin"
   | "review_flagged_message_admin"
   | "set_social_account_suspension_admin";
@@ -58,7 +62,31 @@ export function createSocialSafetyStore(rpc: SocialSafetyRpc = defaultRpc) {
     async act(
       staffRoleId: string,
       input: SafetyModerationAction,
-    ): Promise<{ changed: boolean } | SuspensionOutcome> {
+    ): Promise<{ changed: boolean } | SuspensionOutcome | { evidence: MessageEvidence | null }> {
+      if (input.action === "view_message_evidence") {
+        const value = await rpc("read_flagged_message_evidence_admin", {
+          p_staff_role_id: staffRoleId,
+          p_message_id: input.messageId,
+        });
+        if (value === null) return { evidence: null };
+        const row = value as Record<string, unknown>;
+        if (row.kind === "photo") {
+          if (row.messageId !== input.messageId || typeof row.conversationId !== "string"
+            || typeof row.objectKey !== "string"
+            || !isMessagePhotoServingKey(row.conversationId, input.messageId, row.objectKey)) {
+            throw new SocialSafetyStoreError("Evidence answer is malformed.");
+          }
+          const { data, error } = await requireSupabaseAdmin().storage.from(STORAGE_BUCKET)
+            .createSignedUrl(row.objectKey, 180);
+          if (error || !data?.signedUrl) throw new SocialSafetyStoreError("Evidence signing is unavailable.");
+          const evidence = parseMessageEvidence({ kind: "photo", url: data.signedUrl });
+          if (!evidence) throw new SocialSafetyStoreError("Evidence URL is malformed.");
+          return { evidence };
+        }
+        const evidence = parseMessageEvidence(value);
+        if (!evidence) throw new SocialSafetyStoreError("Evidence answer is malformed.");
+        return { evidence };
+      }
       if (input.action === "resolve_report") {
         const value = await rpc("resolve_social_report_admin", {
           p_staff_role_id: staffRoleId,

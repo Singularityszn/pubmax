@@ -15,19 +15,13 @@ const REPORT = "5afe0000-0000-4000-8000-000000000003";
 const MESSAGE = "5afe0000-0000-4000-8000-000000000004";
 
 const rpc = vi.hoisted(() => vi.fn());
+const sign = vi.hoisted(() => vi.fn());
 const limited = vi.hoisted(() => ({ value: false }));
 
-vi.mock("@/lib/adminAuth", () => ({
-  isModerator: (request: Request) => request.headers.get("x-admin-token") === process.env.ADMIN_TOKEN,
-  moderatorStaffRoleId: (request: Request) =>
-    request.headers.get("x-admin-token") === process.env.ADMIN_TOKEN
-      ? process.env.SOCIAL_MODERATOR_STAFF_ROLE_ID ?? null
-      : null,
-}));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => limited.value }));
 vi.mock("@/lib/supabase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/supabase")>()),
-  requireSupabaseAdmin: () => ({ rpc }),
+  requireSupabaseAdmin: () => ({ rpc, storage: { from: () => ({ createSignedUrl: sign }) } }),
 }));
 
 import { GET, POST } from "@/app/api/admin/social-safety/route";
@@ -61,6 +55,7 @@ const MESSAGE_ROW = {
   messageId: MESSAGE,
   conversationId: REPORT,
   body: "You will regret coming tonight",
+  hasAttachment: false,
   senderHandle: "targetted",
   senderProfileId: PROFILE,
   senderAccountState: "active",
@@ -71,6 +66,7 @@ const MESSAGE_ROW = {
 
 beforeEach(() => {
   rpc.mockReset();
+  sign.mockReset();
   limited.value = false;
   vi.stubEnv("ADMIN_TOKEN", TOKEN);
   vi.stubEnv("SOCIAL_MODERATOR_STAFF_ROLE_ID", STAFF_ROLE);
@@ -171,5 +167,79 @@ describe("POST /api/admin/social-safety", () => {
     expect(await (await post({ action: "review_message", messageId: MESSAGE })).json()).toEqual({ ok: true, changed: true });
     expect(rpc).toHaveBeenCalledWith("resolve_social_report_admin", { p_staff_role_id: STAFF_ROLE, p_report_id: REPORT });
     expect(rpc).toHaveBeenCalledWith("review_flagged_message_admin", { p_staff_role_id: STAFF_ROLE, p_message_id: MESSAGE });
+  });
+});
+
+describe("reported attachment evidence", () => {
+  const input = { action: "view_message_evidence", messageId: MESSAGE };
+
+  it("refuses an absent moderator credential before reading or signing", async () => {
+    const response = await post(input, {});
+    expect(response.status).toBe(403);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it("requires a configured staff role before reading or signing", async () => {
+    vi.stubEnv("SOCIAL_MODERATOR_STAFF_ROLE_ID", "");
+    const response = await post(input);
+    expect(response.status).toBe(503);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it("does not accept a caller's object key or conversation", async () => {
+    const response = await post({ ...input, objectKey: "somebody-elses-photo.jpg", conversationId: REPORT });
+    expect(response.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it("signs only the reported message photo for three minutes and returns no raw key", async () => {
+    rpc.mockResolvedValue({ data: { kind: "photo", messageId: MESSAGE, conversationId: REPORT,
+      objectKey: `messages/${REPORT}/${MESSAGE}.jpg` }, error: null });
+    const signed = "https://storage.example/object/sign/private/photo.jpg?token=short-lived";
+    sign.mockResolvedValue({ data: { signedUrl: signed }, error: null });
+    const response = await post(input);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(await response.json()).toEqual({ evidence: { kind: "photo", url: signed } });
+    expect(sign).toHaveBeenCalledWith(`messages/${REPORT}/${MESSAGE}.jpg`, 180);
+    expect(rpc).toHaveBeenCalledWith("read_flagged_message_evidence_admin", { p_staff_role_id: STAFF_ROLE, p_message_id: MESSAGE });
+  });
+
+  it.each([
+    ["an unflagged or missing message", null, null, 404],
+    ["a revoked staff role", null, { message: "staff required" }, 503],
+    ["a different message's photo", { kind: "photo", messageId: PROFILE, conversationId: REPORT, objectKey: `messages/${REPORT}/${PROFILE}.jpg` }, null, 503],
+    ["a photo key outside the message", { kind: "photo", messageId: MESSAGE, conversationId: REPORT, objectKey: "public/other.jpg" }, null, 503],
+  ])("does not sign %s", async (_label, data, error, status) => {
+    rpc.mockResolvedValue({ data, error });
+    const response = await post(input);
+    expect(response.status).toBe(status);
+    expect(await response.json()).not.toHaveProperty("evidence");
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it("refuses a failed signing operation without returning evidence", async () => {
+    rpc.mockResolvedValue({ data: { kind: "photo", messageId: MESSAGE, conversationId: REPORT,
+      objectKey: `messages/${REPORT}/${MESSAGE}.jpg` }, error: null });
+    sign.mockResolvedValue({ data: null, error: { message: "unavailable" } });
+    const response = await post(input);
+    expect(response.status).toBe(503);
+    expect(await response.json()).not.toHaveProperty("evidence");
+  });
+
+  it.each([
+    { kind: "poll", question: "Who should we threaten?", options: ["Alice", "Bob"] },
+    { kind: "venue", venueId: "pub-1" },
+    { kind: "contact", handle: "alice" },
+    { kind: "event", planId: PROFILE },
+  ])("returns only the reported $kind attachment", async (evidence) => {
+    rpc.mockResolvedValue({ data: { ...evidence, unrelatedMessage: "secret" }, error: null });
+    const response = await post(input);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ evidence });
+    expect(sign).not.toHaveBeenCalled();
   });
 });

@@ -13,6 +13,8 @@ import { displayHandle } from "@/lib/handleDisplay";
 import { discardBody } from "@/lib/responseBody";
 import {
   parseSafetyQueues,
+  parseMessageEvidence,
+  type MessageEvidence,
   SOCIAL_REPORT_REASON_LABELS,
   SUSPEND_REASON_MAX,
   SUSPEND_REASON_MIN,
@@ -38,7 +40,7 @@ type SuspendTarget = {
   key: string;
   profileId: string;
   handle: string;
-  state: AccountState;
+  state: AccountState | null;
   reportId: string | null;
   suggestedReason: string;
 };
@@ -67,7 +69,7 @@ function SuspendControl({
 }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState(target.suggestedReason);
-  const suspending = target.state === "active";
+  const suspending = target.state !== "suspended";
   const verb = suspending ? "Suspend" : "Reinstate";
   const trimmed = reason.trim();
   const valid = trimmed.length >= SUSPEND_REASON_MIN && trimmed.length <= SUSPEND_REASON_MAX;
@@ -122,6 +124,35 @@ function AccountBadge({ state }: { state: AccountState | null }) {
   return null;
 }
 
+function MessageAttachmentEvidence({ messageId, busy, view }: {
+  messageId: string;
+  busy: boolean;
+  view: () => Promise<Record<string, unknown> | null>;
+}) {
+  const [evidence, setEvidence] = useState<MessageEvidence | null>(null);
+  return (
+    <div>
+      <button type="button" className="admin-btn" disabled={busy} onClick={async () => {
+        setEvidence(null);
+        const body = await view();
+        setEvidence(parseMessageEvidence(body?.evidence));
+      }}>View reported attachment</button>
+      {evidence?.kind === "photo" ? (
+        <a href={evidence.url} target="_blank" rel="noreferrer">Open reported photo (expires after 3 minutes)</a>
+      ) : null}
+      {evidence?.kind === "poll" ? (
+        <div aria-label={`Reported poll ${messageId}`}>
+          <p>{evidence.question}</p>
+          <ul>{evidence.options.map((option, index) => <li key={index}>{option}</li>)}</ul>
+        </div>
+      ) : null}
+      {evidence?.kind === "venue" ? <p>Shared pub: {evidence.venueId}</p> : null}
+      {evidence?.kind === "contact" ? <p>Shared person: {displayHandle(evidence.handle)}</p> : null}
+      {evidence?.kind === "event" ? <p>Shared Plan: {evidence.planId}</p> : null}
+    </div>
+  );
+}
+
 export default function SocialSafetyModeration() {
   const [queues, setQueues] = useState<SafetyQueues>({ reports: [], flaggedMessages: [] });
   const [state, setState] = useState<LoadState>("loading");
@@ -169,7 +200,7 @@ export default function SocialSafetyModeration() {
         setError(typeof body?.error === "string" ? body.error : "That decision did not save. Try again.");
         return null;
       }
-      await load();
+      if (payload.action !== "view_message_evidence") await load();
       return body ?? {};
     } catch {
       setError("That decision did not save. Try again.");
@@ -180,7 +211,7 @@ export default function SocialSafetyModeration() {
   }
 
   async function setSuspension(target: SuspendTarget, reason: string) {
-    const action = target.state === "active" ? "suspend" : "reinstate";
+    const action = target.state !== "suspended" ? "suspend" : "reinstate";
     const body = await post(target.key, {
       action,
       profileId: target.profileId,
@@ -197,7 +228,7 @@ export default function SocialSafetyModeration() {
   }
 
   function reportTarget(report: SafetyReportItem): SuspendTarget | null {
-    if (!report.targetProfileId || !report.targetHandle || !report.targetAccountState) return null;
+    if (!report.targetProfileId || !report.targetHandle) return null;
     return {
       key: `report:${report.reportId}`,
       profileId: report.targetProfileId,
@@ -209,7 +240,7 @@ export default function SocialSafetyModeration() {
   }
 
   function messageTarget(message: FlaggedMessageItem): SuspendTarget | null {
-    if (!message.senderProfileId || !message.senderAccountState) return null;
+    if (!message.senderProfileId) return null;
     return {
       key: `message:${message.messageId}`,
       profileId: message.senderProfileId,
@@ -295,6 +326,11 @@ export default function SocialSafetyModeration() {
                   <span className="admin-report">Flagged</span>
                 </div>
                 <p className="admin-excerpt">{message.body || "A photo or poll with no text"}</p>
+                {message.hasAttachment ? <MessageAttachmentEvidence
+                  messageId={message.messageId}
+                  busy={busy}
+                  view={() => post(`evidence:${message.messageId}`, { action: "view_message_evidence", messageId: message.messageId })}
+                /> : null}
                 <div className="admin-meta">
                   {message.flaggedBy ? <span>Flagged by {displayHandle(message.flaggedBy)}</span> : null}
                   <span>Sent <time dateTime={message.sentAt}>{when(message.sentAt)}</time></span>

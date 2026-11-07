@@ -38,7 +38,6 @@ export type SafetyReportItem = {
   /** The person the report is about, or null when their content has gone. */
   targetProfileId: string | null;
   targetHandle: string | null;
-  /** Null when the person has no Social account to suspend. */
   targetAccountState: AccountState | null;
   /** Up to 280 characters of the reported text. Null for a person report. */
   excerpt: string | null;
@@ -48,6 +47,7 @@ export type FlaggedMessageItem = {
   messageId: string;
   conversationId: string;
   body: string;
+  hasAttachment: boolean;
   senderHandle: string;
   senderProfileId: string | null;
   senderAccountState: AccountState | null;
@@ -64,6 +64,7 @@ export type SafetyQueues = {
 export type SafetyModerationAction =
   | { action: "resolve_report"; reportId: string }
   | { action: "review_message"; messageId: string }
+  | { action: "view_message_evidence"; messageId: string }
   | {
       action: "suspend" | "reinstate";
       profileId: string;
@@ -151,6 +152,7 @@ function parseFlaggedMessage(value: unknown): FlaggedMessageItem | null {
     !isUuid(row.messageId) ||
     !isUuid(row.conversationId) ||
     typeof row.body !== "string" ||
+    typeof row.hasAttachment !== "boolean" ||
     !text(row.senderHandle) ||
     senderProfileId === undefined ||
     senderAccountState === undefined ||
@@ -164,6 +166,7 @@ function parseFlaggedMessage(value: unknown): FlaggedMessageItem | null {
     messageId: row.messageId,
     conversationId: row.conversationId,
     body: row.body,
+    hasAttachment: row.hasAttachment,
     senderHandle: row.senderHandle,
     senderProfileId,
     senderAccountState,
@@ -210,9 +213,9 @@ export function parseSafetyModerationAction(value: unknown): SafetyModerationAct
       ? { action: "resolve_report", reportId: row.reportId }
       : null;
   }
-  if (row.action === "review_message") {
+  if (row.action === "review_message" || row.action === "view_message_evidence") {
     return keys === "action,messageId" && isUuid(row.messageId)
-      ? { action: "review_message", messageId: row.messageId }
+      ? { action: row.action, messageId: row.messageId }
       : null;
   }
   if (row.action === "suspend" || row.action === "reinstate") {
@@ -234,4 +237,27 @@ export function parseSuspensionOutcome(value: unknown): SuspensionOutcome | null
   const state = row.state === undefined ? null : accountState(row.state);
   if (state === undefined) return null;
   return { code: row.code as SuspensionOutcome["code"], state };
+}
+
+export type MessageEvidence =
+  | { kind: "photo"; url: string }
+  | { kind: "poll"; question: string; options: string[] }
+  | { kind: "venue"; venueId: string }
+  | { kind: "contact"; handle: string }
+  | { kind: "event"; planId: string };
+
+export function parseMessageEvidence(value: unknown): MessageEvidence | null {
+  const row = record(value);
+  if (!row) return null;
+  if (row.kind === "photo" && typeof row.url === "string" && row.url.startsWith("https://")) {
+    return { kind: "photo", url: row.url };
+  }
+  if (row.kind === "poll" && text(row.question) && Array.isArray(row.options)
+    && row.options.length >= 2 && row.options.length <= 6 && row.options.every(text)) {
+    return { kind: "poll", question: row.question, options: row.options };
+  }
+  if (row.kind === "venue" && text(row.venueId)) return { kind: "venue", venueId: row.venueId };
+  if (row.kind === "contact" && text(row.handle)) return { kind: "contact", handle: row.handle };
+  if (row.kind === "event" && isUuid(row.planId)) return { kind: "event", planId: row.planId };
+  return null;
 }

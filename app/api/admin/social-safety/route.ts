@@ -63,6 +63,12 @@ export async function POST(request: Request): Promise<Response> {
   }
   try {
     const result = await store.act(staffRoleId, input);
+    if ("evidence" in result) {
+      if (!result.evidence) {
+        return publicApiError("That reported attachment is unavailable.", "NOT_FOUND", 404, { headers: PRIVATE });
+      }
+      return Response.json({ evidence: result.evidence }, { headers: PRIVATE });
+    }
     if ("code" in result) {
       if (result.code === "invalid") {
         return publicApiError("Moderation request is not valid.", "MALFORMED_REQUEST", 400, { headers: PRIVATE });

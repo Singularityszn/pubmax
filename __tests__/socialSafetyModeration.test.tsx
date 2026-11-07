@@ -49,6 +49,7 @@ beforeEach(() => {
     messageId: id(index + 101),
     conversationId: id(200),
     body: `Message ${index + 1}`,
+    hasAttachment: false,
     senderHandle: "sender",
     senderProfileId: null,
     senderAccountState: null,
@@ -60,6 +61,9 @@ beforeEach(() => {
     if (init?.method === "POST") {
       if (decisionFails) return Response.json({ error: "Decision unavailable" }, { status: 503 });
       const action = JSON.parse(String(init.body));
+      if (action.action === "view_message_evidence") return Response.json({ evidence: {
+        kind: "poll", question: "Who should we threaten?", options: ["Alice", "Bob"],
+      } });
       if (action.action === "resolve_report") reports = reports.filter((row) => row.reportId !== action.reportId);
       if (action.action === "review_message") messages = messages.filter((row) => row.messageId !== action.messageId);
       return Response.json({ ok: true });
@@ -114,5 +118,33 @@ describe("bounded moderation queues", () => {
     expect(messages).toHaveLength(51);
     expect(host.textContent).not.toContain("Incident 51");
     expect(host.textContent).not.toContain("Message 51");
+  });
+});
+
+describe("moderation of returning senders and attachments", () => {
+  it.each(["report", "message"])("suspends a linked person without a Social account from a %s", async (kind) => {
+    reports = [{ ...reports[0]!, targetProfileId: id(100), targetHandle: "returning", targetAccountState: null }];
+    messages = [{ ...messages[0]!, senderProfileId: id(100), senderHandle: "returning", senderAccountState: null }];
+    await render();
+    const suspendButtons = [...host.querySelectorAll("button")].filter((node) => node.textContent === "Suspend @returning");
+    expect(suspendButtons).toHaveLength(2);
+    await act(async () => suspendButtons[kind === "report" ? 0 : 1]!.click());
+    const form = host.querySelector("form");
+    if (!form) throw new Error("Suspension form missing");
+    await act(async () => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    const calls = vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(JSON.parse(String(calls[0]?.[1]?.body))).toMatchObject({ action: "suspend", profileId: id(100), reportId: kind === "report" ? reports[0]!.reportId : null });
+  });
+
+  it("loads a reported poll on demand without exposing evidence in the queue", async () => {
+    reports = [];
+    messages = [{ ...messages[0]!, hasAttachment: true }];
+    await render();
+    expect(host.textContent).not.toContain("Who should we threaten?");
+    await decide("View reported attachment");
+    expect(host.textContent).toContain("Who should we threaten?");
+    expect([...host.querySelectorAll("li")].map((row) => row.textContent)).toEqual(["Alice", "Bob"]);
+    await decide("View reported attachment");
+    expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
   });
 });

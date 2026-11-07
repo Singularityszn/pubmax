@@ -5,18 +5,20 @@ begin;
 -- COST, read before applying:
 -- - Every person report ('profile') is DELETED, because the 0073 kind check
 --   cannot hold one. Post, comment and quote reports stay.
--- - The suspend audit ledger and the flagged DM reviews are DROPPED. Every
+-- - The suspend and evidence audit ledgers and flagged DM reviews are DROPPED. Every
 --   flagged DM shows as unreviewed again.
 -- - An account this release suspended STAYS suspended. Nothing here guesses
 --   which suspensions to undo; reinstate by hand before rolling back if needed.
 
 drop function if exists public.set_social_account_suspension_admin(uuid, uuid, text, text, uuid);
 drop function if exists public.review_flagged_message_admin(uuid, uuid);
+drop function if exists public.read_flagged_message_evidence_admin(uuid, uuid);
 drop function if exists public.read_flagged_messages_admin(uuid, integer);
 drop function if exists public.resolve_social_report_admin(uuid, uuid);
 drop function if exists public.read_social_report_queue_admin(uuid, integer);
 
 drop table if exists public.social_account_moderation_audit;
+drop table if exists public.message_flag_evidence_audit;
 drop table if exists public.message_flag_reviews;
 drop index if exists public.messages_flagged_at_idx;
 

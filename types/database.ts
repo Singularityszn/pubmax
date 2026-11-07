@@ -901,6 +901,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      message_flag_evidence_audit: {
+        Row: {
+          id: string;
+          message_id: string | null;
+          staff_role_id: string | null;
+          staff_display_name: string;
+          attachment_kind: string;
+          viewed_at: string;
+        };
+        Insert: {
+          id?: string;
+          message_id?: string | null;
+          staff_role_id?: string | null;
+          staff_display_name: string;
+          attachment_kind: string;
+          viewed_at?: string;
+        };
+        Update: {
+          id?: string;
+          message_id?: string | null;
+          staff_role_id?: string | null;
+          staff_display_name?: string;
+          attachment_kind?: string;
+          viewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "message_flag_evidence_audit_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "message_flag_evidence_audit_staff_role_id_fkey";
+            columns: ["staff_role_id"];
+            isOneToOne: false;
+            referencedRelation: "private_social_staff_roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       message_flag_reviews: {
         Row: {
           message_id: string;
@@ -8288,6 +8330,13 @@ export type Database = {
           p_contribution_kind: string | null;
           p_contribution_id: string | null;
           p_accepted_at: string | null;
+        };
+        Returns: Json;
+      };
+      read_flagged_message_evidence_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_message_id: string | null;
         };
         Returns: Json;
       };
