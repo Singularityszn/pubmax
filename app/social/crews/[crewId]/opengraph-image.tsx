@@ -28,10 +28,8 @@ export const alt = "An open pub crawl on PUBMAXX";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
-// Places left moves as people join, so the edge keeps this card for five
-// minutes rather than the hour the brand kit's default allows.
 const OPEN_CRAWL_OG_HEADERS = {
-  "cache-control": "public, max-age=0, s-maxage=300, stale-while-revalidate=3600",
+  "cache-control": "private, no-store",
 } as const;
 
 const OG_TEXT = { collapseWhitespace: true, collapseBeforeFilter: true } as const;
