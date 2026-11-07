@@ -13,12 +13,13 @@ import { addressFromSlimSearchText } from "@/lib/slimPins";
 //
 // The persona: a 9-to-5 Londoner leaving the office at 6pm who wants the
 // cheapest good pint NEAR THEM, tonight. This module turns "my location + the
-// slim priced index" into 3–5 answer cards — no map, no maplibre, no network
+// slim venue index" into priced answer cards and a separate nearest-pub result.
+// There is no map, no maplibre, and no network
 // beyond the ~570 KB slim index the map already caches. Every function here is
 // pure and deterministic so it unit-tests against tiny fixtures.
 //
 // Honesty contract (PRD §3): "quality" is NOT a made-up score. A pub qualifies
-// only when its price is a comparable, sourced and dated pint.
+// for price ranking only when its price is a comparable, sourced and dated pint.
 // The slim index has no per-venue "closed" flag, so a priced pub is the whole
 // of the quality bar here; when a closed flag lands, extend `qualifies`.
 
@@ -149,9 +150,9 @@ export type NearestPub = Pick<NearMeCard, "id" | "name" | "borough"> & {
 };
 
 /**
- * The closest listed public pub, including pubs without a recorded pint price.
- * `shownIds` names the pubs already on screen beside it: when one of them
- * shares this pub's name, both read with their branch, as the cards do.
+ * The closest public pub in the supplied list, including pubs without a price.
+ * `shownIds` identifies the displayed price results. A matching name gives
+ * the nearest pub a branch label without changing those results.
  */
 export function nearestListedPub(
   lat: number,
