@@ -343,6 +343,10 @@ vocabularies. The column here is the question the event exists to answer.
 | `invite_reaction_toggled` | A reaction was added or removed. |
 | `invite_map_opened` | The invite sent somebody to the Map. |
 | `friend_edge_via_crew` | A mutual pair formed because both were on one crew. |
+| `open_crawl_opened` | A host opened a locked plan up to strangers. |
+| `crew_join_requested` | Somebody asked to join an open crawl. |
+| `crew_join_accepted` | The host let a join request in. |
+| `crew_arrived` | A plan's guests reached an arrival band on its night. Server-minted, once per band per night. See METRICS.md 3.3. |
 | `out_tonight_beacon_on` | The crew-only beacon went on. |
 | `out_tonight_beacon_off` | It went off. |
 

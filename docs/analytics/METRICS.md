@@ -46,7 +46,7 @@ Two rules ride with it.
 A kept action is an outcome the server already wrote down. Only these ride the
 verified delivery lane, which mints a signed token from the durable subject, claims a
 receipt before the event is forwarded, and refuses a repeat of the same subject:
-`plan_draft_saved`, `plan_accepted`, `crew_committed`, `plan_completed`, and
+`plan_draft_saved`, `plan_accepted`, `crew_committed`, `crew_arrived`, `plan_completed`, and
 `meaningful_core_action` with `action` of `plan_accepted` or `plan_completed`
 (`app/api/events/route.ts`, `lib/verifiedAnalytics.server.ts`,
 `lib/analyticsReceiptStore.ts`).
@@ -55,8 +55,8 @@ Three consequences.
 
 - A failed or cancelled action mints no token, so it can never reach these figures.
 - A retried delivery reports the same night once. `crew_committed` is keyed on the
-  plan and its night, `plan_completed` on the completion, so a repeat is refused as
-  already delivered.
+  plan and its night, `crew_arrived` on the plan, its night and the band, and
+  `plan_completed` on the completion, so a repeat is refused as already delivered.
 - Every other event is an impression or an attempt. An impression may be half of a
   ratio. It is never a kept action.
 
@@ -239,6 +239,31 @@ The [invite delivery notes](../METRICS_FUNNEL.md#2-invites-per-planner-and-invit
 
 These corrections change documentation only. Existing saved reports require owner review before their names or definitions change.
 Keep old report exports with their original definition and reporting dates.
+
+### 3.3 The host loop on an open crawl
+
+The launch metric is hosted nights where 4 or more people other than the host
+arrived. Read it as a count of `crew_arrived` events with `guestsArrived = 4+`.
+
+- `crew_arrived` counts guests marked "Here" on the plan page. The host is the
+  first seat by join order and is never a guest.
+- Each band (`1`, `2-3`, `4+`) is reported once a night, so a night of six guests
+  sends one event in each band. Count one band. Never add the bands together.
+- Every member's status write carries the receipts, the host's included. The
+  night is counted when any one consented device sends them.
+
+| Measure | Numerator | Denominator | Limits |
+|---|---|---|---|
+| Hosted nights with 4 or more guests | `crew_arrived` with `guestsArrived = 4+` | Not a rate | Guests who never tap "Here" are not counted |
+| Join requests answered | `crew_join_accepted` count | `crew_join_requested` count | Two weekly counts. Declines and cancels are not events. Time to answer is not measurable without a crew id |
+| Open crawls that drew a request | `crew_join_requested` count | `open_crawl_opened` count | Requests per opened crawl, not unique crawls |
+
+`crew_committed` rides only the joining guest's browser, and it sends nothing
+without that guest's analytics consent. On 7 November 2026 production held two
+plans that had reached two members (5 September and 23 October). The receipt
+table was empty and PostHog had no `crew_committed` row, and no consented event
+of any kind arrived around the 23 October join. Read a zero there as "no
+consented guest", not as "no crew".
 
 ## 4. What this file will not define
 

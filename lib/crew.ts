@@ -79,3 +79,46 @@ export const CREW_NIGHT_MIN_PARTICIPANTS = 2;
 export function joinCommitsCrewNight(participantsAfterJoin: number): boolean {
   return participantsAfterJoin === CREW_NIGHT_MIN_PARTICIPANTS;
 }
+
+/**
+ * The arrival bands a night's guests can reach, smallest first. A band, not a
+ * count, because the launch metric asks "did four or more guests turn up?"
+ * and a band crossing is a fact that happens once per night, while a raw count
+ * would need a per-night key to take its maximum, and a per-night key is the
+ * identity join ADR 0009 rules out.
+ */
+export const CREW_ARRIVED_BANDS = ["1", "2-3", "4+"] as const;
+export type CrewArrivedBand = (typeof CREW_ARRIVED_BANDS)[number];
+
+const CREW_ARRIVED_BAND_FLOORS: Record<CrewArrivedBand, number> = { "1": 1, "2-3": 2, "4+": 4 };
+
+/**
+ * Guests (everyone but the host) whose status is "Here". The host is the first
+ * seat by join order, the same rule `planMemberIdentity` uses to name the host,
+ * so a host who taps "Here" never counts as a guest who turned up.
+ */
+export function guestsArrived(crew: readonly Pick<CrewMemberDTO, "status">[]): number {
+  return crew.slice(1).filter((member) => member.status === "here").length;
+}
+
+/** Every band the night's guests have reached so far, smallest first. */
+export function crewArrivedBandsReached(crew: readonly Pick<CrewMemberDTO, "status">[]): CrewArrivedBand[] {
+  const arrived = guestsArrived(crew);
+  return CREW_ARRIVED_BANDS.filter((band) => arrived >= CREW_ARRIVED_BAND_FLOORS[band]);
+}
+
+/**
+ * The arrival receipts a status write answered with, read defensively: only a
+ * known band with a bounded token survives. The token is checked for real at
+ * ingest; this only keeps a malformed body from reaching the beacon.
+ */
+export function parseCrewArrivedReceipts(value: unknown): { deliveryToken: string; guestsArrived: CrewArrivedBand }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const { deliveryToken, guestsArrived } = item as Record<string, unknown>;
+    if (typeof deliveryToken !== "string" || !deliveryToken || deliveryToken.length > 2_000) return [];
+    if (!CREW_ARRIVED_BANDS.includes(guestsArrived as CrewArrivedBand)) return [];
+    return [{ deliveryToken, guestsArrived: guestsArrived as CrewArrivedBand }];
+  }).slice(0, CREW_ARRIVED_BANDS.length);
+}

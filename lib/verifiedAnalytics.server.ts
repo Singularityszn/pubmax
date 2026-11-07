@@ -7,6 +7,7 @@ import {
   type AnalyticsEvent,
   type PlanningSource,
 } from "@/lib/analyticsEvents";
+import type { CrewArrivedBand } from "@/lib/crew";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 const TOKEN_VERSION = 1;
@@ -213,6 +214,27 @@ export function crewCommittedEventToken(input: {
     },
     `plan:${input.planId}:crew-night:${input.nightKey}:crew-committed`,
     input.committedAt,
+  );
+}
+
+/**
+ * The arrival receipt: a plan's guests reached one arrival band on one night.
+ *
+ * The subject is the plan, the night and the BAND, so `eventId` is the same
+ * for every mint of that band that night. Whichever member's device sends it
+ * first is counted, and every later copy (another member, a status toggled
+ * off and on again) is refused at ingest as already delivered.
+ */
+export function crewArrivedEventToken(input: {
+  planId: string;
+  nightKey: string;
+  arrivedAt: string;
+  band: CrewArrivedBand;
+}): string {
+  return mintVerifiedAnalyticsToken(
+    { name: "crew_arrived", props: { guestsArrived: input.band } },
+    `plan:${input.planId}:crew-night:${input.nightKey}:guests-arrived:${input.band}`,
+    input.arrivedAt,
   );
 }
 
