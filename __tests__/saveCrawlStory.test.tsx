@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getAccessToken = vi.hoisted(() => vi.fn(async () => "account-a-token"));
 
-vi.mock("@/lib/authClient", () => ({ getAccessToken }));
+vi.mock("@/lib/authClient", () => ({ getAccessToken, warmAuthClientModule: () => undefined }));
 
 // The contribution gate reads the account from useAuth. Only the two fields it
 // acts on are steered; everything else is the real signed-out context.

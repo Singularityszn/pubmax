@@ -16,7 +16,7 @@ vi.mock("next/link", () => ({
   },
   useLinkStatus: () => ({ pending: false }),
 }));
-vi.mock("@/lib/authClient", () => ({ getAccessToken: vi.fn() }));
+vi.mock("@/lib/authClient", () => ({ getAccessToken: vi.fn(), warmAuthClientModule: () => undefined }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/components/map/useWhatsOnTonight", () => ({ useWhatsOnTonight: () => ({ rows: [], status: "idle" }) }));
 vi.mock("@/lib/venuesSlim", () => ({

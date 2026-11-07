@@ -84,6 +84,35 @@ export async function installNativeSession(
   }
 }
 
+/**
+ * Start downloading the auth chunk without building a client.
+ *
+ * The chunk stays code-split off the critical path. The cost is when the
+ * browser learns about it: a dynamic import inside a React effect is not
+ * discovered until the tree has hydrated, so a throttled phone asks for it
+ * long after every other chunk. AuthProvider calls this at module-execution
+ * time, which runs before hydration.
+ *
+ * It does not build the client. `createClient` starts session persistence and
+ * background refresh, so moving it earlier would change behaviour, not only a
+ * download. `ensureSupabaseBrowser` still constructs on first real call.
+ *
+ * It fetches nothing a deployment cannot use. The config is resolved first,
+ * exactly as `buildBrowserClient` does, so a keyless build downloads nothing.
+ */
+export function warmAuthClientModule(): void {
+  if (typeof window === "undefined" || modulePromise) return;
+  if (!isAuthConfigured()) return;
+  const warm = import("@supabase/supabase-js");
+  modulePromise = warm;
+  // A failed warm is not an answer about the viewer. It is dropped here, and
+  // ensureSupabaseBrowser retries the import on its own terms
+  // (lib/authClientLoad.ts owns that retry and its tri-state).
+  void warm.catch(() => {
+    if (modulePromise === warm) modulePromise = undefined;
+  });
+}
+
 function buildBrowserClient(): Promise<SupabaseClient | null> {
   return (async () => {
     const config = resolveSupabaseConfig(

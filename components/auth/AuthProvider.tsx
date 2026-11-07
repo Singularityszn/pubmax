@@ -56,7 +56,7 @@ import {
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
+import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, installNativeSession, isAuthConfigured, nativeSessionInstallationPending, warmAuthClientModule } from "@/lib/authClient";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -330,6 +330,12 @@ const NOBODY_IDENTITY: CanonicalIdentityState = {
   status: "resolved",
   identity: null,
 };
+
+// Asked for at module-execution time, before hydration. The effect that needs
+// the client runs after hydration. Only the chunk is downloaded here: no client
+// is built and no session is read, so the provider's tri-state is decided by
+// the same code as before, without waiting on a download nobody had started.
+warmAuthClientModule();
 
 export function AuthProvider({
   children,
