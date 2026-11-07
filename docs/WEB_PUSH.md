@@ -11,7 +11,7 @@ registrations. Plan/person targeting remains closed until Wave 1.4.
 2. Set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and optionally
    `VAPID_SUBJECT` in both production projects. Never commit the private key.
 3. Apply additive migration
-   `supabase/migrations/20260720160000_0046_web_push_subscriptions.sql`. It adds
+   `supabase/migrations/20260723121000_0052_web_push_subscriptions.sql`. It adds
    `web` to the existing identity-free registry and raises the opaque-token
    bound to 2048; existing native rows do not change.
 4. Deploy. The UI must call `registerWebPush()` only after a real user action;
