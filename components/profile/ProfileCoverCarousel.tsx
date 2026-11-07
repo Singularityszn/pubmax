@@ -18,8 +18,9 @@ import { profileImageOutputBox } from "@/lib/profileImageSlots";
 // 1. IT STARTS STILL. `reducedMotion` begins true, because a server render
 //    cannot ask the reader's setting and a page that starts moving and then
 //    stops is worse than one that starts still and then moves. The first paint
-//    is therefore cover #1 alone, on every reader's machine, and the rotation
-//    only begins once the browser has answered.
+//    reserves one still frame for cover #1. `ProfileCoverImage` loads its bytes
+//    after the auth provider answers. The rotation only begins once the browser
+//    answers the motion query.
 //
 // 2. REDUCED MOTION MEANS NO ROTATION AT ALL. Not a slower one, not a fade
 //    without a timer: the first cover, static, and the other four are never

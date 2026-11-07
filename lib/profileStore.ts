@@ -283,9 +283,9 @@ function withProfileImageState(
 }
 
 /**
- * Public served path for an approved owned image in one slot. Absent, pending,
- * flagged, or hidden images yield undefined so callers fall back to initials
- * (avatar) or the brass treatment (cover).
+ * Reader path for an approved owned image in one slot. The serve route checks
+ * access. Absent, pending, flagged, or hidden images yield undefined so callers
+ * fall back to initials (avatar) or the brass treatment (cover).
  */
 export function publicOwnedImageUrl(
   profile: ProfileRecord,
@@ -506,7 +506,7 @@ export type ProfileStore = {
     action: "hide" | "restore",
     note?: string,
   ): Promise<boolean>;
-  /** Reported, still-public owned images awaiting a moderator decision. */
+  /** Reported, approved owned images awaiting a moderator decision. */
   listReportedImages(
     slot: ProfileImageSlot,
     limit?: number,
