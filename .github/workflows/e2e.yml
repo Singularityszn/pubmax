@@ -16,8 +16,8 @@ concurrency:
   # older run. Main pushes share one group (captain, 19 Oct 2026): the run
   # in progress finishes, and only the newest push waits behind it, because
   # GitHub keeps one waiting run per group and cancels the older one. Each
-  # push holds 3 of the free plan's 5 macOS runners, and on 19 Oct 22 merges
-  # queued 66 macOS jobs that held pull requests up to 72 minutes. The
+  # push starts three layout-pin jobs. On 19 Oct 22 merges queued 66 hosted
+  # macOS jobs that held pull requests up to 72 minutes. The
   # newest main commit holds every older one, so main is still tested.
   # The schedule and a dispatch each get a group of their own, so GitHub
   # never drops one while it waits.
@@ -28,8 +28,7 @@ concurrency:
 jobs:
   law-pins:
     name: Browser law pins
-    # ubuntu-latest: the free plan runs about 20 Linux jobs at once but only
-    # 5 macOS jobs, and the macOS queue held every pull request's browser run.
+    # docs/CI_RUNBOOK.md owns runner selection and queue policy.
     # These journeys passed on Linux (16 Oct 2026). The one law pin that
     # measures phone chrome geometry, e2e/mobile-map-chrome-fit.spec.ts, lost
     # 7px at 320px to Linux glyph widths, so it runs with the layout pins.
@@ -145,15 +144,14 @@ jobs:
   change-scope:
     name: Change scope
     # Decides once, on Linux, whether this change needs the macOS layout
-    # pins. The free plan runs only 5 macOS jobs at once and every pull
-    # request held 3 of them, even a docs-only one whose steps were all
-    # skipped. The layout-pin jobs below read the "layout" output and are
-    # skipped whole when it is not "ui", so a pull request that changes no
+    # pins. A docs-only pull request used to hold Mac runners even when
+    # all its steps were skipped. The layout-pin jobs read the "layout" output
+    # and are skipped whole when it is not "ui", so a pull request that changes no
     # screen code starts no macOS runner. They are three named jobs, not a
     # matrix: a skipped matrix job reports under its unexpanded name, but a
     # skipped named job reports under its own name and counts as passed for
     # branch protection.
-    # The layout jobs fail closed: if this job fails, they run anyway, so a
+    # For eligible events, the layout jobs run even if this job fails, so a
     # broken classifier can never turn a code change into a skipped (passed)
     # layout check.
     runs-on: ubuntu-latest
@@ -218,15 +216,18 @@ jobs:
     # cut into three shards on separate runners, one worker each, so the law
     # pins above keep their own clock. The three jobs share one step list
     # (the YAML anchor below) and differ only in LAYOUT_SHARD.
-    # They stay on macos-latest. The specs were proved on macOS glyph widths,
-    # and on ubuntu-latest (16 Oct 2026) four of them failed on a measured
-    # edge, for example 7px short at 320px.
+    # They run on macOS, on the pubmax-mac self-hosted pool. The specs were
+    # proved on macOS glyph widths, and on ubuntu-latest (16 Oct 2026) four
+    # of them failed on a measured edge, for example 7px short at 320px.
+    # Runner-up's fork guard controls runner access. GitHub also requires
+    # approval for all outside collaborators. The `if` condition adds defence
+    # in depth only (docs/CI_RUNBOOK.md, "Self-hosted Mac runners").
     # The nightly and a dispatch skip them: the full suite below runs every
     # one of these specs on the same commit, and the three jobs would hold
-    # three of the five macOS runners while the full suite waits for them.
+    # the pool while the full suite waits for them.
     needs: [change-scope]
-    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
-    runs-on: macos-latest
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    runs-on: pubmax-mac
     timeout-minutes: 40
     env:
       LAYOUT_SHARD: 1
@@ -235,6 +236,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Keep caches inside the job
+        uses: ./.github/actions/pubmax-job-local-caches
 
       - name: Setup Node
         timeout-minutes: 5
@@ -350,8 +354,8 @@ jobs:
   layout-pins-2:
     name: Browser layout pins (2/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
-    runs-on: macos-latest
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    runs-on: pubmax-mac
     timeout-minutes: 40
     env:
       LAYOUT_SHARD: 2
@@ -360,8 +364,8 @@ jobs:
   layout-pins-3:
     name: Browser layout pins (3/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
-    runs-on: macos-latest
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    runs-on: pubmax-mac
     timeout-minutes: 40
     env:
       LAYOUT_SHARD: 3
@@ -370,9 +374,9 @@ jobs:
   full-suite:
     name: Full browser suite (${{ matrix.shard }}/8)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: macos-latest
+    runs-on: pubmax-mac
     timeout-minutes: 45
-    # A hosted macOS runner gives Playwright one worker. Two shards of about
+    # The hosted macOS runners gave Playwright one worker. Two shards of about
     # 645 tests each did not finish inside the 45-minute ceiling (4 Oct 2026
     # nightly and dispatch), so the suite was cut into four. By 28 Oct the four
     # shards held about 620 tests each: shard 4 was cancelled at 45 minutes on
@@ -396,6 +400,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Keep caches inside the job
+        uses: ./.github/actions/pubmax-job-local-caches
+
       - name: Setup Node
         timeout-minutes: 5
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -416,6 +423,9 @@ jobs:
 
       # The Chromium project needs no keyless server, so each shard pays for
       # one production build rather than two (about 3.5 minutes each).
+      # One worker, the count a hosted macOS runner gave it. Left unset, the
+      # Mac pool's 18 cores would start 9 against one production server, and
+      # four already killed that server on this rig.
       - name: Run full browser shard
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
@@ -430,6 +440,7 @@ jobs:
           npx playwright test
           --reporter=list,json
           --project=chromium
+          --workers=1
           --shard=${{ matrix.shard }}/8
 
       - name: Gate the full browser shard
@@ -438,7 +449,7 @@ jobs:
   full-suite-gl:
     name: Full browser suite (WebGL and keyless)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: macos-latest
+    runs-on: pubmax-mac
     timeout-minutes: 45
     # Every project the Chromium shards above do not run: the SwiftShader map
     # journeys, the service-worker map, the no-WebGL fallback and the keyless
@@ -449,6 +460,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Keep caches inside the job
+        uses: ./.github/actions/pubmax-job-local-caches
 
       - name: Setup Node
         timeout-minutes: 5
@@ -468,6 +482,7 @@ jobs:
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
 
+      # One worker, for the reason the Chromium shards above give.
       - name: Run the WebGL and keyless projects
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
@@ -484,6 +499,7 @@ jobs:
           --project=chromium-gl
           --project=chromium-sw-gl
           --project=chromium-no-gl
+          --workers=1
 
       - name: Gate the WebGL and keyless run
         run: node scripts/assert-playwright-gate.mjs playwright-default-gl.json

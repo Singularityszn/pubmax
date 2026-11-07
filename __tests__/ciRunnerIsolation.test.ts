@@ -1,21 +1,27 @@
-// A PUBLIC REPO DOES NOT RUN CI ON A PERSONAL MACHINE.
+// MAC RUNNER POLICY AND WORKFLOW DEFENCE IN DEPTH.
 //
 // Every job uses GitHub-hosted ubuntu-latest, except the closed list of
-// Playwright jobs in MACOS_JOBS. Pull request workflows do not reference the
-// secrets context, so a fork cannot read a repository secret.
+// Playwright jobs in MACOS_JOBS, which run on the self-hosted pubmax-mac pool.
+// Runner-up's fork guard controls runner access. The repository also requires
+// approval for all outside collaborators. YAML conditions add defence in depth.
+// These tests check workflow policy, not the external controls.
+// Pull request workflows do not reference repository secrets.
 // docs/CI_RUNBOOK.md is the runbook.
 //
 //   1. no dependency runs an install script unless the allowlist says so;
 //   2. no pre/post npm hook exists for `ignore-scripts` to skip in silence;
 //   3. every checkout drops its credential, and every remote action is pinned
 //      to a commit;
-//   4. only the jobs in MACOS_JOBS use macos-latest, every other job uses
-//      ubuntu-latest, and a pull request workflow has no secrets.
+//   4. only the jobs in MACOS_JOBS use pubmax-mac, every other job uses
+//      ubuntu-latest, a fork pull request starts no pubmax-mac job, and a
+//      pull request workflow has no secrets.
 
+import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
 
 import {
@@ -25,13 +31,17 @@ import {
   packagesWithInstallScripts,
 } from "@/scripts/ci/install-script-allowlist.mjs";
 import { defined } from "@/__tests__/helpers/defined";
+import { browserJobCondition } from "@/__tests__/helpers/browserJobCondition";
 
 const ROOT = process.cwd();
 
 type Step = { name?: string; uses?: string; run?: string; with?: Record<string, unknown> };
 type Job = {
   "runs-on": string;
+  if?: string;
   permissions?: Record<string, string>;
+  env?: Record<string, string | number>;
+  strategy?: { matrix?: { shard?: number[] } };
   steps: Step[];
 };
 type Workflow = {
@@ -192,8 +202,9 @@ describe("workflow credentials and pins", () => {
   });
 });
 
-// The free plan runs 5 macOS jobs at once and about 20 Linux jobs, so a job
-// stays on macOS only with a reason. Each one here runs Playwright.
+// The self-hosted Mac pool is one machine's worth of places, against about 20
+// hosted Linux jobs at once, so a job runs on macOS only with a reason. Each
+// one here runs Playwright.
 const MACOS_JOBS: Record<string, string> = {
   // Proved on macOS glyph widths. On ubuntu-latest (16 Oct 2026) four layout
   // specs failed on a measured edge and the full suite failed 19 more tests.
@@ -210,27 +221,87 @@ const MACOS_JOBS: Record<string, string> = {
   "prod-smoke.yml / smoke": "proved on macOS, one run per deploy",
 };
 
-describe("hosted runners", () => {
-  it("runs every job on ubuntu-latest except the closed macOS list", () => {
+// The label runner-up serves this repository's self-hosted Mac places with.
+const MAC_POOL = "pubmax-mac";
+
+describe("runners", () => {
+  it("runs every job on ubuntu-latest except the closed macOS list, which runs on the Mac pool", () => {
     const seen: string[] = [];
     for (const { file, parsed } of workflows) {
       for (const [jobId, job] of Object.entries(parsed.jobs)) {
         const where = `${file} / ${jobId}`;
-        if (job["runs-on"] === "macos-latest") seen.push(where);
-        expect(job["runs-on"], where).toBe(where in MACOS_JOBS ? "macos-latest" : "ubuntu-latest");
+        if (job["runs-on"] === MAC_POOL) seen.push(where);
+        expect(job["runs-on"], where).toBe(where in MACOS_JOBS ? MAC_POOL : "ubuntu-latest");
       }
     }
     expect(seen.sort()).toEqual(Object.keys(MACOS_JOBS).sort());
   });
 
-  it("keeps the macOS list to Playwright jobs", () => {
+  // Playwright starts half the machine's cores as workers when CI leaves the
+  // count unset. A hosted macOS runner gave one; the Mac pool would give 9,
+  // and four already killed the single production server on this rig.
+  it("holds every Mac pool Playwright run to one worker", async () => {
+    vi.stubEnv("SMOKE_BASE_URL", "https://pubmaxxing.com");
+    vi.stubEnv("SMOKE_REQUIRE_SIGN_IN", "0");
+    try {
+      const { default: smokeConfig } = await import("@/playwright.prod-smoke.config");
+      for (const where of Object.keys(MACOS_JOBS)) {
+        const [file, jobId] = where.split(" / ");
+        const job = defined(workflows.find((entry) => entry.file === file)?.parsed.jobs[defined(jobId)], where);
+        for (const shard of job.strategy?.matrix?.shard ?? [1]) {
+          const commands: string[][] = [];
+          for (const step of job.steps) {
+            if (!step.run || !/\bplaywright\s+test\b/.test(step.run)) continue;
+            const run = step.run
+              .replaceAll("${{ env.LAYOUT_SHARD }}", String(job.env?.LAYOUT_SHARD))
+              .replaceAll("${{ matrix.shard }}", String(shard));
+            const executed = spawnSync("bash", ["-e", "-c", `npx() { printf '%s\\0' "$@"; printf '\\0'; }\n${run}`], {
+              cwd: ROOT,
+              encoding: "utf8",
+            });
+            expect(executed.status, `${where} / ${step.name}: ${executed.stderr}`).toBe(0);
+            commands.push(...executed.stdout.split("\0\0").filter(Boolean).map((call) => call.split("\0")));
+          }
+          const tests = commands.filter((args) => args[0] === "playwright" && args[1] === "test");
+          expect(tests.length, where).toBeGreaterThan(0);
+          for (const args of tests) {
+            const { values } = parseArgs({
+              args: args.slice(2),
+              options: { workers: { type: "string", short: "j" }, config: { type: "string", short: "c" } },
+              strict: false,
+              allowPositionals: true,
+            });
+            if (values.config !== undefined) {
+              expect(values.config, where).toBe("playwright.prod-smoke.config.ts");
+            }
+            if (values.workers !== undefined) {
+              expect(typeof values.workers, where).toBe("string");
+              expect(Number(values.workers), `${where} / shard ${shard}`).toBe(1);
+            } else {
+              expect(values.config, where).toBe("playwright.prod-smoke.config.ts");
+              expect(smokeConfig.workers, where).toBe(1);
+            }
+          }
+        }
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("rejects fork pull requests through workflow policy as defence in depth", () => {
     for (const where of Object.keys(MACOS_JOBS)) {
       const [file, jobId] = where.split(" / ");
-      const job = workflows.find((workflow) => workflow.file === file)?.parsed.jobs[defined(jobId)];
-      expect(
-        job?.steps.some((step) => typeof step.run === "string" && /\bplaywright test\b/.test(step.run)),
-        where,
-      ).toBe(true);
+      const workflow = defined(workflows.find((entry) => entry.file === file), where).parsed;
+      const events = triggers(workflow);
+      expect(events, where).not.toContain("pull_request_target");
+      if (!events.includes("pull_request")) continue;
+      const condition = defined(workflow.jobs[defined(jobId)], where).if;
+      for (const result of ["success", "failure", "cancelled", "skipped"]) {
+        for (const layout of ["ui", "non-ui"]) {
+          expect(browserJobCondition(condition, { fork: true, result, layout }), where).toBe(false);
+        }
+      }
     }
   });
 

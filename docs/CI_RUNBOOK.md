@@ -4,11 +4,12 @@ GitHub Actions workflows live under `.github/workflows/`. The merge bar for
 application code is still `npm run verify` locally; Actions is the PR status
 check layer.
 
-## GitHub-hosted runners
+## Runners
 
-Jobs use `ubuntu-latest` by default, including Browser law pins. The
-`MACOS_JOBS` list in `__tests__/ciRunnerIsolation.test.ts` owns the exceptions
-and their reasons:
+Jobs use GitHub-hosted `ubuntu-latest` by default, including Browser law
+pins. The `MACOS_JOBS` list in `__tests__/ciRunnerIsolation.test.ts` owns the
+exceptions and their reasons. They run on the self-hosted `pubmax-mac` pool
+(see "Self-hosted Mac runners" below):
 
 - The layout pins and the two nightly full-suite jobs. Their specs were proved on
   macOS glyph widths. Both use the same self-hosted webfonts, but Linux
@@ -18,59 +19,99 @@ and their reasons:
 - The two `performance.yml` jobs. Their route budgets were measured on macOS.
 - `prod-smoke.yml`. It runs once per production deploy.
 
-The repository is public, so both are GitHub's free hosted runners. The free
-plan runs about 20 Linux jobs at once but only 5 macOS jobs. A pull request
-that changes code takes 3 macOS jobs (the layout shards). A docs or data pull
-request takes none (see "What a pull request runs"). The performance
-sweep once failed to measure itself on a private repository's 2 vCPU
-runner; that is why it is not on the pull-request path. It is not a reason
-to run a public repository's CI on a personal machine.
+GitHub's free plan runs about 20 hosted Linux jobs at once. Hosted macOS
+jobs waited a long time in GitHub's queue, so the macOS jobs moved to the
+`pubmax-mac` pool (captain, 6 Nov 2026). A pull request that changes code
+takes 3 Mac jobs (the layout shards). A docs or data pull request takes none
+(see "What a pull request runs"). The performance sweep once failed to
+measure itself on a private repository's 2 vCPU runner; that is why it is
+not on the pull-request path.
 
 ```yaml
-# every job, including Browser law pins
+# default, including Browser law pins
 runs-on: ubuntu-latest
 # the MACOS_JOBS list only
-runs-on: macos-latest
+runs-on: pubmax-mac
 ```
 
-`__tests__/ciRunnerIsolation.test.ts` holds those labels, and it holds the
-secret rule: a workflow that runs on `pull_request` does not reference
+`__tests__/ciRunnerIsolation.test.ts` checks those labels and the workflow's
+fork condition. It does not check the external runner access controls below.
+It also checks that a workflow that runs on `pull_request` does not reference
 `secrets`. Refresh workflows that open a review PR do not trigger on
 `pull_request`, so a fork never receives their job token or a repository
 secret.
 
 ### What a job installs
 
-The hosted image does not carry the tools the Mac used to. Each job that
-needs them installs them:
+A runner image does not carry the tools a job needs. Each job that needs
+them installs them:
 
 - **Node 22** via `actions/setup-node`, which matches `engines.node` in
-  `package.json`. Jobs that run `npm ci` set `cache: npm`. The old ban on
-  that cache was a self-hosted stall; it does not apply here.
+  `package.json`. Jobs that run `npm ci` set `cache: npm`. See
+  [Self-hosted Mac runners](#self-hosted-mac-runners) for Mac cache setup.
 - **PostgreSQL 16 and PostgREST 14** in `rls-session.yml`. The harness starts
   its own cluster with `initdb` (`scripts/rls/postgresHost.mjs` already looks
   in `/usr/lib/postgresql/16/bin`), so the job installs the `postgresql-16`
   apt package and the checksummed `postgrest-v14.16` static binary. It does
   not use a service container.
 - **Playwright Chromium** with `npx playwright install --with-deps chromium`
-  in the browser and performance jobs.
+  in the browser and performance jobs. On macOS `--with-deps` needs no
+  system packages or `sudo`. Playwright still installs Chromium.
 - **zizmor 1.30.1, osv-scanner 2.6.0 and Semgrep 1.179.0** in
   `security-ci.yml`, each checksummed or version-pinned.
 
 `PW_PORT` still comes from `.github/actions/pubmax-playwright-port`. Each
-hosted job has its own network namespace, so two jobs cannot collide. The
-action still gives one job a single port.
+hosted job has its own network namespace, so two jobs cannot collide. A Mac
+place derives its port from its runner name, or takes `PW_PORT` from the
+runner environment. The action gives one job a single port.
 
-### Retired Mac runners
+### Self-hosted Mac runners
 
-The self-hosted runners (`karan-mac-pubmax`, `-2`, `-3` with label
-`pubmax-mac`, and `karan-mac-pubmax-refresh` with label `pubmax-mac-refresh`)
-are retired. Do not register them again. A public repository's pull request
-code must not run on a personal machine, and that shared Mac was the
-browser-test timeout of 3-4 Oct 2026.
+runner-up serves this repository's Mac places under the label `pubmax-mac`.
+Today the pool has one host place on studio-1. Two tart virtual machine
+places will join it. A place runs one job at a time, as its own macOS user,
+with no `sudo`. So a Mac job:
 
-There is no console-user guard and no shared browser queue: each hosted job
-is its own machine.
+- **Keeps its caches in the job.** The first step after Checkout is
+  `.github/actions/pubmax-job-local-caches`. It points `npm_config_cache` and
+  `PLAYWRIGHT_BROWSERS_PATH` at `RUNNER_TEMP`, which the runner empties at the
+  start and end of every job. The default `~/.npm` and
+  `~/Library/Caches/ms-playwright` would carry one job's downloads into the
+  next. `actions/setup-node` still restores and saves the npm cache through
+  GitHub's cache.
+- **Installs Node with `actions/setup-node`** before any step that runs
+  `node`. The place has no Node of its own. `Performance budget` records its
+  start time with the shell for that reason.
+- **Runs Playwright with one worker.** Without an explicit worker count,
+  Playwright starts half the machine's cores. A hosted macOS
+  runner gave one worker. studio-1 has 18 cores and would give 9, and four
+  workers killed the single production server on 3-4 Oct 2026. Every Mac
+  Playwright run passes `--workers=1`, or uses the prod-smoke config, which
+  sets `workers: 1`.
+
+The repository is public. The runner-up coordinator refuses jobs from forks
+by default through its fork guard. This coordinator control is the runner
+access boundary. The repository setting "Require approval for all outside
+collaborators" adds a GitHub approval control. These controls sit outside
+pull-request-controlled YAML.
+
+The layout pins are the only Mac jobs on the pull-request path. Their `if`
+condition adds defence in depth. A fork can edit workflow YAML, so this
+condition cannot enforce runner access:
+
+```yaml
+(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+```
+
+The other Mac jobs listen only for `schedule`, `workflow_dispatch` or
+`deployment_status`. No workflow with a Mac job
+listens for `pull_request_target`. A skipped job counts as passed in branch
+protection, so a fork pull request reports its layout pins as skipped. Read
+such a pull request's screen changes by hand, or push its branch to this
+repository to run the pins.
+
+Browser jobs need no shared queue: one place runs one job at a time, and
+each hosted Linux job is its own machine.
 `__tests__/browserJobConcurrency.test.ts` holds the browser jobs to that.
 
 ### Install scripts and credentials
@@ -106,22 +147,21 @@ repository secret.
 
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
-Browser law pins, the browser layout-pin shards and the `performance.yml` jobs
-keep `--workers=1`. [What a pull request runs](#what-a-pull-request-runs)
+Browser law pins keep `--workers=1`. [Self-hosted Mac runners](#self-hosted-mac-runners)
+defines the worker limit for Mac jobs. [What a pull request runs](#what-a-pull-request-runs)
 defines when the layout shards run.
 
 The nightly full suite separates plain Chromium shards from the WebGL and
 keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
 the shard matrix and project lists. Each Chromium shard builds one server.
 `Full browser suite (WebGL and keyless)` builds both the normal and keyless
-servers. Each job uses Playwright's default worker count. `playwright.config.ts`
-leaves that count unset in CI, and a hosted macOS runner resolves it to one worker.
+servers. These jobs use the worker limit defined above.
 Scheduled runs and manual dispatches skip the layout-pin jobs because the full
 suite covers those specs on the same commit.
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite and manual dispatches never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
-Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push holds 3 of the 5 macOS runners for the layout pins. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
+Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push starts three layout-pin jobs. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
 `ci.yml` starts lint, the TypeScript 6 check, `production-build` and the
 three unit shards at once (captain, 2 Nov 2026). None of them reads what another makes: the build and
@@ -200,7 +240,7 @@ The diff runs with `--no-renames`, so a file moved counts under both its old and
 
 The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/3)`, and a required `Unit tests (1/3)` would then wait for ever. That is why no Linux job is skipped whole. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
 
-The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner, and the free plan has only 5 macOS runners. Three layout shards per pull request filled that queue, and docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. So in `e2e.yml` one Linux job, `Change scope`, runs the classifiers, and `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. When `Change scope` succeeds and `Classify the layout change` outputs `none`, GitHub skips all three jobs without starting a macOS runner. If `Change scope` fails, the layout jobs run. This preserves layout checks when classification fails, because branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
+The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner. Before the Mac pool migration, three layout shards per pull request filled the hosted macOS queue. Docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. In `e2e.yml` one Linux job, `Change scope`, runs the classifiers. `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. When `Change scope` succeeds and `Classify the layout change` outputs `none`, GitHub skips all three jobs without starting a Mac job. If `Change scope` fails, the layout jobs run for events eligible under [Self-hosted Mac runners](#self-hosted-mac-runners). This preserves layout checks when classification fails, because branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
 
 The layout scope uses a denylist (captain, 23 Oct 2026). A pull request reads `none` only when every changed file belongs to these categories:
 
@@ -211,7 +251,7 @@ The layout scope uses a denylist (captain, 23 Oct 2026). A pull request reads `n
 - Files under `scripts/` except `scripts/e2e/canonical-price-server.ts`. The registered web first-run journey directly starts that fixture for its fixed-time price checks.
 - API-only files under `app/api/` and JavaScript or TypeScript `route` handlers under `app/` that render no page.
 
-Every other changed file reads `ui` and runs all three layout jobs. This includes every `lib/` module, components, pages, styles, browser specs, helpers, fixtures, and workflows. The Playwright port action, configuration, `package.json`, lockfiles, and unknown paths also read `ui`.
+Every other changed file reads `ui`. Eligible events then run all three layout jobs. This includes every `lib/` module, components, pages, styles, browser specs, helpers, fixtures, and workflows. The Playwright port action, configuration, `package.json`, lockfiles, and unknown paths also read `ui`.
 
 An empty diff and every event other than a pull request read `ui`. The [browser job schedule](#timeouts-and-job-shape) controls which jobs run for each event. `__tests__/ciChangeScope.test.ts` executes the classifier on sample diffs and on each spec selected by the layout job.
 
@@ -229,7 +269,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | CI / Data validation | runs | runs | runs |
 | Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
-| Browser tests / layout pins (1-3/3) | skipped, no macOS runner | skipped, no macOS runner | runs for a `ui` change, skipped for `none` |
+| Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | runs for a `ui` change, skipped for `none` and for a fork |
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
@@ -240,7 +280,12 @@ The named-test step covers fences that read the very file a pull request changed
 
 `self-hosted-probe.yml` is `workflow_dispatch` only. It checks out, installs
 Node 22 and prints `node --version` on `ubuntu-latest`. It does not check a
-Mac user.
+Mac place. To see which place ran a Mac job, read the job log's "Runner name"
+line, or list the jobs of a run:
+
+```sh
+gh api repos/Singularityszn/pubmax/actions/runs/<run-id>/jobs --jq '.jobs[] | [.name, .runner_name, (.labels | join(","))] | @tsv'
+```
 
 ```sh
 gh workflow run self-hosted-probe.yml

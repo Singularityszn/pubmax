@@ -43,9 +43,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.deployment_status.state == 'success' &&
        startsWith(github.event.deployment.environment, 'Production'))
-    # Proved on macOS. It runs once per production deploy, never on the pull
-    # request path, so it does not hold the macOS queue.
-    runs-on: macos-latest
+    # Proved on macOS, and runs on the pubmax-mac self-hosted pool. It runs
+    # once per production deploy, outside the pull request path.
+    runs-on: pubmax-mac
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -54,6 +54,9 @@ jobs:
           persist-credentials: false
           # Test the commit that was deployed, not whatever main is now.
           ref: ${{ github.event.deployment.sha || github.sha }}
+
+      - name: Keep caches inside the job
+        uses: ./.github/actions/pubmax-job-local-caches
 
       - name: Setup Node
         timeout-minutes: 5

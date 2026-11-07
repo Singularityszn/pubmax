@@ -12,8 +12,8 @@
 // Security CI are not gated at all. docs/CI_RUNBOOK.md is the runbook.
 //
 // The macOS layout pins are the one exception (owner decision, 17 Oct 2026).
-// The free plan runs only 5 macOS jobs at once, and a job that starts only to
-// skip its steps still holds a macOS runner while it waits. So one Linux job,
+// The Mac pool has few places, and a job that starts only to skip its steps
+// still holds a Mac place while it waits. So one Linux job,
 // "Change scope", classifies the diff, and the three layout-pin jobs are
 // skipped whole when it succeeds and says no screen code changed (captain,
 // 23 Oct 2026). Main still runs them on every push. They are named
@@ -34,6 +34,7 @@ import { parse } from "yaml";
 
 import { POSTGRES_BACKED_SUITES } from "@/scripts/rls/postgresSuites.mjs";
 import { defined } from "@/__tests__/helpers/defined";
+import { browserJobCondition } from "@/__tests__/helpers/browserJobCondition";
 
 const ROOT = process.cwd();
 const CLASSIFY = "Classify the change";
@@ -188,13 +189,6 @@ describe("the change scope", () => {
 // The job that only classifies, for the macOS layout pins to read.
 const SCOPE_JOB = "e2e.yml / change-scope";
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
-// Run unless the classifier succeeded and said no screen code changed. A
-// failed classifier must run the layout pins, not skip them: a skipped check
-// counts as passed for branch protection, so skipping would let a screen
-// change merge without them (fail closed). The nightly and a dispatch skip
-// them, because the full suite runs every layout spec on the same commit.
-const LAYOUT_PIN_IF =
-  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 
 describe("what each scope runs", () => {
   // The captain requires recovery in law pins and onboarding in layout pins.
@@ -256,14 +250,36 @@ describe("what each scope runs", () => {
     expect(scopeJob.if).toBeUndefined();
     for (const id of LAYOUT_PIN_JOBS) {
       const layout = defined(e2e[id], id);
-      expect(layout["runs-on"], id).toBe("macos-latest");
+      expect(layout["runs-on"], id).toBe("pubmax-mac");
       expect(layout.needs, id).toEqual(["change-scope"]);
-      expect(layout.if, id).toBe(LAYOUT_PIN_IF);
       // A matrix job skipped whole reports under its unexpanded name.
       expect(layout.strategy, id).toBeUndefined();
       expect(layout.name ?? "", id).not.toContain("${{");
       // Nothing inside the job asks the scope again.
       for (const entry of layout.steps) expect(entry.if ?? "", `${id} / ${entry.name}`).not.toContain("scope");
+    }
+  });
+
+  it.each([
+    { event: "pull_request", fork: false, result: "success", layout: "ui", expected: true },
+    { event: "pull_request", fork: true, result: "success", layout: "ui", expected: false },
+    { event: "pull_request", result: "success", layout: "non-ui", expected: false },
+    { event: "pull_request", result: "failure", layout: "non-ui", expected: true },
+    { event: "pull_request", fork: true, result: "failure", layout: "non-ui", expected: false },
+    { event: "pull_request", result: "cancelled", layout: "", expected: true },
+    { event: "pull_request", result: "skipped", layout: "", expected: true },
+    { event: "pull_request", cancelled: true, expected: false },
+    { event: "push", expected: true },
+    { event: "push", result: "failure", layout: "", expected: true },
+    { event: "push", cancelled: true, expected: false },
+    { event: "schedule", expected: false },
+    { event: "schedule", result: "failure", expected: false },
+    { event: "workflow_dispatch", expected: false },
+    { event: "workflow_dispatch", result: "failure", expected: false },
+  ] as const)("applies layout-pin eligibility to $event ($expected)", ({ expected, ...context }) => {
+    const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed;
+    for (const id of LAYOUT_PIN_JOBS) {
+      expect(browserJobCondition(defined(e2e.jobs[id], id).if, context), id).toBe(expected);
     }
   });
 

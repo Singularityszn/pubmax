@@ -1,8 +1,9 @@
 // BROWSER JOBS DO NOT SHARE A MACHINE.
 //
 // On 3-4 Oct 2026 several jobs that each start a production server and
-// Chromium ran together on one Mac and timed out. GitHub-hosted runners are
-// separate machines, so those jobs are not queued behind one group. A newer
+// Chromium ran together on one Mac and timed out. A pubmax-mac place runs one
+// job at a time, and each GitHub-hosted runner is its own machine, so those
+// jobs are not queued behind one group. A newer
 // pull request head still cancels that pull request's older run, and a newer
 // main push replaces an older one that still waits to start Browser tests.
 // No other run is ever cancelled.
@@ -45,7 +46,7 @@ function runsPlaywright(job: Job): boolean {
   );
 }
 
-describe("browser jobs on hosted runners", () => {
+describe("browser jobs on their runners", () => {
   const playwrightJobs = workflows.flatMap(({ file, parsed }) =>
     Object.entries(parsed.jobs)
       .filter(([, job]) => runsPlaywright(job))
