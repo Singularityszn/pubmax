@@ -22,6 +22,25 @@ function actionFailure(error: string): Response {
   return publicApiError(message, code, status, { retryable: error === "error" });
 }
 
+const PLAN_ROUTE_CHANGED_MESSAGE = "The route changed. Review the stops and try again.";
+
+/**
+ * A bound action conflicts both on an idempotency replay and when the route
+ * moved on. The store answers "conflict" for both, so read the Plan to tell a
+ * changed route (new revision, or another pub in that slot) from a replay.
+ */
+async function routeChangedSince(
+  id: string,
+  stopPosition: number,
+  binding: { expectedRouteRevision?: number; venueId?: string },
+): Promise<boolean> {
+  const current = await planStore().read(id).catch(() => null);
+  if (current?.status !== "found") return false;
+  const revision = current.state.plan.routeRevision ?? 1;
+  const stop = current.state.stops.find((row) => row.position === stopPosition);
+  return revision !== binding.expectedRouteRevision || stop?.venueId !== binding.venueId;
+}
+
 export async function POST(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-actions:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {
@@ -45,6 +64,9 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!idempotencyKey) return publicApiError(PLAN_IDEMPOTENCY_ERROR.error, PLAN_IDEMPOTENCY_ERROR.code, 400);
   const result = await planStore().addAction(id, planMemberCapability(request, body.memberToken), { type, stopPosition, idempotencyKey, ...binding });
   if (!result.ok) {
+    if (result.error === "conflict" && bound && await routeChangedSince(id, stopPosition, binding)) {
+      return publicApiError(PLAN_ROUTE_CHANGED_MESSAGE, "PLAN_ROUTE_CHANGED", 409, { retryable: false });
+    }
     return actionFailure(result.error);
   }
 

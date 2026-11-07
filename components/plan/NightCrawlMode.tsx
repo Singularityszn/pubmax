@@ -39,6 +39,7 @@ import {
   classifyActionOutcome,
   isFinalStop,
   nightCrawlActionNote,
+  NIGHT_CRAWL_ROUTE_CHANGED_NOTE,
   nightCrawlActionPayload,
   nightCrawlGlance,
   nightCrawlHandoffTarget,
@@ -250,7 +251,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       });
       const tone = result.outcome === "conflict" ? "rejected" : result.outcome;
       setNote({
-        text: nightCrawlActionNote(result.type, result.venueName, tone),
+        text: result.routeChanged ? NIGHT_CRAWL_ROUTE_CHANGED_NOTE : nightCrawlActionNote(result.type, result.venueName, tone),
         tone,
       });
       removePlanMutationOutboxEntry(result.entryId);
@@ -422,6 +423,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     if (mine?.outcome === "forbidden" || mine?.outcome === "rejected" || mine?.outcome === "conflict") {
       clearPersistentPlanMutationKey(scope, key);
       reconcile(mine.outcome === "conflict" ? "rejected" : mine.outcome);
+      if (mine.routeChanged) setNote({ text: NIGHT_CRAWL_ROUTE_CHANGED_NOTE, tone: "rejected" });
       setBusy(null);
       return;
     }

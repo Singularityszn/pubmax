@@ -460,7 +460,7 @@ Full `PlanState` (with the new action in `actions[]`). Side effect: recording an
 | `404` | bad/unknown plan id |
 | `400` | malformed body, invalid action or binding, or missing/invalid idempotency key |
 | `403` | member token cannot update this Plan |
-| `409` | stale route or venue binding, or the same key reused for another payload |
+| `409` | `PLAN_ROUTE_CHANGED` when the route revision or the venue in that slot changed since the tap; `PLAN_IDEMPOTENCY_CONFLICT` when the same key is reused for another payload |
 | `429` | action request limit reached |
 | `503` | Plan storage unavailable |
 
