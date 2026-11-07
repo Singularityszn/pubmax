@@ -4,6 +4,7 @@ import { cultureWaypointPois } from "@/lib/cultureCrawl.server";
 import { classifyOpenMeetingPoint, OPEN_PLAN_PLACE_PREFIX } from "@/lib/openSocialCrew";
 import type { PlanStopDTO } from "@/lib/plan";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 
 export type PlanStopTarget = { venueId: string; venueName: string };
 
@@ -42,7 +43,9 @@ export async function planStopResolver(
         : null;
     }
     const venue = venuesById.get(classified.venueId);
-    return venue ? { venueId: venue.id, venueName: venue.name } : null;
+    return venue && !isNonPublicVenueName(venue.name)
+      ? { venueId: venue.id, venueName: venue.name }
+      : null;
   };
 }
 
