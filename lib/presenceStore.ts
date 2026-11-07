@@ -181,7 +181,7 @@ const supabasePresenceStore: PresenceStore = {
     if (handles?.length === 0) return [];
     const scoped = venueId ? clean(venueId, MAX_VENUE_ID) : undefined;
     try {
-      // Public read: non-expired only (mirrors the RLS `expires_at > now()`),
+      // Store read: non-expired only (mirrors the RLS `expires_at > now()`),
       // newest-first by created_at, capped.
       let query = requireSupabaseAdmin()
         .from(TABLE)
@@ -231,6 +231,9 @@ export async function markPresence(input: PresenceInput, now = Date.now()): Prom
  * venue. Each row is enriched with the pub NAME + a "/map?sel=…" link; the public
  * DTO carries NO actor_hash. Fail-soft: any error (or an unconfigured/unreadable
  * backend) resolves to [] so the "Live tonight" strip degrades to nothing.
+ * `handles` filters real rows before the cap. An empty list allows no real rows.
+ * Omitting it disables audience filtering, so HTTP callers must supply the
+ * authorised list.
  */
 export async function recentPresence(
   venueId?: string,
@@ -241,13 +244,14 @@ export async function recentPresence(
 }
 
 /**
- * Recent presence PLUS the deterministic ambient DEMO layer (PRD next-wave P2)
- * — the read the public route serves. Two hard rules:
+ * GET /api/presence reads recent presence plus the deterministic ambient demo
+ * layer. The audience argument follows recentPresence. Demo rows remain outside
+ * the audience filter. Two hard rules:
  *
  * - Supabase configured → REAL presence only, byte-for-byte recentPresence().
  *   Ambient demo rows never mix into (or override) live data.
- * - Fallback (memory/demo) → real in-process taps first, then ambient rows from
- *   lib/ambientPresence (time-of-day curve, seeded PRNG), each tagged
+ * - Fallback (memory/demo) → real in-process taps first, then enabled ambient
+ *   rows from lib/ambientPresence (see lib/demoContent for the opt-in), each tagged
  *   provenance:"demo" so the strip renders the honest Demo chip. A real tap at
  *   the same (handle, venue) wins over its ambient twin. Capped at MAX_PRESENCE.
  */

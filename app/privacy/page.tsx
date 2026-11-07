@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "6 November 2026";
+const LAST_UPDATED = "7 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -225,8 +225,16 @@ export default function PrivacyPage() {
           routes, presence taps (&ldquo;I&rsquo;m here tonight&rdquo;), ratings,
           messages to other people, Visit Reports, Recommendations, and your
           memories. We keep these because they are the product. A price with no
-          date and no source is worth nothing. Presence is always a deliberate
-          tap; the app never tracks your location in the background.
+          date and no source is worth nothing.
+        </p>
+        <p id="presence" className="legalBody">
+          An &ldquo;I&rsquo;m here&rdquo; tap records your handle, selected pub
+          and time. A check-in stops appearing after two hours.
+          Readers must be signed in, have a claimed handle and pass the adult
+          check. They can see their own check-ins and those of mutual follows,
+          where both people follow each other. A block in either direction
+          hides the other person&rsquo;s check-ins. The app never tracks your
+          location in the background.
         </p>
         <p className="legalBody">
           We store Social post text in a private moderation queue, then send

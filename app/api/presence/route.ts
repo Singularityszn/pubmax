@@ -3,11 +3,10 @@
 //   POST { handle, venueId }        → { ok: true }   (marks the viewer present)
 //   GET  ?venueId=<id>  (or none)   → { presence: PresenceDTO[] }  (recent, live)
 //
-// A presence row is live location of a named person, so GET answers it only to
-// that person's mates (lib/presenceAudience.server.ts): a verified Social
-// account (signed in, a handle, the adult check) that is a mutual follow, with
-// no block either way. Anyone else gets the seeded demo rows alone, which exist
-// only keyless; in production that is an empty list.
+// GET requires a verified Social actor from the Authorization bearer for real
+// rows. Cookies cannot authorise this read or refresh a session here.
+// lib/presenceAudience.server.ts owns the audience rule. Without an authorised
+// audience, only enabled keyless demo rows can remain.
 //
 // The actor is derived server-side (hashActor of the hashed client IP) — the
 // body is never trusted for identity, and no raw IP or actor id is stored. Writes
