@@ -26,6 +26,7 @@ import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { compositeActionSignal } from "@/lib/authedFetch";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
 import { moveItem } from "@/lib/planStopReorder";
@@ -3116,7 +3117,7 @@ function PlanComposerForm({
   ) {
     const lifetimeSignal = formLifetime.current?.signal;
     if (!lifetimeSignal) return;
-    const signal = AbortSignal.any([lifetimeSignal, readProviderAccountSignal()]);
+    const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
     if (signal.aborted) return;
     const request = prepareConciergeRequest(queryOverride, intakeOverride, context);
     if (!request) return;
@@ -3294,7 +3295,7 @@ function PlanComposerForm({
     event.preventDefault();
     const lifetimeSignal = formLifetime.current?.signal;
     if (!lifetimeSignal) return;
-    const signal = AbortSignal.any([lifetimeSignal, readProviderAccountSignal()]);
+    const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
     if (signal.aborted) return;
     if (!validatePlanSubmission()) return;
     setSubmitting(true);

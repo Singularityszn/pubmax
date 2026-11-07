@@ -159,6 +159,67 @@ async function accountADrafts(): Promise<void> {
 }
 
 describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
+  it.each([
+    ["Plan it", "account"],
+    ["Plan it", "form"],
+    ["Lock it in", "account"],
+    ["Lock it in", "form"],
+  ] as const)("starts %s without AbortSignal.any and cancels when the %s changes", async (action, boundary) => {
+    const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
+    Object.defineProperty(AbortSignal, "any", { configurable: true, value: undefined });
+    try {
+      let finish!: (response: Response) => void;
+      const pending = new Promise<Response>((resolve) => { finish = resolve; });
+      let requestSignal: AbortSignal | null | undefined;
+      const created = {
+        created: true, grounded: true, memberToken: "plan-capability",
+        plan: { plan: { id: "cancelled-plan", status: "draft" }, stops: GENERATED.stops },
+      };
+      const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+        if (String(input).includes("/api/plans/generate")) {
+          if (action === "Lock it in") return Response.json(GENERATED);
+          requestSignal = init?.signal;
+          return pending;
+        }
+        if (String(input) === "/api/plans" && init?.method === "POST") {
+          requestSignal = init.signal;
+          return pending;
+        }
+        return Response.json([]);
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      await mountComposer();
+      await editInput(QUERY, "Three pubs in Soho");
+      await act(async () => { [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click(); });
+      if (action === "Lock it in") {
+        await vi.waitFor(() => expect(document.querySelectorAll(".planStop")).toHaveLength(3));
+        await editInput("#plan-name", "Original host");
+        await act(async () => { document.querySelector<HTMLButtonElement>(".planComposer__submit")!.click(); });
+      }
+      await vi.waitFor(() => expect(requestSignal).toBeInstanceOf(AbortSignal));
+      expect(requestSignal?.aborted).toBe(false);
+
+      await act(async () => {
+        if (boundary === "account") setProviderIdentity("supabase", ACCOUNT_B.id);
+        else {
+          root!.unmount();
+          root = null;
+        }
+      });
+      expect(requestSignal?.aborted).toBe(true);
+      await act(async () => { finish(Response.json(action === "Plan it" ? GENERATED : created)); });
+      await settle();
+
+      expect(navigation.push).not.toHaveBeenCalled();
+      expect(localStorage.getItem(PLAN_HOST_NAME_KEY)).toBeNull();
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+      if (action === "Plan it") expect(document.querySelectorAll(".planStop")).toHaveLength(0);
+    } finally {
+      if (anyDescriptor) Object.defineProperty(AbortSignal, "any", anyDescriptor);
+      else Reflect.deleteProperty(AbortSignal, "any");
+    }
+  });
+
   it("releases generation controls after sign-in cancels a signed-out request", async () => {
     let finish!: (response: Response) => void;
     const pending = new Promise<Response>((resolve) => { finish = resolve; });

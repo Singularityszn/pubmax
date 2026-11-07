@@ -169,7 +169,7 @@ function fallbackCompositeActionSignal(
   return signal;
 }
 
-function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
+export function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
   const distinctSignals = [...new Set(signals)];
   if (distinctSignals.length === 0) return new AbortController().signal;
   if (distinctSignals.length === 1) return distinctSignals[0] as AbortSignal;
