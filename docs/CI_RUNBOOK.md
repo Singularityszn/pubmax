@@ -28,7 +28,7 @@ measure itself on a private repository's 2 vCPU runner; that is why it is
 not on the pull-request path.
 
 ```yaml
-# every job, including Browser law pins
+# default, including Browser law pins
 runs-on: ubuntu-latest
 # the MACOS_JOBS list only
 runs-on: pubmax-mac
@@ -47,8 +47,8 @@ A runner image does not carry the tools a job needs. Each job that needs
 them installs them:
 
 - **Node 22** via `actions/setup-node`, which matches `engines.node` in
-  `package.json`. Jobs that run `npm ci` set `cache: npm`. The old ban on
-  that cache was a self-hosted stall; it does not apply here.
+  `package.json`. Jobs that run `npm ci` set `cache: npm`. See
+  [Self-hosted Mac runners](#self-hosted-mac-runners) for Mac cache setup.
 - **PostgreSQL 16 and PostgREST 14** in `rls-session.yml`. The harness starts
   its own cluster with `initdb` (`scripts/rls/postgresHost.mjs` already looks
   in `/usr/lib/postgresql/16/bin`), so the job installs the `postgresql-16`

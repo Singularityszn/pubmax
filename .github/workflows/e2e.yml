@@ -28,8 +28,7 @@ concurrency:
 jobs:
   law-pins:
     name: Browser law pins
-    # ubuntu-latest: the free plan runs about 20 Linux jobs at once but only
-    # 5 macOS jobs, and the macOS queue held every pull request's browser run.
+    # docs/CI_RUNBOOK.md owns runner selection and queue policy.
     # These journeys passed on Linux (16 Oct 2026). The one law pin that
     # measures phone chrome geometry, e2e/mobile-map-chrome-fit.spec.ts, lost
     # 7px at 320px to Linux glyph widths, so it runs with the layout pins.
