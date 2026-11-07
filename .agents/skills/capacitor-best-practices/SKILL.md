@@ -69,6 +69,18 @@ CocoaPods Trunk is expected to go read-only on December 2, 2026. Recommend SPM f
 11. **Live updates: call `CapacitorUpdater.notifyAppReady()` on every launch**, and apply manual updates with `next()` (on background/relaunch) rather than `set()` mid-session. Details in `capgo-live-updates`.
 12. **Secrets never go in the app.** Anything in the bundle or `capacitor.config` is extractable. Hand off to `capacitor-security` for anything beyond this rule.
 
+## Stay on Capacitor 8
+
+This app pins Capacitor 8. Keep the core packages on that major, in the `package.json` section each one already uses:
+
+```bash
+npm install -D @capacitor/core@8 @capacitor/cli@8 @capacitor/ios@8
+npm install @capacitor/android@8
+npx cap sync
+```
+
+Do not install `@latest` or `@next`, or leave Capacitor 8, unless someone asks.
+
 ## References
 
 Only load a reference when its topic is in play.

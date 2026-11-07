@@ -245,7 +245,7 @@ Same commit as the Capacitor refresh above.
 
 Left upstream: Capgo cloud and live-update skills, version-upgrade skills (this app is already on Capacitor 8), plugin-authoring skills, Ionic and Konsta UI skills.
 
-`capacitor-best-practices` is edited locally so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest`. Do not leave that major unless someone asks.
+`capacitor-best-practices` keeps a local [Stay on Capacitor 8](capacitor-best-practices/SKILL.md#stay-on-capacitor-8) section, so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest` or `@next`. The 29 Oct refresh replaced the upstream file, and the section was added back to it. Do not leave that major unless someone asks.
 
 ### maplibre/maplibre-agent-skills (added)
 
