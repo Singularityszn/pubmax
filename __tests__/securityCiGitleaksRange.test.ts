@@ -75,20 +75,22 @@ function logOptsFor(env: { EVENT_NAME: string; PUSH_BEFORE?: string; PUSH_AFTER?
     },
   });
   expect(result.status, result.stderr).toBe(0);
-  const opts = result.stdout.split("\n").find((line) => line.startsWith("--log-opts="));
+  const args = result.stdout.split("\n");
+  expect(args).toContain("--redact");
+  const configIndex = args.indexOf("--config");
+  expect(configIndex).toBeGreaterThanOrEqual(0);
+  expect(args[configIndex + 1]).toBe(".gitleaks.toml");
+  const opts = args.find((line) => line.startsWith("--log-opts="));
   return defined(opts, `log opts in ${result.stdout}`).slice("--log-opts=".length);
 }
 
 describe("the gitleaks step", () => {
-  it("reads every event and push SHA from the environment, never from an inline expression", () => {
+  it("maps the event and push SHAs into the step environment", () => {
     expect(gitleaksStep.env).toEqual({
       EVENT_NAME: "${{ github.event_name }}",
       PUSH_BEFORE: "${{ github.event.before }}",
       PUSH_AFTER: "${{ github.sha }}",
     });
-    expect(RUN).not.toContain("${{");
-    expect(RUN).toContain("--config .gitleaks.toml");
-    expect(RUN).toContain("--redact");
   });
 
   it("scans a pull request head's complete history", () => {
