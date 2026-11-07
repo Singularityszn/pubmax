@@ -1,9 +1,9 @@
 # Secret scanning for the Security CI gitleaks job. The default rules stay on.
-# Every allowance here matches a VALUE or a LINE shape, never a whole folder,
-# so a real key pasted into a test, a fixture or a proof file still fails the
-# job. A one-off match that fits no shape below is listed by its exact
-# fingerprint (commit, file, rule and line) in .gitleaksignore, which never
-# covers a later commit. Add an entry only with its reason, and never to
+# Every allowance here matches a value, line, or rule-match shape, never a
+# whole folder, so a real key pasted into a test, a fixture or a proof file
+# still fails the job. A one-off match that fits no shape below is listed by
+# its exact fingerprint (commit, file, rule and line) in .gitleaksignore, which
+# never covers a later commit. Add an entry only with its reason, and never to
 # silence a real credential: rotate it first.
 
 [extend]
