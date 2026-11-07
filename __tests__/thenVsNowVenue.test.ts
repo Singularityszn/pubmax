@@ -254,7 +254,7 @@ describe("computeVenuePriceStory", () => {
 
     const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [] }));
     expect(markup).toContain("£6.50");
-    expect(markup).toContain("PRAVHA");
+    expect(markup).toContain("Pravha · pint");
     expect(markup).toContain("pint");
     expect(markup).toContain("Pint Prices");
     expect(markup).toContain("2 October 2026");
@@ -272,7 +272,7 @@ describe("computeVenuePriceStory", () => {
     expect(story.baseline?.evidence.drink).toBe("BOTTLED BEER");
     expect(story.baseline?.evidence.serving).toBeNull();
     const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [] }));
-    expect(markup).toContain("BOTTLED BEER");
+    expect(markup).toContain("Bottled Beer");
     expect(markup).toContain("Serving size not recorded");
   });
 
@@ -325,7 +325,7 @@ describe("computeVenuePriceStory", () => {
     expect(markup).toContain("14 October 2026");
     expect(markup).toContain("Drink not recorded");
     expect(markup).toContain("Serving size not recorded");
-    expect(markup).not.toContain("PRAVHA");
+    expect(markup).not.toMatch(/pravha/i);
     expect(markup).not.toContain("Pint Prices");
   });
 
@@ -351,7 +351,7 @@ describe("computeVenuePriceStory", () => {
     expect(story.deltaGbp).toBeNull();
     const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
     expect(markup).not.toContain("Baseline on record");
-    expect(markup).not.toContain("PRAVHA");
+    expect(markup).not.toMatch(/pravha/i);
     expect(markup).not.toContain("Pint Prices");
     expect(markup.match(/£3\.00/g)).toHaveLength(1);
     expect(markup.match(/Reported by @reporter/g)).toHaveLength(1);

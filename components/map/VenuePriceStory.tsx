@@ -14,6 +14,7 @@ import {
 } from "@/lib/thenVsNow";
 
 import "./venuePriceStory.css";
+import { formatDrinkTagName } from "@/lib/drinkTagName";
 
 // Each figure keeps the drink, serving, attribution and date from its own
 // record. Only comparable observations show a price change. A memory's era
@@ -29,7 +30,7 @@ function PriceEvidence({ stamp }: { stamp: VenuePriceStamp }) {
   const date = Number.isFinite(at) ? formatObservedDate(new Date(at)) : null;
   return (
     <span className="vpsEvidence">
-      <span>{drink ?? "Drink not recorded"} · {serving ?? "Serving size not recorded"}</span>
+      <span>{drink ? formatDrinkTagName(drink) : "Drink not recorded"} · {serving ?? "Serving size not recorded"}</span>
       <span>{publisher
         ? sourceUrl ? <a href={sourceUrl} target="_blank" rel="noopener noreferrer">{publisher}</a> : publisher
         : "Publisher not recorded"}</span>

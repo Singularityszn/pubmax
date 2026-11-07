@@ -50,10 +50,6 @@
   overflow-wrap: anywhere;
 }
 
-.vpsEvidence time {
-  font-family: var(--font-data);
-}
-
 /* Use the existing inline citation pattern: the hit area remains 44px without
    making each caption line 44px tall. */
 .vpsEvidence a {
