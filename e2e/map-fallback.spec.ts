@@ -79,6 +79,10 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
   await page.evaluate(() => document.fonts.ready);
   for (const row of await page.locator(".mapFallbackVenue").all()) {
     await row.scrollIntoViewIfNeeded();
+    // The fixed answer card must not hide any part of a scrolled venue row.
+    const rowBox = (await row.boundingBox())!;
+    const peekBox = (await page.locator(".mapPeek").boundingBox())!;
+    expect(rowBox.y + rowBox.height, await row.innerText()).toBeLessThanOrEqual(peekBox.y);
     const coveredPrices = await row.evaluate((button) => {
       const meta = button.querySelector(".mapFallbackVenueMeta");
       const text = Array.from(meta?.childNodes ?? []).find((node) =>
@@ -101,6 +105,12 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
     });
     expect(coveredPrices, await row.innerText()).toEqual([]);
   }
+  const lastRowScreenshot = test.info().outputPath("fallback-last-row-390x844.png");
+  await page.screenshot({ path: lastRowScreenshot });
+  await test.info().attach("fallback-last-row-390x844", {
+    path: lastRowScreenshot,
+    contentType: "image/png",
+  });
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
     const directory = "docs/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });

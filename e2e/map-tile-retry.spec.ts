@@ -236,6 +236,11 @@ test("/map keeps Browse and Retry above the phone bottom card when both styles f
     })).toBe(true);
   }
   await page.screenshot({ path: testInfo.outputPath("both-styles-failed-390x844.png") });
+  const lastRow = fallback.locator(".mapFallbackVenue").last();
+  await lastRow.scrollIntoViewIfNeeded();
+  const lastRowBox = (await lastRow.boundingBox())!;
+  expect(lastRowBox.y + lastRowBox.height).toBeLessThanOrEqual(bottomCard.y);
+  await page.screenshot({ path: testInfo.outputPath("both-styles-failed-last-row-390x844.png") });
   await fallback.getByRole("link", { name: "Browse all pubs" }).click();
   await expect(page).toHaveURL(/\/pubs$/);
 });
