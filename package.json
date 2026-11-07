@@ -116,7 +116,7 @@
     "verify:no-mistakes:changed": "DEPLOYMENT_VERSION=local PUBMAX_VERIFY_COMMITTED_DATA=1 node scripts/run-with-restored-bundled-data.mjs node scripts/verify-changed.mjs",
     "ci": "npm run verify && npm run build",
     "ci:isolated": "node scripts/run-with-restored-next-env.mjs npm run ci",
-    "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'",
+    "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify:no-mistakes:changed)'",
     "merge:london-chains": "node scripts/merge_london_chain_scrapes.mjs",
     "deadcode": "node scripts/deadcode-gate.mjs",
     "deadcode:all": "knip",

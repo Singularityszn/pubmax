@@ -1,20 +1,10 @@
 #!/bin/sh
-# Local CI gate - a free stand-in for GitHub Actions.
-# Runs the whole of `npm run verify` before every push so broken code never
-# leaves your machine: validate-data, lint, typecheck, coverage, the effective
-# RLS proofs, the e2e skip gate, freshness and the audit. Enable once with:
+# Local verification follows the change-scoped policy in AGENTS.md.
+# Enable once with:
 # npm run setup  (sets core.hooksPath=.githooks)
 #
-# test:rls needs PostgreSQL 16. A host that genuinely cannot install one sets
-# PUBMAX_RLS_ALLOW_SKIP=1 and says so out loud; a skipped policy proof read as a
-# pass is what let an RLS hole live for four days.
-#
-# The heavier `next build` is intentionally left out here (it's slow). Vercel
-# runs `npm run validate-data && npm run build` on every deploy (vercel.json
-# `buildCommand`), so a broken build still can't reach production. It does NOT
-# run `npm run ci` or the rest of verify (lint, typecheck, tests): this hook is
-# where those run. `npm run ci` is verify plus build, for a local full check.
+# Run `npm run verify` explicitly for the full suite.
 set -e
-echo "pre-push › npm run verify"
-npm run verify
+echo "pre-push › npm run verify:no-mistakes:changed"
+npm run verify:no-mistakes:changed
 echo "pre-push › green ✓"

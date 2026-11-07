@@ -35,7 +35,7 @@ Useful scripts (`package.json`):
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run verify` | Local pre-push gate; see the [common command reference](../README.md) |
+| `npm run verify` | See the [common command reference](../README.md#quick-start) |
 | `npm run ci` | Full local gate; see the [common command reference](../README.md) |
 | `npm test` | Vitest unit suite (~100+ cases) |
 | `npm run test:e2e` | Playwright smoke (builds + starts, drives Chromium) |

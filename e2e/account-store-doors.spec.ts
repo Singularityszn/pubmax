@@ -14,7 +14,7 @@ import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 //         Sign in also lives in the phone bar (`.authUserNav`); the full
 //         signed-in row is desktop-only (`.siteNavBar .authUser:not(.authUserNav)`).
 //
-// The proof shots land in docs/proof/account-deletion/.
+// The proof shots land in the gitignored artifacts/proof/account-deletion/ folder.
 
 const PHONE = { width: 390, height: 844 };
 const PROOF = "artifacts/proof/account-deletion";

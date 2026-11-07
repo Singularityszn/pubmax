@@ -301,7 +301,7 @@ Useful scripts:
 | [Signed-in review harness](docs/testing/signed-in-review.md) | Seeded local authenticated browser review |
 | `npm run shots` | Generates 390/1440 light/dark Gate-Z screenshots under ignored `artifacts/screenshots/` for upload to the PR. Map captures require a painted pub mark |
 | `npm run shots:extended` | Runs the same gate with the 430/1280 breakpoint audit |
-| `npm run setup` | Enables the optional pre-push hook (`core.hooksPath=.githooks`). The current hook runs full `npm run verify` on every push |
+| `npm run setup` | Enables the optional pre-push hook (`core.hooksPath=.githooks`). See the [verification policy](AGENTS.md#verifying) |
 | `npm run build:slim` | Slim map index + **venue detail artifacts** (`data/generated/`) — also runs in `npm run build` |
 | `npm run build:city-slim` | Regenerates enabled city slim packs, compatibility cores, and manifests |
 

@@ -7,8 +7,7 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 /**
  * The three follow-ups the 6 September 2026 design review recorded and did not
- * take (docs/proof/design-review-fix-web/REPORT.md, and the rows it moved into
- * docs/design/BACKLOG.md):
+ * take, recorded in docs/design/BACKLOG.md:
  *
  *   1. the profile editor's own button family,
  *   2. one family for number-square chips,
@@ -19,7 +18,7 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
  * source-level laws sit beside them in __tests__/buttonPrimitive.test.tsx,
  * __tests__/chipPrimitive.test.tsx and __tests__/priceChipLadder.test.ts.
  *
- * Proof shots land in docs/proof/design-review-followups/.
+ * Proof shots land in the gitignored artifacts/proof/design-review-followups/ folder.
  */
 
 const PROOF = "artifacts/proof/design-review-followups";
