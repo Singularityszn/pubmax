@@ -97,7 +97,7 @@ export function publishWeatherReview({
       run("gh", [
         "pr", "create", "--base", "main", "--head", branch,
         "--title", `Weather cache ${stamp}`,
-        "--body", "Scheduled Open-Meteo cache refresh. Route generation remains third-party-free and consumes this snapshot only after merge. Each later run adds its refresh to this PR.",
+        "--body", "Scheduled Open-Meteo cache refresh. The captain approved one reused weather-cache/latest branch with one PR as the route that lands the refresh on main through the required checks. Route generation remains third-party-free and consumes this snapshot only after merge. Each later run adds its refresh to this PR.",
       ]),
     );
     const pullRequestUrl = created.split(/\s+/).find((token) => /^https?:\/\//.test(token));

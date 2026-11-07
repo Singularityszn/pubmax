@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { defined } from "@/__tests__/helpers/defined";
+
 // @ts-expect-error Dependency-free Node refresh helper has no declaration file.
 import { WEATHER_REVIEW_BRANCH, conditionForCode, publishWeatherReview } from "@/scripts/refresh_weather_snapshots.mjs";
 
@@ -93,6 +95,10 @@ describe("weather review handoff", () => {
     ]);
     expect(calls).toContainEqual(["git", "switch", "--create", "weather-cache/latest"]);
     expect(calls).toContainEqual(["git", "push", "--set-upstream", "origin", "weather-cache/latest"]);
+    const create = defined(calls.find((call) => call[0] === "gh" && call[2] === "create"));
+    expect(create[create.indexOf("--body") + 1]).toContain(
+      "The captain approved one reused weather-cache/latest branch with one PR as the route that lands the refresh on main through the required checks.",
+    );
     expect(staged()).toBe("fresh refresh");
   });
 
