@@ -25,7 +25,7 @@ import {
 import { traceArizeModelLoop, type ArizeModelLoopSpans } from "@/lib/observability/arize";
 
 /**
- * The one host Ask sends prompt text to, named here so `/privacy` can be held
+ * The OpenRouter host Ask sends prompt text to, named so `/privacy` can be held
  * to it (`__tests__/legalPages.test.ts`). `OPENROUTER_BASE_URL` overrides it so
  * a test can point the loop at a local mock model server
  * (`__tests__/askModelLoopMock.test.ts`); /privacy names this default, so a
@@ -37,7 +37,7 @@ const MAX_TOKENS = 500;
 /** Tool calls one model round may run. */
 const MAX_TOOLS_PER_ROUND = 3;
 const TIMEOUT_MS = 12_000;
-/** The OpenRouter model, used only when the deploy has no Claude key. */
+/** The default model for the OpenRouter path, including explicit-key calls. */
 export const DEFAULT_ASK_MODEL = "anthropic/claude-sonnet-4-5";
 // Claude thinks before it calls a tool, and thinking counts toward this cap,
 // so it leaves room above the tool call itself.
@@ -143,8 +143,8 @@ export type ProbeAskModelToolChoiceResult = {
 };
 
 /**
- * The first-round OpenRouter request `runAskModelLoop` sends for a fresh query,
- * returning tool names only (no tool execution). For offline router evals.
+ * The first-round request from the OpenRouter path of `runAskModelLoop`,
+ * returning tool names only (no tool execution). For opt-in live router evals.
  */
 export async function probeAskModelToolChoice(input: {
   query: string;
