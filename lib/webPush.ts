@@ -7,17 +7,6 @@ import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const WEB_PUSH_REGISTRATION_CEILING_MS = 10_000;
 
-/**
- * A browser's FIRST push subscription is its own, slower wait. Chrome asks
- * its push service for a new endpoint, and in a fresh profile that took 27.4 s,
- * 27.6 s and 31.8 s (design review, 6 Nov 2026), so the old single 10 s
- * deadline cancelled the first "Turn weekly nudge on" every time and only a
- * second tap worked. The subscribe call alone gets a minute; the service
- * worker, the existing-subscription read and the token request keep 10 s each,
- * so a step that never settles still releases the prompt.
- */
-export const WEB_PUSH_SUBSCRIBE_CEILING_MS = 60_000;
-
 function webPushAbortReason(signal: AbortSignal): unknown {
   return abortReason(signal, "The web push registration was cancelled.");
 }
@@ -36,9 +25,9 @@ function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Prom
   });
 }
 
-/** A signal that aborts on the caller's signal or after `ceilingMs`.
+/** A signal that aborts on the caller's signal or the registration deadline.
  * dispose() clears the timer and the listener once the step settles. */
-function registrationScope(parentSignal?: AbortSignal, ceilingMs = WEB_PUSH_REGISTRATION_CEILING_MS): {
+function registrationScope(parentSignal?: AbortSignal): {
   signal: AbortSignal;
   dispose(): void;
 } {
@@ -50,7 +39,7 @@ function registrationScope(parentSignal?: AbortSignal, ceilingMs = WEB_PUSH_REGI
   else parentSignal?.addEventListener("abort", onParentAbort, { once: true });
   const timeout = setTimeout(() => {
     controller.abort(new DOMException("Web push registration timed out.", "TimeoutError"));
-  }, ceilingMs);
+  }, WEB_PUSH_REGISTRATION_CEILING_MS);
   return {
     signal: controller.signal,
     dispose() {
@@ -104,12 +93,16 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
   if (signal?.aborted) return null;
 
   // The person's time on the permission dialog is theirs: only the caller can
-  // cancel it. Each step after the grant runs inside its own deadline (a new
-  // subscription gets the longer one), and every exit path disposes it.
+  // cancel it. Native subscription setup also waits for the caller. The other
+  // steps use the registration deadline, which every exit path disposes.
   let scope: ReturnType<typeof registrationScope> | null = null;
-  const step = (ceilingMs?: number) => {
+  const disposeStep = () => {
     scope?.dispose();
-    scope = registrationScope(signal, ceilingMs);
+    scope = null;
+  };
+  const step = () => {
+    disposeStep();
+    scope = registrationScope(signal);
     return scope.signal;
   };
   try {
@@ -120,16 +113,22 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
 
     const ready = step();
     const registration = await waitForWebPushWork(navigator.serviceWorker.ready, ready);
-    const subscription = await waitForWebPushWork(
+    let subscription = await waitForWebPushWork(
       registration.pushManager.getSubscription(),
       ready,
-    ) ?? await waitForWebPushWork(
-      registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: key,
-      }),
-      step(WEB_PUSH_SUBSCRIBE_CEILING_MS),
     );
+    disposeStep();
+    if (!subscription) {
+      // Fresh-profile endpoint setup can exceed a minute. Only the caller
+      // cancels this wait. The token request still has its own deadline.
+      subscription = await waitForWebPushWork(
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key,
+        }),
+        signal,
+      );
+    }
     const token = encodeWebPushSubscription(subscription.toJSON());
     if (!token) return null;
 
@@ -147,6 +146,6 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
   } catch {
     return null;
   } finally {
-    (scope as ReturnType<typeof registrationScope> | null)?.dispose();
+    disposeStep();
   }
 }

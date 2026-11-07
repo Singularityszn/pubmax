@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { registerWebPush, WEB_PUSH_SUBSCRIBE_CEILING_MS } from "@/lib/webPush";
+import { registerWebPush } from "@/lib/webPush";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -100,33 +100,38 @@ describe("registerWebPush", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("stops waiting when browser subscription work never settles", async () => {
+  it("lets the caller cancel native setup and ignores its late subscription", async () => {
     vi.useFakeTimers();
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
-    const { subscribe } = browserHarness({
-      subscribe: () => new Promise<PushSubscription>(() => undefined),
+    let finishSubscription!: (value: PushSubscription) => void;
+    const { subscribe, fetch, subscription } = browserHarness({
+      subscribe: () => new Promise<PushSubscription>((resolve) => { finishSubscription = resolve; }),
     });
+    const controller = new AbortController();
 
-    const registration = registerWebPush();
+    const registration = registerWebPush(controller.signal);
     let settled = false;
     void registration.then(() => {
       settled = true;
     });
     await flushRegistrationMicrotasks();
     expect(subscribe).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(WEB_PUSH_SUBSCRIBE_CEILING_MS - 1);
+    await vi.advanceTimersByTimeAsync(80_600);
     expect(settled).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
+    controller.abort();
+    await flushRegistrationMicrotasks();
 
     expect(settled).toBe(true);
     await expect(registration).resolves.toBeNull();
+    finishSubscription(subscription);
+    await flushRegistrationMicrotasks();
+    expect(fetch).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  // Design review, 6 Nov 2026: Chrome's first push subscription in a fresh
-  // profile took 27 to 32 s, and the old 10 s deadline cancelled every first
-  // "Turn weekly nudge on". A slow first subscription now registers.
-  it("waits out a slow first browser subscription and registers it", async () => {
+  // The first tap must survive slow native setup. Live validation remained
+  // pending at 80.6 s. Also check a longer wait so a raised cutoff cannot pass.
+  it.each([31_800, 80_600, 180_000])("registers a first subscription after %i ms without another call", async (delayMs) => {
     vi.useFakeTimers();
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
     const slow: { resolve: (value: PushSubscription) => void } = { resolve: () => {} };
@@ -135,9 +140,12 @@ describe("registerWebPush", () => {
     });
 
     const registration = registerWebPush();
+    let settled = false;
+    void registration.then(() => { settled = true; });
     await flushRegistrationMicrotasks();
     expect(subscribe).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(31_800);
+    await vi.advanceTimersByTimeAsync(delayMs);
+    expect(settled).toBe(false);
     expect(fetch).not.toHaveBeenCalled();
     slow.resolve(subscription);
 
