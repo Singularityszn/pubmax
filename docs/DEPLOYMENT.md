@@ -9,11 +9,11 @@ The app runs **keyless** locally (in-memory Pint Drops + structured Landlord fal
 `vercel.json` owns the default London placement for Vercel Functions. Measured
 launch latency, the bounded route-trace reduction, and remaining production
 verification live in the
-[cold-start bundle evidence](evidence/cold-start-bundle.md). Production
+[cold-start bundle evidence](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/cold-start-bundle.md). Production
 cold-start effect remains unverified until deployment.
 
 HTML cacheability remains a security decision, not a deployment toggle. The
-[CSP and caching decision brief](evidence/csp-vs-caching.md) owns the options
+[CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md) owns the options
 and pending captain decision.
 
 ## Environment variables
@@ -639,7 +639,7 @@ The publication gates are in [the build methodology](agents/build-methodology.md
 The daily browser and performance workflows already build and measure the app.
 Their schedules do not create a Vercel preview.
 
-The [25 October deployment audit](proof/git-preview-audit-20261025/README.md)
+The [25 October deployment audit](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/git-preview-audit-20261025/README.md)
 records READY Git production builds alongside cancelled Git previews. That
 record does not establish the current policy or guarantee the next build.
 

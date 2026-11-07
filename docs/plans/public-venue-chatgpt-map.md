@@ -1,6 +1,6 @@
 # Public venue map for ChatGPT
 
-Recorded check results are in the [evidence record](../proof/chatgpt-public-map-20260929/README.md#current-checks). Public hosting, ChatGPT account connection and distribution remain separate release steps.
+Recorded check results are in the [historical evidence record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/chatgpt-public-map-20260929/README.md#current-checks). Public hosting, ChatGPT account connection and distribution remain separate release steps.
 
 ## Outcome
 

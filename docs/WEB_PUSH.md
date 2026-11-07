@@ -1,9 +1,10 @@
 # Installed-web push runbook
 
 Wave 1.3 adds VAPID Web Push behind the existing `PushProvider` seam. It does
-not add user or Plan identity. Native APNs tokens and web subscriptions can
-share the registry, but the manual daily brief deliberately targets only web
-registrations. Plan/person targeting remains closed until Wave 1.4.
+not add user or Plan identity. The registry in `lib/pushTokenStore.ts` is
+identity-free by design. Native APNs tokens and web subscriptions can share it,
+but the manual daily brief deliberately targets only web registrations.
+Plan/person targeting remains unavailable.
 
 ## Owner activation
 

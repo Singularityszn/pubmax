@@ -288,8 +288,9 @@ Useful scripts:
 |---|---|
 | `npm run dev` | Dev server |
 | `npm run typecheck` | Checks project types; [compiler compatibility](next.config.mjs) explains how this differs from the Next build check |
-| `npm run verify` | Local pre-push gate; its complete check sequence is defined by the `verify` script in [`package.json`](package.json). `test:rls` and `db:types:check` need PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
-| `npm run ci` | `verify` + build - the full local gate; Vercel's build command is defined separately in [`vercel.json`](vercel.json) |
+| `npm run verify:no-mistakes:changed` | Runs change-scoped checks before push. See [verification policy](AGENTS.md#verifying). |
+| `npm run verify` | Full checks for CI or an explicitly requested local run. [`package.json`](package.json) defines the sequence. `test:rls` and `db:types:check` need PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
+| `npm run ci` | `verify` + build, for an explicitly requested full local check. [`vercel.json`](vercel.json) defines Vercel's build command |
 | `npm run ci:isolated` | Collision-safe keyless `ci` in a unique temporary Next dist directory; restores Next-managed tracked files |
 | `npm test` | Vitest unit suite ([PostgreSQL suite inventory](scripts/rls/postgresSuites.mjs); those suites boot throwaway PostgreSQL 16 clusters, `PUBMAX_PG_MAX_CLUSTERS` caps concurrency, and `PUBMAX_RLS_NO_PG=1` skips them) |
 | `npm run test:chatgpt-map` | Installs the pinned local MCP package and runs its Node tests; included in `verify`. Separate browser proof is described in the [setup guide](scripts/chatgpt-map/README.md) |
@@ -298,9 +299,9 @@ Useful scripts:
 | `npm run test:e2e:plan-auth` | Disposable local Plan authentication and recovery checks. See the [recovery guide](docs/testing/signed-in-review.md#disposable-plan-recovery) for requirements, configuration, and cleanup. |
 | `node scripts/e2e/run-disposable-plan-browser.mjs` | Wine and cocktail persistence and forged-hint browser checks against disposable PostgreSQL/PostgREST. Requires local PostgreSQL 16, PostgREST, and Playwright Chromium. Builds an isolated production server, applies the [fixture's migration range](scripts/e2e/disposable-plan-db.mjs) only to its temporary database, and cleans up its server, database, and build directory. Results stay in `test-results/`. |
 | [Signed-in review harness](docs/testing/signed-in-review.md) | Seeded local authenticated browser review |
-| `npm run shots` | Generates required 390/1440 light/dark Gate-Z screenshots; map captures fail unless MapLibre paints a pub mark |
+| `npm run shots` | Generates 390/1440 light/dark Gate-Z screenshots under ignored `artifacts/screenshots/` for upload to the PR. Map captures require a painted pub mark |
 | `npm run shots:extended` | Runs the same gate with the 430/1280 breakpoint audit |
-| `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
+| `npm run setup` | Enables the optional pre-push hook (`core.hooksPath=.githooks`). The current hook runs full `npm run verify` on every push |
 | `npm run build:slim` | Slim map index + **venue detail artifacts** (`data/generated/`) — also runs in `npm run build` |
 | `npm run build:city-slim` | Regenerates enabled city slim packs, compatibility cores, and manifests |
 

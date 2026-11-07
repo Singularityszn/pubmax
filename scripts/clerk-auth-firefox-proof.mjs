@@ -3,7 +3,7 @@
  * Firefox browser proof for Clerk account journey.
  *
  * Playwright Firefox only (chrome-devtools-axi writes no files; Zen undrivable).
- * Screenshots land in docs/proof/clerk-auth/.
+ * Screenshots land in artifacts/proof/clerk-auth/.
  *
  * Instance note (rare-trout-29 development):
  * user_settings.sign_up.mode is "waitlist". The Create account control therefore

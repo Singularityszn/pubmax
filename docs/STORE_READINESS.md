@@ -333,7 +333,7 @@ Declare the following. Everything else: Not Collected.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
 - **Can users request data deletion?** Yes. Account deletion covers account-linked data, including Night Memories and their Moment photos; the public contact in `lib/siteContact.mjs` handles other requests, including an optional area-demand address.
 
-**Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy`. The site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
+**Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy`. The site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see [the privacy-notice rule](rules/app-landing-city-and-listing-pages.md#the-privacy-notice-is-part-of-the-data-path-not-marketing-copy).
 
 **Account deletion URL:** required by Play's Data safety form, which asks for a page anybody can open WITHOUT signing in. Use `https://pubmaxxing.com/account/delete` (`app/account/delete/page.tsx`). It describes the in-app path and does not offer a second delete door: a deletion control a stranger can reach is an account-takeover surface however it is worded.
 
@@ -575,7 +575,7 @@ entitlements file, so the built app carries neither push nor associated domains
 however correct `App.entitlements` is), the camera sheet, and push delivery.
 
 Evidence from the runs that landed these scripts is in
-`docs/proof/ios-shell-build/`.
+[the historical iOS build record](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/ios-shell-build/).
 
 ### Android (no Play account)
 
@@ -635,7 +635,7 @@ Not provable on an emulator, and therefore device steps in section 8: push
 delivery, App Links verification, and the camera sheet.
 
 Evidence from the run that landed these scripts is in
-`docs/proof/android-shell-build/`.
+[the historical Android build record](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/android-shell-build/).
 
 ---
 

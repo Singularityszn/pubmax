@@ -102,7 +102,7 @@ paths.
 the matching value onto its inline hydration scripts.
 
 **Impact:** `script-src` no longer includes `'unsafe-inline'`. The nonce keeps
-HTML dynamic; the [CSP and caching decision brief](evidence/csp-vs-caching.md)
+HTML dynamic; the [CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md)
 owns alternatives and their security consequences.
 
 ---

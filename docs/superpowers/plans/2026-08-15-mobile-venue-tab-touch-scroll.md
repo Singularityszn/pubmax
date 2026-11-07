@@ -2,7 +2,7 @@
 
 **Goal:** Make every Venue section reachable with a real finger at 390px without changing sheet drag behavior.
 
-**Evidence:** Live and branch-current 390px audit shows `Ask` clipped and `Train` fully outside the visible strip in [the before proof](../../proof/mobile-audit-20260815/before-venue-tabs-clipped.png). The strip uses `overflow-x: auto` but declares `touch-action: pan-y`, so horizontal touch gestures cannot scroll it. Existing browser coverage calls `click()` on hidden tabs, which auto-scrolls them and does not reproduce touch input. [The after proof](../../proof/mobile-audit-20260815/after-venue-tabs-swiped.png) shows the final tab after the corrected touch gesture.
+**Evidence:** Live and branch-current 390px audit shows `Ask` clipped and `Train` fully outside the visible strip in [the before proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/mobile-audit-20260815/before-venue-tabs-clipped.png). The strip uses `overflow-x: auto` but declares `touch-action: pan-y`, so horizontal touch gestures cannot scroll it. Existing browser coverage calls `click()` on hidden tabs, which auto-scrolls them and does not reproduce touch input. [The after proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/mobile-audit-20260815/after-venue-tabs-swiped.png) shows the final tab after the corrected touch gesture.
 
 **Proof setup:** Both captures use Arnos Arms, Headless Chrome 151, a 390x844 CSS viewport, DPR 1, mobile and touch emulation, light mode, and reduced motion. Before is the live route with tab scroll 3px of 61px. After is the local branch at the 61px end position. Both strips measure 379px content inside a 318px viewport.
 

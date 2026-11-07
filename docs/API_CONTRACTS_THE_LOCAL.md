@@ -183,7 +183,7 @@ Creation hashes canonical submitted intent, including the cleaned hint, independ
 
 Accepted proposals copy their proposal-time evidence only when it matches the current drink category and the context is not zero-proof. Durable acceptance checks that context while holding the Plan row lock. Completion records preserve saved stop evidence as history, so later live-route edits do not rewrite the completion. These operations do not refresh the historical report date. Anchor-only generation can return selected-drink evidence; the map-to-Plan transfer still omits it.
 
-The SQL in [`supabase/migrations/`](../supabase/migrations/) and its matching [rollbacks](../supabase/migrations/rollback/) owns durable storage, lifecycle writes, and database value constraints. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
+The SQL in [`supabase/migrations/`](../supabase/migrations/) and its matching [rollbacks](../supabase/migrations/rollback/) owns durable storage, lifecycle writes, and database value constraints. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
 
 ### 2.4 NightArea catalogue
 
@@ -555,7 +555,7 @@ Migrations `0213`, `0214` and `0215` and their matching [rollbacks](../supabase/
 Migration `0213` adds nullable arrival bindings without backfilling historical actions.
 Revert the application before rolling back these migrations.
 Rollback removes table signs, mystery settings and proposal proof metadata, while retaining saved routes and proposals.
-The captain controls migration application. The [proof record](proof/v1-night-features/README.md) records local checks, not production migration state.
+The captain controls migration application. The [proof record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/v1-night-features/README.md) records local checks, not production migration state.
 
 ---
 
