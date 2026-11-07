@@ -1,8 +1,14 @@
 import { lastOf } from "@/lib/tuple";
 import { isWithinMaxAge } from "@/lib/communityPrice";
 import type { Provenance } from "@/lib/curation";
-import { AGED_PRICE_LINE } from "@/lib/venuePriceLane";
-import { formatFreshness, type Venue } from "@/lib/venues";
+import { AGED_PRICE_LINE, venueSourcedPrice } from "@/lib/venuePriceLane";
+import { formatFreshness, hasPintPriceSemantics, type Venue } from "@/lib/venues";
+import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
+import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
+import { drinkMeasureName, measureFromServingSize, measureNamedInDrinkText, statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { drinkAgreementKey } from "@/lib/pintDropAgreement";
+import { isComparablePintServing, pintObservationTime } from "@/lib/comparablePint.mjs";
+import { firstHttp } from "@/lib/httpUrl";
 
 // "Then vs Now" — connect a venue's baseline dataset price ("then") to the most
 // recent community-reported Pint Drop price ("now"). Pure/testable: no fetch, no
@@ -110,10 +116,9 @@ export function computeThenVsNow(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// The Golden Thread — per-venue price story with inflation ("a pint here was £X
-// in YYYY — £Y in today's money"). Everything below is pure/testable: no fetch,
-// no React, no side effects. The venue surface (VenueInspector) feeds it the
-// selected Venue plus that venue's drops and renders the resolved story.
+// The Golden Thread resolves selected price evidence for the venue sheet.
+// CPI helpers remain available, but the current report contract cannot date
+// a historical price independently of its memory's era.
 // ────────────────────────────────────────────────────────────────────────────
 
 // UK CPI (all items, 2015 = 100) decadal anchors, annual averages. Post-1988
@@ -174,12 +179,11 @@ export function inflateToToday(amountGbp: number, fromYear: number): number | nu
   return Math.round(amountGbp * (todayIdx / fromIdx) * 100) / 100;
 }
 
-// Pull a usable baseline YEAR out of a free-text era string. Community era tags
+// Pull a memory year out of a free-text era string. Community era tags
 // look like "Dad's rule, 1980s", "The wedding, 1971", "Nan's shift, 1950s".
-// A bare 4-digit year wins; a "…0s" decade resolves to its MIDPOINT (1980s →
-// 1985) so the inflation anchor sits in the middle of the remembered span
-// rather than its very start. Only years in a plausible pub-era range
-// (1900–INFLATION_TODAY_YEAR) count — an address number or "£5" never leaks in.
+// A decade resolves to its midpoint, such as 1985 for the 1980s. Otherwise,
+// use a bare four-digit year. This does not date a logged price.
+// Only years from 1900 to INFLATION_TODAY_YEAR count.
 export function parseEraYear(era: string | null | undefined): number | null {
   if (typeof era !== "string") return null;
   // Decade first ("1980s") so "1980" inside it doesn't win as a bare year.
@@ -204,14 +208,24 @@ export type VenuePriceStamp = {
   gbp: number;
   provenance: Provenance;
   isFresh?: boolean;
-  // A human label for the moment this price is FROM: an era string for a
-  // historical drop, "Baseline on record" for the dataset price, "Community
-  // tonight" for a fresh drop, or its age and standing when it is stale.
+  // The label describes the record's status. Its dates stay in evidence,
+  // because a log date does not necessarily date the price.
   label: string;
+  evidence: {
+    drink: string | null;
+    serving: string | null;
+    publisher: string | null;
+    sourceUrl: string | null;
+    recordedAt: string | null;
+    dateKind: "read" | "logged";
+    /** A memory can have a known log date without a known price date. */
+    priceDateKnown?: boolean;
+    linkUnavailable?: boolean;
+  };
 };
 
-// The historical "then" anchor: an anecdotal/contributor drop carrying BOTH a
-// price and a parseable era year, revalued into today's money.
+// A historical adjustment needs a dated price observation. A parsed memory
+// era alone cannot supply one.
 type VenueInflationAnchor = {
   year: number;
   thenGbp: number; // the price as originally remembered/logged
@@ -224,115 +238,194 @@ type VenueInflationAnchor = {
 export type VenuePriceStory = {
   venueId: string;
   venueName: string;
-  // The dataset baseline "price on record" (sourced/editorial), when present.
+  // The selected record, omitted when now already displays that same report.
   baseline: VenuePriceStamp | null;
   // The newest priced community drop, when present. Its label says whether it
   // is still fresh enough to describe as tonight's price.
   now: VenuePriceStamp | null;
-  // now.gbp - baseline.gbp, and its percent, when BOTH are present. Mirrors
-  // computeThenVsNow so the venue surface can reuse the same delta framing.
+  // comparableStoryPrices owns whether these differences can be claimed.
   deltaGbp: number | null;
   pct: number | null;
-  // The inflation line: the best historical priced+dated drop revalued to today.
-  // null when the venue has no drop that carries both a price and an era year.
+  // Reserved for a historical price with its own observation date. An era
+  // belongs to the memory, so the current drop contract cannot supply this.
   inflation: VenueInflationAnchor | null;
   // True when there is nothing to show at all — the surface renders its honest
   // empty state ("no price story on record yet").
   isEmpty: boolean;
 };
 
-// A drop shape rich enough to build the inflation anchor: the ThenVsNowDrop
-// fields plus the era/handle/provenance the story needs. VenueInspector already
-// holds full PintDrops for the venue, so it satisfies this directly.
+// The public fields needed by the venue story. VenueInspector already holds
+// full Pint Drops, including their public-safe attribution.
 export type VenuePriceStoryDrop = ThenVsNowDrop & {
+  drink?: string | null;
+  measure?: DrinkMeasure | null;
+  measureLabel?: string | null;
   era?: string | null;
   handle?: string | null;
   provenance: Provenance;
 };
 
-// Pick the best historical inflation anchor: among drops that carry BOTH a
-// finite price AND a parseable era year, prefer the OLDEST year (the deepest
-// look back tells the most striking inflation story); ties break on the lower
-// price, then newest createdAt, for determinism. Demo drops are eligible but
-// keep their "demo" provenance so the surface badges them honestly.
-function bestInflationAnchor(drops: VenuePriceStoryDrop[]): VenueInflationAnchor | null {
-  let best: { year: number; drop: VenuePriceStoryDrop } | null = null;
-  for (const drop of drops) {
-    if (!isFiniteNumber(drop.priceGbp)) continue;
-    const year = parseEraYear(drop.era);
-    if (year === null) continue;
-    if (
-      !best ||
-      year < best.year ||
-      (year === best.year && drop.priceGbp < (best.drop.priceGbp ?? Infinity)) ||
-      (year === best.year &&
-        drop.priceGbp === best.drop.priceGbp &&
-        drop.createdAt.localeCompare(best.drop.createdAt) > 0)
-    ) {
-      best = { year, drop };
-    }
-  }
-  if (!best) return null;
-  const todayGbp = inflateToToday(best.drop.priceGbp as number, best.year);
-  if (todayGbp === null) return null;
+function reportedServing(drop: VenuePriceStoryDrop): string | null {
+  const measure = drop.measure === undefined
+    ? measureNamedInDrinkText(drop.drink ?? "") ?? "pint"
+    : statedDrinkMeasure(drop.measure);
+  if (!measure) return null;
+  if (measure === "other") return drop.measureLabel?.trim() || null;
+  return drinkMeasureName(measure).toLowerCase();
+}
+
+function comparableStoryPrices(baseline: VenuePriceStamp, report: VenuePriceStamp, now: number): boolean {
+  const drinkKey = (stamp: VenuePriceStamp) => drinkAgreementKey({ drink: stamp.evidence.drink ?? "", priceGbp: stamp.gbp });
+  const servingKey = (stamp: VenuePriceStamp) => measureFromServingSize(stamp.evidence.serving)
+    ?? (stamp.evidence.serving?.trim().toLowerCase().replace(/\s+/g, " ") || null);
+  const baselineAt = pintObservationTime(baseline.evidence.recordedAt, now);
+  const reportAt = pintObservationTime(report.evidence.recordedAt, now);
+  return report.isFresh === true && baseline.gbp > 0 && report.gbp > 0
+    && baseline.evidence.priceDateKnown !== false && report.evidence.priceDateKnown !== false
+    && baseline.provenance !== "demo" && baseline.provenance !== "anecdote"
+    && drinkKey(baseline) !== null && drinkKey(baseline) === drinkKey(report)
+    && servingKey(baseline) !== null && servingKey(baseline) === servingKey(report)
+    && Boolean(baseline.evidence.publisher && report.evidence.publisher)
+    && baselineAt !== null && reportAt !== null && baselineAt < reportAt;
+}
+
+function communityPriceStamp(drop: VenuePriceStoryDrop, now: number): VenuePriceStamp | null {
+  if (!isFiniteNumber(drop.priceGbp)) return null;
+  const submittedAt = pintObservationTime(drop.createdAt, now);
+  // Only the current log's empty era or explicit Tonight preset dates the
+  // price. Other eras can describe a memory beside an unrelated price.
+  const era = drop.era?.trim().toLowerCase();
+  const priceDateKnown = (!era || era === "tonight") && drop.provenance === "contributor";
+  const isFresh = priceDateKnown && submittedAt !== null && isWithinMaxAge({ submittedAt }, now);
+  const freshness = submittedAt === null ? "Log date unknown" : formatFreshness(drop.createdAt, new Date(now));
   return {
-    year: best.year,
-    thenGbp: best.drop.priceGbp as number,
-    todayGbp,
-    todayYear: INFLATION_TODAY_YEAR,
-    provenance: best.drop.provenance,
-    handle: (best.drop.handle ?? "").trim() || "A drinker",
+    gbp: drop.priceGbp,
+    provenance: drop.provenance,
+    isFresh,
+    label: !priceDateKnown
+      ? "Reported price"
+      : submittedAt === null
+      ? "Community report · log date unknown"
+      : isFresh ? "Community tonight" : [freshness, AGED_PRICE_LINE].join(" · "),
+    evidence: {
+      drink: drop.drink?.trim() || null,
+      serving: reportedServing(drop),
+      publisher: drop.handle?.trim() ? `Reported by ${drop.handle.trim()}` : null,
+      sourceUrl: null,
+      recordedAt: submittedAt === null ? null : new Date(submittedAt).toISOString(),
+      dateKind: "logged",
+      ...(!priceDateKnown ? { priceDateKnown: false } : {}),
+    },
   };
 }
 
-// Build the whole per-venue price story in one pass. Pure: hand it the selected
-// venue and that venue's drops. Each of the three surfaces (baseline /
-// community / inflation) is resolved independently, so a venue can show any
-// subset. When it has none, `isEmpty` is true for an honest empty state.
-// Provenance is
-// NEVER flattened: the dataset baseline is "sourced", `now` and the inflation
-// anchor carry their drop's own provenance.
+/** A date belonging to this price record, not a later collection stamp. */
+function priceRecordDate(value: unknown, now: number): string | null {
+  const at = pintObservationTime(value, now);
+  return at === null ? null : new Date(at).toISOString();
+}
+
+type SelectedPriceRecord = { stamp: VenuePriceStamp; report: VenuePriceStoryDrop | null };
+
+function selectedPriceRecord(venue: Venue, drops: VenuePriceStoryDrop[], now: number): SelectedPriceRecord | null {
+  const gbp = venue.cheapestPrice;
+  if (!isFiniteNumber(gbp)) return null;
+
+  // A refresh owns the amount even when a dataset row has the same number.
+  // The refresh contract records no drink or serving.
+  const update = venueSourcedPrice(venue);
+  if (update) {
+    const sourceUrl = firstHttp(update.sourceUrl) || null;
+    return {
+      report: null,
+      stamp: {
+          gbp,
+          provenance: update.provenance,
+          label: "Listed update on record",
+          evidence: {
+            drink: null,
+            serving: null,
+            publisher: update.sourceLabel.trim() || null,
+            sourceUrl,
+            recordedAt: priceRecordDate(update.observedAt, now),
+            dateKind: "read",
+            ...(update.sourceUrl.trim() && !sourceUrl ? { linkUnavailable: true } : {}),
+          },
+        },
+      };
+    }
+
+    if (venue.latestContributorPrice === gbp && venue.latestContributorAt) {
+      const selectedAt = Date.parse(venue.latestContributorAt);
+      const matching = drops.filter((drop) => drop.venueId === venue.id
+        && drop.provenance === "contributor" && drop.priceGbp === gbp
+        && Date.parse(drop.createdAt) === selectedAt && drop.drink === venue.cheapestPint);
+      // Multiple matching reports cannot identify whose attribution was selected.
+      const selectedStamp = matching.length === 1 ? communityPriceStamp(matching[0]!, now) : null;
+      return {
+        report: matching.length === 1 ? matching[0]! : null,
+        stamp: {
+          ...(selectedStamp ?? {
+            gbp,
+            provenance: "contributor",
+            evidence: {
+              drink: venue.cheapestPint.trim() || null,
+              serving: null,
+              publisher: null,
+              sourceUrl: null,
+              recordedAt: priceRecordDate(venue.latestContributorAt, now),
+              dateKind: "logged",
+              priceDateKnown: false,
+            },
+          }),
+          label: "Community price on record",
+        },
+      };
+    }
+
+    const selected = selectedVenuePintEvidence(venue, now);
+    const row = venue.prices?.find((price) => price.price_gbp === gbp);
+    const source = row ? namedLegacyPintPriceSource(row) : null;
+    const namedMeasure = measureNamedInDrinkText(selected.cheapestPint ?? "");
+    const legacyServing = row && hasPintPriceSemantics(venue)
+      ? namedMeasure ? drinkMeasureName(namedMeasure).toLowerCase()
+        : isComparablePintServing({ cheapestPint: selected.cheapestPint }) ? "pint" : null
+      : null;
+    return {
+      report: null,
+      stamp: {
+      gbp,
+      provenance: venue.curation.provenance ?? "sourced",
+      label: "Baseline on record",
+      evidence: {
+        drink: selected.cheapestPint?.trim() || null,
+        serving: selected.measure?.trim() || legacyServing,
+        publisher: selected.priceSource === "app-dataset" ? null : selected.priceSource?.trim() || null,
+        sourceUrl: source?.url ?? null,
+        recordedAt: priceRecordDate(selected.priceObservedAt, now),
+        dateKind: "read",
+      },
+    },
+  };
+}
+
+/** Resolve each displayed amount from its own selected record. */
 export function computeVenuePriceStory(
   venue: Venue,
   drops: VenuePriceStoryDrop[],
   now: number = Date.now(),
 ): VenuePriceStory {
-  const baselineGbp = venue.cheapestPrice;
-  const baseline: VenuePriceStamp | null = isFiniteNumber(baselineGbp)
-    ? {
-        gbp: baselineGbp,
-        // The dataset baseline is editorial/sourced record, unless the venue's
-        // curation explicitly marks its provenance otherwise (e.g. demo).
-        provenance: venue.curation.provenance ?? "sourced",
-        label: "Baseline on record",
-      }
-    : null;
+  const selected = selectedPriceRecord(venue, drops, now);
+  const nowDrop = mostRecentPricedDrop(drops.filter((drop) => drop.venueId === venue.id)) as VenuePriceStoryDrop | null;
+  const nowStamp = nowDrop ? communityPriceStamp(nowDrop, now) : null;
+  const sameReport = nowDrop !== null && selected?.report === nowDrop;
+  const baseline = sameReport ? null : selected?.stamp ?? null;
+  const comparable = baseline && nowStamp && comparableStoryPrices(baseline, nowStamp, now);
+  const deltaGbp = comparable ? nowStamp.gbp - baseline.gbp : null;
+  const pct = comparable ? ((nowStamp.gbp - baseline.gbp) / baseline.gbp) * 100 : null;
 
-  const nowDrop = mostRecentPricedDrop(drops) as VenuePriceStoryDrop | null;
-  const nowStamp: VenuePriceStamp | null = (() => {
-    if (!nowDrop || !isFiniteNumber(nowDrop.priceGbp)) return null;
-    const submittedAt = Date.parse(nowDrop.createdAt);
-    const isFresh = isWithinMaxAge({ submittedAt }, now);
-    const freshness = formatFreshness(nowDrop.createdAt, new Date(now));
-    return {
-      gbp: nowDrop.priceGbp,
-      provenance: nowDrop.provenance,
-      isFresh,
-      label: isFresh
-        ? "Community tonight"
-        : [freshness, AGED_PRICE_LINE].filter(Boolean).join(" · "),
-    };
-  })();
-
-  let deltaGbp: number | null = null;
-  let pct: number | null = null;
-  if (baseline && nowStamp) {
-    deltaGbp = nowStamp.gbp - baseline.gbp;
-    pct = baseline.gbp !== 0 ? (deltaGbp / baseline.gbp) * 100 : 0;
-  }
-
-  const inflation = bestInflationAnchor(drops);
-
+  // An era dates a memory, not the numeric price beside it. The current DTO
+  // carries no historical price observation, so it cannot support inflation.
   return {
     venueId: venue.id,
     venueName: venue.name,
@@ -340,7 +433,7 @@ export function computeVenuePriceStory(
     now: nowStamp,
     deltaGbp,
     pct,
-    inflation,
-    isEmpty: !baseline && !nowStamp && !inflation,
+    inflation: null,
+    isEmpty: !baseline && !nowStamp,
   };
 }

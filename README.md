@@ -187,6 +187,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Choose **Friends** to share notes with people you follow who also follow you. **Legacy** keeps an entry in the pub's Ledger. Other people see the entry without your note or price. Anyone with a photo's link can open it while the link remains valid.
 
+- **Venue price stories** - open a pub's **Prices** tab to see **The Golden Thread**. Each listed or updated price keeps its own drink, serving, publisher and source-read day. A drinker report keeps its own drink, serving, attribution and log date. Missing facts are labelled. Another row never supplies missing evidence, even when its price matches. Only reports for the selected pub count.
+
+  A change requires the same named drink and serving, positive prices, named publishers and valid dates in order. The report must follow the earlier record and remain within the [community-price freshness window](lib/priceAuthorityWindow.ts). Demo prices and anecdotes cannot establish a change. Otherwise, two displayed records show **Price comparison unavailable**, without an arrow, comparison bars, percentage or spoken change claim. A memory's era does not date its logged price, so the story shows no inflation adjustment. Source reads and reports do not confirm today's price.
 - **Offline pages** - with a registered service worker, previously cached public `/plan/<id>` previews can reopen without signal. Cached landing, Map, Tonight and offline fallback pages can also reopen.
 
   Nearby links (`/near`, with or without query parameters) need a connection. When navigation fails, the service worker shows the cached offline explanation. If that page is unavailable, it shows a plain offline error.

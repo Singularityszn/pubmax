@@ -1,4 +1,4 @@
-/* The Golden Thread — per-venue price story block, rendered inside the Pints tab
+/* The Golden Thread price story block, rendered inside the Prices tab
    of .venueInspector. Scoped to .venuePriceStory only; reuses role tokens
    (--accent-action, --ink, --ink-soft, --line, --panel-raised, --pint, --brick,
    --amber, --font-data, --radius-sm) and the global .provChip idiom. Data
@@ -37,6 +37,29 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.vpsEvidence {
+  display: grid;
+  gap: 4px;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Use the existing inline citation pattern: the hit area remains 44px without
+   making each caption line 44px tall. */
+.vpsEvidence a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
 }
 
 /* A label, so sentence case in the body face: caps are for stamps, and the
@@ -153,7 +176,7 @@
   color: var(--ink-soft);
 }
 
-/* The inflation line — a dated, priced memory revalued into today's money. */
+/* Reserved styling for the optional inflation block in VenuePriceStory. */
 .vpsInflation {
   margin-top: 12px;
   padding: 11px 12px;
