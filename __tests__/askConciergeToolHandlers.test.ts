@@ -150,8 +150,25 @@ describe("cheapest_pint_near", () => {
     expect(result.cards.map((card) => card.venueId)).toEqual(["near-cheap", "near-dear"]);
     expect(result.answerHint).toContain("The Crown at £4.50");
     for (const card of result.cards) {
-      expect(card.provenance?.label).toBe("On record");
+      expect(card.provenance?.label).toBe("Pub menu. Source read 1 January 2026. Link unavailable.");
+      expect(card.note).toContain("Drink not recorded · Serving not recorded");
     }
+  });
+
+  it("keeps equal-price pubs with their own drink, stated serving, publisher and day", async () => {
+    state.venues = [
+      venue({ id: "first", name: "First Arms", cheapestPrice: 5, cheapestPint: "First lager", measure: "pint", priceSource: "First menu", priceObservedAt: "2026-01-12" }),
+      venue({ id: "second", name: "Second Arms", cheapestPrice: 5, cheapestPint: "Second ale", priceSource: "Second menu", priceObservedAt: "2026-02-14" }),
+    ];
+    const result = await runAskTool("cheapest_pint_near", { area: "Camden" }, ctx());
+    expect(result.cards.map((card) => [card.venueId, card.price])).toEqual([["first", 5], ["second", 5]]);
+    expect(result.cards[0]).toMatchObject({ note: "First lager · Pint", provenance: { label: "First menu. Source read 12 January 2026. Link unavailable." } });
+    expect(result.cards[1]).toMatchObject({ note: "Second ale · Serving not recorded", provenance: { label: "Second menu. Source read 14 February 2026. Link unavailable." } });
+    expect(result.provenance.map((source) => source.label)).toEqual([
+      "First menu. Source read 12 January 2026. Link unavailable.",
+      "Second menu. Source read 14 February 2026. Link unavailable.",
+    ]);
+    expect(result.proposals.every((proposal) => proposal.kind === "open_venue")).toBe(true);
   });
 
   it("answers an area ask from the borough list", async () => {
