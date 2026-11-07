@@ -38,10 +38,13 @@ import {
   withoutWalkTimes,
   nearMeAnswerHeadline,
   nearSavingLine,
+  nearestListedPub,
   rankBoroughCheapest,
   rankNearMe,
+  type NearMeAnswer,
   type NearMeCard,
   type NearMeScope,
+  type NearestPub,
   type PricedPoint,
 } from "@/lib/nearMeAnswer";
 import {
@@ -78,6 +81,7 @@ import SharePintButton from "@/components/share/SharePintButton";
 import { nearTopPintShare } from "@/lib/venuePintShare";
 import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
 import Screen from "@/components/ui/screen";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import "./nearMeNow.css";
 
@@ -336,6 +340,7 @@ export default function NearMeNow({
   // so a missed effect can never leave a permanent locate spinner.
   const [state, setState] = useState<LocateState>(initialLocation ? "requesting" : "idle");
   const [cards, setCards] = useState<NearMeCard[]>([]);
+  const [nearestPub, setNearestPub] = useState<NearestPub | null>(null);
   const [scope, setScope] = useState<NearMeScope>("none");
   // The doorstep pub the saving line compares against. Set only by an answer
   // from the reader's own fix; every new answer clears it (beginAnswer).
@@ -413,6 +418,7 @@ export default function NearMeNow({
     const generation = ++answerGenerationRef.current;
     setActiveAnswerGeneration(generation);
     setNearest(null);
+    setNearestPub(null);
     return generation;
   }, []);
   const priceTrust = useNearPriceTrust(
@@ -606,6 +612,7 @@ export default function NearMeNow({
         void loadSlim().then((slim) => {
           if (!ownsAnswer(generation)) return;
           const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
+          setNearestPub(nearestListedPub(position.coords.latitude, position.coords.longitude, slim, answerPubIds(answer)));
           if (answer.scope === "none") {
             // Located fine, but nothing priced in range — be honest that we do
             // not cover here yet, name the REAL nearest patch, and let them
@@ -671,6 +678,7 @@ export default function NearMeNow({
       void loadSlim().then((slim) => {
         if (!ownsAnswer(generation)) return;
         const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
+        setNearestPub(nearestListedPub(initialLocation.lat, initialLocation.lng, slim, answerPubIds(answer)));
         setCards(answer.cards);
         setNearDrinks({ lat: initialLocation.lat, lng: initialLocation.lng }, slim);
         setScope(answer.scope);
@@ -793,6 +801,12 @@ export default function NearMeNow({
         // for the beat the slim index takes to arrive.
         <NearMeFallbackStatus />
       ) : null}
+
+      <NearestPubAnswer
+        pub={nearestPubOnScreen(state, nearestPub, answerContext, activeAnswerGeneration, borough, patch)}
+        onOpen={openVenue}
+        titledByHost={titledByHost}
+      />
 
       {state === "ready" && outsideCoverage ? (
         <NearMeOutsideCoverage
@@ -1002,6 +1016,65 @@ function NearMeOutsideCoverage({
         </ReadyButton>
       </footer>
     </div>
+  );
+}
+
+/**
+ * The nearest pub to show, or null. Only a ready answer from the reader's own
+ * current fix names one: a borough or patch answer has no reader position.
+ */
+function nearestPubOnScreen(
+  state: LocateState,
+  pub: NearestPub | null,
+  context: { source: NearAnswerSource; generation: number } | null,
+  activeGeneration: number,
+  borough: string | null,
+  patch: unknown,
+): NearestPub | null {
+  const current = state === "ready" && !borough && !patch &&
+    context?.source === "location" && context.generation === activeGeneration;
+  return current ? pub : null;
+}
+
+/** The pubs a located answer already names: its cards and its saving line's pub. */
+function answerPubIds(answer: NearMeAnswer): string[] {
+  return [...answer.cards.map((card) => card.id), ...(answer.nearest ? [answer.nearest.id] : [])];
+}
+
+function NearestPubAnswer({
+  pub,
+  onOpen,
+  titledByHost,
+}: {
+  pub: NearestPub | null;
+  onOpen: (id: string) => void;
+  titledByHost: boolean;
+}) {
+  if (!pub) return null;
+  return (
+    <section className="nmnNearest" aria-label="Nearest listed pub">
+      <header className="nmnHead">
+        <AnswerHeadline text="Nearest listed pub" titledByHost={titledByHost} />
+      </header>
+      <ReadyButton type="button" className="nmnCard" onClick={() => onOpen(pub.id)}>
+        <span className="nmnCardMain">
+          <span className="nmnCardName">{pub.name}</span>
+          <span className="nmnCardMeta">
+            <span className="nmnCardBorough">{pub.borough}</span>
+            <span className="nmnCardWalk">
+              <Footprints size={14} aria-hidden="true" />
+              About {pub.walkMinutes} min · {formatNearDistance(pub.distanceKm)}
+            </span>
+          </span>
+        </span>
+        <span className="nmnCardView">
+          {NEAR_ME_VIEW_LABEL}<ChevronRight size={14} aria-hidden="true" />
+        </span>
+      </ReadyButton>
+      <p className="nmnHint">
+        Pub data includes <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>, ODbL. <DataCreditsLink />
+      </p>
+    </section>
   );
 }
 
