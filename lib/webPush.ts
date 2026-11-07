@@ -78,7 +78,10 @@ export function webPushSupport(): WebPushSupport {
 /** Request permission, create/reuse a browser subscription and register it on
  * the identity-free push-token route. Returns the encoded token on success, or
  * null on any unsupported, denied, unconfigured or network-failed path. */
-export async function registerWebPush(signal?: AbortSignal): Promise<string | null> {
+export async function registerWebPush(
+  signal?: AbortSignal,
+  onSlowSubscription?: () => void,
+): Promise<string | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   if (!("PushManager" in window) || !("Notification" in window)) return null;
 
@@ -121,13 +124,20 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
     if (!subscription) {
       // Fresh-profile endpoint setup can exceed a minute. Only the caller
       // cancels this wait. The token request still has its own deadline.
-      subscription = await waitForWebPushWork(
-        registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: key,
-        }),
-        signal,
-      );
+      const pendingNotice = setTimeout(() => {
+        if (!signal?.aborted) onSlowSubscription?.();
+      }, 60_000);
+      try {
+        subscription = await waitForWebPushWork(
+          registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: key,
+          }),
+          signal,
+        );
+      } finally {
+        clearTimeout(pendingNotice);
+      }
     }
     const token = encodeWebPushSubscription(subscription.toJSON());
     if (!token) return null;

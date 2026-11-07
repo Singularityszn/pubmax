@@ -21,6 +21,7 @@ const WEB_PUSH_SURFACE = "web-push";
 
 export default function WebPushPrompt(): React.JSX.Element | null {
   const [pending, setPending] = useState(false);
+  const [slowSubscription, setSlowSubscription] = useState(false);
   const [error, setError] = useState("");
   const visible = useSyncExternalStore(
     subscribeWebPushPrompt,
@@ -52,7 +53,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
     setPending(true);
     setError("");
     try {
-      const registered = await registerWebPush(controller.signal);
+      const registered = await registerWebPush(controller.signal, () => setSlowSubscription(true));
       if (controller.signal.aborted) return;
       if (registered) {
         markWebPushPromptEnabled();
@@ -65,7 +66,10 @@ export default function WebPushPrompt(): React.JSX.Element | null {
       if (registrationAbortRef.current === controller) {
         registrationAbortRef.current = null;
       }
-      if (!controller.signal.aborted) setPending(false);
+      if (!controller.signal.aborted) {
+        setPending(false);
+        setSlowSubscription(false);
+      }
     }
   }
 
@@ -104,7 +108,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
             onClick={() => void handleEnable()}
             disabled={pending}
           >
-            {pending ? "Turning on…" : "Turn on"}
+            {pending ? (slowSubscription ? "Still setting up notifications..." : "Turning on…") : "Turn on"}
           </button>
         </div>
       </div>
