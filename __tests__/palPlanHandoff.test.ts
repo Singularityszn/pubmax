@@ -125,11 +125,6 @@ describe("palDraftAttempts: keep all, then keep the first, then plan from the as
     }
   });
 
-  it("does not replace an accepted pub list with another draft", () => {
-    const accepted = { ...held, venueId: DRAFT.stopIds[0]!, venueIds: [DRAFT.stopIds[0]!, "venue-held-second"] };
-    expect(palDraftAttempts(draft, accepted)).toEqual([{ keeps: "held", anchor: accepted, context: {} }]);
-  });
-
   it("asks the anchored generator for the whole drafted route first", () => {
     const [all, first, plain] = palDraftAttempts(draft, null);
     expect(all).toEqual({

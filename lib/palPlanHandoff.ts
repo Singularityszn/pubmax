@@ -81,7 +81,7 @@ export function palPlanDraftFor(raw: string | null, ask: string | null): PalPlan
  * The generation attempts for one ask, in order. Without a draft it is the one
  * attempt Plan always made. With one: keep every drafted pub, then keep the
  * first and choose the rest, then plan from the ask as before. An accepted
- * first pub or pub list takes priority over a conflicting draft.
+ * first pub takes priority over a conflicting draft.
  */
 export function palDraftAttempts(
   draft: PalPlanDraft | null,
@@ -92,8 +92,8 @@ export function palDraftAttempts(
   if (!draft) return [plain];
   const source = draft.origin === "map" ? "map-search" : "pal";
   const first = draft.stopIds[0]!;
-  // A draft cannot release an accepted first pub or replace an accepted list.
-  if (fallbackAnchor && (fallbackAnchor.venueId !== first || fallbackAnchor.venueIds?.length)) {
+  // A draft cannot release an accepted first pub.
+  if (fallbackAnchor && fallbackAnchor.venueId !== first) {
     return [plain];
   }
   // An accepted first pub that the draft also starts at keeps its area and time.
