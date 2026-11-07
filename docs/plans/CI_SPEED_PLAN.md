@@ -2,7 +2,7 @@
 
 Status: LEVERS 1 TO 4 SHIPPING, CAPTAIN DECIDES THE REST. Lever 1 ships in the pull request that adds this plan. On 2 Nov 2026 the captain approved levers 2, 3 and 4 (three unit shards), and they ship in the same pull request. Levers 5 to 7 wait for the captain.
 
-Rule: [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH](../rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path). Skills: `.agents/skills/ci-speedup`, `.agents/skills/ci-score` and `.agents/skills/ci-secure` ([provenance](../../.agents/skills/SOURCES.md)).
+Rule: [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH](../rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path). Skills: `ci-speedup`, `ci-score` and `ci-secure`, user-level skills installed in `~/.agents/skills` (provenance in the git history of [`.agents/skills/SOURCES.md`](../../.agents/skills/SOURCES.md)).
 
 ## 1. What happened
 
@@ -137,7 +137,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 
 1. Read the step timings of three green code pull requests with the GitHub MCP `actions_list` tool (`list_workflow_jobs`), or run `ci-speedup` where `gh` is signed in.
 2. Name the slowest chain, then compare it with section 2.
-3. Run `python3 .agents/skills/ci-score/scripts/collect_config.py --repo . --out <scratch>/score.json` to re-score the configuration.
+3. Run `python3 ~/.agents/skills/ci-score/scripts/collect_config.py --repo . --out <scratch>/score.json` to re-score the configuration.
 
 ## 6. After the first measurement (2 Nov 2026)
 
