@@ -182,6 +182,28 @@ test.describe("price-first Spill composer", () => {
     expect(errors).toEqual([]);
   });
 
+  for (const lane of ["Friends", "Legacy"] as const) {
+    test(`a ${lane} drop never calls its note public`, async ({ page }) => {
+      const errors = watchPageErrors(page);
+      await page.setViewportSize({ width: 390, height: 844 });
+      const { form } = await openComposer(page);
+      await openExtras(form);
+      const choice = form.getByRole("radiogroup", { name: "Visibility" })
+        .getByRole("radio", { name: lane, exact: true });
+      await expect(async () => {
+        await choice.click();
+        await expect(choice).toHaveAttribute("aria-checked", "true", { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      const consent = form.locator(".consentNote");
+      await expect(consent).not.toContainText("Photos and notes are public");
+      await expect(consent).toContainText("Notes follow the audience you choose.");
+      await expect(form.locator(".visibilityHelper")).toContainText(
+        lane === "Friends" ? "follow you back" : "not your note or price",
+      );
+      expect(errors).toEqual([]);
+    });
+  }
+
   test("choosing Family Table selects the Legacy visibility lane", async ({ page }) => {
     const errors = watchPageErrors(page);
     await page.setViewportSize({ width: 390, height: 844 });

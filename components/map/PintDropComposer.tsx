@@ -391,9 +391,11 @@ export default function PintDropComposer({
 
           <SpillPreviewCard preview={preview} pintPhoto={pintPhoto} visibility={visibility} />
 
+          {/* Notes obey the lane chosen above. A photo is served by link, and a
+              link can be passed on, so the photo warning holds in every lane. */}
           <p className="consentNote">
-            Photos and notes are public and may show people. Only upload what you&rsquo;re happy to
-            share.
+            Notes follow the audience you choose. Anyone with a photo&rsquo;s link can open it, so
+            only upload photos you&rsquo;re happy to share.
           </p>
         </div>
       ) : null}
