@@ -45,10 +45,9 @@ export class ReleaseRefusal extends Error {
   }
 }
 
-// The freshness gate, as .github/workflows/freshness.yml runs it. The release
-// runs the same two commands before it uploads anything (captain, 7 Nov 2026:
-// the gate runs on a schedule and before every deploy, not on every pull
-// request). __tests__/ciSummaryCheck.test.ts holds the workflow to this list.
+// The release checks freshness before any upload. docs/CI_RUNBOOK.md owns
+// the trigger policy. __tests__/ciSummaryCheck.test.ts checks each command
+// independently in the workflow and the release preflight.
 export const FRESHNESS_GATE_COMMANDS = [
   ["node", ["scripts/check_freshness.mjs", "--artifacts-only"]],
   ["node", ["scripts/check-production-store-freshness.mjs"]],

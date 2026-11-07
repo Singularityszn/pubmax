@@ -48,7 +48,7 @@ Each playbook comes from one company's public posts and pull requests. The table
 | [Shopify](https://starsling.dev/ci-playbooks/shopify) | Let an agent iterate against one CI metric | **Adopted as the rule.** The one metric is the slowest chain's minutes. "Let tests start without waiting for lint" is done. "Run expensive checks when a draft becomes ready" is refused: agents open every pull request as a draft. |
 | [Spotify](https://starsling.dev/ci-playbooks/spotify) | Build arm64 on native arm64 runners | **Does not apply.** We build no images. "Cap hung test jobs with timeouts" is done. |
 | [Stripe](https://starsling.dev/ci-playbooks/stripe) | Run only the tests a change can reach | **Refused** for CI (same owner decision as Anthropic). "Cancel superseded pull request runs" is done. "Balance shards and keep a catch-all for new tests" is lever 4. |
-| [Uber](https://starsling.dev/ci-playbooks/uber) | Build the likely merge-queue speculations | **Does not apply.** This repository has no merge queue. "Persist the build cache between runners" is lever 1. |
+| [Uber](https://starsling.dev/ci-playbooks/uber) | Build the likely merge-queue speculations | See the [CI runbook](../CI_RUNBOOK.md#the-required-checks-and-the-merge-queue) for queue configuration. "Persist the build cache between runners" is lever 1. |
 
 The twelve techniques that appear in the most playbooks, and where this repository stands:
 

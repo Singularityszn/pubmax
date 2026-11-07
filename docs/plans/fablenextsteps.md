@@ -589,13 +589,13 @@ Each phase has one outcome and one release gate. Do not start a later phase to a
 
 Outcome: hosted checks run normally and branch protection no longer requires temporary admin-enforcement changes.
 
-**Files:** `.github/workflows/*`, branch protection only if check names change, no product code unless a real check fails.
+**Files:** `.github/workflows/*`, [merge settings](../CI_RUNBOOK.md#the-ruleset) only if required check names change, no product code unless a real check fails.
 
 - [ ] Owner fixes GitHub Actions billing or runner allocation.
 - [ ] Re-run CI, Browser tests, and RLS tests on current `main`.
 - [ ] Confirm validation, lint, typecheck, coverage, build, browser law, migration, freshness, performance, and UX checks produce logs.
 - [ ] Fix any real failure with a reproduction and focused PR.
-- [ ] Confirm all 12 required contexts pass without bypass.
+- [ ] Confirm the [required checks](../CI_RUNBOOK.md#the-required-checks-and-the-merge-queue) pass without bypass.
 
 Commands:
 
