@@ -258,6 +258,7 @@ if (args[0] === "issue" && args[1] === "list") {
         encoding: "utf8",
         timeout: 10000,
         env: {
+          NODE_ENV: "test",
           PATH: `${directory}:${process.env.PATH}`,
           GH_CALLS: callsPath,
           ISSUE_LIST: JSON.stringify(issues),
