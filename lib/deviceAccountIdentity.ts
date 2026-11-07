@@ -136,12 +136,10 @@ export function clearDeviceAccountSessionArtifacts(session: WritableStorage | nu
 }
 
 /**
- * True when a tab's live account leaves a signed-in account, for another
- * account or for nobody. That is the moment this tab's private artifacts stop
- * belonging to anyone present: the stored set is cleared here, and a mounted
- * surface that copied it into memory must drop that copy at the same step.
- * Signing in from signed out is not a departure. Whatever was typed before the
- * sign-in belongs to the person who is signing in.
+ * Storage cleanup and mounted forms share this departure condition so private
+ * inputs cannot outlive their account. This predicate performs no cleanup.
+ * Clearing, retention and sign-in rules live in
+ * docs/rules/lib-identity-accounts-and-sessions.md.
  */
 export function liveAccountDeparted(
   previousUserId: string | null,

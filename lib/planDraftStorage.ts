@@ -29,6 +29,6 @@ export function clearPlanIntakeDraft(storage?: Storage | null): void {
   try {
     store.removeItem(PLAN_INTAKE_STORAGE_KEY);
   } catch {
-    // Best effort after successful Plan creation or invalid draft recovery.
+    // Storage failures must not interrupt account departure or Plan cleanup.
   }
 }
