@@ -144,7 +144,7 @@ three widths:
   confirmed (profile "Timeline" bespoke empty state vs the `<EmptyState>` card
   used directly below it) — this is the deferred empty-state item, tracked above.
 
-Reference PNGs in `docs/screenshots/`.
+Reference PNGs remain in [git history](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/).
 
 ---
 

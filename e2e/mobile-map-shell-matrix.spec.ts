@@ -64,8 +64,8 @@ async function settledBox(locator: Locator) {
 async function saveShot(page: Page, name: string): Promise<void> {
   if (!process.env.PUBMAX_RESET_SHOTS) return;
   const png = await page.screenshot({ fullPage: false });
-  await mkdir("docs/screenshots/mobile-reset", { recursive: true });
-  await writeFile(`docs/screenshots/mobile-reset/${name}.png`, png);
+  await mkdir("artifacts/screenshots/mobile-reset", { recursive: true });
+  await writeFile(`artifacts/screenshots/mobile-reset/${name}.png`, png);
 }
 
 async function waitForMapPaint(page: Page): Promise<void> {

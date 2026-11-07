@@ -92,7 +92,7 @@ Lead with the positioning line, then the job, then the honesty bar. Keep it unde
 
 ## Screenshot shot-list
 
-Maps to the Gate Z mobile set under `docs/screenshots/` (390 wide, both themes;
+Maps to the Gate Z mobile set produced by [`npm run shots`](../README.md) (390 wide, both themes;
 lead the store with dark, keep light as the alternate). Rubric: one clear idea per
 shot, provenance visible where a card is scraped, a caption with no em dash.
 Ship six; shots 7 and 8 are the overflow slots for stores that allow more.

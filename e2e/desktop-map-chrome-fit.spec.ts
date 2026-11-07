@@ -110,7 +110,7 @@ async function indexedToolbarPubOption(
 async function captureDrawerExchange(page: Page, name: string) {
   if (!CAPTURE_DRAWER_EXCHANGE) return;
   await page.screenshot({
-    path: `docs/evidence/desktop-rail-and-banners/drawer-exchange-${name}-firefox-1440.png`,
+    path: `artifacts/evidence/desktop-rail-and-banners/drawer-exchange-${name}-firefox-1440.png`,
     animations: "allow",
   });
 }

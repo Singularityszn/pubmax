@@ -112,7 +112,7 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
     contentType: "image/png",
   });
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
-    const directory = "docs/screenshots/the-local-gate-z";
+    const directory = "artifacts/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
     await page.screenshot({ path: `${directory}/webgl-fallback-390x844-light.png` });
   }

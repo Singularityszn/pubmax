@@ -88,8 +88,8 @@ refuses, and add your assertion there rather than minting a second gate.
 | Copy voice: no em dash, British spelling, no hedge line | `docs/VOICE.md` | `__tests__/emDashLaw.test.ts`, `__tests__/frictionVoice.test.ts` |
 
 Open design debt and raised design decisions live in
-[`docs/design/BACKLOG.md`](./design/BACKLOG.md), never in a `docs/proof/`
-directory: a proof records one finished measurement and nobody re-reads one.
+[`docs/design/BACKLOG.md`](./design/BACKLOG.md). Finished measurements follow
+the [PR evidence policy](../AGENTS.md#pull-requests).
 
 ### Tools for checking a page
 
@@ -618,7 +618,7 @@ second stamp: no tilt, no coral at rest. The well's radius is the rail's minus
 `--tab-inset`, so the two curves stay concentric at every width; glyphs are
 20px in a 22px box over the 11px label floor, idle words at 600 and the
 current page at 750. The [primary row rule](rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh) owns the five tabs and the foot clearance, and the [Pal door rule](rules/components-sheets-chrome-and-navigation.md#the-pub-pal-is-a-door-in-the-top-bar-and-on-the-map-edge-never-a-tab) owns where the Pal sits now that it has left the dock.
-Before and after: `docs/proof/tab-bar-pressed-rail/`.
+[Historical before and after captures](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/tab-bar-pressed-rail/).
 
 `__tests__/tablistKeyboard.test.tsx` sweeps every `role="tab"` under `app/`
 and `components/` for the roving index and the key handler, and

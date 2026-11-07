@@ -1,28 +1,19 @@
 # Speed budgets and measured findings
 
-Rules about measured speed: the page and API ceilings, the Core Web Vitals baseline and the findings behind them. A ceiling comes down at the next sweep, and goes up only in the commit that needs it.
+Measured speed: the page and API ceilings, the Core Web Vitals baseline and the findings behind them. Repo-wide rules are in the root [AGENTS.md](../AGENTS.md).
 
-Repo-wide laws and the index of every other area file are in the root [AGENTS.md](../AGENTS.md).
+## Traps
 
-Long-form incident history, measured proof and review finding IDs live under [`docs/rules/`](../docs/rules/). Each line below names one invariant and links to its full rule. Write or change a rule in its detail file, and keep its title line here in step.
+- **A ceiling comes down, never up.** A ceiling follows the measured figure down at the next sweep. Raising one needs the commit that needs it, the reason, the measured figure and the captain's word. Route ceilings are in `perf/route-budgets.json`.
+- **A route the sitemap advertises carries a budget.** A redirecting route is measured as a redirect.
+- **A verdict is unanimous.** A ceiling that the samples do not decide is reported as undecided rather than failed.
+- **Compare against the merge base.** A slow box and a slow route look the same in a breach table, so the job measures the merge base beside the change.
+- **Until the pins paint, the network belongs to the pins.** A surface asks for a city-wide pack only when it is about to draw it.
+- **The root shell reads leaves, never libraries.**
+- **A phone map draws at two pixels per point.** Three is nine times the shading.
+- **A tab is warmed on intent, not on idle.** An idle warm was measured and bought nothing.
+- **A hydration remount is a new largest paint.** Remount only when there is something to recover.
 
-## Budgets and measured findings
+## Detail
 
-Full rules: [`docs/rules/perf-budgets-and-measured-findings.md`](../docs/rules/perf-budgets-and-measured-findings.md).
-
-- [THE PRODUCT HAS A SPEED RATING, AND THE PROFILED CAUSE WAS NOT THE BINDING ONE.](../docs/rules/perf-budgets-and-measured-findings.md#the-product-has-a-speed-rating-and-the-profiled-cause-was-not-the-binding-one)
-- [UNTIL THE PINS HAVE PAINTED, THE WIRE BELONGS TO THE PINS.](../docs/rules/perf-budgets-and-measured-findings.md#until-the-pins-have-painted-the-wire-belongs-to-the-pins)
-- [A SURFACE ASKS FOR A CITY-WIDE PACK ONLY WHEN IT IS ABOUT TO DRAW IT, AND THE PHONE SHEET ARRIVES WITHOUT MOVING THE PAGE.](../docs/rules/perf-budgets-and-measured-findings.md#a-surface-asks-for-a-city-wide-pack-only-when-it-is-about-to-draw-it-and-the-pho)
-- [A LINK IS PREFETCHED ON SIGHT, A BROWSER MAY NOT CUT WHAT A BUILD CAN CUT, AND A PIN'S SIZE IS ITS HIT BOX.](../docs/rules/perf-budgets-and-measured-findings.md#a-link-is-prefetched-on-sight-a-browser-may-not-cut-what-a-build-can-cut-and-a-p)
-- [THE RESAMPLE BAND READS BOTH WAYS, AND A ROUTE THAT CANNOT MEASURE ITSELF IN THREE IS MARKED.](../docs/rules/perf-budgets-and-measured-findings.md#the-resample-band-reads-both-ways-and-a-route-that-cannot-measure-itself-in-thre)
-- [A VERDICT IS UNANIMOUS OR IT IS NOT A VERDICT, AND AN UNDECIDED CEILING IS SAID OUT LOUD RATHER THAN FAILED.](../docs/rules/perf-budgets-and-measured-findings.md#a-verdict-is-unanimous-or-it-is-not-a-verdict-and-an-undecided-ceiling-is-said-o)
-- [A RED ROUTE AND A SLOW BOX LOOK THE SAME IN A BREACH TABLE, SO THE JOB MEASURES THE MERGE BASE BESIDE IT.](../docs/rules/perf-budgets-and-measured-findings.md#a-red-route-and-a-slow-box-look-the-same-in-a-breach-table-so-the-job-measures-t)
-- [A ROUTE THE SITEMAP ADVERTISES CARRIES A BUDGET.](../docs/rules/perf-budgets-and-measured-findings.md#a-route-the-sitemap-advertises-carries-a-budget)
-- [Speed is a number, and the number is enforced.](../docs/rules/perf-budgets-and-measured-findings.md#speed-is-a-number-and-the-number-is-enforced)
-- [A ROUTE THAT REDIRECTS IS MEASURED AS A REDIRECT, NEVER AS ITS TARGET.](../docs/rules/perf-budgets-and-measured-findings.md#a-route-that-redirects-is-measured-as-a-redirect-never-as-its-target)
-- [THE BASEMAP ALREADY RIDES A CDN, SO THE FIRST TILE IS WON IN THE ENGINE, NOT ON THE WIRE.](../docs/rules/perf-budgets-and-measured-findings.md#the-basemap-already-rides-a-cdn-so-the-first-tile-is-won-in-the-engine-not-on-th)
-- [THE ROOT SHELL READS LEAVES, NEVER LIBRARIES.](../docs/rules/perf-budgets-and-measured-findings.md#the-root-shell-reads-leaves-never-libraries)
-- [A TAB IS WARMED ON INTENT, BECAUSE AN IDLE WARM WAS MEASURED AND BOUGHT NOTHING.](../docs/rules/perf-budgets-and-measured-findings.md#a-tab-is-warmed-on-intent-because-an-idle-warm-was-measured-and-bought-nothing)
-- [A HYDRATION REMOUNT IS A NEW LARGEST PAINT, SO IT HAPPENS ONLY WHEN THERE IS SOMETHING TO RECOVER.](../docs/rules/perf-budgets-and-measured-findings.md#a-hydration-remount-is-a-new-largest-paint-so-it-happens-only-when-there-is-something-to-recover)
-- [A PHONE MAP DRAWS AT TWO PIXELS PER POINT, BECAUSE THREE IS NINE TIMES THE SHADING.](../docs/rules/perf-budgets-and-measured-findings.md#a-phone-map-draws-at-two-pixels-per-point-because-three-is-nine-times-the-shadin)
-- [A PHONE MAP OPENS AT ITS FULL RATIO, BECAUSE A 1X OPENING WAS MEASURED AND BOUGHT NOTHING.](../docs/rules/perf-budgets-and-measured-findings.md#a-phone-map-opens-at-its-full-ratio-because-a-1x-opening-was-measured-and-bought)
+Full rules, measured figures, pins and history: [`docs/rules/perf-budgets-and-measured-findings.md`](../docs/rules/perf-budgets-and-measured-findings.md).

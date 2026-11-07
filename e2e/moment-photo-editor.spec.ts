@@ -2,8 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const PROOF_PATH = "docs/proof/moment-photo-editor/moment-editor-390.png";
-const PHOTO = readFileSync(resolve(process.cwd(), "docs/proof/night-mode-mid-crawl/after-390.png"));
+const PROOF_PATH = "artifacts/proof/moment-photo-editor/moment-editor-390.png";
+const PHOTO = readFileSync(resolve(process.cwd(), "e2e/fixtures/moment-photo-night-390.png"));
 
 async function momentPreviewDigest(page: Page): Promise<string> {
   return page.getByRole("img", { name: "Moment preview" }).evaluate(async (element) => {

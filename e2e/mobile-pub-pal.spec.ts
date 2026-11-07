@@ -42,7 +42,7 @@ test("route-first Pal chooser shows every companion and restores its five-step d
     await expect(page.getByRole("button", { name: new RegExp(`^${SPECIES_TITLES[species]}`) })).toBeVisible();
   }
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
-    const directory = "docs/screenshots/the-local-gate-z";
+    const directory = "artifacts/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
     await page.getByRole("button", { name: /^Greyhound/ }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${directory}/pal-cast-320x568-light.png` });

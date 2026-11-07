@@ -115,8 +115,8 @@ That answer remains pending. This plan neither repeats the request nor marks enr
 | Historic defect fixes | #1591: price display, stamp, leaderboard and streak work. #1594: sheet, consent and Plan chrome. #1587: transport copy, quiet intent and Plan metadata. #1590: venue truth and freshness. | These map to historical rows below. A merge title alone does not close every row or failure path. |
 | Attribution and RLS | #1583 supplies release attribution; #1586 supplies RLS tests. | Dashboard leaked-password protection needs separate owner evidence. |
 | Receipt and confirmation | #1630 supplies receipt requirements and exact agreement. | Migration 0153 is verified applied. Prove durable end-to-end receipt recovery; the availability-exception owner question remains pending. Keep independent-account refusals. |
-| Native first run | [#1632](https://github.com/Singularityszn/pubmax/pull/1632), [mobile proof](../proof/mobile-app-design/README.md). | First launch measured 3,848 ms; later run 1,888 ms. Android flash and final integrated browser/native behaviour need owner evidence. |
-| Map and route polish | [#1631](https://github.com/Singularityszn/pubmax/pull/1631), [walk proof](../proof/walk-bugs-one-liners/README.md). | Do not equate individual fixes with the final integrated browser gate. |
+| Native first run | [#1632](https://github.com/Singularityszn/pubmax/pull/1632), [mobile proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/mobile-app-design/README.md). | First launch measured 3,848 ms; later run 1,888 ms. Android flash and final integrated browser/native behaviour need owner evidence. |
+| Map and route polish | [#1631](https://github.com/Singularityszn/pubmax/pull/1631), [walk proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/walk-bugs-one-liners/README.md). | Do not equate individual fixes with the final integrated browser gate. |
 
 ---
 

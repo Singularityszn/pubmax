@@ -54,17 +54,17 @@ Desktop captures use 1440 by 900 at device pixel ratio 1.
 
 | Surface | Theme | Before | After |
 | --- | --- | --- | --- |
-| Landing, 390 by 844 | Light | [before](screenshots/design-craft/before-landing-390-light.png) | [after](screenshots/design-craft/after-landing-390-light.png) |
-| Landing, 390 by 844 | Dark | [before](screenshots/design-craft/before-landing-390-dark.png) | [after](screenshots/design-craft/after-landing-390-dark.png) |
-| Landing, 1440 by 900 | Light | [before](screenshots/design-craft/before-landing-1440-light.png) | [after](screenshots/design-craft/after-landing-1440-light.png) |
-| Landing, 1440 by 900 | Dark | [before](screenshots/design-craft/before-landing-1440-dark.png) | [after](screenshots/design-craft/after-landing-1440-dark.png) |
-| Venue sheet, 390 by 844 | Light | [before](screenshots/design-craft/before-sheet-390-light.png) | [after](screenshots/design-craft/after-sheet-390-light.png) |
-| Venue sheet, 390 by 844 | Dark | [before](screenshots/design-craft/before-sheet-390-dark.png) | [after](screenshots/design-craft/after-sheet-390-dark.png) |
-| Venue sheet, 1440 by 900 | Light | [before](screenshots/design-craft/before-sheet-1440-light.png) | [after](screenshots/design-craft/after-sheet-1440-light.png) |
-| Venue sheet, 1440 by 900 | Dark | [before](screenshots/design-craft/before-sheet-1440-dark.png) | [after](screenshots/design-craft/after-sheet-1440-dark.png) |
-| Desktop map, 1440 by 900 | Dark | [before](screenshots/design-craft/before-map-1440-dark.png) | [after](screenshots/design-craft/after-map-1440-dark.png) |
-| Desktop map, 1440 by 900 | Light | Not changed as a defect baseline | [after](screenshots/design-craft/after-map-1440-light.png) |
-| Price stamp, 1440 by 900 | Dark | Covered by surface baselines | [after](screenshots/design-craft/after-price-stamp-1440-dark.png) |
+| Landing, 390 by 844 | Light | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-landing-390-light.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-landing-390-light.png) |
+| Landing, 390 by 844 | Dark | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-landing-390-dark.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-landing-390-dark.png) |
+| Landing, 1440 by 900 | Light | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-landing-1440-light.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-landing-1440-light.png) |
+| Landing, 1440 by 900 | Dark | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-landing-1440-dark.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-landing-1440-dark.png) |
+| Venue sheet, 390 by 844 | Light | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-sheet-390-light.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-sheet-390-light.png) |
+| Venue sheet, 390 by 844 | Dark | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-sheet-390-dark.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-sheet-390-dark.png) |
+| Venue sheet, 1440 by 900 | Light | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-sheet-1440-light.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-sheet-1440-light.png) |
+| Venue sheet, 1440 by 900 | Dark | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-sheet-1440-dark.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-sheet-1440-dark.png) |
+| Desktop map, 1440 by 900 | Dark | [before](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/before-map-1440-dark.png) | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-map-1440-dark.png) |
+| Desktop map, 1440 by 900 | Light | Not changed as a defect baseline | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-map-1440-light.png) |
+| Price stamp, 1440 by 900 | Dark | Covered by surface baselines | [after](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/design-craft/after-price-stamp-1440-dark.png) |
 
 ## Taste authority applied
 

@@ -53,7 +53,7 @@ test("mobile Plan a pub crawl builds one grounded route without camera flicker",
   expect(routeIntents).toBeLessThanOrEqual(2);
 
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
-    const directory = "docs/screenshots/the-local-gate-z";
+    const directory = "artifacts/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
     await planner.getByRole("button", { name: "Expand sheet" }).click();
     await expect(planner).toHaveClass(/sheet-full/);
