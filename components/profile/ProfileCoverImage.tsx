@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
 import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
-import { providerHasAnswered, readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { discardBody } from "@/lib/responseBody";
 
 // One cover photo, read with the reader's own identity.
@@ -59,7 +59,7 @@ export default function ProfileCoverImage({
   }, [onError]);
 
   useEffect(() => {
-    if (!userId && !providerHasAnswered(providerAuthState)) return;
+    if (!userId && providerAuthState === "unresolved") return;
     if (!COVER_SRC.test(src)) return;
     const accountSignal = readProviderAccountSignal();
     let active = true;
@@ -73,7 +73,7 @@ export default function ProfileCoverImage({
         const response = await authedActionFetch(
           src,
           { cache: "no-store", redirect: "error", signal: compositeActionSignal([accountSignal, signal]) },
-          { requiresIdentity: providerAuthState !== "signed-out" },
+          { requiresIdentity: providerAuthState !== "signed-out" && providerAuthState !== "unavailable" },
         );
         if (!current()) {
           discardBody(response);

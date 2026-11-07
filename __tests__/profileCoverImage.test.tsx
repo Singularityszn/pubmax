@@ -154,15 +154,31 @@ describe("private cover rendering", () => {
     expect(releaseBlobUrl).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["unresolved", "unavailable"] as const)("waits for an auth answer when the provider is %s", async (state) => {
+  it("waits for an auth answer when the provider is unresolved", async () => {
     switchAccount(null);
-    setProviderAuthState("supabase", state);
+    setProviderAuthState("supabase", "unresolved");
     await act(async () => root.render(createElement(AuthFixture,
-      { userId: null, providerAuthState: state },
+      { userId: null, providerAuthState: "unresolved" },
       createElement(ProfileCoverImage, { src: COVER, alt: "Cover", width: 1200, height: 360 }))));
     expect(fetchCover).not.toHaveBeenCalled();
     switchAccount("owner");
     await render("owner", COVER, true);
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it.each([true, false])("loads a public cover without auth when the provider is unavailable (direct: %s)", async (direct) => {
+    switchAccount(null);
+    setProviderAuthState("supabase", "unavailable");
+    publishAuthActionState({ status: "unknown", identityResolved: false });
+    auth.token = "stale-token";
+    await act(async () => root.render(createElement(AuthFixture,
+      { userId: null, providerAuthState: "unavailable" },
+      direct
+        ? createElement(ProfileCoverImage, { src: COVER, alt: "Cover", width: 1200, height: 360 })
+        : createElement(ProfileCoverCarousel, { covers: [COVER] }))));
+    expect(fetchCover).toHaveBeenCalledTimes(1);
+    expect(fetchCover.mock.calls[0]![0]).toBe(COVER);
+    expect(new Headers(fetchCover.mock.calls[0]![1]?.headers).get("Authorization")).toBeNull();
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
