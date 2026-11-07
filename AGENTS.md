@@ -81,6 +81,9 @@ of these applied:
 - Title: a conventional commit in plain words, for example `fix(map): pins no longer flash on zoom`.
 - Body, in plain English: the problem in one or two sentences, the change, how you checked it, what you could
   not check. UI changes include before/after images. Motion needs a short video.
+- A PR that touches auth, RLS, prices, money or migrations also carries the show-me body: pseudocode of the
+  changed logic, a Mermaid diagram of the flow, and TDD proof (the test that fails on main and passes here).
+  Other PRs keep the short body. `.github/PULL_REQUEST_TEMPLATE.md` has both.
 - Upload evidence to the PR. Never commit screenshots, proof sheets, plans or scratch notes.
 - Check each review finding against the source. Fix real ones. Dismiss false ones with a reason. Stop when the
   checks are green on the latest commit.

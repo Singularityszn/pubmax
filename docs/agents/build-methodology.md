@@ -75,8 +75,9 @@ When a cloud session reaches a blocker:
 5. Run the no-mistakes validation on the final head. The validation owns the push. In this fleet, the
    pipeline push step is the only push. For work outside the fleet, start the gate with
    `git push no-mistakes <branch>`. Never push to `origin` directly.
-6. Open the PR. The body explains what changed, how it was tested, the before/after proof, and the risks
-   and follow-up work.
+6. Open the PR with `.github/PULL_REQUEST_TEMPLATE.md`: the problem, the change, how you checked it, the
+   before/after proof and what you could not check. A PR that touches auth, RLS, prices, money or
+   migrations also carries the show-me body: pseudocode, a Mermaid diagram and TDD proof.
 7. Run `/greploop` or `/greploop-apps` until Greptile reports 5/5 with zero unresolved comments, then
    present the PR URL. In this repo, each fix cycle commits and then pushes with
    `git push no-mistakes <branch>` or a fresh `no-mistakes axi run`, never a plain `git push`. That
