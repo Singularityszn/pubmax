@@ -143,9 +143,46 @@ describe("computeVenuePriceStory", () => {
     const story = computeVenuePriceStory(venue, [report], NOW);
     expect(story.deltaGbp).toBe(1);
     expect(story.pct).toBe(25);
-    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
-    expect(markup).toContain("vs earlier price");
-    expect(markup).not.toContain("Price comparison unavailable");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(NOW);
+    try {
+      const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
+      expect(markup).toContain("vs earlier price");
+      expect(markup).not.toContain("Price comparison unavailable");
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it.each([3, 4, 5])("withholds every change claim for a stale £%s Guinness pint report", (priceGbp) => {
+    const now = Date.parse("2026-11-07T12:00:00Z");
+    const venue = listedVenue({ scraped_at_values: "2026-09-01T12:00:00Z" });
+    const report = pricedReport({ priceGbp, createdAt: "2026-09-15T12:00:00Z" });
+    const story = computeVenuePriceStory(venue, [report], now);
+    expect(story.baseline?.gbp).toBe(4);
+    expect(story.now?.gbp).toBe(priceGbp);
+    expect(story.now?.isFresh).toBe(false);
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
+
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
+      expect(markup).toContain("£4.00");
+      expect(markup).toContain(`£${priceGbp.toFixed(2)}`);
+      expect(markup).toContain("Logged");
+      expect(markup).toContain("15 September 2026");
+      expect(markup).toContain("Price comparison unavailable. These records do not establish a change for the same drink and serving.");
+      expect(markup).not.toContain("vpsArrow");
+      expect(markup).not.toContain("vpsBars");
+      expect(markup).not.toContain("vpsDelta");
+      expect(markup).not.toContain("%");
+      expect(markup).not.toContain("vs earlier price");
+      expect(markup).not.toContain("No change from the earlier price");
+      expect(markup).not.toContain("The community price matches");
+      expect(markup).not.toContain("community-reported.");
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it.each([

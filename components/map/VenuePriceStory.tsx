@@ -66,7 +66,7 @@ function StoryBars({ baseline, now }: { baseline: VenuePriceStamp; now: VenuePri
         <span className="vpsBarValue">{formatPrice(baseline.gbp)}</span>
       </div>
       <div className="vpsBarRow">
-        <span className="vpsBarLabel">{now.isFresh ? "Now" : "Logged"}</span>
+        <span className="vpsBarLabel">Now</span>
         <span className="vpsBarTrack">
           <span className="vpsBarFill vpsBarFillNow" style={{ width: `${nowPct}%` }} />
         </span>

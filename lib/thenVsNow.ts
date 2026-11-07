@@ -283,7 +283,7 @@ function comparableStoryPrices(baseline: VenuePriceStamp, report: VenuePriceStam
     ?? (stamp.evidence.serving?.trim().toLowerCase().replace(/\s+/g, " ") || null);
   const baselineAt = pintObservationTime(baseline.evidence.recordedAt, now);
   const reportAt = pintObservationTime(report.evidence.recordedAt, now);
-  return baseline.gbp > 0 && report.gbp > 0
+  return report.isFresh === true && baseline.gbp > 0 && report.gbp > 0
     && baseline.evidence.priceDateKnown !== false && report.evidence.priceDateKnown !== false
     && baseline.provenance !== "demo" && baseline.provenance !== "anecdote"
     && drinkKey(baseline) !== null && drinkKey(baseline) === drinkKey(report)
