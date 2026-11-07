@@ -41,6 +41,7 @@ import {
   nearestListedPub,
   rankBoroughCheapest,
   rankNearMe,
+  type NearMeAnswer,
   type NearMeCard,
   type NearMeScope,
   type NearestPub,
@@ -417,6 +418,7 @@ export default function NearMeNow({
     const generation = ++answerGenerationRef.current;
     setActiveAnswerGeneration(generation);
     setNearest(null);
+    setNearestPub(null);
     return generation;
   }, []);
   const priceTrust = useNearPriceTrust(
@@ -610,7 +612,7 @@ export default function NearMeNow({
         void loadSlim().then((slim) => {
           if (!ownsAnswer(generation)) return;
           const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
-          setNearestPub(nearestListedPub(position.coords.latitude, position.coords.longitude, slim));
+          setNearestPub(nearestListedPub(position.coords.latitude, position.coords.longitude, slim, answerPubIds(answer)));
           if (answer.scope === "none") {
             // Located fine, but nothing priced in range — be honest that we do
             // not cover here yet, name the REAL nearest patch, and let them
@@ -676,7 +678,7 @@ export default function NearMeNow({
       void loadSlim().then((slim) => {
         if (!ownsAnswer(generation)) return;
         const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
-        setNearestPub(nearestListedPub(initialLocation.lat, initialLocation.lng, slim));
+        setNearestPub(nearestListedPub(initialLocation.lat, initialLocation.lng, slim, answerPubIds(answer)));
         setCards(answer.cards);
         setNearDrinks({ lat: initialLocation.lat, lng: initialLocation.lng }, slim);
         setScope(answer.scope);
@@ -800,10 +802,11 @@ export default function NearMeNow({
         <NearMeFallbackStatus />
       ) : null}
 
-      {state === "ready" && nearestPub && !borough && !patch &&
-        answerContext?.source === "location" && answerContext.generation === activeAnswerGeneration ? (
-        <NearestPubAnswer pub={nearestPub} onOpen={openVenue} titledByHost={titledByHost} />
-      ) : null}
+      <NearestPubAnswer
+        pub={nearestPubOnScreen(state, nearestPub, answerContext, activeAnswerGeneration, borough, patch)}
+        onOpen={openVenue}
+        titledByHost={titledByHost}
+      />
 
       {state === "ready" && outsideCoverage ? (
         <NearMeOutsideCoverage
@@ -1016,15 +1019,38 @@ function NearMeOutsideCoverage({
   );
 }
 
+/**
+ * The nearest pub to show, or null. Only a ready answer from the reader's own
+ * current fix names one: a borough or patch answer has no reader position.
+ */
+function nearestPubOnScreen(
+  state: LocateState,
+  pub: NearestPub | null,
+  context: { source: NearAnswerSource; generation: number } | null,
+  activeGeneration: number,
+  borough: string | null,
+  patch: unknown,
+): NearestPub | null {
+  const current = state === "ready" && !borough && !patch &&
+    context?.source === "location" && context.generation === activeGeneration;
+  return current ? pub : null;
+}
+
+/** The pubs a located answer already names: its cards and its saving line's pub. */
+function answerPubIds(answer: NearMeAnswer): string[] {
+  return [...answer.cards.map((card) => card.id), ...(answer.nearest ? [answer.nearest.id] : [])];
+}
+
 function NearestPubAnswer({
   pub,
   onOpen,
   titledByHost,
 }: {
-  pub: NearestPub;
+  pub: NearestPub | null;
   onOpen: (id: string) => void;
   titledByHost: boolean;
 }) {
+  if (!pub) return null;
   return (
     <section className="nmnNearest" aria-label="Nearest listed pub">
       <header className="nmnHead">
