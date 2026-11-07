@@ -42,8 +42,12 @@ describe.skipIf(skipReason !== null)("0223 crew join notification kinds", () => 
     expect(insert("crew_join_accepted")).toBe("inserted");
     expect(insert("follow")).toBe("inserted");
     expect(insert("crew_join_declined")).toBe("refused");
-    expect(db().sql("select has_table_privilege('anon','public.notifications','SELECT')")).toBe("f");
-    expect(db().sql("select has_table_privilege('authenticated','public.notifications','SELECT')")).toBe("f");
+    // Reads stay as before: row security on, a recipient reads only their own
+    // rows (0067), and an anonymous reader reads none.
+    expect(db().sql("select relrowsecurity from pg_class where oid = 'public.notifications'::regclass")).toBe("t");
+    expect(db().sql(`select string_agg(policyname, ',' order by policyname) from pg_policies
+      where schemaname = 'public' and tablename = 'notifications' and cmd in ('SELECT', 'ALL')`))
+      .toBe("notifications_anon_deny,notifications_recipient_select");
   });
 
   it("rollback deletes only the crew rows and refuses the crew kinds again", () => {

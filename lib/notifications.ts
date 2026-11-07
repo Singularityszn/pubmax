@@ -12,9 +12,17 @@
 import { normalizeHandle } from "@/lib/profiles";
 import { cleanText } from "@/lib/textClean";
 
-// The four event kinds a notification can carry. Kept in lockstep with the
-// notifications_kind_chk constraint in migration 0010.
-export const NOTIFICATION_KINDS = ["follow", "reaction", "comment", "crawl_save"] as const;
+// The event kinds a notification can carry. Kept in lockstep with the
+// notifications_kind_chk constraint (0010, widened by 0223). The two crew kinds
+// tell a host about a join request and a guest that the host let them in.
+export const NOTIFICATION_KINDS = [
+  "follow",
+  "reaction",
+  "comment",
+  "crawl_save",
+  "crew_join_request",
+  "crew_join_accepted",
+] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 const KIND_SET: ReadonlySet<string> = new Set(NOTIFICATION_KINDS);

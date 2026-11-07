@@ -158,7 +158,7 @@ describe("who each notice goes to", () => {
   });
 
   it("sends nothing when the preview names no host", async () => {
-    const { hostHandle: _host, ...noHost } = preview;
+    const noHost: SocialCrewPreviewDTO = { ...preview, hostHandle: undefined };
     expect(await crewJoinRequestNotice(read(noHost), { handle: "new_face" }, CREW, REQUEST)).toBeNull();
   });
 
