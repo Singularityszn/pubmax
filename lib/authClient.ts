@@ -20,8 +20,8 @@ import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProvid
 import { discardBody } from "@/lib/responseBody";
 import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
-// @supabase/supabase-js (~208KB) is DYNAMICALLY imported so it code-splits off
-// the browser critical path instead of loading on every route via this module.
+// @supabase/supabase-js stays in a separate chunk. warmAuthClientModule owns
+// the early download contract below.
 // Both the module import and the client construction are memoized so concurrent
 // callers never double-import or build two clients. `cached` mirrors the resolved
 // client synchronously for the best-effort sync accessor below.
@@ -87,11 +87,10 @@ export async function installNativeSession(
 /**
  * Start downloading the auth chunk without building a client.
  *
- * The chunk stays code-split off the critical path. The cost is when the
- * browser learns about it: a dynamic import inside a React effect is not
- * discovered until the tree has hydrated, so a throttled phone asks for it
- * long after every other chunk. AuthProvider calls this at module-execution
- * time, which runs before hydration.
+ * AuthProvider calls this when its module executes, before hydration.
+ * The download can overlap other route requests. Historical measurements
+ * and the restoration decision are in docs/PERFORMANCE_BUDGETS.md under
+ * "The September auth chunk warm experiment".
  *
  * It does not build the client. `createClient` starts session persistence and
  * background refresh, so moving it earlier would change behaviour, not only a
@@ -185,8 +184,9 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
 }
 
 /**
- * The browser Supabase client, loading the supabase-js chunk on first call and
- * memoizing it. Resolves to null when the public env is absent (UI degrades to
+ * Construct and memoize the browser Supabase client on first call. Reuse the
+ * import started by warmAuthClientModule, or start it here if needed.
+ * Resolves to null when the public env is absent (UI degrades to
  * "sign-in unavailable") or during SSR (no window/localStorage to persist into).
  * Auth-correctness-critical callers (AuthProvider, getAccessToken) await this.
  */

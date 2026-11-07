@@ -331,10 +331,7 @@ const NOBODY_IDENTITY: CanonicalIdentityState = {
   identity: null,
 };
 
-// Asked for at module-execution time, before hydration. The effect that needs
-// the client runs after hydration. Only the chunk is downloaded here: no client
-// is built and no session is read, so the provider's tri-state is decided by
-// the same code as before, without waiting on a download nobody had started.
+// The download contract and safety constraints belong to warmAuthClientModule.
 warmAuthClientModule();
 
 export function AuthProvider({

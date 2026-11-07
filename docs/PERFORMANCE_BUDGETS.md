@@ -163,9 +163,11 @@ Decoded KB, so parse cost rather than transfer:
 
 Three things this settles.
 
-MapLibre is on `/map` and nowhere else, and Supabase is on every route as the
-same ~341 KB lazily fetched after paint by `ensureSupabaseBrowser`. Entry-point
-isolation is already correct for both.
+In that sweep, MapLibre loaded only on `/map`, while every route fetched the
+same ~341 KB Supabase chunk after paint through `ensureSupabaseBrowser`.
+Both libraries used separate entry points.
+For the current auth download timing, see
+[the auth warm experiment](#the-september-auth-chunk-warm-experiment).
 
 `/about` and `/pubs` were carrying 1900 and 1950 KB ceilings against 1081 and
 1092 KB measured. There was no accidental import to split: no MapLibre, no
@@ -752,17 +754,17 @@ PUBMAX_PERF_BUDGET=1 npx playwright test e2e/performance-budget.spec.ts --projec
 A failing run prints one row per breach: route, metric, measured, budget, and
 how far past the ceiling it went.
 
-### One thing already tried, so nobody tries it blind again
+### The September auth chunk warm experiment
 
-Warming the auth chunk at module-execution time - so the browser asks for it
-before hydration rather than from an effect after it - was built, tested and
-measured, and it was **dropped**. The record is worth keeping because the idea is
-an obvious one to have twice.
+The captain accepted the C17 restoration on 6 November 2026.
+This change restores the auth warm.
+The current loading contract belongs to `warmAuthClientModule` in
+[`lib/authClient.ts`](../lib/authClient.ts).
+The measurements below describe the September experiment, not this restored change.
 
-It works: `/pal` is the one route whose readiness really waits for the session to
-answer, and its auth chunk started at 1183 ms against about 112 ms for every
-other chunk. Moving that earlier is a genuine saving. It is just a small one, and
-it is not free.
+The September experiment requested the auth chunk before hydration instead of
+from an effect after hydration. `/pal` waited for the session answer.
+Its auth chunk started at 1183 ms against about 112 ms for other chunks.
 
 Measured on one base, seven samples a route, identical order:
 
@@ -784,11 +786,12 @@ own gain stays small because that route waits on hydration as well as on the
 chunk, so an earlier download saves tens of milliseconds rather than the hundreds
 the 1183 ms figure suggests.
 
-`/map` is the product. Captain's ruling, 2026-09-04: a 96 ms loss there outweighs
-4 to 20 ms elsewhere, so the module-scope warm is not taken. An idle-scheduled
-variant was deliberately NOT tried, on the same reasoning: warming after first
-paint lands close to where the effect already runs, so it would buy back the
-`/map` cost by giving up the gain.
+On 4 September 2026, the captain rejected the warm because the 96 ms loss on
+`/map` outweighed gains of 4 to 20 ms elsewhere.
+The idle-scheduled variant was not tried.
+Its expected timing was close to the existing effect, which could remove both
+the `/map` cost and the gain.
+The 6 November acceptance supersedes that rejection.
 
 ### Known and not fixed
 
