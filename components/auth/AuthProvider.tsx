@@ -56,7 +56,7 @@ import {
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
+import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, installNativeSession, isAuthConfigured, nativeSessionInstallationPending, warmAuthClientModule } from "@/lib/authClient";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -330,6 +330,9 @@ const NOBODY_IDENTITY: CanonicalIdentityState = {
   status: "resolved",
   identity: null,
 };
+
+// The download contract and safety constraints belong to warmAuthClientModule.
+warmAuthClientModule();
 
 export function AuthProvider({
   children,

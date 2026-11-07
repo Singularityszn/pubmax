@@ -20,8 +20,8 @@ import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProvid
 import { discardBody } from "@/lib/responseBody";
 import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
-// @supabase/supabase-js (~208KB) is DYNAMICALLY imported so it code-splits off
-// the browser critical path instead of loading on every route via this module.
+// @supabase/supabase-js stays in a separate chunk. warmAuthClientModule owns
+// the early download contract below.
 // Both the module import and the client construction are memoized so concurrent
 // callers never double-import or build two clients. `cached` mirrors the resolved
 // client synchronously for the best-effort sync accessor below.
@@ -82,6 +82,34 @@ export async function installNativeSession(
     try { discardCancelledNativeSessionInstallation(); }
     finally { if (!established && nativeInstallation === pending) nativeInstallation = null; }
   }
+}
+
+/**
+ * Start downloading the auth chunk without building a client.
+ *
+ * AuthProvider calls this when its module executes, before hydration.
+ * The download can overlap other route requests. Historical measurements
+ * and the restoration decision are in docs/PERFORMANCE_BUDGETS.md under
+ * "The September auth chunk warm experiment".
+ *
+ * It does not build the client. `createClient` starts session persistence and
+ * background refresh, so moving it earlier would change behaviour, not only a
+ * download. `ensureSupabaseBrowser` still constructs on first real call.
+ *
+ * It fetches nothing a deployment cannot use. The config is resolved first,
+ * exactly as `buildBrowserClient` does, so a keyless build downloads nothing.
+ */
+export function warmAuthClientModule(): void {
+  if (typeof window === "undefined" || modulePromise) return;
+  if (!isAuthConfigured()) return;
+  const warm = import("@supabase/supabase-js");
+  modulePromise = warm;
+  // A failed warm is not an answer about the viewer. It is dropped here, and
+  // ensureSupabaseBrowser retries the import on its own terms
+  // (lib/authClientLoad.ts owns that retry and its tri-state).
+  void warm.catch(() => {
+    if (modulePromise === warm) modulePromise = undefined;
+  });
 }
 
 function buildBrowserClient(): Promise<SupabaseClient | null> {
@@ -156,8 +184,9 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
 }
 
 /**
- * The browser Supabase client, loading the supabase-js chunk on first call and
- * memoizing it. Resolves to null when the public env is absent (UI degrades to
+ * Construct and memoize the browser Supabase client on first call. Reuse the
+ * import started by warmAuthClientModule, or start it here if needed.
+ * Resolves to null when the public env is absent (UI degrades to
  * "sign-in unavailable") or during SSR (no window/localStorage to persist into).
  * Auth-correctness-critical callers (AuthProvider, getAccessToken) await this.
  */
