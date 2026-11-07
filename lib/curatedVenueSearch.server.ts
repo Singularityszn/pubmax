@@ -1,12 +1,13 @@
 import "server-only";
 
-// Name search over the CURATED venue index, in one place.
+// Shared search over curated pub names and branch details.
 //
 // It was written inside `lib/wantedResolve.server.ts` and is now shared, because
 // a second surface that wants "which pub did you mean" is a second matcher the
 // moment it is copied: a Wanted paste and a pub shared into a message must land
 // on the same pub for the same words, or the two surfaces are quietly disagreeing
 // about what the index says.
+// Branch terms must narrow namesakes before the result limit hides a branch.
 //
 // The index reads the slim pack with `fs`, so this is server-only. A browser
 // gets these hits through an API response, never by importing this file.

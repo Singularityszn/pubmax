@@ -7,6 +7,9 @@ map or voice SDK. It uses the existing venue search, canonical identities,
 listed-price readers and walking provider. It creates no Round, price report,
 plan or vote merely by calculating an order.
 
+For pubs with the same name, add the borough, locality or address to the search.
+For example, use `Crown Greenwich`.
+
 ## Read contract
 
 `GET /api/pub-comparison?venues=<comma-separated IDs>` returns public pub labels,
@@ -73,8 +76,7 @@ URL, metadata or sitemap. The drink-brand page links to it without changing
 publication floors. Its provisional performance ceilings match the existing
 planner family and require an isolated production measurement before publication.
 
-The analytics tracking plan defines eight consent-aware events with no custom
-properties. A complete comparison requires two complete totals. Link requests,
-clipboard success, acknowledged poll sends and recipient engagement are distinct.
+The [analytics tracking plan](analytics/TRACKING_PLAN.md#pub-comparisons)
+defines the comparison events and their measurement limits.
 
 The Islington pilot and held station proposals remain separate from this tool.

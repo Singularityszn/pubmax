@@ -1,4 +1,4 @@
-// GET /api/venue-search?q= - name hits from the CURATED venue index.
+// GET /api/venue-search?q= - curated pub search.
 //
 // The curated counterpart to `/api/map-search`, which searches the national UK
 // base layer. Two layers, two routes, on purpose: the base layer is 38k unpriced
