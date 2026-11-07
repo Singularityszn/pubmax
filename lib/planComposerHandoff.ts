@@ -31,6 +31,8 @@ import type { CityId } from "@/lib/cities";
 import type { PlanTemplate } from "@/lib/planTemplates";
 import type { RememberedArea } from "@/lib/nightPatches";
 
+export { clearPersistedPlanDrafts } from "@/lib/planDraftStorage";
+
 /**
  * L11 client glue between the L04 arbitration resolver and PlanComposer. It runs
  * arbitration BEFORE any product default is written, decides what accepted
@@ -197,24 +199,6 @@ function bestEffortRemove(
   } catch {
     // A denied storage must never block the way out of an acceptance.
   }
-}
-
-/**
- * Drop every persisted Plan draft this composer hydrates from.
- *
- * Both drafts are written under TWO keys, a canonical V2 and its V1 rollback
- * companion, and `readPlanDraftEnvelope` / `readPlanRouteDraftEnvelope` read
- * the V2 first. So a caller that removes one key of a pair has not cleared the
- * draft: the surviving half hydrates the same accepted Stop 1 back. One list,
- * one caller-visible act.
- */
-export function clearPersistedPlanDrafts(
-  storages: Pick<AcceptedContextStorages, "planDraft" | "routeDraft"> = {},
-): void {
-  bestEffortRemove(storages.planDraft, PLAN_DRAFT_KEY);
-  bestEffortRemove(storages.planDraft, PLAN_DRAFT_V2_KEY);
-  bestEffortRemove(storages.routeDraft, PLAN_ROUTE_DRAFT_KEY);
-  bestEffortRemove(storages.routeDraft, PLAN_ROUTE_DRAFT_V2_KEY);
 }
 
 function dropPlanDraftAcceptance(

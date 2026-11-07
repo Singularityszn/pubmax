@@ -16,8 +16,8 @@
 // `resolveCanonicalIdentity` rewrites the handle on the next tick.
 //
 // WHAT IS NOT HERE: a device-only artifact that never claimed account backing.
-// A Night Profile typed on this device stays. A profile mirrored from an
-// account leaves with that account.
+// Night Profile clearing and provider sign-out retention follow
+// docs/rules/lib-identity-accounts-and-sessions.md.
 
 import {
   NIGHT_PROFILE_DEVICE_KEY,
@@ -133,6 +133,19 @@ export function clearDeviceAccountArtifacts(
 export function clearDeviceAccountSessionArtifacts(session: WritableStorage | null): void {
   showLegRouteOnMap(null);
   for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
+}
+
+/**
+ * Storage cleanup and mounted forms share this departure condition so private
+ * inputs cannot outlive their account. This predicate performs no cleanup.
+ * Clearing, retention and sign-in rules live in
+ * docs/rules/lib-identity-accounts-and-sessions.md.
+ */
+export function liveAccountDeparted(
+  previousUserId: string | null,
+  nextUserId: string | null,
+): boolean {
+  return previousUserId !== null && previousUserId !== nextUserId;
 }
 
 /**

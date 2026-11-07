@@ -71,8 +71,11 @@ import {
   bindDeviceAccountOwner,
   clearDeviceAccountSessionArtifacts,
   emitDeviceIdentityChanged,
+  liveAccountDeparted,
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
+import { clearPersistedPlanDrafts, clearPlanIntakeDraft } from "@/lib/planDraftStorage";
+import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import {
   emitDeviceAccountSessionsChanged,
   forgetAllDeviceAccounts,
@@ -418,8 +421,32 @@ export function AuthProvider({
       // canonical read, the You tab, every composer) reads that storage.
       // Another tab may already have changed the shared owner stamp. This
       // tab's sessionStorage still belongs to its previous live account.
-      const tabOwnerChanged = previousUserId !== null && previousUserId !== nextUserId;
-      if (tabOwnerChanged) clearDeviceAccountSessionArtifacts(browserSessionStorage());
+      const tabOwnerChanged = liveAccountDeparted(previousUserId, nextUserId);
+      if (tabOwnerChanged) {
+        // Plan storage at departure:
+        // Clear pubmaxx:plan-draft:v1 and pubmax:plan-draft:v2 from this session.
+        // Clear pubmax:plan-host-name:v1 from local storage on every departure.
+        // Clear pubmaxx:plan-route-draft:v1, pubmax:plan-route-draft:v2 and
+        // pubmax:plan-intake:v1 on sign-out or a shared device owner change.
+        // These values describe the departing person's unpublished Plan.
+        // Keep pubmax:planning-intent:v1, pubmax:ask-plan-draft:v1 and
+        // pubmax:onboarding:planner-handoff:v1: these are device handoffs.
+        // Keep pubmaxx:plan-mutation:v1:*: request fingerprints bind retry keys.
+        // Keep pubmax_active_plan, pubmax:plan-report-line:*,
+        // pubmaxx:plan-mutation-outbox:v1, pubmaxx.plan-collaboration-change.v1:*,
+        // pubmaxx.pending-plan-recap.v1:* and
+        // pubmaxx.pending-plan-recap-resolution.v1:*: these describe saved Plans.
+        // Keep pubmax:plan-reveals:v1:*: reveal state includes the account ID.
+        // Keep pubmax-plan-member:*, pubmax-plan-collaboration:* and
+        // pubmaxx:plan-creator-token:v1:*: capability restoration removes these.
+        // Keep pubmax:identityNudge:planReturnTo:v1: this is a return destination.
+        clearDeviceAccountSessionArtifacts(browserSessionStorage());
+        try { browserLocalStorage()?.removeItem(PLAN_HOST_NAME_KEY); } catch {}
+        if (nextUserId === null) {
+          clearPersistedPlanDrafts({ planDraft: browserSessionStorage(), routeDraft: browserLocalStorage() });
+          clearPlanIntakeDraft(browserLocalStorage());
+        }
+      }
       const deviceOwnerChanged = nextUserId
         ? bindDeviceAccountOwner(nextUserId, browserLocalStorage(), browserSessionStorage())
         : false;
@@ -1409,10 +1436,13 @@ export function AuthProvider({
 
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
+      const departing = sessionTransitions.current.currentUserId();
+      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+      updateSession(null, "SIGNED_OUT");
+      emitDeviceIdentityChanged();
       await cancelPendingNativeAuth();
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
-      const departing = sessionTransitions.current.currentUserId();
       // The provider can finish a refresh before SIGNED_OUT clears the session.
       // Clear device data after that final event, before another account takes over.
       await supabase.auth.signOut();
@@ -1448,7 +1478,7 @@ export function AuthProvider({
       if (!next) return;
       await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [cancelPendingNativeAuth],
+    [cancelPendingNativeAuth, updateSession],
   );
 
   const switchAccount = useCallback(

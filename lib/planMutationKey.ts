@@ -6,9 +6,10 @@ async function fingerprint(value: unknown): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function persistentPlanMutationKey(scope: string, value: unknown): Promise<string> {
+export async function persistentPlanMutationKey(scope: string, value: unknown, signal?: AbortSignal): Promise<string> {
   const storageKey = `pubmaxx:plan-mutation:v1:${scope}`;
   const nextFingerprint = await fingerprint(value);
+  signal?.throwIfAborted();
   try {
     const parsed = JSON.parse(sessionStorage.getItem(storageKey) ?? "null") as StoredMutationKey | null;
     if (parsed?.version === 1 && parsed.fingerprint === nextFingerprint && typeof parsed.key === "string") return parsed.key;

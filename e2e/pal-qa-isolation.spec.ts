@@ -1,5 +1,4 @@
 import { test, expect, type Page } from '@playwright/test';
-import { writeFile } from 'node:fs/promises';
 import { DEFAULT_PAL_DRAFT } from '../lib/pubPal';
 import { ACCOUNTS, AUTH_STORAGE_KEY, DEVICE_ACCOUNTS_KEY, installAuthDoubles, seedSignedIn } from './helpers/authDoubles';
 import { installDeterministicMapBasemap } from './helpers/mapNetworkFixtures';
@@ -85,6 +84,31 @@ test('account B opens Plan without account A\'s saved request or accessibility a
   await expect(page.locator('#plan-describe-first-query')).toHaveValue('');
   await expect(page.getByRole('button',{name:/Step.free/i,pressed:true})).toHaveCount(0);
   await shot(page, 'plan-private-account-b');
+});
+
+// #2539: the test above leaves /plan before the switch. This one keeps the form
+// mounted, where A's request lived on in React state and B's edit saved it again.
+test('a mounted Plan form drops account A\'s request when B takes over', async ({ page }) => {
+  await seed(page);
+  await page.goto('/plan');
+  await expect(page.getByRole('button',{name:'Account options for '+ACCOUNTS.A.name,exact:true})).toBeVisible();
+  const query = page.locator('#plan-describe-first-query');
+  const savedRequest = () => page.evaluate(() => {
+    const raw = sessionStorage.getItem('pubmax:plan-draft:v2');
+    return raw ? JSON.parse(raw).draft.conciergeQuery : null;
+  });
+  await query.fill('A private outing in Soho');
+  await expect.poll(savedRequest).toBe('A private outing in Soho');
+  await shot(page, 'plan-mounted-account-a');
+  await switchToB(page);
+  await shot(page, 'plan-mounted-switched-to-b');
+  await expect(query).toHaveValue('');
+  expect(await savedRequest()).toBeNull();
+  await query.fill('Two pubs near Borough');
+  await expect.poll(savedRequest).toBe('Two pubs near Borough');
+  const stored = await page.evaluate(() => JSON.stringify({...sessionStorage})+JSON.stringify({...localStorage}));
+  expect(stored).not.toContain('A private outing in Soho');
+  await shot(page, 'plan-mounted-account-b');
 });
 
 // F12 is the oracle: personal shortcuts and portraits belong to the live account.
@@ -274,23 +298,6 @@ for (const transition of ['hidden', 'removed'] as const) {
     await shot(page, `chat-hidden-to-${transition}`);
   });
 }
-
-test('public production defaults show no seeded drops or ambient visitors', async ({ page, request }) => {
-  const drops = await request.get('/api/pint-drops');
-  expect(drops.ok()).toBe(true);
-  const dropBody = await drops.json();
-  expect(dropBody.drops).toEqual([]);
-  const presence = await request.get('/api/presence');
-  expect(presence.ok()).toBe(true);
-  const presenceBody = await presence.json();
-  expect(presenceBody.presence.filter((row: {provenance?: string}) => row.provenance === 'demo')).toEqual([]);
-  if (EVIDENCE) await writeFile(`${EVIDENCE}/public-demo-api.json`, JSON.stringify({drops:dropBody,presence:presenceBody},null,2));
-  const response = await page.goto('/social');
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('main.socialPage')).toBeVisible();
-  await expect(page.getByText('DEMO',{exact:true})).toHaveCount(0);
-  await shot(page,'public-demo-default-off');
-});
 
 async function seedActiveNight(page: Page) {
   const now = new Date(Date.now()-3600000).toISOString();

@@ -8,6 +8,7 @@ import {
   DEVICE_IDENTITY_CHANGED_EVENT,
   DEVICE_IDENTITY_LOCAL_KEYS,
   DEVICE_IDENTITY_SESSION_KEYS,
+  liveAccountDeparted,
   releaseDeviceAccountOwner,
   subscribeDeviceIdentity,
 } from "@/lib/deviceAccountIdentity";
@@ -268,5 +269,18 @@ describe("subscribeDeviceIdentity", () => {
     target.dispatchEvent(storageEvent("pubmax_handle"));
     target.dispatchEvent(new Event(DEVICE_IDENTITY_CHANGED_EVENT));
     expect(onChange).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("liveAccountDeparted", () => {
+  it("is true when a signed-in account leaves for another account or for nobody", () => {
+    expect(liveAccountDeparted("account-a", "account-b")).toBe(true);
+    expect(liveAccountDeparted("account-a", null)).toBe(true);
+  });
+
+  it("is false for the same account and for a sign-in from signed out", () => {
+    expect(liveAccountDeparted("account-a", "account-a")).toBe(false);
+    expect(liveAccountDeparted(null, "account-a")).toBe(false);
+    expect(liveAccountDeparted(null, null)).toBe(false);
   });
 });

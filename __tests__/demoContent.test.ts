@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseEnv } from "node:util";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ambientPresenceCurve } from "@/lib/ambientPresence";
+import { ambientPresenceCurve, ambientPresenceRows } from "@/lib/ambientPresence";
 import { demoContentEnabled, demoDrinksEnabled } from "@/lib/demoContent";
 import {
   parseDrinkPriceUpdates,
@@ -121,11 +122,16 @@ afterEach(() => {
 });
 
 describe("demo content opt-in", () => {
-  it("documents the opt-in value and the public-release setting", () => {
-    const example = readFileSync(join(process.cwd(), ".env.example"), "utf8");
-    expect(example).toContain("NEXT_PUBLIC_DEMO_CONTENT=");
-    expect(example).toContain("Leave it empty (or `off`) in BOTH");
-    expect(example).toContain("Set it to `on` for a local or keyless demo");
+  it("keeps both template defaults disabled under the documented opt-in policy", () => {
+    const example = parseEnv(readFileSync(join(process.cwd(), ".env.example"), "utf8"));
+    expect(example).toHaveProperty(FLAG);
+    expect(example).toHaveProperty(DRINKS_FLAG);
+    process.env[FLAG] = example[FLAG];
+    process.env[DRINKS_FLAG] = example[DRINKS_FLAG];
+    expect(demoContentEnabled()).toBe(false);
+    expect(demoDrinksEnabled()).toBe(false);
+    delete process.env[FLAG];
+    expect(demoDrinksEnabled()).toBe(false);
   });
 
   it("test baseline is hermetic: ambient deployment env cannot flip the flag", () => {
@@ -144,6 +150,8 @@ describe("demo content opt-in", () => {
     expect(demoDropsFor("venue-16pnwmm")).toEqual([]);
     // 22:00 London on a Friday sits inside the busiest HOUR_BAND.
     expect(ambientPresenceCurve("venue-16pnwmm", new Date("2026-07-17T21:00:00Z"))).toBe(0);
+    // The keyless presence read adds exactly these rows, so it adds none.
+    expect(ambientPresenceRows(new Date("2026-07-17T21:00:00Z"))).toEqual([]);
   });
 
   it("on brings the seeds back for a local demo or the e2e server", () => {
@@ -239,8 +247,4 @@ describe("demo content opt-in", () => {
     expect(demoDrinksEnabled()).toBe(false);
   });
 
-  it("documents the demo-drink opt-in", () => {
-    const example = readFileSync(join(process.cwd(), ".env.example"), "utf8");
-    expect(example).toContain("NEXT_PUBLIC_DEMO_DRINKS=");
-  });
 });
