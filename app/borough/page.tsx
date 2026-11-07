@@ -8,6 +8,7 @@ import {
   getBoroughSummaries,
 } from "@/lib/boroughIndex.server";
 import PriceBadge from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import { RowList, RowListItem } from "@/components/ui/row-list";
@@ -88,6 +89,10 @@ export default async function BoroughIndexPage() {
                       {historic > 0 ? <>, {historic} historic</> : null}
                     </>
                   }
+                  detail={borough.cheapestPint ? <>
+                    <p>{borough.cheapestPint.venueName} · {borough.cheapestPint.evidence.drinkLabel ?? "Drink not recorded"} · {borough.cheapestPint.evidence.servingSize || "Serving not recorded"}</p>
+                    <ListedPriceSource evidence={borough.cheapestPint.evidence} kind={borough.cheapestPint.evidence.sourceKind} />
+                  </> : undefined}
                   trailing={
                     borough.cheapestGbp === null ? (
                       <span className="listingNoFigure">No price yet</span>
