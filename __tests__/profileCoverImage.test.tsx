@@ -97,7 +97,7 @@ describe("private cover rendering", () => {
     expect(init?.cache).toBe("no-store");
     expect(init?.redirect).toBe("error");
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
-    expect(container.innerHTML).not.toContain(COVER);
+    expect(container.querySelector("img")?.getAttribute("data-cover-src")).toBe(COVER);
   });
 
   it("renders a mutual mate's approved bytes with their own token", async () => {

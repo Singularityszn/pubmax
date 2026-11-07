@@ -125,6 +125,7 @@ export default function ProfileCoverImage({
   return (
     <Image
       src={loaded.url}
+      data-cover-src={src}
       alt={alt}
       className={className}
       width={width}
