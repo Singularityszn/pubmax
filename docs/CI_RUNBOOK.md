@@ -243,7 +243,7 @@ the same data gate `npm run verify` starts with, with
 job checks the packs as they ship. It first runs `npm run build:venue-details`,
 which writes only the gitignored venue detail files.
 
-The lint-and-types job and the merge bar `npm run verify` both run
+The lint-and-types job and `npm run verify` both run
 [`npm run typecheck`](../package.json). It runs `next typegen` first, so the
 `typedRoutes` link types exist, then the TypeScript 7 native `tsc`. A
 separate job, `Typecheck (TypeScript 6)` (captain, 2 Nov 2026), runs
@@ -308,7 +308,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
 
-The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A unit test that reads data without naming the file waits until the merge reaches `main`, which runs the whole unit suite. The [browser job schedule](#timeouts-and-job-shape) controls browser coverage. The local merge bar, `npm run verify`, is unchanged.
+The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A unit test that reads data without naming the file waits until the merge reaches `main`, which runs the whole unit suite. The [browser job schedule](#timeouts-and-job-shape) controls browser coverage.
 
 ### Prove the runner
 
