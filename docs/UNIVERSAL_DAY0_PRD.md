@@ -120,7 +120,7 @@ Everything below is MERGED, deployed to production (pubmaxxing.com, chengdu Verc
 ### Ops incidents Sol must internalize
 
 - **Integration checks:** Recheck the combined change after a rebase or merge race, under the [root verification policy](../AGENTS.md#verifying).
-- **Migrations:** additive only, ever. Owner applies; nothing auto-applies. Pin `search_path` on functions (e6dfa164 convention).
+- **Migrations:** additive only, ever. Nothing auto-applies. Follow the [migration apply policy](../supabase/AGENTS.md#traps). Pin `search_path` on functions (e6dfa164 convention).
 - **GNHF CLI is not trusted** (0-token run); native lanes + watcher loops are the proven machine.
 
 ## TASTE DOCTRINE (owner-forged, binding on every lane)

@@ -15,10 +15,11 @@ relaunch map [#1354](https://github.com/Singularityszn/pubmax/issues/1354).
 
 Two owners, and no third.
 
-- **Captain.** Merges, promotes, holds every secret, applies every migration, sends the
+- **Captain.** Merges, promotes, holds every secret, authorises migrations, sends the
   invites, reads the weekly dashboard, decides a rollback.
 - **Fleet.** Ships the product, runs the gates, collects the evidence, reports a
-  finding. The fleet never promotes and never applies a migration.
+  finding. The fleet never promotes. Migration roles follow the
+  [migration apply policy](../supabase/AGENTS.md#traps).
 
 A step with no dated proof is not done. Record each proof against its row in section 5.
 
@@ -117,7 +118,7 @@ Nothing in section 2 starts until the captain says so. The order is the point.
 | # | Step | Owner | Proof | Command or page |
 |---|---|---|---|---|
 | 2.1 | Confirm section 1 is complete and dated | Captain | Every row in section 5 carries a date. | This file, section 5 |
-| 2.2 | Apply any outstanding migration | Captain | `supabase migration list` shows the release set. Agents ship SQL only. Runbook 1.3. | `supabase db push --include-all` |
+| 2.2 | Apply outstanding migrations | See migration policy | The ledger shows the release set. Runbook 1.3 owns reconciliation. | [Migration apply policy](../supabase/AGENTS.md#traps) |
 | 2.3 | Confirm the production environment | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off`, `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, every secret set. Runbook 1.4. | Vercel, Project, Settings, Environment Variables |
 | 2.4 | Release | Captain | The [release command](DEPLOYMENT.md#one-release-command) ends with `[release] Released <sha> as <deploymentId>. The production smoke suite passed.` It builds with Production values, promotes, and waits for the smoke verdict. Never promote a Preview build. | `npm run release:prod` |
 | 2.5 | Record the release | Captain | The commit and deployment id from the final line of step 2.4, recorded in section 5. | Output of step 2.4 |

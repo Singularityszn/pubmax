@@ -123,7 +123,7 @@ This wave is captain + first mate. A coding worker does not start Wave 1 until 0
 **Files:**
 - `supabase/migrations/20260819200000_0111_cheap_pint_ping_prefs.sql`
 
-**Step 1:** Captain applies the SQL in the Supabase SQL editor, or re-auths the connector and asks first mate to apply it.
+**Step 1:** Follow the [migration apply policy](../../supabase/AGENTS.md#traps).
 
 **Step 2:** Confirm the prefs table/columns exist. Cheap-pint prompt write then read-back on a real account.
 

@@ -104,7 +104,7 @@ misconfigured.
 
 ### 1. Run the migrations, in order
 
-Apply every SQL file in `supabase/migrations/` **in filename timestamp order** (each builds on the last). Do not stop at `0004`; the social demo depends on the later migrations through `0020`.
+Migrations in `supabase/migrations/` run **in filename timestamp order** (each builds on the last). Do not stop at `0004`; the social demo depends on the later migrations through `0020`.
 
 | File | What it creates |
 |---|---|
@@ -116,7 +116,7 @@ Apply every SQL file in `supabase/migrations/` **in filename timestamp order** (
 | `0019_messages.sql` | Durable conversations/messages with RLS denying raw public table access. |
 | `0020_ratings.sql` | Durable drink ratings and venue-summary compatibility rows with raw row access denied; public reads go through aggregate API responses. The retired venue panel and top-rated-pub list are not part of the deployed surface. |
 
-Run each via the Supabase SQL editor, or with the Supabase CLI (`supabase db push` / `supabase migration up`) pointed at the project.
+Follow the [migration apply policy](../supabase/AGENTS.md#traps) for authorisation, the apply path, and independent verification.
 
 Production migration history already contains
 `20260806035204_0070_v1_release_security.sql`. Migrations `0071` and `0072` have
@@ -127,8 +127,7 @@ Current production migration state and source-ledger reconciliation are owned by
 the [soft-launch runbook](SOFT_LAUNCH_RUNBOOK.md#13-migrations). Check the live
 ledger there before applying any migration, including the `0127`-`0132`
 reconciliation entries and the `0133`-`0136` Plan account-claim follow-up
-entries, all with their matching rollback files. Captain applies migrations;
-agents do not apply them.
+entries, all with their matching rollback files.
 
 Supabase installs the pgcrypto extension in the `extensions` schema, not
 `public`. Local test Postgres installs it in `public`, which hides the
