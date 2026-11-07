@@ -445,6 +445,7 @@ type PlanActionRequest = {
 
 New Night mode requests include both binding fields, including requests queued offline.
 The stores check the route revision and venue before inserting a bound action.
+An authorised stale binding returns a conflict even if the host removed the tapped stop.
 An identical accepted retry returns its original action even after a safe route revision.
 Legacy requests may omit both fields. They remain unstamped and establish neither a table location nor a completed-stop mystery reveal.
 Only bound arrivals can fulfil a signed-in owner's Wanted entry.
@@ -460,9 +461,14 @@ Full `PlanState` (with the new action in `actions[]`). Side effect: recording an
 | `404` | bad/unknown plan id |
 | `400` | malformed body, invalid action or binding, or missing/invalid idempotency key |
 | `403` | member token cannot update this Plan |
-| `409` | stale route or venue binding, or the same key reused for another payload |
+| `409` | `PLAN_ROUTE_CHANGED` when the route revision or the venue in that slot changed since the tap; `PLAN_IDEMPOTENCY_CONFLICT` when the same key is reused for another payload |
 | `429` | action request limit reached |
 | `503` | Plan storage unavailable |
+
+After a bound action conflicts, the handler reads the current Plan to classify the conflict.
+If that read cannot confirm a route change, the response keeps `PLAN_IDEMPOTENCY_CONFLICT`.
+`PLAN_ROUTE_CHANGED` has `retryable: false` and the message "The route changed. Review the stops and try again."
+Night mode displays this message when it handles the refused tap or its queued replay while mounted.
 
 ### Idempotency
 
