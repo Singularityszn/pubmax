@@ -273,7 +273,7 @@ The firstmate verifies the bar itself (`gh pr view --json mergeStateStatus,statu
 - Parallel data PRs can each pass and leave main red (AGENTS.md pointer test, manifest revision fences); rebase and re-run.
 - Vercel refuses CLI deploys whose commit author is not a verified team email.
 - The Vercel project is `chengdu`, not `pubmaxx`; the Preview environment points at the production database, so no signed-in preview runs.
-- `npm run verify` rewrites 270 pack files to `revision: local`; restore before committing.
+- For generated-data handling before staging, follow the [root development rules](../../AGENTS.md#dev).
 - macOS ships 32 SysV shared-memory segments; concurrent embedded Postgres test clusters exhaust them; the harness now serialises initdb.
 - Claude Code injects co-author trailers; every brief says never, and the merge bar checks.
 
