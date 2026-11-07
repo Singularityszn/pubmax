@@ -25,7 +25,7 @@ function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Prom
   });
 }
 
-/** A signal that aborts on the caller's signal or the registration deadline.
+/** A signal that aborts on the caller's signal or the current step's deadline.
  * dispose() clears the timer and the listener once the step settles. */
 function registrationScope(parentSignal?: AbortSignal): {
   signal: AbortSignal;
@@ -77,7 +77,9 @@ export function webPushSupport(): WebPushSupport {
 
 /** Request permission, create/reuse a browser subscription and register it on
  * the identity-free push-token route. Returns the encoded token on success, or
- * null on any unsupported, denied, unconfigured or network-failed path. */
+ * null on unsupported, denied, unconfigured, cancelled or failed paths.
+ * onSlowSubscription lets the caller explain an ongoing native subscription.
+ * Waiting and cancellation rules: docs/WEB_PUSH.md#browser-setup. */
 export async function registerWebPush(
   signal?: AbortSignal,
   onSlowSubscription?: () => void,
