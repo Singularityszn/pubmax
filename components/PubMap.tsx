@@ -3183,6 +3183,12 @@ export default function PubMap({
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
   );
+  // Near me reads the same pubs as priced points. One array per filter change
+  // lets it re-answer when the filters change and not on every map render.
+  const nearMeVenues = useMemo(
+    () => filteredPubVenues.map(venueToPricedPoint),
+    [filteredPubVenues],
+  );
 
   const pinVenues = useMapPinVenues({
     venues,
@@ -6662,7 +6668,7 @@ export default function PubMap({
                 onSelectVenue={selectVenue}
                 titledByHost
                 initialLocation={userLocation}
-                venues={filteredPubVenues.map(venueToPricedPoint)}
+                venues={nearMeVenues}
               />
             </>
           ) : null
