@@ -19,10 +19,11 @@ shows. Every row carries its own `scraped_at_values`, the instant that row was
 last read at its source, and a surface that dates one pub's price dates it by
 that row's own read (`legacyPintPriceObservedAt` in `lib/drinks.ts`): a price's
 standing ages from that real instant, and each caption prints its London day. A
-caption over several prices (the brand pages, the borough FAQ, the tonight and
-today pint cards) prints the oldest of their reads, or no day when any of them
-records none (`oldestPintRead`). A dataset-level line (the Near Me list caption,
-the borough fact block) dates the dataset, never a price. A re-collection
+caption over several prices (the brand pages, the tonight and today pint
+cards) prints the oldest of their reads, or no day when any of them records
+none (`oldestPintRead`). The [fact evidence contract](../docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings)
+governs borough fact and FAQ dates. A dataset-level line, such as the Near Me
+list caption, dates the dataset, never a price. A re-collection
 re-dates only the rows its source still states. A row it did not read keeps
 the day it was read, and a row that records no read (the outer-London gazetteer
 seed, for one) claims no listing and prints no collection day. A shared stamp is

@@ -133,9 +133,12 @@ A separate qualifying pint keeps its pub in the count. Legacy prices with no sta
 Coverage can include qualifying menu prices and updates that do not supply a pub minimum for the average.
 Minimum and maximum claims retain the stricter comparable-pint eligibility, non-public exclusions and alphabetical ties.
 Each extreme carries its own `VenuePriceEvidence`, including its drink, stated serving, publisher and full source day.
-Visible facts and FAQ JSON-LD use those same extremes. The share image uses the same average, names its population and states its publisher and full-day coverage.
-Its cheapest pint carries the selected drink, serving, publisher and full read day, with explicit words for missing facts.
-Aggregate prose states the actual population, publisher coverage and full-day coverage. It never assigns one publisher to the whole calculation.
+`faqItems` supplies identical answer strings to the visible FAQ and its FAQ JSON-LD.
+`factCoverageSentence` counts publishers and full read days from the average population. It never assigns one publisher to the whole calculation.
+The [borough feature guide](../../README.md#features) owns the visible fact and share-image disclosures.
 A later equal-price row cannot lend its source or day to the selected row. A collection stamp cannot replace a source day.
-Behaviour regressions cover these boundaries in `__tests__/comparablePintRankingBoundaries.test.ts` and `__tests__/comparablePintProducer.test.ts`.
+Ranking regressions cover these boundaries in `__tests__/comparablePintRankingBoundaries.test.ts` and `__tests__/comparablePintProducer.test.ts`.
+Fact evidence and FAQ parity are covered in `__tests__/factBlockPriceEvidence.test.tsx`.
+Share-image captions are covered in `__tests__/boroughOgPriceEvidence.test.tsx`.
+Coverage and count boundaries are covered in `__tests__/drinkCoverage.test.ts` and `__tests__/pricedPubCountOneAnswer.test.tsx`.
 The separate source-read contract and its limits are documented beside `cheapestPriceReads` in `__tests__/helpers/cheapestPriceReadFence.ts`.

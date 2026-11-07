@@ -2,8 +2,7 @@ import { comparableVenuePint, selectedComparableVenuePint, selectedVenuePintEvid
 import { isComparablePintServing, pintObservationTime } from "@/lib/comparablePint.mjs";
 import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { venuePriceEvidence, type VenuePriceEvidence } from "@/lib/venuePriceEvidence";
-// Programmatic fact layer (Wave S3.1 / S3.2) — the pure, React-free core behind
-// the borough/city "Fact block" prose + stat table and the FAQ block.
+// The pure, React-free core supplies borough fact blocks, FAQs and share images.
 //
 // Provenance contract (PRD non-negotiable): every number here is DERIVED from
 // the pint-price dataset the page already loads — average, minimum, maximum and
@@ -19,9 +18,7 @@ import { venuePriceEvidence, type VenuePriceEvidence } from "@/lib/venuePriceEvi
 import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { formatPrice } from "@/lib/venues";
 
-// The minimal venue shape the stats need. Both the full Venue and the slim
-// city SlimVenue satisfy it (name + per-pub cheapest tracked pint), so the same
-// computation drives borough pages and city map pages.
+// Both full Venue and SlimVenue records satisfy this input shape.
 export type PricedPubLike = ComparablePintVenue & {
   name: string;
   cheapestPrice: number | null;
