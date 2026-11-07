@@ -77,7 +77,8 @@ test.describe("completed public discovery documents without JavaScript", () => {
   for (const record of [
     { slug: "prospect-of-whitby", sameAs: ["https://en.wikipedia.org/wiki/Prospect_of_Whitby"] },
     { slug: "the-grapes", sameAs: ["https://en.wikipedia.org/wiki/The_Grapes,_Limehouse"] },
-    { slug: "black-lion", sameAs: null },
+    { slug: "black-lion", sameAs: ["https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith"] },
+    { slug: "white-lion", sameAs: null },
   ] as const) {
     test(`historic ${record.slug} serves its grounded identity and canonical without JavaScript`, async ({ page }) => {
       expect((await page.goto(`/historic/${record.slug}`))?.status()).toBe(200);
@@ -91,13 +92,13 @@ test.describe("completed public discovery documents without JavaScript", () => {
         return Array.isArray(parsed) ? parsed : [parsed];
       });
       const landmarks = nodes.filter((node) => node["@type"] === "LandmarksOrHistoricalBuildings");
-      if (record.slug === "black-lion") {
+      if (record.sameAs === null) {
         // The two cited identities remain unresolved. The served page must not
         // assert that their descriptions or locations identify one building.
         expect(landmarks).toHaveLength(0);
         const pages = nodes.filter((node) => node["@type"] === "WebPage" && node.url === canonical);
         expect(pages).toHaveLength(1);
-        expect(pages[0]?.name).toBe("Black Lion");
+        expect(pages[0]?.name).toBe("White Lion");
         for (const claim of ["sameAs", "description", "address", "geo"]) {
           expect(pages[0]).not.toHaveProperty(claim);
         }
@@ -110,7 +111,12 @@ test.describe("completed public discovery documents without JavaScript", () => {
         await expect(page.locator('a[href="https://www.alastairhiltonphotographer.com/product-page/the-grapes"]').first()).toBeVisible();
       }
       if (record.slug === "black-lion") {
-        for (const source of ["https://en.wikipedia.org/wiki/Black_Lion,_Kilburn", "https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith"]) {
+        // The Hammersmith page cites only its own pub, never the Kilburn namesake.
+        await expect(page.locator('a[href="https://en.wikipedia.org/wiki/Black_Lion,_Hammersmith"]').first()).toBeVisible();
+        await expect(page.locator('a[href="https://en.wikipedia.org/wiki/Black_Lion,_Kilburn"]')).toHaveCount(0);
+      }
+      if (record.slug === "white-lion") {
+        for (const source of ["https://en.wikipedia.org/wiki/The_White_Lion,_Putney", "https://en.wikipedia.org/wiki/White_Lion,_Covent_Garden"]) {
           await expect(page.locator(`a[href="${source}"]`).first()).toBeVisible();
         }
       }

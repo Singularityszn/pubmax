@@ -20,13 +20,8 @@
 // sorted among the oldest pubs in London on 1701, the year the pirate it is
 // named after was hanged.
 //
-// Publication contract: a fact copied verbatim is still checked before it is
-// published, by two gates that both QUARANTINE and never rewrite. A withheld
-// fact is reported by name so it is fixed at the cache, and a record left with
-// nothing publishable is withheld whole rather than shown with an empty
-// description.
-//   • lib/heritageLanguageGate.mjs refuses a sentence written for us rather
-//     than for a reader.
+// Publication and quarantine rules live in:
+// docs/rules/scripts-builders-and-publishers.md#the-historic-directory-publishes-through-three-gates-and-each-one-refuses-rather
 //
 // Determinism: output is sorted (era ascending, nulls last, then name) and
 // pretty-printed with a trailing newline, so running twice is byte-identical.
@@ -41,6 +36,7 @@ import {
   describeInternalLanguage,
   internalLanguageFinding,
 } from "../lib/heritageLanguageGate.mjs";
+import { haversineMeters } from "../lib/greatCircle.mjs";
 import { heritagePlaceConflict } from "../lib/heritagePlaceConflict.mjs";
 import { classifyHeritageDate } from "../lib/heritageDate.mjs";
 
@@ -120,10 +116,7 @@ function coordinatesMatch(venue, fact) {
   const lng = fact.longitude;
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 ||
       !Number.isFinite(venue.lat) || !Number.isFinite(venue.lng)) return false;
-  const radians = (value) => value * Math.PI / 180;
-  const a = Math.sin(radians(lat - venue.lat) / 2) ** 2 +
-    Math.cos(radians(lat)) * Math.cos(radians(venue.lat)) * Math.sin(radians(lng - venue.lng) / 2) ** 2;
-  return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, a))) <= 150;
+  return haversineMeters(venue.lat, venue.lng, lat, lng) <= 150;
 }
 
 // Index the dataset by the stable venue id, so a heritage key whose name has

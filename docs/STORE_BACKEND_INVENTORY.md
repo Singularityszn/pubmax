@@ -194,7 +194,6 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/freshnessStoreOverlay.ts",
     "lib/handlePasswordSignIn.ts",
     "lib/harvestOverlayStore.ts",
-    "lib/heritage.ts",
     "lib/identityHandleStore.ts",
     "lib/ledgerLog.server.ts",
     "lib/mapSearchEvents.server.ts",
