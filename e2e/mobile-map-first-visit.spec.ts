@@ -129,7 +129,14 @@ for (const viewport of VIEWPORTS) {
     await expect(lead).toBeVisible();
     const leadBox = await lead.boundingBox();
     expect(leadBox!.height).toBeGreaterThan(8);
-    expect(leadBox!.y + leadBox!.height).toBeLessThanOrEqual(arrivalBox!.y + arrivalBox!.height);
+    // The design review requires space below the location sentence, while
+    // the strip contract above keeps the complete card within 80px.
+    const sentenceBottomGap = arrivalBox!.y + arrivalBox!.height - leadBox!.y - leadBox!.height;
+    expect(sentenceBottomGap).toBeGreaterThanOrEqual(11);
+    await test.info().attach("arrival-measurements", {
+      body: JSON.stringify({ width: viewport.width, height: arrivalBox!.height, sentenceBottomGap }),
+      contentType: "application/json",
+    });
     // docs/rules/components-sheets-chrome-and-navigation.md, "THE ARRIVAL ASK IS A STRIP":
     // the compact ask parks one gap above the map-edge column's published top.
     // mapArrivalCard.css owns that berth. The Plan rail and dock bound the

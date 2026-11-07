@@ -23,6 +23,7 @@ export type PricedLandingRow = {
   /** The recorded address or locality that distinguishes this branch. */
   branchAddress?: string;
   borough: string;
+  nearbyArea?: string;
   pintName: string;
   priceGbp: number;
   publisher: PricedLandingPublisher | null;

@@ -1140,6 +1140,10 @@
 .planComposer__field--wide input { font-family: var(--display, var(--serif)); font-size: var(--text-lg); font-weight: 700; }
 .planComposer__stops { grid-column: 1 / -1; min-width: 0; margin: 8px 0 0; padding: 24px 0 0; border: 0; border-top: 1px solid var(--line); }
 .planComposer__stops legend { padding: 0 10px 0 0; color: var(--color-text-muted); letter-spacing: 0.01em; }
+/* The route check note ("Opening times are not checked.") follows the stop
+   list, so it keeps the same gap from "Add another stop" that the stops keep
+   from each other rather than sitting on the button (design review, 6 Nov 2026). */
+.planComposer__stops > .planStops + .planResult__provenance { margin-top: var(--space-3); }
 .planComposer__stop { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 14px; }
 .planComposer__stop > div { display: grid; gap: 6px; }
 .planComposer__stopActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: 6px; }

@@ -7,6 +7,7 @@ import { comparablePint } from "@/lib/comparablePint.mjs";
 import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
+import { addressFromSlimSearchText } from "@/lib/slimPins";
 
 // Pure ranking core for the "Near me now" instant answer (Cycle 3, Lane 1).
 //
@@ -85,6 +86,10 @@ export function formatNearDistance(km: number | undefined | null): string | null
 export type PricedPoint = {
   id: string;
   name: string;
+  sourceName?: string;
+  address?: string;
+  locality?: string;
+  filterHints?: { searchText?: string; amenities?: { food?: boolean } };
   lat: number;
   lng: number;
   cheapestPrice: number | null;
@@ -103,6 +108,8 @@ export function venueToPricedPoint(venue: Venue): PricedPoint {
   return {
     id: venue.id,
     name: venue.name,
+    address: venue.address,
+    locality: venue.locality,
     lat: venue.latitude,
     lng: venue.longitude,
     cheapestPrice: venue.cheapestPrice,
@@ -125,6 +132,8 @@ export function venueToPricedPoint(venue: Venue): PricedPoint {
 export type NearMeCard = {
   id: string;
   name: string;
+  address?: string;
+  locality?: string;
   borough: string;
   /** Always a finite number — a card only exists for a priced pub. */
   cheapestPrice: number;
@@ -195,13 +204,32 @@ type Measured = { point: PricedPoint; km: number };
 
 function toCard(entry: Measured): NearMeCard {
   return {
-    id: entry.point.id,
-    name: entry.point.name,
-    borough: entry.point.borough,
-    cheapestPrice: entry.point.cheapestPrice as number,
+    ...toCheapestCard(entry.point),
     distanceKm: entry.km,
     walkMinutes: walkMinutesFromKm(entry.km),
   };
+}
+
+function nameNearMeBranches(
+  cards: NearMeCard[],
+  nearest: NearMeCard | null = null,
+): Pick<NearMeAnswer, "cards" | "nearest"> {
+  const named = new Map(cards.map((card) => [card.id, card]));
+  if (nearest) named.set(nearest.id, nearest);
+  const counts = new Map<string, number>();
+  const nameKey = (name: string) => name.trim().toLowerCase().replace(/^the\s+/, "");
+  for (const card of named.values()) {
+    const key = nameKey(card.name);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const label = (card: NearMeCard): NearMeCard => {
+    if ((counts.get(nameKey(card.name)) ?? 0) < 2) return card;
+    const parts = card.address?.split(",").map((part) => part.trim()) ?? [];
+    const street = /^\d+\w?$/.test(parts[0] ?? "") ? parts.slice(0, 2).join(" ") : parts[0];
+    const branch = street || card.locality?.trim() || card.borough.trim();
+    return branch ? { ...card, name: `${card.name} (${branch})` } : card;
+  };
+  return { cards: cards.map(label), nearest: nearest ? label(nearest) : null };
 }
 
 // Cheapest first, distance as the tie-break — the persona asked for "cheapest",
@@ -238,11 +266,10 @@ export function rankNearMe(
   if (walkable.length >= min) {
     const cards = walkable.map(toCard).sort(byPriceThenDistance).slice(0, max);
     return {
-      cards,
+      ...nameNearMeBranches(cards, walkable[0] ? toCard(walkable[0]) : null),
       scope: "walkable",
       radiusKm: walkRadius,
       qualifyingWithinWalk: walkable.length,
-      nearest: walkable[0] ? toCard(walkable[0]) : null,
     };
   }
 
@@ -257,11 +284,10 @@ export function rankNearMe(
   const cards = nearest.map(toCard).sort(byPriceThenDistance);
   const radiusKm = cards.reduce((furthest, card) => Math.max(furthest, card.distanceKm ?? 0), 0);
   return {
-    cards,
+    ...nameNearMeBranches(cards),
     scope: "widened",
     radiusKm: radiusKm > 0 ? radiusKm : wideRadius,
     qualifyingWithinWalk: walkable.length,
-    nearest: null,
   };
 }
 
@@ -329,11 +355,12 @@ export function rankBoroughCheapest(
   const target = borough.trim().toLowerCase();
   if (!target) return [];
   const take = Math.max(1, Math.floor(max));
-  return venues
+  const cards = venues
     .filter((point) => qualifies(point, now) && point.borough.trim().toLowerCase() === target)
     .map(toCheapestCard)
     .sort((a, b) => a.cheapestPrice - b.cheapestPrice)
     .slice(0, take);
+  return nameNearMeBranches(cards).cards;
 }
 
 export function rankCityCheapest(
@@ -342,17 +369,21 @@ export function rankCityCheapest(
   now?: number,
 ): NearMeCard[] {
   const take = Math.max(1, Math.floor(max));
-  return venues
+  const cards = venues
     .filter((point) => qualifies(point, now))
     .map(toCheapestCard)
     .sort((a, b) => a.cheapestPrice - b.cheapestPrice)
     .slice(0, take);
+  return nameNearMeBranches(cards).cards;
 }
 
 function toCheapestCard(point: PricedPoint): NearMeCard {
+  const address = point.address?.trim() || addressFromSlimSearchText(point);
   return {
     id: point.id,
     name: point.name,
+    ...(address ? { address } : {}),
+    ...(point.locality ? { locality: point.locality } : {}),
     borough: point.borough,
     cheapestPrice: point.cheapestPrice as number,
   };

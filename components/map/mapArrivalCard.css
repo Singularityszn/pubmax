@@ -93,9 +93,12 @@
      The location sentence is the visible half of a pair with the iOS purpose
      string (docs/proof/mobile-app-design/STORE_READINESS.md), so it stays on
      screen as the second line. */
+  /* The location sentence is the strip's last line, so the strip pays it a
+     bottom inset that clears the 26px corner: at 8px the sentence sat on the
+     card's curved bottom edge (design review, 6 Nov 2026). */
   .mapArrivalCard {
     grid-template-columns: minmax(0, 1fr) auto;
-    padding: 6px 3px 8px 8px;
+    padding: 5px 3px 11px 8px;
   }
 
   /* An open sheet owns the foot of the map. The ask is withheld behind it

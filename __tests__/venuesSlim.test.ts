@@ -33,6 +33,7 @@ import { buildMapVenueListModel, mapVenueListCheapest } from "@/lib/mapVenueList
 import { buildLogNearbyCandidates } from "@/lib/mapLogIntent";
 import { deriveMapRenderedState } from "@/lib/mapRenderedState";
 import { priceBucket } from "@/lib/communityPrice";
+import { nearSavingLine, rankNearMe, venueToPricedPoint } from "@/lib/nearMeAnswer";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
 // loads instead of the ~6 MB raw dataset (scripts/build_slim_index.mjs). The
@@ -99,6 +100,21 @@ function serveSlimPayload(payload: unknown) {
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
 }
+
+it("keeps the two Coach and Horses streets through the published slim loader and pin conversion", async () => {
+  serveSlimPayload(slimPayload);
+  const loaded = await loadSlimVenuesFromPathResult("/data/near-branch-contract.json");
+  const branches = loaded.rows.filter((row) => ["venue-nyowgc", "venue-phqazo"].includes(row.id));
+  expect(branches).toHaveLength(2);
+  for (const points of [branches, branches.map(slimVenueToPin).map(venueToPricedPoint)]) {
+    const answer = rankNearMe(51.5149, -0.137432, points, { minAnswers: 1, maxAnswers: 1 });
+    expect(answer.cards[0]?.name).toBe("The Coach & Horses (29 greek st)");
+    expect(answer.nearest?.name).toBe("Coach & Horses (1 great malborough street)");
+    expect(nearSavingLine(answer.cards, answer.nearest)).toContain("£0.45 a pint less than");
+    expect(answer.cards[0]?.cheapestPrice).toBe(5.7);
+    expect(answer.nearest?.cheapestPrice).toBe(6.15);
+  }
+});
 
 function makeFilters(overrides: Partial<Filters> = {}): Filters {
   return {

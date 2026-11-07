@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -17,7 +18,8 @@ import { venueAreaLabel } from "@/lib/venueDisplay";
  * callers hand it a decided heading and sentence; it decides nothing.
  *
  * The rows are the slim pin index, which needs no WebGL: tapping one opens the
- * same venue sheet a pin tap opens. `/pubs` is the whole directory behind them.
+ * same venue sheet a pin tap opens. The fallback action order is documented
+ * in README.md under Features, 3-D map.
  * The technical disclosure is a plain React toggle rather than a native
  * `<details>`, because the canvas's own RAF loop kept racing native
  * click-activation in CDP-driven clicks; this card keeps that shape so the two
@@ -49,6 +51,14 @@ export default function MapFallbackCard({
     <div className="mapFallback" role="alert">
       <strong>{heading}</strong>
       <p>{message}</p>
+      <Link className="mapFallbackBrowse" href="/pubs">
+        Browse all pubs
+      </Link>
+      {onRetry ? (
+        <button type="button" className="mapFallbackRetry" onClick={onRetry}>
+          {retryLabel}
+        </button>
+      ) : null}
       {detail ? (
         <div className="mapFallbackDisclosure">
           <button
@@ -58,6 +68,7 @@ export default function MapFallbackCard({
             onClick={() => setDetailOpen((open) => !open)}
           >
             Technical details
+            <ChevronDown className="mapFallbackDisclosureChevron" size={14} aria-hidden="true" />
           </button>
           {detailOpen ? <small className="mapFallbackDetail">{detail}</small> : null}
         </div>
@@ -82,14 +93,6 @@ export default function MapFallbackCard({
             </li>
           ))}
         </ul>
-      ) : null}
-      <Link className="mapFallbackBrowse" href="/pubs">
-        Browse all pubs
-      </Link>
-      {onRetry ? (
-        <button type="button" className="mapFallbackRetry" onClick={onRetry}>
-          {retryLabel}
-        </button>
       ) : null}
     </div>
   );

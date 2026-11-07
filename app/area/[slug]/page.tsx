@@ -122,7 +122,12 @@ export default async function AreaPage({ params }: PageProps) {
           </p>
           <p className="drinkBrandDirectory__summary">
             {landing.totalPricedVenues} pubs with listed pint prices.
-            {landing.collectedAt
+            {/* The head already prints the first row's source date. Repeat
+                the oldest one only when it is a different day (design review,
+                6 Nov 2026: "Source read 2 October 2026" twice in a row). */}
+            {landing.collectedAt &&
+            formatPricedLandingCollectedDate(landing.collectedAt) !==
+              (firstRow.observedAt ? formatPricedLandingCollectedDate(firstRow.observedAt) : null)
               ? ` Oldest source read shown here: ${formatPricedLandingCollectedDate(landing.collectedAt)}.`
               : null}
           </p>

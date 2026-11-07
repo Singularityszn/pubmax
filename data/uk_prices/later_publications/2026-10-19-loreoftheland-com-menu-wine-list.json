@@ -16,11 +16,12 @@
       "lng": -0.1395832,
       "category": "wine",
       "priceGbp": 14.25,
-      "drinkLabel": "e' 30-Year-Old VORS, Golzalez Byass, Jerez, Spain 37.5cl 15.5% Bottle £103 50ml",
+      "drinkLabel": "Pedro Ximenez 'Noe' 30-Year-Old VORS, Golzalez Byass, Jerez, Spain 37.5cl",
       "sourceUrl": "https://loreoftheland.com/menu/wine-list/",
       "observedAt": "2026-10-19T16:21:31.607Z",
       "pubsOnHost": 1,
-      "linesOnPage": 9
+      "linesOnPage": 9,
+      "servingSize": "50ml"
     },
     {
       "host": "loreoftheland.com",
@@ -32,11 +33,12 @@
       "lng": -0.1395832,
       "category": "wine",
       "priceGbp": 11.75,
-      "drinkLabel": "ine Sauternes 2022, Chateau Laville, Bordeaux, France 75cl 13% Bottle £155 50ml",
+      "drinkLabel": "Sauternes 2022, Chateau Laville, Bordeaux, France 75cl",
       "sourceUrl": "https://loreoftheland.com/menu/wine-list/",
       "observedAt": "2026-10-19T16:21:31.607Z",
       "pubsOnHost": 1,
-      "linesOnPage": 9
+      "linesOnPage": 9,
+      "servingSize": "50ml"
     },
     {
       "host": "loreoftheland.com",
@@ -80,11 +82,12 @@
       "lng": -0.1395832,
       "category": "wine",
       "priceGbp": 8.25,
-      "drinkLabel": "Moscato di Panttelleria, Donnafugata, Sicily, Italy 75cl 11.5% Bottle £112 50ml",
+      "drinkLabel": "'Kabir' Moscato di Panttelleria, Donnafugata, Sicily, Italy 75cl",
       "sourceUrl": "https://loreoftheland.com/menu/wine-list/",
       "observedAt": "2026-10-19T16:21:31.607Z",
       "pubsOnHost": 1,
-      "linesOnPage": 9
+      "linesOnPage": 9,
+      "servingSize": "50ml"
     },
     {
       "host": "loreoftheland.com",

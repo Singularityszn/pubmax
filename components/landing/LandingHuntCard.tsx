@@ -38,10 +38,8 @@ export function HuntSource({
 }) {
   return (
     <p className={className}>
-      <strong>
-        {pint.standing === "confirmed" ? "Price observed" : "Source read"}{" "}
-        <time dateTime={pint.observedOn}>{huntReadDay(pint.observedOn)}</time>.
-      </strong>{" "}
+      {pint.standing === "confirmed" ? "Price observed" : "Source read"}{" "}
+      <time dateTime={pint.observedOn}>{huntReadDay(pint.observedOn)}</time>.{" "}
       {huntSourceVerb(pint.standing)}{" "}
       <a href={pint.publisher.url} target="_blank" rel="noopener noreferrer">
         {pint.publisher.label}

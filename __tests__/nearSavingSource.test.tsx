@@ -92,6 +92,26 @@ afterEach(() => {
 });
 
 describe("the saving line's comparator evidence on /near", () => {
+  it("prints distinct branches in the summary and rows from the existing slim address data", async () => {
+    boundary.slim.mockResolvedValue([
+      ...pubs.slice(0, 4).map((pub, index) => ({ ...pub, cheapestPrice: 5.8 + index * 0.05 })),
+      { ...at("venue-phqazo", 0.004, 5.7), name: "The Coach & Horses", filterHints: { searchText: "the coach & horses 29 greek st, london w1d 5dh westminster camden|westminster amstel" } },
+      { ...at("venue-nyowgc", 0.0003, 6.15), name: "Coach & Horses", filterHints: { searchText: "coach & horses 1 great malborough street, w1f 7hg westminster camden|westminster amstel" } },
+    ]);
+    await act(async () => {
+      root?.render(createElement(NearMeNow, { initialPatchId: "", showPriceTrust: true, autoLocate: true }));
+    });
+    await settle();
+    expect(host.querySelector(".nmnCardName")?.textContent).toBe("The Coach & Horses (29 greek st)");
+    expect(host.querySelector(".nmnCardPriceValue")?.textContent).toBe("£5.70");
+    expect(host.querySelector('[data-testid="near-saving-line"]')?.textContent).toBe(
+      "The Coach & Horses (29 greek st) is £0.45 a pint less than Coach & Horses (1 great malborough street), the nearest pub with a listed price (£6.15, right here).",
+    );
+    expect(host.querySelector('[data-testid="near-saving-source"]')?.textContent).toMatch(
+      /^Coach & Horses \(1 great malborough street\): On record/,
+    );
+  });
+
   it("reads and prints the doorstep pub's evidence when it falls outside the cards", async () => {
     await act(async () => {
       root?.render(createElement(NearMeNow, { initialPatchId: "", showPriceTrust: true, autoLocate: true }));

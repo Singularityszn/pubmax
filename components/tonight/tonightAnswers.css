@@ -77,6 +77,14 @@
   color: var(--ink);
 }
 
+.tonightAnswerMetaWithSource {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-1);
+  min-height: var(--control-height);
+}
+
 .tonightAnswerSource {
   color: var(--color-text-muted);
 }

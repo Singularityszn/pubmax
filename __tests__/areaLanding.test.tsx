@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { JSDOM } from "jsdom";
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -87,5 +88,29 @@ describe("area root pages", () => {
     expect(html).toContain("Piccadilly Circus");
     expect(html).toContain('href="/map?area=piccadilly-soho"');
     expect(html).not.toContain("/map?q=");
+  });
+
+  it("keeps Hercules Pillars in Camden and explains its nearby Soho listing", async () => {
+    const html = renderToStaticMarkup(await AreaPage({ params: Promise.resolve({ slug: "piccadilly-soho" }) }));
+    const document = new JSDOM(html).window.document;
+    const rows = [...document.querySelectorAll(".drinkBrandDirectory__row")];
+    const hercules = rows.find((row) => row.querySelector("a")?.textContent === "Hercules Pillars");
+    expect(hercules?.querySelector(".drinkBrandDirectory__borough")?.textContent?.trim()).toBe(
+      "Camden, near Piccadilly & Soho",
+    );
+    expect(buildAreaLanding("piccadilly-soho", venues)?.rows.find((row) => row.venueName === "Hercules Pillars")?.borough).toBe("Camden");
+    expect(rows.some((row) => row.querySelector(".drinkBrandDirectory__borough")?.textContent?.trim() === "Westminster")).toBe(true);
+  });
+
+  // Design review, 6 Nov 2026: the head printed "Source read 2 October 2026"
+  // and the next line "Oldest source read shown here: 2 October 2026.". The
+  // oldest read is said only when it is another day than the head's.
+  it("never prints the same source day twice in its head", async () => {
+    for (const landing of listAreaLandings(venues)) {
+      const html = renderToStaticMarkup(await AreaPage({ params: Promise.resolve({ slug: landing.areaSlug }) }));
+      const head = html.match(/Source read (\d{1,2} \w+ \d{4})/)?.[1];
+      const oldest = html.match(/Oldest source read shown here: (\d{1,2} \w+ \d{4})/)?.[1];
+      if (head && oldest) expect(oldest, landing.areaSlug).not.toBe(head);
+    }
   });
 });

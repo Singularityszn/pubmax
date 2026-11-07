@@ -2637,6 +2637,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
        and the tab bar, so Retry could never be scrolled up to where a thumb
        can reach it. --float-stack-top-plan is the top edge of that stack. */
     padding-bottom: calc(var(--float-stack-top-plan, 136px) + 18px);
+    /* Scroll-to-row must treat the covered bottom lane as outside the view. */
+    scroll-padding-bottom: calc(var(--float-stack-top-plan) + 18px);
     /* Scrolling venue prices and links clear the map-edge column (Near me and
        the Pal's door), which stays on the right edge over the card. */
     padding-right: max(32px, var(--mobile-map-corner-lane));
@@ -2692,6 +2694,27 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   font-size: var(--text-xs);
   color: var(--color-on-inverse);
   cursor: pointer;
+}
+
+/* The toggle says it opens (design review, 6 Nov 2026: "Technical details"
+   showed no sign of it): a chevron that turns when the detail is shown. */
+.mapFallbackDisclosureToggle {
+  gap: 4px;
+}
+
+.mapFallbackDisclosureChevron {
+  flex: none;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.mapFallbackDisclosureToggle[aria-expanded="true"] .mapFallbackDisclosureChevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapFallbackDisclosureChevron {
+    transition: none;
+  }
 }
 
 .mapFallbackDisclosureToggle:focus-visible {
