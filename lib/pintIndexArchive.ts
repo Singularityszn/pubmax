@@ -17,8 +17,8 @@
 //     re-formatting the file cannot pass as "unchanged" and a real edit cannot
 //     pass as a reformat.
 //
-// Times are UTC end to end. A pint observed at 00:30 London on 1 July belongs
-// to July in the published window and in the hash, wherever the build runs.
+// Observation months use UTC. A pint observed at 00:30 BST on 1 July belongs
+// to June in the published window and hash, wherever the build runs.
 
 import {
   buildLeagueTable,
