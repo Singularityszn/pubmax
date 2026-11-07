@@ -12,10 +12,10 @@ import {
 
 function PintReceipt({ evidence }: { evidence: VenuePriceEvidence | null }) {
   if (!evidence) return null;
-  return <>
-    <div>{evidence.drinkLabel ?? "Pint name unavailable"} · {evidence.servingSize ?? "Serving size not recorded"}</div>
+  return <div className="factStatEvidence">
+    <p>{evidence.drinkLabel ?? "Pint name unavailable"} · {evidence.servingSize ?? "Serving size not recorded"}</p>
     <ListedPriceSource evidence={evidence} />
-  </>;
+  </div>;
 }
 
 // Server-rendered fact block (Wave S3.1): extractable prose + a small stat table
@@ -63,8 +63,10 @@ export default function FactBlock({
           <tr>
             <th scope="row">Average pint</th>
             <td>{formatPrice(stats.averageGbp)}
-              <div>Across {stats.pubCount} tracked {stats.pubCount === 1 ? "pub" : "pubs"}.</div>
-              <div>{factCoverageSentence(stats)}</div>
+              <div className="factStatEvidence">
+                <p>Across {stats.pubCount} tracked {stats.pubCount === 1 ? "pub" : "pubs"}.</p>
+                <p>{factCoverageSentence(stats)}</p>
+              </div>
             </td>
           </tr>
           <tr>
