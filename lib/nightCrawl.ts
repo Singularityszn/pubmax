@@ -178,6 +178,9 @@ export function outcomeKeepsOptimistic(
   return outcome === "offline" && options?.queued === true;
 }
 
+/** Feedback when a tap's route revision or venue no longer matches the current Plan. */
+export const NIGHT_CRAWL_ROUTE_CHANGED_NOTE = "The route changed. Review the stops and try again.";
+
 /**
  * Honest feedback for a failed or held tap. Confirmed taps need no note because
  * the stack speaks for itself. Queued offline holds never promise a sync.

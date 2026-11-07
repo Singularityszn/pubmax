@@ -50,6 +50,8 @@ export type PlanMutationFlushResult = {
   planId: string;
   entryId: string;
   outcome: NightCrawlOutcome | "conflict";
+  /** A conflict because the route changed after the tap (PLAN_ROUTE_CHANGED). */
+  routeChanged?: boolean;
   plan?: PlanState;
   type: NightCrawlActionType;
   stopPosition: number;
@@ -314,7 +316,8 @@ export function flushPlanMutationOutbox(options?: {
             const body = (await response.json().catch(() => null)) as PlanState | null;
             if (status === 409) {
               markEntry(entry, { status: "conflict", lastHttpStatus: status });
-              results.push(resultFromEntry(entry, "conflict"));
+              const code = (body as { code?: unknown } | null)?.code;
+              results.push({ ...resultFromEntry(entry, "conflict"), ...(code === "PLAN_ROUTE_CHANGED" ? { routeChanged: true } : {}) });
               continue;
             }
             const outcome = classifyActionOutcome(status);
