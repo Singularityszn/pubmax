@@ -177,6 +177,11 @@ suite once, not once in the shards and again for coverage. The freshness job
 runs on its own: a calendar breach is that job's red mark and does not skip the
 build, the unit shards or coverage.
 
+The freshness job installs Node without the npm cache or the application
+dependencies. Both freshness scripts use Node built-ins and committed data. The
+job still checks candidate artifacts and production store observations on every
+change.
+
 A shard cannot finish before its slowest test file. Vitest gives each file to
 one worker and does not divide the tests in a file. So a test file that grows
 past about 90 seconds on CI is split by topic. The parts share their setup

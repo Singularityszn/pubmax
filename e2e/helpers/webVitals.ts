@@ -168,7 +168,7 @@ export async function installVitalsProbe(page: Page): Promise<void> {
           probe.interactions += 1;
           probe.inpMs = Math.max(probe.inpMs, entry.duration);
         }
-      }).observe({ type: "event", durationThreshold: floorMs, buffered: true });
+      }).observe({ type: "event", durationThreshold: floorMs, buffered: true } as PerformanceObserverInit);
     } catch {}
   }, INP_FLOOR_MS);
 }
