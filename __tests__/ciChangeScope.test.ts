@@ -8,8 +8,7 @@
 // job reports one check under its unexpanded name ("Unit tests
 // (${{ matrix.shard }}/2)"), and branch protection then waits for "Unit tests
 // (1/2)" for ever. A job that runs and skips its steps reports success under
-// its real name. The freshness gate, data validation, review scope and
-// Security CI are not gated at all. docs/CI_RUNBOOK.md is the runbook.
+// its real name. Data validation, review scope and Security CI are not gated. docs/CI_RUNBOOK.md is the runbook.
 //
 // The macOS layout pins are the one exception (owner decision, 17 Oct 2026).
 // The Mac pool has few places, and a job that starts only to skip its steps

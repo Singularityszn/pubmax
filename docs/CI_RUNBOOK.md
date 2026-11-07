@@ -12,13 +12,15 @@ again on the commit that will land. See
 Before 7 Nov 2026 GitHub required no check on `main`. Only 19 of the last 43
 merged pull requests had green CI and green browser tests when they merged,
 and `main` broke twice on 6 Nov. For about 9 hours every pull request then
-failed its browser tests. So a merge now needs three green checks:
+failed its browser tests. So a merge now needs five green checks:
 
 | Required check | Workflow | What it is |
 | --- | --- | --- |
 | `CI check` | `ci.yml` | The summary job. It needs every other job in the workflow. |
 | `Browser tests check` | `e2e.yml` | The summary job. It needs the law pins, `Change scope` and the three layout pins. |
-| `Effective RLS (Postgres 16 + PostgREST 14)` | `rls-session.yml` | The workflow's one job. |
+| `RLS session check` | `rls-session.yml` | The summary job. It needs the RLS session job. |
+| `Security CI check` | `security-ci.yml` | The summary job. It needs all four security jobs. |
+| `Freshness check` | `freshness.yml` | The summary job. It needs change detection and the freshness job. |
 
 A summary job runs with `if: ${{ always() }}` and fails when a job it needs
 failed or was cancelled. A job that its own `if` skipped passes, for example
@@ -28,17 +30,17 @@ resharded with no settings change. A new pull-request job must be added to its
 summary's `needs`. `__tests__/ciSummaryCheck.test.ts` holds each summary to
 every pull-request job in its workflow and runs its script.
 
-The three workflows also listen for `merge_group`. The queue tests each pull
+The five workflows also listen for `merge_group`. The queue tests each pull
 request on top of `main` and the pull requests ahead of it, so a change that
-is green alone but red beside another one never reaches `main`. Each change
-scope classifier reads `merge_group` as `code`, so the queue runs every Linux
-job in full. The layout pins do not run in the queue: when they run was left
+is green alone but red beside another one never reaches `main`. The general change classifiers read `merge_group` as `code`, so those Linux jobs run in full.
+Freshness checks the queue diff and runs its data checks only when data changed.
+The layout pins do not run in the queue: when they run was left
 as it was (captain, 7 Nov 2026), so they still run on each pull request push
 and each `main` push. A pull request enters the queue only after its own
 `Browser tests check`, which needs the layout pins, is green.
 
-Security CI stays advisory (see [Security CI is advisory](#security-ci-is-advisory))
-and does not run in the queue. A retried test still fails its gate:
+Security CI blocks merging through `Security CI check` and runs in the queue.
+See [Security CI is blocking](#security-ci-is-blocking). A retried test still fails its gate:
 `scripts/assert-playwright-gate.mjs` counts a pass on retry as a failure, so
 fix a flaky spec rather than re-running it (captain, 7 Nov 2026).
 
@@ -57,11 +59,11 @@ Settings:
 | Target | the default branch (`~DEFAULT_BRANCH`, which is `main`) |
 | Enforcement | active |
 | Bypass list | empty. In an emergency an admin turns the ruleset off and back on, and says so. |
-| Required status checks | the three checks above, each from GitHub Actions (integration 15368) |
+| Required status checks | the five summaries above, each from GitHub Actions (integration 15368) |
 | Require branches to be up to date | off. The merge queue tests the up-to-date result. |
 | Merge queue | on |
 | Merge method | squash |
-| Build concurrency | 2. Each queue entry starts about 13 Linux jobs, and the free plan runs about 20 at once. |
+| Build concurrency | 2 queue entries can run at once. |
 | Group size | at least 1, at most 5 |
 | Wait for a minimum group size | 5 minutes |
 | Grouping strategy | all entries must pass (`ALLGREEN`) |
@@ -86,7 +88,9 @@ gh api --method POST repos/Singularityszn/pubmax/rulesets --input - <<'JSON'
         "required_status_checks": [
           { "context": "CI check", "integration_id": 15368 },
           { "context": "Browser tests check", "integration_id": 15368 },
-          { "context": "Effective RLS (Postgres 16 + PostgREST 14)", "integration_id": 15368 }
+          { "context": "RLS session check", "integration_id": 15368 },
+          { "context": "Security CI check", "integration_id": 15368 },
+          { "context": "Freshness check", "integration_id": 15368 }
         ]
       }
     },
@@ -242,20 +246,18 @@ each hosted Linux job is its own machine.
   Dependabot's `github-actions` updater moves the pins, with a seven-day
   cooldown like the npm updater.
 
-### Security CI is advisory
+### Security CI is blocking
 
-`security-ci.yml` runs zizmor online over all of `.github/`, osv-scanner
-recursively over every lockfile in the tree, Semgrep, and gitleaks, on every
-pull request, every push to `main` and every Monday. The main ruleset does not
-require these checks, so a red Security CI job blocks nothing by itself: read
-it before merging. zizmor's `GH_TOKEN` is `github.token`, the job token, not a
-repository secret.
+`security-ci.yml` runs zizmor online over `.github/`, osv-scanner over every lockfile, Semgrep, and gitleaks.
+It runs on pull requests, merge groups, pushes to `main`, Mondays, and manual dispatches.
+The main ruleset requires `Security CI check`, which fails if any security job fails or is cancelled.
+zizmor uses `github.token`, the job token, rather than a repository secret.
 
 gitleaks scans a different range for each event:
 
 | Event | Range |
 | --- | --- |
-| Pull request | The complete history reachable from the checkout (`HEAD`). |
+| Pull request or merge group | The complete history reachable from the checkout (`HEAD`). |
 | Push to `main` | Only the pushed commits (`before..after`), including after a force push. When the previous head is all zeros or missing from the clone, it scans the complete history of the new head. |
 | Weekly run and manual dispatch | Every ref (`--all`), so a secret on any branch is still found. |
 
@@ -295,7 +297,7 @@ If no open issue has that exact title, the job creates one.
 The job uses the run's own `GITHUB_TOKEN` and needs no configured secret.
 Close the issue when the nightly is green again.
 
-Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite, manual dispatches and merge queue runs never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `freshness.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
+Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite, manual dispatches and merge queue runs never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
 Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push starts three layout-pin jobs. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
@@ -320,22 +322,27 @@ failures from 3 to 7 Nov 2026. So it left `ci.yml` for its own workflow,
 `freshness.yml` (captain, 7 Nov 2026). It runs:
 
 - every day at 07:47 UTC, and by hand (`workflow_dispatch`);
-- on a pull request or a push to `main` that changes `data/**`,
-  `public/data/**`, either gate script or the workflow itself;
+- on a pull request or merge group that changes a file under `data/` or `public/data/`;
 - before every production release, as a preflight of `npm run release:prod`.
   A red gate refuses the release before anything is uploaded.
 
-It is not a required check, so its `paths` filter never holds a pull request
-waiting for a check that does not start. A scheduled failure posts through
-`alert-on-failure.yml`. `npm run verify` still runs `npm run check:freshness`
-locally.
+The workflow starts on every pull request and merge group so the required `Freshness check` always reports.
+A Linux job detects data changes before the freshness job starts.
+For pull requests, it compares the merge commit with its first parent and fetches two commits.
+For merge groups, it fetches and compares `base_sha` and `head_sha` from the event.
+Scheduled runs and manual dispatches always run the freshness job.
+The freshness job also runs if detection fails.
+A skipped freshness job passes its summary, but a failed detection or freshness job fails the summary.
+There is no push trigger or workflow-level path filter.
+A scheduled failure posts through `alert-on-failure.yml`.
+`npm run verify` still runs `npm run check:freshness` locally.
 
 The job installs Node without the npm cache or the application dependencies.
 Both scripts use only Node built-ins. The first checks committed candidate
 artifacts. The second reads production store observations through
 `https://pubmaxxing.com/api/freshness`. `FRESHNESS_GATE_COMMANDS` in
 `scripts/lib/releaseProduction.mjs` is the one list of the two commands, and
-`__tests__/ciSummaryCheck.test.ts` holds the workflow and the release to it.
+`__tests__/ciSummaryCheck.test.ts` checks both commands independently in the workflow and release preflight.
 
 A shard cannot finish before its slowest test file. Vitest gives each file to
 one worker and does not divide the tests in a file. So a test file that grows
@@ -398,7 +405,7 @@ A pull request that changes only docs or only data skips the heavy jobs (owner d
 
 The diff runs with `--no-renames`, so a file moved counts under both its old and its new path. A pull request that moves `lib/` code into `docs/` reads as code, not docs.
 
-The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/3)`, and a required `Unit tests (1/3)` would then wait for ever. That is why no Linux job is skipped whole. Since 7 Nov 2026 the ruleset requires only the summary checks, which accept a skipped job, so this limit no longer binds, but the jobs have not changed. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
+The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/3)`, and a required `Unit tests (1/3)` would then wait for ever. These heavy jobs therefore skip individual steps. Since 7 Nov 2026 the ruleset requires only the summary checks, which accept a skipped job, so this limit no longer binds, but these heavy jobs retain their step gates. The freshness job skips whole when no data changed. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
 
 The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner. Before the Mac pool migration, three layout shards per pull request filled the hosted macOS queue. Docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. In `e2e.yml` one Linux job, `Change scope`, runs the classifiers. `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. When `Change scope` succeeds and `Classify the layout change` outputs `none`, GitHub skips all three jobs without starting a Mac job. If `Change scope` fails, the layout jobs run for events eligible under [Self-hosted Mac runners](#self-hosted-mac-runners). This preserves layout checks when classification fails, because branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
 
@@ -433,8 +440,12 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
 | Browser tests / Browser tests check (required) | runs | runs | runs |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
-| Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
-| Freshness release gate | not run, unless it changes a file under `data/` | runs | not run, unless it changes `data/**` or a gate script |
+| RLS session tests / RLS session check (required) | runs | runs | runs |
+| Security CI (zizmor, osv-scanner, Semgrep, gitleaks) | runs | runs | runs |
+| Security CI / Security CI check (required) | runs | runs | runs |
+| Freshness release gate / change detection | runs | runs | runs |
+| Freshness release gate / data checks | skipped | runs | runs only if a file under `data/` or `public/data/` changed |
+| Freshness release gate / Freshness check (required) | runs | runs | runs |
 
 The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A unit test that reads data without naming the file is not run until the merge queue, which runs every Linux job. A browser pin is not run until the merge queue (law pins) or `main` (layout pins). The [browser job schedule](#timeouts-and-job-shape) controls browser coverage. The local gate, `npm run verify`, is unchanged.
 
