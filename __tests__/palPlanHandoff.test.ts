@@ -93,6 +93,38 @@ describe("palDraftAttempts: keep all, then keep the first, then plan from the as
     expect(first?.anchor).toEqual(accepted);
   });
 
+  it.each([
+    { origin: "pal", stopCount: null, keepingCount: 2 },
+    { origin: "pal", stopCount: 3, keepingCount: 2 },
+    { origin: "pal", stopCount: 5, keepingCount: 1 },
+    { origin: "map", stopCount: null, keepingCount: 2 },
+    { origin: "map", stopCount: 3, keepingCount: 2 },
+    { origin: "map", stopCount: 5, keepingCount: 1 },
+  ])("preserves the accepted pub and scarcity after $origin attempts fail at count $stopCount", ({ origin, stopCount, keepingCount }) => {
+    const matchingDraft = palPlanDraftFor(raw({ origin }), ASK)!;
+    const accepted: PlanGenerationAnchorInput = { ...held, venueId: DRAFT.stopIds[0]! };
+    const scarcity = "We kept The London and South Western. We could not build the route you asked for. Change the details or add pubs.";
+    const answer = { outcome: "anchor-only", stops: [{ venueId: accepted.venueId }] };
+    const attempts = palDraftAttempts(matchingDraft, accepted, stopCount);
+    expect(attempts).toHaveLength(keepingCount + 1);
+    for (const attempt of attempts.slice(0, -1)) {
+      expect(palDraftAttemptKept(attempt, matchingDraft, true, answer)).toBe(false);
+    }
+    const fallback = attempts.at(-1)!;
+    expect(palDraftAttemptKept(fallback, matchingDraft, true, answer)).toBe(true);
+    expect(fallback.keeps).toBe("held");
+    const body = buildPlanGenerationIntakeBody(createPlanIntakeDraft(), ASK, null, fallback.context, fallback.anchor);
+    expect(body.anchor).toEqual(accepted);
+    const shown = palDraftRouteLines(matchingDraft, fallback.keeps, [DRAFT.stopNames[0]!], {
+      conciergeNote: scarcity,
+      routeStatus: scarcity,
+    });
+    for (const line of [shown.conciergeNote, shown.routeStatus]) {
+      expect(line).toContain(scarcity);
+      expect(line).not.toContain("Plan built one from your ask");
+    }
+  });
+
   it("does not replace an accepted pub list with another draft", () => {
     const accepted = { ...held, venueId: DRAFT.stopIds[0]!, venueIds: [DRAFT.stopIds[0]!, "venue-held-second"] };
     expect(palDraftAttempts(draft, accepted)).toEqual([{ keeps: "held", anchor: accepted, context: {} }]);

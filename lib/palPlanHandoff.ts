@@ -88,13 +88,13 @@ export function palDraftAttempts(
   fallbackAnchor: PlanGenerationAnchorInput | null | undefined,
   requestedStopCount: number | null = null,
 ): PalDraftAttempt[] {
-  const plain: PalDraftAttempt = { keeps: "none", anchor: fallbackAnchor ?? null, context: {} };
+  const plain: PalDraftAttempt = { keeps: draft && fallbackAnchor ? "held" : "none", anchor: fallbackAnchor ?? null, context: {} };
   if (!draft) return [plain];
   const source = draft.origin === "map" ? "map-search" : "pal";
   const first = draft.stopIds[0]!;
   // A draft cannot release an accepted first pub or replace an accepted list.
   if (fallbackAnchor && (fallbackAnchor.venueId !== first || fallbackAnchor.venueIds?.length)) {
-    return [{ ...plain, keeps: "held" }];
+    return [plain];
   }
   // An accepted first pub that the draft also starts at keeps its area and time.
   const anchor: PlanGenerationAnchorInput = fallbackAnchor ?? { venueId: first, source, acceptedArea: null, startsAt: null };
