@@ -1,9 +1,12 @@
+// @vitest-environment jsdom
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { getCity } from "@/lib/cities";
+import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
-import { buildCityCrawlGroup } from "@/lib/cityCrawlDirectory";
+import { buildCityCrawlGroup, type CityCrawlGroup } from "@/lib/cityCrawlDirectory";
 import { CityCrawlLinks } from "@/app/crawls/CrawlsPageClient";
 
 const city = getCity("manchester");
@@ -26,7 +29,9 @@ describe("city crawl discovery", () => {
     expect(html).toContain("Manchester");
     expect(html).toContain("Test walk");
     expect(html).toContain("2 stops");
-    expect(html).toContain("We haven&#x27;t yet collected pint prices for this city.");
+    const document = new DOMParser().parseFromString(html, "text/html");
+    expect(document.querySelector(".crawlOtherCitiesNote")?.textContent)
+      .toBe(getCityCapabilityProfile(city.id).prices.explanation);
     const href = group!.crawls[0]!.href;
     const url = new URL(href, "https://example.test");
     expect(url.pathname).toBe("/map/manchester");
@@ -57,18 +62,56 @@ describe("city crawl discovery", () => {
     expect(group?.crawls.map((route) => route.id)).toEqual(["test-walk"]);
   });
 
-  it("says once when no listed city has prices, and keeps a city's own note when others have prices", () => {
-    const group = buildCityCrawlGroup(city, [crawl], pack)!;
-    const note = "We haven&#x27;t yet collected pint prices for this city.";
-    const liverpool = { ...group, cityId: "liverpool" as const, cityName: "Liverpool" };
-    const shared = renderToStaticMarkup(<CityCrawlLinks groups={[group, liverpool]} />);
-    expect(shared).not.toContain(note);
-    expect(shared.split("We haven&#x27;t yet collected pint prices for these cities.")).toHaveLength(2);
-    const priced = { ...liverpool, priceNote: null };
-    const mixed = renderToStaticMarkup(<CityCrawlLinks groups={[group, priced]} />);
-    expect(mixed.split(note)).toHaveLength(2);
-    expect(mixed.indexOf(note)).toBeGreaterThan(mixed.indexOf(">Manchester<"));
-    expect(mixed.indexOf(note)).toBeLessThan(mixed.indexOf(">Liverpool<"));
+  // The captain's note-placement contract is the oracle. These cases reject
+  // invented shared text and notes moved under the wrong city.
+  it.each<{
+    notes: [string | null, string | null, string | null];
+    sharedNote: string | null;
+    cityNotes: (string | null)[];
+  }>([
+    {
+      notes: [
+        "Price coverage varies by place and source.",
+        "Price coverage varies by place and source.",
+        "Price coverage varies by place and source.",
+      ],
+      sharedNote: "Price coverage varies by place and source.",
+      cityNotes: [null, null, null],
+    },
+    {
+      notes: ["Limited price coverage.", "Limited price coverage.", "No dated prices yet."],
+      sharedNote: null,
+      cityNotes: ["Limited price coverage.", "Limited price coverage.", "No dated prices yet."],
+    },
+    {
+      notes: ["Limited price coverage.", null, null],
+      sharedNote: null,
+      cityNotes: ["Limited price coverage.", null, null],
+    },
+    {
+      notes: [null, null, "No dated prices yet."],
+      sharedNote: null,
+      cityNotes: [null, null, "No dated prices yet."],
+    },
+    { notes: [null, null, null], sharedNote: null, cityNotes: [null, null, null] },
+  ])("preserves shared and city notes for $notes", ({ notes, sharedNote, cityNotes }) => {
+    const groups: CityCrawlGroup[] = ["manchester", "liverpool", "oxford"].map((id, index) => ({
+      cityId: getCity(id).id,
+      cityName: getCity(id).displayName,
+      priceNote: notes[index]!,
+      crawls: [{ id: crawl.id, name: crawl.name, stops: 2, href: "/map/manchester" }],
+    }));
+    const html = renderToStaticMarkup(<CityCrawlLinks groups={groups} />);
+    const document = new DOMParser().parseFromString(html, "text/html");
+    expect(document.querySelector(".crawlOtherCitiesHead .crawlOtherCitiesNote")?.textContent ?? null)
+      .toBe(sharedNote);
+    const sections = Array.from(document.querySelectorAll(".crawlCompactGroup"));
+    expect(sections).toHaveLength(3);
+    expect(sections.map((section) => section.querySelector(".crawlOtherCitiesNote")?.textContent ?? null))
+      .toEqual(cityNotes);
+    expect(document.querySelectorAll(".crawlOtherCitiesNote")).toHaveLength(
+      sharedNote === null ? cityNotes.filter((note) => note !== null).length : 1,
+    );
   });
 
   it("omits empty routes, disabled cities, and London from the additional directory", () => {

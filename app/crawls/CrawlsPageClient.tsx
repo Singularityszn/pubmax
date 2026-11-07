@@ -537,10 +537,9 @@ function CrawlPoster({
 /** Other enabled cities' complete routes, after the London directory. */
 export function CityCrawlLinks({ groups }: { groups: readonly CityCrawlGroup[] }) {
   if (groups.length === 0) return null;
-  // When no listed city has prices, the section says so once, not under each city.
-  const noPrices = groups.every((group) => group.priceNote !== null);
-  const sharedNote = !noPrices ? null
-    : groups.length === 1 ? groups[0]!.priceNote : "We haven't yet collected pint prices for these cities.";
+  const firstNote = groups[0]!.priceNote;
+  const sharedNote = firstNote !== null && groups.every((group) => group.priceNote === firstNote)
+    ? firstNote : null;
   return (
     <section className="crawlOtherCities" aria-labelledby="otherCityCrawlsHeading">
       <div className="crawlOtherCitiesHead">
