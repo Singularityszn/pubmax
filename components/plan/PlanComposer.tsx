@@ -3013,7 +3013,7 @@ function PlanComposerForm({
     if (patch.daypart !== undefined && exactStartInput) setStartTime(exactStartInput);
     setExplicitNightContext((current) => ({ ...current, ...patch }));
     if (!user || patch.drinkCategory !== undefined || patch.zeroProof !== undefined) {
-      writeDeviceNightContext(reconciled.context ?? next, acceptedCityId);
+      writeDeviceNightContext(reconciled.context ?? next, acceptedCityId, undefined, editableContext);
     }
   }
 

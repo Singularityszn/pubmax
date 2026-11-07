@@ -264,6 +264,39 @@ describe("NearMeSavedDrink", () => {
     expect(host.textContent).toContain("Your saved drink is Wine.");
   });
 
+  it.each([false, true])("keeps Wine through an unrelated context save with legacy=%s", (legacy) => {
+    writeDeviceNightProfile(profile({ drinkCategory: "wine" }));
+    if (!legacy) {
+      mirrorAccountNightProfileToDevice({
+        ...profile({}),
+        createdAt: "2026-11-06T12:00:00Z",
+        updatedAt: "2026-11-06T12:00:00Z",
+      });
+      releaseDeviceAccountOwner(localStorage, sessionStorage);
+    }
+    const loaded = profile({}).context;
+    writeDeviceNightContext({ ...loaded, budget: "treat" }, "london", undefined, loaded);
+    expect(readDeviceNightProfile()?.context.budget).toBe("treat");
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBe("wine");
+    authState.current = { signedIn: false };
+    render("beer");
+    expect(host.textContent).toContain("Your saved drink is Wine.");
+  });
+
+  it("saves category clearing and both alcohol-free transitions against the caller's context", () => {
+    const wine = profile({ drinkCategory: "wine" }).context;
+    writeDeviceNightContext(wine, "london");
+    const dryWine = { ...wine, zeroProof: true };
+    writeDeviceNightContext(dryWine, "london", undefined, wine);
+    expect(readDeviceNightDrink()?.context).toMatchObject({ drinkCategory: "wine", zeroProof: true });
+    writeDeviceNightContext(wine, "london", undefined, dryWine);
+    expect(readDeviceNightDrink()?.context).toMatchObject({ drinkCategory: "wine", zeroProof: false });
+    writeDeviceNightContext({ ...wine, drinkCategory: null }, "london", undefined, wine);
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBeNull();
+    render("beer");
+    expect(host.textContent).toBe("");
+  });
+
   it("does not retain an account mirror after the account changes", () => {
     writeDeviceNightProfile(profile({ zeroProof: true }), undefined, "account");
     profileState.current = { profile: profile({ zeroProof: true }), status: "ready" };

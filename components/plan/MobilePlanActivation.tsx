@@ -227,7 +227,7 @@ export function MobilePlanActivation({
         .catch(() => {
           /* fail-soft: keep the straight-line label already shown */
         });
-      if (!user) writeDeviceNightContext(generated.context, cityId);
+      if (!user) writeDeviceNightContext(generated.context, cityId, undefined, generated.context);
       // First meaningful plan action (starting a round): arms the native push
       // explainer in Capacitor or the daily-brief explainer in an installed
       // PWA. Both remain no-ops in an ordinary web tab and during SSR.

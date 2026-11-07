@@ -64,6 +64,7 @@ import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/Plan
 import NearMeSavedDrink from "@/components/nearme/NearMeSavedDrink";
 import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
 import { mirrorAccountNightProfileToDevice, readDeviceNightDrink } from "@/lib/nightProfileClient";
+import { releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
@@ -276,6 +277,37 @@ async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
 }
 
 describe("the Plan result", () => {
+  it("keeps the Near me Wine offer after sign-out and a new Plan budget edit", async () => {
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    await act(async () => {
+      const drinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")!;
+      drinks.value = "wine";
+      drinks.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    mirrorAccountNightProfileToDevice({
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      createdAt: "2026-11-06T12:00:00Z",
+      updatedAt: "2026-11-06T12:00:00Z",
+    });
+    releaseDeviceAccountOwner(localStorage, sessionStorage);
+    await remountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    await act(async () => {
+      const budget = document.querySelector<HTMLSelectElement>("#plan-context-budget")!;
+      budget.value = "treat";
+      budget.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-budget")?.value).toBe("treat");
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBe("wine");
+    await act(async () => {
+      root!.render(createElement(NearMeSavedDrink, { cityId: "london", drinkLane: "beer", noAlcoholView: false, onShow: vi.fn() }));
+    });
+    expect(host?.textContent).toContain("Your saved drink is Wine.");
+  });
+
   it("keeps Wine chosen while a Plan response is pending in the Near me offer", async () => {
     await mountComposer();
     await sortIt("Clapham tonight");
