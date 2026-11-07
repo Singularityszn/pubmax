@@ -4,8 +4,8 @@
 --   crew_join_request   somebody asked to join the recipient's crew
 --   crew_join_accepted  the host let the recipient into their crew
 --
--- Only the kind check widens. No column, policy or grant changes: the table
--- stays service-role only (0023), and the server writes every row.
+-- Only the kind check widens. No column, policy or grant changes.
+-- The server writes every row. Recipient read policies remain unchanged (0067).
 -- Re-runnable: the constraint is dropped and added in one statement.
 
 alter table public.notifications

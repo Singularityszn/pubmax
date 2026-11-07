@@ -3,12 +3,9 @@ import "server-only";
 // Launch plan P0 item 3: tell the host about each join request, and tell the
 // guest when the host lets them in.
 //
-// Each notice is two deliveries, and neither may fail the join write it
-// follows. The in-app notification always lands (the notifications store).
-// The email goes through the one email seam (lib/emailProvider.ts), which
-// answers `skipped` while the Resend keys are absent, so a keyless or
-// unconfigured deployment still shows the notice in the inbox and sends no
-// email. Push cannot carry this: plan-scoped push is a deliberate no-op.
+// Delivery is best effort and must not fail the completed join write.
+// Missing email keys do not prevent the in-app attempt. Storage or recipient
+// lookup failures can prevent delivery. lib/emailProvider.ts owns email delivery.
 //
 // NO ADDRESS LEAVES. The recipient's address is read from Supabase Auth through
 // the service role and handed to the email seam alone. It is never returned

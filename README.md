@@ -223,6 +223,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Available Social notifications appear in **Activity** in the desktop sidebar.
 
+  For open crawls, a new join request notifies the host, and an acceptance notifies the guest. Each notice links to the crawl page. Delivery uses Activity and, when [email is configured](.env.example), the recipient's account email. A decline, cancellation or replay sends no notice.
+
+  Delivery is best effort and does not block the join action. Missing email settings do not prevent in-app delivery. These notices do not use push.
+
   If the signed-out London feed is empty, its [public next actions](docs/design/LAUNCH_SCREENS.md#social-action-order) appear before the body sign-in offer.
 
   On phones, posts appear before crews and other supporting tools. Desktop keeps those tools beside the feed. The Posts view links to **Messages**, **Your Pub Pal**, **Plan a crawl**, and **Save a Moment**. **Post** opens a composer with visibility guidance and a character count.

@@ -37,9 +37,6 @@ const KIND_FILTERS: ReadonlyArray<{ kind: NotificationKind; label: string }> = [
   { kind: "crew_join_accepted", label: "Let in" },
 ];
 
-// A grounded one-liner per kind. Keeps the vocabulary in lockstep with the four
-// notification kinds; an unknown kind (shouldn't happen — the store validates)
-// falls back to a neutral verb.
 function verb(kind: NotificationKind): string {
   switch (kind) {
     case "follow":

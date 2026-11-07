@@ -11,10 +11,8 @@ import "server-only";
 // succeeds. The READ side (list + unread count) is likewise fail-soft: an outage
 // renders as an empty inbox, never a 500 on the bell / activity page.
 //
-// Identity is the self-asserted handle (no auth). A notification carries only
-// already-public feed signal (see lib/notifications.ts), so keying reads by a
-// self-asserted recipient handle is acceptable low-sensitivity exposure — noted
-// honestly here and in the migration.
+// Handles address inbox rows. The HTTP ownership contract lives in
+// app/api/notifications/route.ts. lib/notifications.ts owns the event vocabulary.
 
 import {
   cleanNotification,
