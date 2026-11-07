@@ -38,8 +38,8 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 ### emilkowalski/skills
 
 - Repo: https://github.com/emilkowalski/skills
-- Commit: `e8a175de22ae1e49370fc144c1f3bb9aeedf988d` (`main`)
-- Checked 4 Oct 2026. All thirteen installed skill trees match this tip, preserving the `emil-prototype` namespace. The new tip only adds `break-ui`, which was not installed; the thirteen installed trees are unchanged.
+- Commit: `a81dbca07f2217b7103e510c0f13f8d5b017afc9` (`main`)
+- Checked 29 Oct 2026. The installed skill trees match this tip, preserving the `emil-prototype` namespace. New upstream skills remain outside this pack.
 
 `animate`, `animate-expo`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `emil-design-eng`, `find-animation-opportunities`, `improve-animations`, `mobile-native`, `pick-ui-library`, `emil-prototype`, `review-animations`, `write-swift`.
 
@@ -48,8 +48,12 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 ### Leonxlnx/taste-skill
 
 - Repo: https://github.com/Leonxlnx/taste-skill
-- Commit: `b482f7a970abb98c4108d4a9f761e458c64cefc8` (`main`)
-- Checked 7 Oct 2026. All thirteen installed skill trees match this tip. It changes only the upstream README and an image after `e3c92037548e3e49bea8e6b906c99a8549654e71`.
+- Commit: `12af471f627f866411b4bd785b19646d3672784c` (`main`)
+- Checked 29 Oct 2026. The upstream repo now publishes one consolidated `taste-skill` tree. That tree is refreshed here. The other twelve installed trees remain from the prior pack because the current source has no direct replacements for them.
+
+The consolidated tree includes upstream JavaScript helpers and browser assets. Its `LICENSE` preserves the upstream MIT notice from the pinned commit. These files do not execute on install. The local `PUBMAXX project rules` section preserves project design, copy, source permissions, explicit build approval and runtime ownership. The refresh does not grant permission to execute these helpers.
+
+Local changes in `taste-skill/scripts/inspect.mjs` and `scenes.mjs` restrict HTTP serving to known web assets in the canonical entry folder. The public folder must contain the entry and all local assets. Both helpers passed synthetic HTTP checks for hidden paths, symlink escapes, allowed assets, methods, malformed URLs and input refusals. The inspector loaded a real TTF font and decoded a real ICO image. OTF responses passed MIME and byte checks. OTF decoding, Windows execution and concurrent filesystem replacement remain unverified. Both inspectors and the media downloader remain excluded from ordinary project execution pending their separate checks and permissions.
 
 Directory name, then frontmatter `name` when it differs:
 
@@ -72,14 +76,16 @@ Directory name, then frontmatter `name` when it differs:
 ### jakubkrehel/skills
 
 - Repo: https://github.com/jakubkrehel/skills
-- Commit: `d574cc8a576dc24256ad38268b8d03d86724a1b3` (`main`)
-- Refreshed 7 Oct 2026. The installed trees use this tip with the local corrections below. `state-machine` was added because `variant` now refers to it.
+- Commit: `592aedc44d7d5b3e29740984252902f3e5402a1c` (`main`)
+- Refreshed 29 Oct 2026. The installed trees use this tip with the local corrections below. `state-machine` remains because `variant` refers to it.
 
 Local corrections:
 
 - [`state-machine` step 3](state-machine/SKILL.md#3-build-the-throwaway-page) preserves the target's Next.js server/client boundary.
 - [`break` step 3](break/SKILL.md#3-build-the-harness-page) points to that fixture boundary guidance.
 - [`better-typography` punctuation guidance](better-typography/SKILL.md#before-you-finish) defers to the project's voice policy.
+- `better-writing` preserves the full PUBMAXX voice, price uncertainty, quoted text and rendered-coverage override.
+- [`explain-interface` breakpoint recipe](explain-interface/read-the-system.md#breakpoints) follows imported stylesheets, records unreadable sheets, prevents repeated traversal and recognises both media-range directions.
 - [`explain-interface` token recipe](explain-interface/read-the-system.md#tokens) reads active computed values for the current viewport and theme.
 - [`better-layout` growth guidance](better-layout/spacing-and-adaptivity.md#plan-for-growth-and-clipping) preserves the project's keyboard-inset requirement alongside `dvh` sizing. Its [review checklist](better-layout/SKILL.md#before-you-finish) retains this requirement.
 - [`better-accessibility` hit-area recipe](better-accessibility/hit-areas.md#expanding-the-hit-area) requires a wrapping label for expanded checkbox targets.
@@ -94,7 +100,7 @@ Local corrections:
 
 `01-establish-visual-hierarchy`, `02-apply-typography-scale`, `03-build-color-palette`, `04-apply-consistent-spacing`, `05-design-button-hierarchy`, `06-eliminate-visual-clutter`, `07-design-empty-states`, `08-use-shadows-appropriately`, `09-manage-color-contrast`, `10-group-related-elements`, `meta-refactor-ui`.
 
-The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. Each `path` in `skills.json` is `.agents/skills/<id>/SKILL.md`. `meta-refactor-ui` reads `../refactoring-ui-plugin/skills.json`.
+The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. Each `path` in `skills.json` is `.agents/skills/<id>/SKILL.md`. `meta-refactor-ui` reads `../refactoring-ui-plugin/skills.json`. The installed registry paths and both skill references retain this local layout.
 
 ### shadcn-labs/skills
 
@@ -114,20 +120,20 @@ These were already in the tree. Each repo below records its refresh date and ups
 ### maplibre/maplibre-agent-skills
 
 - Repo: https://github.com/maplibre/maplibre-agent-skills
-- Commit: `fa618af49728952f7aeca842ad93f51b9b530018` (`main`)
-- Refreshed 7 Oct 2026.
+- Commit: `ccc4226a617bb851814e24ff748beeeacac32902` (`main`)
+- Refreshed 29 Oct 2026.
 
 Refreshed: `maplibre-source-wiring`, `maplibre-terrain-rendering`, `maplibre-tile-sources`, `maplibre-v6-migration`.
 
-Added, because the refreshed source-wiring skill points at them and this app styles a MapLibre map: `maplibre-cartography`, `maplibre-fonts-glyphs`.
+Added, because refreshed skills point at them and this app styles MapLibre maps: `maplibre-cartography`, `maplibre-fonts-glyphs`, `maplibre-sprites-icons`.
 
-Left upstream: `maplibre-pmtiles-patterns` (this app does not host PMTiles), `maplibre-mapbox-migration`, `maplibre-running-evals`, `maplibre-skill-authoring`. Vendored copies do not link to `maplibre-pmtiles-patterns` or `maplibre-mapbox-migration`. Those relative links are removed. PMTiles setup stays on the Protomaps docs already cited in `maplibre-tile-sources`.
+Left upstream: `maplibre-pmtiles-patterns` (this app does not host PMTiles), `maplibre-mapbox-migration`, `maplibre-running-evals`, and `maplibre-skill-authoring`. Vendored copies do not link to other uninstalled MapLibre skills. PMTiles setup stays on the Protomaps docs already cited in `maplibre-tile-sources`.
 
 ### Cap-go/capgo-skills
 
 - Repo: https://github.com/Cap-go/capgo-skills
-- Commit: `c0afb73c859a85c35c8d03d3dc9afdee5fe78d30` (`main`)
-- Refreshed 2 Oct 2026.
+- Commit: `e90bb5639130e34387f00bf0a95c6d47e4a2ebb8` (`main`)
+- Refreshed 29 Oct 2026.
 
 Refreshed: `debugging-capacitor`.
 
@@ -148,12 +154,56 @@ A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) rank
 ### vercel-labs/agent-skills
 
 - Repo: https://github.com/vercel-labs/agent-skills
-- Commit: `063bee94c3f4df8453406c830b0a7df0f2860278` (`main`)
-- Checked 4 Oct 2026. Four installed skill trees match upstream. `vercel-optimize` keeps five local changes:
+- Commit: `1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62` (`main`)
+- Checked 29 Oct 2026. `react-view-transitions` was refreshed. `vercel-optimize` keeps five local changes:
   - `CONTRIBUTING.md`, `README.md`, `references/data-collection.md` and `references/playbooks/README.md` say the upstream test package `packages/vercel-optimize-tests` was not vendored.
   - `lib/vercel.mjs` resolves a `usr_` link to the CLI username scope only when the signed-in user ID equals the linked ID. Upstream also accepts a missing user ID. This is the scope fix from `13121954d`.
 
 `react-best-practices` (frontmatter `vercel-react-best-practices`), `composition-patterns` (`vercel-composition-patterns`), `react-view-transitions` (`vercel-react-view-transitions`), `web-design-guidelines`, `vercel-optimize`.
+
+### React View Transitions compilation
+
+The compiled `react-view-transitions/AGENTS.md` is regenerated from this repository's actual skill and five reference sources. The one-off recipe below rebases their relative Markdown links. It needs only Python 3. Run it from the repository root after the source owner allocates this generation action. Review the generated delta before committing it. Do not edit the compiled file manually.
+
+```sh
+python3 - <<'PY'
+from pathlib import Path
+import hashlib
+import json
+import posixpath
+import re
+
+root = Path('.agents/skills/react-view-transitions')
+inputs = ['SKILL.md', 'references/implementation.md', 'references/patterns.md', 'references/troubleshooting.md', 'references/css-recipes.md', 'references/nextjs.md']
+metadata = json.loads((root / 'metadata.json').read_text())
+parts = ['# React View Transitions\n', '**Version ' + metadata['version'] + '**\n\n' + metadata['organization'] + '\n', '> Generated from SKILL.md and the five reference sources. Do not edit this compiled file.\n> Regeneration recipe: see the React View Transitions compilation section in `../SOURCES.md`.\n']
+records = []
+for name in inputs:
+    source = root / name
+    raw = source.read_bytes()
+    text = raw.decode()
+    if text.startswith('---\n'):
+        text = text.split('---\n', 2)[2].lstrip()
+    def rebase(match):
+        target = match.group(2)
+        if target.startswith(('#', '/', 'http:', 'https:', 'mailto:')):
+            return match.group(0)
+        path, marker, anchor = target.partition('#')
+        if not path or not path.endswith('.md'):
+            return match.group(0)
+        rebased = posixpath.normpath(posixpath.join(posixpath.dirname(name), path))
+        return match.group(1) + rebased + (marker + anchor if marker else '') + ')'
+    text = re.sub(r'(\[[^\]]+\]\()([^\s)]+)\)', rebase, text)
+    parts.append('---\n\n<!-- Source: ' + name + ' -->\n\n' + text.rstrip() + '\n')
+    records.append({'path': name, 'sha256': hashlib.sha256(raw).hexdigest()})
+target = root / 'AGENTS.md'
+before = hashlib.sha256(target.read_bytes()).hexdigest()
+output = '\n'.join(parts).encode()
+target.write_bytes(output)
+receipt = {'inputs': records, 'metadataSHA256': hashlib.sha256((root / 'metadata.json').read_bytes()).hexdigest(), 'output': str(target), 'beforeSHA256': before, 'afterSHA256': hashlib.sha256(output).hexdigest()}
+print(json.dumps(receipt, indent=2))
+PY
+```
 
 `web-design-guidelines` tells the agent to fetch `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md` when someone asks for a review. That fetch is not an install step.
 
@@ -164,22 +214,22 @@ Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`)
 ### elevenlabs/skills
 
 - Repo: https://github.com/elevenlabs/skills
-- Commit: `1d08a4a250cff67cc8056ec31587c031ecb06d2f` (`main`)
-- Refreshed 7 Oct 2026.
+- Commit: `503d4e9fda0190ab9357142f44e51de626f97f90` (`main`)
+- Refreshed 29 Oct 2026.
 
 `elevenlabs-agents` is the upstream `agents` skill. The directory and the frontmatter `name` are `elevenlabs-agents` so this copy does not register as a generic agents skill. Also `text-to-speech`, `speech-to-text`, `speech-engine`.
 
 Upstream `references/installation.md` in three of these skills offered `curl … | sh` for the ElevenLabs CLI. Those blocks are removed. npm, Homebrew, and Scoop remain.
 
-The local [`text-to-speech` dialogue example](text-to-speech/references/streaming.md#eleven-v4-turbo-websocket) fails on API errors and closure before a final frame.
+The local [`text-to-speech` dialogue example](text-to-speech/references/streaming.md#eleven-v4-turbo-websocket) sets a nonzero process status on API, output-stream or premature-close errors.
 
 Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isolator`, `setup-api-key`, `update-skills-from-changelog`.
 
 ### PostHog/skills
 
 - Repo: https://github.com/PostHog/skills
-- Commit: `175a8488f84a3708d18c7b7e4e676b0de649047d` (`main`)
-- Checked 7 Oct 2026. The three installed skill trees match this tip. It changes only other PostHog skills after `8321fc1dab05b8f3dfdb6d6b5c76c097b99b8677`.
+- Commit: `221bfed4f757a4b7e1826a9573665e1152c4d728` (`main`)
+- Checked 29 Oct 2026. The three installed skill trees match this tip. It changes only other PostHog skills.
 
 `integration-nextjs-app-router`, `feature-flags-nextjs`, `error-tracking-nextjs`.
 
@@ -195,11 +245,16 @@ Same commit as the Capacitor refresh above.
 
 Left upstream: Capgo cloud and live-update skills, version-upgrade skills (this app is already on Capacitor 8), plugin-authoring skills, Ionic and Konsta UI skills.
 
-`capacitor-best-practices` is edited locally so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest`. Do not leave that major unless someone asks.
+`capacitor-best-practices` keeps a local [Stay on Capacitor 8](capacitor-best-practices/SKILL.md#stay-on-capacitor-8) section, so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest` or `@next`. The 29 Oct refresh replaced the upstream file, and the section was added back to it. Do not leave that major unless someone asks.
+
+Local corrections:
+
+- Release, security, debugging and Apple review guidance preserve the required production `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Development hosts, LAN IPs and cleartext remain excluded from release builds.
+- The `capacitor-deep-linking` handler skips a duplicate launch URL only when the first `appUrlOpen` delivers it before `getLaunchUrl()` resolves. Later intentional opens of the same URL still route. Angular preserves custom-scheme hosts and query parameters, as the React, Vue and shared examples do.
 
 ### maplibre/maplibre-agent-skills (added)
 
-Same commit as the MapLibre refresh above. `maplibre-cartography`, `maplibre-fonts-glyphs`.
+See the [MapLibre refresh](#maplibremaplibre-agent-skills) for the source commit and installed skills.
 
 ## Machine-wide design addition, 4 Oct 2026
 
@@ -207,9 +262,9 @@ Anthropic `frontend-design` is installed in the canonical machine-wide skill roo
 
 `docs/DESIGN_SYSTEM.md` and `docs/VOICE.md` remain authoritative for this project. Upstream design skills do not replace project tokens, brand identity, price semantics or copy laws.
 
-## Maintenance check, 7 Oct 2026
+## Maintenance check, 29 Oct 2026
 
-All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` skill, configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Local corrections are recorded in each source section above. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
+All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub, MapLibre, Cap-go, Vercel, Shadcn, taste-skill and ElevenLabs trees were refreshed where upstream content changed. Supabase, PostHog and Emil skill content had no applicable updates. Local corrections remain recorded in each source section above. No upstream changelog files were modified. The three PUBMAXX-specific skills have no upstream.
 
 ## Plain-English replies, 17 Oct 2026
 
