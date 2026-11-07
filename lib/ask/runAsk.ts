@@ -2,6 +2,8 @@
 
 import { isVenueHoursQuestion, recordedDrinkComparison, refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { routeAsk } from "@/lib/ask/routerJudged";
+import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
+import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
 import {
@@ -173,7 +175,7 @@ export type RunAskInput = {
  * tool failures (those become degraded status + honest copy).
  */
 export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
-  const query = input.query.trim().slice(0, 500);
+  const query = resolveLateFoodQuery(input.query.trim().slice(0, 500), input.turns);
   const unsupported = unsupportedPriceComparison(query);
   const cityId = resolveAskCityId(input.cityId);
   const turns = normaliseTurns(input.turns);
@@ -213,12 +215,13 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     };
   }
 
-  let toolResults: AskToolResult[] = deterministicOnly
+  const lateFood = unsupported ? null : answerLateFoodQuestion(ctx);
+  let toolResults: AskToolResult[] = lateFood ? [lateFood] : deterministicOnly
     ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
     : [];
 
   const allowModel =
-    !deterministicOnly && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
+    !lateFood && !deterministicOnly && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({

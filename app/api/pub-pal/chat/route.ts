@@ -10,6 +10,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
+import { parseLateFoodQuestion, resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import type { AskResponseBody, AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { DEFAULT_GROUP_SIZE, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
@@ -224,8 +225,10 @@ function keylessSocialReply(query: string, turns: AskTurn[]): Response | null {
   });
 }
 
-function isVenueDiscoveryAnswer(query: string, answer: Pick<AskResponseBody, "toolsUsed">): boolean {
-  return !isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues";
+function isVenueDiscoveryAnswer(query: string, turns: AskTurn[], answer: Pick<AskResponseBody, "toolsUsed">): boolean {
+  return !isVenueHoursQuestion(query)
+    && !parseLateFoodQuestion(resolveLateFoodQuery(query, turns), Date.now())
+    && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues";
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -317,8 +320,9 @@ export async function POST(request: Request): Promise<Response> {
       });
       // Discovery ranks on area, mood, budget and group size. Without one,
       // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
-      // results, including refusals and read failures, before this fallback.
-      if (isVenueDiscoveryAnswer(query, answer)) {
+      // and accepted late-food results before this fallback, including
+      // clarification, refusals and read failures.
+      if (isVenueDiscoveryAnswer(query, turns, answer)) {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
           refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),

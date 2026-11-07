@@ -9,6 +9,13 @@
 [extend]
 useDefault = true
 
+# Late-food evidence card keys identify test records, not credentials.
+[[allowlists]]
+description = "Late-food evidence card keys are record identifiers."
+condition = "AND"
+regexTarget = "line"
+regexes = ['''key:\s*"late-food-evidence-[a-z0-9-]+"''']
+
 [[allowlists]]
 description = "Source-freeze manifests under docs/proof list each file with its sha256, which the generic rule reads as a key. Only a quoted file name followed by a 64-character hex digest matches."
 regexTarget = "line"

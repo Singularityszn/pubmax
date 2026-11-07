@@ -38,7 +38,7 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   "map-open-lamb": { expectedTools: ["propose_map_action"] },
   "area-buzz-camden": { expectedTools: ["area_buzz", "venue_prices"] },
   "hampstead-quiet": { expectedTools: ["search_venues"] },
-  "food-midnight-covent": { expectedTools: ["search_venues"] },
+  "food-midnight-covent": { expectedTools: ["search_venues"], answerIncludes: ["no current late-food record"] },
   "wine-lamb-honest": { expectedTools: ["venue_drinks"], answerIncludes: ["No people-logged wine prices recorded", "The Lamb"] },
   "dearest-soho-honest": { expectedTools: ["venue_prices"], answerIncludes: ["listed pub"] },
   "report-crowd-lamb": { expectedTools: ["report_occupancy"] },
@@ -191,6 +191,8 @@ function staticAnswerKeyFields(caseId: string): Partial<PalEvalAnswerExpectation
     case "no-seats-lamb":
     case "journey-lamb":
     case "heritage-lamb":
+    // Late food answers only from recorded service hours, and Covent Garden has none.
+    case "food-midnight-covent":
       return { expectEmpty: true };
     case "tube-delays":
       return { expectEmpty: true, expectDegraded: true };
@@ -239,7 +241,6 @@ async function resolveGeneratedAnswerKeyFields(
       return whatsOnFields(query, ctx.now);
     case "quiet-bank":
     case "hampstead-quiet":
-    case "food-midnight-covent":
     case "non-alcoholic-soho":
     case "plan-soho":
     case "followup-cheaper-camden":

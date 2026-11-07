@@ -69,7 +69,7 @@ const TONIGHT_NOW_RE =
 const VENUE_DRINKS_RE =
   /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
 const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
-const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
+export const FOOD_RE = /\b(food|eat|eating|meals?|lunch|dinner|supper|breakfast|snacks?|burgers?|pizzas?|sandwich(?:es)?|restaurants?|kebabs?|cafes?|kitchens?)\b/i;
 const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
 const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
 const VENUE_COMPARISON_MODIFIERS = "(?:quiet(?:-ish)?|calm|low-key|lively|buzzing|cosy|cozy|snug|fireside|garden|outdoor|riverside|waterside|sports|romantic|historic)";

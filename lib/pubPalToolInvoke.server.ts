@@ -1,6 +1,8 @@
 import "server-only";
 
 import { composeAnswer } from "@/lib/ask/runAsk";
+import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
+import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
 import {
   resolveAskCityId,
   runAskTool,
@@ -33,7 +35,7 @@ export function resolvePubPalToolQuery(input: {
   const fromTurn = input.turnQuery?.trim() ?? "";
   const fromArgs =
     typeof input.args.query === "string" ? input.args.query.trim() : "";
-  const query = fromTurn || fromArgs;
+  const query = fromTurn ? resolveLateFoodQuery(fromTurn, input.turns) : fromArgs;
   const priorUsers = input.turns?.filter((turn) => turn.role === "user").map((turn) => turn.content);
   return refineVenueBudgetFollowUp(query, priorUsers) ?? query;
 }
@@ -120,7 +122,9 @@ export async function invokePubPalAskTool(input: {
   // can take seconds, so they run together. A fenced turn drops the tool's
   // answer unread: nothing from it is appended, spoken or returned. A price ask
   // the tools cannot answer starts no tool at all.
-  const startTool = () => runAskTool(input.toolName, args, { cityId, query, skipModel: true });
+  const startTool = async () => (!isIndependentAskTool(input.toolName)
+    ? answerLateFoodQuestion({ cityId, query, skipModel: true }) : null)
+    ?? runAskTool(input.toolName, args, { cityId, query, skipModel: true });
   const toolRun = priceRefusal ? null : startTool();
   // Awaited below on the unfenced path; this only keeps a fenced turn's
   // discarded run from surfacing as an unhandled rejection.
