@@ -206,13 +206,28 @@ describe("nearest pub beside listed pint prices", () => {
     expect(boundary.slim).not.toHaveBeenCalled();
   });
 
+  it("keeps the mounted answer when the same supplied list renders again", async () => {
+    await render();
+    const current = nearest();
+    await render();
+    expect(nearest()).toBe(current);
+    expect(nearest().textContent).toContain("The Nearest Local");
+    expect(locations).toHaveLength(0);
+    expect(boundary.slim).not.toHaveBeenCalled();
+  });
+
   it.each(["patch", "borough"] as const)("refreshes a chosen %s without restoring the supplied location", async (area) => {
     await render();
     act(() => button("Update location").click());
     await act(async () => failFix(0, "denied"));
     await act(async () => button("Change area").click());
     if (area === "borough") await act(async () => button("More areas").click());
-    await act(async () => button(area === "patch" ? "Camden" : "Westminster").click());
+    const areaChoice = Array.from(host.querySelectorAll<HTMLButtonElement>(".nmnBoroughChip"))
+      .find((candidate) => area === "patch"
+        ? candidate.textContent?.startsWith("Camden")
+        : candidate.textContent?.trim() === "Westminster");
+    if (!areaChoice) throw new Error("Expected the chosen area in the area picker");
+    await act(async () => areaChoice.click());
     const headline = host.querySelector(".nmnHead h2")?.textContent;
     expect(headline).toContain(area === "patch" ? "Camden" : "Westminster");
     const replacements: PricedPoint[] = Array.from({ length: 3 }, (_, index) => ({
@@ -246,7 +261,7 @@ describe("nearest pub beside listed pint prices", () => {
     expect(host.querySelector(".nmnHead h2")?.textContent).toBe(headline);
     expect(host.querySelector(".nmnList")?.textContent).toContain("New Fallback Pub");
     expect(host.querySelector(".nmnSub")?.textContent).toBe(reason);
-    expect(host.querySelector(".nmnList")?.textContent).not.toContain("min");
+    expect(host.querySelectorAll(".nmnList .nmnCardWalk")).toHaveLength(0);
     expect(nearestRegion()).toBeNull();
     expect(locations).toHaveLength(1);
     expect(readRememberedArea()).toEqual({ kind: "patch", id: "soho" });

@@ -589,11 +589,13 @@ export default function NearMeNow({
   );
 
   const answerLocation = useCallback((lat: number, lng: number) => {
-    const generation = beginAnswer();
+    const generation = ++answerGenerationRef.current;
     retryTargetRef.current = { kind: "location", lat, lng };
-    setState("requesting");
     void loadSlim().then((slim) => {
       if (!ownsAnswer(generation)) return;
+      setActiveAnswerGeneration(generation);
+      setNearest(null);
+      setNearestPub(null);
       const answer = rankNearMe(lat, lng, slim);
       setNearestPub(nearestListedPub(lat, lng, slim, answerPubIds(answer)));
       if (answer.scope === "none") {
@@ -629,7 +631,7 @@ export default function NearMeNow({
       setOutsideCoverage(null);
       setAnswerContext({ source: "location", generation });
     });
-  }, [answerWithoutFix, beginAnswer, loadSlim, ownsAnswer, setNearDrinks]);
+  }, [answerWithoutFix, loadSlim, ownsAnswer, setNearDrinks]);
 
   const refreshAnswer = useCallback(() => {
     const target = retryTargetRef.current;
@@ -649,10 +651,13 @@ export default function NearMeNow({
   useEffect(() => {
     if (!venues || slimRef.current === venues) return;
     slimRef.current = venues;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSlimRead("ready");
-    refreshAnswer();
-  }, [refreshAnswer, venues]);
+    const generation = answerGenerationRef.current;
+    void loadSlim().then(() => {
+      if (!ownsAnswer(generation)) return;
+      setSlimRead("ready");
+      refreshAnswer();
+    });
+  }, [loadSlim, ownsAnswer, refreshAnswer, venues]);
 
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {

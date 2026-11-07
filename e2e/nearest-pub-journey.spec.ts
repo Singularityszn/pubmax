@@ -51,6 +51,7 @@ async function prepare(page: Page, width: number, options: {
   fixtureIndex?: boolean;
   location?: { latitude: number; longitude: number };
   rows?: SlimVenue[];
+  savedCocktails?: boolean;
 } = {}) {
   const rows = options.rows ?? ROWS;
   const errors: string[] = [];
@@ -59,7 +60,7 @@ async function prepare(page: Page, width: number, options: {
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
   await page.context().grantPermissions(["geolocation"]);
   await page.context().setGeolocation(options.location ?? HERE);
-  await page.addInitScript(({ savedIds, savesKey }) => {
+  await page.addInitScript(({ savedIds, savesKey, savedCocktails }) => {
     // Each test owns an empty browser context. Existing device data is not used.
     localStorage.clear();
     sessionStorage.clear();
@@ -69,10 +70,13 @@ async function prepare(page: Page, width: number, options: {
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     localStorage.setItem("pubmax-theme", "light");
+    if (savedCocktails) localStorage.setItem("pubmaxx.night-profile-drink.v1:device", JSON.stringify({
+      cityId: "london", zeroProof: false, drinkCategory: "cocktail",
+    }));
     localStorage.setItem(savesKey, JSON.stringify(savedIds.map((venueId) => ({
       venueId, listType: "Want to Visit", savedAt: "2026-10-29T12:00:00.000Z",
     }))));
-  }, { savedIds: options.savedIds ?? [], savesKey: SAVES_KEY });
+  }, { savedIds: options.savedIds ?? [], savesKey: SAVES_KEY, savedCocktails: options.savedCocktails ?? false });
 
   await installDeterministicMapBasemap(page);
   await routeTubeStatus(page, "routine");
@@ -399,3 +403,84 @@ test("nearest boundary: namesake pubs and the browse control fit a narrow dark s
   await page.screenshot({ path: testInfo.outputPath("near-namesakes-320-dark.png"), fullPage: true });
   expect(errors).toEqual([]);
 });
+
+const CAMDEN = { latitude: 51.539, longitude: -0.1426 };
+const REFRESH_ROWS = [
+  fixturePub("start-dear", "Start Dear Pub", 0, 7),
+  fixturePub("start-cheap", "Start Cheap Pub", 0.001, 4),
+  ...[0, 0.001, 0.002].map((offset, index) => ({
+    ...fixturePub(`camden-${index}`, ["Camden Doorstep", "Camden Cheap", "Camden Middle"][index]!, 0, [7, 4.5, 4.8][index]!),
+    lat: CAMDEN.latitude + offset, lng: CAMDEN.longitude, borough: "Camden",
+  })),
+];
+
+async function openCappedRefreshAnswer(page: Page) {
+  const errors = await prepare(page, 390, { rows: REFRESH_ROWS, savedCocktails: true });
+  await openMap(page);
+  const filters = await openFilters(page);
+  const cap = filters.getByRole("button", { name: "£5", exact: true });
+  await cap.click();
+  await expect(cap).toHaveAttribute("aria-pressed", "true");
+  await closeSheet(page, filters);
+  const answer = await openMapAnswer(page);
+  await expect(nearest(answer)).toContainText("Start Cheap Pub");
+  return { answer, errors };
+}
+
+test("mounted Map answer keeps the updated location when a saved drink removes the price cap", async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
+  const { answer, errors } = await openCappedRefreshAnswer(page);
+  await page.context().setGeolocation({ ...CAMDEN, accuracy: 10 });
+  await answer.getByRole("button", { name: "Update location", exact: true }).click();
+  await expect(nearest(answer)).toContainText("Camden Cheap");
+  await answer.getByRole("button", { name: "Show Cocktails on the map", exact: true }).click();
+  await expect(nearest(answer)).toContainText("Camden Doorstep");
+  await expect(nearest(answer)).toContainText("right here");
+  await expect(answer.locator(".nmnList")).toContainText("Camden Doorstep");
+  await expect(answer.locator(".nmnList")).not.toContainText("Start Cheap Pub");
+  await page.screenshot({ path: testInfo.outputPath("map-refresh-current-location.png") });
+  expect(errors).toEqual([]);
+});
+
+for (const area of ["patch", "borough", "denied", "unavailable"] as const) {
+  test(`mounted Map ${area} answer keeps its area when a saved drink changes the pub list`, async ({ page }, testInfo) => {
+    test.setTimeout(area === "unavailable" ? 90_000 : 60_000);
+    const { answer, errors } = await openCappedRefreshAnswer(page);
+    // Chromium supplies a real refusal or unavailable fix to the running app.
+    const cdp = await page.context().newCDPSession(page);
+    if (area === "unavailable") {
+      await page.context().setGeolocation(null);
+      // The browser may reuse the Map's earlier fix for 60 seconds. Let that
+      // real sensor cache expire before asking the app to handle no position.
+      await page.waitForTimeout(60_000);
+    }
+    else {
+      const { targetInfo } = await cdp.send("Target.getTargetInfo");
+      await cdp.send("Browser.setPermission", {
+        permission: { name: "geolocation" }, setting: "denied", origin: new URL(page.url()).origin,
+        browserContextId: targetInfo.browserContextId,
+      });
+    }
+    await answer.getByRole("button", { name: "Update location", exact: true }).click();
+    await expect(answer.getByRole("button", { name: "Try my location again", exact: true })).toBeVisible();
+    if (area === "patch" || area === "borough") {
+      await answer.getByRole("button", { name: "Change area", exact: true }).click();
+      if (area === "borough") await answer.getByRole("button", { name: "More areas" }).click();
+      const choices = answer.getByRole("list", { name: area === "patch" ? "Pick an area" : "All London boroughs", exact: true });
+      await choices.getByRole("button", { name: /^Camden/ }).click();
+    }
+    await expect(nearest(answer)).toHaveCount(0);
+    const heading = await answer.locator(".nmnHeadline").innerText();
+    const reason = await answer.locator(".nmnSub").allTextContents();
+    if (area === "patch" || area === "borough") expect(heading).toContain("Camden");
+    await answer.getByRole("button", { name: "Show Cocktails on the map", exact: true }).click();
+    await expect(answer.locator(".nmnHeadline")).toHaveText(heading);
+    await expect(answer.locator(".nmnSub")).toHaveText(reason);
+    await expect(nearest(answer)).toHaveCount(0);
+    await expect(answer.locator(".nmnList")).toContainText(area === "patch" || area === "borough" ? "Camden Doorstep" : "Start Dear Pub");
+    if (area !== "patch") await expect(answer.locator(".nmnList .nmnCardWalk")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`map-refresh-${area}-area.png`) });
+    await cdp.detach();
+    expect(errors).toEqual([]);
+  });
+}
