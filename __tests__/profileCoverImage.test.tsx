@@ -119,6 +119,7 @@ describe("private cover rendering", () => {
 
   it("clears private bytes on sign-out while an anonymous request is still pending", async () => {
     await render("owner", COVER, true);
+    fetchCover.mockImplementationOnce(() => new Promise(() => {}));
     switchAccount(null);
     await render(null, COVER, true);
     expect(container.querySelector("img")).toBeNull();
@@ -173,55 +174,58 @@ describe("private cover rendering", () => {
     expect(makeBlobUrl).not.toHaveBeenCalled();
   });
 
-  it("keeps a cover available when a waking session has not supplied its token yet", async () => {
-    vi.useFakeTimers();
-    auth.token = null;
-    await act(async () => root.render(createElement(AuthFixture,
-      { userId: "owner", providerAuthState: "unavailable" },
-      createElement(ProfileCoverCarousel, { covers: [COVER] }))));
-    await act(async () => { await vi.advanceTimersByTimeAsync(2_100); });
-    expect(fetchCover).not.toHaveBeenCalled();
-    expect(container.querySelector(".profileCoverFrames")).not.toBeNull();
-    auth.token = "owner-token";
-    await render();
-    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
-  });
-
-  it("still renders an anonymous reader's public cover after auth settles signed out", async () => {
+  it("fetches a public cover immediately when auth settles signed out", async () => {
     vi.useFakeTimers();
     switchAccount(null);
     await render(null, COVER, true);
-    await act(async () => { await vi.advanceTimersByTimeAsync(2_100); });
+    expect(fetchCover).toHaveBeenCalledTimes(1);
     expect(new Headers(fetchCover.mock.calls[0]![1]?.headers).get("Authorization")).toBeNull();
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
-  it.each([408, 429, 503, "network"] as const)("recovers a temporary %s failure without excluding the cover", async (failure) => {
-    vi.useFakeTimers();
-    if (failure === "network") fetchCover.mockRejectedValueOnce(new TypeError("Network unavailable"));
-    else fetchCover.mockResolvedValueOnce(new Response("Temporary refusal", { status: failure }));
-    await render();
-    expect(container.querySelector(".profileCoverFrames")).not.toBeNull();
-    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+  it("cancels an anonymous read when a reader signs in", async () => {
+    let resolveAnonymous!: (response: Response) => void;
+    fetchCover.mockImplementationOnce(() => new Promise((resolve) => { resolveAnonymous = resolve; }));
+    switchAccount(null);
+    await render(null, COVER, true);
+    expect(fetchCover).toHaveBeenCalledTimes(1);
+    const anonymousSignal = fetchCover.mock.calls[0]![1]!.signal;
+    switchAccount("mate");
+    expect(anonymousSignal?.aborted).toBe(true);
+    await render("mate", COVER, true);
+    await act(async () => resolveAnonymous(new Response("anonymous bytes")));
+    expect(makeBlobUrl).toHaveBeenCalledTimes(1);
+    expect(new Headers(fetchCover.mock.calls[1]![1]?.headers).get("Authorization")).toBe("Bearer mate-token");
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
-  it("restores a token after the two-second gate without changing the account or provider state", async () => {
+  it.each([401, 403, 404, 408, 429, 503, "network", "body"] as const)(
+    "reports a %s failure once without retrying",
+    async (failure) => {
+      vi.useFakeTimers();
+      const onError = vi.fn();
+      if (failure === "network") fetchCover.mockRejectedValueOnce(new TypeError("Network unavailable"));
+      else if (failure === "body") {
+        const response = new Response("broken body");
+        vi.spyOn(response, "blob").mockRejectedValueOnce(new TypeError("Body unavailable"));
+        fetchCover.mockResolvedValueOnce(response);
+      } else fetchCover.mockResolvedValueOnce(new Response("Refused", { status: failure }));
+      await act(async () => root.render(createElement(AuthFixture, { userId: "owner" },
+        createElement(ProfileCoverImage, { src: COVER, alt: "Cover", width: 1200, height: 360, onError }))));
+      expect(onError).toHaveBeenCalledTimes(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(fetchCover).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(makeBlobUrl).not.toHaveBeenCalled();
+      expect(container.querySelector("img")).toBeNull();
+    },
+  );
+
+  it("restarts an unloaded read on a same-user session refresh", async () => {
     vi.useFakeTimers();
     auth.token = null;
-    await render();
+    await render("owner", COVER, true);
     await act(async () => { await vi.advanceTimersByTimeAsync(2_100); });
-    expect(fetchCover).not.toHaveBeenCalled();
-    auth.token = "owner-token";
-    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
-    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
-  });
-
-  it("restarts an exhausted read on a same-user token refresh without changing reader identity", async () => {
-    vi.useFakeTimers();
-    auth.token = null;
-    await render();
-    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
     expect(fetchCover).not.toHaveBeenCalled();
     const accountRevision = readProviderAccountRevision();
     auth.token = "owner-token";
@@ -229,9 +233,27 @@ describe("private cover rendering", () => {
       access_token: "owner-token", refresh_token: "fixture-refresh", expires_in: 3_600,
       token_type: "bearer", user: { id: "owner" } as User,
     };
-    await render();
+    await render("owner", COVER, true);
     expect(readProviderAccountRevision()).toBe(accountRevision);
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it("fetches only the first cover and never rotates under reduced motion", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("matchMedia", () => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const covers = [COVER, COVER.replace("22222222", "33333333"), COVER.replace("22222222", "44444444")];
+    await act(async () => root.render(createElement(AuthFixture, { userId: "owner" },
+      createElement(ProfileCoverCarousel, { covers }))));
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(fetchCover).toHaveBeenCalledTimes(1);
+    expect(fetchCover.mock.calls[0]![0]).toBe(COVER);
+    expect(container.querySelector(".profileCoverFrames")?.getAttribute("data-cover-count")).toBe("1");
+    expect(container.querySelectorAll("img")).toHaveLength(1);
+    expect(container.querySelector(".profileCoverImageActive")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
   it("lets a new reader retry a URL that the previous reader could not access", async () => {
@@ -241,25 +263,6 @@ describe("private cover rendering", () => {
     switchAccount("mate");
     await render("mate");
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
-  });
-
-  it("bounds temporary retries and takes an exhausted cover out of the rotation", async () => {
-    vi.useFakeTimers();
-    fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
-    await render();
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
-    expect(fetchCover).toHaveBeenCalledTimes(4);
-    expect(container.querySelector(".profileCoverFrames")).toBeNull();
-    expect(makeBlobUrl).not.toHaveBeenCalled();
-  });
-
-  it("does not retry before a server cooldown longer than the read budget", async () => {
-    vi.useFakeTimers();
-    fetchCover.mockResolvedValueOnce(new Response("Slow down", { status: 429, headers: { "Retry-After": "60" } }));
-    await render();
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
-    expect(fetchCover).toHaveBeenCalledTimes(1);
-    expect(container.querySelector(".profileCoverFrames")).toBeNull();
   });
 
   it("keeps a loaded cover on screen through a same-user session refresh", async () => {
@@ -291,7 +294,7 @@ describe("private cover rendering", () => {
     expect(container.querySelectorAll("img")).toHaveLength(1);
   });
 
-  it("returns an exhausted cover to the rotation after a same-user session refresh", async () => {
+  it("returns a refused cover to the rotation after a same-user session refresh", async () => {
     vi.useFakeTimers();
     fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
     await render();
@@ -306,12 +309,12 @@ describe("private cover rendering", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
-  it("restarts an exhausted editor image on a same-user session refresh", async () => {
+  it("restarts a refused editor image on a same-user session refresh", async () => {
     vi.useFakeTimers();
     fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
     await render("owner", COVER, true);
     await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-    expect(fetchCover).toHaveBeenCalledTimes(4);
+    expect(fetchCover).toHaveBeenCalledTimes(1);
     expect(container.querySelector("img")).toBeNull();
     fetchCover.mockImplementation(async () => new Response("approved bytes", { headers: { "Content-Type": "image/jpeg" } }));
     auth.session = {
@@ -319,7 +322,7 @@ describe("private cover rendering", () => {
       token_type: "bearer", user: { id: "owner" } as User,
     };
     await render("owner", COVER, true);
-    expect(fetchCover).toHaveBeenCalledTimes(5);
+    expect(fetchCover).toHaveBeenCalledTimes(2);
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
@@ -340,24 +343,6 @@ describe("private cover rendering", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
-  it("gives a refreshed session its own bounded read before an outage excludes the cover", async () => {
-    vi.useFakeTimers();
-    fetchCover.mockImplementation(async () => new Response("Temporary refusal", { status: 503 }));
-    await render();
-    expect(fetchCover).toHaveBeenCalledTimes(1);
-    auth.token = "owner-token-2";
-    auth.session = {
-      access_token: "owner-token-2", refresh_token: "fixture-refresh", expires_in: 3_600,
-      token_type: "bearer", user: { id: "owner" } as User,
-    };
-    await render();
-    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-    const refreshedReads = fetchCover.mock.calls.filter(([, init]) =>
-      new Headers(init?.headers).get("Authorization") === "Bearer owner-token-2");
-    expect(refreshedReads).toHaveLength(4);
-    expect(container.querySelector(".profileCoverFrames")).toBeNull();
-  });
-
   it("removes a cover whose visibility was withdrawn and does not show it to the next reader's refusal", async () => {
     vi.useFakeTimers();
     await render();
@@ -370,18 +355,6 @@ describe("private cover rendering", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
     expect(container.querySelector(".profileCoverFrames")).toBeNull();
     expect(container.querySelector("img")).toBeNull();
-  });
-
-  it("cancels the previous reader's retry before it can fetch again", async () => {
-    vi.useFakeTimers();
-    fetchCover.mockResolvedValueOnce(new Response("Temporary refusal", { status: 503 }));
-    await render();
-    switchAccount("mate");
-    await render("mate");
-    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-    expect(fetchCover).toHaveBeenCalledTimes(2);
-    expect(new Headers(fetchCover.mock.calls[1]![1]?.headers).get("Authorization")).toBe("Bearer mate-token");
-    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
   });
 
   it.each([

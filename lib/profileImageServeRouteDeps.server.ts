@@ -46,12 +46,6 @@ export function coverServeRouteDeps(): ProfileImageServeDeps {
   };
 }
 
-/**
- * A moderator reads a cover only while that generation waits in the
- * reported-cover queue: the profile's first cover with an undecided report, or
- * a rotation row the review list still holds. It is asked again on every read,
- * so a decided report closes the preview. A store failure refuses.
- */
 async function reviewQueueCoverRefusal(
   _request: Request,
   profile: ProfileRecord,
@@ -64,13 +58,7 @@ async function reviewQueueCoverRefusal(
     return null;
   }
   try {
-    const queued = await profileCoverPhotoStore().listForReview();
-    const waiting = queued.some(
-      (row) =>
-        row.profileId === profile.id &&
-        row.generation === generation &&
-        row.moderationState === "approved",
-    );
+    const waiting = await profileCoverPhotoStore().hasPendingReport(profile.id, generation);
     return waiting ? null : "not_in_review_queue";
   } catch {
     return "not_in_review_queue";

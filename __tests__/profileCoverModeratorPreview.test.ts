@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   client: null as SupabaseClient | null,
   profiles: [] as Record<string, unknown>[],
   covers: [] as Record<string, unknown>[],
+  coverReadFails: false,
 }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -39,6 +40,7 @@ import { GET as PREVIEW } from "@/app/api/admin/profile-avatars/cover/[profileId
 import { GET as COVER } from "@/app/api/cover/[profileId]/[generation]/route";
 import { ADMIN_SESSION_COOKIE, mintAdminSession } from "@/lib/adminAuth";
 import { __setCoverServeRouteDepsForTest } from "@/lib/profileImageServeRouteDeps.server";
+import { __resetProfileCoverPhotos, memoryProfileCoverPhotoStore } from "@/lib/profileCoverPhotoStore";
 import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 const ADMIN_TOKEN = "moderator-secret-for-the-cover-preview-test";
@@ -71,13 +73,31 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     headers: { "Content-Type": "application/json" },
   });
   const pick = (rows: Record<string, unknown>[]) => {
-    const found = rows.filter((row) => matches(row, url));
+    let found = rows.filter((row) => matches(row, url));
+    const order = url.searchParams.get("order");
+    if (order) {
+      found.sort((a, b) => {
+        for (const term of order.split(",")) {
+          const [field, direction] = term.split(".");
+          const compared = String(a[field!] ?? "").localeCompare(String(b[field!] ?? ""));
+          if (compared) return direction === "desc" ? -compared : compared;
+        }
+        return 0;
+      });
+    }
+    const limit = url.searchParams.get("limit");
+    if (limit !== null) found = found.slice(0, Number(limit));
     const single = new Headers(init?.headers).get("Accept")?.includes("vnd.pgrst.object");
     return json(single ? found[0] ?? null : found);
   };
   if (url.pathname === "/rest/v1/rpc/public_withdrawn_profiles") return json([]);
   if (url.pathname === "/rest/v1/profiles") return pick(api.profiles);
-  if (url.pathname === "/rest/v1/profile_cover_photos") return pick(api.covers);
+  if (url.pathname === "/rest/v1/profile_cover_photos") {
+    if (api.coverReadFails) return new Response(JSON.stringify({ message: "Store unavailable" }), {
+      status: 503, headers: { "Content-Type": "application/json" },
+    });
+    return pick(api.covers);
+  }
   if (url.pathname === "/auth/v1/user") return json({ id: "stranger-user" });
   throw new Error(`Unexpected external request: ${url.pathname}`);
 };
@@ -101,6 +121,8 @@ beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.stubEnv("ADMIN_TOKEN", ADMIN_TOKEN);
   downloadObject.mockClear();
+  api.coverReadFails = false;
+  __resetProfileCoverPhotos();
   api.profiles = [{
     id: PROFILE_ID,
     handle: "alice",
@@ -218,4 +240,53 @@ it("refuses a reported cover a moderator has already hidden", async () => {
   api.covers[1]!.moderation_state = "hidden";
   expect((await preview(ROTATION_GENERATION)).status).toBe(404);
   expect(downloadObject).not.toHaveBeenCalled();
+});
+
+it("keeps an open pending preview available after 201 newer reports arrive", async () => {
+  const response = await QUEUE(new Request(
+    "http://localhost/api/admin/profile-avatars?status=reported&slot=cover",
+    { headers: cookie() },
+  ));
+  expect(response.status).toBe(200);
+  const body = await response.json() as { rotationCovers: { previewUrl: string }[] };
+  const previewUrl = body.rotationCovers[0]!.previewUrl;
+  api.covers.push(...Array.from({ length: 201 }, (_, index) => ({
+    ...coverRow(UNREPORTED_GENERATION, 1, true),
+    id: `new-cover-${index}`,
+    profile_id: `${index.toString(16).padStart(8, "0")}-5555-4555-8555-555555555555`,
+    reported_at: "2026-10-05T10:00:00.000Z",
+  })));
+  const image = await openPreviewUrl(previewUrl);
+  expect(image.status).toBe(200);
+  expect(await image.text()).toBe(COVER_BYTES.toString());
+});
+
+it("refuses a rotation preview when its report state cannot be read", async () => {
+  api.coverReadFails = true;
+  expect((await preview(ROTATION_GENERATION)).status).toBe(404);
+  expect(downloadObject).not.toHaveBeenCalled();
+});
+
+it("does not use another profile's pending report to open a preview", async () => {
+  api.covers[1]!.profile_id = "another-profile";
+  expect((await preview(ROTATION_GENERATION)).status).toBe(404);
+  expect(downloadObject).not.toHaveBeenCalled();
+});
+
+it("tracks the requested pending report through memory-store decisions", async () => {
+  const row = await memoryProfileCoverPhotoStore.create({
+    id: "memory-cover", profileId: PROFILE_ID, generation: ROTATION_GENERATION,
+    objectKey: profileImageServingKey("cover", PROFILE_ID, ROTATION_GENERATION),
+  });
+  expect(await memoryProfileCoverPhotoStore.hasPendingReport(PROFILE_ID, ROTATION_GENERATION)).toBe(false);
+  await memoryProfileCoverPhotoStore.report(row.id, "wrong cover", "reporter-one");
+  expect(await memoryProfileCoverPhotoStore.hasPendingReport(PROFILE_ID, ROTATION_GENERATION)).toBe(true);
+  expect(await memoryProfileCoverPhotoStore.hasPendingReport("another-profile", ROTATION_GENERATION)).toBe(false);
+  expect(await memoryProfileCoverPhotoStore.hasPendingReport(PROFILE_ID, UNREPORTED_GENERATION)).toBe(false);
+  await memoryProfileCoverPhotoStore.moderate(row.id, "approved");
+  expect(await memoryProfileCoverPhotoStore.hasPendingReport(PROFILE_ID, ROTATION_GENERATION)).toBe(false);
+  await memoryProfileCoverPhotoStore.report(row.id, "still wrong", "reporter-two");
+  expect(await memoryProfileCoverPhotoStore.hasPendingReport(PROFILE_ID, ROTATION_GENERATION)).toBe(true);
+  await memoryProfileCoverPhotoStore.moderate(row.id, "hidden");
+  expect(await memoryProfileCoverPhotoStore.hasPendingReport(PROFILE_ID, ROTATION_GENERATION)).toBe(false);
 });
