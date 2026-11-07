@@ -13,7 +13,8 @@ tree. A beat never overrides a law in the root [AGENTS.md](../../AGENTS.md).
    the one API envelope [`app/AGENTS.md`](../../app/AGENTS.md) names.
 3. **Prove with `/evidence-driven-testing`.** Run the repo's checks plus runtime evidence. Capture the
    BEFORE state while the issue reproduces, before the fix, when it is cheapest, and the AFTER state once
-   it works. Evidence lanes: `npm run verify`, `npm run e2e:cli` for shots and snapshots, `docs/proof/`.
+   it works. Evidence lanes: `npm run verify:no-mistakes:changed`, and `npm run e2e:cli` for shots and
+   snapshots. Evidence goes on the PR, never into the repository.
 4. **Ship with `/before-and-after`, then `/greploop` or `/greploop-apps`.** Validate with no-mistakes
    on the final head. That run comes before any push and before the PR. Open the PR with
    before/after proof in the body, a screenshot or video for a visible surface, measured numbers or
@@ -40,7 +41,7 @@ prose you did not touch.
 - Resolve lockfile conflicts by regenerating, never by hand-merging.
 - Worktrees do not isolate shared resources: confirm a dev-server port answers your own process, never
   run schema experiments against a shared database, and mind the shared `.next` clobber in the root
-  AGENTS.md "Working in this tree".
+  AGENTS.md "Ways to hurt yourself".
 - If a conflict cannot be resolved confidently, stop and report instead of guessing.
 
 ## Handing off to the captain's local Codex
@@ -63,8 +64,9 @@ When a cloud session reaches a blocker:
 ## Completing a task
 
 1. Keep the changes limited to the assigned task.
-2. Run the checks that `package.json` and `README.md` name. `npm run verify` is the merge bar. Hard
-   invariants: the root laws plus the fences in [`lib/AGENTS.md`](../../lib/AGENTS.md) and
+2. Run `npm run verify:no-mistakes:changed`, the checks your change reaches. CI runs the full suite, and a
+   merge needs CI green on the latest commit. Hard invariants: the root laws plus the fences in
+   [`lib/AGENTS.md`](../../lib/AGENTS.md) and
    [`supabase/AGENTS.md`](../../supabase/AGENTS.md). The Playwright server is in
    [`e2e/AGENTS.md`](../../e2e/AGENTS.md) and the PostgreSQL harness is in
    [`__tests__/AGENTS.md`](../../__tests__/AGENTS.md).
