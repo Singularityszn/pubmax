@@ -14,7 +14,7 @@
 // `-webkit-text-size-adjust` on the body, which WebKit honours for every
 // text node. On Android `get()` reads the zoom the WebView already applies.
 // Either way the effective scale is published on <html> as
-// `data-text-scale`, so a surface that cannot grow (the six-tab bar) can
+// `data-text-scale`, so a surface that cannot grow (the phone tab bar) can
 // change shape the way a native tab bar does at large sizes rather than
 // overflow (docs/proof/mobile-app-design/android-emu-pixel7/textscale/).
 //
@@ -31,7 +31,7 @@ import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
 /** The attribute a stylesheet reads to change shape under a large text size. */
 export const TEXT_SCALE_ATTRIBUTE = "data-text-scale";
 
-/** From this scale up the six-tab bar shows icons alone, as a native bar does. */
+/** The minimum scale for large-text layouts in the browser and native shell. */
 export const LARGE_TEXT_SCALE_FLOOR = 1.3;
 
 /** The largest scale the shell asks WebKit for; Android's own ceiling. */

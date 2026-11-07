@@ -61,12 +61,23 @@ async function expectWholeLabel(link: Locator, paintedLabel: Locator = link) {
   }
 }
 
-async function expectDestinations(page: Page, primary: Locator, destinations: string[]) {
+// At a large browser text size the phone tab bar shows its icons alone, as it
+// does in the native shell (public/theme-init.js publishes the same
+// data-text-scale bucket). Each door keeps its icon, its accessible name and
+// its whole hit target, and no label is painted to break inside a word.
+async function expectIconDoor(link: Locator) {
+  await expectHitTarget(link);
+  await expect(link.locator(".mobileTabIcon svg")).toBeVisible();
+  await expect(link.locator(".mobileTabLabel")).toBeHidden();
+}
+
+async function expectDestinations(page: Page, primary: Locator, destinations: string[], iconOnly = false) {
   const links = primary.locator("a");
   await expect(links).toHaveCount(destinations.length);
   for (const destination of destinations) {
     const link = primary.locator(`a[href^="${destination}"]`).first();
-    await expectWholeLabel(link);
+    if (iconOnly) await expectIconDoor(link);
+    else await expectWholeLabel(link);
     await expect(link).toHaveAccessibleName(/\S/);
     await link.focus();
     await expect(link).toBeFocused();
@@ -78,7 +89,7 @@ async function expectDestinations(page: Page, primary: Locator, destinations: st
   }
 }
 
-async function expectMapClearance(page: Page, width: number) {
+async function expectMapClearance(page: Page, width: number, largeText = false) {
   if (width === 390) {
     await expectMobileMapShellReady(page);
     const topbar = page.locator(".mobileMapTopbar");
@@ -87,9 +98,10 @@ async function expectMapClearance(page: Page, width: number) {
     expect(topbarBox!.x).toBeGreaterThanOrEqual(0);
     expect(topbarBox!.x + topbarBox!.width).toBeLessThanOrEqual(width);
     const brand = topbar.getByRole("link", { name: "Open PUBMAXX landing page", exact: true });
+    if (largeText) await expect(topbar.locator(".mobileMapBrand")).toBeHidden();
     const city = topbar.locator(".citySwitcherTrigger");
     const controls = [
-      brand,
+      ...(largeText ? [] : [brand]),
       city,
       await mobileMapShellControl(page, "search"),
       await mobileMapShellControl(page, "filters"),
@@ -106,7 +118,7 @@ async function expectMapClearance(page: Page, width: number) {
       expect(box!.y + box!.height).toBeLessThanOrEqual(topbarBox!.y + topbarBox!.height + 1);
       previousRight = box!.x + box!.width;
     }
-    await expectWholeLabel(brand, brand.locator(".pubmaxxWordmarkLetters"));
+    if (!largeText) await expectWholeLabel(brand, brand.locator(".pubmaxxWordmarkLetters"));
     await expectWholeLabel(city, city.locator(".citySwitcherLabelFull"));
     return;
   }
@@ -274,6 +286,11 @@ for (const theme of ["light", "dark"] as const) {
         const destinations = width === 390
           ? ["/map", "/tonight", "/plan", "/social", "/u/you"]
           : ["/map", "/tonight", "/plan", "/spoons-value", "/social", "/u/you"];
+        // The browser's 200 percent text is the large bucket, so the phone tabs
+        // are icons alone; the desktop row keeps its words and wraps instead.
+        const iconOnly = width === 390 && fontSize === 32;
+        if (fontSize === 32) await expect(page.locator("html")).toHaveAttribute("data-text-scale", "large");
+        else await expect(page.locator("html")).not.toHaveAttribute("data-text-scale", /./);
         if (width === 1440) {
           const header = page.locator(".siteNavBar");
           const links = primary.locator("a");
@@ -321,8 +338,8 @@ for (const theme of ["light", "dark"] as const) {
           await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
           await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
           await expectPreviewState(page, width, selected);
-          await expectDestinations(page, primary, destinations);
-          await expectMapClearance(page, width);
+          await expectDestinations(page, primary, destinations, iconOnly);
+          await expectMapClearance(page, width, fontSize === 32);
           if (width === 390 && selected) {
             const topbarBox = await page.locator(".mobileMapTopbar").boundingBox();
             const pickerBox = await page.locator(".wildNightPreviewMobile").boundingBox();
@@ -356,7 +373,7 @@ for (const theme of ["light", "dark"] as const) {
             expect(pickerBox).not.toBeNull();
             expect(headingBox!.y).toBeGreaterThanOrEqual(pickerBox!.y + pickerBox!.height);
           }
-          await expectDestinations(page, primary, destinations);
+          await expectDestinations(page, primary, destinations, iconOnly);
           expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
           await info.attach(`tonight-navigation-${state}`, { body: await page.screenshot(), contentType: "image/png" });
         }

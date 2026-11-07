@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, ExternalLink, LocateFixed } from "lucide-react";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
-import { ReadyButton } from "@/components/ui/ready-button";
+import { Button } from "@/components/ui/button";
 import { firstHttp } from "@/lib/httpUrl.mjs";
 import AddRegularNight from "@/components/tonight/AddRegularNight";
 import RegularNightStillOn from "@/components/tonight/RegularNightStillOn";
@@ -305,10 +305,10 @@ function LastTrainCard({
       ) : (
         <>
           <p className="tonightAnswerMeta">Share your location and we’ll find your nearest station’s last train.</p>
-          <ReadyButton type="button" className="tonightAnswerButton" onClick={onShareLocation}>
+          <Button type="button" variant="secondary" className="tonightAnswerButton" onClick={onShareLocation}>
             <LocateFixed size={16} aria-hidden="true" />
             Share location
-          </ReadyButton>
+          </Button>
         </>
       )}
     </li>

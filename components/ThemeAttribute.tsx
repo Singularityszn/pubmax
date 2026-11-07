@@ -8,12 +8,11 @@
 // so a person in dark sees light tokens (QA journeys report F15) and a person
 // in Legacy Mode or the Ledger view gets standard type and the Lock-In view.
 // ThemeToggle re-asserts the theme on mount, but those pages carry no toggle.
-// This makes the same reads and DOM writes as theme-init.js, each only where
-// its attribute is missing, and renders nothing. It never overrides a value
-// that is already set.
+// For these three attributes, it repeats theme-init.js only where a value is
+// missing. It renders nothing and preserves values that are already set.
 //
 // It also follows the night theme as the clock passes 21:30 and 04:00 (the
-// second effect), and keeps the browser bar on the page's colour. The root
+// final effect), and keeps the browser bar on the page's colour. The root
 // viewport ships two theme-color tags keyed to the OS scheme, so a reader who
 // picks dark in the app on a light phone would see a cream bar over a dark
 // page. Whenever html[data-theme] is set or changes, both tags take that
@@ -22,6 +21,8 @@
 import { useEffect } from "react";
 
 import { BROWSER_BAR_COLOR } from "@/lib/browserBarColor";
+import { isNativeApp } from "@/lib/nativePlatform";
+import { LARGE_TEXT_SCALE_FLOOR, TEXT_SCALE_ATTRIBUTE } from "@/lib/nativeTextScale";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   isNightThemeTime,
@@ -55,6 +56,28 @@ function storedValue(storage: Storage | null, key: string): string | null {
 }
 
 export default function ThemeAttribute(): null {
+  // The pre-paint script cannot observe a later browser font change. Refresh
+  // its bucket on mount and page resume. The native lifecycle owns shell scale.
+  useEffect(() => {
+    if (isNativeApp()) return;
+    const reconcile = () => {
+      const root = document.documentElement;
+      const scale = parseFloat(window.getComputedStyle(root).fontSize) / 16;
+      if (scale >= LARGE_TEXT_SCALE_FLOOR) root.setAttribute(TEXT_SCALE_ATTRIBUTE, "large");
+      else root.removeAttribute(TEXT_SCALE_ATTRIBUTE);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reconcile();
+    };
+    reconcile();
+    window.addEventListener("pageshow", reconcile);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", reconcile);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
   useEffect(() => {
     const root = document.documentElement;
     const storage = safeLocalStorage();

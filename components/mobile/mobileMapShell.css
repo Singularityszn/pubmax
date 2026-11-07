@@ -391,6 +391,14 @@ html:has(.appShell) {
     .mobileMapTopbar.mobileMapTopbarLimited { grid-template-columns: minmax(0, 1fr) var(--control-height); }
     .mobileMapBrand { display: none; }
   }
+  /* Large text needs the same city-name space as the narrow phone layout. */
+  html[data-text-scale="large"] .mobileMapTopbar {
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--control-height));
+  }
+  html[data-text-scale="large"] .mobileMapTopbarLimited {
+    grid-template-columns: minmax(0, 1fr) var(--control-height);
+  }
+  html[data-text-scale="large"] .mobileMapBrand { display: none; }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
   .citySwitcher--mobile { width: 100%; min-width: 0; }
   .citySwitcher--mobile .citySwitcherTrigger { display: flex; width: 100%; min-width: 0; max-width: 100%; border: 0; background: transparent; color: var(--color-text-soft); padding-inline: 6px; }
@@ -867,7 +875,8 @@ html:has(.appShell) {
     text-align: left;
     cursor: pointer;
   }
-  .mapPeek:has(.mapPeekAnswer.isQuiet) {
+  .mapPeek:has(.mapPeekAnswer.isQuiet),
+  html[data-text-scale="large"] .mapPeek {
     height: auto;
     min-height: var(--map-peek-h);
     grid-template-rows: minmax(var(--map-peek-row-h), auto) auto;
@@ -875,6 +884,21 @@ html:has(.appShell) {
   .mapPeekAnswer.isQuiet { cursor: default; }
   .mapPeekAnswer.isQuiet .mapPeekLine { height: auto; }
   .mapPeekAnswer.isQuiet :is(.mapPeekName, .mapPeekHush) {
+    min-width: 0;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  html[data-text-scale="large"] .mapPeekLine {
+    height: auto;
+    flex-wrap: wrap;
+    line-height: normal;
+  }
+  html[data-text-scale="large"] .mapPeekRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-text-scale="large"] .mapPeekList { justify-self: end; }
+  html[data-text-scale="large"] .mapPeekName {
     min-width: 0;
     overflow: visible;
     white-space: normal;
@@ -928,8 +952,8 @@ html:has(.appShell) {
     line-height: 1rem;
   }
   /* The line is the figure, the name and the walk, each a direct flex item.
-     The figure and the walk never shrink; the name gives way with an
-     ellipsis, down to the room it needs to be read. */
+     The figure and the walk never shrink. At ordinary text sizes, the name
+     yields space to them. The large-text rule above lets the name wrap. */
   .mapPeekPrice {
     flex: 0 0 auto;
     font-family: var(--font-data);
@@ -954,8 +978,8 @@ html:has(.appShell) {
     white-space: nowrap;
   }
   .mapPeekHush { font-size: var(--text-base); color: var(--color-text-muted); }
-  /* The loading line holds the answer's own height so the card never resizes
-     when the answer lands. */
+  /* The loading text reserves the minimum answer height. At large text sizes,
+     the card can grow when the answer arrives. */
   .mapPeekSkeleton { display: none; }
   .mapPeekList {
     display: inline-flex;
