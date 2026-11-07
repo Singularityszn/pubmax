@@ -1485,6 +1485,13 @@ input[type="range"] {
   transform: translateX(-50%);
 }
 
+@media (min-width: 641px) {
+  .mappedRouteChip ~ .bandOnboardingChip {
+    /* Clear the route chip's 64px height and leave a 12px gap. */
+    bottom: 158px;
+  }
+}
+
 .bandOnboardingChip div {
   display: grid;
   gap: 2px;
