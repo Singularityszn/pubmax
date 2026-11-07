@@ -73,6 +73,28 @@ describe("borough price evidence", () => {
     expect(row.querySelector("time")?.textContent).toBe("12 January 2026");
   });
 
+  // The borough evidence contract forbids guessing a day from an unstated timezone.
+  it("shows an unavailable read date for a local timestamp without a timezone", async () => {
+    dataset.venues = groupVenuePrices([price({ scraped_at_values: "2026-10-02T00:30:00" })]);
+    const document = new JSDOM(renderToStaticMarkup(await BoroughPage({ params: Promise.resolve({ slug: "westminster" }) }))).window.document;
+    const row = document.querySelector(".boroughPubRows > li")!;
+    expect(row.textContent).toContain("£3.50");
+    expect(row.textContent).toContain("Listed by first.example");
+    expect(row.textContent).toContain("Read date unavailable");
+    expect(row.querySelector("time")).toBeNull();
+  });
+
+  it.each([
+    ["2026-10-02", "2 October 2026"],
+    ["2026-10-02T23:30:00Z", "3 October 2026"],
+    ["2026-10-02T00:30:00+02:00", "1 October 2026"],
+    ["2026-10-02T00:30:00-0200", "2 October 2026"],
+  ])("preserves the stated read day or London day for %s", async (scraped_at_values, expectedDay) => {
+    dataset.venues = groupVenuePrices([price({ scraped_at_values })]);
+    const document = new JSDOM(renderToStaticMarkup(await BoroughPage({ params: Promise.resolve({ slug: "westminster" }) }))).window.document;
+    expect(document.querySelector(".boroughPubRows > li time")?.textContent).toBe(expectedDay);
+  });
+
   it("keeps unrankable prices visible with their own unknowns, without borrowing a tied row's facts", async () => {
     dataset.venues = groupVenuePrices([
       price(),
