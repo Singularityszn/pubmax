@@ -119,3 +119,12 @@ export function profileImageServePath(
 ): string {
   return `${PROFILE_IMAGE_SLOT_SPECS[slot].servePath}/${profileId}/${generation}`;
 }
+
+/**
+ * The moderator console's read of a reported cover. A private account's cover
+ * refuses a moderator on the reader path, because a moderator is not a mate,
+ * so the queue previews through this route instead. Never a reader's URL.
+ */
+export function moderatorCoverPreviewPath(profileId: string, generation: string): string {
+  return `/api/admin/profile-avatars/cover/${profileId}/${generation}`;
+}
