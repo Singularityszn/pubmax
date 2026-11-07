@@ -55,7 +55,8 @@ export class DeepLinkService {
     App.addListener('appUrlOpen', (event) => {
       this.zone.run(() => {
         const u = new URL(event.url);
-        this.router.navigateByUrl(u.pathname + u.search);
+        const path = u.protocol.startsWith('http') ? u.pathname : `/${u.host}${u.pathname}`;
+        this.router.navigateByUrl(path + u.search);
       });
     });
   }

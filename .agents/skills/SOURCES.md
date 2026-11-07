@@ -250,7 +250,7 @@ Left upstream: Capgo cloud and live-update skills, version-upgrade skills (this 
 Local corrections:
 
 - Release, security, debugging and Apple review guidance preserve the required production `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Development hosts, LAN IPs and cleartext remain excluded from release builds.
-- The `capacitor-deep-linking` handler suppresses only the initial `getLaunchUrl()` and first `appUrlOpen` duplicate, in either order. Later intentional opens of the same URL still route.
+- The `capacitor-deep-linking` handler skips a duplicate launch URL only when the first `appUrlOpen` delivers it before `getLaunchUrl()` resolves. Later intentional opens of the same URL still route. Angular preserves custom-scheme hosts and query parameters, as the React, Vue and shared examples do.
 
 ### maplibre/maplibre-agent-skills (added)
 

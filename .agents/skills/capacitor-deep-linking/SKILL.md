@@ -66,15 +66,12 @@ function route(rawUrl: string) {
 
 export async function initDeepLinks() {
   let firstOpenUrl: string | undefined;
-  let launchUrl: string | undefined;
   await App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
-    const isLaunchDuplicate = firstOpenUrl === undefined && event.url === launchUrl;
     firstOpenUrl ??= event.url;
-    if (!isLaunchDuplicate) route(event.url);
+    route(event.url);
   });
   const launch = await App.getLaunchUrl(); // resolves undefined or { url }
-  launchUrl = launch?.url;
-  if (launchUrl && launchUrl !== firstOpenUrl) route(launchUrl);
+  if (launch?.url && launch.url !== firstOpenUrl) route(launch.url);
 }
 ```
 
@@ -82,7 +79,7 @@ Traps:
 - Custom scheme URLs parse with the first segment as `host`, not `pathname`. Normalize both forms as above.
 - Register the listener at bootstrap, not inside a lazily loaded page. A listener added after the event fired never sees it; `getLaunchUrl()` is the fallback for cold start.
 - Wrap state updates from the listener in your framework's zone/run loop (Angular `NgZone.run`) or navigation silently does nothing.
-- Suppress duplicates only between `getLaunchUrl()` and the first `appUrlOpen`, in either delivery order. Later events must route, including repeated URLs.
+- Skip the launch URL only if the first `appUrlOpen` already delivered it before `getLaunchUrl()` resolves. Every later event must route, including repeated URLs.
 - Validate and allow-list paths before navigating; a deep link is untrusted input.
 
 ## Custom Scheme Config
