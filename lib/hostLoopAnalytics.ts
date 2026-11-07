@@ -1,4 +1,4 @@
-// Launch plan P0 item 7: the three steps of the host loop on an open crawl.
+// Launch plan P0 item 7: host-loop analytics.
 //
 // One place decides when a step counts, so the plan page and the crew page
 // cannot drift apart. A step counts only on the server's own first answer to

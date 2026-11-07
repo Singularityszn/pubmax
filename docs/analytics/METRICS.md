@@ -247,25 +247,31 @@ arrived. Today, `crew_arrived` measures arrivals on private hosted plans only.
 Count events with `guestsArrived = 4+` for those plans.
 Open crawls cannot report arrivals until [issue 2587](https://github.com/Singularityszn/pubmax/issues/2587) lands.
 
-- `crew_arrived` counts guests marked "Here" on a private hosted plan page.
+- `crew_arrived` counts guests currently marked "Here" on a private hosted plan page.
   The host is the first seat by join order and is never a guest.
-- Each band (`1`, `2-3`, `4+`) is reported once a night, so a night of six guests
-  sends one event in each band. Count one band. Never add the bands together.
-- Every member's status write carries the receipts, the host's included. The
-  night is counted when any one consented device sends them.
+- Each qualifying band counts once for the plan's scheduled London date.
+  Count one band. Never add the bands together.
+  A later status change does not remove a delivered event.
+- Every member's successful status write can carry the receipts, including the host's write.
+  A consented device can deliver them. Another member's later copy can retry a failed delivery.
+
+The receipt window starts at London midnight on the plan's scheduled date.
+`crewArrivedEventToken` in `lib/verifiedAnalytics.server.ts` defines its expiry.
+Status writes can report arrivals throughout this window, beyond the scheduled evening.
+Outside this window, status writes still succeed but carry no arrival receipts.
 
 | Measure | Numerator | Denominator | Limits |
 |---|---|---|---|
-| Private hosted nights with 4 or more guests | `crew_arrived` with `guestsArrived = 4+` | Not a rate | Open crawls cannot report arrivals until issue 2587 lands. Guests who never tap "Here" are not counted |
-| Join requests answered | `crew_join_accepted` count | `crew_join_requested` count | Two weekly counts. Declines and cancels are not events. Time to answer is not measurable without a crew id |
-| Open crawls that drew a request | `crew_join_requested` count | `open_crawl_opened` count | Requests per opened crawl, not unique crawls |
+| Private hosted nights with 4 or more guests | `crew_arrived` with `guestsArrived = 4+` | Not a rate | The open-crawl limitation above applies. At least four guests must be marked "Here" in the same status-write response |
+| Join acceptances | `crew_join_accepted` count | Not a rate | Includes open crawls and friends crews. Declines, cancels and time to answer are not measured |
+| Requests per opened crawl | `crew_join_requested` count | `open_crawl_opened` count | Open-crawl requests only. Two weekly totals, not unique crawls or a matched cohort. Each event requires the acting device's consent |
 
 `crew_committed` rides only the joining guest's browser, and it sends nothing
 without that guest's analytics consent. On 7 November 2026 production held two
 plans that had reached two members (5 September and 23 October). The receipt
 table was empty and PostHog had no `crew_committed` row, and no consented event
-of any kind arrived around the 23 October join. Read a zero there as "no
-consented guest", not as "no crew".
+of any kind arrived around the 23 October join. A zero means no delivered,
+consented event. It does not prove that nobody joined or consented.
 
 ## 4. What this file will not define
 

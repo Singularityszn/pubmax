@@ -101,7 +101,6 @@ export function guestsArrived(crew: readonly Pick<CrewMemberDTO, "status">[]): n
   return crew.slice(1).filter((member) => member.status === "here").length;
 }
 
-/** Every band the night's guests have reached so far, smallest first. */
 export function crewArrivedBandsReached(crew: readonly Pick<CrewMemberDTO, "status">[]): CrewArrivedBand[] {
   const arrived = guestsArrived(crew);
   return CREW_ARRIVED_BANDS.filter((band) => arrived >= CREW_ARRIVED_BAND_FLOORS[band]);

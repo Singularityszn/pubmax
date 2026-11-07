@@ -82,18 +82,13 @@ export const ANALYTICS_EVENTS = {
   map_search_jump: [],
   tonight_result_opened: ["kind", "localityBasis"],
   crew_committed: ["source", "participants", "routeReady"],
-  // The host loop on an open crawl (launch plan P0 item 7). Each fires off the
-  // server's own first answer to the write, never a replay of it, and from the
-  // browser of the person who acted: the host opens a plan up, a stranger asks
-  // to join, the host lets them in. No props on purpose: a crew id, a capacity
-  // or a meeting pub would narrow toward one night and one person.
+  // No props on purpose: a crew id, a capacity or a meeting pub would narrow
+  // toward one night and one person. lib/hostLoopAnalytics.ts owns eligibility.
   open_crawl_opened: [],
   crew_join_requested: [],
   crew_join_accepted: [],
-  // How many guests (everyone but the host) marked themselves "Here" on a
-  // plan's night, as a band. Server-minted per plan, per night and per band, so
-  // the band is reported once a night whichever member's device sends it, and
-  // "nights where 4 or more guests arrived" is the count of `4+` events.
+  // A band avoids sending an exact roster size or a per-plan key.
+  // docs/analytics/METRICS.md section 3.3 owns the counting rules and limits.
   crew_arrived: ["guestsArrived"],
   account_claimed: ["source"],
   social_account_connected: ["provider", "connectionType"],

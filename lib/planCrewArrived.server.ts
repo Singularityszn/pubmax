@@ -1,12 +1,8 @@
 // Launch plan P0 item 7: the night's arrived count.
 //
-// A successful status write on /plan/[id] hands back one verified
-// crew_arrived receipt for every arrival band the plan's guests have reached
-// on the plan's night. Every member's write gets them, the host's included,
-// because the receipt is only counted from a browser that consented to
-// analytics, and the more devices that carry it, the less a night depends on
-// one guest's consent choice. The subject is the band, so the ingest route
-// counts each band once a night however many devices send it.
+// docs/analytics/METRICS.md section 3.3 owns the counting rules and limits.
+// Every member's write can carry receipts because analytics needs browser consent.
+// Another member's device can recover a failed delivery.
 
 import "server-only";
 
@@ -22,9 +18,9 @@ export type PlanCrewArrivedReceipt = {
 };
 
 /**
- * The receipts for every band the night has reached, smallest first. Empty
- * when no guest is "Here" yet, or when the signing key is unavailable: an
- * analytics receipt must never fail the status write it rides on.
+ * The receipts for the current arrival bands, smallest first. Empty when
+ * no guest is "Here" or a valid receipt cannot be minted. An analytics
+ * receipt must never fail a status write, including outside its delivery window.
  */
 export function planCrewArrivedReceipts(plan: PlanState | null, now = new Date()): PlanCrewArrivedReceipt[] {
   if (!plan) return [];

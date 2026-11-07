@@ -221,10 +221,9 @@ export function crewCommittedEventToken(input: {
 /**
  * The arrival receipt: a plan's guests reached one arrival band on one night.
  *
- * The subject is the plan, the night and the BAND, so `eventId` is the same
- * for every mint of that band that night. Whichever member's device sends it
- * first is counted, and every later copy (another member, a status toggled
- * off and on again) is refused at ingest as already delivered.
+ * Anchor issuedAt to the scheduled night's London midnight, not the status-write
+ * time. Every member must mint identical bytes for the same plan, night and band.
+ * Otherwise, the receipt store rejects a later member's retry as a token conflict.
  */
 export function crewArrivedEventToken(input: {
   planId: string;
