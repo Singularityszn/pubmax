@@ -50,6 +50,14 @@ export default function MapFallbackCard({
     <div className="mapFallback" role="alert">
       <strong>{heading}</strong>
       <p>{message}</p>
+      <Link className="mapFallbackBrowse" href="/pubs">
+        Browse all pubs
+      </Link>
+      {onRetry ? (
+        <button type="button" className="mapFallbackRetry" onClick={onRetry}>
+          {retryLabel}
+        </button>
+      ) : null}
       {detail ? (
         <div className="mapFallbackDisclosure">
           <button
@@ -84,14 +92,6 @@ export default function MapFallbackCard({
             </li>
           ))}
         </ul>
-      ) : null}
-      <Link className="mapFallbackBrowse" href="/pubs">
-        Browse all pubs
-      </Link>
-      {onRetry ? (
-        <button type="button" className="mapFallbackRetry" onClick={onRetry}>
-          {retryLabel}
-        </button>
       ) : null}
     </div>
   );

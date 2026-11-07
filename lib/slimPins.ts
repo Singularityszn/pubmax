@@ -21,7 +21,12 @@ import type { SlimVenue } from "@/lib/venuesSlim";
  * Recover it so drink/food price updates keyed by name|address|lat|lng attach
  * to city venues that have no VenuePrice rows.
  */
-function addressFromSlimSearchText(slim: SlimVenue): string {
+export function addressFromSlimSearchText(slim: {
+  name: string;
+  sourceName?: string;
+  borough: string;
+  filterHints?: { searchText?: string };
+}): string {
   const search = (slim.filterHints?.searchText ?? "").trim().toLowerCase();
   if (!search) return "";
   const borough = slim.borough.trim().toLowerCase();

@@ -212,6 +212,34 @@ test("/map still says so when both style URLs refuse", async ({ page }) => {
   await expectFallbackTextClearOfChrome(page);
 });
 
+test("/map keeps Browse and Retry above the phone bottom card when both styles fail", async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await installDeterministicMapBasemap(page, { failStyle: true });
+  await page.goto("/map");
+  const fallback = page.locator(".mapFallback");
+  await expect(fallback).toContainText("The map couldn't load its tiles right now", { timeout: 45_000 });
+  await expect(page.locator(".mapPeek")).toBeVisible();
+  await expect(fallback.locator(".mapFallbackVenue").first()).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  expect(await fallback.evaluate((element) => element.scrollTop)).toBe(0);
+  const bottomCard = (await page.locator(".mapPeek").boundingBox())!;
+  for (const control of [fallback.getByRole("link", { name: "Browse all pubs" }), fallback.getByRole("button", { name: "Retry", exact: true })]) {
+    await expect(control).toBeInViewport({ ratio: 1 });
+    const box = (await control.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.y + box.height).toBeLessThanOrEqual(bottomCard.y);
+    expect(await control.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    })).toBe(true);
+  }
+  await page.screenshot({ path: testInfo.outputPath("both-styles-failed-390x844.png") });
+  await fallback.getByRole("link", { name: "Browse all pubs" }).click();
+  await expect(page).toHaveURL(/\/pubs$/);
+});
+
 test("/map still shows the banner when tiles never come back", async ({
   page,
 }) => {

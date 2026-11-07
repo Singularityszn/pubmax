@@ -94,7 +94,9 @@ export default function PricedLandingRows({
               {row.branchAddress ? (
                 <span className="drinkBrandDirectory__borough">{row.branchAddress}</span>
               ) : null}
-              <span className="drinkBrandDirectory__borough">{row.borough}</span>
+              <span className="drinkBrandDirectory__borough">
+                {row.borough}{row.nearbyArea ? `, near ${row.nearbyArea}` : ""}
+              </span>
               <span className="drinkBrandDirectory__pint">
                 {formatDrinkTagName(row.pintName)}
               </span>

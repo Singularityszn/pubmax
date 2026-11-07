@@ -19,6 +19,7 @@ import {
 } from "@/lib/pricedLanding";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import type { Venue, VenuePrice } from "@/lib/venues";
+import { venueAreaClaim } from "@/lib/venueTruth";
 
 export type AreaLanding = {
   areaSlug: NightAreaSlug;
@@ -59,7 +60,15 @@ function landingFor(area: NightArea, venues: readonly Venue[]): AreaLanding | nu
   const candidates = venues.flatMap((venue) => {
     if (assignVenueToNightArea(venue)?.slug !== area.slug) return [];
     const candidate = areaCandidateForVenue(venue);
-    return candidate ? [candidate] : [];
+    if (!candidate) return [];
+    const claim = venueAreaClaim(venue, [area]);
+    const boroughMatchesArea = [area.name, ...area.aliases].some(
+      (name) => name.toLowerCase() === candidate.borough.trim().toLowerCase(),
+    );
+    return [{
+      ...candidate,
+      ...(claim.relation === "nearby" && !boroughMatchesArea ? { nearbyArea: area.name } : {}),
+    }];
   });
   const published = publishablePricedRows("area", candidates);
   if (!published) return null;

@@ -4,6 +4,7 @@ import {
   boroughsWithPrices,
   nearSavingLine,
   rankBoroughCheapest,
+  rankCityCheapest,
   rankNearMe,
   walkMinutesFromKm,
   type PricedPoint,
@@ -52,6 +53,50 @@ describe("walkMinutesFromKm", () => {
   it("is tolerant of non-finite input", () => {
     expect(walkMinutesFromKm(Number.NaN)).toBe(1);
     expect(walkMinutesFromKm(Number.POSITIVE_INFINITY)).toBe(1);
+  });
+});
+
+describe("Near Me branch identity", () => {
+  const branches: PricedPoint[] = [
+    { ...at("venue-nyowgc", 0, 0, 6.15, "Westminster"), name: "Coach & Horses", address: "1 Great Malborough Street, W1F 7HG" },
+    { ...at("venue-phqazo", 0.002, 0, 5.7, "Westminster"), name: "The Coach & Horses", address: "29 Greek St, London W1D 5DH" },
+  ];
+
+  it.each([
+    ["walkable", (points: PricedPoint[]) => rankNearMe(here.lat, here.lng, points, { minAnswers: 1 }).cards],
+    ["widened", (points: PricedPoint[]) => rankNearMe(here.lat, here.lng, points).cards],
+    ["borough", (points: PricedPoint[]) => rankBoroughCheapest(points, "Westminster")],
+    ["city", (points: PricedPoint[]) => rankCityCheapest(points)],
+  ] as const)("distinguishes the two pubs in the %s answer without changing their prices", (_, rank) => {
+    expect(rank(branches).map((card) => [card.id, card.name, card.cheapestPrice])).toEqual([
+      ["venue-phqazo", "The Coach & Horses (29 Greek St)", 5.7],
+      ["venue-nyowgc", "Coach & Horses (1 Great Malborough Street)", 6.15],
+    ]);
+  });
+
+  it("distinguishes a nearest namesake outside the capped cards", () => {
+    const answer = rankNearMe(here.lat, here.lng, branches, { minAnswers: 1, maxAnswers: 1 });
+    expect(answer.nearest?.name).toBe("Coach & Horses (1 Great Malborough Street)");
+    expect(nearSavingLine(answer.cards, answer.nearest)).toBe(
+      "The Coach & Horses (29 Greek St) is £0.45 a pint less than Coach & Horses (1 Great Malborough Street), the nearest pub with a listed price (£6.15, right here).",
+    );
+  });
+
+  it("uses the recorded area when an address is absent and keeps a street after a separate house number", () => {
+    const cards = rankCityCheapest([
+      { ...branches[0]!, address: "8, Kew Green, TW9 3BH" },
+      { ...branches[1]!, address: "", locality: "Soho" },
+    ]);
+    expect(cards.map((card) => card.name)).toEqual([
+      "The Coach & Horses (Soho)", "Coach & Horses (8 Kew Green)",
+    ]);
+  });
+
+  it("keeps a single pub's name when the nearest pub is the same record", () => {
+    const answer = rankNearMe(here.lat, here.lng, [branches[0]!], { minAnswers: 1 });
+    expect(answer.cards[0]?.name).toBe("Coach & Horses");
+    expect(answer.nearest?.name).toBe("Coach & Horses");
+    expect(nearSavingLine(answer.cards, answer.nearest)).toBeNull();
   });
 });
 
