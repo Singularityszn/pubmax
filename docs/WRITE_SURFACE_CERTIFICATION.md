@@ -1380,8 +1380,8 @@ commit.
   updates that device's own RSVP rather than adding a second guest.
 - **Token boundary:** public invite writes resolve the token through
   `resolveClassicInvitePlan` (`lib/planInviteResolve.ts`), which requires the
-  same classic-plan `planStateResult` gate as the invite page (Crew-bound plans
-  404). Neither public write route accepts a plan id from the client.
+  classic-plan `planStateResult` gate. Crew-bound plans return 404 for these
+  writes. Neither public write route accepts a plan id from the client.
 - **Text hygiene (boundary):** guest display names pass through
   `cleanText`/`readString` (`lib/textClean.ts`), the same hygiene already used
   for handles and comments, before persistence.
