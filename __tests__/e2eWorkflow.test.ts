@@ -1,5 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { runInNewContext } from "node:vm";
 
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -137,7 +139,7 @@ describe("browser CI policy", () => {
     expect(workflow.on.schedule).toEqual([{ cron: "17 20 * * *" }]);
   });
 
-  it("opens or updates one issue when a scheduled full suite fails, with the run's own token", () => {
+  it("uses the run token and issue permission without a checkout", () => {
     const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow & {
       permissions?: Record<string, string>;
     };
@@ -149,18 +151,145 @@ describe("browser CI policy", () => {
     expect(job.needs).toEqual(FULL_SUITE_JOBS);
     expect(job["runs-on"]).toBe("ubuntu-latest");
     expect(job.permissions).toEqual({ issues: "write" });
-    expect(job.if).toContain("github.event_name == 'schedule'");
-    expect(job.if).toContain("always()");
-    expect(job.if).toContain("contains(needs.*.result, 'failure')");
-    expect(job.if).toContain("contains(needs.*.result, 'cancelled')");
     // No checkout and no repository code: the job only talks to GitHub.
     expect(job.steps.map((step) => step.uses).filter(Boolean)).toEqual([]);
     const [step, ...extra] = job.steps;
     expect(extra).toEqual([]);
-    expect(step?.env?.GH_TOKEN).toBe("${{ github.token }}");
-    expect(JSON.stringify(job)).not.toContain("secrets.");
-    expect(step?.run).toContain("gh issue comment");
-    expect(step?.run).toContain("gh issue create");
+    expect(step?.env).toEqual({
+      GH_TOKEN: "${{ github.token }}",
+      GH_REPO: "${{ github.repository }}",
+      RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+      HEAD_SHA: "${{ github.sha }}",
+      SHARDS_RESULT: "${{ needs.full-suite.result }}",
+      GL_RESULT: "${{ needs.full-suite-gl.result }}",
+    });
+  });
+
+  it.each(["schedule", "push", "pull_request", "workflow_dispatch"])(
+    "reports only scheduled failures or cancellations for %s",
+    (event) => {
+      const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+      const expression = defined(jobs["nightly-failure-issue"]?.if)
+        .trim()
+        .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1")
+        .replaceAll("needs.*.result", "needResults");
+      const outcomes = [
+        ["success", "success", false],
+        ["success", "failure", true],
+        ["success", "cancelled", true],
+        ["success", "skipped", false],
+        ["failure", "success", true],
+        ["failure", "failure", true],
+        ["failure", "cancelled", true],
+        ["failure", "skipped", true],
+        ["cancelled", "success", true],
+        ["cancelled", "failure", true],
+        ["cancelled", "cancelled", true],
+        ["cancelled", "skipped", true],
+        ["skipped", "success", false],
+        ["skipped", "failure", true],
+        ["skipped", "cancelled", true],
+        ["skipped", "skipped", false],
+      ] as const;
+      for (const [shards, gl, reportOnSchedule] of outcomes) {
+        const needResults = [shards, gl];
+        const success = () => needResults.every((result) => result === "success");
+        const hasStatusFunction = /\b(always|success|failure|cancelled)\s*\(/.test(expression);
+        const actual = (hasStatusFunction || success()) && Boolean(runInNewContext(`(${expression})`, {
+          github: { event_name: event },
+          needs: { "full-suite": { result: shards }, "full-suite-gl": { result: gl } },
+          needResults,
+          always: () => true,
+          success,
+          failure: () => needResults.includes("failure"),
+          cancelled: () => needResults.includes("cancelled"),
+          contains: (values: string[], value: string) => values.includes(value),
+        }, { timeout: 1000 }));
+        expect(actual, `${event}: full-suite=${shards}, full-suite-gl=${gl}`)
+          .toBe(event === "schedule" && reportOnSchedule);
+      }
+    },
+  );
+
+  it.each([
+    {
+      scenario: "comments on the exact title after a near match",
+      issues: [
+        { number: 41, title: "Nightly full browser suite failed yesterday" },
+        { number: 42, title: "Nightly full browser suite failed" },
+      ],
+      issueNumber: "42",
+      shards: "failure",
+      gl: "success",
+    },
+    {
+      scenario: "creates an issue when none are open",
+      issues: [],
+      issueNumber: null,
+      shards: "success",
+      gl: "cancelled",
+    },
+    {
+      scenario: "creates an issue when only a near match is open",
+      issues: [{ number: 41, title: "Nightly full browser suite failed yesterday" }],
+      issueNumber: null,
+      shards: "cancelled",
+      gl: "failure",
+    },
+  ])("$scenario", ({ issues, issueNumber, shards, gl }) => {
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+    const step = defined(defined(jobs["nightly-failure-issue"]).steps[0]);
+    const directory = mkdtempSync(join(process.cwd(), ".nightly-issue-test-"));
+    try {
+      const callsPath = join(directory, "calls.jsonl");
+      writeFileSync(callsPath, "");
+      writeFileSync(join(directory, "gh"), `#!${process.execPath}
+const { appendFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+appendFileSync(process.env.GH_CALLS, JSON.stringify(args) + "\\n");
+if (args[0] === "issue" && args[1] === "list") {
+  process.stdout.write(process.env.ISSUE_LIST);
+} else if (args[0] !== "issue" || !["comment", "create"].includes(args[1])) {
+  process.exit(1);
+}
+`, { mode: 0o755 });
+      const run = spawnSync("bash", ["--noprofile", "--norc", "-c", defined(step.run)], {
+        cwd: directory,
+        encoding: "utf8",
+        timeout: 10000,
+        env: {
+          PATH: `${directory}:${process.env.PATH}`,
+          GH_CALLS: callsPath,
+          ISSUE_LIST: JSON.stringify(issues),
+          GH_TOKEN: "test-token",
+          GH_REPO: "owner/repository",
+          RUN_URL: "https://github.example/owner/repository/actions/runs/123",
+          HEAD_SHA: "0123456789abcdef",
+          SHARDS_RESULT: shards,
+          GL_RESULT: gl,
+        },
+      });
+      expect(run.error).toBeUndefined();
+      expect(run.status, run.stderr).toBe(0);
+      const calls = readFileSync(callsPath, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+      const title = "Nightly full browser suite failed";
+      const body = [
+        "The scheduled full browser suite did not pass.",
+        "",
+        "- Run: https://github.example/owner/repository/actions/runs/123",
+        "- Commit: 0123456789abcdef",
+        `- Full browser suite (n/8): ${shards}`,
+        `- Full browser suite (WebGL and keyless): ${gl}`,
+      ].join("\n");
+      expect(calls).toEqual([
+        ["issue", "list", "--state", "open", "--search", `in:title "${title}"`, "--json", "number,title", "--limit", "20"],
+        issueNumber === null
+          ? ["issue", "create", "--title", title, "--body", body]
+          : ["issue", "comment", issueNumber, "--body", body],
+      ]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it("runs no second suite behind a retired rollout flag", () => {
