@@ -339,6 +339,18 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 | Production uptime, every five minutes | `uptime.yml` (alerts through `alert-on-failure.yml`) |
 | Browser law pins, layout pins + nightly suite | `e2e.yml` |
 
+The weather refresh reuses `weather-cache/latest` and its open review PR.
+Later runs add refreshed snapshots to that PR instead of creating daily branches.
+The captain approved this PR route to land the refresh on `main` through the
+required checks. The job never writes directly to `main`. An unchanged snapshot
+causes no commit or push.
+
+Weather publication uses an explicit Git push lease against the fetched branch
+commit, or an empty lease when the branch does not exist. If the remote branch
+changes, appears, or disappears before publication, the push fails before PR
+handling. This prevents a concurrent merge and branch deletion from recreating
+the old branch history. `__tests__/weatherRefresh.test.ts` covers these races.
+
 If the repository does not let GitHub Actions open pull requests, the weather
 and What's-On refreshes still push their review branch. They log the branch link
 as a warning and the run stays green. Open that PR by hand. The setting is in

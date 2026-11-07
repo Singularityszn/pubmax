@@ -1,7 +1,7 @@
 name: Weather cache refresh
 
-# Daily Open-Meteo cache refresh. Workflow opens a review PR and never writes
-# directly to main.
+# Daily Open-Meteo cache refresh. Review publication and permission recovery:
+# docs/CI_RUNBOOK.md#scheduled-work-split.
 
 on:
   schedule:
@@ -22,8 +22,8 @@ jobs:
     # job token. See docs/CI_RUNBOOK.md.
     runs-on: ubuntu-latest
     permissions:
-      contents: write # push the review branch
-      pull-requests: write # open the review PR
+      contents: write # push the stable review branch
+      pull-requests: write # open or find the review PR
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
