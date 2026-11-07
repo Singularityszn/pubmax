@@ -40,16 +40,16 @@ import CheapPintPingPrompt from "@/components/pwa/CheapPintPingPrompt";
 
 let root: Root | null;
 let container: HTMLDivElement;
-let finishSubscription: (value: PushSubscription) => void;
+let finishSubscription: (value: Pick<PushSubscription, "toJSON">) => void;
 let rejectSubscription: (reason: Error) => void;
 let subscribe: ReturnType<typeof vi.fn>;
 let tokenFetch: ReturnType<typeof vi.fn>;
-const subscription = {
+const subscription: Pick<PushSubscription, "toJSON"> = {
   toJSON: () => ({
     endpoint: "https://fcm.googleapis.com/fcm/send/pending-test",
     keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
   }),
-} as PushSubscription;
+};
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -58,7 +58,7 @@ beforeEach(() => {
   vi.stubGlobal("Notification", { permission: "granted" });
   vi.stubGlobal("PushManager", class {});
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
-  subscribe = vi.fn(() => new Promise<PushSubscription>((resolve, reject) => {
+  subscribe = vi.fn(() => new Promise<Pick<PushSubscription, "toJSON">>((resolve, reject) => {
     finishSubscription = resolve;
     rejectSubscription = reject;
   }));
