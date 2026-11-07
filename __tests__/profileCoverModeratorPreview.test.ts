@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   profiles: [] as Record<string, unknown>[],
   covers: [] as Record<string, unknown>[],
   coverReadFails: false,
+  coverSchemaMissing: false,
 }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -93,6 +94,12 @@ const fixtureFetch: typeof fetch = async (input, init) => {
   if (url.pathname === "/rest/v1/rpc/public_withdrawn_profiles") return json([]);
   if (url.pathname === "/rest/v1/profiles") return pick(api.profiles);
   if (url.pathname === "/rest/v1/profile_cover_photos") {
+    if (api.coverSchemaMissing) return new Response(JSON.stringify({
+      message: "Could not find the table 'public.profile_cover_photos' in the schema cache",
+      code: "PGRST205",
+    }), {
+      status: 404, headers: { "Content-Type": "application/json" },
+    });
     if (api.coverReadFails) return new Response(JSON.stringify({ message: "Store unavailable" }), {
       status: 503, headers: { "Content-Type": "application/json" },
     });
@@ -122,6 +129,7 @@ beforeEach(() => {
   vi.stubEnv("ADMIN_TOKEN", ADMIN_TOKEN);
   downloadObject.mockClear();
   api.coverReadFails = false;
+  api.coverSchemaMissing = false;
   __resetProfileCoverPhotos();
   api.profiles = [{
     id: PROFILE_ID,
@@ -262,9 +270,43 @@ it("keeps an open pending preview available after 201 newer reports arrive", asy
 });
 
 it("refuses a rotation preview when its report state cannot be read", async () => {
+  const row = await memoryProfileCoverPhotoStore.create({
+    id: "memory-cover", profileId: PROFILE_ID, generation: ROTATION_GENERATION,
+    objectKey: profileImageServingKey("cover", PROFILE_ID, ROTATION_GENERATION),
+  });
+  await memoryProfileCoverPhotoStore.report(row.id, "wrong cover", "reporter-one");
   api.coverReadFails = true;
   expect((await preview(ROTATION_GENERATION)).status).toBe(404);
   expect(downloadObject).not.toHaveBeenCalled();
+});
+
+it("opens an undecided memory cover from the queue when the rotation table is missing", async () => {
+  api.coverSchemaMissing = true;
+  await memoryProfileCoverPhotoStore.create({
+    id: "memory-first-cover", profileId: PROFILE_ID, generation: MIRROR_GENERATION,
+    objectKey: profileImageServingKey("cover", PROFILE_ID, MIRROR_GENERATION),
+  });
+  const row = await memoryProfileCoverPhotoStore.create({
+    id: "memory-second-cover", profileId: PROFILE_ID, generation: ROTATION_GENERATION,
+    objectKey: profileImageServingKey("cover", PROFILE_ID, ROTATION_GENERATION),
+  });
+  await memoryProfileCoverPhotoStore.report(row.id, "wrong cover", "reporter-one");
+
+  const response = await QUEUE(new Request(
+    "http://localhost/api/admin/profile-avatars?status=reported&slot=cover",
+    { headers: cookie() },
+  ));
+  expect(response.status).toBe(200);
+  const body = await response.json() as { rotationCovers: { previewUrl: string }[] };
+  expect(body.rotationCovers).toHaveLength(1);
+  const image = await openPreviewUrl(body.rotationCovers[0]!.previewUrl);
+  expect(image.status).toBe(200);
+  expect(await image.text()).toBe(COVER_BYTES.toString());
+  expect(image.headers.get("Cache-Control")).toBe("private, no-store");
+
+  await memoryProfileCoverPhotoStore.moderate(row.id, "approved");
+  expect((await preview(ROTATION_GENERATION)).status).toBe(404);
+  expect(downloadObject).toHaveBeenCalledTimes(1);
 });
 
 it("does not use another profile's pending report to open a preview", async () => {

@@ -588,17 +588,24 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   },
 
   async hasPendingReport(profileId, generation) {
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("id")
-      .eq("profile_id", profileId)
-      .eq("generation", generation)
-      .eq("moderation_state", "approved")
-      .gt("report_count", 0)
-      .is("moderated_at", null)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return data !== null;
+    return guard<boolean>({
+      context: "hasPendingReport",
+      onSchemaMiss: () =>
+        memoryProfileCoverPhotoStore.hasPendingReport(profileId, generation),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("id")
+          .eq("profile_id", profileId)
+          .eq("generation", generation)
+          .eq("moderation_state", "approved")
+          .gt("report_count", 0)
+          .is("moderated_at", null)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        return data !== null;
+      },
+    });
   },
 
   async approvedObjectKey(profileId, generation) {
