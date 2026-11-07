@@ -135,12 +135,18 @@
   }
 }
 
+/* From 1280px the full row (word-and-icon doors, the Pal's named door, the
+   account controls) fits one row only at these tight gaps. The floating map
+   bar carries the same row, so it takes the same gaps: without them /map
+   wrapped onto two rows from 1280px when signed in with a Pal name of seven
+   letters or more, and the search toolbar dropped 56px (pre-deploy check,
+   7 Nov 2026; e2e/site-nav-laptop-acceptance.spec.ts). */
 @media (min-width: 1280px) {
-  .siteNavBar:not(.siteNavBarFloating) {
+  .siteNavBar {
     gap: 4px;
   }
 
-  .siteNavBar:not(.siteNavBarFloating) .siteNavActions {
+  .siteNavBar .siteNavActions {
     gap: 2px;
   }
 }

@@ -7,7 +7,7 @@ import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 
 test.use({ serviceWorkers: "block" });
 
-async function prepare(page: Page, signedIn: boolean) {
+async function prepare(page: Page, signedIn: boolean, palName = "WWWWWWWWWW") {
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-theme", "light");
     localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
@@ -22,7 +22,7 @@ async function prepare(page: Page, signedIn: boolean) {
     ...DEFAULT_PAL_DRAFT,
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
     ownerId: ACCOUNTS.A.id,
-    name: "WWWWWWWWWW",
+    name: palName,
     adultAttestedAt: now,
     muted: false,
     hidden: false,
@@ -41,41 +41,49 @@ async function prepare(page: Page, signedIn: boolean) {
 
 // Oracle: the captain's design re-review requires one row from 1024px and
 // no extra 50px map-toolbar displacement. Reject wrapping, overlap and clipping.
-for (const width of [1024, 1100, 1180]) {
-  for (const signedIn of [false, true]) {
-    test(`map navigation and toolbar stay separate at ${width}px, ${signedIn ? "signed in" : "signed out"}`, async ({ page }, info) => {
-      test.setTimeout(90_000);
-      await page.setViewportSize({ width, height: 900 });
-      await prepare(page, signedIn);
-      await installDeterministicMapBasemap(page);
-      await page.goto("/map");
-      await expectMapLoadingFrameReleased(page);
-      await page.evaluate(() => document.fonts.ready);
-      const header = page.locator(".siteNavBar");
-      if (signedIn) await expect(header.getByRole("button", { name: /Account options/ })).toBeVisible();
-      const toolbar = page.locator(".mapToolbar");
-      await expect(toolbar).toBeVisible();
-      const row = await header.boundingBox();
-      const tools = await toolbar.boundingBox();
-      expect(row!.height).toBeLessThanOrEqual(66);
-      expect(tools!.y).toBeGreaterThanOrEqual(row!.y + row!.height);
-      expect(tools!.y).toBeLessThan(row!.y + row!.height + 40);
-      const controls = header.locator("a:visible, button:visible");
-      for (const control of await controls.all()) {
-        const box = (await control.boundingBox())!;
-        expect(box.x).toBeGreaterThanOrEqual(0);
-        expect(box.x + box.width).toBeLessThanOrEqual(width);
-        expect(box.y).toBeGreaterThanOrEqual(row!.y);
-        expect(box.y + box.height).toBeLessThanOrEqual(row!.y + row!.height);
-        expect(await control.evaluate((node) => {
-          const rect = node.getBoundingClientRect();
-          return node.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
-        })).toBe(true);
-      }
-      await info.attach("map-header-and-toolbar", { body: await page.screenshot(), contentType: "image/png" });
-      await info.attach("map-geometry", { body: JSON.stringify({ width, signedIn, header: row, toolbar: tools }), contentType: "application/json" });
-    });
-  }
+// The pre-deploy check of 7 Nov 2026 found the floating map bar still wrapped
+// from 1280px when signed in with a Pal name of seven letters or more (the
+// search bar dropped 56px), so the wide band runs with "Maximilian" and with
+// the widest ten-letter name the Pal door allows.
+const MAP_CASES: { width: number; signedIn: boolean; palName?: string }[] = [
+  ...[1024, 1100, 1180].flatMap((width) => [false, true].map((signedIn) => ({ width, signedIn }))),
+  ...[1280, 1440, 1920].flatMap((width) =>
+    ["Maximilian", "WWWWWWWWWW"].map((palName) => ({ width, signedIn: true, palName }))),
+];
+for (const { width, signedIn, palName } of MAP_CASES) {
+  test(`map navigation and toolbar stay separate at ${width}px, ${signedIn ? `signed in${palName ? ` with Pal ${palName}` : ""}` : "signed out"}`, async ({ page }, info) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 900 });
+    await prepare(page, signedIn, palName);
+    await installDeterministicMapBasemap(page);
+    await page.goto("/map");
+    await expectMapLoadingFrameReleased(page);
+    await page.evaluate(() => document.fonts.ready);
+    const header = page.locator(".siteNavBar");
+    if (signedIn) await expect(header.getByRole("button", { name: /Account options/ })).toBeVisible();
+    const toolbar = page.locator(".mapToolbar");
+    await expect(toolbar).toBeVisible();
+    // The shot is taken before the checks, so a failing run keeps its evidence.
+    await info.attach("map-header-and-toolbar", { body: await page.screenshot(), contentType: "image/png" });
+    const row = await header.boundingBox();
+    const tools = await toolbar.boundingBox();
+    expect(row!.height).toBeLessThanOrEqual(66);
+    expect(tools!.y).toBeGreaterThanOrEqual(row!.y + row!.height);
+    expect(tools!.y).toBeLessThan(row!.y + row!.height + 40);
+    const controls = header.locator("a:visible, button:visible");
+    for (const control of await controls.all()) {
+      const box = (await control.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      expect(box.y).toBeGreaterThanOrEqual(row!.y);
+      expect(box.y + box.height).toBeLessThanOrEqual(row!.y + row!.height);
+      expect(await control.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        return node.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+      })).toBe(true);
+    }
+    await info.attach("map-geometry", { body: JSON.stringify({ width, signedIn, palName, header: row, toolbar: tools }), contentType: "application/json" });
+  });
 }
 
 // Compact controls must still answer mouse and keyboard input. Exercise both
