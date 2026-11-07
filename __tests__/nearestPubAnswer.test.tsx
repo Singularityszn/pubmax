@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import NearMeNow, { type NearMeNowProps } from "@/components/nearme/NearMeNow";
 import type { PricedPoint } from "@/lib/nearMeAnswer";
-import { readRememberedArea } from "@/lib/nightPatches";
+import { readRememberedArea, writeRememberedArea } from "@/lib/nightPatches";
 
 const boundary = vi.hoisted(() => ({
   pathname: "/near", push: vi.fn(), replace: vi.fn(), slim: vi.fn(), track: vi.fn(),
@@ -188,12 +188,89 @@ describe("nearest pub beside listed pint prices", () => {
     expect(boundary.slim).not.toHaveBeenCalled();
   });
 
-  it("keeps one answer when the map re-renders with the same supplied list", async () => {
-    const venues = [...VENUES];
-    await render({ venues });
-    const first = nearest();
-    await render({ venues });
-    expect(nearest()).toBe(first);
+  it("refreshes both results at the updated location instead of the supplied starting location", async () => {
+    const far = { lat: 51.539, lng: -0.1426 };
+    const locals: PricedPoint[] = Array.from({ length: 3 }, (_, index) => ({
+      id: `moved-local-${index}`, name: `Updated Location Pub ${index + 1}`,
+      lat: far.lat + index * 0.0001, lng: far.lng,
+      cheapestPrice: 4 + index, borough: "Camden", ...EVIDENCE,
+    }));
+    await render();
+    act(() => button("Update location").click());
+    await act(async () => completeFix(0, far));
+    await render({ venues: [...VENUES, ...locals] });
+    expect(nearest().textContent).toContain("Updated Location Pub");
+    expect(host.querySelector(".nmnList")?.textContent).toContain("Updated Location Pub");
+    expect(host.querySelector(".nmnList")?.textContent).not.toContain("The Expensive Pub");
+    expect(locations).toHaveLength(1);
+    expect(boundary.slim).not.toHaveBeenCalled();
+  });
+
+  it.each(["patch", "borough"] as const)("refreshes a chosen %s without restoring the supplied location", async (area) => {
+    await render();
+    act(() => button("Update location").click());
+    await act(async () => failFix(0, "denied"));
+    await act(async () => button("Change area").click());
+    if (area === "borough") await act(async () => button("More areas").click());
+    await act(async () => button(area === "patch" ? "Camden" : "Westminster").click());
+    const headline = host.querySelector(".nmnHead h2")?.textContent;
+    expect(headline).toContain(area === "patch" ? "Camden" : "Westminster");
+    const replacements: PricedPoint[] = Array.from({ length: 3 }, (_, index) => ({
+      id: `replacement-${index}`, name: `New Area Pub ${index + 1}`,
+      lat: (area === "patch" ? 51.539 : HERE.lat) + index * 0.0001,
+      lng: area === "patch" ? -0.1426 : HERE.lng,
+      cheapestPrice: 4 + index, borough: area === "patch" ? "Camden" : "Westminster", ...EVIDENCE,
+    }));
+    await render({ venues: area === "patch" ? [...VENUES, ...replacements] : replacements });
+    expect(nearestRegion()).toBeNull();
+    expect(host.querySelector(".nmnHead h2")?.textContent).toBe(headline);
+    expect(host.querySelector(".nmnList")?.textContent).toContain("New Area Pub");
+    expect(host.querySelector(".nmnList")?.textContent).not.toContain("The Expensive Pub");
+    expect(locations).toHaveLength(1);
+    expect(readRememberedArea()).toEqual(area === "patch"
+      ? { kind: "patch", id: "camden" }
+      : { kind: "borough", name: "Westminster" });
+  });
+
+  it.each(["denied", "unavailable"] as const)("keeps a %s fallback area and omits walking claims after venues change", async (outcome) => {
+    writeRememberedArea({ kind: "patch", id: "soho" });
+    await render();
+    act(() => button("Update location").click());
+    await act(async () => failFix(0, outcome));
+    const headline = host.querySelector(".nmnHead h2")?.textContent;
+    const reason = host.querySelector(".nmnSub")?.textContent;
+    expect(headline).toContain("Soho");
+    expect(reason).toContain(outcome === "denied" ? "Location's off" : "No location on this device");
+    const replacement = { ...VENUES[0]!, id: "replacement", name: "New Fallback Pub" };
+    await render({ venues: [replacement] });
+    expect(host.querySelector(".nmnHead h2")?.textContent).toBe(headline);
+    expect(host.querySelector(".nmnList")?.textContent).toContain("New Fallback Pub");
+    expect(host.querySelector(".nmnSub")?.textContent).toBe(reason);
+    expect(host.querySelector(".nmnList")?.textContent).not.toContain("min");
+    expect(nearestRegion()).toBeNull();
+    expect(locations).toHaveLength(1);
+    expect(readRememberedArea()).toEqual({ kind: "patch", id: "soho" });
+  });
+
+  it("refreshes an outside-coverage location into a priced answer", async () => {
+    const unpriced = VENUES.filter((venue) => venue.id === "unpriced");
+    await render({ venues: unpriced });
+    expect(host.textContent).toContain("We don't have priced pubs right where you are yet.");
+    await render({ venues: [...VENUES] });
+    expect(nearest().textContent).toContain("The Nearest Local");
+    expect(host.querySelector(".nmnList")?.textContent).toContain("The Expensive Pub");
+    expect(host.textContent).not.toContain("We don't have priced pubs right where you are yet.");
+    expect(locations).toHaveLength(0);
+  });
+
+  it("keeps a pending location request when supplied venues change", async () => {
+    await render();
+    act(() => button("Update location").click());
+    await render({ venues: VENUES.filter((venue) => venue.id !== "unpriced") });
+    expect(nearestRegion()).toBeNull();
+    expect(locations).toHaveLength(1);
+    await act(async () => completeFix(0, MOVED));
+    expect(nearest().textContent).toContain("The Other Pub");
   });
 
   it("restores a located nearest result when the reader retries location from an area answer", async () => {
