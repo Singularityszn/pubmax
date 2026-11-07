@@ -1,0 +1,351 @@
+"use client";
+
+// The safety queues (launch plan P0 item 6, migration 0223): open Social
+// reports, including "Report this person", and flagged DMs. A moderator can
+// close a report, mark a DM reviewed, or suspend the person, which writes an
+// audit row with the reason in the same transaction. This lane fetches and
+// decides for itself through /api/admin/social-safety, on the same admin
+// session as the console.
+
+import { useCallback, useEffect, useState } from "react";
+
+import { displayHandle } from "@/lib/handleDisplay";
+import { discardBody } from "@/lib/responseBody";
+import {
+  parseSafetyQueues,
+  SOCIAL_REPORT_REASON_LABELS,
+  SUSPEND_REASON_MAX,
+  SUSPEND_REASON_MIN,
+  type AccountState,
+  type FlaggedMessageItem,
+  type SafetyQueues,
+  type SafetyReportItem,
+} from "@/lib/socialSafetyModeration";
+
+type LoadState = "loading" | "ready" | "unavailable";
+
+const SESSION_FETCH: RequestInit = { credentials: "include" };
+const ENDPOINT = "/api/admin/social-safety";
+
+const KIND_LABEL: Record<SafetyReportItem["kind"], string> = {
+  post: "Post",
+  comment: "Comment",
+  quote: "Quote",
+  profile: "Person",
+};
+
+type SuspendTarget = {
+  key: string;
+  profileId: string;
+  handle: string;
+  state: AccountState;
+  reportId: string | null;
+  suggestedReason: string;
+};
+
+/** "Sat 7 Nov, 17:40" in London time. */
+function when(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/London",
+  }).format(new Date(iso));
+}
+
+function SuspendControl({
+  target,
+  busy,
+  onSubmit,
+}: {
+  target: SuspendTarget;
+  busy: boolean;
+  onSubmit: (target: SuspendTarget, reason: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState(target.suggestedReason);
+  const suspending = target.state === "active";
+  const verb = suspending ? "Suspend" : "Reinstate";
+  const trimmed = reason.trim();
+  const valid = trimmed.length >= SUSPEND_REASON_MIN && trimmed.length <= SUSPEND_REASON_MAX;
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className={`admin-btn ${suspending ? "admin-keep" : "admin-restore"}`}
+        disabled={busy}
+        onClick={() => setOpen(true)}
+      >
+        {`${verb} ${displayHandle(target.handle)}`}
+      </button>
+    );
+  }
+  return (
+    <form
+      className="admin-suspend"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (valid) onSubmit(target, trimmed);
+      }}
+    >
+      <label className="admin-field">
+        {`Why ${suspending ? "suspend" : "reinstate"} ${displayHandle(target.handle)}? The audit log keeps this.`}
+        <textarea
+          value={reason}
+          maxLength={SUSPEND_REASON_MAX}
+          rows={2}
+          onChange={(event) => setReason(event.target.value)}
+        />
+      </label>
+      <div className="admin-actions">
+        <button
+          type="submit"
+          className={`admin-btn ${suspending ? "admin-keep" : "admin-restore"}`}
+          disabled={busy || !valid}
+        >
+          {busy ? "Saving…" : `Yes, ${verb.toLowerCase()}`}
+        </button>
+        <button type="button" className="admin-btn" disabled={busy} onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function AccountBadge({ state }: { state: AccountState | null }) {
+  if (state === "suspended") return <span className="admin-report">Suspended</span>;
+  if (state === null) return <span>No Social account</span>;
+  return null;
+}
+
+export default function SocialSafetyModeration() {
+  const [queues, setQueues] = useState<SafetyQueues>({ reports: [], flaggedMessages: [] });
+  const [state, setState] = useState<LoadState>("loading");
+  const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch(ENDPOINT, SESSION_FETCH);
+      if (!response.ok) {
+        discardBody(response);
+        setState("unavailable");
+        return;
+      }
+      const parsed = parseSafetyQueues(await response.json());
+      if (!parsed) {
+        setState("unavailable");
+        return;
+      }
+      setQueues(parsed);
+      setState("ready");
+    } catch {
+      setState("unavailable");
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(load);
+  }, [load]);
+
+  async function post(key: string, payload: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+    setPending(key);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch(ENDPOINT, {
+        ...SESSION_FETCH,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!response.ok) {
+        setError(typeof body?.error === "string" ? body.error : "That decision did not save. Try again.");
+        return null;
+      }
+      return body ?? {};
+    } catch {
+      setError("That decision did not save. Try again.");
+      return null;
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function resolveReport(reportId: string) {
+    if (await post(reportId, { action: "resolve_report", reportId })) {
+      setQueues((current) => ({
+        ...current,
+        reports: current.reports.filter((report) => report.reportId !== reportId),
+      }));
+    }
+  }
+
+  async function reviewMessage(messageId: string) {
+    if (await post(messageId, { action: "review_message", messageId })) {
+      setQueues((current) => ({
+        ...current,
+        flaggedMessages: current.flaggedMessages.filter((message) => message.messageId !== messageId),
+      }));
+    }
+  }
+
+  async function setSuspension(target: SuspendTarget, reason: string) {
+    const action = target.state === "active" ? "suspend" : "reinstate";
+    const body = await post(target.key, {
+      action,
+      profileId: target.profileId,
+      reason,
+      reportId: target.reportId,
+    });
+    if (!body) return;
+    const next: AccountState = action === "suspend" ? "suspended" : "active";
+    setNotice(
+      body.code === "unchanged"
+        ? `${displayHandle(target.handle)} was already ${next}.`
+        : `${displayHandle(target.handle)} is ${next}. The audit log has the reason.`,
+    );
+    setQueues((current) => ({
+      reports: current.reports.map((report) =>
+        report.targetProfileId === target.profileId ? { ...report, targetAccountState: next } : report),
+      flaggedMessages: current.flaggedMessages.map((message) =>
+        message.senderProfileId === target.profileId ? { ...message, senderAccountState: next } : message),
+    }));
+  }
+
+  function reportTarget(report: SafetyReportItem): SuspendTarget | null {
+    if (!report.targetProfileId || !report.targetHandle || !report.targetAccountState) return null;
+    return {
+      key: `report:${report.reportId}`,
+      profileId: report.targetProfileId,
+      handle: report.targetHandle,
+      state: report.targetAccountState,
+      reportId: report.reportId,
+      suggestedReason: `Report: ${SOCIAL_REPORT_REASON_LABELS[report.reason].toLowerCase()}`,
+    };
+  }
+
+  function messageTarget(message: FlaggedMessageItem): SuspendTarget | null {
+    if (!message.senderProfileId || !message.senderAccountState) return null;
+    return {
+      key: `message:${message.messageId}`,
+      profileId: message.senderProfileId,
+      handle: message.senderHandle,
+      state: message.senderAccountState,
+      reportId: null,
+      suggestedReason: "Flagged DM",
+    };
+  }
+
+  const busy = pending !== null;
+
+  return (
+    <>
+      <h2 className="admin-section">Reports from people</h2>
+      {state === "loading" ? <div className="admin-empty" role="status">Loading reports…</div> : null}
+      {state === "unavailable" ? (
+        <div className="admin-empty" role="alert">
+          <span>Reports and flagged DMs could not be loaded.</span>
+          <button type="button" className="admin-retry" onClick={() => { setState("loading"); void load(); }}>Try again</button>
+        </div>
+      ) : null}
+      {error ? <p className="admin-msg" role="alert">{error}</p> : null}
+      {notice ? <p className="admin-msg" role="status">{notice}</p> : null}
+      {state === "ready" && queues.reports.length === 0 ? (
+        <div className="admin-empty"><strong>No open reports</strong></div>
+      ) : null}
+      {state === "ready" && queues.reports.length > 0 ? (
+        <div className="admin-list">
+          {queues.reports.map((report) => {
+            const target = reportTarget(report);
+            return (
+              <article className="admin-card" key={report.reportId}>
+                <div className="admin-card-head">
+                  <span className="admin-handle">
+                    {report.targetHandle ? displayHandle(report.targetHandle) : "Content has gone"}
+                  </span>
+                  <span className="admin-report">{SOCIAL_REPORT_REASON_LABELS[report.reason]}</span>
+                </div>
+                {report.excerpt ? <p className="admin-excerpt">{report.excerpt}</p> : null}
+                <div className="admin-meta">
+                  <span>{KIND_LABEL[report.kind]}</span>
+                  <span>Reported by {displayHandle(report.reporterHandle)}</span>
+                  <span><time dateTime={report.createdAt}>{when(report.createdAt)}</time></span>
+                  <AccountBadge state={report.targetAccountState} />
+                </div>
+                <div className="admin-actions">
+                  <button
+                    type="button"
+                    className="admin-btn"
+                    disabled={busy}
+                    onClick={() => void resolveReport(report.reportId)}
+                  >
+                    {pending === report.reportId ? "Saving…" : "Close report"}
+                  </button>
+                  {target ? (
+                    <SuspendControl
+                      key={`${target.key}:${target.state}`}
+                      target={target}
+                      busy={busy}
+                      onSubmit={(value, reason) => void setSuspension(value, reason)}
+                    />
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <h2 className="admin-section">Flagged DMs</h2>
+      {state === "ready" && queues.flaggedMessages.length === 0 ? (
+        <div className="admin-empty"><strong>No flagged DMs to review</strong></div>
+      ) : null}
+      {state === "ready" && queues.flaggedMessages.length > 0 ? (
+        <div className="admin-list">
+          {queues.flaggedMessages.map((message) => {
+            const target = messageTarget(message);
+            return (
+              <article className="admin-card" key={message.messageId}>
+                <div className="admin-card-head">
+                  <span className="admin-handle">From {displayHandle(message.senderHandle)}</span>
+                  <span className="admin-report">Flagged</span>
+                </div>
+                <p className="admin-excerpt">{message.body || "A photo or poll with no text"}</p>
+                <div className="admin-meta">
+                  {message.flaggedBy ? <span>Flagged by {displayHandle(message.flaggedBy)}</span> : null}
+                  <span>Sent <time dateTime={message.sentAt}>{when(message.sentAt)}</time></span>
+                  <AccountBadge state={message.senderAccountState} />
+                </div>
+                <div className="admin-actions">
+                  <button
+                    type="button"
+                    className="admin-btn"
+                    disabled={busy}
+                    onClick={() => void reviewMessage(message.messageId)}
+                  >
+                    {pending === message.messageId ? "Saving…" : "Mark reviewed"}
+                  </button>
+                  {target ? (
+                    <SuspendControl
+                      key={`${target.key}:${target.state}`}
+                      target={target}
+                      busy={busy}
+                      onSubmit={(value, reason) => void setSuspension(value, reason)}
+                    />
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+    </>
+  );
+}

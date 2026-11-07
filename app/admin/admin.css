@@ -229,7 +229,13 @@
 
 .admin-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/* A label stays on one line; a narrow screen wraps the row, not the words. */
+.admin-actions .admin-btn {
+  white-space: nowrap;
 }
 
 .admin-restore {
@@ -393,4 +399,20 @@
   max-height: 480px;
   border-radius: var(--radius);
   background: var(--panel);
+}
+
+/* Safety queues (0223): the reported words, kept whole and readable, and the
+   reason form a suspend asks for before it saves. */
+.admin-excerpt {
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-suspend {
+  display: grid;
+  gap: 0.5rem;
+  flex-basis: 100%;
 }

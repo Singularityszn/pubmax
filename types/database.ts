@@ -901,6 +901,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      message_flag_reviews: {
+        Row: {
+          message_id: string;
+          staff_role_id: string | null;
+          reviewed_at: string;
+        };
+        Insert: {
+          message_id: string;
+          staff_role_id?: string | null;
+          reviewed_at?: string;
+        };
+        Update: {
+          message_id?: string;
+          staff_role_id?: string | null;
+          reviewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "message_flag_reviews_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: true;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "message_flag_reviews_staff_role_id_fkey";
+            columns: ["staff_role_id"];
+            isOneToOne: false;
+            referencedRelation: "private_social_staff_roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       message_poll_votes: {
         Row: {
           message_id: string;
@@ -4419,6 +4452,57 @@ export type Database = {
             columns: ["profile_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      social_account_moderation_audit: {
+        Row: {
+          id: string;
+          social_account_id: string;
+          profile_handle: string;
+          action: string;
+          reason: string;
+          staff_role_id: string | null;
+          staff_display_name: string;
+          report_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          social_account_id: string;
+          profile_handle: string;
+          action: string;
+          reason: string;
+          staff_role_id?: string | null;
+          staff_display_name: string;
+          report_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          social_account_id?: string;
+          profile_handle?: string;
+          action?: string;
+          reason?: string;
+          staff_role_id?: string | null;
+          staff_display_name?: string;
+          report_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_account_moderation_audit_report_id_fkey";
+            columns: ["report_id"];
+            isOneToOne: false;
+            referencedRelation: "social_content_reports";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_account_moderation_audit_staff_role_id_fkey";
+            columns: ["staff_role_id"];
+            isOneToOne: false;
+            referencedRelation: "private_social_staff_roles";
             referencedColumns: ["id"];
           },
         ];
@@ -8207,6 +8291,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      read_flagged_messages_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
       read_held_social_post_videos: {
         Args: {
           p_limit: number | null;
@@ -8616,6 +8707,13 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      read_social_report_queue_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
       read_social_saves: {
         Args: {
           p_viewer: string | null;
@@ -8981,6 +9079,20 @@ export type Database = {
         };
         Returns: boolean;
       };
+      resolve_social_report_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_report_id: string | null;
+        };
+        Returns: boolean;
+      };
+      review_flagged_message_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_message_id: string | null;
+        };
+        Returns: boolean;
+      };
       review_social_post_video: {
         Args: {
           p_post_id: string | null;
@@ -9003,6 +9115,16 @@ export type Database = {
           p_invitation_id: string | null;
           p_idempotency_key: string | null;
           p_payload_digest: string | null;
+        };
+        Returns: Json;
+      };
+      set_social_account_suspension_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_profile_id: string | null;
+          p_action: string | null;
+          p_reason: string | null;
+          p_report_id: string | null;
         };
         Returns: Json;
       };

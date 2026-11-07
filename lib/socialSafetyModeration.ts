@@ -1,0 +1,237 @@
+// The admin safety queues (launch plan P0 item 6): open Social reports,
+// flagged DMs, and an audited suspend. A pure leaf: the store, the admin route
+// and the admin console all read their shapes and their input rules here.
+//
+// The database is the authority (migration 0223): every function checks an
+// active moderator staff role, and every suspend or reinstate writes one audit
+// row in the same transaction. This file only decides what a well-formed
+// answer and a well-formed request look like.
+
+export const SAFETY_QUEUE_LIMIT = 50;
+export const SUSPEND_REASON_MIN = 3;
+export const SUSPEND_REASON_MAX = 500;
+
+const SOCIAL_REPORT_KINDS = ["post", "comment", "quote", "profile"] as const;
+type SocialReportKind = (typeof SOCIAL_REPORT_KINDS)[number];
+
+export const SOCIAL_REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "other"] as const;
+export type SocialReportReason = (typeof SOCIAL_REPORT_REASONS)[number];
+
+export const SOCIAL_REPORT_REASON_LABELS: Record<SocialReportReason, string> = {
+  harassment: "Harassment",
+  hate: "Hate",
+  threat: "A threat",
+  doxxing: "Shares private details",
+  spam: "Spam",
+  other: "Something else",
+};
+
+export type AccountState = "active" | "suspended";
+
+export type SafetyReportItem = {
+  reportId: string;
+  kind: SocialReportKind;
+  contentId: string;
+  reason: SocialReportReason;
+  createdAt: string;
+  reporterHandle: string;
+  /** The person the report is about, or null when their content has gone. */
+  targetProfileId: string | null;
+  targetHandle: string | null;
+  /** Null when the person has no Social account to suspend. */
+  targetAccountState: AccountState | null;
+  /** Up to 280 characters of the reported text. Null for a person report. */
+  excerpt: string | null;
+};
+
+export type FlaggedMessageItem = {
+  messageId: string;
+  conversationId: string;
+  body: string;
+  senderHandle: string;
+  senderProfileId: string | null;
+  senderAccountState: AccountState | null;
+  flaggedBy: string | null;
+  flaggedAt: string;
+  sentAt: string;
+};
+
+export type SafetyQueues = {
+  reports: SafetyReportItem[];
+  flaggedMessages: FlaggedMessageItem[];
+};
+
+export type SafetyModerationAction =
+  | { action: "resolve_report"; reportId: string }
+  | { action: "review_message"; messageId: string }
+  | {
+      action: "suspend" | "reinstate";
+      profileId: string;
+      reason: string;
+      reportId: string | null;
+    };
+
+export type SuspensionOutcome = {
+  code: "suspended" | "reinstated" | "unchanged" | "invalid" | "not_found" | "gone";
+  state: AccountState | null;
+};
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID.test(value);
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function text(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function nullableText(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  return typeof value === "string" ? value : undefined;
+}
+
+function accountState(value: unknown): AccountState | null | undefined {
+  if (value === null) return null;
+  return value === "active" || value === "suspended" ? value : undefined;
+}
+
+function isoTime(value: unknown): value is string {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function parseReport(value: unknown): SafetyReportItem | null {
+  const row = record(value);
+  if (!row) return null;
+  const targetProfileId = row.targetProfileId === null ? null : isUuid(row.targetProfileId) ? row.targetProfileId : undefined;
+  const targetHandle = nullableText(row.targetHandle);
+  const targetAccountState = accountState(row.targetAccountState);
+  const excerpt = nullableText(row.excerpt);
+  if (
+    !isUuid(row.reportId) ||
+    !SOCIAL_REPORT_KINDS.includes(row.kind as SocialReportKind) ||
+    !isUuid(row.contentId) ||
+    !SOCIAL_REPORT_REASONS.includes(row.reason as SocialReportReason) ||
+    !isoTime(row.createdAt) ||
+    !text(row.reporterHandle) ||
+    targetProfileId === undefined ||
+    targetHandle === undefined ||
+    targetAccountState === undefined ||
+    excerpt === undefined
+  ) {
+    return null;
+  }
+  return {
+    reportId: row.reportId,
+    kind: row.kind as SocialReportKind,
+    contentId: row.contentId,
+    reason: row.reason as SocialReportReason,
+    createdAt: row.createdAt,
+    reporterHandle: row.reporterHandle,
+    targetProfileId,
+    targetHandle,
+    targetAccountState,
+    excerpt,
+  };
+}
+
+function parseFlaggedMessage(value: unknown): FlaggedMessageItem | null {
+  const row = record(value);
+  if (!row) return null;
+  const senderProfileId = row.senderProfileId === null ? null : isUuid(row.senderProfileId) ? row.senderProfileId : undefined;
+  const senderAccountState = accountState(row.senderAccountState);
+  const flaggedBy = nullableText(row.flaggedBy);
+  if (
+    !isUuid(row.messageId) ||
+    !isUuid(row.conversationId) ||
+    typeof row.body !== "string" ||
+    !text(row.senderHandle) ||
+    senderProfileId === undefined ||
+    senderAccountState === undefined ||
+    flaggedBy === undefined ||
+    !isoTime(row.flaggedAt) ||
+    !isoTime(row.sentAt)
+  ) {
+    return null;
+  }
+  return {
+    messageId: row.messageId,
+    conversationId: row.conversationId,
+    body: row.body,
+    senderHandle: row.senderHandle,
+    senderProfileId,
+    senderAccountState,
+    flaggedBy,
+    flaggedAt: row.flaggedAt,
+    sentAt: row.sentAt,
+  };
+}
+
+function parseList<T>(value: unknown, parse: (row: unknown) => T | null): T[] | null {
+  if (!Array.isArray(value) || value.length > SAFETY_QUEUE_LIMIT) return null;
+  const rows: T[] = [];
+  for (const item of value) {
+    const parsed = parse(item);
+    if (!parsed) return null;
+    rows.push(parsed);
+  }
+  return rows;
+}
+
+export function parseSafetyReports(value: unknown): SafetyReportItem[] | null {
+  return parseList(value, parseReport);
+}
+
+export function parseFlaggedMessages(value: unknown): FlaggedMessageItem[] | null {
+  return parseList(value, parseFlaggedMessage);
+}
+
+export function parseSafetyQueues(value: unknown): SafetyQueues | null {
+  const row = record(value);
+  if (!row) return null;
+  const reports = parseSafetyReports(row.reports);
+  const flaggedMessages = parseFlaggedMessages(row.flaggedMessages);
+  return reports && flaggedMessages ? { reports, flaggedMessages } : null;
+}
+
+/** A moderator's request, or null. Exact keys only, so nothing rides along. */
+export function parseSafetyModerationAction(value: unknown): SafetyModerationAction | null {
+  const row = record(value);
+  if (!row) return null;
+  const keys = Object.keys(row).sort().join(",");
+  if (row.action === "resolve_report") {
+    return keys === "action,reportId" && isUuid(row.reportId)
+      ? { action: "resolve_report", reportId: row.reportId }
+      : null;
+  }
+  if (row.action === "review_message") {
+    return keys === "action,messageId" && isUuid(row.messageId)
+      ? { action: "review_message", messageId: row.messageId }
+      : null;
+  }
+  if (row.action === "suspend" || row.action === "reinstate") {
+    if (keys !== "action,profileId,reason,reportId" || !isUuid(row.profileId)) return null;
+    if (typeof row.reason !== "string") return null;
+    const reason = row.reason.trim();
+    if (reason.length < SUSPEND_REASON_MIN || reason.length > SUSPEND_REASON_MAX) return null;
+    if (row.reportId !== null && !isUuid(row.reportId)) return null;
+    return { action: row.action, profileId: row.profileId, reason, reportId: row.reportId as string | null };
+  }
+  return null;
+}
+
+export function parseSuspensionOutcome(value: unknown): SuspensionOutcome | null {
+  const row = record(value);
+  if (!row || typeof row.code !== "string") return null;
+  const codes: SuspensionOutcome["code"][] = ["suspended", "reinstated", "unchanged", "invalid", "not_found", "gone"];
+  if (!codes.includes(row.code as SuspensionOutcome["code"])) return null;
+  const state = row.state === undefined ? null : accountState(row.state);
+  if (state === undefined) return null;
+  return { code: row.code as SuspensionOutcome["code"], state };
+}
