@@ -53,7 +53,7 @@ function clean(value: unknown, cap: number): string {
 
 type PresenceStore = {
   mark(input: PresenceInput, now?: number): Promise<void>;
-  recent(venueId?: string, now?: number): Promise<PresenceDTO[]>;
+  recent(venueId?: string, now?: number, handles?: readonly string[]): Promise<PresenceDTO[]>;
 };
 
 // Enrich a raw (handle, venueId, at) row into a public DTO with the pub name +
@@ -104,11 +104,13 @@ function memoryMark(input: PresenceInput, now: number): void {
 function memoryRecent(
   venueIds: readonly string[] | undefined,
   now: number,
+  handles?: readonly string[],
 ): { handle: string; venueId: string; at: string }[] {
   const live: { handle: string; venueId: string; expiresAt: number }[] = [];
   for (const row of memoryRows.values()) {
     if (row.expiresAt <= now) continue;
     if (venueIds && !venueIds.includes(row.venueId)) continue;
+    if (handles && !handles.includes(row.handle)) continue;
     live.push({ handle: row.handle, venueId: row.venueId, expiresAt: row.expiresAt });
   }
   // Newest-first: a fresher mark has a later expiry (created_at + fixed TTL), so
@@ -127,11 +129,11 @@ const memoryPresenceStore: PresenceStore = {
   async mark(input, now = Date.now()) {
     memoryMark(input, now);
   },
-  async recent(venueId, now = Date.now()) {
+  async recent(venueId, now = Date.now(), handles) {
     const scoped = venueId ? clean(venueId, MAX_VENUE_ID) : undefined;
     try {
       return await enrich(
-        memoryRecent(scoped ? await storedVenueIds(scoped) : undefined, now),
+        memoryRecent(scoped ? await storedVenueIds(scoped) : undefined, now, handles),
       );
     } catch (err) {
       console.warn(
@@ -175,7 +177,8 @@ const supabasePresenceStore: PresenceStore = {
     }
   },
 
-  async recent(venueId, now = Date.now()) {
+  async recent(venueId, now = Date.now(), handles) {
+    if (handles?.length === 0) return [];
     const scoped = venueId ? clean(venueId, MAX_VENUE_ID) : undefined;
     try {
       // Public read: non-expired only (mirrors the RLS `expires_at > now()`),
@@ -187,6 +190,7 @@ const supabasePresenceStore: PresenceStore = {
         .order("created_at", { ascending: false })
         .limit(MAX_PRESENCE);
       if (scoped) query = whereVenueIdIn(query, await storedVenueIds(scoped));
+      if (handles) query = query.in("handle", [...handles]);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
       const rows = ((data ?? []) as { handle: string; venue_id: string; created_at: string }[]).map(
@@ -231,8 +235,9 @@ export async function markPresence(input: PresenceInput, now = Date.now()): Prom
 export async function recentPresence(
   venueId?: string,
   now = Date.now(),
+  handles?: readonly string[],
 ): Promise<PresenceDTO[]> {
-  return presenceStore().recent(venueId, now);
+  return presenceStore().recent(venueId, now, handles);
 }
 
 /**
@@ -249,8 +254,9 @@ export async function recentPresence(
 export async function recentPresenceWithAmbient(
   venueId?: string,
   now = Date.now(),
+  handles?: readonly string[],
 ): Promise<PresenceDTO[]> {
-  const real = await recentPresence(venueId, now);
+  const real = await recentPresence(venueId, now, handles);
   if (isSupabaseConfigured()) return real;
 
   try {

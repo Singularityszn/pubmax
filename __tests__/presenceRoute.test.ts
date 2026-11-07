@@ -18,7 +18,7 @@ vi.mock("@/lib/socialAccessServer", () => ({
 import { GET } from "@/app/api/presence/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import type { PresenceDTO } from "@/lib/presence";
-import { presenceVisibleToViewer } from "@/lib/presenceAudience.server";
+import { presenceHandlesForViewer } from "@/lib/presenceAudience.server";
 import { __resetPresence, markPresence } from "@/lib/presenceStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { clearSocialMemoryBlocks, setSocialMemoryBlock } from "@/lib/socialBlockMemory";
@@ -123,26 +123,48 @@ describe("GET /api/presence", () => {
     await here("unlinked_p0");
     expect(await readHandles()).toEqual([]);
   });
+
+  it.each(["/api/presence", `/api/presence?venueId=${VENUE}`])(
+    "keeps older self and mate rows behind 45 newer strangers at %s",
+    async (path) => {
+      const now = Date.now();
+      __seedMemoryOwnedProfile("mate_ann_p0", "user-ann");
+      await mutual("mate_ann_p0");
+      for (const handle of [ME, "mate_ann_p0"]) {
+        await markPresence({ handle, venueId: VENUE, actorHash: handle }, now - 60_000);
+      }
+      for (let i = 0; i < 45; i += 1) {
+        const handle = `stranger_${i}`;
+        await markPresence({ handle, venueId: VENUE, actorHash: handle }, now - i);
+      }
+
+      expect(await readHandles(path)).toEqual(["mate_ann_p0", ME].sort());
+    },
+  );
+
+  it("does not let blocked mutuals consume the audience limit", async () => {
+    const now = Date.now();
+    await markPresence({ handle: ME, venueId: VENUE, actorHash: ME }, now - 60_000);
+    for (let i = 0; i < 45; i += 1) {
+      const handle = `blocked_${i}`;
+      const profile = __seedMemoryOwnedProfile(handle, `user-${handle}`);
+      await mutual(handle);
+      setSocialMemoryBlock(me.id, profile.id, true);
+      await markPresence({ handle, venueId: VENUE, actorHash: handle }, now - i);
+    }
+    expect(await readHandles()).toEqual([ME]);
+  });
 });
 
-describe("presenceVisibleToViewer", () => {
+describe("presenceHandlesForViewer", () => {
   const viewer = { profileId: "profile-me", handle: ME };
-  const row = (handle: string, extra: Partial<PresenceDTO> = {}): PresenceDTO => ({
-    handle,
-    venueId: VENUE,
-    venueName: "The Sir Christopher Hatton",
-    venueMapUrl: `/map?sel=${VENUE}`,
-    at: "2026-11-07T19:00:00.000Z",
-    ...extra,
-  });
 
-  it("keeps seeded demo rows, which name nobody real, and keeps order", async () => {
-    const rows = [row("demo_one", { provenance: "demo" }), row("mate_ann_p0"), row("stranger_p0")];
-    const visible = await presenceVisibleToViewer(viewer, rows, {
+  it("allows only self and verified mutual handles", async () => {
+    const handles = await presenceHandlesForViewer(viewer, {
       listMutuals: async () => ["@Mate_Ann_p0"],
       isLiveMutual: async () => true,
     });
-    expect(visible.map((entry) => entry.handle)).toEqual(["demo_one", "mate_ann_p0"]);
+    expect(handles).toEqual([ME, "mate_ann_p0"]);
   });
 
   it("asks each mate's live check once, and fails closed when it throws", async () => {
@@ -150,19 +172,16 @@ describe("presenceVisibleToViewer", () => {
       if (handle === "mate_bo_p0") throw new Error("relationship store down");
       return true;
     });
-    const visible = await presenceVisibleToViewer(
+    const handles = await presenceHandlesForViewer(
       viewer,
-      [row("mate_ann_p0"), row("mate_ann_p0", { venueId: "venue-other" }), row("mate_bo_p0")],
-      { listMutuals: async () => ["mate_ann_p0", "mate_bo_p0"], isLiveMutual },
+      { listMutuals: async () => ["mate_ann_p0", "@Mate_Ann_p0", "mate_bo_p0", ME], isLiveMutual },
     );
-    expect(visible.map((entry) => entry.handle)).toEqual(["mate_ann_p0", "mate_ann_p0"]);
+    expect(handles).toEqual([ME, "mate_ann_p0"]);
     expect(isLiveMutual).toHaveBeenCalledTimes(2);
   });
 
-  it("does not read the follow graph when the only rows are the viewer's own", async () => {
-    const listMutuals = vi.fn(async () => []);
-    const visible = await presenceVisibleToViewer(viewer, [row(ME)], { listMutuals });
-    expect(visible.map((entry) => entry.handle)).toEqual([ME]);
-    expect(listMutuals).not.toHaveBeenCalled();
+  it("keeps the viewer's own handle when there are no mutuals", async () => {
+    const handles = await presenceHandlesForViewer(viewer, { listMutuals: async () => [] });
+    expect(handles).toEqual([ME]);
   });
 });

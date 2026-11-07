@@ -14,8 +14,10 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 
@@ -37,27 +39,33 @@ type PresenceDTO = {
 // the strip works anywhere; a 0/absent count simply hides the "spilling now"
 // chip. The strip still renders if there's presence OR a live count.
 export default function PresenceStrip({ spillingNow = 0 }: { spillingNow?: number }) {
-  const [presence, setPresence] = useState<PresenceDTO[]>([]);
+  const { accountRevision, identityResolved } = useAuth();
+  const [answer, setAnswer] = useState<{ accountRevision: number; rows: PresenceDTO[] } | null>(null);
+  const presence = answer?.accountRevision === accountRevision ? answer.rows : [];
 
   useEffect(() => {
+    if (readProviderAccountRevision() !== accountRevision) return;
     const controller = new AbortController();
+    const accountSignal = readProviderAccountSignal();
+    const signal = AbortSignal.any([controller.signal, accountSignal]);
+    const live = () => !signal.aborted && readProviderAccountRevision() === accountRevision;
     // Presence is shown to mates only, so the read carries the session. A
     // signed-out reader is answered nothing (or keyless demo rows).
-    authedActionFetch("/api/presence", { signal: controller.signal }, { requiresIdentity: true })
+    authedActionFetch("/api/presence", { signal }, { requiresIdentity: true })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((data: { presence?: PresenceDTO[] }) => {
-        setPresence(Array.isArray(data.presence) ? data.presence : []);
+        if (live()) setAnswer({ accountRevision, rows: Array.isArray(data.presence) ? data.presence : [] });
       })
       .catch((err: unknown) => {
         // Abort is expected on unmount — not an error surface. Any other failure
         // leaves presence empty, so the strip simply doesn't render.
-        if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+        if (!live() || (err instanceof Error && err.name === "AbortError")) {
           return;
         }
-        setPresence([]);
+        setAnswer({ accountRevision, rows: [] });
       });
     return () => controller.abort();
-  }, []);
+  }, [accountRevision, identityResolved]);
 
   // Empty presence AND no live count → render nothing. Never a broken/empty band.
   if (presence.length === 0 && spillingNow <= 0) return null;

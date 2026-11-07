@@ -23,7 +23,7 @@ import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
-import { demoPresenceOnly, presenceVisibleToViewer } from "@/lib/presenceAudience.server";
+import { presenceHandlesForViewer } from "@/lib/presenceAudience.server";
 import { markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -98,12 +98,10 @@ export async function GET(request: Request): Promise<Response> {
   // Any failure past the read, the audience check included, answers nothing:
   // this list fails closed.
   try {
-    const rows = await recentPresenceWithAmbient(venueId || undefined);
     const access = await requireVerifiedSocialActor(request);
-    const visible = access.ok
-      ? await presenceVisibleToViewer(access.actor, rows)
-      : demoPresenceOnly(rows);
-    const presence = await projectPublicAuthors(visible);
+    const handles = access.ok ? await presenceHandlesForViewer(access.actor) : [];
+    const rows = await recentPresenceWithAmbient(venueId || undefined, Date.now(), handles);
+    const presence = await projectPublicAuthors(rows);
     return withAuthResumeCookie(jsonNoStore({ presence }, { status: 200, headers: PRIVATE_NO_STORE }), access.resumeCookie);
   } catch {
     return jsonNoStore({ presence: [] }, { status: 200, headers: PRIVATE_NO_STORE });

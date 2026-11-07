@@ -15,7 +15,6 @@ import "server-only";
 
 import { followStore } from "@/lib/followStore";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
-import type { PresenceDTO } from "@/lib/presence";
 import { isLiveMutual, type MutualViewer } from "@/lib/socialMutual.server";
 
 export type PresenceAudienceDependencies = {
@@ -29,45 +28,17 @@ const defaultDependencies = (): PresenceAudienceDependencies => ({
   isLiveMutual,
 });
 
-/** The demo rows anyone may see: seeded, keyless-only, naming nobody real. */
-export function demoPresenceOnly(rows: readonly PresenceDTO[]): PresenceDTO[] {
-  return rows.filter((row) => row.provenance === "demo");
-}
-
-/**
- * The rows a verified viewer may read: their own, their live mates', and the
- * seeded demo layer. Order is kept. Each person's live-mate answer is asked
- * once per read.
- */
-export async function presenceVisibleToViewer(
+export async function presenceHandlesForViewer(
   viewer: MutualViewer,
-  rows: readonly PresenceDTO[],
   dependencies: Partial<PresenceAudienceDependencies> = {},
-): Promise<PresenceDTO[]> {
+): Promise<string[]> {
   const deps = { ...defaultDependencies(), ...dependencies };
   const self = normalizeViewerHandle(viewer.handle);
-  const real = rows.filter((row) => row.provenance !== "demo");
-  const mutuals =
-    real.some((row) => normalizeViewerHandle(row.handle) !== self)
-      ? new Set((await deps.listMutuals(viewer.handle)).map(normalizeViewerHandle).filter(Boolean))
-      : new Set<string>();
-
-  const verdicts = new Map<string, Promise<boolean>>();
-  const mayRead = (handle: string): Promise<boolean> => {
-    if (handle && handle === self) return Promise.resolve(true);
-    if (!handle || !mutuals.has(handle)) return Promise.resolve(false);
-    let verdict = verdicts.get(handle);
-    if (!verdict) {
-      verdict = deps.isLiveMutual(viewer, handle).catch(() => false);
-      verdicts.set(handle, verdict);
-    }
-    return verdict;
-  };
-
+  if (!self) return [];
+  const mutuals = [...new Set((await deps.listMutuals(viewer.handle)).map(normalizeViewerHandle))]
+    .filter((handle) => handle && handle !== self);
   const allowed = await Promise.all(
-    rows.map((row) =>
-      row.provenance === "demo" ? Promise.resolve(true) : mayRead(normalizeViewerHandle(row.handle)),
-    ),
+    mutuals.map((handle) => deps.isLiveMutual(viewer, handle).catch(() => false)),
   );
-  return rows.filter((_, index) => allowed[index]);
+  return [self, ...mutuals.filter((_, index) => allowed[index])];
 }
