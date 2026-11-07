@@ -533,14 +533,12 @@ export const supabasePlanStore: PlanStore = {
     if (action.type === "ending") return { ok: false, error: "invalid" };
     const currentResult = await planStateResult(id);
     if (!currentResult.ok) return { ok: false, error: "error" };
-    const current = currentResult.plan;
-    if (!current) return { ok: false, error: "not_found" };
+    if (!currentResult.plan) return { ok: false, error: "not_found" };
     const identityResult = await planMemberIdentityResult(id, rawToken);
     if (!identityResult.ok) return { ok: false, error: "error" };
     const identity = identityResult.identity;
     if (!identity?.collaborationAuthorized || (action.type === "swapped" && identity.role !== "host")) return { ok: false, error: "forbidden" };
-    if (!Number.isInteger(action.stopPosition)
-      || !current.stops.some((stop) => stop.position === action.stopPosition)) {
+    if (!Number.isInteger(action.stopPosition)) {
       return { ok: false, error: "invalid" };
     }
     const key = action.idempotencyKey.trim();
@@ -895,8 +893,7 @@ export const memoryPlanStore: PlanStore = {
     if (!plan) return { ok: false, error: "not_found" };
     const actorIndex = plan.crew.findIndex((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
     if (actorIndex < 0 || !plan.crew[actorIndex]?.collaborationAuthorized || (action.type === "swapped" && actorIndex !== 0)) return { ok: false, error: "forbidden" };
-    if (!Number.isInteger(action.stopPosition)
-      || !plan.stops.some((stop) => stop.position === action.stopPosition)) {
+    if (!Number.isInteger(action.stopPosition)) {
       return { ok: false, error: "invalid" };
     }
     const key = action.idempotencyKey.trim();
@@ -916,6 +913,9 @@ export const memoryPlanStore: PlanStore = {
     if (bound && (action.expectedRouteRevision !== routeRevisionOf(plan.plan)
       || !plan.stops.some((stop) => stop.position === action.stopPosition && stop.venueId === action.venueId))) {
       return { ok: false, error: "conflict" };
+    }
+    if (!plan.stops.some((stop) => stop.position === action.stopPosition)) {
+      return { ok: false, error: "invalid" };
     }
     const actionId = planIdempotentUuid(`plan-action:${id}:${plan.crew[actorIndex]!.id}`, key);
     plan.actions.push({ id: actionId, type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp(), ...(bound ? { routeRevision: action.expectedRouteRevision, venueId: action.venueId } : {}) });

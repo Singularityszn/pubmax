@@ -44,6 +44,22 @@ it.each(["arrived", "skipped"] as const)("refuses a queued %s for a pub replaced
   expect(planVisitedRevealPositions(state)).toEqual([1]);
 });
 
+it.each(["arrived", "skipped"] as const)("explains a queued %s for a stop removed before delivery without changing state", async (type) => {
+  const n = await night();
+  expect((await memoryPlanStore.update(n.id, n.host, { expectedRouteRevision: 1, stops: stops.slice(0, 2) })).ok).toBe(true);
+  const before = await memoryPlanStore.get(n.id);
+  const response = await n.submit({ type, stopPosition: 2, expectedRouteRevision: 1, venueId: "c" });
+  expect(response.status).toBe(409);
+  expect(await response.json()).toEqual({
+    error: "The route changed. Review the stops and try again.", code: "PLAN_ROUTE_CHANGED", retryable: false,
+  });
+  expect(await memoryPlanStore.get(n.id)).toEqual(before);
+  expect((await n.submit({ type, stopPosition: 1, expectedRouteRevision: 2, venueId: "b" })).status).toBe(201);
+  expect((await memoryPlanStore.get(n.id))!.actions).toEqual([
+    expect.objectContaining({ type, stopPosition: 1, routeRevision: 2, venueId: "b" }),
+  ]);
+});
+
 it("replays an accepted arrival after a safe revision and rejects a different binding with the same key", async () => {
   const n = await night();
   const body = { type: "arrived", stopPosition: 1, expectedRouteRevision: 1, venueId: "b" };
