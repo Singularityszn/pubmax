@@ -99,7 +99,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const headers = new Headers(request.headers);
     headers.delete("cookie");
-    const access = await requireVerifiedSocialActor(new Request(request, { headers }));
+    const access = await requireVerifiedSocialActor(new Request(request.url, { headers }));
     const handles = access.ok ? await presenceHandlesForViewer(access.actor) : [];
     const rows = await recentPresenceWithAmbient(venueId || undefined, Date.now(), handles);
     const presence = await projectPublicAuthors(rows);

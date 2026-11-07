@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Request as RuntimeRequest } from "next/dist/compiled/@edge-runtime/primitives/fetch";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -86,6 +87,29 @@ describe.each(["/api/presence", `/api/presence?venueId=${VENUE}`])("%s bearer bo
     }));
     const { presence } = await response.json() as { presence: PresenceDTO[] };
     expect(presence.filter((row) => row.provenance !== "demo").map((row) => row.handle)).toEqual([ME]);
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("returns the viewer's row when Next supplies its runtime Request implementation", async () => {
+    // The launch presence contract permits the verified viewer's own row.
+    // Next's request uses a different Request implementation from Node's.
+    // A clone that treats this request as a URL must not hide every check-in.
+    const response = await GET(new RuntimeRequest(`https://app.test${path}`, {
+      headers: { authorization: "Bearer fixture-bearer" },
+    }));
+    const { presence } = await response.json() as { presence: PresenceDTO[] };
+    expect(presence.filter((row) => row.provenance !== "demo").map((row) => row.handle)).toEqual([ME]);
+  });
+
+  it.each([false, true])("returns only demo rows for a bearerless runtime request with resume cookie %s", async (withCookie) => {
+    const response = await GET(new RuntimeRequest(`https://app.test${path}`, {
+      headers: withCookie
+        ? { cookie: `${AUTH_RESUME_COOKIE}=${encodeAuthResumeCookie({ refreshToken: "fixture-refresh-token", email: null })}` }
+        : {},
+    }));
+    const { presence } = await response.json() as { presence: PresenceDTO[] };
+    expect(presence.length).toBeGreaterThan(0);
+    expect(presence.every((row) => row.provenance === "demo")).toBe(true);
     expect(response.headers.get("set-cookie")).toBeNull();
   });
 });
