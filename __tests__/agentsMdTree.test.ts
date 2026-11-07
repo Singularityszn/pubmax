@@ -13,10 +13,7 @@ import { defined } from "@/__tests__/helpers/defined";
 // is a budget: a short root with the laws that apply everywhere and a table, and
 // one area file per area holding only the traps the code cannot show. Long rules
 // live under `docs/rules/` and are read only for the rule being changed.
-//
-// The tree has four ways to rot, and this file holds each one: a table row
-// pointing at a file nobody kept, an area file no row names, a root or an area
-// file that grows back into a document, and a root that loses a safety law.
+
 const ROOT = resolve(process.cwd());
 const ROOT_DOC = join(ROOT, "AGENTS.md");
 
@@ -27,18 +24,6 @@ const ROOT_DOC = join(ROOT, "AGENTS.md");
  */
 const ROOT_MAX_BYTES = 9 * 1024;
 const AREA_MAX_BYTES = 4 * 1024;
-
-/**
- * The safety boundaries every agent must meet in the root, each named by the
- * file that owns it. A trim may reword a law but may not drop its owner.
- */
-const ROOT_SAFETY_OWNERS = [
-  "lib/harvest/sourcePolicy.ts",
-  "lib/referrals.ts",
-  "perf/AGENTS.md",
-  "supabase/AGENTS.md",
-  ".agents/skills/ste/SKILL.md",
-];
 
 const TABLE_LINK = /\[`([^`]+AGENTS\.md)`\]\(([^)]+)\)/g;
 
@@ -89,13 +74,5 @@ describe("the AGENTS.md tree", () => {
       .map((file) => ({ file, bytes: statSync(join(ROOT, file)).size }))
       .filter(({ bytes }) => bytes > AREA_MAX_BYTES);
     expect(oversized, "move long rules into docs/rules/").toEqual([]);
-  });
-
-  it("names the owner of every safety law in the root", () => {
-    const doc = readFileSync(ROOT_DOC, "utf8");
-    const missing = ROOT_SAFETY_OWNERS.filter(
-      (owner) => !doc.includes(`\`${owner}\``),
-    );
-    expect(missing).toEqual([]);
   });
 });

@@ -22,10 +22,10 @@ Delete this block otherwise. When it applies, add all three sections:
 The changed logic, in a few lines.
 
 ## Flow
-A Mermaid diagram of the request or data flow that changed.
+One Mermaid diagram of the request or data flow that changed.
 
 ## TDD proof
-The test that fails on main and passes here, with both results.
+The three-commit TDD proof: failing-test commit, red run, green run.
 -->
 
 ## Security checklist

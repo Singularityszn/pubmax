@@ -62,7 +62,7 @@ of these applied:
 
 - Before you push, run `npm run verify:no-mistakes:changed`: the lint, typecheck and tests that your change reaches.
 - Do not run the full suite locally unless asked. CI owns it, and a merge needs CI green on the latest commit.
-- A red check is fixed at its source. A flaky test is fixed, never retried or skipped. If the fix is outside
+- A red check is fixed at its source. Fix a flaky test without test-runner retries or skips. If the fix is outside
   your task, file it with the evidence and tell Firstmate.
 
 ## Tests
@@ -72,7 +72,8 @@ of these applied:
 - Do not test what types guarantee, copy text, static markup, mock-call mirrors or file lists.
 - Extend an existing test before you add one. Test at one layer: the lowest one that fails on main.
 - A logic bug gets a failing test first. A purely visual bug gets before/after screenshots and no test.
-- No sleeps, polling loops, per-test timeouts or retries. Wait for the event. A skip names its tracking issue.
+- No fixed sleeps, manual polling loops, per-test timeouts or test-runner retries. Wait for the event.
+  Web-first auto-retrying assertions (`expect(...).toPass()`) and auto-waiting locators are allowed. A skip names its tracking issue.
 - Do not add a test that reads source files as text. If a rule needs a machine check, make it a lint rule.
 
 ## Pull requests
@@ -82,7 +83,7 @@ of these applied:
 - Body, in plain English: the problem in one or two sentences, the change, how you checked it, what you could
   not check. UI changes include before/after images. Motion needs a short video.
 - A PR that touches auth, RLS, prices, money or migrations also carries the show-me body: pseudocode of the
-  changed logic, a Mermaid diagram of the flow, and TDD proof (the test that fails on main and passes here).
+  changed logic, one Mermaid diagram of the flow, and the three-commit TDD proof (failing-test commit, red run, green run).
   Other PRs keep the short body. `.github/PULL_REQUEST_TEMPLATE.md` has both.
 - Upload evidence to the PR. Never commit screenshots, proof sheets, plans or scratch notes.
 - Check each review finding against the source. Fix real ones. Dismiss false ones with a reason. Stop when the
