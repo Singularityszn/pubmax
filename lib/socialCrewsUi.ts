@@ -35,6 +35,8 @@ import {
   parseSocialCrewJoinRequestQueue,
 } from "@/lib/socialCrew";
 import type { OpenPlanPlaceKind } from "@/lib/openSocialCrew";
+import type { OpenCrawlShareArea } from "@/lib/openCrawlShareCard";
+import type { PlanInviteSpendBand } from "@/lib/shareArtifacts";
 
 export { CREW_EMPTY_COPY, CREW_WHAT_IT_IS } from "@/lib/socialCrewsCopy";
 
@@ -303,14 +305,46 @@ function isPublicMeetingPoint(value: unknown): value is SocialCrewPublicPreviewD
 }
 
 /** Parse the deliberately narrow anonymous Open Crew contract. */
+function isPublicShareArea(value: unknown): value is OpenCrawlShareArea {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  return keys.length === 2 &&
+    typeof value.name === "string" &&
+    value.name.trim().length > 0 &&
+    value.name.length <= 80 &&
+    (value.relation === "inside" || value.relation === "nearby");
+}
+
+function isPublicSpendBand(value: unknown): value is PlanInviteSpendBand {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  return keys.length === 2 &&
+    typeof value.minGbp === "number" &&
+    typeof value.maxGbp === "number" &&
+    Number.isFinite(value.minGbp) &&
+    Number.isFinite(value.maxGbp) &&
+    value.minGbp > 0 &&
+    value.maxGbp >= value.minGbp;
+}
+
+const PUBLIC_CREW_PREVIEW_KEYS = [
+  "kind",
+  "crewId",
+  "title",
+  "hostHandle",
+  "startsAt",
+  "meetingPoint",
+  "area",
+  "placesLeft",
+  "spendBand",
+] as const;
+
 export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewDTO | null {
   if (!isRecord(value)) return null;
   const keys = Object.keys(value);
   if (
-    keys.length !== 6 ||
-    !["kind", "crewId", "title", "hostHandle", "startsAt", "meetingPoint"].every((key) =>
-      keys.includes(key),
-    ) ||
+    keys.length !== PUBLIC_CREW_PREVIEW_KEYS.length ||
+    !PUBLIC_CREW_PREVIEW_KEYS.every((key) => keys.includes(key)) ||
     value.kind !== "public" ||
     !isCrewId(value.crewId) ||
     typeof value.title !== "string" ||
@@ -319,7 +353,11 @@ export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewD
     !value.hostHandle.trim() ||
     typeof value.startsAt !== "string" ||
     !Number.isFinite(Date.parse(value.startsAt)) ||
-    !isPublicMeetingPoint(value.meetingPoint)
+    !isPublicMeetingPoint(value.meetingPoint) ||
+    (value.area !== null && !isPublicShareArea(value.area)) ||
+    (value.placesLeft !== null &&
+      (!Number.isInteger(value.placesLeft) || Number(value.placesLeft) < 0)) ||
+    (value.spendBand !== null && !isPublicSpendBand(value.spendBand))
   ) {
     return null;
   }
@@ -335,6 +373,11 @@ export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewD
       lat: value.meetingPoint.lat,
       lng: value.meetingPoint.lng,
     },
+    area: value.area === null ? null : { name: value.area.name, relation: value.area.relation },
+    placesLeft: value.placesLeft === null ? null : Number(value.placesLeft),
+    spendBand: value.spendBand === null
+      ? null
+      : { minGbp: value.spendBand.minGbp, maxGbp: value.spendBand.maxGbp },
   };
 }
 
