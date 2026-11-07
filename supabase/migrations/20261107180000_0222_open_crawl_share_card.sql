@@ -1,5 +1,6 @@
 -- Open crawl share card: the facts a link preview prints (0222).
 -- Captain applies; agents ship SQL only.
+-- Apply only after the captain says "apply 0222".
 --
 -- Reverse: supabase/migrations/rollback/20261107180000_0222_open_crawl_share_card_rollback.sql
 --

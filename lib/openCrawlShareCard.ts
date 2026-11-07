@@ -30,7 +30,7 @@ export type OpenCrawlShareCard = {
   meetingPubName: string;
   /** Null when the meeting pub sits in no area we curate. */
   area: OpenCrawlShareArea | null;
-  /** Null when the crew carries no capacity (an open crew with no open crawl facts). */
+  /** Null when capacity or active seat count is unavailable. */
   placesLeft: number | null;
   /** Null unless EVERY stop has a listed pint price. Never a per-person total. */
   spendBand: PlanInviteSpendBand | null;
@@ -75,7 +75,7 @@ export function openCrawlShareAreaLine(area: OpenCrawlShareArea | null): string 
   return area.relation === "inside" ? `in ${area.name}` : `near ${area.name}`;
 }
 
-/** "5 places left", "Full", or null when the crew carries no capacity. */
+/** "5 places left", "Full", or null when the number of places is unknown. */
 export function openCrawlSharePlacesLine(placesLeft: number | null): string | null {
   if (placesLeft === null) return null;
   return placesLeft > 0 ? openCrawlPlacesLine(placesLeft) : "Full";
