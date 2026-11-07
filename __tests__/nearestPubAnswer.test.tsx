@@ -175,6 +175,27 @@ describe("nearest pub beside listed pint prices", () => {
     expect(boundary.slim).not.toHaveBeenCalled();
   });
 
+  it("answers again from the new list when the map's filters change the supplied pubs", async () => {
+    // A filter first hides the closest pub, then a lens change allows it again.
+    const filtered = VENUES.filter((venue) => venue.id !== "unpriced");
+    await render({ venues: filtered });
+    expect(nearest().textContent).toContain("The Expensive Pub");
+    await render({ venues: [...VENUES] });
+    expect(nearest().textContent).toContain("The Nearest Local");
+    // And back: a pub the filters now exclude is never named.
+    await render({ venues: filtered });
+    expect(nearest().textContent).not.toContain("The Nearest Local");
+    expect(boundary.slim).not.toHaveBeenCalled();
+  });
+
+  it("keeps one answer when the map re-renders with the same supplied list", async () => {
+    const venues = [...VENUES];
+    await render({ venues });
+    const first = nearest();
+    await render({ venues });
+    expect(nearest()).toBe(first);
+  });
+
   it("restores a located nearest result when the reader retries location from an area answer", async () => {
     await render({ initialLocation: null, initialPatchId: "soho" });
     expect(nearestRegion()).toBeNull();

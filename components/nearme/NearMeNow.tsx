@@ -673,6 +673,11 @@ export default function NearMeNow({
       bootPatchId: bootPatch?.id ?? null,
     });
     // Map mode: a location is already resolved — answer immediately, no prompt.
+    // The map hands over the pubs its filters allow. When they change, the
+    // shared index takes the new list and this answer is made again, so the
+    // cards and the nearest pub never name a pub the filters now exclude or
+    // miss one they now include.
+    if (venues) slimRef.current = venues;
     if (initialLocation) {
       const generation = beginAnswer();
       void loadSlim().then((slim) => {
@@ -703,9 +708,10 @@ export default function NearMeNow({
     // asynchronously via the Geolocation API — an external-system sync, the
     // documented exception to the no-setState-in-effect guidance.
     locate();
-    // Mount-only: loadSlim/locate/pickPatch are stable for a given cityId.
+    // loadSlim/locate/pickPatch are stable for a given cityId. A new supplied
+    // venue list re-answers map mode; the auto-locate guard stops a second locate.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLocate, initialLocation, bootPatch?.id]);
+  }, [autoLocate, initialLocation, bootPatch?.id, venues]);
 
   useEffect(() => {
     if (
