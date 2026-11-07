@@ -491,7 +491,6 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      # Both freshness scripts use only Node built-ins and committed data.
       - name: Check every tracked feed
         run: |
           node scripts/check_freshness.mjs --artifacts-only

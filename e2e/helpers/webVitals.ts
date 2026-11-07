@@ -5,6 +5,7 @@ import { expect, type CDPSession, type Page } from "@playwright/test";
 import type { VitalsDevice } from "../../lib/webVitalsBaseline";
 
 import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./communitySheetFixture";
+import { mobileMapShellControl } from "./mobileMapShell";
 
 /**
  * The ONE way a Core Web Vital is measured in this suite.
@@ -338,9 +339,9 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     label: "typing the outing into describe-first",
   },
   "/map": {
-    selector: ".mapCompassBtn, .mapFitLondonBtn",
+    selector: ".mapLayersFab",
     kind: "click",
-    label: "a map chrome control",
+    label: "the map layers control",
   },
   [COMMUNITY_SHEET_FIXTURE_MAP_PATH]: {
     selector: ".venueInspector [role='tab']",
@@ -391,26 +392,42 @@ const SAMPLE_RESIDUE_KEY_PREFIXES: Record<string, readonly string[]> = {
   "/pal": ["pubmaxx.pub-pal-onboarding"],
 };
 
+const residueScripts = new WeakMap<Page, Set<string>>();
+
 /** Clears what the previous sample's own interaction left in this browser. */
 export async function clearSampleResidue(page: Page, routePath: string): Promise<void> {
   const prefixes = SAMPLE_RESIDUE_KEY_PREFIXES[routePath];
   if (!prefixes) return;
-  try {
-    await page.evaluate((keyPrefixes: readonly string[]) => {
+  const clear = ({ path, keyPrefixes }: { path: string; keyPrefixes: readonly string[] }) => {
+    if (window.location.pathname !== path) return;
+    try {
       for (const key of Object.keys(window.localStorage)) {
         if (keyPrefixes.some((prefix) => key.startsWith(prefix))) window.localStorage.removeItem(key);
       }
-    }, prefixes);
-  } catch {
-    // about:blank has no storage to clear.
+    } catch {
+      // Storage may be unavailable in a browser context.
+    }
+  };
+  const input = { path: routePath, keyPrefixes: prefixes };
+  const installed = residueScripts.get(page) ?? new Set<string>();
+  if (!installed.has(routePath)) {
+    // Pal saves its draft again on pagehide. Clear in the next document,
+    // after that save and before React can restore the draft.
+    await page.addInitScript(clear, input);
+    installed.add(routePath);
+    residueScripts.set(page, installed);
   }
+  await page.evaluate(clear, input);
 }
 
 /** Runs one route's primary interaction, so the probe has an INP to report. */
 export async function exercisePrimaryAction(page: Page, routePath: string): Promise<boolean> {
   const interaction = PRIMARY_INTERACTIONS[routePath];
   if (!interaction) return false;
-  const control = page.locator(interaction.selector).first();
+  const phoneMap = routePath === "/map" && page.viewportSize()?.width === VITALS_DEVICES.mobile.viewport.width;
+  const control = phoneMap
+    ? await mobileMapShellControl(page, "more")
+    : page.locator(interaction.selector).first();
   try {
     await control.waitFor({ state: "visible", timeout: 20_000 });
   } catch {

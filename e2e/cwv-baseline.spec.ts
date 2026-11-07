@@ -357,7 +357,7 @@ test.describe("Core Web Vitals baseline", () => {
     console.log(`\n[cwv] routes\n${formatBaselineTable(routeRecords)}`);
     console.log(`\n[cwv] product timings\n${formatProductTimingTable(productRecords)}`);
 
-    // The run's own tables, kept as an artifact whichever mode it ran in, so a
+    // A valid run's own tables, kept as an artifact in either mode, so a
     // re-measurement can be pasted into a PR without re-reading a log.
     await mkdir(testInfo.outputDir, { recursive: true });
     const artifact = path.join(testInfo.outputDir, "cwv-run.json");
