@@ -21,7 +21,6 @@ const OG_TEXT_SURFACES = [
   "app/invite/[token]/opengraph-image.tsx",
   "app/map/[city]/opengraph-image.tsx",
   "app/p/[id]/opengraph-image.tsx",
-  "app/social/crews/[crewId]/opengraph-image.tsx",
   "app/u/[handle]/opengraph-image.tsx",
   "lib/recapCard.ts",
 ] as const;

@@ -1,5 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { JSDOM } from "jsdom";
+import type { ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next/og", () => ({
+  ImageResponse: class extends Response {
+    constructor(element: ReactElement) {
+      super(renderToStaticMarkup(element));
+    }
+  },
+}));
+
+vi.mock("@/lib/openCrawlShareCard.server", () => ({ loadOpenCrawlShareCard: vi.fn() }));
+
+import Image from "@/app/social/crews/[crewId]/opengraph-image";
+import { displayHandle } from "@/lib/handleDisplay";
+import { clampOgText } from "@/lib/ogCardText";
+import { loadOpenCrawlShareCard } from "@/lib/openCrawlShareCard.server";
 import {
   openCrawlShareAreaLine,
   openCrawlShareDescription,
@@ -52,5 +69,58 @@ describe("open crawl link preview words", () => {
   it("names no member and no stop", () => {
     const text = `${openCrawlShareTitle(CARD)} ${openCrawlShareDescription(CARD)}`;
     expect(text).not.toMatch(/venue-|member/i);
+  });
+});
+
+async function imageLines(card: OpenCrawlShareCard): Promise<string[]> {
+  vi.mocked(loadOpenCrawlShareCard).mockResolvedValue({
+    ok: true,
+    card,
+    meetingPoint: { kind: "venue", name: card.meetingPubName, lat: 51.51, lng: -0.13 },
+  });
+  const response = await Image({ params: Promise.resolve({ crewId: card.crewId }) });
+  const dom = new JSDOM(await response.text());
+  try {
+    return Array.from(dom.window.document.querySelectorAll("div"), (element) => element.textContent ?? "");
+  } finally {
+    dom.window.close();
+  }
+}
+
+describe("open crawl share image text", () => {
+  it("renders the ordinary title, host, area, meeting pub and crawl facts", async () => {
+    const lines = await imageLines(CARD);
+    expect(lines).toContain("Thursday in Soho");
+    expect(lines).toContain("Hosted by @scouthost · in Piccadilly & Soho");
+    expect(lines).toContain("Meet at The Blue Posts");
+    expect(lines).toContain("Thu 12 Nov, 19:00");
+    expect(lines).toContain("5 places left");
+    expect(lines).toContain("£4.50–£6.20 per pint");
+  });
+
+  it.each([
+    {
+      title: `\x01  Night\n out  ${"t".repeat(80)}\x7f`,
+      hostHandle: `@@HOST${"h".repeat(40)}\x7f`,
+      meetingPubName: `\x01  The\n pub  ${"p".repeat(80)}\x7f`,
+      area: { name: `\x01  Long\n area  ${"a".repeat(80)}\x7f`, relation: "inside" as const },
+    },
+    {
+      title: "\x01\x7f",
+      hostHandle: "\x01\x7f",
+      meetingPubName: "\x01\x7f",
+      area: { name: "\x01\x7f", relation: "nearby" as const },
+    },
+    { title: "", hostHandle: "", meetingPubName: "", area: null },
+  ])("renders filtered, bounded text through the shared clampOgText contract %#", async (fields) => {
+    const card = { ...CARD, ...fields };
+    const lines = await imageLines(card);
+    const options = { collapseWhitespace: true, collapseBeforeFilter: true };
+    const area = card.area ? `${card.area.relation === "inside" ? "in" : "near"} ${card.area.name}` : null;
+
+    expect(lines).toContain(clampOgText(card.title, 60, "A night out", options));
+    const host = clampOgText(displayHandle(card.hostHandle), 32, "@host", options);
+    expect(lines).toContain(`Hosted by ${host}${area ? ` · ${clampOgText(area, 40, "", options)}` : ""}`);
+    expect(lines).toContain(`Meet at ${clampOgText(card.meetingPubName, 44, "the first pub", options)}`);
   });
 });
