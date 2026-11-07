@@ -31,8 +31,9 @@ logged. **Plan** is a night out with stops. **Pal** is the Pub Pal assistant.
 
 1. **Writing to production.** Preview deployments use the production Supabase project. A signed-in preview test
    writes production data. Never run a schema experiment against a shared database.
-2. **Applying a migration.** Agents ship SQL with a rollback beside it. Only the captain applies a migration and
-   decides a deploy. See `supabase/AGENTS.md`.
+2. **Applying a migration.** Agents ship SQL with a rollback beside it. An agent applies one migration only on the
+   captain's explicit "apply <n>", and a separate agent verifies it. Only the captain decides a deploy. See
+   `supabase/AGENTS.md`.
 3. **Killing by pattern.** Never `pkill` or `killall`. Stop only a PID you started. Use a private port.
 4. **Sharing `.next`.** A concurrent `next dev` and `next build` corrupt `.next`. For production QA, build and
    serve with `NEXT_DIST_DIR=.next-prod`.

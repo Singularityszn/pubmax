@@ -38,7 +38,7 @@ The apex prints `200`. The `www` host prints `308 https://pubmaxxing.com/map?sel
 
 ### 1.3 Migrations
 
-The owner applies migrations. Agents ship SQL only.
+Follow the [migration apply policy](../supabase/AGENTS.md#traps) for authorisation, the apply path, and independent verification.
 
 `docs/handoffs/FABLE_HANDOFF.md` is not a current ledger. Its latest entry is dated 2026-07-23 and covers migrations only up to roughly `0053`. Do not use it to decide what is applied.
 
@@ -376,10 +376,10 @@ _A dated section, written on 1 November 2026. PUBMAXX launches on Product Hunt o
 
 Two owners, the same two as [`SOFT_LAUNCH_CHECKLIST.md`](SOFT_LAUNCH_CHECKLIST.md):
 
-- **Captain.** Holds every login and every secret. Applies migrations, releases, rolls back, upgrades a plan, and answers on Product Hunt.
-- **Fleet.** The agents. Runs read-only checks, runs the sweeps, writes the records, and opens one fix pull request for each finding. The fleet never releases, never applies a migration and never changes a vendor setting.
+- **Captain.** Holds every login and every secret. Authorises migrations, releases, rolls back, upgrades a plan, and answers on Product Hunt.
+- **Fleet.** The agents. Runs read-only checks, runs the sweeps, writes the records, and opens one fix pull request for each finding. The fleet never releases or changes a vendor setting. Migration roles follow the [migration apply policy](../supabase/AGENTS.md#traps).
 
-A row marked **Owner action** is a step only the captain can do. On 1 November 2026 no owner action in this section is done. Write the date in the row when it is done. Do not mark a row done without a dated proof.
+Only the captain can do a row marked **Owner action**, except for migration application under the policy linked in section 1.3. On 1 November 2026 no owner action in this section is done. Write the date in the row when it is done. Do not mark a row done without a dated proof.
 
 ### 8.1 Owner actions, all in one list
 
@@ -439,16 +439,16 @@ Steps:
    npm run check:migration-ledger
    ```
 
-   The check names every missing file. The list can hold files older than `0203`: section 1.3 names `0196` as not applied. Apply every file the check names, not only the launch set.
+   The check names every missing file. The list can hold files older than `0203`: section 1.3 names `0196` as not applied. This list does not authorise an apply. Use the migration apply policy in section 1.3.
 
-2. See what the Supabase CLI would run, before it runs anything.
+2. For a captain-run CLI apply, inspect the dry run first.
 
    ```sh
    supabase link --project-ref iankajxliutqogqkmvdg
    supabase db push --include-all --dry-run
    ```
 
-3. If the dry run lists exactly the files that step 1 named, run `supabase db push --include-all`. If the dry run lists any other file, stop and do not push. The live ledger holds many older files under other version numbers, so a push compares versions and would run those files a second time. In that case, apply each missing file by hand, one at a time, in timestamp order, the same way you applied the earlier ones. Give each ledger row the file name without its timestamp, for example `0203_venue_corrections`, because the check compares names.
+3. If the dry run lists exactly the files that step 1 named, the captain can run `supabase db push --include-all`. If the dry run lists any other file, stop and do not push. The live ledger holds many older files under other version numbers, so a push compares versions and would run those files a second time. In that case, the captain can apply each missing file by hand, one at a time, in timestamp order. Agents must follow the policy in section 1.3. The migration apply policy specifies the ledger name.
 4. Run `npm run check:migration-ledger` again. It must pass. Then run `npm run release:prod` (8.3.3) in the same sitting. Write the date in O1.
 
 Apart from `0215`, the launch files add tables, columns, checks, policies or functions, and `0213` keeps the old call to `add_plan_action_idempotent_atomic` working through default values. Do not run a rollback file unless that migration is the fault. Read its header first: the `0218` rollback makes every unchecked price read as billed.
