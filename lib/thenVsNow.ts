@@ -116,10 +116,9 @@ export function computeThenVsNow(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// The Golden Thread — per-venue price story with inflation ("a pint here was £X
-// in YYYY — £Y in today's money"). Everything below is pure/testable: no fetch,
-// no React, no side effects. The venue surface (VenueInspector) feeds it the
-// selected Venue plus that venue's drops and renders the resolved story.
+// The Golden Thread resolves selected price evidence for the venue sheet.
+// CPI helpers remain available, but the current report contract cannot date
+// a historical price independently of its memory's era.
 // ────────────────────────────────────────────────────────────────────────────
 
 // UK CPI (all items, 2015 = 100) decadal anchors, annual averages. Post-1988
@@ -180,12 +179,11 @@ export function inflateToToday(amountGbp: number, fromYear: number): number | nu
   return Math.round(amountGbp * (todayIdx / fromIdx) * 100) / 100;
 }
 
-// Pull a usable baseline YEAR out of a free-text era string. Community era tags
+// Pull a memory year out of a free-text era string. Community era tags
 // look like "Dad's rule, 1980s", "The wedding, 1971", "Nan's shift, 1950s".
-// A bare 4-digit year wins; a "…0s" decade resolves to its MIDPOINT (1980s →
-// 1985) so the inflation anchor sits in the middle of the remembered span
-// rather than its very start. Only years in a plausible pub-era range
-// (1900–INFLATION_TODAY_YEAR) count — an address number or "£5" never leaks in.
+// A decade resolves to its midpoint, such as 1985 for the 1980s. Otherwise,
+// use a bare four-digit year. This does not date a logged price.
+// Only years from 1900 to INFLATION_TODAY_YEAR count.
 export function parseEraYear(era: string | null | undefined): number | null {
   if (typeof era !== "string") return null;
   // Decade first ("1980s") so "1980" inside it doesn't win as a bare year.
@@ -210,9 +208,8 @@ export type VenuePriceStamp = {
   gbp: number;
   provenance: Provenance;
   isFresh?: boolean;
-  // A human label for the moment this price is FROM: an era string for a
-  // historical drop, "Baseline on record" for the dataset price, "Community
-  // tonight" for a fresh drop, or its age and standing when it is stale.
+  // The label describes the record's status. Its dates stay in evidence,
+  // because a log date does not necessarily date the price.
   label: string;
   evidence: {
     drink: string | null;
@@ -227,8 +224,8 @@ export type VenuePriceStamp = {
   };
 };
 
-// The historical "then" anchor: an anecdotal/contributor drop carrying BOTH a
-// price and a parseable era year, revalued into today's money.
+// A historical adjustment needs a dated price observation. A parsed memory
+// era alone cannot supply one.
 type VenueInflationAnchor = {
   year: number;
   thenGbp: number; // the price as originally remembered/logged
@@ -241,12 +238,12 @@ type VenueInflationAnchor = {
 export type VenuePriceStory = {
   venueId: string;
   venueName: string;
-  // The dataset baseline "price on record" (sourced/editorial), when present.
+  // The selected record, omitted when now already displays that same report.
   baseline: VenuePriceStamp | null;
   // The newest priced community drop, when present. Its label says whether it
   // is still fresh enough to describe as tonight's price.
   now: VenuePriceStamp | null;
-  // Differences require the same named drink, serving and ordered dates.
+  // comparableStoryPrices owns whether these differences can be claimed.
   deltaGbp: number | null;
   pct: number | null;
   // Reserved for a historical price with its own observation date. An era

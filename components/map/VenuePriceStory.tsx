@@ -209,8 +209,8 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
           observation by a named drinker, never vouched anonymously (L03). */}
       {onPriceChanged ? <PriceChangedDoor onPriceChanged={onPriceChanged} /> : null}
 
-      {/* The inflation line — a dated, priced memory revalued into today's
-          money. Provenance-badged: an anecdote is never mistaken for a fact. */}
+      {/* Reserved for an independently dated historical price. The current
+          report contract cannot supply one, so the resolver returns null. */}
       {inflation ? (
         <div className="vpsInflation">
           <p className="vpsInflationLine">

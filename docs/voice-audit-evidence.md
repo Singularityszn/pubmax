@@ -80,7 +80,7 @@ Absolute copy is kept only when a named code or data invariant enforces it. Othe
 | Pal adult confirmation saves time, never date of birth | Pal setup | Pal setup persists the 18+ confirmation timestamp and has no date-of-birth field in that record. |
 | Pal memories can be inspected, corrected, and deleted; fixed controls cannot be disabled | Pal setup | Memory management exposes those operations for approved memories; safety and factuality controls are fixed configuration rather than user toggles. |
 | Weather fallback says no fresh read | Today | The fallback branch runs only when the weather request returns no fresh reading. |
-| “No change from the earlier price” | Then-and-now cards and venue price story | The equality branch compares current and baseline GBP values before rendering this line. |
+| “No change from the earlier price” | Then-and-now cards and venue price story | Discover uses the equality branch. The venue story follows the [venue price story rules](../README.md#features). |
 | Recap completion, stop, spend, and logged-pint copy | Recap and share helpers | `lib/recapView.ts` and `lib/shareArtifacts.ts` derive each phrase from recorded completion state, stops, finite spend totals, handle, venue, and price fields. |
 
 ## Indirect-source inventory
