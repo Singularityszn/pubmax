@@ -32,7 +32,7 @@ export type PubComparisonEvidence = {
   dateMeaning: "source-read";
   eligible: boolean;
 };
-export type PubComparisonVenue = {
+type PubComparisonVenue = {
   id: string;
   name: string;
   address: string | null;
@@ -50,7 +50,7 @@ export type PubComparisonVenueInput = PubComparisonVenue & {
   mapHref: string;
   readUnavailable?: boolean;
 };
-export type PubComparisonItem = {
+type PubComparisonItem = {
   requested: PubComparisonOrderLine;
   status: "matched" | "missing";
   evidence: PubComparisonEvidence | null;
@@ -89,7 +89,7 @@ function text(value: unknown, max: number): string | null {
   if (typeof value !== "string" || !value.trim() || value.length > max || /[\u0000-\u001f<>]/.test(value)) return null;
   return value.trim().replace(/\s+/g, " ");
 }
-export function comparisonTextKey(value: string): string {
+function comparisonTextKey(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-GB");
 }
 
@@ -128,7 +128,7 @@ export function comparisonDrinkKey(drink: Pick<PubComparisonOrderLine, "category
 }
 
 /** A label without a volume must not equate different bottles or glasses. */
-export function comparisonServingIsExplicit(serving: string | null): serving is string {
+function comparisonServingIsExplicit(serving: string | null): serving is string {
   if (!serving) return false;
   const key = comparisonTextKey(serving);
   return /^(?:pint|half|half pint|single espresso|double espresso)$/.test(key)
