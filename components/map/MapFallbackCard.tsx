@@ -18,7 +18,8 @@ import { venueAreaLabel } from "@/lib/venueDisplay";
  * callers hand it a decided heading and sentence; it decides nothing.
  *
  * The rows are the slim pin index, which needs no WebGL: tapping one opens the
- * same venue sheet a pin tap opens. `/pubs` is the whole directory behind them.
+ * same venue sheet a pin tap opens. The fallback action order is documented
+ * in README.md under Features, 3-D map.
  * The technical disclosure is a plain React toggle rather than a native
  * `<details>`, because the canvas's own RAF loop kept racing native
  * click-activation in CDP-driven clicks; this card keeps that shape so the two

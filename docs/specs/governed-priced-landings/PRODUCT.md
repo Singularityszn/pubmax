@@ -23,8 +23,11 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
   stations from `transportAnchors`, and its published brand-by-area pairs.
   Its headline price and metadata carry that price row's source-read date.
   A missing date says `Source read date unknown`.
-  The summary dates the oldest source read among displayed rows.
-  It omits that summary date when any displayed row has no read date.
+  The summary dates the oldest source read only when it differs from the headline's displayed day.
+  It also omits that summary date when any displayed row has no read date.
+- Each row keeps the pub's recorded borough.
+  A row assigned through the nearby-area claim adds `, near {area name}` unless its borough matches the area's name or an alias.
+  `venueAreaClaim` supplies that claim. Regression case: `__tests__/areaLanding.test.tsx`.
 - Its map arrival is `mapAreaHref` (`/map?area={slug}`), never `?q=`.
 - A name or alias of a published area redirects to that area's page. A known
   area below the floor still redirects to its map area. Unknown or ambiguous
