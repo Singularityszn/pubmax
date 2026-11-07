@@ -76,6 +76,7 @@ import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
@@ -581,6 +582,10 @@ export async function preparePlanGeneration(
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm
 			&& venue.promoted !== true
+			// A plan may be shared with people who have never met: never send
+			// them to a members', students' or staff bar. Swap options and the
+			// extra stops at the end of the night come from this same list.
+			&& !isNonPublicVenueName(venue.name)
 			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
 		.sort((a, b) => b.score - a.score);
 	const dryRoundRoute = await dryRoundCandidates(query, candidates, context, area);
