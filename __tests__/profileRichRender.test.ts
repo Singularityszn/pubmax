@@ -109,7 +109,8 @@ describe("public profile card", () => {
     const markup = header({ coverUrl: "/api/cover/profile-1/generation-1" });
     expect(markup).toContain("profileHeaderWithCover");
     expect(markup).toContain("profileCoverImage");
-    expect(markup).toContain("/api/cover/profile-1/generation-1");
+    // The bytes are read with the reader's token, so no unsigned URL is printed.
+    expect(markup).not.toContain("/api/cover/profile-1/generation-1");
     // The falloff is what keeps the name legible over a photograph.
     expect(markup).toContain("profileCoverFalloff");
   });
