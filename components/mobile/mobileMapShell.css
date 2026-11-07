@@ -957,8 +957,8 @@ html:has(.appShell) {
     white-space: nowrap;
   }
   .mapPeekHush { font-size: var(--text-base); color: var(--color-text-muted); }
-  /* The loading line holds the answer's own height so the card never resizes
-     when the answer lands. */
+  /* The loading text reserves the minimum answer height. At large text sizes,
+     the card can grow when the answer arrives. */
   .mapPeekSkeleton { display: none; }
   .mapPeekList {
     display: inline-flex;
