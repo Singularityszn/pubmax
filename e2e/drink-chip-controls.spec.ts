@@ -199,11 +199,17 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   const zonePriceGroup = sheet.getByRole("list", {
     name: "Median pint price by fare zone",
   });
+  const zoneFivePrice = zonePriceGroup.locator('button[title^="Zone 5:"]');
 
-  expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
+  // The zone picker and the price rows are dynamic imports that land after
+  // the "Map view" group openFilters waits for. A one-shot read here saw no
+  // group yet and reported [] for "All" (layout shard 3, 6 Nov 2026). Wait for
+  // both lists to draw, then read the state they draw with.
+  await expect(zoneGroup).toBeVisible();
+  await expect(zoneFivePrice).toBeVisible();
+  await expect.poll(() => pressedLabels(zoneGroup)).toEqual(["All"]);
   expect(await pressedLabels(zonePriceGroup)).toEqual([]);
 
-  const zoneFivePrice = zonePriceGroup.locator('button[title^="Zone 5:"]');
   // A selected chip is named "Zone 5 (selected)", so one locator has to
   // match the chip in both states.
   const zoneFiveChip = zoneGroup.getByRole("button", {
@@ -229,9 +235,8 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
       .toBe("same fill");
 
   await zoneFiveChip.click();
-  expect(await pressedLabels(zoneGroup)).toEqual(["Zone 5"]);
-  const pressedPriceLabels = await pressedLabels(zonePriceGroup);
-  expect(pressedPriceLabels).toHaveLength(1);
+  await expect.poll(() => pressedLabels(zoneGroup)).toEqual(["Zone 5"]);
+  await expect(zonePriceGroup.locator('button[aria-pressed="true"]')).toHaveCount(1);
   // The zone, not the price. A thin zone's row reads "Zone 5" then "2/10" then
   // "log more", so the text runs "Zone 52/10log more" and no pattern on the
   // whole label can tell zone 5 from zone 52. What the test is for is that the
@@ -244,8 +249,8 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   const selectedFill = await backgroundOf(zoneFiveChip);
 
   await zoneGroup.getByRole("button", { name: "All", exact: true }).click();
-  expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
-  expect(await pressedLabels(zonePriceGroup)).toEqual([]);
+  await expect.poll(() => pressedLabels(zoneGroup)).toEqual(["All"]);
+  await expect(zonePriceGroup.locator('button[aria-pressed="true"]')).toHaveCount(0);
 
   await expect.poll(() => backgroundOf(zoneFiveChip)).not.toBe(selectedFill);
   await zoneFiveFillsAgree();
