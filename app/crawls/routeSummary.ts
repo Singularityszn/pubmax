@@ -1,7 +1,7 @@
 // Pure, client-safe route metrics for the /crawls cards (E4). Derives an
 // HONEST straight-line summary for a curated crawl from the slim venue index
 // (lib/venuesSlim — the only client-side source of venue coords + price):
-// haversine leg distances at the shared WALK_KMH pace, and a "pints from"
+// haversine leg distances at the shared WALK_KMH pace, and a "Listed pints"
 // range off each stop's comparable listed pint. A route estimate needs every stop.
 // Missing coordinates withhold the total rather than shorten the route.
 // Mirrors lib/routeLegs semantics ("straight-line", ceil to a
@@ -71,7 +71,7 @@ export type CrawlPriceRange = {
 /**
  * Range of the resolved stops' comparable listed pints, with each endpoint's
  * own evidence. The first stop at an equal price keeps the endpoint. Missing
- * or refused figures stay outside the range and its explicit coverage count.
+ * or refused figures stay outside the range and its priced-stop count.
  */
 export function crawlPriceRange(
   venueIds: readonly string[],

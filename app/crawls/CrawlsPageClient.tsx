@@ -427,18 +427,6 @@ function FeaturedCrawlCard({
   );
 }
 
-// Compact scannable row for every other curated crawl: name, area (the
-// landmark it starts at, when known), stop count, and the price range in the
-// trailing cell. Tap anywhere to open the crawl on the map (its existing
-// "detail" surface; curated crawls have no standalone detail page, and
-// /crawls/[slug] is reserved for durable, user-shared Crawl Stories, a
-// different id namespace).
-//
-// A row of the shared RowList (components/ui/row-list.tsx): one hairline
-// between rows and no panel round the group (taste plan, 18 Oct 2026). The
-// heritage group used to read as one filled, bordered box and every group
-// with it. The link is the whole row, so the tap target is the row's height,
-// never the name's line.
 function CompactCrawlRow({
   crawl,
   slimById,
