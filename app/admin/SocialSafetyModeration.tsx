@@ -169,30 +169,13 @@ export default function SocialSafetyModeration() {
         setError(typeof body?.error === "string" ? body.error : "That decision did not save. Try again.");
         return null;
       }
+      await load();
       return body ?? {};
     } catch {
       setError("That decision did not save. Try again.");
       return null;
     } finally {
       setPending(null);
-    }
-  }
-
-  async function resolveReport(reportId: string) {
-    if (await post(reportId, { action: "resolve_report", reportId })) {
-      setQueues((current) => ({
-        ...current,
-        reports: current.reports.filter((report) => report.reportId !== reportId),
-      }));
-    }
-  }
-
-  async function reviewMessage(messageId: string) {
-    if (await post(messageId, { action: "review_message", messageId })) {
-      setQueues((current) => ({
-        ...current,
-        flaggedMessages: current.flaggedMessages.filter((message) => message.messageId !== messageId),
-      }));
     }
   }
 
@@ -211,12 +194,6 @@ export default function SocialSafetyModeration() {
         ? `${displayHandle(target.handle)} was already ${next}.`
         : `${displayHandle(target.handle)} is ${next}. The audit log has the reason.`,
     );
-    setQueues((current) => ({
-      reports: current.reports.map((report) =>
-        report.targetProfileId === target.profileId ? { ...report, targetAccountState: next } : report),
-      flaggedMessages: current.flaggedMessages.map((message) =>
-        message.senderProfileId === target.profileId ? { ...message, senderAccountState: next } : message),
-    }));
   }
 
   function reportTarget(report: SafetyReportItem): SuspendTarget | null {
@@ -284,7 +261,7 @@ export default function SocialSafetyModeration() {
                     type="button"
                     className="admin-btn"
                     disabled={busy}
-                    onClick={() => void resolveReport(report.reportId)}
+                    onClick={() => void post(report.reportId, { action: "resolve_report", reportId: report.reportId })}
                   >
                     {pending === report.reportId ? "Saving…" : "Close report"}
                   </button>
@@ -328,7 +305,7 @@ export default function SocialSafetyModeration() {
                     type="button"
                     className="admin-btn"
                     disabled={busy}
-                    onClick={() => void reviewMessage(message.messageId)}
+                    onClick={() => void post(message.messageId, { action: "review_message", messageId: message.messageId })}
                   >
                     {pending === message.messageId ? "Saving…" : "Mark reviewed"}
                   </button>

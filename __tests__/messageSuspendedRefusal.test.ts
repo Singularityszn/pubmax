@@ -22,8 +22,10 @@ describe("messageSuspendedRefusal", () => {
     await expect(messageSuspendedRefusal("reporter", async () => false)).resolves.toBeNull();
   });
 
-  it("admits the send when the read cannot run", async () => {
+  it("refuses the send with a retryable 503 when the read cannot run", async () => {
     const unreadable = (): Promise<boolean> => Promise.reject(new Error("withdrawn list unreadable"));
-    await expect(messageSuspendedRefusal("reporter", unreadable)).resolves.toBeNull();
+    const response = await messageSuspendedRefusal("reporter", unreadable);
+    expect(response?.status).toBe(503);
+    expect(await response?.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
   });
 });

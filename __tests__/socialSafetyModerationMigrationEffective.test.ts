@@ -157,7 +157,26 @@ describe.skipIf(skipReason !== null)("0223 social safety moderation applied to P
     const reportId = String(queue[0]?.reportId);
     expect(scalar(`select public.resolve_social_report_admin('${STAFF}','${reportId}')`)).toBe("t");
     expect(scalar(`select public.resolve_social_report_admin('${STAFF}','${reportId}')`)).toBe("f");
+    db().sql(asServiceRole(`select id from public.report_social_content('${REPORTER_PROFILE}','post','${POST}','threat')`));
     expect((json(`select public.read_social_report_queue_admin('${STAFF}',20)`) as unknown[]).length).toBe(1);
+  });
+
+  it("reopens a resolved person report and keeps queued repeats deduplicated", () => {
+    const submit = `select id from public.report_social_content('${REPORTER_PROFILE}','profile','${TARGET_PROFILE}','harassment')`;
+    const reportId = scalar(submit);
+    expect(scalar(submit)).toBe(reportId);
+    db().sql(`update public.social_content_reports set state='reviewing' where id='${reportId}'`);
+    expect(scalar(submit)).toBe(reportId);
+    expect(json(`select public.read_social_report_queue_admin('${STAFF}',20)`)).toEqual([
+      expect.objectContaining({ reportId, state: "reviewing" }),
+    ]);
+    expect(scalar(`select public.resolve_social_report_admin('${STAFF}','${reportId}')`)).toBe("t");
+    expect(json(`select public.read_social_report_queue_admin('${STAFF}',20)`)).toEqual([]);
+    expect(scalar(submit)).toBe(reportId);
+    expect(scalar(submit)).toBe(reportId);
+    expect(json(`select public.read_social_report_queue_admin('${STAFF}',20)`)).toEqual([
+      expect.objectContaining({ reportId, kind: "profile", state: "queued", contentId: TARGET_PROFILE, reason: "harassment" }),
+    ]);
   });
 
   it("lists flagged DMs until a moderator reviews them", () => {

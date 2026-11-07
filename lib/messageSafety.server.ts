@@ -37,18 +37,19 @@ import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
  * suspend (0223) already closes every Social write; this closes opening and
  * sending a DM too. It reads the same withdrawn-account list the public
  * surfaces read, so a suspend reaches both within that list's hold window. A
- * read that cannot run admits the send: the adult gate above it is the door
- * that fails closed, and an outage here must not silence every conversation.
+ * read that cannot run refuses the write with a retryable 503.
  */
 export async function messageSuspendedRefusal(
   handle: string,
   isWithdrawn: (handle: string) => Promise<boolean> = isHandleAccountWithdrawn,
 ): Promise<Response | null> {
-  let withdrawn = false;
+  let withdrawn: boolean;
   try {
     withdrawn = await isWithdrawn(handle);
   } catch {
-    return null;
+    return publicApiError("Messages are unavailable right now. Try again.", "UNAVAILABLE", 503, {
+      retryable: true,
+    });
   }
   return withdrawn ? publicApiError(MESSAGE_SUSPENDED_REFUSAL, "ACCOUNT_SUSPENDED", 403) : null;
 }

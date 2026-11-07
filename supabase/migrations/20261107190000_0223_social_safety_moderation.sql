@@ -85,7 +85,11 @@ begin
   if not coalesce(v_visible, false) then raise exception 'content not found'; end if;
   insert into public.social_content_reports(reporter_profile_id, content_kind, content_id, reason)
   values (p_actor, p_kind, p_content_id, p_reason)
-  on conflict (reporter_profile_id, content_kind, content_id, reason) do update set reason = excluded.reason
+  on conflict (reporter_profile_id, content_kind, content_id, reason) do update
+  set state = case
+    when excluded.content_kind = 'profile' and social_content_reports.state = 'resolved' then 'queued'
+    else social_content_reports.state
+  end
   returning * into v_row;
   return next v_row;
 end;

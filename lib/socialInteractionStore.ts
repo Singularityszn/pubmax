@@ -707,7 +707,10 @@ export function createMemorySocialInteractionStore(options: {
       }
       const key = createHash("sha256").update(`${actor.profileId}:${input.kind}:${input.id}:${input.reason}`).digest("hex");
       const prior = reports.get(key);
-      if (prior) return { id: prior.id, createdAt: prior.createdAt };
+      if (prior) {
+        if (input.kind === "profile" && prior.state === "resolved") prior.state = "queued";
+        return { id: prior.id, createdAt: prior.createdAt };
+      }
       const row: ReportRow = {
         id: randomUUID(),
         reporterProfileId: actor.profileId,

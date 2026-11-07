@@ -153,10 +153,8 @@ export async function POST(request: Request): Promise<Response> {
   if (adultRefusal) return adultRefusal;
 
   // A suspended account opens and sends nothing (0223).
-  if (action === "open" || action === "send") {
-    const suspended = await messageSuspendedRefusal(handle);
-    if (suspended) return suspended;
-  }
+  const suspended = await messageSuspendedRefusal(handle);
+  if (suspended) return suspended;
 
   // A conversation is opened WITH somebody. A handle nobody holds is not
   // somebody, and accepting one minted a durable row per fabricated name.
