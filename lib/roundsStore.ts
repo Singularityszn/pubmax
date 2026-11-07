@@ -365,10 +365,8 @@ const supabaseRoundsStore: RoundsStore = {
       }
       const id = crypto.randomUUID();
       let receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
-      // The bill upload awaited Storage, so the Round may have been called
-      // meanwhile. Read closed_at again before the insert. A close that lands
-      // between this read and the insert is still possible; only a database
-      // guard on round_spends could refuse that one.
+      // Storage can finish after closure. This read avoids an unnecessary insert.
+      // Migration 0221 must be applied to guard closure between this read and insert.
       const { data: current, error: currentError } = await admin()
         .from(ROUNDS)
         .select("closed_at")
@@ -411,6 +409,9 @@ const supabaseRoundsStore: RoundsStore = {
       }
       if (error?.code && receiptPhotoKey) {
         await deletePhotos([receiptPhotoKey]);
+      }
+      if (error?.code === "P0221" && error.message === "round_spend_round_closed") {
+        return { ok: false, error: "closed" };
       }
       if (error && (error as { code?: string }).code !== "23505") {
         throw new Error(error.message);
