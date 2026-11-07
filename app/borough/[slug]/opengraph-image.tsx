@@ -1,4 +1,4 @@
-import { pintFactStats } from "@/lib/pintFacts";
+import { extremeDescription, factCoverageSentence, pintFactStats } from "@/lib/pintFacts";
 import { ImageResponse } from "next/og";
 
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
@@ -40,15 +40,15 @@ async function loadVenues() {
 
 // A raised stat tile: a value over a muted label, on a panel step above the
 // page. Used for the average pint + tracked-pub count.
-function StatTile({ value, label }: { value: string; label: string }) {
+function StatTile({ value, label, detail }: { value: string; label: string; detail?: string }) {
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
-        minWidth: 210,
-        padding: "22px 30px",
+        flex: 1,
+        padding: "20px",
         borderRadius: 18,
         background: OG.panelRaised,
         border: `1px solid ${OG.line}`,
@@ -68,14 +68,15 @@ function StatTile({ value, label }: { value: string; label: string }) {
       <div
         style={{
           display: "flex",
-          fontSize: 22,
+          fontSize: 20,
           color: OG.muted,
           marginTop: 12,
-          letterSpacing: 0.4,
+          lineHeight: 1.25,
         }}
       >
         {label}
       </div>
+      {detail ? <div style={{ display: "flex", fontSize: 20, lineHeight: 1.25, color: OG.inkSoft, marginTop: 12 }}>{detail}</div> : null}
     </div>
   );
 }
@@ -98,11 +99,12 @@ export default async function Image({
   const cheapest = priceStamp(stats.minGbp);
   const avg = priceStamp(stats.averageGbp);
   const averageLabel = `average across ${stats.pubCount} listed ${stats.pubCount === 1 ? "pub" : "pubs"}`;
+  const averageCoverage = factCoverageSentence(stats);
   const pubCount = pubs.length;
 
   // Borough name scales down as it gets longer so it never collides with the
   // frame ("City of London", "Kensington & Chelsea").
-  const nameSize = name.length > 16 ? 66 : name.length > 11 ? 78 : 92;
+  const nameSize = name.length > 16 ? 54 : name.length > 11 ? 60 : 68;
 
   return new ImageResponse(
     (
@@ -137,11 +139,11 @@ export default async function Image({
             style={{
               display: "flex",
               color: OG.muted,
-              fontSize: 26,
+              fontSize: 22,
               fontWeight: 500,
-              letterSpacing: 6,
+              letterSpacing: 3,
               textTransform: "uppercase",
-              marginBottom: 14,
+              marginBottom: 8,
             }}
           >
             Cheapest pint in
@@ -163,18 +165,19 @@ export default async function Image({
             <div
               style={{
                 display: "flex",
-                alignItems: "flex-end",
+                alignItems: "stretch",
                 justifyContent: "space-between",
-                marginTop: 30,
+                marginTop: 20,
+                gap: 28,
                 width: "100%",
               }}
             >
               {/* The giant cheapest-pint figure — the one hero number */}
-              <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", flexDirection: "column", width: 480 }}>
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 180,
+                    fontSize: 120,
                     fontWeight: 700,
                     lineHeight: 0.9,
                     letterSpacing: -4,
@@ -186,23 +189,27 @@ export default async function Image({
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 24,
+                    fontSize: 22,
                     color: OG.inkSoft,
-                    marginTop: 14,
-                    letterSpacing: 1,
+                    marginTop: 12,
                   }}
                 >
                   the cheapest tracked pint
                 </div>
+                <div style={{ display: "flex", fontSize: 20, lineHeight: 1.25, color: OG.inkSoft, marginTop: 12 }}>
+                  {extremeDescription(stats.minEvidence)}
+                </div>
               </div>
 
               {/* Supporting stat tiles */}
-              <div style={{ display: "flex", gap: 18, marginBottom: 6 }}>
-                {avg ? <StatTile value={avg} label={averageLabel} /> : null}
-                <StatTile
-                  value={String(pubCount)}
-                  label={pubCount === 1 ? "pub tracked" : "pubs tracked"}
-                />
+              <div style={{ display: "flex", gap: 18, width: 564 }}>
+                {avg ? <StatTile value={avg} label={averageLabel} detail={averageCoverage} /> : null}
+                <div style={{ display: "flex", width: 170 }}>
+                  <StatTile
+                    value={String(pubCount)}
+                    label={pubCount === 1 ? "pub tracked" : "pubs tracked"}
+                  />
+                </div>
               </div>
             </div>
           ) : (
@@ -236,7 +243,7 @@ export default async function Image({
               >
                 {stats.pubCount > 0 ? "No comparable pint price yet." : "Real prices land as the area gets walked."}
               </div>
-              {avg ? <StatTile value={avg} label={averageLabel} /> : null}
+              {avg ? <div style={{ display: "flex", marginTop: 18, width: "100%" }}><StatTile value={avg} label={averageLabel} detail={averageCoverage} /></div> : null}
             </div>
           )}
         </div>

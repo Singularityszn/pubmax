@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+import { listedDrinkCoverage } from "@/lib/listedDrinkCoverage";
+
 import FactBlock from "@/components/seo/FactBlock";
 import FaqBlock from "@/components/seo/FaqBlock";
 import JsonLd from "@/components/seo/JsonLd";
@@ -45,7 +47,9 @@ describe("fact prices keep their own evidence and population", () => {
   it("excludes the actual bundled bottles without dropping legacy unknown evidence", async () => {
     const pubs = await loadPintPriceLandingVenues();
     expect(pubs).toHaveLength(2180);
-    expect(pubs.find((row) => row.name === "Bbar")?.cheapestPint).toBe("BOTTLED BEER");
+    const bbar = pubs.find((row) => row.name === "Bbar")!;
+    expect(bbar.cheapestPint).toBe("BOTTLED BEER");
+    expect(listedDrinkCoverage([bbar], [])).toMatchObject({ total: 1, pricedPubs: 0, counts: { beer: 0 } });
     const stats = pintFactStats(pubs, "London", "london");
     expect(stats.pubCount).toBe(934);
     expect(stats.totalPubCount).toBe(2180);

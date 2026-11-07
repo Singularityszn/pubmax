@@ -127,10 +127,14 @@ Community corroboration, other drink-lens rules and the stronger cheapest hunt k
 Fact averages and the listed mean/median cohort omit only explicit non-pint serving contradictions.
 `pintFactStats` and `listedPriceCohort` apply the existing serving guard to the selected same-price row.
 An unstated legacy serving retains its calculation default. Missing publishers and full read days remain in the population.
-Other cohort membership and numeric rules stay unchanged. Broad priced-pub coverage remains separate from this narrower average population.
+Other cohort membership and numeric rules stay unchanged.
+Priced-pub coverage rejects explicit non-pint servings in baseline prices, menu rows, updates and bundle rows.
+A separate qualifying pint keeps its pub in the count. Legacy prices with no stated serving stay in the count.
+Coverage can include qualifying menu prices and updates that do not supply a pub minimum for the average.
 Minimum and maximum claims retain the stricter comparable-pint eligibility, non-public exclusions and alphabetical ties.
 Each extreme carries its own `VenuePriceEvidence`, including its drink, stated serving, publisher and full source day.
-Visible facts and FAQ JSON-LD use those same extremes. The share image uses the same average and names its population.
+Visible facts and FAQ JSON-LD use those same extremes. The share image uses the same average, names its population and states its publisher and full-day coverage.
+Its cheapest pint carries the selected drink, serving, publisher and full read day, with explicit words for missing facts.
 Aggregate prose states the actual population, publisher coverage and full-day coverage. It never assigns one publisher to the whole calculation.
 A later equal-price row cannot lend its source or day to the selected row. A collection stamp cannot replace a source day.
 Behaviour regressions cover these boundaries in `__tests__/comparablePintRankingBoundaries.test.ts` and `__tests__/comparablePintProducer.test.ts`.

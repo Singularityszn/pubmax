@@ -190,7 +190,7 @@ function averageSentence(stats: PintFactStats): string {
   return `${sentence} ${stats.undatedCount} of those prices ${stats.undatedCount === 1 ? "records" : "record"} no read date. ${factCoverageSentence(stats)}`;
 }
 
-function extremeDescription(evidence: VenuePriceEvidence | null): string {
+export function extremeDescription(evidence: VenuePriceEvidence | null): string {
   const drink = evidence?.drinkLabel ?? "Pint name unavailable";
   const serving = evidence?.servingSize ?? "Serving size not recorded";
   const publisher = evidence?.publisher?.label ? `Listed by ${evidence.publisher.label}` : "Publisher not recorded";

@@ -77,7 +77,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "cheapestByArea", "count": 6, "reason": "Filters with the comparable policy before selecting area winners."},
   ],
   "lib/listedDrinkCoverage.ts": [
-    {"owner": "listedDrinkCoverage", "count": 2, "reason": "Counts listed drink coverage without ranking prices."},
+    {"owner": "listedDrinkCoverage", "count": 1, "reason": "Counts listed drink coverage without ranking prices."},
   ],
   "lib/mapExperienceLens.ts": [
     {"owner": "sourcedAnchorPrice", "count": 1, "reason": "Preserves other drink lens anchor display and serving contracts."},
