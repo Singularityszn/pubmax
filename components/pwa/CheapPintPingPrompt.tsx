@@ -22,6 +22,7 @@ import "@/components/native/nativePushPrompt.css";
 export default function CheapPintPingPrompt(): React.JSX.Element | null {
   const { user } = useAuth();
   const [pending, setPending] = useState(false);
+  const [slowSubscription, setSlowSubscription] = useState(false);
   const [error, setError] = useState("");
   const visible = useSyncExternalStore(
     subscribeCheapPintPingPrompt,
@@ -68,11 +69,12 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     registrationAbortRef.current = controller;
     setPending(true);
     setError("");
-    const token = await registerWebPush(controller.signal);
+    const token = await registerWebPush(controller.signal, () => setSlowSubscription(true));
     if (registrationAbortRef.current === controller) {
       registrationAbortRef.current = null;
     }
     if (controller.signal.aborted) return;
+    setSlowSubscription(false);
     if (!token) {
       setError(
         offlineOrMessage("Couldn't turn on alerts. Try again.")
@@ -147,7 +149,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
             onClick={() => void handleEnable()}
             disabled={pending}
           >
-            {pending ? "Saving…" : "Yes, ping me"}
+            {pending ? (slowSubscription ? "Still setting up notifications..." : "Saving…") : "Yes, ping me"}
           </button>
         </div>
       </div>

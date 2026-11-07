@@ -100,24 +100,57 @@ describe("registerWebPush", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("stops waiting when browser subscription work never settles", async () => {
+  it("lets the caller cancel native setup and ignores its late subscription", async () => {
     vi.useFakeTimers();
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
-    const { subscribe } = browserHarness({
-      subscribe: () => new Promise<PushSubscription>(() => undefined),
+    let finishSubscription!: (value: PushSubscription) => void;
+    const { subscribe, fetch, subscription } = browserHarness({
+      subscribe: () => new Promise<PushSubscription>((resolve) => { finishSubscription = resolve; }),
     });
+    const controller = new AbortController();
 
-    const registration = registerWebPush();
+    const registration = registerWebPush(controller.signal);
     let settled = false;
     void registration.then(() => {
       settled = true;
     });
     await flushRegistrationMicrotasks();
     expect(subscribe).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(80_600);
+    expect(settled).toBe(false);
+    controller.abort();
+    await flushRegistrationMicrotasks();
 
     expect(settled).toBe(true);
     await expect(registration).resolves.toBeNull();
+    finishSubscription(subscription);
+    await flushRegistrationMicrotasks();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  // The first tap must survive slow native setup. Live validation remained
+  // pending at 80.6 s. Also check a longer wait so a raised cutoff cannot pass.
+  it.each([31_800, 80_600, 180_000])("registers a first subscription after %i ms without another call", async (delayMs) => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
+    const slow: { resolve: (value: PushSubscription) => void } = { resolve: () => {} };
+    const { subscribe, fetch, subscription } = browserHarness({
+      subscribe: () => new Promise<PushSubscription>((resolve) => { slow.resolve = resolve; }),
+    });
+
+    const registration = registerWebPush();
+    let settled = false;
+    void registration.then(() => { settled = true; });
+    await flushRegistrationMicrotasks();
+    expect(subscribe).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(delayMs);
+    expect(settled).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+    slow.resolve(subscription);
+
+    await expect(registration).resolves.toMatch(/^webpush:/);
+    expect(fetch).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
   });
 

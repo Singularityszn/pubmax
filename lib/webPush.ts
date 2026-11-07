@@ -25,8 +25,8 @@ function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Prom
   });
 }
 
-/** A signal that aborts on the caller's signal or after the registration ceiling.
- * dispose() clears the timer and the listener once the registration settles. */
+/** A signal that aborts on the caller's signal or the current step's deadline.
+ * dispose() clears the timer and the listener once the step settles. */
 function registrationScope(parentSignal?: AbortSignal): {
   signal: AbortSignal;
   dispose(): void;
@@ -77,8 +77,13 @@ export function webPushSupport(): WebPushSupport {
 
 /** Request permission, create/reuse a browser subscription and register it on
  * the identity-free push-token route. Returns the encoded token on success, or
- * null on any unsupported, denied, unconfigured or network-failed path. */
-export async function registerWebPush(signal?: AbortSignal): Promise<string | null> {
+ * null on unsupported, denied, unconfigured, cancelled or failed paths.
+ * onSlowSubscription lets the caller explain an ongoing native subscription.
+ * Waiting and cancellation rules: docs/WEB_PUSH.md#browser-setup. */
+export async function registerWebPush(
+  signal?: AbortSignal,
+  onSlowSubscription?: () => void,
+): Promise<string | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   if (!("PushManager" in window) || !("Notification" in window)) return null;
 
@@ -93,46 +98,66 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
   if (signal?.aborted) return null;
 
   // The person's time on the permission dialog is theirs: only the caller can
-  // cancel it. The scope's deadline starts once permission is granted, and every
-  // exit path after that disposes it.
+  // cancel it. Native subscription setup also waits for the caller. The other
+  // steps use the registration deadline, which every exit path disposes.
   let scope: ReturnType<typeof registrationScope> | null = null;
+  const disposeStep = () => {
+    scope?.dispose();
+    scope = null;
+  };
+  const step = () => {
+    disposeStep();
+    scope = registrationScope(signal);
+    return scope.signal;
+  };
   try {
     const permission = Notification.permission === "default"
       ? await waitForWebPushWork(Notification.requestPermission(), signal)
       : Notification.permission;
     if (permission !== "granted") return null;
 
-    scope = registrationScope(signal);
-    const registration = await waitForWebPushWork(
-      navigator.serviceWorker.ready,
-      scope.signal,
-    );
-    const subscription = await waitForWebPushWork(
+    const ready = step();
+    const registration = await waitForWebPushWork(navigator.serviceWorker.ready, ready);
+    let subscription = await waitForWebPushWork(
       registration.pushManager.getSubscription(),
-      scope.signal,
-    ) ?? await waitForWebPushWork(
-      registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: key,
-      }),
-      scope.signal,
+      ready,
     );
+    disposeStep();
+    if (!subscription) {
+      // Fresh-profile endpoint setup can exceed a minute. Only the caller
+      // cancels this wait. The token request still has its own deadline.
+      const pendingNotice = setTimeout(() => {
+        if (!signal?.aborted) onSlowSubscription?.();
+      }, 60_000);
+      try {
+        subscription = await waitForWebPushWork(
+          registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: key,
+          }),
+          signal,
+        );
+      } finally {
+        clearTimeout(pendingNotice);
+      }
+    }
     const token = encodeWebPushSubscription(subscription.toJSON());
     if (!token) return null;
 
+    const request = step();
     const response = await waitForWebPushWork(
       fetch("/api/push-tokens", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ token, platform: "web" }),
-        signal: scope.signal,
+        signal: request,
       }),
-      scope.signal,
+      request,
     );
     return response.ok ? token : null;
   } catch {
     return null;
   } finally {
-    scope?.dispose();
+    disposeStep();
   }
 }

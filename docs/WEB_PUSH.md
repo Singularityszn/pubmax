@@ -23,6 +23,23 @@ Without the VAPID pair the provider returns `vapid_not_configured` for every web
 subscription and logs an actionable skip. Keyless app development remains
 unchanged.
 
+## Browser setup
+
+The weekly nudge, London daily brief, and cheap-pint ping wait for the browser
+to finish its first push subscription. After 60 seconds of subscription setup,
+the disabled button shows **Still setting up notifications...**. The app keeps
+waiting and does not show an error because subscription setup takes time.
+When setup succeeds, the app registers the token and completes the requested
+notification action. A subscription rejection, denied permission, or failed
+token request can still produce an error.
+
+The permission dialog also has no time limit. Service-worker readiness and the
+existing-subscription read share a 10-second limit. The token request has a
+separate 10-second limit. Leaving the control cancels the app's wait and prevents
+a late subscription result from registering a token. Cancellation does not stop
+the browser's own subscription work. Regression coverage is in
+`__tests__/webPush.test.ts` and `__tests__/webPushPending.test.tsx`.
+
 ## Step Out weekly nudge
 
 Separate from the city-wide daily brief. Step Out is **opt-in, default OFF**,

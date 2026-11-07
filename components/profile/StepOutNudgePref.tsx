@@ -55,6 +55,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
   const viewerSession = useViewerSession();
   const [pref, setPref] = useState<PrefState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [slowSubscription, setSlowSubscription] = useState(false);
   const [notice, setNotice] = useState("");
   // The age or handle gate, answered as data by the read and by a refused write.
   // It stands where the on switch would be until the one tap is recorded.
@@ -157,7 +158,8 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       }
       const controller = new AbortController();
       registrationAbortRef.current = controller;
-      const token = await registerWebPush(controller.signal);
+      const token = await registerWebPush(controller.signal, () => setSlowSubscription(true));
+      if (!controller.signal.aborted) setSlowSubscription(false);
       if (registrationAbortRef.current === controller) {
         registrationAbortRef.current = null;
       }
@@ -197,6 +199,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       );
     } finally {
       setBusy(false);
+      setSlowSubscription(false);
     }
   }
 
@@ -281,7 +284,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
             </Button>
           ) : (
             <Button variant="secondary" type="button" onClick={() => void enable()} disabled={busy}>
-              {busy ? "Updating…" : "Turn weekly nudge on"}
+              {busy ? (slowSubscription ? "Still setting up notifications..." : "Updating…") : "Turn weekly nudge on"}
             </Button>
           )}
         </div>
