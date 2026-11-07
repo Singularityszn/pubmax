@@ -110,12 +110,23 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    the pubs are too far apart. And Plan keeps the draft: the session draft
    rides with its own ask, and `/plan` generates through the anchored path
    that already keeps an imported pub list (`palDraftAttempts` in
-   `lib/palPlanHandoff.ts`, an anchor whose `venueIds` is the whole draft and
-   whose source is `pal`, or `map-search` for Ask the map). Plan still checks
-   every stop. When it cannot stand behind the whole draft it keeps the first
-   pub and chooses the rest, then plans from the ask, and the route status
-   says which of the three happened (`palDraftOutcomeLine`). Nothing is saved
-   until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
+   `lib/palPlanHandoff.ts`). Without an accepted first pub, the anchor source is
+   `pal`, or `map-search` for Ask the map. Plan still checks every stop.
+   If the requested count matches the draft, or no count was requested, Plan
+   first tries an anchor whose `venueIds` contains the whole draft.
+   Otherwise, Plan skips that attempt.
+   If the whole draft cannot form a route, Plan tries its first pub with new
+   remaining stops, then generates from the ask. A complete route with one or
+   two requested stops can satisfy the first-pub attempt.
+   An accepted first pub takes priority over the draft. If the draft starts
+   elsewhere, Plan skips the draft attempts and generates with the accepted pub.
+   If both start at the same pub, every attempt retains the accepted anchor,
+   including its source, area and time. The final attempt uses `held` rather
+   than `none` when an accepted pub remains.
+   The status names the retained choice (`palDraftOutcomeLine`). For a held
+   fallback, both displayed lines retain the generator's explanation, including
+   any shortage of suitable pubs (`palDraftRouteLines`).
+   Nothing is saved until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
    `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
 4. **Keyless path (map Ask)** - without `OPENROUTER_API_KEY`, `POST /api/ask`
    uses deterministic tools and house-voice templates.

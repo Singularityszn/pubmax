@@ -1,13 +1,7 @@
 // What Plan does with a draft crawl the Pub Pal (or Ask the map) proposed.
 //
-// "Open in Plan" used to carry only the ask over, so Plan answered it with
-// pubs of its own and the drafted crawl vanished. Plan now keeps the drafted
-// pubs, through the anchored generator that already keeps an imported pub
-// list (an anchor whose `venueIds` is the whole route; the server adds no pub
-// outside it). Plan still checks every stop. When it cannot stand behind the
-// whole draft it keeps the draft's first pub and chooses the rest, and when it
-// cannot keep even that it plans from the ask, and the status line says which
-// of the three happened. Nothing here invents a stop or hides a refusal.
+// ADR 0014, decision 3, owns the draft handoff contract:
+// docs/adr/0014-night-os-ask-agent.md#decision.
 //
 // Pure: no storage, no fetch, no clock.
 
