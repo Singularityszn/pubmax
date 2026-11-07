@@ -25,7 +25,7 @@ import "./navigation.css";
 // - PalMapEdgeButton, the same icon button on the phone map's edge column
 //   (components/mobile/MobileMapShell.tsx), because the map draws its own top
 //   bar and that bar has no room for a sixth control;
-// - PalSiteNavButton, the face and the Pal's name in the desktop bar.
+// - PalSiteNavButton, the desktop form styled by palNav.css.
 //
 // Only a person's OWN stored Pal puts a face on it: the Pal stored on this
 // device must pass the live ownership check in useOwnPal. Provider sign-out
@@ -150,7 +150,7 @@ export function PalMapEdgeButton({ pathname }: { pathname: string }) {
   return <PalIconDoor pathname={pathname} className="mobileMapPalDoor" variant="secondary" />;
 }
 
-/** The Pal button in the desktop bar: the face and the Pal's name. */
+/** The desktop Pal button. palNav.css owns its responsive form. */
 export function PalSiteNavButton({ pathname }: { pathname: string }) {
   const { pal, cheering } = usePalForNav();
   const active = palNavActive(pathname);

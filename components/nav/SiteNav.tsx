@@ -138,11 +138,8 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
 
   return (
     <div className={className}>
-      {/* The Pub Pal's own door (PalNavButton.tsx), first among the actions:
-          the person's Pal and its name on desktop, and from 640px down the
-          same door as an icon button, because the phone dock is five tabs and
-          nothing else (captain, 1 Nov 2026). Each hides at the other's widths
-          (palNav.css). */}
+      {/* The Pal stays in the header because the phone dock has five tabs.
+          palNav.css selects the desktop or phone form at each width. */}
       <PalSiteNavButton pathname={pathname} />
       <PalTopBarButton pathname={pathname} />
       <WildNightPreviewGate />
@@ -166,10 +163,8 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
       >
         <CirclePlus size={20} aria-hidden="true" />
       </Link>
-      {/* ⌘K command-palette affordance (feature N1). Unobtrusive hint button;
-          hidden on phones (the bottom tab bar owns nav and there's no keyboard
-          shortcut there). Label stays "⌘K" — Windows/Linux users still get the
-          same palette via Ctrl+K. */}
+      {/* The keyboard shortcuts remain available when CSS hides this hint.
+          The label is "⌘K". Windows and Linux users use Ctrl+K. */}
       <button
         type="button"
         className="siteNavCmdk"

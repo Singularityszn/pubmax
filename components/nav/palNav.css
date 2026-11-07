@@ -48,9 +48,8 @@
   border-color: var(--state-selected-border);
 }
 
-/* The top-bar door is a phone control. From 641px the desktop bar's own door
-   (.siteNavPal, below) carries the Pal, with its name. Two classes, so these
-   outrank the primitive's own `display`. */
+/* The top-bar door is a phone control. The desktop bar uses .siteNavPal
+   instead. Two classes outrank the primitive's own `display`. */
 .siteNavActions .palTopBarDoor {
   display: none;
 }
