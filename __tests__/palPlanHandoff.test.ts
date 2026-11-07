@@ -11,7 +11,7 @@ import {
   palPlanDraftFor,
   type PalPlanDraft,
 } from "@/lib/palPlanHandoff";
-import { buildPlanGenerationIntakeBody, createPlanIntakeDraft } from "@/lib/planIntake";
+import { buildPlanGenerationIntakeBody, createPlanIntakeDraft, type PlanGenerationAnchorInput } from "@/lib/planIntake";
 
 const ASK = "Plan a crawl in Clapham for 4, not pricey";
 const DRAFT = {
@@ -68,6 +68,34 @@ describe("palDraftAttempts: keep all, then keep the first, then plan from the as
   it("is the one plain attempt without a draft", () => {
     expect(palDraftAttempts(null, held)).toEqual([{ keeps: "none", anchor: held, context: {} }]);
     expect(palDraftAttempts(null, null)).toEqual([{ keeps: "none", anchor: null, context: {} }]);
+  });
+
+  it("keeps the accepted first pub when a new draft starts somewhere else", () => {
+    const attempts = palDraftAttempts(draft, held);
+    const bodies = attempts.map((attempt) => buildPlanGenerationIntakeBody(
+      createPlanIntakeDraft(), ASK, null, attempt.context, attempt.anchor,
+    ));
+    expect(bodies.map((body) => body.anchor?.venueId)).toEqual(["venue-held"]);
+    expect(bodies[0]?.anchor).toEqual(held);
+    expect(palDraftOutcomeLine(draft, attempts[0]!.keeps, ["The Held Pub", "The Other Pub"]))
+      .toBe("Your chosen first pub stays first. The draft does not replace your choice.");
+  });
+
+  it("retains accepted area and time when the draft starts at the held pub", () => {
+    const accepted: PlanGenerationAnchorInput = {
+      ...held,
+      venueId: DRAFT.stopIds[0]!,
+      acceptedArea: { kind: "night-patch", id: "clapham" },
+      startsAt: "2026-11-04T19:00:00.000Z",
+    };
+    const [all, first] = palDraftAttempts(draft, accepted);
+    expect(all?.anchor).toEqual({ ...accepted, venueIds: DRAFT.stopIds });
+    expect(first?.anchor).toEqual(accepted);
+  });
+
+  it("does not replace an accepted pub list with another draft", () => {
+    const accepted = { ...held, venueId: DRAFT.stopIds[0]!, venueIds: [DRAFT.stopIds[0]!, "venue-held-second"] };
+    expect(palDraftAttempts(draft, accepted)).toEqual([{ keeps: "held", anchor: accepted, context: {} }]);
   });
 
   it("asks the anchored generator for the whole drafted route first", () => {
@@ -150,6 +178,17 @@ describe("palDraftAttemptKept: a keeping attempt counts only when it kept its pr
     expect(palDraftAttemptKept(first, draft, true, route(["b", "venue-1fz0jhj", "c"]))).toBe(false);
     expect(palDraftAttemptKept(first, draft, true, route(["venue-1fz0jhj"], "anchor-only"))).toBe(false);
   });
+
+  it.each([1, 2] as const)("accepts a requested %i-stop route that keeps the first pub", (stopCount) => {
+    const intake = createPlanIntakeDraft();
+    intake.answers.stopCount = stopCount;
+    const attempt = palDraftAttempts(draft, null)[1]!;
+    const body = buildPlanGenerationIntakeBody(intake, ASK, null, { stopCount }, attempt.anchor);
+    expect(body.intake?.stopCount).toBe(stopCount);
+    expect(palDraftAttemptKept(attempt, draft, true, route(
+      ["venue-1fz0jhj", "venue-new"].slice(0, stopCount),
+    ))).toBe(true);
+  });
 });
 
 describe("palDraftOutcomeLine: says which of the three happened", () => {
@@ -174,7 +213,7 @@ describe("palDraftOutcomeLine: says which of the three happened", () => {
   });
 
   it("follows the house voice: no em dash, no exclamation mark", () => {
-    for (const keep of ["all", "first", "none"] as const) {
+    for (const keep of ["all", "first", "held", "none"] as const) {
       for (const draft of [pal, map]) {
         const line = palDraftOutcomeLine(draft, keep, names);
         expect(line).not.toMatch(/[—!]/);
@@ -197,7 +236,19 @@ describe("palDraftRouteLines and palDraftCheckingLine: the generator's lines wit
       conciergeNote: "Kept your Pub Pal's pubs: A, B and C.",
       routeStatus: "Kept your Pub Pal's pubs: A, B and C. Route refreshed.",
     });
-    expect(palDraftCheckingLine(draft, "Refreshing.")).toBe("Checking every stop your Pub Pal picked.");
-    expect(palDraftCheckingLine(palPlanDraftFor(raw({ origin: "map" }), ASK), "x")).toBe("Checking every stop in the draft.");
+    expect(palDraftCheckingLine(draft, "Refreshing.")).toBe("Checking your Pub Pal's draft for your night.");
+    expect(palDraftCheckingLine(palPlanDraftFor(raw({ origin: "map" }), ASK), "x")).toBe("Checking the draft for your night.");
+  });
+
+  it("keeps the scarcity explanation when only the held pub survives", () => {
+    const scarcity = "We kept The Held Pub. We could not build the 3-stop route you asked for. Change the details or add pubs.";
+    const shown = palDraftRouteLines(draft, "held", ["The Held Pub"], {
+      conciergeNote: scarcity,
+      routeStatus: scarcity,
+    });
+    expect(shown.conciergeNote).toContain(scarcity);
+    expect(shown.routeStatus).toContain(scarcity);
+    expect(shown.conciergeNote).not.toContain("Plan built the route");
+    expect(shown.routeStatus).not.toContain("Plan built the route");
   });
 });
