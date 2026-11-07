@@ -33,11 +33,8 @@ function CostSource({ label, url }: { label: string; url: string }) {
 }
 
 /**
- * The pub side of the outing, beside the waypoint. Each recorded pint names
- * its publisher. These are listed prices, not ones people logged, so a row
- * carries no date of its own (docs/VOICE.md). The sum is a partial subtotal,
- * and the costs nobody has priced are listed by name so the night never reads
- * as fully costed.
+ * The pub side of the outing, beside the waypoint. The partial subtotal and
+ * named unknown costs prevent the outing from appearing fully costed.
  */
 function PlanCultureCosts({ costs }: { costs: CultureOutingCostsDTO }) {
   return (

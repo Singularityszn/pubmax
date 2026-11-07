@@ -9,22 +9,22 @@
 // hairline list. What every row shares is said ONCE in that line: the quiet
 // reading is one reading for the hour ("Usually quiet on a Sunday"), every
 // history is sourced, and when every source is the same publisher it is named
-// there too. Each row keeps only what is its own: the name, its banded pint,
-// the cited line, its grade and era, and the link to its own source. The cited
-// heritage line does the selling; the copy never markets at the reader.
+// there too. A shared history publisher does not identify a price's source.
+// Each row keeps its price evidence separate from its history citation.
 
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
 
 import { ProseDisclosure } from "@/components/Disclosure";
 import { PintPriceBadge } from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import type { QuietPintModule } from "@/lib/quietPint";
 
 import "./quietPintCard.css";
 
 type Props = { module: QuietPintModule | null };
 
-/** One publisher behind every row, or null when the rows cite several. */
+/** One history publisher behind every row, or null when the rows cite several. */
 function sharedSource(module: QuietPintModule): string | null {
   const labels = new Set(module.rows.map((row) => row.sourceLabel));
   return labels.size === 1 ? (module.rows[0]?.sourceLabel ?? null) : null;
@@ -65,6 +65,15 @@ export default function TodayQuietPintCard({ module }: Props) {
                 />
               ) : null}
             </div>
+            {typeof row.priceGbp === "number" ? <>
+              <p className="todayPriceEvidence">
+                {row.priceEvidence?.drinkLabel || "Drink not recorded"} · {row.priceEvidence?.servingSize || "Serving not recorded"}
+              </p>
+              <ListedPriceSource className="todayPriceEvidence" kind={row.priceEvidence?.sourceKind} evidence={{
+                publisher: row.priceEvidence?.publisher ?? null,
+                observedOn: row.priceEvidence?.observedOn ?? null,
+              }} />
+            </> : null}
             <div className="quietPintHeritage">
               <ProseDisclosure text={row.heritageLine} />
             </div>
@@ -77,9 +86,9 @@ export default function TodayQuietPintCard({ module }: Props) {
                   href={row.sourceRef}
                   target="_blank"
                   rel="noreferrer noopener"
-                  aria-label={`${row.name}, source: ${row.sourceLabel}`}
+                  aria-label={`${row.name}, history source: ${row.sourceLabel}`}
                 >
-                  {oneSource ? "Source" : row.sourceLabel}
+                  {oneSource ? "History source" : row.sourceLabel}
                   <ExternalLink size={14} aria-hidden="true" />
                 </a>
               ) : (

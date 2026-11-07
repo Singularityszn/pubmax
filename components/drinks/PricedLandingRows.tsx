@@ -4,8 +4,8 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatObservedDate } from "@/lib/dataFreshness";
+import { formatDrinkTagName } from "@/lib/drinkTagName";
 import {
-  formatPricedLandingPintName,
   formatPricedLandingPublisherStatus,
   type PricedLandingRow,
 } from "@/lib/pricedLanding";
@@ -96,7 +96,7 @@ export default function PricedLandingRows({
               ) : null}
               <span className="drinkBrandDirectory__borough">{row.borough}</span>
               <span className="drinkBrandDirectory__pint">
-                {formatPricedLandingPintName(row.pintName)}
+                {formatDrinkTagName(row.pintName)}
               </span>
               <PricedLandingPublisher
                 className="drinkBrandDirectory__publisher"

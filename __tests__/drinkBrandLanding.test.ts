@@ -16,7 +16,6 @@ import {
 } from "@/lib/drinkBrandLanding";
 import {
   PRICED_LANDING_ROW_LIMIT,
-  formatPricedLandingPintName,
   formatPricedLandingPublisherStatus,
   pricedLandingAreaMapCta,
   pricedLandingBrandAreaLinks,
@@ -29,6 +28,7 @@ import {
   loadMapSelectableVenueIds,
   resetMapEagerVenueIndexForTests,
 } from "@/lib/mapEagerVenueIndex.server";
+import { formatDrinkTagName } from "@/lib/drinkTagName";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -480,29 +480,29 @@ describe("priced landing map arrivals", () => {
   });
 
   it("title-cases an all-caps drink tag and keeps only the known capital tokens", () => {
-    expect(formatPricedLandingPintName("GUINNESS")).toBe("Guinness");
-    expect(formatPricedLandingPintName("Guinness Draught")).toBe("Guinness Draught");
+    expect(formatDrinkTagName("GUINNESS")).toBe("Guinness");
+    expect(formatDrinkTagName("Guinness Draught")).toBe("Guinness Draught");
     // A short word is not an acronym: the length rule shouted half of a tag.
-    expect(formatPricedLandingPintName("NECK OIL")).toBe("Neck Oil");
-    expect(formatPricedLandingPintName("BEVERTOWN NECK OIL")).toBe(
+    expect(formatDrinkTagName("NECK OIL")).toBe("Neck Oil");
+    expect(formatDrinkTagName("BEVERTOWN NECK OIL")).toBe(
       "Bevertown Neck Oil",
     );
-    expect(formatPricedLandingPintName("MCMULLEN AK")).toBe("Mcmullen Ak");
+    expect(formatDrinkTagName("MCMULLEN AK")).toBe("Mcmullen Ak");
     // Every listed capital token survives, inside a shout and inside mixed case.
-    expect(formatPricedLandingPintName("ALPACALYPSE SESSION IPA")).toBe(
+    expect(formatDrinkTagName("ALPACALYPSE SESSION IPA")).toBe(
       "Alpacalypse Session IPA",
     );
-    expect(formatPricedLandingPintName("Greeneking IPA")).toBe("Greeneking IPA");
-    expect(formatPricedLandingPintName("CRAZY HORSE APA")).toBe("Crazy Horse APA");
-    expect(formatPricedLandingPintName("ESB")).toBe("ESB");
-    expect(formatPricedLandingPintName("HAZY DIPA")).toBe("Hazy DIPA");
-    expect(formatPricedLandingPintName("JUICY NEIPA")).toBe("Juicy NEIPA");
-    expect(formatPricedLandingPintName("SUMMER XPA")).toBe("Summer XPA");
+    expect(formatDrinkTagName("Greeneking IPA")).toBe("Greeneking IPA");
+    expect(formatDrinkTagName("CRAZY HORSE APA")).toBe("Crazy Horse APA");
+    expect(formatDrinkTagName("ESB")).toBe("ESB");
+    expect(formatDrinkTagName("HAZY DIPA")).toBe("Hazy DIPA");
+    expect(formatDrinkTagName("JUICY NEIPA")).toBe("Juicy NEIPA");
+    expect(formatDrinkTagName("SUMMER XPA")).toBe("Summer XPA");
     // An accent is a letter, so a shout may not come back out half-shouted.
-    expect(formatPricedLandingPintName("STEIGL GOLDBRAÜ")).toBe("Steigl Goldbraü");
-    expect(formatPricedLandingPintName("MURPHY'S")).toBe("Murphy's");
-    expect(formatPricedLandingPintName("YOUNG’S ORIGINAL")).toBe("Young’s Original");
-    expect(formatPricedLandingPintName("LOST ALCOHOL FREE 0.5%")).toBe(
+    expect(formatDrinkTagName("STEIGL GOLDBRAÜ")).toBe("Steigl Goldbraü");
+    expect(formatDrinkTagName("MURPHY'S")).toBe("Murphy's");
+    expect(formatDrinkTagName("YOUNG’S ORIGINAL")).toBe("Young’s Original");
+    expect(formatDrinkTagName("LOST ALCOHOL FREE 0.5%")).toBe(
       "Lost Alcohol Free 0.5%",
     );
   });
@@ -513,7 +513,7 @@ describe("priced landing map arrivals", () => {
     expect(tags.size).toBeGreaterThan(0);
 
     for (const tag of tags) {
-      const printed = formatPricedLandingPintName(tag);
+      const printed = formatDrinkTagName(tag);
       for (const word of printed.match(/\p{L}[\p{L}\p{N}'’.-]*/gu) ?? []) {
         if (word.length < 2 || word !== word.toUpperCase()) continue;
         expect(

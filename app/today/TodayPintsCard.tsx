@@ -13,6 +13,7 @@
 
 import Link from "next/link";
 import PriceBadge from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
@@ -114,14 +115,17 @@ export default function TodayPintsCard({ index }: Props) {
                 {row.priceLabel}
               </PriceBadge>
             </Link>
+            <p className="todayPriceEvidence">
+              {row.priceEvidence?.drinkLabel || "Drink not recorded"} · {row.priceEvidence?.servingSize || "Serving not recorded"}
+            </p>
+            <ListedPriceSource className="todayPriceEvidence" kind={row.priceEvidence?.sourceKind} evidence={{
+              publisher: row.priceEvidence?.publisher ?? null,
+              observedOn: row.priceEvidence?.observedOn ?? null,
+            }} />
           </li>
         ))}
       </ul>
 
-      {/* ONE sentence about what these prices are, and it is the dated one in
-          the line above. The footer used to repeat it undated over a
-          different geography, so a reader met the same claim twice and only
-          one copy said which day it was collected. */}
       <p className="todayCardFootRow">
         <Link href="/map" className={TODAY_TEXT_BUTTON_CLASS}>
           Change area

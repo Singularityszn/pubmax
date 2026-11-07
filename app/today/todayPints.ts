@@ -10,6 +10,7 @@
 // an empty box). Pure and node-testable — no fs, no serverEnv, no DOM.
 
 import type { Route } from "next";
+import { venuePriceEvidence, type VenuePriceEvidence } from "@/lib/venuePriceEvidence";
 import { areaUnderCentre, cheapestDrinksInArea } from "@/lib/areaButton";
 import {
   CENTRAL_PATCH,
@@ -46,6 +47,7 @@ type TodayPintRow = {
   areaRelation: VenueAreaRelation;
   /** When this pint was last read at its source. Absent or null when it records none. */
   observedAt?: string | null;
+  priceEvidence?: VenuePriceEvidence;
 };
 
 export type TodayPintsModule = {
@@ -92,6 +94,7 @@ export function buildTodayPintsForPatch(
     areaName: area.name,
     rows: priced.map((row) => {
       const venue = byId.get(row.id);
+      const priceEvidence = venue ? venuePriceEvidence(venue, row.price as number, true) : undefined;
       return {
         id: row.id,
         name: row.name,
@@ -100,6 +103,7 @@ export function buildTodayPintsForPatch(
         mapHref: venueMapUrl(row.id),
         areaRelation: venue ? venueAreaClaim(venue, [area]).relation : "unplaced",
         observedAt: row.observedAt ?? null,
+        priceEvidence,
       };
     }),
   };
