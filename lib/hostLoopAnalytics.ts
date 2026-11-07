@@ -22,7 +22,7 @@ export function trackHostLoopStep(
   if (step === "open" && outcome.code === "created" && outcome.crewId) trackEvent("open_crawl_opened");
   if (
     step === "request" && outcome.code === "requested" &&
-    (crew?.kind === "preview" ? typeof crew.hostHandle === "string" : crew?.visibility === "open")
+    crew?.kind === "preview" && typeof crew.hostHandle === "string"
   ) trackEvent("crew_join_requested");
   if (step === "decide" && outcome.code === "accepted") trackEvent("crew_join_accepted");
 }

@@ -30,15 +30,14 @@ export function planCrewArrivedReceipts(plan: PlanState | null, now = new Date()
   if (!plan) return [];
   const bands = crewArrivedBandsReached(plan.crew);
   if (bands.length === 0) return [];
-  const nightKey = londonDayKey(plan.plan.startTime) || "unscheduled";
+  const nightKey = londonDayKey(plan.plan.startTime);
   try {
     return bands.map((band) => ({
       deliveryToken: crewArrivedEventToken({
         planId: plan.plan.id,
         nightKey,
-        arrivedAt: now.toISOString(),
         band,
-      }),
+      }, now.getTime()),
       guestsArrived: band,
     }));
   } catch {

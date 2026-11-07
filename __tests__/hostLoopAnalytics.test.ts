@@ -3,7 +3,7 @@
 // Three browser events mark the loop's steps (opened, asked, let in), and one
 // server-minted receipt carries the night's arrived count as a band. The band
 // is the launch metric: hosted nights where 4 or more guests arrived.
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const tracked = vi.hoisted(() => vi.fn());
 
@@ -50,9 +50,20 @@ function eventIdOf(token: string): string {
 const crewOf = (...statuses: CrewPresenceStatus[]) => statuses.map((status) => ({ status }));
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-12T18:00:00.000Z"));
+  vi.stubEnv("POSTHOG_PROJECT_API_KEY", "");
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN", "");
   __resetMemoryPlans();
   __resetPlanCollaboration();
   __resetMemoryAnalyticsReceipts();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 async function hostedPlan(guests: number) {
@@ -95,14 +106,14 @@ async function setStatus(planId: string, memberToken: string, status: CrewPresen
   return body.crewArrived ?? [];
 }
 
-async function ingest(receipt: Receipt): Promise<string | null> {
+async function ingest(receipt: Receipt, anonymousId = "anon_8d8f4a52-8a1d-4a49-9b3a-2a0f9a3d6c11"): Promise<string | null> {
   const response = await EVENTS(new Request("http://localhost/api/events", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       name: "crew_arrived",
       props: { guestsArrived: receipt.guestsArrived },
-      anonymousId: "anon_8d8f4a52-8a1d-4a49-9b3a-2a0f9a3d6c11",
+      anonymousId,
       analyticsConsent: true,
       deliveryToken: receipt.deliveryToken,
     }),
@@ -190,10 +201,8 @@ describe("crew_arrived receipts on a status write", () => {
     const forwarded = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
       expect(await ingest(fromGuest!)).toBe("delivered");
-      // Later copies of the same band and night are refused, never forwarded:
-      // the same token answers "delivered", another device's token "discard".
       expect(await ingest(fromGuest!)).toBe("delivered");
-      expect(["delivered", "discard"]).toContain(await ingest(fromHost!));
+      expect(await ingest(fromHost!)).toBe("delivered");
       const lines = forwarded.mock.calls.filter(([line]) => String(line).startsWith("[pubmax-analytics]"));
       expect(lines).toHaveLength(1);
     } finally {
@@ -201,16 +210,72 @@ describe("crew_arrived receipts on a status write", () => {
     }
   });
 
+  it("recovers failed delivery through another member's later byte-identical receipts", async () => {
+    const { planId, hostToken, guestTokens } = await hostedPlan(4);
+    for (const token of guestTokens) await setStatus(planId, token, "here");
+    const fromGuest = await setStatus(planId, guestTokens[0]!, "here");
+    expect(fromGuest.map((receipt) => receipt.guestsArrived)).toEqual(["1", "2-3", "4+"]);
+
+    vi.stubEnv("POSTHOG_PROJECT_API_KEY", "phc_test_project");
+    const forward = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", forward);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    for (const receipt of fromGuest) expect(await ingest(receipt)).toBe("retry");
+    expect(forward).toHaveBeenCalledTimes(3);
+
+    vi.setSystemTime(new Date("2026-11-12T18:10:00.000Z"));
+    const fromHost = await setStatus(planId, hostToken, "here");
+    forward.mockResolvedValue(new Response(null, { status: 200 }));
+    for (const receipt of fromHost) {
+      expect(await ingest(receipt, "anon_0123456789abcdef")).toBe("delivered");
+      expect(await ingest(receipt, "anon_0123456789abcdef")).toBe("delivered");
+    }
+    expect(fromHost).toEqual(fromGuest);
+    expect(forward).toHaveBeenCalledTimes(6);
+    const forwarded = forward.mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)) as {
+      properties: { $insert_id: string };
+    });
+    expect(forwarded.slice(3).map((body) => body.properties.$insert_id))
+      .toEqual(fromGuest.map((receipt) => eventIdOf(receipt.deliveryToken)));
+  });
+
   it("gives two nights and two bands their own receipts", async () => {
     const plan = (await memoryPlanStore.get((await hostedPlan(1)).planId))!;
     const nextWeek = { ...plan, plan: { ...plan.plan, startTime: new Date(Date.now() + 7 * 864e5).toISOString() } };
-    const subject = { planId: plan.plan.id, nightKey: "2026-11-12", arrivedAt: new Date().toISOString() };
+    const subject = { planId: plan.plan.id, nightKey: "2026-11-12" };
     expect(eventIdOf(crewArrivedEventToken({ ...subject, band: "1" })))
       .not.toBe(eventIdOf(crewArrivedEventToken({ ...subject, band: "2-3" })));
     const here = (state: typeof plan) => ({ ...state, crew: state.crew.map((member) => ({ ...member, status: "here" as const })) });
     const [tonight] = planCrewArrivedReceipts(here(plan));
-    const [later] = planCrewArrivedReceipts(here(nextWeek));
+    const [later] = planCrewArrivedReceipts(here(nextWeek), new Date(nextWeek.plan.startTime));
     expect(eventIdOf(tonight!.deliveryToken)).not.toBe(eventIdOf(later!.deliveryToken));
+  });
+
+  it.each([
+    ["2026-11-12", "2026-11-12T00:00:00.000Z"],
+    ["2026-07-12", "2026-07-11T23:00:00.000Z"],
+    ["2026-03-29", "2026-03-29T00:00:00.000Z"],
+    ["2026-10-25", "2026-10-24T23:00:00.000Z"],
+  ])("anchors %s to London midnight within the delivery window", (nightKey, midnight) => {
+    const subject = { planId: "plan-night", nightKey, band: "4+" as const };
+    const event = { name: "crew_arrived" as const, props: { guestsArrived: "4+" } };
+    const start = Date.parse(midnight);
+    const expiry = start + 30 * 24 * 60 * 60 * 1000;
+    const token = crewArrivedEventToken(subject, start);
+    expect(verifyAnalyticsDeliveryToken(token, event, start)).toMatchObject({ issuedAt: start, expiresAt: expiry });
+    expect(crewArrivedEventToken(subject, expiry - 1)).toBe(token);
+    expect(verifyAnalyticsDeliveryToken(token, event, expiry - 1)).not.toBeNull();
+    expect(() => crewArrivedEventToken(subject, start - 1)).toThrow();
+    expect(() => crewArrivedEventToken(subject, expiry)).toThrow();
+    expect(verifyAnalyticsDeliveryToken(token, event, expiry)).toBeNull();
+  });
+
+  it("leaves presence successful when its scheduled night is future or expired", async () => {
+    const { planId, guestTokens } = await hostedPlan(1);
+    vi.setSystemTime(new Date("2026-11-11T18:00:00.000Z"));
+    expect(await setStatus(planId, guestTokens[0]!, "here")).toEqual([]);
+    vi.setSystemTime(new Date("2026-12-12T00:00:00.000Z"));
+    expect(await setStatus(planId, guestTokens[0]!, "here")).toEqual([]);
   });
 
   it("is refused at ingest without a server receipt", async () => {
@@ -255,24 +320,6 @@ describe("each step event fires on the server's first answer only", () => {
     trackHostLoopStep("request", outcome("requested"), null);
     trackHostLoopStep("request", outcome("requested"));
     expect(tracked).not.toHaveBeenCalled();
-  });
-
-  it.each(["private", "friends", "open"] as const)("counts member requests only for open crews: %s", async (visibility) => {
-    const { planId } = await hostedPlan(1);
-    const crew = parseCrewRead({
-      ...friendsPreview,
-      kind: "member",
-      crewId: outcome("requested").crewId,
-      visibility,
-      authorityRevision: 1,
-      viewer: { memberId: "4f6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f61", role: "member" },
-      owner: { memberId: "4f6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f62", handle: "host" },
-      members: [],
-      plan: await memoryPlanStore.get(planId),
-    });
-    expect(crew).not.toBeNull();
-    trackHostLoopStep("request", outcome("requested"), crew);
-    expect(tracked.mock.calls).toEqual(visibility === "open" ? [["crew_join_requested"]] : []);
   });
 
   it("counts an accept, but not a decline", () => {

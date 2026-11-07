@@ -8,6 +8,7 @@ import {
   type PlanningSource,
 } from "@/lib/analyticsEvents";
 import type { CrewArrivedBand } from "@/lib/crew";
+import { londonMsSinceMidnight } from "@/lib/londonHour";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 const TOKEN_VERSION = 1;
@@ -228,13 +229,15 @@ export function crewCommittedEventToken(input: {
 export function crewArrivedEventToken(input: {
   planId: string;
   nightKey: string;
-  arrivedAt: string;
   band: CrewArrivedBand;
-}): string {
+}, now = Date.now()): string {
+  const midnight = new Date(`${input.nightKey}T00:00:00.000Z`);
+  const issuedAt = midnight.getTime() - londonMsSinceMidnight(midnight);
+  if (issuedAt > now || now >= issuedAt + TOKEN_TTL_MS) throw new Error("Arrival receipt is outside its night delivery window.");
   return mintVerifiedAnalyticsToken(
     { name: "crew_arrived", props: { guestsArrived: input.band } },
     `plan:${input.planId}:crew-night:${input.nightKey}:guests-arrived:${input.band}`,
-    input.arrivedAt,
+    new Date(issuedAt).toISOString(),
   );
 }
 
