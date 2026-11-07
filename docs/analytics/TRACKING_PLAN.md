@@ -343,6 +343,10 @@ vocabularies. The column here is the question the event exists to answer.
 | `invite_reaction_toggled` | A reaction was added or removed. |
 | `invite_map_opened` | The invite sent somebody to the Map. |
 | `friend_edge_via_crew` | A mutual pair formed because both were on one crew. |
+| `open_crawl_opened` | A host opened a locked plan up to strangers. |
+| `crew_join_requested` | Somebody asked to join an open crawl. |
+| `crew_join_accepted` | The host let a join request in. |
+| `crew_arrived` | Guests on a private hosted plan reached an arrival band. Open crawls cannot report arrivals until [issue 2587](https://github.com/Singularityszn/pubmax/issues/2587) lands. [METRICS section 3.3](METRICS.md#33-the-host-loop-and-private-hosted-plan-arrivals) owns the counting rules and limits. |
 | `out_tonight_beacon_on` | The crew-only beacon went on. |
 | `out_tonight_beacon_off` | It went off. |
 
