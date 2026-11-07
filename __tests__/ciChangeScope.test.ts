@@ -27,6 +27,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runInNewContext } from "node:vm";
 
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -40,7 +41,7 @@ const CLASSIFY = "Classify the change";
 const CLASSIFY_LAYOUT = "Classify the layout change";
 const NAMED_TESTS = "Unit tests that name a changed file";
 
-type Step = { name?: string; id?: string; if?: string; run?: string; uses?: string; with?: Record<string, unknown> };
+type Step = { name?: string; id?: string; if?: string | boolean; run?: string; uses?: string; with?: Record<string, unknown> };
 type Job = { name?: string; if?: string; steps: Step[] };
 type Workflow = { jobs: Record<string, Job> };
 
@@ -64,6 +65,21 @@ function job(where: string): Job {
 
 function step(where: string, name: string): Step {
   return defined(job(where).steps.find((entry) => entry.name === name), `${where} / ${name}`);
+}
+
+function scopeCondition(condition: Step["if"], scope: string, shard = 1): boolean {
+  const expression = String(condition ?? true)
+    .trim()
+    .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
+  return Boolean(runInNewContext(`(${expression})`, {
+    steps: { scope: { outputs: { scope } } },
+    matrix: { shard },
+    github: { event_name: "pull_request", ref: "refs/pull/1/merge" },
+    success: () => true,
+    failure: () => false,
+    cancelled: () => false,
+    always: () => true,
+  }, { timeout: 1000 }));
 }
 
 const scratch = mkdtempSync(join(tmpdir(), "pubmax-ci-scope-"));
@@ -208,29 +224,34 @@ describe("what each scope runs", () => {
     expect(words).toContain(spec);
   });
 
-  it("gates every step after the classifier, and never a whole job", () => {
+  it.each([
+    { scope: "code", heavy: true, types: true, named: false },
+    { scope: "data", heavy: false, types: true, named: true },
+    { scope: "docs", heavy: false, types: false, named: true },
+  ])("applies the CI_RUNBOOK pull-request step policy for $scope", ({ scope, heavy, types, named }) => {
     for (const { where, job: gated } of gatedJobs) {
-      if (where === SCOPE_JOB) continue;
-      expect(gated.if ?? "", `${where} must not skip at the job level`).not.toContain("scope");
-      const after = gated.steps.slice(gated.steps.findIndex((entry) => entry.name === CLASSIFY) + 1);
-      expect(after.length, where).toBeGreaterThan(0);
-      for (const entry of after) expect(entry.if ?? "", `${where} / ${entry.name}`).toContain("steps.scope.outputs.scope");
+      for (const shard of [1, 2, 3]) {
+        expect(scopeCondition(gated.if, scope, shard), `${where} job / ${scope} / ${shard}`).toBe(true);
+        const classifierIndex = gated.steps.findIndex((entry) => entry.name === CLASSIFY);
+        for (const [index, entry] of gated.steps.entries()) {
+          let expected = heavy;
+          if (where === SCOPE_JOB || index <= classifierIndex) {
+            expected = true;
+          } else if (where === "ci.yml / lint-and-types" || where === "ci.yml / typecheck-ts6") {
+            expected = types;
+          } else if (where === "ci.yml / unit-tests") {
+            if (["Setup Node", "Install dependencies", "Build slim venue artifacts"].includes(entry.name ?? "")) {
+              expected = heavy || shard === 1;
+            } else if (entry.name === NAMED_TESTS) {
+              expected = named && shard === 1;
+            }
+          } else if (where === "ci.yml / production-build" && entry.name === "Save the Next.js build cache") {
+            expected = false;
+          }
+          expect(scopeCondition(entry.if, scope, shard), `${where} / ${entry.name} / ${scope} / ${shard}`).toBe(expected);
+        }
+      }
     }
-  });
-
-  it("runs the heavy work for code only", () => {
-    const codeOnly = "steps.scope.outputs.scope == 'code'";
-    expect(step("ci.yml / unit-tests", "Unit tests with coverage").if).toBe(codeOnly);
-    expect(step("ci.yml / unit-tests", "Upload coverage blob").if).toBe(codeOnly);
-    expect(step("ci.yml / coverage", "Enforce coverage").if).toBe(codeOnly);
-    expect(step("ci.yml / production-build", "Build").if).toBe(codeOnly);
-    expect(step("e2e.yml / law-pins", "Run law-pinning journeys").if).toBe(codeOnly);
-    expect(step("rls-session.yml / rls-session", "Run effective RLS session tests").if).toBe(codeOnly);
-    // Lint and the typecheck still run for data: a JSON pack can be imported
-    // by TypeScript. Only a docs-only change skips them.
-    expect(step("ci.yml / lint-and-types", "Lint").if).toBe("steps.scope.outputs.scope != 'docs'");
-    expect(step("ci.yml / lint-and-types", "Typecheck").if).toBe("steps.scope.outputs.scope != 'docs'");
-    expect(step("ci.yml / typecheck-ts6", "Typecheck (TypeScript 6)").if).toBe("steps.scope.outputs.scope != 'docs'");
   });
 
   it("skips the macOS layout pins whole, by fixed name, only for a classified change with no screen code", () => {
@@ -246,7 +267,6 @@ describe("what each scope runs", () => {
       scope: "${{ steps.scope.outputs.scope }}",
       layout: "${{ steps.layout.outputs.layout }}",
     });
-    expect(scopeJob.if).toBeUndefined();
     for (const id of LAYOUT_PIN_JOBS) {
       const layout = defined(e2e[id], id);
       expect(layout["runs-on"], id).toBe("pubmax-mac");
@@ -254,8 +274,11 @@ describe("what each scope runs", () => {
       // A matrix job skipped whole reports under its unexpanded name.
       expect(layout.strategy, id).toBeUndefined();
       expect(layout.name ?? "", id).not.toContain("${{");
-      // Nothing inside the job asks the scope again.
-      for (const entry of layout.steps) expect(entry.if ?? "", `${id} / ${entry.name}`).not.toContain("scope");
+      for (const scope of ["code", "data", "docs"]) {
+        for (const entry of layout.steps) {
+          expect(scopeCondition(entry.if, scope), `${id} / ${entry.name} / ${scope}`).toBe(true);
+        }
+      }
     }
   });
 
@@ -285,16 +308,17 @@ describe("what each scope runs", () => {
     }
   });
 
-  it("keeps data validation, review scope and Security CI for every change", () => {
+  it.each(["code", "data", "docs"])("keeps data validation, review scope and Security CI eligible for %s", (scope) => {
     const ci = defined(workflows.find(({ file }) => file === "ci.yml")).parsed.jobs;
     for (const id of ["validate-data", "review-scope"]) {
       const entry = defined(ci[id], id);
-      expect(entry.steps.some((s) => s.name === CLASSIFY), id).toBe(false);
-      for (const s of entry.steps) expect(s.if ?? "", `${id} / ${s.name}`).not.toContain("scope");
+      expect(scopeCondition(entry.if, scope), `${id} job / ${scope}`).toBe(true);
+      for (const s of entry.steps) expect(scopeCondition(s.if, scope), `${id} / ${s.name} / ${scope}`).toBe(true);
     }
     const security = defined(workflows.find(({ file }) => file === "security-ci.yml")).parsed.jobs;
     for (const [id, entry] of Object.entries(security)) {
-      expect(entry.steps.some((s) => s.name === CLASSIFY), id).toBe(false);
+      expect(scopeCondition(entry.if, scope), `${id} job / ${scope}`).toBe(true);
+      for (const s of entry.steps) expect(scopeCondition(s.if, scope), `${id} / ${s.name} / ${scope}`).toBe(true);
     }
   });
 });
@@ -435,10 +459,6 @@ describe("the unit tests a docs or data change still runs", () => {
     expect(words.slice(0, 2)).toEqual(["vitest", "run"]);
     return words.slice(2);
   }
-
-  it("runs on shard 1 for docs and data only", () => {
-    expect(named.if).toBe("steps.scope.outputs.scope != 'code' && matrix.shard == 1");
-  });
 
   it("runs every unit test that names a changed file by path or by file name", () => {
     const tests = selected(["lib/AGENTS.md"]) ?? [];
