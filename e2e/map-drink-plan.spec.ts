@@ -50,7 +50,11 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     const params = new URL(href!, "http://localhost").searchParams;
     expect(params.get("pubs")).toBe(stops);
     expect(params.get("drink")).toBe(drink);
+    // The share control is a client-side Link: wait for its URL to land, or
+    // the reload can replay the page the click is still leaving.
+    const landed = page.waitForURL(new URL(href!, page.url()).href);
     await shared.click();
+    await landed;
     await page.reload();
     expect(new URL(page.url()).searchParams.get("drink")).toBe(drink);
     await expect(async () => {
@@ -317,7 +321,9 @@ test("generated Gin replaces the previous Wine map context", async ({ page }, te
   expect(params.get("pubs")).toBe(body.stops.map((stop) => stop.venueId).join(","));
   expect(params.has("brand")).toBe(false);
   expect(params.has("sub")).toBe(false);
+  const landed = page.waitForURL(new URL(href!, page.url()).href);
   await shared.click();
+  await landed;
   await page.reload();
   const toggle = page.getByRole("button", { name: "Edit your crawl, 2 stops picked", exact: true });
   await expect(async () => {
@@ -585,11 +591,14 @@ test("Top shelf Beer plan keeps its refinement and unknown money through share a
   ).toHaveText("Crawl complete: 2/2 stops");
   const shared = route.getByTestId("crawl-share-open");
   await expect(shared).toBeVisible();
-  const params = new URL((await shared.getAttribute("href"))!, "http://localhost").searchParams;
+  const sharedUrl = new URL((await shared.getAttribute("href"))!, page.url()).href;
+  const params = new URL(sharedUrl).searchParams;
   expect(params.get("drink")).toBe("beer");
   expect(params.get("topshelf")).toBe("1");
   expect(params.get("pubs")).toBe(stops);
+  const landed = page.waitForURL(sharedUrl);
   await shared.click();
+  await landed;
   await page.reload();
   await openPlanner();
   await expectTopShelfPlan();
