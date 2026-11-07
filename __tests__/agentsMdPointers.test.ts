@@ -79,6 +79,9 @@ const NOT_REPO_PATHS = new Set([
   "*.json",
   // Generic manifest name is a publish input, not the repository root file.
   "manifest.json",
+  // Playwright writes these output files under the test output directory, not in the repository.
+  "cwv-invalid-samples.json",
+  "cwv-run.json",
   // ESM declaration suffix names a sidecar convention, not one concrete file.
   ".d.mts",
   // Homepage card uses `/api/home-card`, not this absent Next file convention.

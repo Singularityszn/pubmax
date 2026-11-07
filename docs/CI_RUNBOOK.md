@@ -120,9 +120,10 @@ each hosted Linux job is its own machine.
   `scripts/chatgpt-map/.npmrc`) set `ignore-scripts=true`. The `allowScripts`
   field of each `package.json` lists every lockfile package that declares one:
   `true` runs it, `false` skips it, and `scripts/ci/install-script-allowlist.mjs`
-  records why. Every job runs `npm run deps:install-scripts` straight after
-  `npm ci` to rebuild the `true` rows (today only `esbuild`), and `npm run
-  verify` fails when a new package with an install script has no row.
+  records why. Each job that installs dependencies runs
+  `npm run deps:install-scripts` straight after `npm ci`. This rebuilds the
+  `true` rows (today only `esbuild`). `npm run verify` fails when a new
+  package with an install script has no row.
 - **`ignore-scripts` also skips npm's `pre` and `post` hooks**, so
   `package.json` has none. `build`, `dev`, `start`, `validate-data`,
   `build:slim` and `export:data` name their own first or last steps.
@@ -176,6 +177,11 @@ thresholds in `vitest.config.mts` over the whole suite. So CI runs the unit
 suite once, not once in the shards and again for coverage. The freshness job
 runs on its own: a calendar breach is that job's red mark and does not skip the
 build, the unit shards or coverage.
+
+The freshness job installs Node without the npm cache or the application
+dependencies. Both scripts use only Node built-ins. The first checks committed
+candidate artifacts. The second reads production store observations through
+`https://pubmaxxing.com/api/freshness`. Both checks still run on every change.
 
 A shard cannot finish before its slowest test file. Vitest gives each file to
 one worker and does not divide the tests in a file. So a test file that grows
