@@ -6,7 +6,7 @@ import { isAuthUserBannedUntil } from "@/lib/authAccountBan";
 import { log } from "@/lib/log";
 import { normalizeHandle } from "@/lib/profiles";
 import { isProfileTombstoned, profileStore, type ProfileRecord } from "@/lib/profileStore";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseAdmin, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 // Public reads hide the operational handle checked by isKnownTestHandle.
 // For other LIVE profiles, it follows an auth ban or Social suspension.
@@ -330,7 +330,15 @@ export async function withdrawnHandles(handles: readonly string[]): Promise<Read
 export async function isHandleAccountWithdrawn(handle: string): Promise<boolean> {
   const key = normalizeHandle(handle);
   if (!key) return false;
-  return (await readWithdrawnProfiles({ handles: [key] })).handles.has(key);
+  if (!isSupabaseConfigured()) {
+    return (await readMemoryWithdrawn()).some((row) => normalizeHandle(row.handle) === key);
+  }
+  const { data, error } = await requireSupabaseAdmin()
+    .rpc("public_withdrawn_profiles")
+    .eq("handle", key)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }
 
 /** Drop contributions whose author profile is withdrawn from public view. */

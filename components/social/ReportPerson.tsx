@@ -11,7 +11,7 @@ import {
   SOCIAL_REPORT_REASON_LABELS,
   SOCIAL_REPORT_REASONS,
   type SocialReportReason,
-} from "@/lib/socialSafetyModeration";
+} from "@/lib/socialInteractions";
 
 import "@/components/social/reportPerson.css";
 

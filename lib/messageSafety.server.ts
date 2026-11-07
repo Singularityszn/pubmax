@@ -22,23 +22,6 @@ import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
 import { isMissingTableSchema } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
-/**
- * THE MESSAGE DOORS ASK THE ONE ADULT GATE. Opening a conversation and sending
- * into one are social writes between people, so they ask the same question
- * every contribution door asks (`accountIsAdult`), and the refusal carries the
- * same `status` vocabulary (`lib/contributionGateStatus.ts`), so the shared
- * ContributionGateDialog can offer the one tap.
- *
- * A store we cannot read refuses with a retryable 503 rather than admitting:
- * this is an age check, and an outage is not an answer.
- */
-/**
- * A SUSPENDED ACCOUNT SENDS NO MESSAGE (launch plan P0 item 6). A moderator's
- * suspend (0223) already closes every Social write; this closes opening and
- * sending a DM too. It reads the same withdrawn-account list the public
- * surfaces read, so a suspend reaches both within that list's hold window. A
- * read that cannot run refuses the write with a retryable 503.
- */
 export async function messageSuspendedRefusal(
   handle: string,
   isWithdrawn: (handle: string) => Promise<boolean> = isHandleAccountWithdrawn,
@@ -54,6 +37,16 @@ export async function messageSuspendedRefusal(
   return withdrawn ? publicApiError(MESSAGE_SUSPENDED_REFUSAL, "ACCOUNT_SUSPENDED", 403) : null;
 }
 
+/**
+ * THE MESSAGE DOORS ASK THE ONE ADULT GATE. Opening a conversation and sending
+ * into one are social writes between people, so they ask the same question
+ * every contribution door asks (`accountIsAdult`), and the refusal carries the
+ * same `status` vocabulary (`lib/contributionGateStatus.ts`), so the shared
+ * ContributionGateDialog can offer the one tap.
+ *
+ * A store we cannot read refuses with a retryable 503 rather than admitting:
+ * this is an age check, and an outage is not an answer.
+ */
 export async function messageAdultRefusal(userId: string): Promise<Response | null> {
   let refusal: ReturnType<typeof contributionAdultRefusal>;
   try {

@@ -25,7 +25,8 @@ import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } fro
 import {
   cleanSocialText,
   emptyInteractionSummary,
-  payloadDigest,
+  SOCIAL_REPORT_KINDS,
+  SOCIAL_REPORT_REASONS,
   validIdempotencyKey,
   type SocialCommentDTO,
   type SocialCommentInput,
@@ -48,6 +49,10 @@ import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/modera
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { requireSupabaseAdmin, requiresSupabaseStore, hashActor } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
+
+function payloadDigest(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
 
 export type { SocialInteractionActor } from "@/lib/socialInteractions";
 
@@ -699,7 +704,7 @@ export function createMemorySocialInteractionStore(options: {
     },
 
     async report(actor, input) {
-      if (!["post", "comment", "quote", "profile"].includes(input.kind) || !["harassment", "hate", "threat", "doxxing", "spam", "other"].includes(input.reason)) {
+      if (!SOCIAL_REPORT_KINDS.includes(input.kind) || !SOCIAL_REPORT_REASONS.includes(input.reason)) {
         throw new SocialInteractionStoreError("INVALID_INTERACTION", "Report details are not valid.");
       }
       if (!await reportableContent(actor, input.kind, input.id)) {

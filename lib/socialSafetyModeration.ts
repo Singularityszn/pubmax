@@ -7,24 +7,16 @@
 // row in the same transaction. This file only decides what a well-formed
 // answer and a well-formed request look like.
 
+import {
+  SOCIAL_REPORT_KINDS,
+  SOCIAL_REPORT_REASONS,
+  type SocialReportKind,
+  type SocialReportReason,
+} from "@/lib/socialInteractions";
+
 export const SAFETY_QUEUE_LIMIT = 50;
 export const SUSPEND_REASON_MIN = 3;
 export const SUSPEND_REASON_MAX = 500;
-
-const SOCIAL_REPORT_KINDS = ["post", "comment", "quote", "profile"] as const;
-type SocialReportKind = (typeof SOCIAL_REPORT_KINDS)[number];
-
-export const SOCIAL_REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "other"] as const;
-export type SocialReportReason = (typeof SOCIAL_REPORT_REASONS)[number];
-
-export const SOCIAL_REPORT_REASON_LABELS: Record<SocialReportReason, string> = {
-  harassment: "Harassment",
-  hate: "Hate",
-  threat: "A threat",
-  doxxing: "Shares private details",
-  spam: "Spam",
-  other: "Something else",
-};
 
 export type AccountState = "active" | "suspended";
 

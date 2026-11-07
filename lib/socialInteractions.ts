@@ -1,18 +1,18 @@
-import "server-only";
-
-import { createHash } from "node:crypto";
-
 import type { SocialPostDTO, SocialPostVisibility } from "@/lib/socialPosts";
 
 export type SocialDesiredInteraction = "cheer" | "save" | "repost";
 export type SocialFeatureStatus = "submitted" | "planned" | "shipped" | "declined";
-export type SocialReportReason =
-  | "harassment"
-  | "hate"
-  | "threat"
-  | "doxxing"
-  | "spam"
-  | "other";
+export const SOCIAL_REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "other"] as const;
+export type SocialReportReason = (typeof SOCIAL_REPORT_REASONS)[number];
+
+export const SOCIAL_REPORT_REASON_LABELS: Record<SocialReportReason, string> = {
+  harassment: "Harassment",
+  hate: "Hate",
+  threat: "A threat",
+  doxxing: "Shares private details",
+  spam: "Spam",
+  other: "Something else",
+};
 export type SocialModerationState = "pending" | "approved" | "needs_review";
 
 export type SocialInteractionActor = {
@@ -72,7 +72,8 @@ export type SocialFeatureUpdateDTO = {
 };
 
 /** What a report is about. A "profile" report is about a person (0223). */
-export type SocialReportKind = "post" | "comment" | "quote" | "profile";
+export const SOCIAL_REPORT_KINDS = ["post", "comment", "quote", "profile"] as const;
+export type SocialReportKind = (typeof SOCIAL_REPORT_KINDS)[number];
 
 export type SocialContentReportDTO = {
   id: string;
@@ -107,10 +108,6 @@ export function cleanSocialText(value: unknown, cap: number): string | null {
 
 export function validIdempotencyKey(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9._:-]{4,128}$/.test(value);
-}
-
-export function payloadDigest(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
 export function emptyInteractionSummary(): SocialInteractionSummary {

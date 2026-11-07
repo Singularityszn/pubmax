@@ -11,11 +11,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import { displayHandle } from "@/lib/handleDisplay";
 import { discardBody } from "@/lib/responseBody";
+import { SOCIAL_REPORT_REASON_LABELS } from "@/lib/socialInteractions";
 import {
   parseSafetyQueues,
   parseMessageEvidence,
   type MessageEvidence,
-  SOCIAL_REPORT_REASON_LABELS,
   SUSPEND_REASON_MAX,
   SUSPEND_REASON_MIN,
   type AccountState,

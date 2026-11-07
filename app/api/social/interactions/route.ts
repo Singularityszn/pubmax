@@ -10,7 +10,13 @@ import {
 } from "@/lib/socialInteractionStore";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { profileStore } from "@/lib/profileStore";
-import { validIdempotencyKey, type SocialReportKind } from "@/lib/socialInteractions";
+import {
+  SOCIAL_REPORT_KINDS,
+  SOCIAL_REPORT_REASONS,
+  validIdempotencyKey,
+  type SocialReportKind,
+  type SocialReportReason,
+} from "@/lib/socialInteractions";
 import { hashActor } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -74,8 +80,6 @@ async function targetProfileId(input: Record<string, unknown>): Promise<string> 
   throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose an account.");
 }
 
-const REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "other"] as const;
-
 /**
  * A report names one thing: a post, comment or quote by id, or a person by
  * handle. "Report this person" (launch plan P0 item 6) is on a profile and the
@@ -84,19 +88,20 @@ const REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "othe
  */
 async function reportInput(
   input: Record<string, unknown>,
-): Promise<{ kind: SocialReportKind; id: string; reason: (typeof REPORT_REASONS)[number] }> {
-  const reason = REPORT_REASONS.find((candidate) => candidate === input.reason);
-  if (reason && input.kind === "profile" && exactKeys(input, ["action", "kind", "targetHandle", "reason"])) {
+): Promise<{ kind: SocialReportKind; id: string; reason: SocialReportReason }> {
+  const kind = SOCIAL_REPORT_KINDS.find((candidate) => candidate === input.kind);
+  const reason = SOCIAL_REPORT_REASONS.find((candidate) => candidate === input.reason);
+  if (reason && kind === "profile" && exactKeys(input, ["action", "kind", "targetHandle", "reason"])) {
     return { kind: "profile", id: await targetProfileId(input), reason };
   }
   const targetId = id(input.id);
   if (
     reason &&
     targetId &&
-    (input.kind === "post" || input.kind === "comment" || input.kind === "quote") &&
+    kind && kind !== "profile" &&
     exactKeys(input, ["action", "kind", "id", "reason"])
   ) {
-    return { kind: input.kind, id: targetId, reason };
+    return { kind, id: targetId, reason };
   }
   throw new SocialInteractionStoreError("INVALID_INTERACTION", "Report details are not valid.");
 }
