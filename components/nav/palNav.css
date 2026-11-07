@@ -48,9 +48,8 @@
   border-color: var(--state-selected-border);
 }
 
-/* The top-bar door is a phone control. From 641px the desktop bar's own door
-   (.siteNavPal, below) carries the Pal, with its name. Two classes, so these
-   outrank the primitive's own `display`. */
+/* The top-bar door is a phone control. The desktop bar uses .siteNavPal
+   instead. Two classes outrank the primitive's own `display`. */
 .siteNavActions .palTopBarDoor {
   display: none;
 }
@@ -99,11 +98,13 @@
     background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
 }
-/* The tablet band: the bar from 641px to 900px was measured with no room to
-   spare (components/nav/siteNav.css), so the door is the face alone there, a
-   44px disc like the More button, and the Pal's name stays in its accessible
-   name. Read off the rendered bar in e2e/pal-nav-button.spec.ts. */
-@media (max-width: 900px) {
+/* The tablet and laptop bands: the bar up to 1279px was measured with no
+   room to spare (components/nav/siteNav.css; from 1024px the doors wear
+   icons and a ten-letter name wrapped the row), so the door is the face
+   alone there, a 44px disc like the More button, and the Pal's name stays in
+   its accessible name. Read off the rendered bar in e2e/pal-nav-button.spec.ts
+   and e2e/site-nav-large-text.spec.ts. */
+@media (max-width: 1279px) {
   .siteNavPal {
     justify-content: center;
     width: 44px;

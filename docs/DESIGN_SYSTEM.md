@@ -526,7 +526,7 @@ side reads `max-width`, the wide side `min-width` one pixel up.
 | `phone` | `max-width: 640px` | `min-width: 641px` | The tab-bar boundary: at or under 640 the bottom tab bar owns navigation. `MOBILE_MEDIA_QUERY` reads it. |
 | `tablet` | `max-width: 900px` | `min-width: 901px` | Single-column page layouts end; side columns start. |
 | `desktop` | `max-width: 1023px` | `min-width: 1024px` | The sticky desktop rail, the map's docked venue drawer and the two-column Tonight, Crawls and Historic layouts. |
-| `wide` | `max-width: 1279px` | `min-width: 1280px` | Extra columns and the roomier hero; the full site-nav row. |
+| `wide` | `max-width: 1279px` | `min-width: 1280px` | Extra columns and the roomier hero. The [navigation density rule](rules/components-design-system-and-launch-primitives.md#a-text-button-is-one-row-of-tokens-and-the-tablet-bar-is-measured-not-assumed) owns the header layout. |
 
 A rule for "a narrow phone" takes `phone`, not a figure between 360 and 640.
 A width kept outside the set (the map's 768 sheet band, the site nav's 767
