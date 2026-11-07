@@ -36,6 +36,7 @@ import { trackCrewArrivedReceipts, trackHostLoopStep } from "@/lib/hostLoopAnaly
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { planCrewArrivedReceipts } from "@/lib/planCrewArrived.server";
 import { __resetMemoryPlans, memoryPlanStore, planInviteToken } from "@/lib/planStore";
+import { parseCrewRead } from "@/lib/socialCrewsUi";
 import { crewArrivedEventToken, verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -221,6 +222,15 @@ describe("each step event fires on the server's first answer only", () => {
   beforeEach(() => tracked.mockClear());
 
   const outcome = (code: string, replayed = false) => ({ code, replayed, crewId: "4f6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f60" });
+  const friendsPreview = {
+    kind: "preview",
+    title: "Thursday in Soho",
+    phase: "planning",
+    nightArea: null,
+    startsAt: "2026-11-12T18:30:00.000Z",
+    joinRequestState: "none",
+  };
+  const openPreview = parseCrewRead({ ...friendsPreview, hostHandle: "host" });
 
   it("counts an opened crawl once, and never a replay of it", () => {
     trackHostLoopStep("open", outcome("created"));
@@ -230,10 +240,39 @@ describe("each step event fires on the server's first answer only", () => {
   });
 
   it("counts a request, but not a cancel or a replayed request", () => {
-    trackHostLoopStep("request", outcome("requested"));
-    trackHostLoopStep("request", outcome("cancelled"));
-    trackHostLoopStep("request", outcome("replayed", true));
+    expect(openPreview).not.toBeNull();
+    trackHostLoopStep("request", outcome("requested"), openPreview);
+    trackHostLoopStep("request", outcome("cancelled"), openPreview);
+    trackHostLoopStep("request", outcome("requested", true), openPreview);
+    trackHostLoopStep("request", null, openPreview);
     expect(tracked.mock.calls).toEqual([["crew_join_requested"]]);
+  });
+
+  it("does not count friends-crew requests or requests without crew data", () => {
+    const crew = parseCrewRead(friendsPreview);
+    expect(crew).not.toBeNull();
+    trackHostLoopStep("request", outcome("requested"), crew);
+    trackHostLoopStep("request", outcome("requested"), null);
+    trackHostLoopStep("request", outcome("requested"));
+    expect(tracked).not.toHaveBeenCalled();
+  });
+
+  it.each(["private", "friends", "open"] as const)("counts member requests only for open crews: %s", async (visibility) => {
+    const { planId } = await hostedPlan(1);
+    const crew = parseCrewRead({
+      ...friendsPreview,
+      kind: "member",
+      crewId: outcome("requested").crewId,
+      visibility,
+      authorityRevision: 1,
+      viewer: { memberId: "4f6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f61", role: "member" },
+      owner: { memberId: "4f6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f62", handle: "host" },
+      members: [],
+      plan: await memoryPlanStore.get(planId),
+    });
+    expect(crew).not.toBeNull();
+    trackHostLoopStep("request", outcome("requested"), crew);
+    expect(tracked.mock.calls).toEqual(visibility === "open" ? [["crew_join_requested"]] : []);
   });
 
   it("counts an accept, but not a decline", () => {

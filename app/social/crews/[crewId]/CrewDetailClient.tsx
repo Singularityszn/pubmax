@@ -452,7 +452,7 @@ export default function CrewDetailClient({
         body: "{}",
         prefix: "crew-join",
       });
-      if (action === "request") trackHostLoopStep("request", parseCrewMutation(body));
+      if (action === "request") trackHostLoopStep("request", parseCrewMutation(body), crew);
       setAttempt((value) => value + 1);
     });
 

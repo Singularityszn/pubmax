@@ -240,13 +240,15 @@ The [invite delivery notes](../METRICS_FUNNEL.md#2-invites-per-planner-and-invit
 These corrections change documentation only. Existing saved reports require owner review before their names or definitions change.
 Keep old report exports with their original definition and reporting dates.
 
-### 3.3 The host loop on an open crawl
+### 3.3 The host loop and private hosted-plan arrivals
 
 The launch metric is hosted nights where 4 or more people other than the host
-arrived. Read it as a count of `crew_arrived` events with `guestsArrived = 4+`.
+arrived. Today, `crew_arrived` measures arrivals on private hosted plans only.
+Count events with `guestsArrived = 4+` for those plans.
+Open crawls cannot report arrivals until [issue 2587](https://github.com/Singularityszn/pubmax/issues/2587) lands.
 
-- `crew_arrived` counts guests marked "Here" on the plan page. The host is the
-  first seat by join order and is never a guest.
+- `crew_arrived` counts guests marked "Here" on a private hosted plan page.
+  The host is the first seat by join order and is never a guest.
 - Each band (`1`, `2-3`, `4+`) is reported once a night, so a night of six guests
   sends one event in each band. Count one band. Never add the bands together.
 - Every member's status write carries the receipts, the host's included. The
@@ -254,7 +256,7 @@ arrived. Read it as a count of `crew_arrived` events with `guestsArrived = 4+`.
 
 | Measure | Numerator | Denominator | Limits |
 |---|---|---|---|
-| Hosted nights with 4 or more guests | `crew_arrived` with `guestsArrived = 4+` | Not a rate | Guests who never tap "Here" are not counted |
+| Private hosted nights with 4 or more guests | `crew_arrived` with `guestsArrived = 4+` | Not a rate | Open crawls cannot report arrivals until issue 2587 lands. Guests who never tap "Here" are not counted |
 | Join requests answered | `crew_join_accepted` count | `crew_join_requested` count | Two weekly counts. Declines and cancels are not events. Time to answer is not measurable without a crew id |
 | Open crawls that drew a request | `crew_join_requested` count | `open_crawl_opened` count | Requests per opened crawl, not unique crawls |
 
