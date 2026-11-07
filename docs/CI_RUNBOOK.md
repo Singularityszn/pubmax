@@ -149,7 +149,7 @@ gitleaks scans a different range for each event:
 | Event | Range |
 | --- | --- |
 | Pull request | The complete history of the pull request head. |
-| Push to `main` | Only the pushed commits (`before..after`). When the previous head is missing or is not an ancestor, it scans the complete history of the new head. |
+| Push to `main` | Only the pushed commits (`before..after`), including after a force push. When the previous head is all zeros or missing from the clone, it scans the complete history of the new head. |
 | Weekly run and manual dispatch | Every ref (`--all`), so a secret on any branch is still found. |
 
 A push to `main` once scanned every ref. A finding on an unmerged branch then

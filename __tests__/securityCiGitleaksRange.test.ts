@@ -112,9 +112,9 @@ describe("the gitleaks step", () => {
     );
   });
 
-  it("scans the pushed head's complete history after a force push", () => {
+  it("scans only the pushed range after a force push", () => {
     expect(logOptsFor({ EVENT_NAME: "push", PUSH_BEFORE: commits.sibling })).toBe(
-      `--full-history ${commits.pushed}`,
+      `--full-history ${commits.sibling}..${commits.pushed}`,
     );
   });
 

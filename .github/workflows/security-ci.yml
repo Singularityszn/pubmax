@@ -116,9 +116,9 @@ jobs:
       # A PR scans its complete history. A push to main scans only the commits
       # that push added: with --all it also read every other branch, so a
       # finding on an unmerged branch turned main red on every push. When the
-      # previous head is unknown (a new branch or a force push), the push scans
-      # main's complete history instead. The weekly and manual runs still read
-      # every ref, so a secret on any branch is still found.
+      # previous head is all zeros or missing from the clone, the push scans
+      # the new head's complete history instead. The weekly and manual runs
+      # still read every ref, so a secret on any branch is still found.
       - name: gitleaks
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -131,8 +131,7 @@ jobs:
               log_opts="--full-history HEAD"
               ;;
             push)
-              if [[ "$PUSH_BEFORE" =~ ^0+$ ]] || ! git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null \
-                || ! git merge-base --is-ancestor "$PUSH_BEFORE" "$PUSH_AFTER"; then
+              if [[ "$PUSH_BEFORE" =~ ^0+$ ]] || ! git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
                 log_opts="--full-history $PUSH_AFTER"
               else
                 log_opts="--full-history $PUSH_BEFORE..$PUSH_AFTER"
