@@ -89,13 +89,20 @@ async function openJourneyFromTheApp(page: Page): Promise<void> {
   await page.goto("/");
   const primary = heroPrimary(page);
   await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF, { timeout: 30_000 });
-  await primary.click();
-  await expect(page).toHaveURL(/\/near\?locate=1/);
   const chip = page.getByRole("link", { name: NEAR_FIRST_RUN_CHIP_NAME, exact: true });
-  await expect(chip).toHaveAttribute("href", LANDING_FIRST_RUN_HREF, { timeout: 30_000 });
-  await chip.click();
-  await expect(page).toHaveURL(/\/onboarding\?start=web$/);
-  await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible({ timeout: 30_000 });
+  // Retry a dropped tap until the client-rendered chip is ready.
+  await expect(async () => {
+    if (await primary.isVisible()) await primary.click({ timeout: 1_000 });
+    await expect(page).toHaveURL(/\/near\?locate=1/, { timeout: 1_000 });
+    await expect(chip).toHaveAttribute("href", LANDING_FIRST_RUN_HREF, { timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+  // The nearby answer can still replace its patch URL. Retry the chip tap
+  // until the onboarding gate opens, without tapping after the chip leaves.
+  await expect(async () => {
+    if (await chip.isVisible()) await chip.click({ timeout: 1_000 });
+    await expect(page).toHaveURL(/\/onboarding\?start=web$/, { timeout: 1_000 });
+    await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 for (const size of SIZES) {
