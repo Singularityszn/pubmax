@@ -1,25 +1,54 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import type { Session } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AuthContextValue } from "@/components/auth/authContext";
 
-const authState = vi.hoisted(() => ({
-  current: {
-    accountRevision: 0,
-    identityResolved: true,
-    loading: false,
-    user: null as { id: string } | null,
-    session: null as { user: { id: string }; access_token: string } | null,
-  },
+const provider = vi.hoisted(() => ({
+  session: null as Session | null,
+  subscriber: null as ((event: string, session: Session | null) => void) | null,
+  router: { push: vi.fn() },
 }));
 const requests = vi.hoisted(() => ({ presence: vi.fn(), round: vi.fn() }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => authState.current }));
+vi.mock("next/navigation", () => ({ useRouter: () => provider.router }));
+vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
+vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
+vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => null, isNativeApp: () => false }));
+vi.mock("@/lib/authClient", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authClient")>(),
+  isAuthConfigured: () => true,
+  getAccessToken: async () => provider.session?.access_token ?? null,
+  ensureSupabaseBrowser: async () => ({ auth: {
+    getSession: async () => ({ data: { session: provider.session }, error: null }),
+    onAuthStateChange: (callback: typeof provider.subscriber) => {
+      provider.subscriber = callback;
+      queueMicrotask(() => callback?.("INITIAL_SESSION", provider.session));
+      return { data: { subscription: { unsubscribe: () => { provider.subscriber = null; } } } };
+    },
+  } }),
+}));
+vi.mock("@/lib/authSessionBootstrap", () => ({
+  AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
+  bootstrapAuthSession: async () => provider.session
+    ? ({ status: "local", session: provider.session }) : ({ status: "none" }),
+}));
+vi.mock("@/lib/authSessionResumeClient", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authSessionResumeClient")>(),
+  persistSessionForResume: async () => "stored",
+  resumeAlreadyPersisted: () => true,
+}));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/wild/RoundRotaGate", () => ({ default: () => null }));
 vi.mock("@/components/profile/HandleAvatar", () => ({ default: () => null }));
-vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: requests.presence }));
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authedFetch")>(),
+  authedActionFetch: requests.presence,
+}));
 vi.mock("@/lib/venuesSlim", () => ({ loadSlimVenues: async () => [] }));
 vi.mock("@/lib/roundRequest", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/roundRequest")>(),
@@ -27,8 +56,10 @@ vi.mock("@/lib/roundRequest", async (importOriginal) => ({
 }));
 
 import RoundPageClient from "@/app/rounds/[code]/RoundPageClient";
+import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import PresenceStrip from "@/components/feed/PresenceStrip";
-import { readProviderAccountRevision, setProviderIdentity } from "@/lib/authProviderRevision";
+import { setProviderAuthState, setProviderIdentity } from "@/lib/authProviderRevision";
+import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
 import type { RoundViewState } from "@/lib/rounds";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -38,16 +69,25 @@ const VENUE = "venue-test";
 let container: HTMLDivElement;
 let root: Root;
 let params: Promise<{ code: string }>;
+let auth: AuthContextValue;
+const abortSignalAny = Object.getOwnPropertyDescriptor(AbortSignal, "any");
 
-function switchAccount(id: string | null): void {
-  setProviderIdentity("supabase", id);
-  authState.current = {
-    accountRevision: readProviderAccountRevision(),
-    identityResolved: true,
-    loading: false,
-    user: id ? { id } : null,
-    session: id ? { user: { id }, access_token: `token-${id}` } : null,
-  };
+function account(id: string): Session {
+  return { user: { id }, access_token: `token-${id}`, refresh_token: `refresh-${id}` } as Session;
+}
+
+function AuthProbe() {
+  const value = useAuth();
+  useEffect(() => { auth = value; }, [value]);
+  return null;
+}
+
+async function switchAccount(id: string | null): Promise<void> {
+  expect(provider.subscriber).not.toBeNull();
+  await act(async () => {
+    provider.session = id ? account(id) : null;
+    provider.subscriber?.(id ? "SIGNED_IN" : "SIGNED_OUT", provider.session);
+  });
 }
 
 function presenceResponse(): Response {
@@ -66,8 +106,21 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-beforeEach(() => {
-  switchAccount("account-a");
+beforeEach(async () => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  window.history.replaceState(null, "", "/feed");
+  forgetCurrentIdentityRead();
+  setProviderIdentity("supabase", null);
+  setProviderAuthState("supabase", "unresolved");
+  provider.session = null;
+  Object.defineProperty(AbortSignal, "any", { configurable: true, value: undefined });
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/api/identity/handle/current")) {
+      return Response.json({ handle: provider.session?.user.id ?? null });
+    }
+    return Response.json({ google: false, apple: false, microsoft: false });
+  }));
   requests.presence.mockReset();
   requests.round.mockReset();
   const at = new Date().toISOString();
@@ -82,21 +135,33 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+  await act(async () => {
+    root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(AuthProbe)));
+  });
+  await switchAccount("account-a");
+  expect(auth.user?.id).toBe("account-a");
+  expect(auth.identityResolved).toBe(true);
 });
 
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   setProviderIdentity("supabase", null);
+  setProviderAuthState("supabase", "unresolved");
+  forgetCurrentIdentityRead();
   window.localStorage.clear();
+  window.sessionStorage.clear();
+  if (abortSignalAny) Object.defineProperty(AbortSignal, "any", abortSignalAny);
+  else Reflect.deleteProperty(AbortSignal, "any");
+  vi.unstubAllGlobals();
 });
 
 describe.each(["feed strip", "Round overlay"] as const)("%s account ownership", (surface) => {
   async function render() {
     await act(async () => {
-      root.render(surface === "feed strip"
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(AuthProbe), surface === "feed strip"
         ? createElement(PresenceStrip)
-        : createElement(RoundPageClient, { params }));
+        : createElement(RoundPageClient, { params })));
     });
   }
 
@@ -105,6 +170,17 @@ describe.each(["feed strip", "Round overlay"] as const)("%s account ownership", 
       ? ".presenceItem" : "[aria-label='here now']").length;
   }
 
+  it("reads presence after normal sign-in without AbortSignal.any", async () => {
+    await switchAccount(null);
+    requests.presence.mockImplementation(async () => provider.session
+      ? presenceResponse() : Response.json({ presence: [] }));
+    await render();
+    expect(visibleCount()).toBe(0);
+
+    await switchAccount("account-a");
+    expect(visibleCount()).toBe(1);
+  });
+
   it("hides loaded rows immediately when another account starts a pending read", async () => {
     requests.presence.mockResolvedValueOnce(presenceResponse());
     await render();
@@ -112,8 +188,7 @@ describe.each(["feed strip", "Round overlay"] as const)("%s account ownership", 
 
     const accountB = deferred<Response>();
     requests.presence.mockReturnValue(accountB.promise);
-    switchAccount("account-b");
-    await render();
+    await switchAccount("account-b");
     expect(visibleCount()).toBe(0);
 
     await act(async () => { accountB.resolve(Response.json({ presence: [] })); });
@@ -127,8 +202,7 @@ describe.each(["feed strip", "Round overlay"] as const)("%s account ownership", 
     expect(requests.presence).toHaveBeenCalledTimes(1);
 
     requests.presence.mockImplementation(async () => Response.json({ presence: [] }));
-    switchAccount("account-b");
-    await render();
+    await switchAccount("account-b");
     await act(async () => { accountA.resolve(presenceResponse()); });
     expect(visibleCount()).toBe(0);
   });
@@ -142,10 +216,8 @@ describe.each(["feed strip", "Round overlay"] as const)("%s account ownership", 
     expect(json).toHaveBeenCalledTimes(1);
 
     requests.presence.mockImplementation(async () => Response.json({ presence: [] }));
-    switchAccount(null);
-    await render();
-    switchAccount("account-a");
-    await render();
+    await switchAccount(null);
+    await switchAccount("account-a");
     await act(async () => { body.resolve(await presenceResponse().json()); });
     expect(visibleCount()).toBe(0);
   });
@@ -155,9 +227,8 @@ describe.each(["feed strip", "Round overlay"] as const)("%s account ownership", 
     await render();
     expect(visibleCount()).toBe(0);
 
-    requests.presence.mockResolvedValue(presenceResponse());
-    switchAccount("account-b");
-    await render();
+    requests.presence.mockImplementation(async () => presenceResponse());
+    await switchAccount("account-b");
     expect(visibleCount()).toBe(1);
   });
 });

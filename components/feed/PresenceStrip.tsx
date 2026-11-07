@@ -16,8 +16,8 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import HandleAvatar from "@/components/profile/HandleAvatar";
-import { authedActionFetch } from "@/lib/authedFetch";
-import { readProviderAccountRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
+import { readProviderIdentityRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 
@@ -44,11 +44,11 @@ export default function PresenceStrip({ spillingNow = 0 }: { spillingNow?: numbe
   const presence = answer?.accountRevision === accountRevision ? answer.rows : [];
 
   useEffect(() => {
-    if (readProviderAccountRevision() !== accountRevision) return;
+    if (readProviderIdentityRevision() !== accountRevision) return;
     const controller = new AbortController();
     const accountSignal = readProviderAccountSignal();
-    const signal = AbortSignal.any([controller.signal, accountSignal]);
-    const live = () => !signal.aborted && readProviderAccountRevision() === accountRevision;
+    const signal = compositeActionSignal([controller.signal, accountSignal]);
+    const live = () => !signal.aborted && readProviderIdentityRevision() === accountRevision;
     // Presence is shown to mates only, so the read carries the session. A
     // signed-out reader is answered nothing (or keyless demo rows).
     authedActionFetch("/api/presence", { signal }, { requiresIdentity: true })

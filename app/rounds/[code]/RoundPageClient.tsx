@@ -32,8 +32,8 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { discardBody } from "@/lib/responseBody";
-import { authedActionFetch } from "@/lib/authedFetch";
-import { readProviderAccountRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
+import { readProviderIdentityRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -275,12 +275,12 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   );
 
   useEffect(() => {
-    if (!isOpen || !currentStopVenueId || readProviderAccountRevision() !== accountRevision) return;
+    if (!isOpen || !currentStopVenueId || readProviderIdentityRevision() !== accountRevision) return;
     const venueId = currentStopVenueId;
     const controller = new AbortController();
     const accountSignal = readProviderAccountSignal();
-    const signal = AbortSignal.any([controller.signal, accountSignal]);
-    const live = () => !signal.aborted && readProviderAccountRevision() === accountRevision;
+    const signal = compositeActionSignal([controller.signal, accountSignal]);
+    const live = () => !signal.aborted && readProviderIdentityRevision() === accountRevision;
     const refetchPresence = async () => {
       if (!live()) return;
       try {
