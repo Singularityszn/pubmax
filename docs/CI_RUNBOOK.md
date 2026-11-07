@@ -1,11 +1,12 @@
 # CI runbook
 
-GitHub Actions workflows live under `.github/workflows/`. A merge needs the
-green required checks (captain, 7 Nov 2026). The main ruleset requires one
-summary check per pull-request workflow, and the GitHub merge queue runs them
-again on the commit that will land. See
-[The required checks and the merge queue](#the-required-checks-and-the-merge-queue).
-`npm run verify` is still the local gate before a push.
+GitHub Actions workflows live under `.github/workflows/`. CI owns the full
+suite. A merge needs CI green on the latest commit. Before you push, run
+`npm run verify:no-mistakes:changed`.
+
+The main ruleset requires five green summary checks, one per pull-request
+workflow. The GitHub merge queue runs them again on the commit that will land.
+See [The required checks and the merge queue](#the-required-checks-and-the-merge-queue).
 
 ## The required checks and the merge queue
 
@@ -451,7 +452,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | Freshness release gate / data checks | runs only if a Markdown file under `data/` or `public/data/` changed | runs | runs only if a file under `data/` or `public/data/` changed |
 | Freshness release gate / Freshness check (required) | runs | runs | runs |
 
-The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A unit test that reads data without naming the file waits until the merge queue, which runs the full unit suite. For docs-only or data-only changes, browser pins follow the table above. The [browser job schedule](#timeouts-and-job-shape) controls browser coverage. The local gate, `npm run verify`, is unchanged.
+The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A unit test that reads data without naming the file waits until the merge queue, which runs the full unit suite. For docs-only or data-only changes, browser pins follow the table above. The [browser job schedule](#timeouts-and-job-shape) controls browser coverage.
 
 ### Prove the runner
 

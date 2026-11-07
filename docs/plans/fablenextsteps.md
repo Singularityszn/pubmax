@@ -341,7 +341,7 @@ Important merged slices:
 
 Owner blocker:
 
-- GitHub Actions jobs fail before useful runner logs because of account allocation or billing state. Required checks remain configured. Repair the GitHub account state, then prove all 12 required checks can run and pass without bypass.
+- GitHub Actions jobs fail before useful runner logs because of account allocation or billing state. Repair the GitHub account state, then prove the [required checks](../CI_RUNBOOK.md#the-required-checks-and-the-merge-queue) pass without bypass.
 
 ---
 

@@ -1,7 +1,7 @@
 # Effective RLS session tests against real PostgreSQL 16 and PostgREST 14.
 #
 # The main `npm run ci` gate skips these tests loudly when local database
-# binaries are absent. This job is the push and pull-request proof.
+# binaries are absent. This job proves policies on pushes, pull requests and merge groups.
 name: RLS session tests
 
 on:
