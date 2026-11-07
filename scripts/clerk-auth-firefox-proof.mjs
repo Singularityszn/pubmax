@@ -30,7 +30,7 @@ const { firefox } = await import("playwright-core");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const OUT = path.join(ROOT, "docs", "proof", "clerk-auth");
+const OUT = path.join(ROOT, "artifacts", "proof", "clerk-auth");
 const BASE = process.argv[2] || "http://localhost:3127";
 const OTP = "424242";
 

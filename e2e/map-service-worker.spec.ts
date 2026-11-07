@@ -489,7 +489,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
   if (process.env.PW_MAP_EVIDENCE === "1") {
     await page.screenshot({
-      path: "docs/evidence/map-blank-basemap/after-quota-update-390.png",
+      path: "artifacts/evidence/map-blank-basemap/after-quota-update-390.png",
     });
   }
 });

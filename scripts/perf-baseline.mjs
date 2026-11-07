@@ -83,7 +83,7 @@ function parseArgs(argv) {
     baseUrl: null,
     runs: 3,
     transitionRuns: 5,
-    out: path.join(REPO_ROOT, "docs", "proof", "perf-baseline"),
+    out: path.join(REPO_ROOT, "artifacts", "proof", "perf-baseline"),
     port: 3200,
     skipLighthouse: false,
     skipTransitions: false,

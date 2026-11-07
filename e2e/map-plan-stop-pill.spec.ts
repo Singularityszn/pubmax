@@ -149,7 +149,7 @@ for (const width of [320, 390] as const) {
     const door = venuePortal.locator(".mobileVenuePeekSummary button");
     await expect(door).toHaveText("Plan stop", { timeout: 30_000 });
     await page.evaluate(() => document.fonts.ready);
-    await page.screenshot({ path: `docs/proof/one-plan-door/plan-stop-${width}.png` });
+    await page.screenshot({ path: `artifacts/proof/one-plan-door/plan-stop-${width}.png` });
     await expect(async () => {
       await door.click();
       await expect(door).toHaveText("In plan", { timeout: 1_000 });
@@ -158,6 +158,6 @@ for (const width of [320, 390] as const) {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(1);
-    await page.screenshot({ path: `docs/proof/one-plan-door/in-plan-${width}.png` });
+    await page.screenshot({ path: `artifacts/proof/one-plan-door/in-plan-${width}.png` });
   });
 }

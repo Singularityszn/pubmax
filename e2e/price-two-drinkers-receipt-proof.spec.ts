@@ -24,7 +24,7 @@ test.use({
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
 });
 
-const PROOF = "docs/proof/price-two-drinkers-receipt";
+const PROOF = "artifacts/proof/price-two-drinkers-receipt";
 const HATTON = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const DAY_MS = 24 * 60 * 60 * 1000;
 

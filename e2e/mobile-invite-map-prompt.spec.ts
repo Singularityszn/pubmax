@@ -7,7 +7,7 @@ type Venue = {
 };
 
 const UPDATE_PROOF = process.env.PUBMAX_UPDATE_INVITE_MAP_PROOF === "1";
-const PROOF_DIR = "docs/proof/mobile-invite-map-handoff";
+const PROOF_DIR = "artifacts/proof/mobile-invite-map-handoff";
 
 type Rgb = [number, number, number];
 

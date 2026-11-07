@@ -2,7 +2,7 @@
 
 Detail for [docs/AGENTS.md](../../docs/AGENTS.md). The area file keeps the short traps; this file keeps the full rules, their pins and their history.
 
-- **Live docs are `docs/rules/`, `docs/*.md` without a date in the name, and the area `AGENTS.md` files.** Any doc with a `2026-MM-DD` date anywhere in its file name is a dated record. Dated records, `docs/proof/`, `docs/evidence/`, `docs/superpowers/`, `docs/handoffs/` and `docs/archive/` are records of their day: never cite them as current behaviour. Search live docs with `git grep <pattern> -- '*.md' ':!docs/proof' ':!docs/evidence' ':!docs/superpowers' ':!docs/handoffs' ':!docs/archive' ':!.firecrawl' ':!.agents'`.
+- **Live docs are `docs/rules/`, `docs/*.md` without a date in the name, and the area `AGENTS.md` files.** Any doc with a `2026-MM-DD` date anywhere in its file name is a dated record. Dated records, `docs/superpowers/`, `docs/handoffs/` and `docs/archive/` are records of their day: never cite them as current behaviour. Search live docs with `git grep <pattern> -- '*.md' ':!docs/superpowers' ':!docs/handoffs' ':!docs/archive' ':!.firecrawl' ':!.agents'`.
 
 ## Governed documents
 

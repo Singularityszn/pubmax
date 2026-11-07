@@ -198,7 +198,7 @@ async function evaluateJudge(probes, requestBatch, checkpoint) {
       results.push({ venueId: probe.venueId, description: probe.description, expected: probe.expected, scoring: probe.scoring ?? "judge-and-quoted-phrase", passed, response: row });
     }
   }
-  writeJson(path.join(ROOT, "docs/proof/pub-record-copy/judge-evaluation.json"), {
+  writeJson(path.join(ROOT, "artifacts/proof/pub-record-copy/judge-evaluation.json"), {
     evaluatedAt: new Date().toISOString(), model: JUDGE_SKU.model, groundingVersion: GROUNDING_VERSION,
     actualSpendUsd: checkpoint.actualSpendUsd, passed: results.filter((row) => row.passed).length, total: results.length, results });
   console.log(JSON.stringify({ judgeEvaluationPassed: results.filter((row) => row.passed).length, total: results.length,

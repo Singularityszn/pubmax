@@ -110,7 +110,7 @@ for (const size of WIDTHS) {
 
       await expect(page.locator(NOTICE)).toHaveCount(0);
       await page.screenshot({
-        path: `docs/proof/dm-privacy/inbox-degraded-before-${size.name}.png`,
+        path: `artifacts/proof/dm-privacy/inbox-degraded-before-${size.name}.png`,
         fullPage: false,
       });
     });
@@ -128,7 +128,7 @@ for (const size of WIDTHS) {
       await expect(page.locator(".conversationUnread")).toHaveCount(0);
 
       await page.screenshot({
-        path: `docs/proof/dm-privacy/inbox-degraded-after-${size.name}.png`,
+        path: `artifacts/proof/dm-privacy/inbox-degraded-after-${size.name}.png`,
         fullPage: false,
       });
     });
@@ -141,7 +141,7 @@ for (const size of WIDTHS) {
       await expect(page.getByText("Nobody in here yet.")).toHaveCount(0);
 
       await page.screenshot({
-        path: `docs/proof/dm-privacy/inbox-degraded-empty-${size.name}.png`,
+        path: `artifacts/proof/dm-privacy/inbox-degraded-empty-${size.name}.png`,
         fullPage: false,
       });
     });

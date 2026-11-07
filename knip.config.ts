@@ -77,7 +77,6 @@ const config: KnipConfig = {
 
     // Evidence scripts kept beside the proof they produced. A proof README
     // names its script as the way to reproduce the run.
-    "docs/proof/**",
     "scripts/clerk-auth-firefox-proof.mjs",
     "scripts/venue-truth-shots.mjs",
     // Refreshes TypeSafe fixture probabilities for Pub Pal fence tests.

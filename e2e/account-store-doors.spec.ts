@@ -17,9 +17,9 @@ import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 // The proof shots land in docs/proof/account-deletion/.
 
 const PHONE = { width: 390, height: 844 };
-const PROOF = "docs/proof/account-deletion";
+const PROOF = "artifacts/proof/account-deletion";
 /** The export door beside the deletion door (contribution battle test L04). */
-const DATA_DOORS_PROOF = "docs/proof/account-deletion-real";
+const DATA_DOORS_PROOF = "artifacts/proof/account-deletion-real";
 const DATA_DOOR_WIDTHS = [
   { name: "390", width: 390, height: 844 },
   { name: "768", width: 768, height: 1024 },

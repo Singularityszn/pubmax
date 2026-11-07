@@ -74,7 +74,7 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   expect(box!.y + box!.height).toBeLessThanOrEqual(568);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
-    const directory = "docs/screenshots/the-local-gate-z";
+    const directory = "artifacts/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
     await page.screenshot({ path: `${directory}/private-recap-320x568-light.png` });
   }

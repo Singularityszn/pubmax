@@ -22,7 +22,7 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
  * Proof shots land in docs/proof/design-review-followups/.
  */
 
-const PROOF = "docs/proof/design-review-followups";
+const PROOF = "artifacts/proof/design-review-followups";
 const WIDTHS = [
   { name: "390", width: 390, height: 844 },
   { name: "1280", width: 1280, height: 800 },

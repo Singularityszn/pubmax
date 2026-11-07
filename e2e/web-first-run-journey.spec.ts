@@ -73,8 +73,8 @@ async function expectTouchTarget(locator: Locator): Promise<void> {
 
 async function saveShot(page: Page, name: string): Promise<void> {
   if (!process.env.PUBMAX_RESET_SHOTS) return;
-  await mkdir("docs/screenshots/onboarding", { recursive: true });
-  await writeFile(`docs/screenshots/onboarding/${name}.png`, await page.screenshot({ fullPage: false }));
+  await mkdir("artifacts/screenshots/onboarding", { recursive: true });
+  await writeFile(`artifacts/screenshots/onboarding/${name}.png`, await page.screenshot({ fullPage: false }));
 }
 
 function heroPrimary(page: Page): Locator {
