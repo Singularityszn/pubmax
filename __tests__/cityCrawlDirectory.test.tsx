@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { getCity } from "@/lib/cities";
 import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
-import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { buildCityCrawlGroup, type CityCrawlGroup } from "@/lib/cityCrawlDirectory";
 import { CityCrawlLinks } from "@/app/crawls/CrawlsPageClient";
 
@@ -99,7 +99,7 @@ describe("city crawl discovery", () => {
       cityId: getCity(id).id,
       cityName: getCity(id).displayName,
       priceNote: notes[index]!,
-      crawls: [{ id: crawl.id, name: crawl.name, stops: 2, href: "/map/manchester" }],
+      crawls: [{ id: crawl.id, name: crawl.name, stops: 2, href: curatedCrawlMapHref(crawl, id) }],
     }));
     const html = renderToStaticMarkup(<CityCrawlLinks groups={groups} />);
     const document = new DOMParser().parseFromString(html, "text/html");
