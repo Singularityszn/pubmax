@@ -45,7 +45,7 @@ export const OPEN_CRAWL_DESCRIPTION_WORD_LINE =
   "Say what the night is, not how much gets drunk.";
 /** What the host is told before the plan moves. */
 export const OPEN_CRAWL_MOVE_NOTE =
-  "Your plan moves to a crew page anyone can find. The old invite link stops working, and people ask to join there. You say yes or no.";
+  "Your plan moves to a crew page anyone can find. The old invite link now opens that page, and people ask to join there. You say yes or no.";
 export const OPEN_CRAWL_SIGNED_OUT_LINE = "Sign in to open this plan up to people you have not met yet.";
 export const OPEN_CRAWL_EMPTY_LINE =
   "No open crawls this week yet. Host one from a route below and it shows up here.";
