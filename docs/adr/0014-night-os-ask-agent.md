@@ -71,7 +71,7 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    name resolution. `__tests__/pubPalChatHours.test.ts` covers the keyless chat
    response and combined transit questions.
    `runAsk` checks `lib/ask/lateFoodAnswer.server.ts` before normal tool routing
-   and the OpenRouter loop. It returns accepted late-food results as
+   and the model loop. It returns accepted late-food results as
    `search_venues`, without pub IDs, prices or plan proposals.
    The handler reads the existing [food-terminal evidence contract](../API_CONTRACTS_THE_LOCAL.md#10-get-apilate-food--crawl-ending-food-terminals).
    `lib/ask/lateFoodQuestion.ts` owns question parsing and follow-up resolution.
@@ -117,25 +117,24 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    says which of the three happened (`palDraftOutcomeLine`). Nothing is saved
    until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
    `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
-4. **Keyless path (map Ask)** - without `OPENROUTER_API_KEY`, `POST /api/ask`
+4. **Keyless path (map Ask)** - without `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`, `POST /api/ask`
    uses deterministic tools and house-voice templates.
    Decision 2 defines the recorded-answer routing exceptions.
-5. **Bounded model loop (map Ask)** — with OpenRouter, tool-calling on
-   `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
+5. **Bounded model loop (map Ask)** - with Claude when `ANTHROPIC_API_KEY` is set,
+   else OpenRouter, tool-calling on `POST /api/ask` is allowlisted.
+   It uses low temperature or low effort, with capped rounds and tokens.
    The safety check below precedes this loop. The model selects tools only.
    For model-routed turns, `composeAnswer`
    builds reader copy from returned hints and cards.
-6. **Pal typed chat and voice (ElevenLabs when configured)** — without
-   `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, typed chat on
-   `POST /api/pub-pal/chat` uses the same keyless `runAsk` tool path as map Ask
-   (`skipModel: true`). With both values set, typed chat and voice share one
-   ElevenLabs agent, subject to the menu and price routing in decision 2.
-   [Pub Pal setup](../PUB_PAL_SETUP.md) owns the session transport details. Server
+6. **Pal typed chat and voice.** [Pub Pal setup](../PUB_PAL_SETUP.md) owns provider selection and session transport.
+   After the menu and price routing in decision 2, typed chat uses the configured provider.
+   Without a typed-chat provider, `POST /api/pub-pal/chat` uses the keyless `runAsk` tools with `skipModel: true`.
+   Voice uses the ElevenLabs agent. Server
    webhook tools at `POST /api/pub-pal/tools/{name}` invoke the same ADR 0014
    handlers as `/api/ask`. Tool-turn correlation uses `pub_pal_tool_turns`
    (`lib/pubPalToolTurnStore.ts`): webhook bodies may carry only a short query
    fragment, so the server prefers the correlated full ask and merges routed
-   args before invoking handlers. Setup: `docs/PUB_PAL_SETUP.md`.
+   args before invoking handlers.
 7. **In-thread memory only** — the client may resend recent turns for
    refinement. Durable Pal memory stays confirm-gated (ADR 0006).
 
@@ -155,12 +154,12 @@ OpenRouter.
 
 The [Pub Pal feature guide](../../README.md#features) owns the user-facing safety response.
 `runAsk` checks the current query and user history through `lib/pubPalLlmFence.ts`
-before deterministic tools, the OpenRouter loop or fallback routing can answer.
+before deterministic tools, the model loop or fallback routing can answer.
 Assistant history does not trigger the check.
 `skipModel` and deterministic menu, price and hours paths use `regexFenceIntent` without a model provider.
 Other paths use `resolvePubPalFenceIntent`, which uses TypeSafe when available and retains the regex fallback.
 A matched turn runs only deterministically selected `journey` and `city_status` tools.
-It composes the shared response through `pubPalGetHomeRegisterAnswer` and returns before the OpenRouter loop.
+It composes the shared response through `pubPalGetHomeRegisterAnswer` and returns before the model loop.
 Regression coverage: `__tests__/askSobrietyParity.test.ts`.
 
 ## Consequences

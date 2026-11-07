@@ -96,12 +96,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Name a pub to ask about its recorded menu prices, servings, calories or dietary labels. Unrecorded details and current availability stay unknown. Meal and non-pint price comparisons across pubs remain unavailable. **Ask again** repeats a failed question while preserving your unsent draft.
 
-  Map Ask and typed chat without ElevenLabs accept questions such as "What are the opening hours of The Crosse Keys?"
+  Map Ask and keyless typed chat accept questions such as "What are the opening hours of The Crosse Keys?"
   They return recorded regular hours with a source and checked date, or state that current hours are unknown.
   An unmatched or ambiguous pub name prompts a question. A failed record read produces a separate failure message.
   This lookup does not confirm live open-now status or holiday hours.
 
-  Map Ask and typed chat without ElevenLabs also read recorded late-food service for simple questions such as "Food in Soho tonight at 1am".
+  Map Ask and keyless typed chat also read recorded late-food service for simple questions such as "Food in Soho tonight at 1am".
   The lookup accepts one recognised area and one clear time phrase, optionally with one ISO date.
   "Food after midnight near Soho" or "Food in Soho tonight" asks for a night and time when the area has records.
   Filters cover one category (pizza, kebab, cafe or restaurant) and recorded vegan, vegetarian or gluten-free labels.

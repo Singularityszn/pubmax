@@ -52,7 +52,7 @@ RESCOPED 2026-07-18 after spec review: most of the push pipeline ALREADY EXISTS 
 ### Lane C: concierge chat surface /pal (Opus, UI + seam)
 
 - Chat skin over the EXISTING engine: user asks, intent parse, deterministic rank over our rows, answer cards ARE the facts with their provenance labels; model narration behind `narrate` flag, OFF until key funded; refuse honestly at zero rows (house empty-state voice).
-- Provider seam stays single (`OPENROUTER_MODEL` env); multi-model later, never week one.
+- Provider configuration follows [Pub Pal setup](PUB_PAL_SETUP.md).
 - Web-search grounding (owner decision 3): behind a second flag, Exa/Firecrawl at query time, answers marked as web-sourced, OFF by default until spend limiter proven.
 - Sol dependency: durable spend limiter on the concierge route before any model/web flag flips in prod.
 
