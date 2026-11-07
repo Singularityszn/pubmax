@@ -77,12 +77,16 @@ function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) 
         </Link>
         <PintPriceBadge priceGbp={cheapest.priceGbp} venueId={cheapest.venueId} />
       </p>
-      <p className="tonightAnswerMeta">
-        {cheapest.placeLine} · {cheapest.drinkLabel || (cheapest.evidenceUnavailable ? "Drink unavailable" : "Drink not recorded")} · {cheapest.servingSize || (cheapest.evidenceUnavailable ? "Serving unavailable" : "Serving not recorded")} ·{" "}
+      <p className="tonightAnswerMeta tonightAnswerMetaWithSource">
+        <span>
+          {cheapest.placeLine} · {cheapest.drinkLabel || (cheapest.evidenceUnavailable ? "Drink unavailable" : "Drink not recorded")} · {cheapest.servingSize || (cheapest.evidenceUnavailable ? "Serving unavailable" : "Serving not recorded")} ·{" "}
+        </span>
         {cheapest.publisher?.label ? (sourceUrl ? (
           <a className="tonightAnswerSource" href={sourceUrl} target="_blank" rel="noreferrer noopener">{cheapest.publisher.label}</a>
-        ) : <>{cheapest.publisher.label} (link unavailable)</>) : "Publisher not recorded"} ·{" "}
-        {readable ? <time dateTime={cheapest.observedAt ?? undefined}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(date)}</time> : "Read date not recorded"}
+        ) : <span>{cheapest.publisher.label} (link unavailable)</span>) : <span>Publisher not recorded</span>}
+        <span>
+          ·{" "}{readable ? <time dateTime={cheapest.observedAt ?? undefined}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(date)}</time> : "Read date not recorded"}
+        </span>
       </p>
     </li>
   );
@@ -101,10 +105,12 @@ function RegularNightRow({ night }: { night: RegularNight }) {
           night.placeName
         )}
       </span>
-      <span className="tonightAnswerMeta">
-        {night.title}
-        {time ? `, ${time}` : ""}
-        {" · "}
+      <span className="tonightAnswerMeta tonightAnswerMetaWithSource">
+        <span>
+          {night.title}
+          {time ? `, ${time}` : ""}
+          {" · "}
+        </span>
         {night.source.url ? (
           <a
             className="tonightAnswerSource"

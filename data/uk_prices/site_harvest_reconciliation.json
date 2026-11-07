@@ -10280,14 +10280,14 @@
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-loreoftheland-com-menu-wine-list.json",
-      "sourceEvidenceSha256": "0eeb8709e7ecd04b80eac0b7ec97024af8ad1b96be16f86816cb51b584ca7f00",
+      "sourceEvidenceSha256": "b74d434bde50f76bf7da0569c00d35bfd00355b7d8eef62edb9f3a336436696b",
       "sourceUrl": "https://loreoftheland.com/menu/wine-list/",
       "sourceObservedAt": "2026-10-19T16:21:31.607Z",
       "addedRows": 9,
       "currentLedger": {
-        "sha256": "e1288ab4bff179811334a07650e4c76ea0cd081fce8180cbd50a48a5c7a4a30c",
+        "sha256": "5c9cc9a6636346d03c8c1166100c2296b9985ff499d93692b3ab8cc70d5842fc",
         "rowCount": 4012,
-        "rowIdentitySetSha256": "e80aac08531c2bb7bc2280ad0abd1e2c153ea7651f1bfa6366814a778756157b"
+        "rowIdentitySetSha256": "800e0a3a33d62058130f8cb793b032bcc0619e0428273e9f2efecf398fa4fa2e"
       },
       "currentBundle": {
         "rowCount": 7965,
@@ -10301,9 +10301,9 @@
       "sourceObservedAt": "2026-10-23T16:15:47.970Z",
       "addedRows": 19,
       "currentLedger": {
-        "sha256": "000bded8a9a65d65f33be79447bf32b7df1f963699c94ce7f9a2a00fbe63614d",
+        "sha256": "82a24a8b82ec446feaffbf14da1418f41d47b5d533569e9864ca97bbc493202a",
         "rowCount": 4031,
-        "rowIdentitySetSha256": "8e9fd472aabef97cda603ed644f7fcff7d8768fcdb534ebd528a0860544b7809"
+        "rowIdentitySetSha256": "0215c11424992a2d936ebec4eb1bb1a70baa35417b9bc1913d315906d9ebc1e2"
       },
       "currentBundle": {
         "rowCount": 7984,
@@ -10317,9 +10317,9 @@
       "sourceObservedAt": "2026-10-25T18:14:24.119Z",
       "addedRows": 2,
       "currentLedger": {
-        "sha256": "d7ceaae058bc148dfa2903a6f7bc4c08d3dfc88df562ee8bbff59fb4b2053284",
+        "sha256": "07ff4a2e398d262705be154c5d42b3094bb6c6bae3fc4948ea8b6746f5c9f287",
         "rowCount": 4033,
-        "rowIdentitySetSha256": "14fff6a094479bc8b2b39de5499af54dd0846c469f39735b6b8bfa565556ca56"
+        "rowIdentitySetSha256": "351fa649ab46d122e0e2a922f3d4ba4dda4fb4f2d0aa80dd0167c3c23ffa3e3e"
       },
       "currentBundle": {
         "rowCount": 7986,
