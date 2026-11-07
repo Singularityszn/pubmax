@@ -739,7 +739,8 @@ describe("private Plan: write", () => {
         request(`/api/plans/${PLAN_ID}/presence`, { bearer, body: { status: "here" } }),
         context({ id: PLAN_ID }),
       );
-      expect([400, 403]).toContain(presence.status);
+      // No member authority at all is 401 PLAN_PRESENCE_REQUIRED; a foreign one is 403.
+      expect(bearer === undefined ? [401] : [400, 403]).toContain(presence.status);
     }
     expect(planRevision()).toBe(revisionBefore);
     expect(planStopOrder()).toBe(orderBefore);

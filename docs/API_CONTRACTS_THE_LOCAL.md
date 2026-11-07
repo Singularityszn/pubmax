@@ -56,8 +56,8 @@ THE LOCAL follows the existing plans pattern: **value before sign-in.** There is
 - **Plan reads** (`GET /api/plans/:id` and Plan pages): a Plan id alone returns a redacted preview. Full state requires a valid host or guest capability. The projection owner is [`lib/planPrivacy.ts`](../lib/planPrivacy.ts), selected by [`resolvePlanProjection`](../lib/planPrivacyBoundary.server.ts). Night Area and late-food reads remain public.
 - **Create** (`POST /api/plans`, `POST /api/plans/generate`): keyless. On a write, the server mints an opaque **member token** (`memberToken`, returned once in the create/join response body; the server stores only its salted SHA‑256 hash). BASELINE.
 - **Member-scoped writes** (`PATCH /api/plans/:id`, `POST /api/plans/:id/actions`, `POST /api/plans/:id/complete`, `POST /api/plans/:id/presence`): require the caller to present their member token, proving they belong to the crew.
-  - Canonical transport: `Authorization: Bearer <memberToken>` header. Body field `memberToken` is accepted as a migration fallback. Helper: `lib/planMemberCapability.ts` (`planMemberCapability(request, body.memberToken)`). IMPLEMENTED LOCALLY.
-  - `POST /api/plans/:id/actions` accepts the Bearer header and retains `body.memberToken` only as a migration fallback.
+  - Transport precedence follows the [shared capability reader](../lib/planMemberCapability.ts). Browser sessions use a path-scoped HttpOnly cookie. Clients can also supply an opaque Bearer token or a body field `memberToken`.
+  - Presence refusals, including missing member authority, follow the [permission matrix](security/PERMISSION_MATRIX.md#findings-from-the-first-run).
 - **Save a private recap** (`POST /api/plans/:id/recap`): the bearer authenticates the account. The request must also carry the Plan member token in its member cookie or body field `memberToken`. This route never uses the bearer as the Plan member token. The saved Memory belongs to the authenticated account. See [`planRecapPromote.server.ts`](../lib/planRecapPromote.server.ts) for completion matching and replay handling.
 
   Account Hub sends each confirmed recap to its Plan-specific endpoint, where the browser can attach that Plan's path-scoped HttpOnly cookie. The cookie stays inaccessible to scripts and keeps its existing scope. The legacy `POST /api/me/pending-plan-recaps` claim endpoint also separates account authentication from Plan authority. Browsers do not send the Plan cookie to that account-wide path, so legacy clients must supply each item's separate `memberToken`. Both endpoints prefer a supplied Plan cookie over the body token.
@@ -380,7 +380,7 @@ Emit `night_description_submitted { area, daypart }` on submit; the owner-resolv
 
 ```ts
 type PatchPlanRequest = {
-  memberToken?: string;              // fallback if no Authorization: Bearer header
+  memberToken?: string;              // Optional body fallback. See §1.1 for transport.
   status?: PlannedNightStatus;       // must be a legal transition from current status
   context?: NightContext;            // full context (strict cleanNightContext)
   stops?: Array<Pick<PlanStopDTO, "venueId" | "selectedDrinkPriceEvidence">>; // canonical route replacement
@@ -434,7 +434,7 @@ Route replacement is **optimistically concurrent** via `expectedRouteRevision` �
 
 ```ts
 type PlanActionRequest = {
-  memberToken?: string;         // migration fallback; Authorization: Bearer is canonical
+  memberToken?: string;         // Optional body fallback. See §1.1 for transport.
   type: "arrived" | "skipped" | "swapped";  // "ending" is REJECTED here (goes via /complete)
   stopPosition: number;         // integer 0..7; bound requests must match a current stop
   expectedRouteRevision?: number; // positive integer, required together with venueId
@@ -481,7 +481,7 @@ The handler limits requests to 30 per hashed client per minute.
 ```ts
 // POST body
 type CompletePlanRequest = {
-  memberToken?: string;            // or Authorization: Bearer (planMemberCapability)
+  memberToken?: string;            // Optional body fallback. See §1.1 for transport.
   ending: "food" | "get_home" | "keep_going";
   expectedRouteRevision: number;   // required, > 0 — optimistic concurrency
   terminalVenueId?: string;        // required when ending === "food"

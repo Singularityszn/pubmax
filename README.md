@@ -118,6 +118,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   The route map's accessible description uses the areas recorded for its stops. It names every distinct area when the route crosses areas. If any stop lacks a specific area, the description omits geography. Search distance does not establish a borough boundary.
 
+  If a signed-in member loses the Plan session cookie, a crew-status action can restore access without reloading the page.
+  After the crew returns, choose the status again to save it. The failed action is not sent again automatically.
+  A signed-out browser cannot restore lost access through an account. Open the host's invite link to join again.
+
   A saved Plan needs at least two stops in one city to offer a walking route. **See the walking route** and the main **Map** link then open the saved stops. Unsaved edits do not change that destination. Each stop's **Open on the map** link keeps the walk and selects that pub. **Show whole walk** restores the route view on phones and desktop after you move the map or search elsewhere. If street routing is unavailable, dashed lines show stop order only.
 
   On a saved Plan with candidate pubs, open **Plan it together**. Choose **Compare journeys from broad areas**. The comparison starts off. Add broad London areas to see each pub's longest and average straight-line walking estimates from the area centres. Pubs without usable coordinates show **journey time unknown**. These estimates do not establish routed or step-free journeys.
@@ -257,6 +261,7 @@ Useful scripts:
 | `npm run test:chatgpt-map` | Installs the pinned local MCP package and runs its Node tests; included in `verify`. Separate browser proof is described in the [setup guide](scripts/chatgpt-map/README.md) |
 | `npm run test:landing-transport` | Checks font transport ordering with synthetic HTTP fixtures. Included in `verify`. Real-font browser checks remain in [the landing spec](e2e/aperture-splash.spec.ts). |
 | `npm run test:e2e` | Playwright browser suite, including UI and accessibility guards (builds, starts, drives Chromium) |
+| `npm run test:e2e:plan-auth` | Disposable local Plan authentication and recovery checks. See the [recovery guide](docs/testing/signed-in-review.md#disposable-plan-recovery) for requirements, configuration, and cleanup. |
 | `node scripts/e2e/run-disposable-plan-browser.mjs` | Wine and cocktail persistence and forged-hint browser checks against disposable PostgreSQL/PostgREST. Requires local PostgreSQL 16, PostgREST, and Playwright Chromium. Builds an isolated production server, applies the [fixture's migration range](scripts/e2e/disposable-plan-db.mjs) only to its temporary database, and cleans up its server, database, and build directory. Results stay in `test-results/`. |
 | [Signed-in review harness](docs/testing/signed-in-review.md) | Seeded local authenticated browser review |
 | `npm run shots` | Generates required 390/1440 light/dark Gate-Z screenshots; map captures fail unless MapLibre paints a pub mark |

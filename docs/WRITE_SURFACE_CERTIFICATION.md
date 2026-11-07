@@ -1735,14 +1735,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   fallbacks preserve keyless and development parity after identity verification
   when the current Plan schema is present; a genuine write failure remains a
   refusal.
-- **Browser proof:** `e2e/plan-capability-recovery.spec.ts` runs in the
-  `law-pins` job. Its signed-out case proves that a lost capability does not
-  trigger a recovery PATCH. The signed-in case remains deliberately skipped in
-  the keyless server: without `SUPABASE_SERVICE_ROLE_KEY`, `getSupabaseAdmin()`
-  is null, `verifyCallerAuth` answers `unavailable`, and both the claim PUT and
-  recovery PATCH answer 503. The complete journey remains in the spec for a
-  future authenticated browser lane; shared doubles live in
-  `e2e/helpers/authDoubles.ts`.
+- **Browser coverage:** `e2e/plan-capability-recovery.spec.ts` runs in the
+  `law-pins` job. Its signed-out case checks that a lost capability does not
+  trigger a recovery PATCH. The signed-in cases use the
+  [disposable Plan recovery runner](testing/signed-in-review.md#disposable-plan-recovery).
+  That guide owns the setup requirements and coverage limits.
 
 ### `app/api/social/videos/uploads` - Social video upload intents (route 96)
 

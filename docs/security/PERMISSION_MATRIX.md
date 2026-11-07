@@ -185,9 +185,13 @@ no side effect, as above.
    The `0124` rollback used to recreate that public copy as SECURITY DEFINER,
    although no copy existed before `0124`; it now drops it and leaves the
    `pubmax_private` helper (0075's body, with its legacy-only guard) untouched.
-2. **Refusals for a foreign Plan write read as 400** rather than 403 on the
-   `PATCH` and presence routes, because validation and the capability lookup
-   share one store result. Denied is denied; the matrix asserts 400 or 403.
+2. **Plan writes require member authority.** The matrix asserts 400 or 403
+   for a foreign Plan write. After request parsing and rate limiting, a
+   presence request without member authority answers 401 `PLAN_PRESENCE_REQUIRED`.
+   This includes the page's HttpOnly marker without its cookie.
+   With a valid status on an existing Plan, a foreign member token answers
+   403 `PLAN_PRESENCE_FORBIDDEN`.
+   These responses let a mounted Plan distinguish missing access from refused access.
 3. **Account deletion takes the bearer alone.** The audit's expected policy
    names a reauthenticated owner; the route deletes the account the verified
    bearer names and reads no target from the body. Recorded as a policy

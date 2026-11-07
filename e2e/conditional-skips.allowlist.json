@@ -27,11 +27,12 @@
     },
     {
       "file": "e2e/plan-capability-recovery.spec.ts",
-      "condition": "true",
-      "reason": "The keyless e2e server holds no service-role key, so verifyCallerAuth answers unavailable and both the claim PUT and the recovery PATCH answer 503 by design. The alternative was a test-only bypass inside production auth code, which was refused.",
-      "ends": "A real authenticated e2e lane with a service-role key (#1300). The journey is kept whole so it can be switched on that day.",
+      "condition": "process.env.PW_DISPOSABLE_PLAN_AUTH !== \"1\"",
+      "reason": "The keyless server cannot verify account identity. The disposable Plan auth runner creates real local accounts and runs both recovery tests.",
+      "ends": "Run npm run test:e2e:plan-auth with DOCKER_HOST set to the configured local Docker socket.",
       "tests": [
-        "a signed-in host who lost the capability cookie recovers it on the Plan page"
+        "a signed-in host who lost the capability cookie recovers it on the Plan page",
+        "recovers lost capability on the mounted Plan after a crew status action"
       ]
     }
   ]
