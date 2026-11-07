@@ -47,7 +47,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
     const memberId = result.memberId;
     if (result.code === "accepted" && memberId) {
       deferCrewJoinNotice(
-        () => crewJoinAcceptedNotice(() => store.read(crewId, actor), actor, crewId, memberId),
+        () => crewJoinAcceptedNotice(() => store.read(crewId, actor), actor, crewId, memberId, requestId),
         siteOrigin(request.url) ?? new URL(request.url).origin,
       );
     }

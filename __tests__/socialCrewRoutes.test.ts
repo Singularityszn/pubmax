@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
+
 import { SOCIAL_CREW_HOST_CAPABILITY_HEADER, type SocialCrewPageDTO } from "@/lib/socialCrew";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 

@@ -6,9 +6,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+const lifecycle = vi.hoisted(() => ({ after: vi.fn<(task: () => Promise<void>) => void>() }));
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: lifecycle.after,
+}));
+
 import {
   crewJoinAcceptedNotice,
   crewJoinRequestNotice,
+  deferCrewJoinNotice,
   deliverCrewJoinNotice,
   type CrewJoinNotice,
   type CrewJoinNoticeDeps,
@@ -68,7 +76,29 @@ function deps(overrides: Partial<CrewJoinNoticeDeps> = {}): CrewJoinNoticeDeps {
   };
 }
 
-beforeEach(() => __resetMemoryNotifications());
+beforeEach(() => {
+  __resetMemoryNotifications();
+  lifecycle.after.mockReset();
+});
+
+describe("request lifecycle delivery", () => {
+  it("waits for the response lifecycle before building and delivering a keyless notice", async () => {
+    const build = vi.fn(async () => requestNotice);
+    deferCrewJoinNotice(build, ORIGIN);
+
+    expect(build).not.toHaveBeenCalled();
+    expect((await memoryNotificationsStore.list("soho_host")).unread).toBe(0);
+    await lifecycle.after.mock.calls[0]![0]();
+    expect((await memoryNotificationsStore.list("soho_host")).unread).toBe(1);
+  });
+
+  it("contains a failed notice read inside the lifecycle callback", async () => {
+    deferCrewJoinNotice(async () => { throw new Error("read failed"); }, ORIGIN);
+
+    await expect(lifecycle.after.mock.calls[0]![0]()).resolves.toBeUndefined();
+    expect((await memoryNotificationsStore.list("soho_host")).unread).toBe(0);
+  });
+});
 
 describe("delivering a crew join notice", () => {
   it("puts the request in the host's inbox and emails the host once, with a link to the crew", async () => {
@@ -163,19 +193,35 @@ describe("who each notice goes to", () => {
   });
 
   it("sends an acceptance to the member the decision created, from the host", async () => {
-    expect(await crewJoinAcceptedNotice(read(page), { handle: "soho_host" }, CREW, MEMBER)).toEqual({
+    expect(await crewJoinAcceptedNotice(read(page), { handle: "soho_host" }, CREW, MEMBER, REQUEST)).toEqual({
       kind: "crew_join_accepted",
       recipientHandle: "new_face",
       actorHandle: "soho_host",
       crewId: CREW,
       crewTitle: "Thursday in Soho",
-      eventId: MEMBER,
+      eventId: REQUEST,
     });
   });
 
+  it("uses distinct email identities when two accepted requests reuse the same member", async () => {
+    const secondRequest = "8d6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f64";
+    const resend = resendStub();
+    for (const requestId of [REQUEST, secondRequest]) {
+      const notice = await crewJoinAcceptedNotice(read(page), { handle: "soho_host" }, CREW, MEMBER, requestId);
+      expect(notice).not.toBeNull();
+      await deliverCrewJoinNotice(notice!, deps({ emailProvider: () => resend.provider }));
+    }
+
+    expect(resend.sent.map((message) => ({ to: message.to, key: message.idempotencyKey }))).toEqual([
+      { to: "guest@example.com", key: `crew-join:crew_join_accepted:${REQUEST}` },
+      { to: "guest@example.com", key: `crew-join:crew_join_accepted:${secondRequest}` },
+    ]);
+    expect(resend.bodies).toHaveLength(2);
+  });
+
   it("sends nothing when the new member is not on the page, or the read fails", async () => {
-    expect(await crewJoinAcceptedNotice(read(page), { handle: "soho_host" }, CREW, "7c6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f63")).toBeNull();
-    expect(await crewJoinAcceptedNotice(async () => { throw new Error("down"); }, { handle: "soho_host" }, CREW, MEMBER)).toBeNull();
+    expect(await crewJoinAcceptedNotice(read(page), { handle: "soho_host" }, CREW, "7c6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f63", REQUEST)).toBeNull();
+    expect(await crewJoinAcceptedNotice(async () => { throw new Error("down"); }, { handle: "soho_host" }, CREW, MEMBER, REQUEST)).toBeNull();
     expect(await crewJoinRequestNotice(read(page), { handle: "new_face" }, CREW, REQUEST)).toBeNull();
   });
 });

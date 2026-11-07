@@ -31,7 +31,7 @@ export type CrewJoinNotice = {
   actorHandle: string;
   crewId: string;
   crewTitle: string;
-  /** The join request (a request) or the new member (an acceptance). Keys the email once. */
+  /** The join request ID for both a request and its acceptance. Keys the email once per kind. */
   eventId: string;
 };
 
@@ -168,6 +168,7 @@ export async function crewJoinAcceptedNotice(
   host: { handle: string },
   crewId: string,
   memberId: string,
+  requestId: string,
 ): Promise<CrewJoinNotice | null> {
   const crew = await read().catch(() => null);
   if (crew?.kind !== "member") return null;
@@ -179,17 +180,16 @@ export async function crewJoinAcceptedNotice(
     actorHandle: host.handle,
     crewId,
     crewTitle: crew.title,
-    eventId: memberId,
+    eventId: requestId,
   };
 }
 
 /**
  * Deliver a notice after the response. The join write has already succeeded,
- * so the person never waits on a read, an inbox write or an email. Outside a
- * request scope `after` throws, and the promise started here is the whole of it.
+ * so the person never waits on a read, an inbox write or an email.
  */
 export function deferCrewJoinNotice(build: () => Promise<CrewJoinNotice | null>, origin: string): void {
-  const started = (async () => {
+  after(async () => {
     try {
       const notice = await build();
       if (!notice) return;
@@ -204,10 +204,5 @@ export function deferCrewJoinNotice(build: () => Promise<CrewJoinNotice | null>,
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  })();
-  try {
-    after(started);
-  } catch {
-    /* No request scope to hang it on; the promise above still runs. */
-  }
+  });
 }
