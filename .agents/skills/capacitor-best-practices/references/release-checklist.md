@@ -3,7 +3,8 @@
 Run top to bottom before a store build. Each item names the skill that owns the deep check.
 
 ## Config
-- [ ] No `server.url`, `server.cleartext`, dev `allowNavigation`, or `webContentsDebuggingEnabled: true` in the synced `capacitor.config.json` (both platforms).
+- [ ] Both platforms retain `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. This production URL is required for the server-rendered app.
+- [ ] Neither synced `capacitor.config.json` contains development hosts, LAN IPs, `server.cleartext: true`, dev `allowNavigation`, or `webContentsDebuggingEnabled: true`.
 - [ ] `appId`, `appName`, and `webDir` correct; the web build is fresh (`npm run build && npx cap sync` from a clean shell or CI).
 - [ ] Only one of `capacitor.config.ts|js|json` exists.
 

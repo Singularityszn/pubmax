@@ -54,11 +54,7 @@ Only load a reference when its topic is in play.
 ```typescript
 import { App, type URLOpenListenerEvent } from '@capacitor/app';
 
-let lastHandled: string | undefined;
-
 function route(rawUrl: string) {
-  if (rawUrl === lastHandled) return; // cold start can deliver the same URL to both paths
-  lastHandled = rawUrl;
   const url = new URL(rawUrl);
   // myapp://product/123 -> host "product", pathname "/123"
   // https://example.com/product/123 -> pathname "/product/123"
@@ -69,9 +65,16 @@ function route(rawUrl: string) {
 }
 
 export async function initDeepLinks() {
-  await App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => route(event.url));
+  let firstOpenUrl: string | undefined;
+  let launchUrl: string | undefined;
+  await App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
+    const isLaunchDuplicate = firstOpenUrl === undefined && event.url === launchUrl;
+    firstOpenUrl ??= event.url;
+    if (!isLaunchDuplicate) route(event.url);
+  });
   const launch = await App.getLaunchUrl(); // resolves undefined or { url }
-  if (launch?.url) route(launch.url);
+  launchUrl = launch?.url;
+  if (launchUrl && launchUrl !== firstOpenUrl) route(launchUrl);
 }
 ```
 
@@ -79,7 +82,7 @@ Traps:
 - Custom scheme URLs parse with the first segment as `host`, not `pathname`. Normalize both forms as above.
 - Register the listener at bootstrap, not inside a lazily loaded page. A listener added after the event fired never sees it; `getLaunchUrl()` is the fallback for cold start.
 - Wrap state updates from the listener in your framework's zone/run loop (Angular `NgZone.run`) or navigation silently does nothing.
-- Dedupe: on cold start the URL can be reachable via both `getLaunchUrl()` and `appUrlOpen`.
+- Suppress duplicates only between `getLaunchUrl()` and the first `appUrlOpen`, in either delivery order. Later events must route, including repeated URLs.
 - Validate and allow-list paths before navigating; a deep link is untrusted input.
 
 ## Custom Scheme Config

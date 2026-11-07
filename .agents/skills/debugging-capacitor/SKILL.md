@@ -63,7 +63,7 @@ Details and caveats: `references/device-cli.md`.
 - Capacitor 8.5 (stable): `npx cap run ios -l --host 192.168.1.68 --port 5173` (add `--https` for an https dev server).
 - Android emulator/USB: `--forwardPorts 5173:5173` runs `adb reverse` so `http://localhost:5173` works.
 - Dev server must bind to `0.0.0.0`; phone and Mac on the same Wi-Fi; iOS may ask for Local Network access; if denied the page never loads (re-enable in Settings > Privacy & Security > Local Network).
-- Never ship `server.url` / `server.cleartext` in `capacitor.config.*`; grep before release.
+- Never ship development hosts, LAN IPs, or `server.cleartext: true` in `capacitor.config.*`. This server-rendered app requires `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Keep that production URL in release builds.
 
 ## Project safety
 
@@ -97,11 +97,11 @@ More symptom-specific fixes: `references/common-failures.md`.
 After any fix, prove it:
 1. `npx cap doctor` shows matching `@capacitor/core`, `cli`, `ios`, `android` versions.
 2. `npm run build && npx cap sync` completes with no warnings about missing plugins.
-3. Native console shows `⚡️  Loading app at capacitor://localhost...` (iOS) / no `Capacitor/Console` errors (Android).
+3. The native console shows this app loading `https://pubmaxxing.com/`, as required by `server.url` in `capacitor.config.ts`. Both platforms show no console errors.
 4. WebView inspector console is clean on launch.
 5. Re-run the exact repro on both a simulator/emulator and a physical device, in a **release** build if the bug was release-only (`cap run` builds Debug by default; iOS accepts `--configuration Release`, Android release builds go through Android Studio or Gradle).
 6. For link/lifecycle fixes: test cold (app killed) and warm (app backgrounded) launch with `simctl openurl` / `adb shell am start`, and background/foreground once to see `pause` and `resume`.
-7. Before shipping: `grep -n "server" capacitor.config.*` shows no `url`/`cleartext` left over.
+7. Before shipping, inspect `capacitor.config.ts` and both synced native configurations. Keep the required production `server.url: "https://pubmaxxing.com/"`. Reject development hosts, LAN IPs, and `server.cleartext: true`.
 
 ## References
 

@@ -60,7 +60,7 @@ CocoaPods Trunk is expected to go read-only on December 2, 2026. Recommend SPM f
 2. **`npx cap sync` after every plugin install/removal and every config change.** Missing sync produces `"<Plugin>" plugin is not implemented on <platform>`.
 3. **Never edit generated web assets.** `android/app/src/main/assets/public/` and `ios/App/App/public/` are overwritten by `cap copy`/`sync`. Edit `src/` and rebuild.
 4. **Commit `ios/` and `android/`.** They are source code with your native customizations, not build output. Do commit `capacitor.config.*`; do not commit `node_modules`, `Pods/`, build dirs.
-5. **No dev settings in release config.** `server.url`, `server.cleartext`, `allowNavigation` to dev hosts, `webContentsDebuggingEnabled: true`. Gate them on an env var (see references/config-and-project.md). On Capacitor 9, use `npx cap run <platform> --url <dev-url>` for live reload.
+5. **No dev settings in release config.** Exclude development `server.url` overrides, LAN IPs, `server.cleartext: true`, dev `allowNavigation`, and `webContentsDebuggingEnabled: true`. Gate development overrides on an env var (see references/config-and-project.md). This server-rendered app requires `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Keep that production URL in release builds. On Capacitor 9, use `npx cap run <platform> --url <dev-url>` for live reload.
 6. **Feature-detect before calling plugins.** `Capacitor.isNativePlatform()`, `Capacitor.getPlatform()`, `Capacitor.isPluginAvailable('Name')`. Provide a web fallback or hide the feature.
 7. **Use the permission API.** Call `checkPermissions()` then `requestPermissions()` for official plugins that expose them, and handle `denied` with a path to Settings. Add the matching `NS*UsageDescription` keys / Android permissions.
 8. **Branch on `error.code`, not `error.message`.** Messages change between versions and platforms. Official plugins expose structured codes (for example `OS-PLUG-CAMR-0006` for a cancelled camera capture in `@capacitor/camera` 8.1+ new APIs); Capacitor core uses `UNIMPLEMENTED` / `UNAVAILABLE`.
@@ -102,7 +102,8 @@ npx cap doctor
 # Web build exists where webDir points, then sync succeeds without errors
 npm run build && npx cap sync
 
-# No dev server or debug flags in the synced native config
+# Both synced configs must retain https://pubmaxxing.com/ as server.url.
+# Reject development hosts, LAN IPs, cleartext: true, and debug flags.
 grep -nE "\"url\"|cleartext|webContentsDebuggingEnabled" \
   android/app/src/main/assets/capacitor.config.json ios/App/App/capacitor.config.json
 

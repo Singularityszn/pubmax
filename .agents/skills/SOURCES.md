@@ -247,6 +247,11 @@ Left upstream: Capgo cloud and live-update skills, version-upgrade skills (this 
 
 `capacitor-best-practices` keeps a local [Stay on Capacitor 8](capacitor-best-practices/SKILL.md#stay-on-capacitor-8) section, so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest` or `@next`. The 29 Oct refresh replaced the upstream file, and the section was added back to it. Do not leave that major unless someone asks.
 
+Local corrections:
+
+- Release, security, debugging and Apple review guidance preserve the required production `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Development hosts, LAN IPs and cleartext remain excluded from release builds.
+- The `capacitor-deep-linking` handler suppresses only the initial `getLaunchUrl()` and first `appUrlOpen` duplicate, in either order. Later intentional opens of the same URL still route.
+
 ### maplibre/maplibre-agent-skills (added)
 
 Same commit as the MapLibre refresh above. `maplibre-cartography`, `maplibre-fonts-glyphs`.

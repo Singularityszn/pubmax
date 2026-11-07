@@ -18,7 +18,7 @@ Guidelines that apply to **every** app regardless of category. Check these befor
 - [ ] **Privacy manifest** — App target has `PrivacyInfo.xcprivacy`; no ITMS-91053/91061 warnings on the last upload
 - [ ] **Purpose strings** — Every `NS...UsageDescription` a plugin can trigger is present and specific (ITMS-90683)
 - [ ] **Age rating** — Updated questionnaire answered (4+, 9+, 13+, 16+, 18+)
-- [ ] **Release config** — No `server.url` / live-reload URL in `capacitor.config.*` for the store build
+- [ ] **Release config** - Keep the required `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts` for this server-rendered app. Exclude development hosts, LAN IPs, and `server.cleartext: true` from the store build.
 
 ## Metadata
 

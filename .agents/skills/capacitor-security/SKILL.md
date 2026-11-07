@@ -43,7 +43,7 @@ Do not use:
 
 - **Nothing in the bundle is secret.** Web assets ship inside the IPA/APK and `capacitor.config.json` is copied into native assets. Values in `plugins.*` config (including `@capgo/capacitor-env`) are extractable. Move secret-bearing calls to a backend.
 - **`allowNavigation` grants bridge access.** On Android, every `allowNavigation` entry is added to the bridge's allowed origin rules, so pages from those hosts can call your native plugins. Only list hosts you control. Open third-party pages with `@capacitor/browser` or `@capgo/inappbrowser` instead.
-- **`server.url` and `server.cleartext` are dev-only.** Capacitor documents both as "not intended for use in production." A committed LAN IP ships a WebView that loads remote code over HTTP.
+- **Keep development overrides out of release builds.** Exclude development hosts, LAN IPs, and `server.cleartext: true`. This server-rendered app requires `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Keep that production URL in release builds.
 - **Debuggable WebView in release.** `ios.webContentsDebuggingEnabled` / `android.webContentsDebuggingEnabled` default to on only in debug builds. A hardcoded `true` exposes the WebView to Safari / `chrome://inspect` on any release build.
 - **CapacitorHttp is not pinning.** `plugins.CapacitorHttp.enabled` only routes `fetch`/XHR through native networking. Pinning requires `@capgo/capacitor-ssl-pinning`, which hooks into CapacitorHttp.
 - **Biometric prompt is not authentication.** `verifyIdentity()` can be hooked on rooted/jailbroken devices. Keep secrets behind `accessControl` (hardware-bound Keychain/Keystore item) and validate sessions server-side.

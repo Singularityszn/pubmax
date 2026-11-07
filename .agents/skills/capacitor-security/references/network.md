@@ -10,7 +10,9 @@ The usual regressions are config changes made for live reload that leaked into p
 
 ### capacitor.config: keep dev settings out of release
 
-`server.url`, `server.cleartext`, and `server.allowNavigation` are documented as "not intended for use in production." Gate them on an environment variable so release builds never contain them:
+Keep development hosts, LAN IPs, `server.cleartext: true`, and development `server.allowNavigation` entries out of release builds. This server-rendered app requires `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Keep that production URL in release builds.
+
+The following example gates a development override for a bundled-web app. Do not replace this app's remote-URL configuration with this example:
 
 ```typescript
 import type { CapacitorConfig } from '@capacitor/cli';
