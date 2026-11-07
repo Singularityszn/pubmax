@@ -51,7 +51,7 @@ export default function PresenceStrip({ spillingNow = 0 }: { spillingNow?: numbe
     const live = () => !signal.aborted && readProviderIdentityRevision() === accountRevision;
     // Presence is shown to mates only, so the read carries the session. A
     // signed-out reader is answered nothing (or keyless demo rows).
-    authedActionFetch("/api/presence", { signal }, { requiresIdentity: true })
+    authedActionFetch("/api/presence", { signal, credentials: "omit" }, { requiresIdentity: true })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((data: { presence?: PresenceDTO[] }) => {
         if (live()) setAnswer({ accountRevision, rows: Array.isArray(data.presence) ? data.presence : [] });

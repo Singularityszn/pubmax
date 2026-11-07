@@ -19,7 +19,6 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
@@ -98,11 +97,13 @@ export async function GET(request: Request): Promise<Response> {
   // Any failure past the read, the audience check included, answers nothing:
   // this list fails closed.
   try {
-    const access = await requireVerifiedSocialActor(request);
+    const headers = new Headers(request.headers);
+    headers.delete("cookie");
+    const access = await requireVerifiedSocialActor(new Request(request, { headers }));
     const handles = access.ok ? await presenceHandlesForViewer(access.actor) : [];
     const rows = await recentPresenceWithAmbient(venueId || undefined, Date.now(), handles);
     const presence = await projectPublicAuthors(rows);
-    return withAuthResumeCookie(jsonNoStore({ presence }, { status: 200, headers: PRIVATE_NO_STORE }), access.resumeCookie);
+    return jsonNoStore({ presence }, { status: 200, headers: PRIVATE_NO_STORE });
   } catch {
     return jsonNoStore({ presence: [] }, { status: 200, headers: PRIVATE_NO_STORE });
   }

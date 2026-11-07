@@ -286,7 +286,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
       try {
         const res = await authedActionFetch(
           `/api/presence?venueId=${encodeURIComponent(venueId)}`,
-          { cache: "no-store", signal },
+          { cache: "no-store", signal, credentials: "omit" },
           { requiresIdentity: true },
         );
         if (!res.ok) {

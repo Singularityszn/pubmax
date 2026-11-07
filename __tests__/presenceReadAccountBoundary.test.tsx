@@ -176,6 +176,11 @@ describe.each(["feed strip", "Round overlay"] as const)("%s account ownership", 
       ? presenceResponse() : Response.json({ presence: [] }));
     await render();
     expect(visibleCount()).toBe(0);
+    expect(requests.presence).toHaveBeenCalledWith(
+      expect.stringContaining("/api/presence"),
+      expect.objectContaining({ credentials: "omit" }),
+      { requiresIdentity: true },
+    );
 
     await switchAccount("account-a");
     expect(visibleCount()).toBe(1);
