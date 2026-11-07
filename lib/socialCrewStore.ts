@@ -149,12 +149,6 @@ type SocialCrewListInput = {
 export type SocialCrewStore = {
   read(crewId: string, actor: SocialPostActor): Promise<SocialCrewReadDTO>;
   readPublicPreview(crewId: string): Promise<SocialCrewPublicPreviewSource>;
-  /**
-   * The facts an open crawl's link preview prints (0222). Before 0222 is
-   * applied, or when its read cannot run, it answers the 0115 public preview
-   * with no capacity, no seat count and no stop list, so a link still unfurls
-   * with the host, the time and Stop 1.
-   */
   readShareCard(crewId: string): Promise<SocialCrewShareCardSource>;
   list(
     actor: SocialPostActor,
@@ -560,15 +554,25 @@ export function createSocialCrewStore(
         if (parsed) return parsed;
       }
       const preview = await readPublicPreview(crewId);
+      let openCrawlSnapshot: unknown;
+      try {
+        openCrawlSnapshot = await dependencies.snapshot("read_social_crew_open_crawl", {
+          p_crew_id: crewId,
+        });
+      } catch {
+        return unavailable();
+      }
+      const openCrawl = parseOpenCrawlDetails(openCrawlSnapshot);
+      if (openCrawlSnapshot !== null && !openCrawl) return unavailable();
       return {
         crewId: preview.crewId,
         title: preview.title,
         hostHandle: preview.hostHandle,
         startsAt: preview.startsAt,
-        capacity: null,
+        capacity: openCrawl?.capacity ?? null,
         memberCount: null,
-        meetingVenueId: preview.stopVenueId,
-        meetingVenueName: preview.stopVenueName,
+        meetingVenueId: openCrawl?.meetingVenueId ?? preview.stopVenueId,
+        meetingVenueName: openCrawl?.meetingVenueName ?? preview.stopVenueName,
         stopVenueIds: null,
       };
     },
