@@ -77,6 +77,25 @@
   overflow-wrap: anywhere;
 }
 
+/* Block detail under the meta line, such as a price's own evidence. Its links
+   sit above the row's stretched title target so each stays its own tap. */
+.rowListDetail {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+
+.rowListDetail p {
+  margin: 0;
+}
+
+.rowListDetail a {
+  position: relative;
+  z-index: 1;
+}
+
 .rowListTrailing {
   justify-self: end;
   display: inline-flex;

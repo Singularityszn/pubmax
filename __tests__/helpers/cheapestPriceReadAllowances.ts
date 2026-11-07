@@ -312,7 +312,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "Image", "count": 2, "reason": "Preserves ordinary averages while cheapest claims use qualified borough stats."},
   ],
   "app/borough/[slug]/page.tsx": [
-    {"owner": "BoroughPubPrice", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
+    {"owner": "BoroughPubRow", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
   ],
   "app/crawls/routeSummary.ts": [
     {"owner": "crawlPriceRange", "count": 1, "reason": "Estimates a predetermined route without cheapest selection."},

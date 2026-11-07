@@ -32,15 +32,18 @@ export function RowList({
 
 /**
  * One row: an optional lead (a number, a face, a small photo), a title with an
- * optional meta line under it, and an optional trailing figure (a price badge,
- * a count). When `href` is given the whole row is one tap target through the
- * title's link, so the target is never a 20px line of text.
+ * optional meta line under it, an optional block of detail under that, and an
+ * optional trailing figure (a price badge, a count). When `href` is given the
+ * whole row is one tap target through the title's link, so the target is never
+ * a 20px line of text. A link inside `detail` (a price's source, say) stays its
+ * own tap target above the row's.
  */
 export function RowListItem({
   href,
   lead,
   title,
   meta,
+  detail,
   trailing,
   className,
   prefetch = false,
@@ -49,6 +52,8 @@ export function RowListItem({
   lead?: ReactNode;
   title: ReactNode;
   meta?: ReactNode;
+  /** Block content under the meta line, such as a paragraph of price evidence. */
+  detail?: ReactNode;
   trailing?: ReactNode;
   className?: string;
   prefetch?: boolean;
@@ -56,7 +61,7 @@ export function RowListItem({
   return (
     <li className={["rowListItem", href ? "rowListItem--link" : null, className].filter(Boolean).join(" ")}>
       {lead ? <span className="rowListLead">{lead}</span> : null}
-      <span className="rowListBody">
+      <div className="rowListBody">
         {href ? (
           <Link prefetch={prefetch} href={href} className="rowListTitle rowListTitleLink">
             {title}
@@ -65,7 +70,8 @@ export function RowListItem({
           <span className="rowListTitle">{title}</span>
         )}
         {meta ? <span className="rowListMeta">{meta}</span> : null}
-      </span>
+        {detail ? <div className="rowListDetail">{detail}</div> : null}
+      </div>
       {trailing ? <span className="rowListTrailing">{trailing}</span> : null}
     </li>
   );
