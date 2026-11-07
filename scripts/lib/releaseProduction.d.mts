@@ -34,6 +34,12 @@ export type ReleaseOptions = {
   pollMs?: number;
 };
 
+export const FRESHNESS_GATE_COMMANDS: ReadonlyArray<readonly [string, readonly string[]]>;
+
+export function freshnessPreflight(
+  run: ReleaseDeps["run"],
+): { name: string; run: () => Promise<void> };
+
 export function releaseProduction(
   deps: ReleaseDeps,
   options?: ReleaseOptions,

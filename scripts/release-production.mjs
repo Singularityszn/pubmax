@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 import { vercelCommand } from "./lib/vercelCli.mjs";
 import { checkMigrationLedger } from "./lib/migrationLedger.mjs";
-import { releaseProduction, ReleaseRefusal } from "./lib/releaseProduction.mjs";
+import { freshnessPreflight, releaseProduction, ReleaseRefusal } from "./lib/releaseProduction.mjs";
 
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -68,6 +68,8 @@ try {
           }
         },
       },
+      // The freshness gate runs before every release, not on every pull request.
+      freshnessPreflight(run),
     ],
   });
 } catch (error) {

@@ -383,10 +383,11 @@ This is the way to ship to production. It runs these steps in order and stops at
 
 1. It refuses a dirty tree, and a `HEAD` that is not the tip of `origin/main`. The smoke run is dispatched on `main`, so the released commit has to be that tip.
 2. It runs `npm run check:migration-ledger` and refuses when production lacks a migration the repo ships.
-3. It stages a Production-target build with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build stamps the commit and reads Production environment values, and no domain moves yet.
-4. It reads `/api/version` on the new deployment, then runs `vercel promote`.
-5. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
-6. It dispatches `.github/workflows/prod-smoke.yml` on `main` with the released deployment ID. It selects the matching run and waits with `gh run watch --exit-status`.
+3. It runs the freshness gate, the same two commands as `.github/workflows/freshness.yml`, and refuses when a dataset is past its age budget. The [CI runbook](CI_RUNBOOK.md#the-freshness-gate) says why the gate runs here and not on every pull request.
+4. It stages a Production-target build with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build stamps the commit and reads Production environment values, and no domain moves yet.
+5. It reads `/api/version` on the new deployment, then runs `vercel promote`.
+6. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
+7. It dispatches `.github/workflows/prod-smoke.yml` on `main` with the released deployment ID. It selects the matching run and waits with `gh run watch --exit-status`.
 
 The command selects the newest run that meets all these conditions:
 

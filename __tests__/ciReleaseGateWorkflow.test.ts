@@ -82,17 +82,6 @@ function parseJobNeeds(yaml: string): Record<string, string[]> {
   );
 }
 
-function jobAncestors(job: string, needs: Record<string, string[]>): Set<string> {
-  const seen = new Set<string>();
-  const walk = (name: string) => {
-    if (seen.has(name)) return;
-    seen.add(name);
-    for (const dep of needs[name] ?? []) walk(dep);
-  };
-  walk(job);
-  return seen;
-}
-
 /** Each job's own wall, in minutes, as GitHub reads it. */
 function parseJobWalls(yaml: string): Record<string, number> {
   const walls: Record<string, number> = {};
@@ -171,16 +160,12 @@ describe("clean-main CI release gate", () => {
     expect(defined(first).run).toContain("GITHUB_ENV");
   });
 
-  it("does not let the freshness calendar skip the build, unit shards or coverage", () => {
+  it("starts the build, unit shards, data validation and TypeScript 6 check on their own", () => {
     const needs = parseJobNeeds(workflow);
-    for (const job of ["production-build", "unit-tests", "coverage"]) {
-      expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
-    }
     // The build starts beside lint (captain, 2 Nov 2026): it reads nothing
     // lint makes, and waiting put the two end to end on the slowest chain.
     expect(needs["production-build"]).toEqual([]);
     expect(needs.coverage).toEqual(["unit-tests"]);
-    expect(needs.freshness).toEqual([]);
     expect(needs["validate-data"]).toEqual([]);
     expect(needs["typecheck-ts6"]).toEqual([]);
   });
@@ -290,7 +275,7 @@ describe("clean-main CI release gate", () => {
     expect(ciJobs()["unit-tests"]?.strategy?.["max-parallel"]).toBeUndefined();
   });
 
-  it("gates coverage on the merged shards and freshness independently", () => {
+  it("gates coverage on the merged shards", () => {
     // Each of the three shards (captain, 2 Nov 2026) collects coverage for
     // its third and writes a blob. A third cannot meet the whole-suite
     // thresholds, so a shard turns them off and the Coverage job enforces
@@ -314,7 +299,7 @@ describe("clean-main CI release gate", () => {
       expect(env.PUBMAX_RLS_NO_PG, `shard ${shard}`).toBe("1");
     }
 
-    // The Coverage name is the required check branch protection reads.
+    // The CI check needs Coverage by its job id; the name is what a reader sees.
     const coverage = defined(ciJobs().coverage, "coverage job");
     expect(coverage.name).toBe("Coverage");
     expect(jobStep(coverage, "Download coverage blobs").with?.path).toBe("blob-reports");
@@ -322,14 +307,5 @@ describe("clean-main CI release gate", () => {
     expect(merge).toEqual(["npx", "vitest", "--merge-reports=blob-reports", "--coverage"]);
     const coverageWords = (coverage.steps ?? []).flatMap((step) => step.run?.trim().split(/\s+/) ?? []);
     expect(coverageWords.filter((word) => word.startsWith("--coverage.thresholds"))).toEqual([]);
-    const freshness = defined(ciJobs().freshness, "freshness job");
-    expect(freshness.name).toBe("Freshness release gate");
-    const freshnessCommands = (freshness.steps ?? []).flatMap((step) =>
-      (step.run ?? "").split("\n").map((line) => line.trim()).filter(Boolean),
-    );
-    expect(freshnessCommands).toEqual([
-      "node scripts/check_freshness.mjs --artifacts-only",
-      "node scripts/check-production-store-freshness.mjs",
-    ]);
   });
 });

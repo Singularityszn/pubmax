@@ -99,6 +99,7 @@ describe("browser jobs on their runners", () => {
     expect(pullRequestWorkflows.map(({ file }) => file)).toEqual([
       "ci.yml",
       "e2e.yml",
+      "freshness.yml",
       "rls-session.yml",
       "security-ci.yml",
     ]);

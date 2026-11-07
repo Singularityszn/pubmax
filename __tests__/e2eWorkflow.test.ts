@@ -74,6 +74,7 @@ describe("browser CI policy", () => {
     { event: "pull_request", fork: false, expected: false },
     { event: "pull_request", fork: true, expected: false },
     { event: "push", expected: false },
+    { event: "merge_group", expected: false },
     { event: "schedule", expected: true },
     { event: "workflow_dispatch", expected: true },
   ] as const)("applies full-suite eligibility to $event ($expected)", ({ expected, ...context }) => {
@@ -302,6 +303,7 @@ if (args[0] === "issue" && args[1] === "list") {
       "law-pins",
       "change-scope",
       ...LAYOUT_PIN_JOBS,
+      "check",
       ...FULL_SUITE_JOBS,
       "nightly-failure-issue",
     ]);

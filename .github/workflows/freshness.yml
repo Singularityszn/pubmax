@@ -1,0 +1,63 @@
+name: Freshness release gate
+
+# The freshness gate measures how old the data is, not the code a pull request
+# changes. On every pull request it went red when a dataset passed its age
+# budget, whatever the pull request held (11 pull request and 22 main failures,
+# 3 to 7 Nov 2026). So it runs where its answer matters (captain, 7 Nov 2026):
+#
+# - every day on a schedule, and by hand;
+# - on a pull request or a push to main that changes data, the freshness
+#   registry or the two gate scripts;
+# - before every production release, as a preflight of `npm run release:prod`
+#   (scripts/lib/releaseProduction.mjs).
+#
+# It is not a required check, so its `paths` filter can never hold a pull
+# request waiting for a check that does not start. A scheduled failure posts
+# through alert-on-failure.yml. docs/CI_RUNBOOK.md, "The freshness gate".
+
+on:
+  pull_request:
+    paths: &freshness-paths
+      - "data/**"
+      - "public/data/**"
+      - "scripts/check_freshness.mjs"
+      - "scripts/check-production-store-freshness.mjs"
+      - ".github/workflows/freshness.yml"
+  push:
+    branches: [main]
+    paths: *freshness-paths
+  schedule:
+    - cron: "47 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One group per pull request: a newer head cancels that pull request's
+  # older run. Every other run (main push, schedule, dispatch) gets a
+  # group of its own, so GitHub never drops it while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  freshness:
+    name: Freshness release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # The same two commands the release preflight runs
+      # (FRESHNESS_GATE_COMMANDS in scripts/lib/releaseProduction.mjs).
+      - name: Check every tracked feed
+        run: |
+          node scripts/check_freshness.mjs --artifacts-only
+          node scripts/check-production-store-freshness.mjs

@@ -272,6 +272,9 @@ describe("what each scope runs", () => {
     { event: "push", expected: true },
     { event: "push", result: "failure", layout: "", expected: true },
     { event: "push", cancelled: true, expected: false },
+    // The merge queue never starts a Mac job (captain, 7 Nov 2026).
+    { event: "merge_group", expected: false },
+    { event: "merge_group", result: "failure", layout: "", expected: false },
     { event: "schedule", expected: false },
     { event: "schedule", result: "failure", expected: false },
     { event: "workflow_dispatch", expected: false },
@@ -283,9 +286,9 @@ describe("what each scope runs", () => {
     }
   });
 
-  it("keeps the freshness gate, data validation, review scope and Security CI for every change", () => {
+  it("keeps data validation, review scope and Security CI for every change", () => {
     const ci = defined(workflows.find(({ file }) => file === "ci.yml")).parsed.jobs;
-    for (const id of ["freshness", "validate-data", "review-scope"]) {
+    for (const id of ["validate-data", "review-scope"]) {
       const entry = defined(ci[id], id);
       expect(entry.steps.some((s) => s.name === CLASSIFY), id).toBe(false);
       for (const s of entry.steps) expect(s.if ?? "", `${id} / ${s.name}`).not.toContain("scope");
