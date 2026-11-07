@@ -89,7 +89,7 @@ export type PricedPoint = {
   sourceName?: string;
   address?: string;
   locality?: string;
-  filterHints?: { searchText?: string };
+  filterHints?: { searchText?: string; amenities?: { food?: boolean } };
   lat: number;
   lng: number;
   cheapestPrice: number | null;
