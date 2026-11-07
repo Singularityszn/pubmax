@@ -71,7 +71,7 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    name resolution. `__tests__/pubPalChatHours.test.ts` covers the keyless chat
    response and combined transit questions.
    `runAsk` checks `lib/ask/lateFoodAnswer.server.ts` before normal tool routing
-   and the OpenRouter loop. It returns accepted late-food results as
+   and the model loop. It returns accepted late-food results as
    `search_venues`, without pub IDs, prices or plan proposals.
    The handler reads the existing [food-terminal evidence contract](../API_CONTRACTS_THE_LOCAL.md#10-get-apilate-food--crawl-ending-food-terminals).
    `lib/ask/lateFoodQuestion.ts` owns question parsing and follow-up resolution.

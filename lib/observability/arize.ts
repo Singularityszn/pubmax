@@ -4,8 +4,8 @@
 // WHAT IS TRACED: every paid-lane model call the app makes on the server:
 //  - the Vercel AI SDK (`ai` v7) `generateText` calls, bridged by
 //    `@ai-sdk/otel` (`registerTelemetry`), and
-//  - every direct model HTTP call in `lib/` (OpenRouter chat completions in
-//    the ask loop, heritage narrations and concierge intent; the OpenAI
+//  - every direct model HTTP call in `lib/` (Claude chat calls, OpenRouter
+//    Ask tool selection and heritage narration, and the OpenAI
 //    omni-moderation and OpenRouter vision calls in the two moderation
 //    adapters), wrapped by the `traceArizeModelCall` / `traceArizeModelLoop`
 //    helpers below.

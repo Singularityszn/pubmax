@@ -101,7 +101,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   An unmatched or ambiguous pub name prompts a question. A failed record read produces a separate failure message.
   This lookup does not confirm live open-now status or holiday hours.
 
-  Map Ask and typed chat without ElevenLabs also read recorded late-food service for simple questions such as "Food in Soho tonight at 1am".
+  Map Ask and keyless typed chat also read recorded late-food service for simple questions such as "Food in Soho tonight at 1am".
   The lookup accepts one recognised area and one clear time phrase, optionally with one ISO date.
   "Food after midnight near Soho" or "Food in Soho tonight" asks for a night and time when the area has records.
   Filters cover one category (pizza, kebab, cafe or restaurant) and recorded vegan, vegetarian or gluten-free labels.
