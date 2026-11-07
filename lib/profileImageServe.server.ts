@@ -14,7 +14,7 @@ import "server-only";
 // no cover response may sit in a shared cache.
 //
 // Every refusal here answers the reader the SAME "Photo not found.", which is
-// the right answer and a useless finding: nine different gates wear it. So a
+// the right answer and a useless finding: several different gates wear it. So a
 // refusal also names itself once in the log (`profile_image.serve_refused`),
 // the way an advisory scan skip does. The reader is told nothing extra.
 
