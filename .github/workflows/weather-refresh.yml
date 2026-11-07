@@ -1,8 +1,7 @@
 name: Weather cache refresh
 
-# Daily Open-Meteo cache refresh. Every run commits to the one stable
-# weather-cache/latest branch and opens or updates its review PR. It never
-# writes directly to main and never leaves a new branch per run.
+# Daily Open-Meteo cache refresh. Review publication and permission recovery:
+# docs/CI_RUNBOOK.md#scheduled-work-split.
 
 on:
   schedule:

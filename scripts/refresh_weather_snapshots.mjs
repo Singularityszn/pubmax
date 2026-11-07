@@ -32,9 +32,7 @@ export function conditionForCode(code) {
 }
 
 /**
- * Every scheduled run publishes to this one branch. A dated branch per run left
- * a new branch behind each day that nobody merged; one stable branch keeps a
- * single review PR (or a single handoff branch) up to date instead.
+ * Review publication policy: docs/CI_RUNBOOK.md#scheduled-work-split.
  */
 export const WEATHER_REVIEW_BRANCH = "weather-cache/latest";
 
