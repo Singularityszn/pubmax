@@ -5,7 +5,7 @@ Playwright: the server it drives, the state it clears, and how an agent takes br
 ## Traps
 
 - **Wait for the event.** Fixed sleeps and test-runner retries are forbidden. Web-first auto-retrying assertions (`expect(...).toPass()`) and auto-waiting locators are allowed.
-- **A spec that reads colour or theme stores its theme.** With no stored choice, the app is dark from 21:30 to 04:00 London time. Use `storeThemeChoice` or `holdLondonAfternoon` from `e2e/helpers/themeClock.ts`.
+- **A spec that asserts London-hour or calendar-dependent UI pins the clock.** Use the Playwright page clock. A spec that reads colour or theme stores its theme. With no stored choice, the app is dark from 21:30 to 04:00 London time. Use `storeThemeChoice` or `holdLondonAfternoon` from `e2e/helpers/themeClock.ts`.
 - **A hand-started server on the e2e port makes Playwright lie.** Playwright reuses any listener on its port. `playwright.config.ts` owns the server env (`webServer.env`): rate-limit allowance, Plan signing secret and `PUBMAX_TRACKED_OUTPUTS`. Free the port, or start your server with the same env and `PW_SKIP_WEBSERVER=1`.
 - **Never change production rate limits for a test.** The e2e server raises its budget only through `PUBMAX_E2E_RATE_LIMIT_MAX`.
 - **One browser cache, one Playwright version.** A lane never installs or downloads a browser. Never add the separate `@playwright/cli` package. A tool that needs another browser uses its own `PLAYWRIGHT_BROWSERS_PATH` under the gitignored artifacts folder.

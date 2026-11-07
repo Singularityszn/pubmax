@@ -1,8 +1,8 @@
 # CI runbook
 
-GitHub Actions workflows live under `.github/workflows/`. The merge bar for
-application code is still `npm run verify` locally; Actions is the PR status
-check layer.
+GitHub Actions workflows live under `.github/workflows/`. CI owns the full
+suite. A merge needs CI green on the latest commit. Before you push, run
+`npm run verify:no-mistakes:changed`.
 
 ## Runners
 
