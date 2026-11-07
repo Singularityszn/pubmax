@@ -130,6 +130,39 @@ describe("browser CI policy", () => {
     }
   });
 
+  it("starts the nightly in the evening, so GitHub's usual delay lands it before the working day", () => {
+    // GitHub created the 03:17 UTC schedule at 09:40 to 11:11 UTC from 29 Oct
+    // to 7 Nov 2026, and the full suite then held the Mac pool all morning.
+    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+    expect(workflow.on.schedule).toEqual([{ cron: "17 20 * * *" }]);
+  });
+
+  it("opens or updates one issue when a scheduled full suite fails, with the run's own token", () => {
+    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow & {
+      permissions?: Record<string, string>;
+    };
+    const job = defined(workflow.jobs["nightly-failure-issue"], "nightly-failure-issue job") as WorkflowJob & {
+      permissions?: Record<string, string>;
+      "timeout-minutes"?: number;
+    };
+    expect(workflow.permissions).toEqual({ contents: "read" });
+    expect(job.needs).toEqual(FULL_SUITE_JOBS);
+    expect(job["runs-on"]).toBe("ubuntu-latest");
+    expect(job.permissions).toEqual({ issues: "write" });
+    expect(job.if).toContain("github.event_name == 'schedule'");
+    expect(job.if).toContain("always()");
+    expect(job.if).toContain("contains(needs.*.result, 'failure')");
+    expect(job.if).toContain("contains(needs.*.result, 'cancelled')");
+    // No checkout and no repository code: the job only talks to GitHub.
+    expect(job.steps.map((step) => step.uses).filter(Boolean)).toEqual([]);
+    const [step, ...extra] = job.steps;
+    expect(extra).toEqual([]);
+    expect(step?.env?.GH_TOKEN).toBe("${{ github.token }}");
+    expect(JSON.stringify(job)).not.toContain("secrets.");
+    expect(step?.run).toContain("gh issue comment");
+    expect(step?.run).toContain("gh issue create");
+  });
+
   it("runs no second suite behind a retired rollout flag", () => {
     // P0-3: the three trusted-handoff rollout flags are retired, so there is no
     // second suite whose behaviour a deployment lacks.
@@ -140,6 +173,7 @@ describe("browser CI policy", () => {
       "change-scope",
       ...LAYOUT_PIN_JOBS,
       ...FULL_SUITE_JOBS,
+      "nightly-failure-issue",
     ]);
     const envKeys = [
       workflow.env,

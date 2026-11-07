@@ -160,6 +160,18 @@ servers. These jobs use the worker limit defined above.
 Scheduled runs and manual dispatches skip the layout-pin jobs because the full
 suite covers those specs on the same commit.
 
+The full suite runs only on the nightly schedule and on a manual dispatch,
+never on a pull request or a push to `main`. The schedule is set for 20:17 UTC.
+From 29 Oct to 7 Nov 2026, GitHub started the old 03:17 UTC schedule 7 to 8
+hours late, between 09:40 and 11:11 UTC. The nine full-suite jobs then held the
+`pubmax-mac` pool in the working day while pull requests waited. With the same
+delay, a 20:17 schedule starts in the early morning. GitHub does not promise a
+start time, so a late run can still land in the day. When a scheduled full
+suite fails, or a job is cancelled at its time limit, the `nightly-failure-issue`
+job opens one issue named "Nightly full browser suite failed". If that issue is
+still open, the job adds a comment to it. The job uses the run's own
+`GITHUB_TOKEN` and needs no secret. Close the issue when the nightly is green again.
+
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite and manual dispatches never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
 Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push starts three layout-pin jobs. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
