@@ -41,6 +41,7 @@ import {
   type SocialNotificationDTO,
   type SocialQuoteInput,
   type SocialRelationship,
+  type SocialReportKind,
   type SocialReportReason,
 } from "@/lib/socialInteractions";
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
@@ -106,7 +107,7 @@ export type SocialInteractionStore = {
   markNotificationRead(viewer: SocialInteractionActor, id: string, read: boolean): Promise<void>;
   updateFeatureRequest(actor: SocialInteractionActor, postId: string, input: SocialFeatureUpdateInput): Promise<SocialFeatureUpdateDTO>;
   featureHistory(viewer: SocialInteractionActor, postId: string, page: PageInput): Promise<Page<SocialFeatureUpdateDTO> & { currentStatus: SocialFeatureStatus }>;
-  report(actor: SocialInteractionActor, input: { kind: "post" | "comment" | "quote"; id: string; reason: SocialReportReason }): Promise<{ id: string; createdAt: string }>;
+  report(actor: SocialInteractionActor, input: { kind: SocialReportKind; id: string; reason: SocialReportReason }): Promise<{ id: string; createdAt: string }>;
   reportQueue(actor: SocialInteractionActor, page: PageInput): Promise<Page<SocialContentReportDTO>>;
   resolveReport(actor: SocialInteractionActor, id: string): Promise<void>;
   moderate(actor: SocialInteractionActor, input: { kind: "comment" | "quote"; id: string; action: "hide" | "restore" }): Promise<void>;
@@ -349,9 +350,11 @@ export function createMemorySocialInteractionStore(options: {
 
   async function reportableContent(
     actor: SocialInteractionActor,
-    kind: "post" | "comment" | "quote",
+    kind: SocialReportKind,
     contentId: string,
   ): Promise<boolean> {
+    // A person can be reported by anyone but themselves, blocked or not (0223).
+    if (kind === "profile") return contentId !== actor.profileId;
     if (kind === "post") return Boolean(await visiblePost(contentId, actor));
     if (kind === "quote") {
       const target = quotes.get(contentId);
@@ -696,7 +699,7 @@ export function createMemorySocialInteractionStore(options: {
     },
 
     async report(actor, input) {
-      if (!["post", "comment", "quote"].includes(input.kind) || !["harassment", "hate", "threat", "doxxing", "spam", "other"].includes(input.reason)) {
+      if (!["post", "comment", "quote", "profile"].includes(input.kind) || !["harassment", "hate", "threat", "doxxing", "spam", "other"].includes(input.reason)) {
         throw new SocialInteractionStoreError("INVALID_INTERACTION", "Report details are not valid.");
       }
       if (!await reportableContent(actor, input.kind, input.id)) {

@@ -71,9 +71,12 @@ export type SocialFeatureUpdateDTO = {
   createdAt: string;
 };
 
+/** What a report is about. A "profile" report is about a person (0223). */
+export type SocialReportKind = "post" | "comment" | "quote" | "profile";
+
 export type SocialContentReportDTO = {
   id: string;
-  kind: "post" | "comment" | "quote";
+  kind: SocialReportKind;
   contentId: string;
   reason: SocialReportReason;
   state: "queued" | "reviewing";

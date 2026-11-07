@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import ReportPerson from "@/components/social/ReportPerson";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
@@ -655,6 +656,11 @@ export default function CrewDetailClient({
               </li>
             ))}
           </ul>
+          <ReportPerson
+            handles={crew.members
+              .filter((member) => member.memberId !== crew.viewer.memberId)
+              .map((member) => member.handle)}
+          />
         </section>
 
         {managesOpenCrew ? (

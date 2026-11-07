@@ -10,7 +10,7 @@ import {
 } from "@/lib/socialInteractionStore";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { profileStore } from "@/lib/profileStore";
-import { validIdempotencyKey } from "@/lib/socialInteractions";
+import { validIdempotencyKey, type SocialReportKind } from "@/lib/socialInteractions";
 import { hashActor } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -72,6 +72,33 @@ async function targetProfileId(input: Record<string, unknown>): Promise<string> 
     throw new SocialInteractionStoreError("NOT_FOUND", "Account not found.");
   }
   throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose an account.");
+}
+
+const REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "other"] as const;
+
+/**
+ * A report names one thing: a post, comment or quote by id, or a person by
+ * handle. "Report this person" (launch plan P0 item 6) is on a profile and the
+ * crew page, which know a handle, so the handle is resolved here, as block and
+ * mute do. Anything else is not a report.
+ */
+async function reportInput(
+  input: Record<string, unknown>,
+): Promise<{ kind: SocialReportKind; id: string; reason: (typeof REPORT_REASONS)[number] }> {
+  const reason = REPORT_REASONS.find((candidate) => candidate === input.reason);
+  if (reason && input.kind === "profile" && exactKeys(input, ["action", "kind", "targetHandle", "reason"])) {
+    return { kind: "profile", id: await targetProfileId(input), reason };
+  }
+  const targetId = id(input.id);
+  if (
+    reason &&
+    targetId &&
+    (input.kind === "post" || input.kind === "comment" || input.kind === "quote") &&
+    exactKeys(input, ["action", "kind", "id", "reason"])
+  ) {
+    return { kind: input.kind, id: targetId, reason };
+  }
+  throw new SocialInteractionStoreError("INVALID_INTERACTION", "Report details are not valid.");
 }
 
 function isTargetChange(input: Record<string, unknown>, action: "block" | "mute"): boolean {
@@ -291,16 +318,8 @@ export async function POST(request: Request): Promise<Response> {
       });
       return privateJson({ update }, { status: 201 });
     }
-    if (input.action === "report" && exactKeys(input, ["action", "kind", "id", "reason"])) {
-      const targetId = id(input.id);
-      if (!targetId || !["post", "comment", "quote"].includes(String(input.kind)) || !["harassment", "hate", "threat", "doxxing", "spam", "other"].includes(String(input.reason))) {
-        throw new SocialInteractionStoreError("INVALID_INTERACTION", "Report details are not valid.");
-      }
-      const report = await socialInteractionStore().report(access.actor, {
-        kind: input.kind as "post" | "comment" | "quote",
-        id: targetId,
-        reason: input.reason as "harassment" | "hate" | "threat" | "doxxing" | "spam" | "other",
-      });
+    if (input.action === "report") {
+      const report = await socialInteractionStore().report(access.actor, await reportInput(input));
       return privateJson({ report }, { status: 202 });
     }
     if (input.action === "notification_read" && exactKeys(input, ["action", "id", "read"])) {

@@ -1,0 +1,67 @@
+/* "Report this person": folded shut, because it is the rare action on a
+   profile or a crew page and never the one the page leads with. The summary
+   and every button keep the 44px tap floor. */
+.reportPerson {
+  flex-basis: 100%;
+  margin-top: var(--space-2);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.reportPerson summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.reportPerson__body {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  max-width: 36rem;
+}
+
+.reportPerson__body p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.reportPerson__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.reportPerson__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.reportPerson__action[data-tone="quiet"] {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.reportPerson__action:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.reportPerson__action:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.reportPerson__error {
+  color: var(--tint-ink-negative);
+}
