@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
+import ProfileCoverImage from "@/components/profile/ProfileCoverImage";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
@@ -274,13 +274,12 @@ export default function ProfileCoverPhotosEditor({
       {mirrorOnly ? (
         <div className="profileEditorCoverItem profileEditorCoverMirrorOnly">
           <div className="profileEditorCoverStage">
-            <Image
+            <ProfileCoverImage
               className="profileEditorCoverPreview"
               src={heldCoverUrls[0]!}
               alt={profileCoverThumbnailLabel(1)}
               width={BOX.width}
               height={BOX.height}
-              unoptimized
             />
           </div>
           <span className="profileEditorCoverPosition">{profileCoverThumbnailLabel(1)}</span>
@@ -292,13 +291,12 @@ export default function ProfileCoverPhotosEditor({
           {covers.map((cover, index) => (
             <li key={cover.id} className="profileEditorCoverItem">
               <div className="profileEditorCoverStage">
-                <Image
+                <ProfileCoverImage
                   className="profileEditorCoverPreview"
                   src={cover.url}
                   alt={profileCoverThumbnailLabel(index + 1)}
                   width={BOX.width}
                   height={BOX.height}
-                  unoptimized
                 />
               </div>
               <div className="profileEditorCoverItemActions">
