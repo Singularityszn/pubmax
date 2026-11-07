@@ -322,11 +322,16 @@ describe("clean-main CI release gate", () => {
     expect(merge).toEqual(["npx", "vitest", "--merge-reports=blob-reports", "--coverage"]);
     const coverageWords = (coverage.steps ?? []).flatMap((step) => step.run?.trim().split(/\s+/) ?? []);
     expect(coverageWords.filter((word) => word.startsWith("--coverage.thresholds"))).toEqual([]);
-    // Both freshness scripts read only Node built-ins and committed data.
+    // Both freshness scripts read only Node built-ins and committed data, so
+    // the job runs exactly those two commands and installs no dependencies.
     const freshness = defined(ciJobs().freshness, "freshness job");
-    expect((freshness.steps ?? []).some((step) => /\bnpm\s+ci\b/.test(step.run ?? ""))).toBe(false);
-    expect(workflow).toMatch(
-      /freshness:[\s\S]*name: Freshness release gate[\s\S]*node scripts\/check_freshness\.mjs --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,
+    expect(freshness.name).toBe("Freshness release gate");
+    const freshnessCommands = (freshness.steps ?? []).flatMap((step) =>
+      (step.run ?? "").split("\n").map((line) => line.trim()).filter(Boolean),
     );
+    expect(freshnessCommands).toEqual([
+      "node scripts/check_freshness.mjs --artifacts-only",
+      "node scripts/check-production-store-freshness.mjs",
+    ]);
   });
 });
