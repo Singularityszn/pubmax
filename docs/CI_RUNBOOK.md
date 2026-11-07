@@ -138,11 +138,24 @@ each hosted Linux job is its own machine.
 ### Security CI is advisory
 
 `security-ci.yml` runs zizmor online over all of `.github/`, osv-scanner
-recursively over every lockfile in the tree, and Semgrep, on every pull
-request, every push to `main` and every Monday. No branch protection requires
-these checks, so a red Security CI job blocks nothing by itself: read it before
-merging. zizmor's `GH_TOKEN` is `github.token`, the job token, not a
+recursively over every lockfile in the tree, Semgrep, and gitleaks, on every
+pull request, every push to `main` and every Monday. No branch protection
+requires these checks, so a red Security CI job blocks nothing by itself: read
+it before merging. zizmor's `GH_TOKEN` is `github.token`, the job token, not a
 repository secret.
+
+gitleaks scans a different range for each event:
+
+| Event | Range |
+| --- | --- |
+| Pull request | The complete history reachable from the checkout (`HEAD`). |
+| Push to `main` | Only the pushed commits (`before..after`), including after a force push. When the previous head is all zeros or missing from the clone, it scans the complete history of the new head. |
+| Weekly run and manual dispatch | Every ref (`--all`), so a secret on any branch is still found. |
+
+A push to `main` once scanned every ref. A finding on an unmerged branch then
+turned `main` red on every push, so the colour of `main` meant nothing. The
+allowlists and their reasons are in `.gitleaks.toml`. One exact historical
+finding that fits no allowlist shape goes in `.gitleaksignore`.
 
 ### Timeouts and job shape
 

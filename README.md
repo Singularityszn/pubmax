@@ -194,7 +194,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   On phones, posts appear before crews and other supporting tools. Desktop keeps those tools beside the feed. The Posts view links to **Messages**, **Your Pub Pal**, **Plan a crawl**, and **Save a Moment**. **Post** opens a composer with visibility guidance and a character count.
 
-  Private tools show a loading message while their controls download after the existing access checks. The reel viewer downloads when you open a reel. If a download fails, **Try again** retries that tool while the rest of Social stays available. Closing a reel returns focus to its opening button if that button remains on the page.
+  Private tools show placeholders during download, including a disabled **Edit post** button on post cards. The [Social loading rule](docs/rules/components-design-system-and-launch-primitives.md) explains when downloads start. The reel viewer downloads when you open a reel. If a download fails, **Try again** retries that tool while the rest of Social stays available. Closing a reel returns focus to its opening button if that button remains on the page.
+
+  If another tab updates your identity for the same account, the composer stays open while Social checks access again. A failed check or a changed access result can still close it.
 
   **A pub worth sharing** and **Who's about?** add text to an empty new draft without publishing it. Failed comment and reaction reads have separate retry controls. **Find your lot** can retry a failed handle search without a new query. Crew phase filters and counts appear only when the complete list contains more than one crew.
 

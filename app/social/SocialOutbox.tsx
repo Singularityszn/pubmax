@@ -12,9 +12,7 @@ import {
   SocialViewerState,
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
-import { socialLazy } from "./SocialLazy";
-
-const SocialComposer = socialLazy(() => import("./SocialComposer"), "Edit controls", <button type="button" className="socialEditButton" disabled>Edit post</button>);
+import { SocialPostEditor } from "./SocialPostEditor";
 
 type LegacyOutboxItem = {
   id: string;
@@ -154,7 +152,7 @@ export default function SocialOutbox({
               <>
                 {item.body ? <p>{item.body}</p> : null}
                 {draftScope && item.ownedByViewer ? (
-                  <SocialComposer
+                  <SocialPostEditor
                     post={item}
                     draftScope={draftScope}
                     triggerLabel={

@@ -58,6 +58,7 @@ import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import "./social.css";
 import SocialLondonLane from "./SocialLondonLane";
 import { socialLazy } from "./SocialLazy";
+import { SocialPostEditor } from "./SocialPostEditor";
 
 // The wait keeps the shape of what it stands for: the Post door keeps its
 // word and width, and tools that often draw nothing (an empty tag inbox, no
@@ -69,7 +70,7 @@ const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p r
 const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status" className="sr-only">Loading your posts…</p>);
 // A signed-in reader on the posts tab gets these tools once access answers.
 // Their code downloads during that check, so they draw at once afterwards.
-const VERIFIED_POSTS_TOOLS = [SocialComposer, CrewsPanel, PubRankingPanel, SocialTagInbox, SocialOutbox];
+const VERIFIED_POSTS_TOOLS = [SocialComposer, SocialPostEditor, CrewsPanel, PubRankingPanel, SocialTagInbox, SocialOutbox];
 const ReelsViewer = socialLazy(
   () => import("@/components/social/ReelsViewer"),
   "Video",
@@ -266,7 +267,7 @@ export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdit
       lane={lane}
       interactive={interactive}
       onOpenVideo={onOpenVideo}
-      editor={canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
+      editor={canEdit && draftScope && onEdited ? <SocialPostEditor key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
     />
   );
 }
@@ -419,6 +420,11 @@ function SocialPageAccountState({
   const [findLotQuery, setFindLotQuery] = useState("");
   const [submittedPost, setSubmittedPost] = useState<SocialPostDTO | null>(null);
   const [accessAttempt, setAccessAttempt] = useState(0);
+  // The account revision the current access answer belongs to. A re-check for
+  // that same account keeps the answer on screen until the new one lands, so
+  // an identity write in another tab no longer drops this tab to "checking",
+  // which unmounted an open composer under the reader's hands.
+  const answeredRevision = useRef<number | null>(null);
   const [feedAttempt, setFeedAttempt] = useState(0);
   const [feedStatus, setFeedStatus] = useState<FeedLoadState>("idle");
   const [activityStatus, setActivityStatus] =
@@ -449,6 +455,9 @@ function SocialPageAccountState({
 
   useEffect(() => {
     if (initialState.tab === "discover") return;
+    if (!friendsLaunchEnabled || viewerSession.phase !== "signed-in" || !identityResolved) {
+      answeredRevision.current = null;
+    }
     if (!friendsLaunchEnabled) {
       void Promise.resolve().then(() => {
         setAccess("preview");
@@ -478,7 +487,9 @@ function SocialPageAccountState({
 
     const controller = new AbortController();
     const requestRevision = accountRevision;
-    void Promise.resolve().then(() => setAccess("checking"));
+    if (answeredRevision.current !== requestRevision) {
+      void Promise.resolve().then(() => setAccess("checking"));
+    }
     authedActionFetch("/api/social/access", {
       cache: "no-store",
       credentials: "same-origin",
@@ -498,6 +509,7 @@ function SocialPageAccountState({
       })
       .then((result) => {
         if (requestRevision !== accountRevision) return;
+        answeredRevision.current = requestRevision;
         setAccess(result.state);
         setAdultPrompt(result.adultPrompt);
         setDraftScope(result.draftScope);
@@ -507,6 +519,7 @@ function SocialPageAccountState({
         if (error instanceof DOMException && error.name === "AbortError")
           return;
         if (requestRevision !== accountRevision) return;
+        answeredRevision.current = null;
         setAccess("unavailable");
       });
     return () => controller.abort();
