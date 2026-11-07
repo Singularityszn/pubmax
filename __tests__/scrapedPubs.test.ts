@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { VenuePrice } from "@/lib/venues";
 
 import { normaliseScrapedSource, SCRAPED_SOURCE_LABELS } from "@/lib/scrapedPubs";
 
@@ -15,7 +18,36 @@ describe("readScrapedPubsForPage", () => {
   afterEach(() => {
     vi.doUnmock("@/lib/venueMenuEnrichment");
     vi.doUnmock("@/lib/venuePriceIndex");
+    vi.doUnmock("fs");
     vi.resetModules();
+  });
+
+  it("keeps an unrecorded minimum row separate from an equal-price source", async () => {
+    vi.resetModules();
+    const source = (JSON.parse(readFileSync(join(process.cwd(), "public/data/pint_prices_app_dataset.json"), "utf8")) as VenuePrice[])
+      .find((row) => row.pub_name === "The Blackfriar" && row.price_gbp === 6.5);
+    expect(source).toBeDefined();
+    const rows: VenuePrice[] = [
+      { ...source!, pub_url: "", scraped_at_values: "", measure: undefined },
+      { ...source!, pub_url: "https://other.example/price", scraped_at_values: "2025-10-04T12:00:00Z", measure: "pint" },
+    ];
+    // Replace only the external dataset read. The real grouping, enrichment
+    // join and public loader must keep the first selected price row together.
+    vi.doMock("fs", async (original) => {
+      const actual = await original<typeof import("node:fs")>();
+      const readFile = async (file: Parameters<typeof actual.promises.readFile>[0], options?: Parameters<typeof actual.promises.readFile>[1]) =>
+        String(file).endsWith("pint_prices_app_dataset.json")
+          ? JSON.stringify(rows)
+          : actual.promises.readFile(file, options ?? null);
+      return { ...actual, promises: { ...actual.promises, readFile } };
+    });
+    const { readScrapedPubsForPage } = await import("@/lib/scrapedPubs.server");
+    const pub = (await readScrapedPubsForPage()).pubs.find((row) => row.name === "The Blackfriar");
+    expect(pub?.cheapestPrice).toBe(6.5);
+    expect(pub?.priceEvidence).toEqual({
+      priceGbp: 6.5, pintName: "PRAVHA", measure: null, publisher: null, observedOn: null,
+    });
+    expect(pub?.menuUrl).toBeTruthy();
   });
 
   // A card used to print a drink word ("Shots", "Whisky") picked by hashing the

@@ -294,7 +294,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "PalChatBody", "count": 1, "reason": "Matches a qualified Near glance to its source venue."},
   ],
   "components/pubs/PubsGallery.tsx": [
-    {"owner": "PubsGallery", "count": 3, "reason": "Preserves user-selected general gallery browsing."},
+    {"owner": "PubsGallery", "count": 5, "reason": "Preserves user-selected general gallery browsing, and joins each card to its own price evidence only when the amounts match."},
   ],
   "components/tonight/useTonightAnswerReads.ts": [
     {"owner": "useTonightNearbyVenues", "count": 1, "reason": "Carries serving and evidence into the Tonight ranker."},
