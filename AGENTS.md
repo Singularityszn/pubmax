@@ -55,15 +55,17 @@ of these applied:
 - `npm run dev` runs with no secrets: in-memory stores and grounded structured-only heritage answers.
   `.env.local` adds Supabase and model keys. See `.env.example`.
 - To drive the app in a browser and take evidence, follow `e2e/AGENTS.md`.
-- Do not commit `next-env.d.ts` or tooling churn. Change `allowScripts` only with its reason in
-  `scripts/ci/install-script-allowlist.mjs`.
+- Do not commit `next-env.d.ts` or tooling churn. A build, `validate-data` or a plain `npm run verify` restamps
+  `public/data`. Unless your change rebuilds data on purpose, run `git restore public/data` before you stage.
+- Change `allowScripts` only with its reason in `scripts/ci/install-script-allowlist.mjs`.
 
 ## Verifying
 
 - Before you push, run `npm run verify:no-mistakes:changed`: the lint, typecheck and tests that your change reaches.
-- Do not run the full suite locally unless asked. CI owns it, and a merge needs CI green on the latest commit.
-- A red check is fixed at its source. Fix a flaky test without test-runner retries or skips. If the fix is outside
-  your task, file it with the evidence and tell Firstmate.
+- Do not run `npm run verify` or the full suite locally unless asked. CI owns it, and a merge needs CI green on
+  the latest commit.
+- A red check is fixed at its source. Rerunning a red job does not fix a flaky test. Fix a flaky test without
+  test-runner retries or skips. If the fix is outside your task, file it with the evidence and tell Firstmate.
 
 ## Tests
 
@@ -74,7 +76,7 @@ of these applied:
 - A logic bug gets a failing test first. A purely visual bug gets before/after screenshots and no test.
 - No fixed sleeps, manual polling loops, per-test timeouts or test-runner retries. Wait for the event.
   Web-first auto-retrying assertions (`expect(...).toPass()`) and auto-waiting locators are allowed. A skip names its tracking issue.
-- Do not add a test that reads source files as text. If a rule needs a machine check, make it a lint rule.
+- Do not add a test that reads source or workflow files as text. If a rule needs a machine check, make it a lint rule.
 
 ## Pull requests
 
