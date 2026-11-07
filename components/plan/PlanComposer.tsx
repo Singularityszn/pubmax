@@ -3181,7 +3181,6 @@ function PlanComposerForm({
       });
       if (reconciled) {
         setNightContext(reconciled);
-        if (!user) writeDeviceNightContext(reconciled);
       }
       setRouteNight(routeNightOf(reconciled ?? submittedContext));
       setRouteRevision(routeRevisionFromState(body));

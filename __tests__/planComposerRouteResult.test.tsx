@@ -63,7 +63,7 @@ vi.mock("@/lib/analytics", () => ({
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
 import NearMeSavedDrink from "@/components/nearme/NearMeSavedDrink";
 import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
-import { mirrorAccountNightProfileToDevice } from "@/lib/nightProfileClient";
+import { mirrorAccountNightProfileToDevice, readDeviceNightDrink } from "@/lib/nightProfileClient";
 import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
@@ -276,6 +276,41 @@ async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
 }
 
 describe("the Plan result", () => {
+  it("keeps Wine chosen while a Plan response is pending in the Near me offer", async () => {
+    await mountComposer();
+    await sortIt("Clapham tonight");
+    await openTune();
+    let answer: (response: Response) => void = () => { throw new Error("No pending Plan request"); };
+    fetchMock.mockImplementation((input) => String(input).includes("/api/plans/generate")
+      ? new Promise<Response>((resolve) => { answer = resolve; })
+      : Promise.resolve(new Response("[]", { status: 200 })));
+    const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find((button) => button.textContent === "Plan it again")!;
+    await act(async () => { again.click(); });
+    expect(again.textContent).toBe("Planning…");
+    await act(async () => {
+      const drinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")!;
+      drinks.value = "wine";
+      drinks.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBe("wine");
+
+    await act(async () => {
+      answer(new Response(JSON.stringify(GENERATED), { status: 200, headers: { "content-type": "application/json" } }));
+    });
+    await settle();
+    expect(document.querySelector("[role='dialog']")).toBeNull();
+    expect(readDeviceNightDrink()?.context.drinkCategory).toBe("wine");
+    const onShow = vi.fn();
+    await act(async () => {
+      root!.render(createElement(NearMeSavedDrink, { cityId: "london", drinkLane: "beer", noAlcoholView: false, onShow }));
+    });
+    expect(host?.textContent).toContain("Your saved drink is Wine.");
+    expect(onShow).not.toHaveBeenCalled();
+    await act(async () => host!.querySelector<HTMLButtonElement>("button")!.click());
+    expect(onShow).toHaveBeenCalledWith({ kind: "lane", category: "wine", label: "Wine" });
+  });
+
   it.each([false, true])("offers Wine in Near me after choosing it in Plan with signedIn=%s", async (signedIn) => {
     viewer.signedIn = signedIn;
     await mountComposer();
