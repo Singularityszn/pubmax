@@ -32,6 +32,7 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { discardBody } from "@/lib/responseBody";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -275,9 +276,12 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   const refetchPresence = useCallback(async () => {
     if (!currentStopVenueId) return;
     try {
-      const res = await fetch(`/api/presence?venueId=${encodeURIComponent(currentStopVenueId)}`, {
-        cache: "no-store",
-      });
+      // Presence is shown to mates only, so the read carries the session.
+      const res = await authedActionFetch(
+        `/api/presence?venueId=${encodeURIComponent(currentStopVenueId)}`,
+        { cache: "no-store" },
+        { requiresIdentity: true },
+      );
       if (res.ok) {
         const data = (await res.json()) as { presence?: PresenceDTO[] };
         setPresence(Array.isArray(data.presence) ? data.presence : []);

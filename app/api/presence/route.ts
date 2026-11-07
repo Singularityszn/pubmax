@@ -3,6 +3,12 @@
 //   POST { handle, venueId }        → { ok: true }   (marks the viewer present)
 //   GET  ?venueId=<id>  (or none)   → { presence: PresenceDTO[] }  (recent, live)
 //
+// A presence row is live location of a named person, so GET answers it only to
+// that person's mates (lib/presenceAudience.server.ts): a verified Social
+// account (signed in, a handle, the adult check) that is a mutual follow, with
+// no block either way. Anyone else gets the seeded demo rows alone, which exist
+// only keyless; in production that is an empty list.
+//
 // The actor is derived server-side (hashActor of the hashed client IP) — the
 // body is never trusted for identity, and no raw IP or actor id is stored. Writes
 // are rate-limited (isLimited) exactly like the other write paths. Presence is
@@ -13,17 +19,23 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
+import { demoPresenceOnly, presenceVisibleToViewer } from "@/lib/presenceAudience.server";
 import { markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { fulfilWantedsForHandleAtVenue } from "@/lib/wantedFulfil.server";
 import { wantedFulfilledLine } from "@/lib/wanted";
 
 assertServerEnv();
+
+// The answer depends on who asks, so no shared cache may keep it.
+const PRIVATE_NO_STORE = { "Cache-Control": "private, no-store" };
 
 function readString(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -83,12 +95,17 @@ export async function GET(request: Request): Promise<Response> {
   // recentPresenceWithAmbient is itself fail-soft (returns [] on any error) and
   // appends the deterministic demo layer ONLY when Supabase is absent, so the
   // reader never 500s — but keep a belt-and-braces guard so a surprise 200s empty.
+  // Any failure past the read, the audience check included, answers nothing:
+  // this list fails closed.
   try {
-    const presence = await projectPublicAuthors(
-      await recentPresenceWithAmbient(venueId || undefined),
-    );
-    return jsonNoStore({ presence }, { status: 200 });
+    const rows = await recentPresenceWithAmbient(venueId || undefined);
+    const access = await requireVerifiedSocialActor(request);
+    const visible = access.ok
+      ? await presenceVisibleToViewer(access.actor, rows)
+      : demoPresenceOnly(rows);
+    const presence = await projectPublicAuthors(visible);
+    return withAuthResumeCookie(jsonNoStore({ presence }, { status: 200, headers: PRIVATE_NO_STORE }), access.resumeCookie);
   } catch {
-    return jsonNoStore({ presence: [] }, { status: 200 });
+    return jsonNoStore({ presence: [] }, { status: 200, headers: PRIVATE_NO_STORE });
   }
 }

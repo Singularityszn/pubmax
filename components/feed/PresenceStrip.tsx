@@ -1,7 +1,8 @@
 "use client";
 
 // "Live tonight" presence strip (PRD §1.5 / §5.1 — the tonight loop). A compact,
-// horizontal band at the top of the feed showing who tapped "I'm here" recently:
+// horizontal band at the top of the feed showing which of the reader's mates
+// tapped "I'm here" recently:
 // "@handle at The Lamb · 12m ago", each pub linking to /map?sel=<venueId>.
 //
 // Fail-quiet by design: an empty or failed fetch renders NOTHING (never a broken
@@ -14,6 +15,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import HandleAvatar from "@/components/profile/HandleAvatar";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 
@@ -39,7 +41,9 @@ export default function PresenceStrip({ spillingNow = 0 }: { spillingNow?: numbe
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/presence", { signal: controller.signal })
+    // Presence is shown to mates only, so the read carries the session. A
+    // signed-out reader is answered nothing (or keyless demo rows).
+    authedActionFetch("/api/presence", { signal: controller.signal }, { requiresIdentity: true })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((data: { presence?: PresenceDTO[] }) => {
         setPresence(Array.isArray(data.presence) ? data.presence : []);
