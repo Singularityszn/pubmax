@@ -715,9 +715,10 @@ Thursday 19 November 2026, 19:00. Built on the open-crawl rules in
    > Cheapest Soho crawl: three pubs, listed prices on the plan. Meet at stop
    > one. Buy your own round, leave when you like.
 
-4. The crawl moves to a crew page anyone can find. The old invite link stops
-   working. People ask to join there, and the host says yes or no. It shows in
-   "Crawls you can join this week" on `/crawls` from seven days before.
+4. The crawl moves to a crew page anyone can find. See the
+   [shared invite guidance](../../README.md#features) for existing links and
+   join requests. It shows in "Crawls you can join this week" on `/crawls` from
+   seven days before.
 5. The host needs to be signed in, with a handle people can see.
 6. [CAPTAIN: open crawls need migration 0208 on production. The launch plan
    listed 0203 to 0216 as not applied on 1 November. Check before you post.]

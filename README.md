@@ -144,6 +144,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   On a shared invite, **Open the plan** stays available when this browser restores guest access, including after a page reload.
 
+  After the host chooses **Open it up**, the existing invite link opens the public crew page. Visitors ask to join there. The host accepts or declines each request.
+
   The route map's accessible description uses the areas recorded for its stops. It names every distinct area when the route crosses areas. If any stop lacks a specific area, the description omits geography. Search distance does not establish a borough boundary.
 
   If a signed-in member loses the Plan session cookie, a crew-status action can restore access without reloading the page.

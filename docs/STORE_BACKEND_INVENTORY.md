@@ -148,6 +148,8 @@ The following stores intentionally stay outside the factory-ready path:
 
 Every production file with an inline `selectStore` or `isSupabaseConfigured` branch is listed here. This includes non-store modules such as `lib/messageAuth.ts`. The test compares this list with repository search results.
 
+`lib/openCrawlInvite.server.ts` checks Supabase inline because keyless development holds no crews, so the open-crawl lookup returns none without Supabase.
+
 <!-- inline-backend-references:start -->
 ```json
 {
@@ -207,6 +209,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/nightProfileStore.ts",
     "lib/nightSignalStore.server.ts",
     "lib/notificationsStore.ts",
+    "lib/openCrawlInvite.server.ts",
     "lib/operatorAccountAddress.server.ts",
     "lib/operatorProposalsStore.ts",
     "lib/pendingPlanRecapStore.ts",
