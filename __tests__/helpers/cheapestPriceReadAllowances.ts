@@ -5,7 +5,7 @@ import type { PriceReadAllowance } from "./cheapestPriceReadFence";
 export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]> = {
   "lib/ask/conciergeTools.server.ts": [
     {"owner": "toPricedPoints", "count": 1, "reason": "Carries the selected slim evidence into the Near ranker."},
-    {"owner": "toolCheapestPintNear", "count": 3, "reason": "Prints and transports cards returned by the qualified Near rankers."},
+    {"owner": "toolCheapestPintNear", "count": 5, "reason": "Prints and transports cards returned by the qualified Near rankers, and joins each card to its own venue evidence only when the amounts match."},
     {"owner": "venueDrinkAnswerHint", "count": 3, "reason": "Describes a named venue rather than selecting a cheapest winner."},
     {"owner": "toolVenueDrinks", "count": 6, "reason": "Displays a requested venue and its recorded drink evidence."},
   ],
