@@ -16,7 +16,7 @@ import type { OutResponse } from "@/lib/out/types";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
-import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
+import { tonightChainLaneOf, withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   WHATS_ON_KINDS,
@@ -239,6 +239,8 @@ export function mergeTonightListingRows(
 export type TonightLedeComposition = {
   /** Every eligible row, including the lanes that may not lead. */
   listingRows: WhatsOnRow[];
+  /** Eligible chain supply retained in the labelled sections below the lede. */
+  secondaryChainListingCount: number;
   /** The rows the first screen is built from: head sentence and card spine. */
   primaryListingRows: WhatsOnRow[];
   /** Status read off the primary rows, so an all-excluded night reads empty. */
@@ -250,13 +252,11 @@ export type TonightLedeComposition = {
 /**
  * What the Tonight first screen leads with.
  *
- * The lede is the head sentence plus the first card, and BOTH are composed
- * from the primary rows alone: a JD Wetherspoon deal and a Ticketmaster
- * kind:event row are never what a reader meets first. So `tonightPrimaryRows`
- * runs BEFORE the merge, the status and the lede sentence, never after, and an
- * answer carrying nothing else is honestly empty rather than led by one of
- * them. The secondary Deals and Music lanes keep the unfiltered list, which is
- * why both come back from one call.
+ * Filter primary rows before merging or calculating their status. Otherwise,
+ * excluded supply can become the first event card or make that list read ready.
+ * The availability sentence can still point to eligible secondary listings.
+ * README.md's Tonight feature guide owns the notice order and wording.
+ * Return both lists so secondary listings survive primary-row filtering.
  *
  * EVERY CHAIN IS REFUSED HERE, not just the one that led a build in August.
  * `withoutTonightChainRows` takes the Greene King fixtures too: 259 of them
@@ -288,15 +288,17 @@ export function tonightLedeComposition(
   const primaryOutAnswer: TonightOutAnswer = outBody
     ? { ...outAnswer, body: { ...outBody, events: primaryOutEvents } }
     : outAnswer;
+  const listingRows = mergeTonightListingRows(
+    rows,
+    outBody?.events ?? [],
+    now,
+    whatsOnStatus,
+    selectable,
+    true,
+  );
   return {
-    listingRows: mergeTonightListingRows(
-      rows,
-      outBody?.events ?? [],
-      now,
-      whatsOnStatus,
-      selectable,
-      true,
-    ),
+    listingRows,
+    secondaryChainListingCount: listingRows.filter((row) => tonightChainLaneOf(row) !== null).length,
     primaryListingRows: mergeTonightListingRows(
       primaryWhatsOnRows,
       primaryOutEvents,
@@ -643,10 +645,12 @@ export function tonightEmptyLead(
   out: TonightOutAnswer,
   pubSuggestionCount = 0,
   musicListingCount = 0,
+  secondaryChainListingCount = 0,
 ): string {
   if (musicListingCount > 0) {
     return `${musicListingCount} sourced live music listing${musicListingCount === 1 ? "" : "s"} below.`;
   }
+  if (secondaryChainListingCount > 0) return "Chain listings are available below.";
   const reports = tonightLaneReports(whatsOn, out);
   if (pubSuggestionCount > 0 && reports.length === 0) {
     return "No confirmed events listed tonight.";

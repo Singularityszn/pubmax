@@ -160,6 +160,15 @@ describe("the chain fence on the lede", () => {
     expect(composition.primaryListingRows).toEqual([]);
     expect(composition.listingsStatus).toBe("empty");
     expect(composition.listingRows.length).toBe(120);
+    expect(composition.secondaryChainListingCount).toBe(96);
+  });
+
+  it("does not advertise a chain block after all its listings have ended", () => {
+    const expired = { ...jdwDeal(1), startsAt: new Date(NOW - 3_600_000).toISOString(), endsAt: new Date(NOW - 1).toISOString() };
+    const composition = tonightLedeComposition([expired], NO_OUT, "ready", NOW);
+    expect(composition.listingRows).toEqual([]);
+    expect(composition.primaryListingRows).toEqual([]);
+    expect(composition.secondaryChainListingCount).toBe(0);
   });
 
   it("keeps a Greene King fixture out of the lede and in the list below", () => {

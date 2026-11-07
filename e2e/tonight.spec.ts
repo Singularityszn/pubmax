@@ -724,7 +724,13 @@ test("a night of only excluded rows keeps pub suggestions and an event-scoped em
     "data-listings-status",
     "empty",
   );
-  await expectNoEventsWithPubSuggestions(page);
+  // The only rows are a Wetherspoon deal and a theatre show, which may not
+  // lead. The chain block below still lists the deal, so the empty lede
+  // points to it instead of saying no events are listed.
+  await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+  await expect(page.locator(".tonightStatus").filter({ hasText: "Chain listings are available below." })).toBeVisible();
+  await expect(page.getByText("No confirmed events listed tonight.")).toHaveCount(0);
+  await expect(page.getByText(/having a quiet one tonight/i)).toHaveCount(0);
   // Scoped to the lede region on purpose (#1627, app/AGENTS.md). The
   // Wetherspoon block below it still carries the JDW row under the chain's own
   // name, and taking it off the page would drop a real deal; what the contract
@@ -735,6 +741,25 @@ test("a night of only excluded rows keeps pub suggestions and an event-scoped em
     "A Night at the Playhouse",
   );
   await expect(page.getByTestId("tonight-list")).toHaveCount(0);
+  await expect(page.getByTestId("tonight-chain-lanes")).toContainText("Curry Club");
+});
+
+// The advertised chain section must contain an eligible listing. An ended
+// deal cannot justify directing a reader to a section that is absent.
+test("an ended chain deal does not advertise chain listings below", async ({ page }) => {
+  const now = Date.now();
+  await mockTonightSpine(page, [{
+    ...jdwCurryClub(now),
+    startsAt: new Date(now - 3_600_000).toISOString(),
+    endsAt: new Date(now - 60_000).toISOString(),
+  }]);
+  await mockReadyEmptyOut(page);
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0);
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "empty");
+  await expectNoEventsWithPubSuggestions(page);
+  await expect(page.getByText("Chain listings are available below.")).toHaveCount(0);
+  await expect(page.getByTestId("tonight-chain-lanes")).toHaveCount(0);
 });
 
 // Site audit D8, 13 Sep 2026: desktop /tonight was one 784px column beside a

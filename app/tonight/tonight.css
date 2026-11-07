@@ -72,6 +72,26 @@
   }
 }
 
+/* Short phones keep the first pub above the docked consent lane by spending
+   less empty space before it. Text, source content and control sizes stay intact.
+   Reserve this rhythm before consent mounts so its arrival causes no reflow. */
+@media (max-width: 640px) and (max-height: 640px) {
+  .tonightPage > .nowSegment {
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-1);
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead {
+    gap: var(--space-1);
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenActions {
+    margin-top: 0;
+  }
+}
+
 /* The credit lines and the share control, directly under the listings they are
    about (app/tonight/TonightClient.tsx says why they left the head). */
 .tonightHeadCredits {

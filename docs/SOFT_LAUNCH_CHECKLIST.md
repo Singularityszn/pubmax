@@ -125,7 +125,7 @@ Nothing in section 2 starts until the captain says so. The order is the point.
 | 2.7 | Production smoke | Fleet | Every row of the runbook smoke grid passes on the production host. | Runbook section 2 |
 | 2.8 | The title markers answer | Fleet | Both greps match. | `curl --fail --silent --location https://pubmaxxing.com/map \| grep -F '<title>Map · PUBMAXXING</title>'` |
 | 2.9 | Freshness on production | Fleet | `summary` carries no `stale` and no `unknown`; `communityPrices.degraded` is `false`. | `curl -sS https://pubmaxxing.com/api/freshness` |
-| 2.10 | The Tonight lede on production | Captain | The first screen names a pub or says the night is quiet. | https://pubmaxxing.com/tonight |
+| 2.10 | The Tonight lede on production | Captain | The first screen follows the [Tonight feature guide](../README.md#features) and the [lede contract](rules/app-proxy-csp-caching-and-file-tracing.md). | https://pubmaxxing.com/tonight |
 | 2.11 | Analytics reaches PostHog | Fleet | A consented visit produces `discovery_viewed` with `surface = 'landing'` in the live events view within a minute. | https://eu.posthog.com/project/219466 |
 | 2.12 | The weekly dashboard exists | Captain | Six insights created from `docs/analytics/weekly-dashboard.json`. This needs a personal API key; the deployment token is write-only and cannot create one. Method: [`docs/analytics/TRACKING_PLAN.md`](analytics/TRACKING_PLAN.md) 3.1. | https://eu.posthog.com/project/219466 |
 | 2.13 | Invite the first cohort | Captain | The WhatsApp message goes to 15 to 40 London drinkers already known to the captain. One map link, one plan invite for a real night, one line of ask. Copy: [`docs/growth/HORIZON0_OPS_CHECKLIST.md`](growth/HORIZON0_OPS_CHECKLIST.md). | WhatsApp |

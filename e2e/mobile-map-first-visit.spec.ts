@@ -1,11 +1,59 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectMapLoadingFrameReleased, expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ] as const;
+
+test("city changes retain one map and the destination coverage note", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await installDeterministicMapBasemap(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  const identityErrors: string[] = [];
+  page.on("console", message => {
+    if (message.type() === "error" && /same key|duplicate key/i.test(message.text())) identityErrors.push(message.text());
+  });
+  page.on("pageerror", error => identityErrors.push(error.message));
+  await page.goto("/map/london");
+  await expectMobileMapShellReady(page);
+  await page.locator(".mapStage").evaluate(element => element.setAttribute("data-identity-proof", "london"));
+  await page.locator(".mobileMapTopbar").getByRole("button", { name: /^Map area:/ }).click();
+  await expect(page.getByRole("listbox", { name: "Choose city map" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox", { name: "Choose city map" })).toHaveCount(0);
+  await expect(page.locator(".mapStage")).toHaveAttribute("data-identity-proof", "london");
+
+  for (const city of ["Manchester", "Glasgow", "London", "Manchester"]) {
+    const area = page.locator(".mobileMapTopbar").getByRole("button", { name: /^Map area:/ });
+    await area.click();
+    const menu = page.getByRole("listbox", { name: "Choose city map" });
+    await expect(menu).toBeVisible();
+    await menu.getByRole("link", { name: city, exact: true }).click();
+    await expectMobileMapShellReady(page);
+    await expect(area).toHaveAccessibleName(new RegExp(`Map area: ${city}\\. Change city`));
+    await expect(page.locator(".mapStage")).toHaveCount(1);
+    await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+    if (city === "London") {
+      await expect(page.locator(".cityPubsOnlyNote")).toHaveCount(0);
+    } else {
+      await expect(page.locator(".cityPubsOnlyNote")).toHaveCount(1);
+      await expect(page.locator(".cityPubsOnlyNote")).toBeVisible();
+      await expect(page.locator(".cityPubsOnlyNote")).toContainText("Pubs only here, no prices yet.");
+    }
+    await test.info().attach(`city-${city}`, { body: await page.screenshot(), contentType: "image/png" });
+    await expect(page.locator(".mapStage")).not.toHaveAttribute("data-identity-proof", "london");
+  }
+  expect(identityErrors).toEqual([]);
+});
 
 // The first-visit ask is a compact pill docked low on a phone, and
 // no surface may make the map inert (components/AGENTS.md, "THE ARRIVAL ASK IS
@@ -82,7 +130,26 @@ for (const viewport of VIEWPORTS) {
     const leadBox = await lead.boundingBox();
     expect(leadBox!.height).toBeGreaterThan(8);
     expect(leadBox!.y + leadBox!.height).toBeLessThanOrEqual(arrivalBox!.y + arrivalBox!.height);
-    expect(arrivalBox!.y + arrivalBox!.height / 2).toBeGreaterThan(viewport.height / 2);
+    // docs/rules/components-sheets-chrome-and-navigation.md, "THE ARRIVAL ASK IS A STRIP":
+    // the compact ask parks one gap above the map-edge column's published top.
+    // mapArrivalCard.css owns that berth. The Plan rail and dock bound the
+    // usable map too. A multirow dock lifts the band, not the viewport midpoint.
+    const upperChrome = (await page.locator(".mobileMapChipRow").boundingBox())!;
+    const nearMeControl = await mobileMapShellControl(page, "nearMe");
+    const nearMe = (await nearMeControl.boundingBox())!;
+    const gap = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--float-stack-gap")));
+    expect(Number.isFinite(gap)).toBe(true);
+    expect(gap).toBeGreaterThan(0);
+    const usableTop = upperChrome.y + upperChrome.height;
+    const plan = (await page.locator(".mobilePlanActivation").boundingBox())!;
+    const dock = (await page.locator(".mobileTabBar").boundingBox())!;
+    expect(plan).not.toBeNull();
+    expect(dock).not.toBeNull();
+    const usableBottom = Math.min(nearMe.y, plan.y, dock.y) - gap;
+    expect(usableBottom).toBeGreaterThan(usableTop);
+    expect(arrivalBox!.y).toBeGreaterThanOrEqual(usableTop);
+    expect(arrivalBox!.y + arrivalBox!.height).toBeLessThanOrEqual(usableBottom);
+    expect(arrivalBox!.y + arrivalBox!.height / 2).toBeGreaterThan((usableTop + usableBottom) / 2);
     // Both answers are visible side by side: the filled primary and the quiet
     // "Choose an area" beside it, on one row.
     const useMine = arrival.getByRole("button", { name: "Use my location" });
@@ -112,6 +179,7 @@ for (const viewport of VIEWPORTS) {
     await expect(page.locator(".mobileMapChrome")).not.toHaveAttribute("inert", "");
     await expect(page.locator(".mapCanvasWrap")).not.toHaveAttribute("inert", "");
     expect(await coveredControls(page)).toEqual([]);
+    await test.info().attach("first-visit-strip-and-live-controls", { body: await page.screenshot(), contentType: "image/png" });
 
     await arrival.getByRole("button", { name: "Close" }).click();
     await expect(arrival).toHaveCount(0);

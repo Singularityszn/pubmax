@@ -144,13 +144,14 @@
 }
 
 /* The phone keeps one top bar, and a sheet, the search row, the Near me
-   message, an active-search chip or the arrival pill owns the band under it,
+   message, a story, an active-search chip or the arrival pill owns the band under it,
    so the pubs-only line waits for each of them. */
 @media (max-width: 640px) {
   body:has(.mobileSheetPortal) .cityPubsOnlyNote,
   body:has(.mapArrivalCard) .cityPubsOnlyNote,
   body:has(.mobileMapSearchRow) .cityPubsOnlyNote,
   body:has(.mobileMapNearMeAlert) .cityPubsOnlyNote,
+  body:has(.bandOnboardingChip) .cityPubsOnlyNote,
   body:has(.mobileMapQueryRow) .cityPubsOnlyNote {
     display: none;
   }
