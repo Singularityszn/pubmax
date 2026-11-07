@@ -66,6 +66,7 @@ import { filterRowsByArea } from "@/lib/concierge/whatsOn";
 import { publishedMenuCards, publishedMenuAnswer } from "@/lib/ask/publishedMenu.server";
 import { resolveAskPriceIntent } from "@/lib/ask/router";
 import { formatDrinkTagName } from "@/lib/drinkTagName";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 
 const DIRECTORY: AskSource = { label: "On record", kind: "directory" };
 const PEOPLE_LOGGED: AskSource = {
@@ -272,7 +273,8 @@ export async function toolCheapestPintNear(
     };
   }
 
-  const byId = new Map(venues.map((venue) => [venue.id, venue]));
+  const pricedVenues = ctx.cityId === "london" ? await getPricedVenues() : [];
+  const byId = new Map([...venues, ...pricedVenues].map((venue) => [venue.id, venue]));
   const cards: AskCard[] = rows.map((row) => {
     const venue = byId.get(row.id);
     const evidence = venue?.cheapestPrice === row.cheapestPrice

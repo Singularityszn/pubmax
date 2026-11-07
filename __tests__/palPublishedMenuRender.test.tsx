@@ -16,7 +16,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 afterEach(() => { vi.unstubAllEnvs(); document.body.replaceChildren(); });
 
-it("carries a cheapest-pint answer's recorded publisher and day into its visible card", async () => {
+it("renders app_price_002044's drink, stated serving, publisher and source-read day", async () => {
   vi.stubEnv("ELEVENLABS_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "");
@@ -24,8 +24,9 @@ it("carries a cheapest-pint answer's recorded publisher and day into its visible
   const ask = createPalChatSession({ fetchImpl: async (_url, init) => POST(new Request("http://localhost/api/pub-pal/chat", init)) });
   const result = await ask("Cheapest pint near Soho", "london");
   if (!result || result.status !== "answered") throw new Error("The recorded pint must produce cards");
-  const card = result.cards.find((item) => item.price === 5.2 && /queen.*head/i.test(item.title));
+  const card = result.cards.find((item) => item.venueId === "venue-122cuu1");
   expect(card).toBeDefined();
+  expect(card?.price).toBe(5.2);
   const host = document.createElement("ul");
   document.body.append(host);
   const root = createRoot(host);
@@ -33,6 +34,8 @@ it("carries a cheapest-pint answer's recorded publisher and day into its visible
   try {
     await act(async () => root.render(createElement(AnswerCard, { card: card!, onOpen, locality: null })));
     expect(host.textContent).toContain("£5.20");
+    expect(host.textContent).toContain("Paulaner · Serving not recorded");
+    expect(host.textContent).not.toContain("Drink not recorded");
     expect(host.textContent).toContain("Pint Prices");
     expect(host.textContent).toContain("Source read 2 October 2026");
     expect(onOpen).not.toHaveBeenCalled();
