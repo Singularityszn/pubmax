@@ -60,7 +60,7 @@ async function changeJoinRequest(
     const requestId = result.requestId;
     if (action === "request" && result.code === "requested" && requestId) {
       deferCrewJoinNotice(
-        () => crewJoinRequestNotice(() => store.read(crewId, actor), actor, crewId, requestId),
+        () => crewJoinRequestNotice(() => store.readPublicPreview(crewId), actor, crewId, requestId),
         siteOrigin(request.url) ?? new URL(request.url).origin,
       );
     }

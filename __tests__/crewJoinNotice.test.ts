@@ -26,7 +26,7 @@ import {
   __resetMemoryNotifications,
   memoryNotificationsStore,
 } from "@/lib/notificationsStore";
-import type { SocialCrewPageDTO, SocialCrewPreviewDTO, SocialCrewReadDTO } from "@/lib/socialCrew";
+import type { SocialCrewPageDTO, SocialCrewPublicPreviewSource, SocialCrewReadDTO } from "@/lib/socialCrew";
 
 const CREW = "4f6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f60";
 const REQUEST = "5a6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f61";
@@ -162,14 +162,13 @@ describe("delivering a crew join notice", () => {
 });
 
 describe("who each notice goes to", () => {
-  const preview: SocialCrewPreviewDTO = {
-    kind: "preview",
+  const preview: SocialCrewPublicPreviewSource = {
+    crewId: CREW,
     title: "Thursday in Soho",
-    phase: "planning",
-    nightArea: null,
     startsAt: "2026-11-12T19:00:00.000Z",
-    joinRequestState: "pending",
     hostHandle: "soho_host",
+    stopVenueId: "venue-a",
+    stopVenueName: "The First",
   };
   const page = {
     kind: "member",
@@ -183,13 +182,13 @@ describe("who each notice goes to", () => {
   } as unknown as SocialCrewPageDTO;
   const read = (dto: SocialCrewReadDTO) => async () => dto;
 
-  it("sends a request to the host named on the preview the requester read", async () => {
-    expect(await crewJoinRequestNotice(read(preview), { handle: "new_face" }, CREW, REQUEST)).toEqual(requestNotice);
+  it("sends a request to the host named on the public preview", async () => {
+    expect(await crewJoinRequestNotice(async () => preview, { handle: "new_face" }, CREW, REQUEST)).toEqual(requestNotice);
   });
 
   it("sends nothing when the preview names no host", async () => {
-    const noHost: SocialCrewPreviewDTO = { ...preview, hostHandle: undefined };
-    expect(await crewJoinRequestNotice(read(noHost), { handle: "new_face" }, CREW, REQUEST)).toBeNull();
+    const noHost: SocialCrewPublicPreviewSource = { ...preview, hostHandle: "" };
+    expect(await crewJoinRequestNotice(async () => noHost, { handle: "new_face" }, CREW, REQUEST)).toBeNull();
   });
 
   it("sends an acceptance to the member the decision created, from the host", async () => {
@@ -222,6 +221,6 @@ describe("who each notice goes to", () => {
   it("sends nothing when the new member is not on the page, or the read fails", async () => {
     expect(await crewJoinAcceptedNotice(read(page), { handle: "soho_host" }, CREW, "7c6b0c1e-2a7d-4c55-9a3e-1b2c3d4e5f63", REQUEST)).toBeNull();
     expect(await crewJoinAcceptedNotice(async () => { throw new Error("down"); }, { handle: "soho_host" }, CREW, MEMBER, REQUEST)).toBeNull();
-    expect(await crewJoinRequestNotice(read(page), { handle: "new_face" }, CREW, REQUEST)).toBeNull();
+    expect(await crewJoinRequestNotice(async () => { throw new Error("down"); }, { handle: "new_face" }, CREW, REQUEST)).toBeNull();
   });
 });

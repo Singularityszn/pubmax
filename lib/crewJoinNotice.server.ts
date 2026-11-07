@@ -20,7 +20,7 @@ import { selectEmailProvider, type EmailProvider } from "@/lib/emailProvider";
 import { log } from "@/lib/log";
 import type { NewNotification } from "@/lib/notifications";
 import { notificationsStore } from "@/lib/notificationsStore";
-import type { SocialCrewReadDTO } from "@/lib/socialCrew";
+import type { SocialCrewPublicPreviewSource, SocialCrewReadDTO } from "@/lib/socialCrew";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
 export type CrewJoinNoticeKind = "crew_join_request" | "crew_join_accepted";
@@ -145,13 +145,13 @@ export async function deliverCrewJoinNotice(
 
 /** A request goes to the host the requester's own preview names. */
 export async function crewJoinRequestNotice(
-  read: ReadCrew,
+  read: () => Promise<SocialCrewPublicPreviewSource>,
   requester: { handle: string },
   crewId: string,
   requestId: string,
 ): Promise<CrewJoinNotice | null> {
   const crew = await read().catch(() => null);
-  if (crew?.kind !== "preview" || !crew.hostHandle) return null;
+  if (!crew?.hostHandle) return null;
   return {
     kind: "crew_join_request",
     recipientHandle: crew.hostHandle,
