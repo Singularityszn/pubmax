@@ -66,8 +66,10 @@ export function publishWeatherReview({
   // older snapshot. Hold this run's bytes across the switch so they are staged.
   const refreshed = readFileSync(outPath);
   run("git", ["restore", "--worktree", "--source=HEAD", "--", relativePath]);
+  let expectedRemote = "";
   if (commandOutput(run("git", ["ls-remote", "--heads", "origin", branch])).trim()) {
     run("git", ["fetch", "origin", branch]);
+    expectedRemote = commandOutput(run("git", ["rev-parse", `origin/${branch}`])).trim();
     run("git", ["switch", "--force-create", branch, `origin/${branch}`]);
   } else {
     run("git", ["switch", "--create", branch]);
@@ -82,7 +84,7 @@ export function publishWeatherReview({
     // git diff --quiet exits 1 when the refresh staged a change.
   }
   run("git", ["commit", "-m", `chore(weather): refresh ${stamp}`]);
-  run("git", ["push", "--set-upstream", "origin", branch]);
+  run("git", ["push", "--set-upstream", `--force-with-lease=refs/heads/${branch}:${expectedRemote}`, "origin", branch]);
 
   try {
     const listed = commandOutput(

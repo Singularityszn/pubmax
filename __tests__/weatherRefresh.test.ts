@@ -1,5 +1,6 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { devNull } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -33,7 +34,7 @@ describe("weather review handoff", () => {
   });
 
   function fixture() {
-    const rootDir = mkdtempSync(join(tmpdir(), "weather-review-"));
+    const rootDir = mkdtempSync(join(process.cwd(), ".weather-review-"));
     temporaryDirs.push(rootDir);
     const outPath = join(rootDir, "public/data/weather/latest.json");
     mkdirSync(join(rootDir, "public/data/weather"), { recursive: true });
@@ -56,6 +57,7 @@ describe("weather review handoff", () => {
       if (command === "git" && args[0] === "ls-remote") {
         return script.remoteBranch ? `abc\trefs/heads/${WEATHER_REVIEW_BRANCH}\n` : "";
       }
+      if (command === "git" && args[0] === "rev-parse") return "abc\n";
       if (command === "git" && args[0] === "switch") {
         writeFileSync(outPath, "previous branch snapshot");
         return "";
@@ -94,7 +96,7 @@ describe("weather review handoff", () => {
       "gh pr",
     ]);
     expect(calls).toContainEqual(["git", "switch", "--create", "weather-cache/latest"]);
-    expect(calls).toContainEqual(["git", "push", "--set-upstream", "origin", "weather-cache/latest"]);
+    expect(calls).toContainEqual(["git", "push", "--set-upstream", "--force-with-lease=refs/heads/weather-cache/latest:", "origin", "weather-cache/latest"]);
     const create = defined(calls.find((call) => call[0] === "gh" && call[2] === "create"));
     expect(create[create.indexOf("--body") + 1]).toContain(
       "The captain approved one reused weather-cache/latest branch with one PR as the route that lands the refresh on main through the required checks.",
@@ -115,9 +117,85 @@ describe("weather review handoff", () => {
       pullRequestUrl: "https://github.com/Singularityszn/pubmax/pull/42",
     });
     expect(calls).toContainEqual(["git", "switch", "--force-create", "weather-cache/latest", "origin/weather-cache/latest"]);
+    expect(calls).toContainEqual(["git", "push", "--set-upstream", "--force-with-lease=refs/heads/weather-cache/latest:abc", "origin", "weather-cache/latest"]);
     expect(calls.some((call) => call[0] === "gh" && call[2] === "create")).toBe(false);
     // The switch rewrote the file with the branch's older snapshot; this run's bytes win.
     expect(staged()).toBe("fresh refresh");
+  });
+
+  it.each([
+    { existing: true, race: "delete" },
+    { existing: true, race: "update" },
+    { existing: false, race: "create" },
+    { existing: true, race: "none" },
+    { existing: false, race: "none" },
+  ] as const)("guards real Git publication with existing=$existing and race=$race", ({ existing, race }) => {
+    const base = mkdtempSync(join(process.cwd(), ".weather-publication-"));
+    temporaryDirs.push(base);
+    const rootDir = join(base, "worker");
+    const remote = join(base, "origin.git");
+    mkdirSync(rootDir);
+    const env = {
+      ...ENV,
+      GIT_CONFIG_GLOBAL: devNull,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_COUNT: "0",
+      GIT_DIR: join(rootDir, ".git"),
+      GIT_WORK_TREE: undefined,
+      GIT_INDEX_FILE: join(rootDir, ".git/index"),
+      GIT_AUTHOR_NAME: "Weather Test",
+      GIT_AUTHOR_EMAIL: "weather@example.test",
+      GIT_COMMITTER_NAME: "Weather Test",
+      GIT_COMMITTER_EMAIL: "weather@example.test",
+    };
+    const git = (args: string[]) => execFileSync("git", [
+      "-c", `core.hooksPath=${devNull}`, "-c", "commit.gpgSign=false", ...args,
+    ], { cwd: rootDir, env: { ...process.env, ...env }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    git([`--git-dir=${remote}`, "init", "--bare", "--quiet"]);
+    git(["init", "--quiet", "--initial-branch=main"]);
+    git(["remote", "add", "origin", remote]);
+    const outPath = join(rootDir, "latest.json");
+    writeFileSync(outPath, "main snapshot");
+    git(["add", "latest.json"]);
+    git(["commit", "--quiet", "-m", "main snapshot"]);
+    git(["push", "--quiet", "origin", "main"]);
+    const main = git(["rev-parse", "HEAD"]).trim();
+    const ref = "refs/heads/weather-cache/latest";
+    if (existing) {
+      git(["switch", "--quiet", "--create", "weather-cache/latest"]);
+      writeFileSync(outPath, "previous snapshot");
+      git(["commit", "--quiet", "-am", "previous snapshot"]);
+      git(["push", "--quiet", "origin", "weather-cache/latest"]);
+      git(["switch", "--quiet", "main"]);
+    }
+    writeFileSync(outPath, "fresh refresh");
+    const pullRequestCalls: string[][] = [];
+    const publish = () => publishWeatherReview({
+      stamp: "20261107", env, rootDir, outPath, log: () => {},
+      runCommand: (command: string, args: string[]) => {
+        if (command === "gh") {
+          pullRequestCalls.push(args);
+          return args[1] === "list" ? "[]" : "https://example.test/pull/1";
+        }
+        if (args[0] === "push") {
+          if (race === "delete") git([`--git-dir=${remote}`, "update-ref", "-d", ref]);
+          if (race === "update" || race === "create") git([`--git-dir=${remote}`, "update-ref", ref, main]);
+        }
+        return git(args);
+      },
+    });
+
+    if (race !== "none") {
+      expect(publish).toThrow(/stale info/);
+      expect(pullRequestCalls).toEqual([]);
+      const remoteHead = git(["ls-remote", "--heads", "origin", ref]).trim();
+      expect(remoteHead).toBe(race === "delete" ? "" : `${main}\t${ref}`);
+    } else {
+      expect(publish()).toMatchObject({ status: "created" });
+      expect(git([`--git-dir=${remote}`, "show", `${ref}:latest.json`])).toBe("fresh refresh");
+      if (existing) expect(git(["rev-list", "--count", `main..${ref}`]).trim()).toBe("2");
+      expect(pullRequestCalls).toHaveLength(2);
+    }
   });
 
   it("pushes nothing when the branch already holds this snapshot", () => {
