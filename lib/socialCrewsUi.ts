@@ -304,7 +304,6 @@ function isPublicMeetingPoint(value: unknown): value is SocialCrewPublicPreviewD
   );
 }
 
-/** Parse the deliberately narrow anonymous Open Crew contract. */
 function isPublicShareArea(value: unknown): value is OpenCrawlShareArea {
   if (!isRecord(value)) return false;
   const keys = Object.keys(value);
@@ -339,6 +338,7 @@ const PUBLIC_CREW_PREVIEW_KEYS = [
   "spendBand",
 ] as const;
 
+/** Parse the deliberately narrow anonymous Open Crew contract. */
 export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewDTO | null {
   if (!isRecord(value)) return null;
   const keys = Object.keys(value);

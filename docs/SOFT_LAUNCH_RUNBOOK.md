@@ -404,6 +404,9 @@ Do all of 8.2 by Sunday 15 November. The one exception is the last migrations, w
 
 #### 8.2.1 Migrations (Owner action)
 
+Migration 0222 has a separate approval condition in its [header](../supabase/migrations/20261107180000_0222_open_crawl_share_card.sql).
+Without that approval, do not apply it or proceed with a release that requires it.
+
 Production must hold every file in `supabase/migrations/` before Monday's release, because `npm run release:prod` refuses when the ledger lacks one ([release rule](rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)).
 
 **Apply them in the same sitting as a release, never days ahead.** `0215` replaces `create_plan_route_proposal_atomic` with a version that needs one more argument. The build that production served on 1 November (`e5da6c0`) calls the old version, so its route proposals fail from the moment `0215` is applied until a newer build is live. The best order is the launch plan's week 1: apply `0203` to `0216` and release `main` straight after. Then on Monday only the files added since then (`0217` to `0219`, and any later file) are applied, and the launch release follows at once (8.3.3).

@@ -157,8 +157,8 @@ export type SocialCrewPublicPreviewSource = {
 };
 
 /**
- * Account-free Open Crew contract. This is intentionally smaller than the
- * authenticated preview and never carries member, request, or plan fields.
+ * Account-free Open Crew contract. Member identities, join requests and the
+ * full plan remain behind the authenticated read.
  */
 export type SocialCrewPublicPreviewDTO = {
   kind: "public";
@@ -169,7 +169,7 @@ export type SocialCrewPublicPreviewDTO = {
   meetingPoint: OutOpenPlanMeetingPoint;
   /** The area the meeting pub sits in or near, or null when it is in none we curate. */
   area: OpenCrawlShareArea | null;
-  /** Places left before the host's cap, or null on a crew with no cap. Never a member count. */
+  /** Places left, or null when capacity or active seat count is unavailable. Never a member count. */
   placesLeft: number | null;
   /** Min-max listed pint price over the stops, or null. Never the stops themselves. */
   spendBand: PlanInviteSpendBand | null;
@@ -294,8 +294,11 @@ export function parseSocialCrewPublicPreviewSource(
 /**
  * Service-only source for an open crawl's link preview (0222). The stop ids
  * are read on the server for a price band and never reach a browser. A null
- * capacity is an open crew with no open crawl facts; a null stop list is the
- * 0115 fallback, which names Stop 1 only and so supports no price band.
+ * capacity is an open crew with no open crawl facts. The fallback uses 0115
+ * for public visibility and 0208 for the host's meeting pub and capacity.
+ * It uses Stop 1 only when 0208 returns no open crawl facts. A failed 0208
+ * read refuses the card. The fallback has no seat count or stop list, so it
+ * supports neither places left nor a price band.
  */
 export type SocialCrewShareCardSource = {
   crewId: string;
