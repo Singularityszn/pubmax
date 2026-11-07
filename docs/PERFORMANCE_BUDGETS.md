@@ -953,6 +953,11 @@ software WebGL, not acceptance.
 playbook (`docs/growth/BACKLINK_PLAYBOOK.md`). Both are seeded in family with
 `/how-we-estimate` and come down at the next sweep.
 
+`/tools` joined on 7 November 2026: the pub comparison form
+(`docs/PUB_COMPARISON.md`). It is sitemap-listed and loads no map or voice
+SDK. Its row is seeded unmeasured in family with the planner and comes down at
+the next isolated production sweep.
+
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was
 `/spoons-value`: crawlable, sitemap-listed and unmeasured while serving 683 KB

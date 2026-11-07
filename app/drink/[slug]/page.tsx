@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import DrinkBrandLandingContent from "@/components/drinks/DrinkBrandLandingContent";
@@ -94,6 +95,9 @@ export default async function DrinkBrandLandingPage({ params }: PageProps) {
         mapSelectableVenueIds={mapSelectableVenueIds}
         areaPages={pricedLandingBrandAreaLinks(landing.slug, areaLandings)}
       />
+      <p className="drinkBrandDirectory__context">
+        Choosing with friends? <Link href="/tools">Compare the same order at up to three pubs</Link>.
+      </p>
     </main>
   );
 }

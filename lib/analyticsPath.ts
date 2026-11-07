@@ -24,6 +24,7 @@ const PAGEVIEW_STATIC_SURFACES = new Set([
   "/terms",
   "/today",
   "/tonight",
+  "/tools",
   "/we-are-out",
   "/you",
 ]);

@@ -34,6 +34,14 @@ import type { DrinkCategory } from "@/lib/drinks";
  * followed.
  */
 export const ANALYTICS_EVENTS = {
+  pub_comparison_viewed: [],
+  pub_comparison_ready: [],
+  pub_comparison_incomplete: [],
+  pub_comparison_map_requested: [],
+  pub_comparison_share_requested: [],
+  pub_comparison_links_copied: [],
+  pub_comparison_poll_requested: [],
+  pub_comparison_poll_sent: [],
   // R3 cycle metrics rail (carried over from the original Vercel-backed
   // trackEvent; ported onto this self-owned registry so the same closed set
   // of ~10 named events keeps working under the D0 beacon).
