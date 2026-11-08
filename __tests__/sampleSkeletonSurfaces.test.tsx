@@ -219,7 +219,9 @@ describe("the profile header while the viewer is unresolved", () => {
     expect(card?.querySelector(".profileCover")?.hasAttribute("data-sample-block")).toBe(true);
     expect(card?.querySelector("img.profileAvatar")).not.toBeNull();
     expect(card?.querySelectorAll(".profileStat")).toHaveLength(6);
-    expectNoSamplePrefetch(sample);
+    // The server HTML carries the sample, and a crawler followed its tiles to
+    // /u/handle/people/followers. A sample tile links nowhere.
+    expect(sample?.querySelectorAll("a")).toHaveLength(0);
 
     // Nothing of the viewer leaks into the wait.
     const text = host.textContent ?? "";
