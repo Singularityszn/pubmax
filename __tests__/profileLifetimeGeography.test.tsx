@@ -91,6 +91,58 @@ import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileSt
 import { __resetMemoryFollows, memoryFollowStore } from "@/lib/followStore";
 
 const author = "local_geography_profile";
+
+it("reads signed-in profile pints only once for the passport and badge progress", async () => {
+  Object.assign(session, { user: { id: "local-owner" }, handle: author });
+  let reads = 0;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/pint-drops") {
+      reads += 1;
+      return Response.json({ drops: [], passportAreas: [] });
+    }
+    return Response.json({});
+  }));
+  const params = Promise.resolve({ handle: author });
+  await act(async () => {
+    root.render(createElement(Suspense, { fallback: null }, createElement(ProfilePageClient, { params })));
+  });
+  expect(host.querySelector(".profileErrorState")).toBeNull();
+  expect(reads).toBe(1);
+});
+
+it("can recover the signed-in pints read after repeated 429 responses", async () => {
+  Object.assign(session, { user: { id: "local-owner" }, handle: author });
+  let limited = true;
+  let reads = 0;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/pint-drops") {
+      reads += 1;
+      return limited
+        ? Response.json({ code: "RATE_LIMITED" }, { status: 429 })
+        : Response.json({ drops: [], passportAreas: ["Hackney"] });
+    }
+    return Response.json({});
+  }));
+  const params = Promise.resolve({ handle: author });
+  await act(async () => {
+    root.render(createElement(Suspense, { fallback: null }, createElement(ProfilePageClient, { params })));
+  });
+  const retry = () => [...host.querySelectorAll<HTMLButtonElement>(".profileErrorState button")]
+    .find((button) => button.textContent === "Retry");
+  expect(retry()?.textContent).toBe("Retry");
+  const initialReads = reads;
+  await act(async () => { retry()!.click(); });
+  expect(reads).toBeGreaterThan(initialReads);
+  expect(retry()?.disabled).toBe(false);
+  limited = false;
+  await act(async () => { retry()!.click(); });
+  expect(host.querySelector(".profileErrorState")).toBeNull();
+  expect(host.querySelector(".passportBoroughs")?.textContent).toContain("Hackney");
+  expect(readSurfaceSnapshot(`/api/pint-drops?author=${author}`)).toBeUndefined();
+});
+
 let host: HTMLElement;
 let root: Root;
 
