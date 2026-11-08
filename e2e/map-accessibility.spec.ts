@@ -702,7 +702,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
       await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build${crawlQuery}`);
       const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
       const planDoor = portal.getByRole("button", {
-        name: crawlInProgress ? "Plan stop" : "Make Arnos Arms Stop 1",
+        name: crawlInProgress ? "Plan stop" : "Make it Stop 1: Arnos Arms",
         exact: true,
       });
       const priceDoor = portal.locator("[data-price-door]");
