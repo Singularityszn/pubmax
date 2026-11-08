@@ -20,6 +20,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
+vi.mock("@/lib/adminAuth", () => ({ isModerator: () => true }));
 
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
@@ -145,6 +146,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 });
 
 import { GET, POST } from "@/app/api/price-submit/route";
+import { POST as moderateBillCheck } from "@/app/api/admin/bill-checks/route";
 import {
   __resetCommunityPrices,
   memoryCommunityPriceStore,
@@ -1006,13 +1008,19 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
     expect(billChecks.schedule).not.toHaveBeenCalled();
   });
 
-  it.each(["pint", "half", "other"])("keeps the original check and photo on a six-second %s repeat", async (measure) => {
+  it.each([
+    { measure: "pint", elapsed: 1_000 },
+    { measure: "pint", elapsed: 6_000 },
+    { measure: "half", elapsed: 1_000 },
+    { measure: "other", elapsed: 1_000 },
+  ])("keeps the original observation, check and photo on a $measure repeat after $elapsed ms", async ({ measure, elapsed }) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-05T19:30:00.000Z"));
     try {
       const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure, measureLabel: "330ml" };
       const first = await POST(post(body, jpegFile("original.jpg")));
       expect(first.status).toBe(201);
+      const firstBody = (await first.json()) as PriceBody;
       const [run] = billChecks.schedule.mock.calls[0] as [BillCheckRun];
       const stored = listVisiblePintDrops("venue-xjf3n0")[0] as PersistableDrop;
       stored.receiptPhotoKey = `${stored.venueId}/${stored.id}/receipt.jpg`;
@@ -1028,15 +1036,51 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
         lines: [{ name: "Beer", priceGbp: 6.5 }],
       });
       const replacement = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 1])], "replacement.jpg", { type: "image/jpeg" });
-      vi.setSystemTime(new Date("2026-11-05T19:30:01.000Z"));
+      vi.setSystemTime(Date.parse("2026-11-05T19:30:00.000Z") + elapsed);
       const again = await POST(post(body, replacement));
       expect(again.status).toBe(201);
-      expect(await again.json()).not.toHaveProperty("billCheck");
+      const againBody = (await again.json()) as PriceBody;
+      expect(againBody).not.toHaveProperty("billCheck");
+      expect(againBody.price?.submittedAt).toBe(firstBody.price?.submittedAt);
       expect(billChecks.schedule).toHaveBeenCalledTimes(1);
       expect(run.photo.name).toBe("original.jpg");
       expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
       expect((listVisiblePintDrops("venue-xjf3n0")[0] as PersistableDrop).receiptPhotoKey).toBe(originalPhotoKey);
       expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([check]);
+      expect(await readCommunityPrices(body.venueId)).toEqual(measure === "pint" ? [
+        expect.objectContaining({ priceGbp: 5.5, submittedAt: Date.parse("2026-11-05T19:30:00.000Z") }),
+      ] : []);
+      const hidden = await moderateBillCheck(new Request("http://localhost/api/admin/bill-checks", {
+        method: "POST",
+        body: JSON.stringify({ id: check.id, decision: "hidden" }),
+      }));
+      expect(hidden.status).toBe(200);
+      expect(listVisiblePintDrops(body.venueId)).toEqual([]);
+      expect(await readCommunityPrices(body.venueId)).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    { priceGbp: 6.5, elapsed: 1_000 },
+    { priceGbp: 5.5, elapsed: 6_001 },
+  ])("records a new observation for £$priceGbp after $elapsed ms", async ({ priceGbp, elapsed }) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const startedAt = Date.parse("2026-11-05T19:30:00.000Z");
+    vi.setSystemTime(startedAt);
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure: "pint" };
+      expect((await POST(post(body))).status).toBe(201);
+      vi.setSystemTime(startedAt + elapsed);
+      const response = await POST(post({ ...body, priceGbp }));
+      expect(response.status).toBe(201);
+      expect(((await response.json()) as PriceBody).price).toMatchObject({
+        priceGbp,
+        submittedAt: startedAt + elapsed,
+      });
+      expect(scheduled()).toHaveLength(2);
+      expect(scheduled()[1]).toMatchObject({ communityPriceSubmittedAt: startedAt + elapsed });
     } finally {
       vi.useRealTimers();
     }

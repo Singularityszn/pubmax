@@ -65,6 +65,7 @@ import {
   type DrinkMeasure,
 } from "@/lib/drinkMeasure";
 import {
+  listCommunityPriceObservations,
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
   readCommunityPricesWithStatus,
@@ -74,8 +75,11 @@ import {
   reportCommunityPrice,
   submitCommunityPrice,
   submitCommunityVenueSignal,
+  type CommunityPriceWrite,
+  type CommunityPriceWriteResult,
 } from "@/lib/communityPriceStore";
 import {
+  duplicateOneTapDrop,
   revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
   type OneTapPintDropInput,
@@ -88,7 +92,7 @@ import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { receiptPhotoRefusal } from "@/lib/receiptPhoto.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
-import type { PintDropPhotos } from "@/lib/pintDropsStore";
+import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
 import { log } from "@/lib/log";
@@ -289,7 +293,7 @@ export async function POST(request: Request): Promise<Response> {
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
   const submittedAt = Date.now();
-  const { price, failed } = await submitCommunityPrice({
+  const { price, failed } = await submitPriceObservation({
     ...submission,
     actor: contributor.actor,
     contributorHandle: contributor.handle,
@@ -400,6 +404,49 @@ export async function POST(request: Request): Promise<Response> {
     },
     { status: 201 },
   );
+}
+
+async function submitPriceObservation(
+  input: CommunityPriceWrite & { contributorHandle: string },
+  now: number,
+): Promise<CommunityPriceWriteResult> {
+  if (input.drinkCategory === "beer") {
+    let recent;
+    try {
+      recent = await pintDropsStore().listConfirmationCandidates(input.venueId);
+    } catch {
+      return { price: null, failed: true };
+    }
+    const duplicate = duplicateOneTapDrop(recent, {
+      venueId: input.venueId,
+      handle: input.contributorHandle,
+      priceGbp: input.priceGbp,
+      measure: "pint",
+    }, now);
+    if (!duplicate) return submitCommunityPrice(input, now);
+    const { observations, degraded } = await listCommunityPriceObservations(
+      input.venueId,
+      input.drinkCategory,
+    );
+    if (degraded) return { price: null, failed: true };
+    const original = observations.find((row) =>
+      row.actor === input.actor &&
+      row.priceGbp === input.priceGbp,
+    );
+    if (original) {
+      return {
+        price: {
+          id: original.id,
+          venueId: original.venueId,
+          drinkCategory: original.drinkCategory,
+          priceGbp: original.priceGbp,
+          submittedAt: original.submittedAt,
+          source: "community",
+        },
+      };
+    }
+  }
+  return submitCommunityPrice(input, now);
 }
 
 async function pairSubmittedPintDrop(
