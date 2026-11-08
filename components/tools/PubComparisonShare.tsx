@@ -20,7 +20,7 @@ function PrivatePoll({ venues, handle }: { venues: PubComparisonResultVenue[]; h
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
-  const attemptRef = useRef<{ conversationId: string; id: string } | null>(null);
+  const attemptsRef = useRef(new Map<string, string>());
   const poll = comparisonPoll(venues);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
@@ -51,12 +51,14 @@ function PrivatePoll({ venues, handle }: { venues: PubComparisonResultVenue[]; h
 
   async function send() {
     if (!poll || !selected || !conversations.some((row) => row.id === selected) || controllerRef.current || sent) return;
-    if (attemptRef.current?.conversationId !== selected) {
+    let clientMessageId = attemptsRef.current.get(selected);
+    if (!clientMessageId) {
       if (!globalThis.crypto?.randomUUID) {
         setMessage("This browser cannot prepare a safe send. Open Messages to create your poll.");
         return;
       }
-      attemptRef.current = { conversationId: selected, id: globalThis.crypto.randomUUID() };
+      clientMessageId = globalThis.crypto.randomUUID();
+      attemptsRef.current.set(selected, clientMessageId);
     }
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -66,7 +68,7 @@ function PrivatePoll({ venues, handle }: { venues: PubComparisonResultVenue[]; h
     try {
       const { response } = await authedActionJson<unknown>(`/api/messages/${encodeURIComponent(selected)}`, {
         method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal,
-        body: JSON.stringify({ action: "send", handle, clientMessageId: attemptRef.current.id, poll,
+        body: JSON.stringify({ action: "send", handle, clientMessageId, poll,
           body: venues.map((venue, index) => `${index + 1}. ${PRODUCTION_SITE_ORIGIN}/ledger/${encodeURIComponent(venue.id)}`).join("\n"),
         }),
       }, { requiresIdentity: true });

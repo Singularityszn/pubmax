@@ -17,7 +17,7 @@ vi.mock("@/lib/authServer", async (original) => ({
   // consent, rate limits, message storage and HTTP handlers remain real.
   callerUserId: async (request: Request) => {
     const token = request.headers.get("authorization")?.replace(/^Bearer /, "");
-    return token === "local-alice" || token === "local-bob" ? token : null;
+    return token === "local-alice" || token === "local-bob" || token === "local-charlie" ? token : null;
   },
 }));
 vi.mock("@/lib/supabase", async (original) => ({
@@ -50,7 +50,7 @@ let delay: "GET" | "POST" | null;
 let held: { request: Request; release: () => void } | null;
 let attempts: Array<{ clientMessageId: string }>;
 
-function as(handle: "alice" | "bob") {
+function as(handle: "alice" | "bob" | "charlie") {
   const id = `local-${handle}`;
   const revision = setProviderIdentity("supabase", id);
   state.actor = { user: { id }, handle, accountRevision: revision, providerAuthState: "authenticated" };
@@ -71,15 +71,18 @@ async function waitForText(text: string) {
 async function chooseConversation() {
   await click("Load my conversations");
   await act(async () => { await vi.waitFor(() => expect(container.querySelector("select")).toBeTruthy()); });
+  await selectConversation(conversationId);
+}
+async function selectConversation(id: string) {
   await act(async () => {
     const select = container.querySelector("select")!;
-    select.value = conversationId;
+    select.value = id;
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
 }
-async function readThread() {
+async function readThread(id = conversationId) {
   const { response, body } = await authedActionJson<{ messages: MessageDTO[] }>(
-    `/api/messages/${conversationId}`, {}, { requiresIdentity: true });
+    `/api/messages/${id}`, {}, { requiresIdentity: true });
   expect(response.status).toBe(200);
   expect(response.headers.get("cache-control")).toBe("no-store");
   return body.messages;
@@ -144,20 +147,39 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("delivers the private poll once after a lost reply and lets its recipient answer", async () => {
+it("delivers the private poll once after A-B-A retries and lets its recipient answer", async () => {
   // Oracle: the sharing contract permits public pub labels and links only.
   // A lost acknowledgement must not create two polls. Each viewer sees only
   // their own answer, with aggregate counts for the other participant.
+  __seedMemoryOwnedProfile("charlie", "local-charlie");
+  await memoryAdultSelfAssertionStore.record("local-charlie");
+  await memoryFollowStore.follow("alice", "charlie");
+  await memoryFollowStore.follow("charlie", "alice");
+  const other = await authedActionJson<{ conversationId: string }>("/api/messages", {
+    method: "POST", body: JSON.stringify({ action: "open", handle: "alice", other: "charlie" }),
+  }, { requiresIdentity: true });
+  expect(other.response.ok).toBe(true);
+  const otherConversationId = other.body.conversationId;
+  expect(otherConversationId).not.toBe(conversationId);
   await render();
   await chooseConversation();
   dropSendReply = true;
   await click("Send this poll");
   await waitForText("Check the conversation before retrying");
+  await selectConversation(otherConversationId);
+  dropSendReply = true;
+  await click("Send this poll");
+  await waitForText("Check the conversation before retrying");
+  await selectConversation(conversationId);
   await click("Send this poll");
   await waitForText("Poll sent");
-  expect(attempts).toHaveLength(2);
+  expect(attempts).toHaveLength(3);
   expect(attempts[0]!.clientMessageId).toMatch(/^[a-f0-9-]{36}$/);
-  expect(attempts[1]!.clientMessageId).toBe(attempts[0]!.clientMessageId);
+  expect(attempts[1]!.clientMessageId).not.toBe(attempts[0]!.clientMessageId);
+  expect(attempts[2]!.clientMessageId).toBe(attempts[0]!.clientMessageId);
+
+  as("charlie");
+  expect(await readThread(otherConversationId)).toHaveLength(1);
 
   as("bob");
   const received = await readThread();
