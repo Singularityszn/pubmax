@@ -176,7 +176,7 @@ them installs them:
   [`security-ci.yml`](../.github/workflows/security-ci.yml), which owns their
   versions and checksum pins.
 
-The Security CI tools (zizmor, osv-scanner and gitleaks) install
+PostgREST and the Security CI tools (zizmor, osv-scanner and gitleaks) install
 through [`scripts/ci/install-pinned-tool.sh`](../scripts/ci/install-pinned-tool.sh).
 The workflow step names the pins: version, release URL, sha256 and fallback.
 The script selects an installation source in this order:
@@ -192,22 +192,24 @@ The script selects an installation source in this order:
    with `pip --require-hashes` and the wheel's sha256. osv-scanner and gitleaks
    build with `go install` at the pinned version through `proxy.golang.org`,
    checked against `sum.golang.org`, and the script then checks the version the
-   binary was built from. The step logs a warning when it uses this source.
+   binary was built from. PostgREST copies `/bin/postgrest` from a digest-pinned
+   Docker Hub image with `--platform linux/amd64` for both pull and create.
+   The script removes the container and checks the copied binary's sha256
+   before installation. The step logs a warning when it uses a fallback.
 
 If a download fails or its checksum differs, the script removes the unverified
 file. A fallback installation leaves no release asset for `actions/cache` to save.
 The retry window is bounded. Installation can still fail if all sources fail.
 
-PostgREST in [`rls-session.yml`](../.github/workflows/rls-session.yml) still
-uses a single checksummed `curl` with the same retry window, and the
-PostgreSQL packages install through `apt-get -o Acquire::Retries=5`.
+The PostgreSQL packages in [`rls-session.yml`](../.github/workflows/rls-session.yml)
+install through `apt-get -o Acquire::Retries=5`.
 
 [`ciToolDownloadRetries.test.ts`](../__tests__/ciToolDownloadRetries.test.ts)
-executes the Security CI installation steps with their own pinned environments
-and the real installer. It checks the download arguments and confirms that
+executes the Security CI and PostgREST installation steps with their own pinned
+environments and the real installer. It checks the download arguments and confirms that
 fallback installations leave no release asset to cache.
 It also runs the installer through each source, a damaged cache and a checksum
-mismatch, with `curl`, `python3`, `go` and `sudo` replaced by recorders.
+mismatch, with `curl`, `python3`, `go`, `docker` and `sudo` replaced by recorders.
 Download retries do not change [the test retry policy](#the-required-checks-and-the-merge-queue).
 
 `PW_PORT` still comes from `.github/actions/pubmax-playwright-port`. Each

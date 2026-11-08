@@ -8,7 +8,7 @@
 # 3. A source that does not use GitHub release downloads, verified on its own
 #    terms: a PyPI wheel installed with --require-hashes, or a Go module built
 #    with `go install` through proxy.golang.org and checked against
-#    sum.golang.org, the Go checksum database.
+#    sum.golang.org, or a digest-pinned Docker Hub image with a binary checksum.
 #
 # GitHub release assets answered 504 to hosted runners for most of an hour on
 # 8 Nov 2026, while Security CI was a required check. docs/CI_RUNBOOK.md,
@@ -19,10 +19,13 @@
 #   TOOL_VERSION         pinned version, for example 1.30.1
 #   TOOL_URL             GitHub release asset URL
 #   TOOL_SHA256          sha256 of that asset
-#   TOOL_ARCHIVE         "tar.gz" (binary inside) or "binary" (the asset is it)
-#   TOOL_FALLBACK        "pip" or "go"
+#   TOOL_ARCHIVE         "tar.gz", "tar.xz" (binary at root), or "binary"
+#   TOOL_FALLBACK        "pip", "go", or "docker"
 #   TOOL_PIP_REQUIREMENT for pip: "name==version --hash=sha256:<wheel sha256>"
 #   TOOL_GO_MODULE       for go: "module/path/cmd/name@vX.Y.Z"
+#   TOOL_IMAGE           for docker: image pinned by sha256 digest
+#   TOOL_IMAGE_PATH      for docker: binary path inside the image
+#   TOOL_BINARY_SHA256   for docker: sha256 of the copied linux/amd64 binary
 #   PUBMAX_TOOL_CACHE    cache directory (default ~/.cache/pubmax-tools)
 #   PUBMAX_TOOL_BIN      install directory (default /usr/local/bin)
 
@@ -49,8 +52,8 @@ place() {
 
 from_asset() {
   case "$TOOL_ARCHIVE" in
-    tar.gz)
-      tar --extract --gzip --file "$asset" --directory "$work" "$TOOL_NAME"
+    tar.gz|tar.xz)
+      tar --extract --file "$asset" --directory "$work" "$TOOL_NAME"
       place "$work/$TOOL_NAME"
       ;;
     binary) place "$asset" ;;
@@ -87,6 +90,25 @@ from_fallback() {
         exit 1
       }
       place "$work/gobin/$TOOL_NAME"
+      ;;
+    docker)
+      : "${TOOL_IMAGE:?}" "${TOOL_IMAGE_PATH:?}" "${TOOL_BINARY_SHA256:?}"
+      [[ "$TOOL_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || {
+        echo "TOOL_IMAGE must be pinned by sha256 digest" >&2
+        exit 1
+      }
+      docker pull --platform linux/amd64 "$TOOL_IMAGE"
+      container="$(docker create --platform linux/amd64 "$TOOL_IMAGE")"
+      if ! docker cp "$container:$TOOL_IMAGE_PATH" "$work/$TOOL_NAME"; then
+        docker rm "$container" >/dev/null
+        return 1
+      fi
+      docker rm "$container" >/dev/null
+      [ "$(sha256sum "$work/$TOOL_NAME" | awk '{ print $1 }')" = "$TOOL_BINARY_SHA256" ] || {
+        echo "$TOOL_NAME binary checksum mismatch" >&2
+        exit 1
+      }
+      place "$work/$TOOL_NAME"
       ;;
     *) echo "unknown TOOL_FALLBACK $TOOL_FALLBACK" >&2; exit 2 ;;
   esac

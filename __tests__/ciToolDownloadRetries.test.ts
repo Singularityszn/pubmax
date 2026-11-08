@@ -6,14 +6,14 @@
 // still checks the bytes, and a test that passes only on retry still fails its
 // gate (scripts/assert-playwright-gate.mjs).
 //
-// The Security CI tools install through scripts/ci/install-pinned-tool.sh: the
+// PostgREST and the Security CI tools use scripts/ci/install-pinned-tool.sh: the
 // cached release download, else the release download with a long retry
 // window, else a verified source that is not a GitHub release. The script runs
-// here for real, with curl, python3, go and sudo replaced by recorders.
+// here for real, with curl, python3, go, docker and sudo replaced by recorders.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -39,6 +39,16 @@ function script(path: string, body: string): void {
   chmodSync(path, 0o755);
 }
 
+const hostBin = dir("host-bin");
+for (const tool of [
+  "bash", "sh", "tar", "gzip", "xz", "sha256sum", "awk", "install", "mktemp", "find", "sort", "grep",
+  "cp", "mv", "rm", "mkdir", "chmod", "cat", "printf", "dirname", "tail", "env",
+]) {
+  const resolved = spawnSync("bash", ["--noprofile", "--norc", "-c", 'enable -n printf; command -v "$1"', "resolve-tool", tool], { encoding: "utf8" });
+  if (resolved.status !== 0 || !resolved.stdout.trim().startsWith("/")) throw new Error(`Missing host tool: ${tool}`);
+  symlinkSync(resolved.stdout.trim(), join(hostBin, tool));
+}
+
 function readCalls(log: string): string[][] {
   if (!existsSync(log)) return [];
   return readFileSync(log, "utf8")
@@ -62,19 +72,21 @@ function commands(step: Step): string[] {
 }
 
 describe("the required workflows", () => {
-  const securityJobs = Object.values(workflow("security-ci.yml").jobs).flatMap(({ steps = [] }) =>
-    steps.flatMap((step, index) =>
-      commands(step).some((line) => line.split(/\s+/)[0] === "scripts/ci/install-pinned-tool.sh")
-        ? [{ step, before: steps[index - 1] }] : [],
+  const installerSteps = ["security-ci.yml", "rls-session.yml"].flatMap((file) =>
+    Object.values(workflow(file).jobs).flatMap(({ steps = [] }) =>
+      steps.flatMap((step, index) =>
+        commands(step).some((line) => line.split(/\s+/)[0] === "scripts/ci/install-pinned-tool.sh")
+          ? [{ file, step, before: steps[index - 1] }] : [],
+      ),
     ),
   );
 
-  it("covers active Security CI installer commands", () => {
-    expect(securityJobs.length).toBeGreaterThan(0);
+  it.each(["security-ci.yml", "rls-session.yml"])("covers active installer commands in %s", (file) => {
+    expect(installerSteps.some((entry) => entry.file === file)).toBe(true);
   });
 
-  it.each(securityJobs.map((entry) => [entry.step.env?.TOOL_NAME, entry] as const))(
-    "%s retries its release download and leaves no cache asset after fallback",
+  it.each(installerSteps.map((entry) => [entry.step.env?.TOOL_NAME, entry] as const))(
+    "%s retries its release download and never caches fallback output",
     (_tool, { step, before }) => {
       const env = step.env ?? {};
       expect(before?.uses).toMatch(/^actions\/cache@[0-9a-f]{40}$/);
@@ -87,6 +99,10 @@ describe("the required workflows", () => {
       expect(env.TOOL_URL).toContain(env.TOOL_VERSION);
       if (env.TOOL_FALLBACK === "pip") {
         expect(env.TOOL_PIP_REQUIREMENT).toMatch(new RegExp(`==${env.TOOL_VERSION} --hash=sha256:[0-9a-f]{64}$`));
+      } else if (env.TOOL_FALLBACK === "docker") {
+        expect(env.TOOL_IMAGE).toBe("postgrest/postgrest@sha256:bea1c76a856fa39d1e542d25911cf95d02fe2bf971992d033044ff209f1504b8");
+        expect(env.TOOL_IMAGE_PATH).toBe("/bin/postgrest");
+        expect(env.TOOL_BINARY_SHA256).toBe("9d363ab48d45a2d02d8ab82f8e9c6b541eca87c86be76bad5a3ff090ae03f3cc");
       } else {
         expect(env.TOOL_FALLBACK).toBe("go");
         expect(env.TOOL_GO_MODULE).toMatch(new RegExp(`@v${env.TOOL_VERSION}$`));
@@ -94,12 +110,20 @@ describe("the required workflows", () => {
       const cache = dir("cache");
       const run = install({
         sha256: defined(env.TOOL_SHA256),
-        fallback: env.TOOL_FALLBACK as "pip" | "go",
+        fallback: env.TOOL_FALLBACK as "pip" | "go" | "docker",
         cache,
         step,
       });
-      expect(run.status, run.stderr).toBe(0);
-      expect(run.installed).not.toBe("");
+      if (env.TOOL_FALLBACK === "docker") {
+        // The fixture must fail the real workflow's binary pin.
+        expect(run.status).not.toBe(0);
+        expect(run.stderr).toContain("binary checksum mismatch");
+        expect(run.installed).toBe("");
+        expectDockerSource(run.docker, defined(env.TOOL_IMAGE));
+      } else {
+        expect(run.status, run.stderr).toBe(0);
+        expect(run.installed).not.toBe("");
+      }
       expect(run.curl.length).toBeGreaterThan(0);
       for (const args of run.curl) {
         expectRetryWindow(args);
@@ -116,7 +140,7 @@ describe("the required workflows", () => {
     ),
   );
 
-  it("records the PostgREST and PostgreSQL downloads in RLS session tests", () => {
+  it("records the PostgreSQL package downloads in RLS session tests", () => {
     expect(curlSteps.map(({ file }) => file)).toContain("rls-session.yml");
   });
 
@@ -128,11 +152,11 @@ describe("the required workflows", () => {
       const bin = dir("bin");
       script(join(bin, "curl"), `${RECORD(curlLog)}\nexit 22`);
       script(join(bin, "sudo"), RECORD(sudoLog));
+      for (const tool of ["initdb", "postgres", "psql"]) script(join(bin, tool), "exit 0");
       spawnSync("bash", ["-c", step.run ?? ""], {
-        env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: dir("runner"), GITHUB_PATH: join(scratch, "path") },
+        env: { PATH: `${bin}:${hostBin}`, RUNNER_TEMP: dir("runner"), GITHUB_PATH: join(scratch, "path") },
       });
       const curls = readCalls(curlLog);
-      expect(curls.length).toBeGreaterThan(0);
       for (const args of curls) expectRetryWindow(args);
       const apt = readCalls(sudoLog).filter((args) => args[0] === "apt-get");
       expect(apt.length).toBeGreaterThan(0);
@@ -150,25 +174,40 @@ function expectRetryWindow(args: string[]): void {
   expect(value("--connect-timeout")).toBeGreaterThan(0);
 }
 
-/** A release asset: a tar.gz holding a tool that prints its version. */
-function releaseAsset(tool: string, version: string): { path: string; sha256: string } {
+/** A compressed release archive holding a tool that prints its version. */
+function releaseAsset(tool: string, version: string, archive = "tar.gz"): { path: string; sha256: string } {
   const src = dir("asset-src");
   script(join(src, tool), `echo "${tool} ${version} (release)"`);
-  const path = join(dir("asset"), `${tool}.tar.gz`);
-  const tar = spawnSync("tar", ["-czf", path, "-C", src, tool]);
+  const path = join(dir("asset"), `${tool}.${archive}`);
+  const tar = spawnSync("tar", [archive === "tar.xz" ? "-cJf" : "-czf", path, "-C", src, tool]);
   expect(tar.status).toBe(0);
   return { path, sha256: createHash("sha256").update(readFileSync(path)).digest("hex") };
 }
 
-type Run = { status: number | null; stdout: string; stderr: string; curl: string[][]; pip: string[][]; go: string[][]; installed: string };
+type Run = { status: number | null; stdout: string; stderr: string; curl: string[][]; pip: string[][]; go: string[][]; docker: string[][]; installed: string };
+
+const DOCKER_BINARY = '#!/bin/sh\necho "postgrest 14.16 (docker)"\n';
+const DOCKER_SHA256 = createHash("sha256").update(DOCKER_BINARY).digest("hex");
+const DOCKER_IMAGE = `postgrest/postgrest@sha256:${"b".repeat(64)}`;
+
+function expectDockerSource(calls: string[][], image: string): void {
+  expect(calls).toEqual([
+    ["pull", "--platform", "linux/amd64", image],
+    ["create", "--platform", "linux/amd64", image],
+    ["cp", "fixture-container:/bin/postgrest", expect.any(String)],
+    ["rm", "fixture-container"],
+  ]);
+}
 
 function install(options: {
   tool?: string;
   version?: string;
   sha256: string;
   serve?: string;
-  fallback: "pip" | "go";
+  fallback: "pip" | "go" | "docker";
   cache: string;
+  archive?: "tar.gz" | "tar.xz";
+  binarySha256?: string;
   goVersion?: string;
   goOnPath?: boolean;
   step?: Step;
@@ -180,7 +219,8 @@ function install(options: {
   const curlLog = join(logs, "curl");
   const pipLog = join(logs, "pip");
   const goLog = join(logs, "go");
-  const target = dir("target");
+  const dockerLog = join(logs, "docker");
+  const target = bin;
   const toolCache = dir("toolcache");
   // curl copies the served asset to --output, or fails like a 504.
   script(
@@ -220,21 +260,31 @@ fi`;
     script(join(bin, "go"), goScript);
   }
   script(join(bin, "sudo"), `"$@"`);
+  const dockerBinary = join(dir("docker"), "postgrest");
+  writeFileSync(dockerBinary, DOCKER_BINARY);
+  script(join(bin, "docker"), `${RECORD(dockerLog)}
+case "$1" in
+  create) echo fixture-container ;;
+  cp) cp "${dockerBinary}" "$3" ;;
+esac`);
   const result = spawnSync("bash", ["-e", "-o", "pipefail", "-c", options.step?.run ?? `bash "${INSTALLER}"`], {
     encoding: "utf8",
     cwd: ROOT,
     env: {
       NODE_ENV: "test",
-      PATH: `${bin}:${target}:/usr/bin:/bin:/usr/sbin:/sbin`,
+      PATH: `${bin}:${hostBin}`,
       HOME: dir("home"),
       TOOL_NAME: tool,
       TOOL_VERSION: version,
       TOOL_URL: `https://github.com/example/${tool}/releases/download/v${version}/${tool}.tar.gz`,
       TOOL_SHA256: options.sha256,
-      TOOL_ARCHIVE: "tar.gz",
+      TOOL_ARCHIVE: options.archive ?? "tar.gz",
       TOOL_FALLBACK: options.fallback,
       TOOL_PIP_REQUIREMENT: `${tool}==${version} --hash=sha256:${"e".repeat(64)}`,
       TOOL_GO_MODULE: `the/module/cmd/${tool}@v${version}`,
+      TOOL_IMAGE: DOCKER_IMAGE,
+      TOOL_IMAGE_PATH: "/bin/postgrest",
+      TOOL_BINARY_SHA256: options.binarySha256 ?? DOCKER_SHA256,
       ...options.step?.env,
       PUBMAX_TOOL_CACHE: options.cache,
       PUBMAX_TOOL_BIN: target,
@@ -250,11 +300,44 @@ fi`;
     curl: readCalls(curlLog),
     pip: readCalls(pipLog),
     go: readCalls(goLog),
+    docker: readCalls(dockerLog),
     installed,
   };
 }
 
 describe("scripts/ci/install-pinned-tool.sh", () => {
+  it("installs and reuses a checksum-matched tar.xz release", () => {
+    const asset = releaseAsset("postgrest", "14.16", "tar.xz");
+    const cache = dir("cache");
+    const options = { tool: "postgrest", version: "14.16", sha256: asset.sha256, archive: "tar.xz", fallback: "docker", cache } as const;
+    const run = install({ ...options, serve: asset.path });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.installed).toBe("postgrest 14.16 (release)");
+    expect(run.docker).toEqual([]);
+    const again = install(options);
+    expect(again.status, again.stderr).toBe(0);
+    expect(again.installed).toBe("postgrest 14.16 (release)");
+    expect(again.curl).toEqual([]);
+    expect(again.docker).toEqual([]);
+  });
+
+  it("installs a checksum-matched Docker binary without caching it", () => {
+    const cache = dir("cache");
+    const run = install({ tool: "postgrest", version: "14.16", sha256: "a".repeat(64), fallback: "docker", cache });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.installed).toBe("postgrest 14.16 (docker)");
+    expectDockerSource(run.docker, DOCKER_IMAGE);
+    expect(existsSync(join(cache, `postgrest-14.16-${"a".repeat(64)}`))).toBe(false);
+  });
+
+  it("refuses a Docker binary with a different checksum", () => {
+    const run = install({ tool: "postgrest", version: "14.16", sha256: "a".repeat(64), fallback: "docker", binarySha256: "0".repeat(64), cache: dir("cache") });
+    expect(run.status).not.toBe(0);
+    expect(run.installed).toBe("");
+    expect(run.stderr).toContain("binary checksum mismatch");
+    expectDockerSource(run.docker, DOCKER_IMAGE);
+  });
+
   it("installs the release download when it matches the pin, retrying over a window, and caches it", () => {
     const asset = releaseAsset("zizmor", "1.30.1");
     const cache = dir("cache");
