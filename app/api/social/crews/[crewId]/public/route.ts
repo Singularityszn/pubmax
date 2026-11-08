@@ -1,55 +1,42 @@
 import {
   isSocialCrewId,
-  socialCrewPublicErrorResponse,
   socialCrewPublicJson,
   socialCrewPublicNotFoundResponse,
   socialCrewPublicUnavailableResponse,
 } from "@/lib/socialCrewHttp";
-import { resolveOpenMeetingPoint } from "@/lib/openSocialCrew.server";
-import {
-  isSocialFriendsLaunchEnabled,
-  SOCIAL_FRIENDS_LAUNCH_ENV,
-} from "@/lib/socialLaunch";
-import { createSocialCrewStore } from "@/lib/socialCrewStore";
+import { loadOpenCrawlShareCard } from "@/lib/openCrawlShareCard.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ crewId: string }> };
 
-const store = createSocialCrewStore();
-
 /**
  * Account-free read for a listed Open Crew. The database is the visibility and
  * lifecycle authority; the current venue/POI index is the meeting-point
- * authority. Joining remains on the verified Social route.
+ * authority. The Social Crews notice at /privacy#crews owns the public
+ * disclosure contract. Joining remains on the verified Social route.
  */
 export async function GET(_request: Request, context: Context): Promise<Response> {
-  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
-    return socialCrewPublicUnavailableResponse();
-  }
   const { crewId } = await context.params;
   if (!isSocialCrewId(crewId)) return socialCrewPublicNotFoundResponse();
 
-  try {
-    const source = await store.readPublicPreview(crewId);
-    const resolution = await resolveOpenMeetingPoint(source.stopVenueId);
-    if (!resolution.ok) {
-      return resolution.reason === "unavailable"
-        ? socialCrewPublicUnavailableResponse()
-        : socialCrewPublicNotFoundResponse();
-    }
-    const { cityId, ...meetingPoint } = resolution.meetingPoint;
-    void cityId;
-    return socialCrewPublicJson({
-      kind: "public",
-      crewId: source.crewId,
-      title: source.title,
-      hostHandle: source.hostHandle,
-      startsAt: new Date(source.startsAt).toISOString(),
-      meetingPoint,
-    });
-  } catch (error) {
-    return socialCrewPublicErrorResponse(error);
+  const result = await loadOpenCrawlShareCard(crewId);
+  if (!result.ok) {
+    return result.reason === "missing"
+      ? socialCrewPublicNotFoundResponse()
+      : socialCrewPublicUnavailableResponse();
   }
+  const { card, meetingPoint } = result;
+  return socialCrewPublicJson({
+    kind: "public",
+    crewId: card.crewId,
+    title: card.title,
+    hostHandle: card.hostHandle,
+    startsAt: new Date(card.startsAt).toISOString(),
+    meetingPoint,
+    area: card.area,
+    placesLeft: card.placesLeft,
+    spendBand: card.spendBand,
+  });
 }

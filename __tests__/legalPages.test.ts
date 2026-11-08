@@ -215,13 +215,25 @@ describe("legal content pages", () => {
     }
     expect(privacy).toMatch(/owner[^]*active members who remain Mutual with the owner[^]*full roster[^]*Crew-bound Plan/i);
     expect(privacy).toMatch(/friends[^]*current Mutuals[^]*preview/i);
+    // The rendered notice must disclose the approved open-crawl sharing fields
+    // and limits, including the member-only roster and remaining stops.
     expect(privacyText).toMatch(
-      /While a plan is open, anyone can see its title, the pub or place it starts at, its start time, how many people are in it, and your handle as host/i,
+      /While a plan is open, anyone can see its title, your handle as host, its meeting pub or place, and its start day and time/i,
     );
+    expect(privacyText).toMatch(
+      /Its page and shared link previews can also show the meeting area, places left and a listed pint price range/i,
+    );
+    expect(privacyText).toMatch(/Unavailable details are omitted/i);
+    expect(privacyText).toMatch(/The price range is per pint, not a total for the night/i);
+    expect(privacyText).toMatch(/Public discovery can also show how many people are in the plan/i);
+    expect(privacyText).toMatch(/The roster and remaining stops stay behind the member read/i);
     expect(privacyText).toMatch(/Close the plan and it drops out of the public list/i);
-    expect(termsText).toMatch(
-      /While a plan is open, anyone can see its title, the pub or place it starts at, its start time, how many people are in it, and the host handle/i,
-    );
+    const termsDom = new JSDOM(renderToStaticMarkup(createElement(TermsPage)));
+    try {
+      expect(termsDom.window.document.querySelector('#crews + p a[href="/privacy#crews"]')).not.toBeNull();
+    } finally {
+      termsDom.window.close();
+    }
     expect(termsText).toMatch(/Close the plan and it drops out of the public list/i);
     expect(privacy).toMatch(/private Crew[^]*owner[^]*active members who\s+remain Mutual with the owner/i);
     expect(privacy).toMatch(/invitation[^]*sender[^]*recipient[^]*expiry[^]*state/i);

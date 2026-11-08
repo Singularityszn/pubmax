@@ -549,9 +549,15 @@ export default function PrivacyPage() {
           phase, area, start time and their own Join Request state. That preview
           does not show the roster or Crew-bound Plan details. A block in either
           direction closes the read. While a plan is open, anyone can see its
-          title, the pub or place it starts at, its start time, how many people
-          are in it, and your handle as host. Close the plan and it drops out of
-          the public list.
+          title, your handle as host, its meeting pub or place, and its start
+          day and time. Its page and shared link previews can also show the
+          meeting area, places left and a listed pint price range. Unavailable
+          details are omitted. The price range is per pint, not a total for the
+          night. It shows the oldest observation date across the priced stops
+          and labels the source as listed prices. It never names a publisher
+          or a remaining stop. Public discovery can also show how many people
+          are in the plan. The roster and remaining stops stay behind the member read.
+          Close the plan and it drops out of the public list.
         </p>
         <p className="legalBody">
           Each invitation records its sender member, recipient account, expiry

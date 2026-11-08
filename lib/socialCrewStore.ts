@@ -17,6 +17,7 @@ import {
   isSocialCrewRole,
   isSocialCrewVisibility,
   parseSocialCrewPublicPreviewSource,
+  parseSocialCrewShareCardSource,
   type SocialCrewMutationResult,
   type SocialCrewMutationCode,
   type SocialCrewJoinRequestQueueDTO,
@@ -24,6 +25,7 @@ import {
   type SocialCrewListPageDTO,
   type SocialCrewReadDTO,
   type SocialCrewPublicPreviewSource,
+  type SocialCrewShareCardSource,
   type SocialCrewRole,
   type SocialCrewVisibility,
 } from "@/lib/socialCrew";
@@ -67,6 +69,7 @@ type SocialCrewSnapshotRpcName =
   | "list_open_social_crews"
   | "read_social_crew_public_preview"
   | "read_social_crew_open_crawl"
+  | "read_social_crew_share_card"
   | "list_open_plan_crawls";
 
 function crewRpcNamesMatchCatalog(
@@ -146,6 +149,7 @@ type SocialCrewListInput = {
 export type SocialCrewStore = {
   read(crewId: string, actor: SocialPostActor): Promise<SocialCrewReadDTO>;
   readPublicPreview(crewId: string): Promise<SocialCrewPublicPreviewSource>;
+  readShareCard(crewId: string): Promise<SocialCrewShareCardSource>;
   list(
     actor: SocialPostActor,
     input: SocialCrewListInput,
@@ -477,6 +481,22 @@ export function createSocialCrewStore(
     }
   }
 
+  async function readPublicPreview(crewId: string): Promise<SocialCrewPublicPreviewSource> {
+    if (!isUuid(crewId)) return notFound();
+    let snapshot: unknown;
+    try {
+      snapshot = await dependencies.snapshot("read_social_crew_public_preview", {
+        p_crew_id: crewId,
+      });
+    } catch {
+      return unavailable();
+    }
+    if (snapshot === null) return notFound();
+    const parsed = parseSocialCrewPublicPreviewSource(snapshot);
+    if (!parsed) return unavailable();
+    return parsed;
+  }
+
   async function readOpenCrawlDetails(crewId: string): Promise<OpenCrawlDetails | null> {
     try {
       const value = await dependencies.snapshot("read_social_crew_open_crawl", { p_crew_id: crewId });
@@ -514,20 +534,47 @@ export function createSocialCrewStore(
       return { ...projected, openCrawl: await readOpenCrawlDetails(crewId) };
     },
 
-    async readPublicPreview(crewId) {
+    readPublicPreview,
+
+    async readShareCard(crewId) {
       if (!isUuid(crewId)) return notFound();
       let snapshot: unknown;
+      let read = false;
       try {
-        snapshot = await dependencies.snapshot("read_social_crew_public_preview", {
+        snapshot = await dependencies.snapshot("read_social_crew_share_card", {
+          p_crew_id: crewId,
+        });
+        read = true;
+      } catch {
+        read = false;
+      }
+      if (read) {
+        if (snapshot === null) return notFound();
+        const parsed = parseSocialCrewShareCardSource(snapshot);
+        if (parsed) return parsed;
+      }
+      const preview = await readPublicPreview(crewId);
+      let openCrawlSnapshot: unknown;
+      try {
+        openCrawlSnapshot = await dependencies.snapshot("read_social_crew_open_crawl", {
           p_crew_id: crewId,
         });
       } catch {
         return unavailable();
       }
-      if (snapshot === null) return notFound();
-      const parsed = parseSocialCrewPublicPreviewSource(snapshot);
-      if (!parsed) return unavailable();
-      return parsed;
+      const openCrawl = parseOpenCrawlDetails(openCrawlSnapshot);
+      if (openCrawlSnapshot !== null && !openCrawl) return unavailable();
+      return {
+        crewId: preview.crewId,
+        title: preview.title,
+        hostHandle: preview.hostHandle,
+        startsAt: preview.startsAt,
+        capacity: openCrawl?.capacity ?? null,
+        memberCount: null,
+        meetingVenueId: openCrawl?.meetingVenueId ?? preview.stopVenueId,
+        meetingVenueName: openCrawl?.meetingVenueName ?? preview.stopVenueName,
+        stopVenueIds: null,
+      };
     },
 
     async list(actor, input) {
