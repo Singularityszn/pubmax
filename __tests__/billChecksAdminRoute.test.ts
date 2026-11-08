@@ -25,7 +25,7 @@ const { gate } = vi.hoisted(() => ({ gate: { open: true } }));
 vi.mock("@/lib/adminAuth", () => ({ isModerator: () => gate.open }));
 
 const seams = vi.hoisted(() => ({
-  hidePrice: vi.fn(async () => ({ status: "ok" as const, changed: true, kind: "price" as const })),
+  hidePrice: vi.fn<typeof import("@/lib/communityPriceStore").moderateCommunityPriceWithState>(async () => ({ status: "ok", changed: true, kind: "price" })),
   syncHidden: vi.fn(async () => ({ status: "synced" as const })),
 }));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => ({
@@ -330,14 +330,26 @@ describe("POST /api/admin/bill-checks", () => {
     expect(seams.hidePrice).toHaveBeenCalledTimes(hidden ? 1 : 0);
   });
 
-  it("keeps a skipped community hide pending without reconciling the newer observation", async () => {
-    const check = await seedMismatch({ communityPriceId: "price-1" });
-    seams.hidePrice.mockResolvedValueOnce({ status: "ok", changed: false } as never);
-    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(503);
-    expect(seams.syncHidden).not.toHaveBeenCalled();
-    expect(await memoryBillCheckStore.listMismatchesForReview()).toMatchObject([{ id: check.id }]);
+  it.each([true, false])("completes a superseded check without changing or reconciling the correction, paired drop: %s", async (paired) => {
+    const submittedAt = Date.parse("2026-11-05T19:30:00.000Z");
+    const input = { venueId: VENUE, drinkCategory: "beer" as const, priceGbp: 4.5, actor: "billed-drinker" };
+    const { price } = await memoryCommunityPriceStore.submit(input, submittedAt);
+    if (!price?.id) throw new Error("Community price was not saved");
+    const check = await seedMismatch({ communityPriceId: price.id, ...(paired ? { pintDropId: "drop-1" } : {}) });
+    const correctedAt = submittedAt + 1_000;
+    const correction = await memoryCommunityPriceStore.submit({ ...input, priceGbp: 6.2 }, correctedAt);
+    expect(correction.price).toMatchObject({ id: price.id, priceGbp: 6.2, submittedAt: correctedAt });
+    const before = await memoryCommunityPriceStore.latestForVenue([VENUE], correctedAt);
+    expect(before.prices).toEqual([expect.objectContaining({ id: price.id, priceGbp: 6.2 })]);
+    const actual = await vi.importActual<typeof import("@/lib/communityPriceStore")>("@/lib/communityPriceStore");
+    seams.hidePrice.mockImplementationOnce(actual.moderateCommunityPriceWithState);
+
     expect((await post({ id: check.id, decision: "hidden" })).status).toBe(200);
+    if (paired) expect(findPintDropsByIds(["drop-1"]).get("drop-1")?.status).toBe("hidden");
+    expect(await memoryCommunityPriceStore.latestForVenue([VENUE], correctedAt)).toEqual(before);
+    expect(seams.syncHidden).not.toHaveBeenCalled();
     expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([]);
+    expect((await post({ id: check.id, decision: "hidden" })).status).toBe(404);
   });
 
   it("answers 404 to a check that is not waiting in the queue", async () => {
