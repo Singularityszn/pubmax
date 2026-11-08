@@ -264,8 +264,8 @@ The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.mjs
 Live Social uses the existing admin session and named moderator role for queue
 decisions. Check queue access and moderator ownership during each launch
 review. The Social safety queues require migration `0224` and the moderator
-configuration in [`.env.example`](../.env.example). The captain must explicitly
-authorise `apply 0224` before anyone applies that migration.
+configuration in [`.env.example`](../.env.example). Migration `0224` is unapplied.
+Only the captain applies it after explicitly saying `apply 0224`.
 
 1. Open `/admin` and find **Reports from people** or **Flagged DMs**.
 2. Use **View reported post**, **View reported comment**, **View reported quote**, or **View reported attachment** to inspect the reported item.

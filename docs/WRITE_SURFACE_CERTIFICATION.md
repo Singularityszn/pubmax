@@ -449,11 +449,12 @@ bodies.
 - **Abuse control:** POST uses the `admin-social-safety` hashed-IP limiter,
   with a limit of 60 requests per window, before the moderator check.
 - **Moderation:** POST resolves reports, reviews flagged messages, suspends
-  or reinstates accounts, and reads evidence for the reported item only.
-  Suspension changes and each evidence view write an audit row.
-  Media uses signed URLs that expire after 180 seconds.
+  or reinstates accounts, and reads reported evidence. The
+  [permission matrix](security/PERMISSION_MATRIX.md) owns the evidence scope,
+  audit requirements and media access limits.
 - **Failure:** malformed input returns 400, missing moderator access returns
-  403, and unavailable staff authority, storage or database reads return 503.
+  403, missing evidence or accounts return 404, and deleted accounts return 409.
+  Unavailable staff authority, storage or database reads return 503.
   Queue and evidence responses are private and no-store.
 
 ### Social Crew authority routes (routes 81-88)
