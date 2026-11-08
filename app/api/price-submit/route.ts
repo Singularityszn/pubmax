@@ -45,6 +45,8 @@
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
+import { v5 as uuidV5 } from "uuid";
+
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -293,7 +295,7 @@ export async function POST(request: Request): Promise<Response> {
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
   const submittedAt = Date.now();
-  const { price, failed, duplicateDrop } = await submitPriceObservation({
+  const { price, failed, duplicateDrop, dropId } = await submitPriceObservation({
     ...submission,
     actor: contributor.actor,
     contributorHandle: contributor.handle,
@@ -324,6 +326,7 @@ export async function POST(request: Request): Promise<Response> {
   if (pairsPintDrop) {
     const pairing = await pairSubmittedPintDrop(
       {
+        id: dropId,
         venueId: submission.venueId,
         handle: contributor.handle,
         drinkCategory: submission.drinkCategory,
@@ -404,10 +407,14 @@ export async function POST(request: Request): Promise<Response> {
   );
 }
 
+function observationDropId(id: string, submittedAt: number): string {
+  return uuidV5(String(submittedAt), id);
+}
+
 async function submitPriceObservation(
   input: CommunityPriceWrite & { contributorHandle: string },
   now: number,
-): Promise<CommunityPriceWriteResult & { duplicateDrop: PintDrop | null }> {
+): Promise<CommunityPriceWriteResult & { duplicateDrop: PintDrop | null; dropId?: string }> {
   if (input.drinkCategory === "beer") {
     let recent;
     try {
@@ -430,11 +437,12 @@ async function submitPriceObservation(
       const original = observations.find((row) =>
         row.actor === input.actor &&
         row.priceGbp === input.priceGbp &&
-        row.submittedAt <= Date.parse(duplicate.createdAt),
+        duplicate.id === observationDropId(row.id, row.submittedAt),
       );
       if (original) {
         return {
           duplicateDrop: duplicate,
+          dropId: duplicate.id,
           price: {
             id: original.id,
             venueId: original.venueId,
@@ -447,7 +455,15 @@ async function submitPriceObservation(
       }
     }
   }
-  return { ...(await submitCommunityPrice(input, now)), duplicateDrop: null };
+  const result = await submitCommunityPrice(input, now);
+  const { price } = result;
+  return {
+    ...result,
+    duplicateDrop: null,
+    ...(price?.id && price.submittedAt === now && price.priceGbp === input.priceGbp
+      ? { dropId: observationDropId(price.id, price.submittedAt) }
+      : {}),
+  };
 }
 
 async function pairSubmittedPintDrop(

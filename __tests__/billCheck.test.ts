@@ -57,7 +57,7 @@ describe("parseBillReadAnswer", () => {
     expect(read.lines).toEqual([{ name: "Stout", priceGbp: 5.2 }]);
   });
 
-  it("preserves product digits until judging and drops a line with only long numbers", () => {
+  it("preserves all product digits until judging", () => {
     const read = parseBillReadAnswer(bill([
       { name: "Visa **** 4921 1234", price_gbp: 6.2 },
       { name: "1234567890", price_gbp: 6.2 },
@@ -65,6 +65,7 @@ describe("parseBillReadAnswer", () => {
     ]));
     expect(read.lines).toEqual([
       { name: "Visa **** 4921 1234", priceGbp: 6.2 },
+      { name: "1234567890", priceGbp: 6.2 },
       { name: "Camden Hells bpint/b", priceGbp: 6.2 },
     ]);
   });
@@ -286,6 +287,19 @@ describe("judgeBill", () => {
       expect(judgeBill(read([[drink, 5.2]]), 5.2, shortened, "pint").result).toBe("unreadable");
     },
   );
+
+  it.each(["match", "mismatch"] as const)("judges the numeric beer alias before redacting %s evidence", (result) => {
+    const parsed = parseBillReadAnswer(bill([
+      { name: "1664", price_gbp: 5.2 },
+      { name: "Visa **** 4921 1234", price_gbp: 5.2 },
+    ]));
+    const verdict = judgeBill(parsed, result === "match" ? 5.2 : 6.2, "1664", "pint");
+    expect(verdict).toEqual({
+      result,
+      lines: result === "match" ? [] : [{ name: "Visa ****", priceGbp: 5.2 }],
+    });
+    expect(judgeBill(parsed, 5.2, "1234", "pint").result).toBe("unreadable");
+  });
 
   it.each(["match", "mismatch"] as const)("compares numeric product names before redacting %s evidence", (result) => {
     const parsed = parseBillReadAnswer(bill([

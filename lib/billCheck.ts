@@ -104,7 +104,7 @@ export function parseBillReadAnswer(answer: unknown): BillRead {
     const line = entry as Record<string, unknown>;
     const name = cleanLineName(line.name);
     const priceGbp = cleanLinePrice(line.price_gbp);
-    if (!cleanLineName(name.replace(/\d{4,}/g, " ")) || priceGbp === null) continue;
+    if (!name || priceGbp === null) continue;
     lines.push({ name, priceGbp });
   }
   return { lines };

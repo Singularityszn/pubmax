@@ -24,6 +24,7 @@ import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { reconcilePriceTrustForObservation } from "@/lib/priceTrustImpact.server";
 
 export type OneTapPintDropInput = Readonly<{
+  id?: string;
   venueId: string;
   handle: string;
   drinkCategory: DrinkCategory;
@@ -141,7 +142,7 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
       ? cleanDrinkMeasureLabel(input.measureLabel)
       : "";
   return {
-    id: randomUUID(),
+    id: input.id ?? randomUUID(),
     venueId: input.venueId,
     handle,
     drink: submitCategoryLabel(input.drinkCategory),

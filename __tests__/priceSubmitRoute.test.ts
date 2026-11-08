@@ -1064,7 +1064,45 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
     }
   });
 
-  it("checks a fresh bill after A then B then A and hides both current price targets", async () => {
+  it.each([0, 86_400_000])("reads a new bill beside a direct drop and a community observation aged %s ms", async (age) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const startedAt = Date.parse("2026-11-05T19:30:00.000Z");
+    vi.setSystemTime(startedAt);
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer" as const, priceGbp: 5.5, measure: "pint" };
+      const contributor = await resolveContributionIdentity(post(body));
+      if (!contributor.ok) throw new Error("Contributor was not authorised");
+      await memoryCommunityPriceStore.submit({
+        ...body,
+        actor: contributor.actor,
+        contributorHandle: contributor.handle,
+      }, startedAt - age);
+      const { POST: postDrop } = await import("@/app/api/pint-drops/route");
+      const form = new FormData();
+      form.set("venueId", body.venueId);
+      form.set("drink", "Beer");
+      form.set("handle", contributor.handle);
+      form.set("measure", "pint");
+      form.set("priceGbp", "5.50");
+      expect((await postDrop(new Request("http://localhost/api/pint-drops", { method: "POST", body: form }))).status).toBe(201);
+      const direct = defined(listVisiblePintDrops(body.venueId)[0]);
+      vi.setSystemTime(startedAt + 1_000);
+      const response = await POST(post(body, jpegFile("new-bill.jpg")));
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ billCheck: "reading", price: { submittedAt: startedAt + 1_000 } });
+      expect(listVisiblePintDrops(body.venueId)).toHaveLength(2);
+      expect(listVisiblePintDrops(body.venueId)).toContainEqual(direct);
+      expect(scheduled()).toHaveLength(1);
+      const run = defined(scheduled()[0]);
+      expect(run).toMatchObject({ communityPriceSubmittedAt: startedAt + 1_000, photo: expect.objectContaining({ name: "new-bill.jpg" }) });
+      expect(run.pintDropId).not.toBe(direct.id);
+      expect(listVisiblePintDrops(body.venueId).some((drop) => drop.id === run.pintDropId)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("checks a fresh bill after A then B then A and hides only the checked submission", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const startedAt = Date.parse("2026-11-05T19:30:00.000Z");
     vi.setSystemTime(startedAt);
@@ -1086,6 +1124,8 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       expect(latest.photo.name).toBe("latest.jpg");
       expect(latest.communityPriceSubmittedAt).toBe(startedAt + 2_000);
       expect(listVisiblePintDrops(body.venueId)).toHaveLength(3);
+      const earlierDrops = listVisiblePintDrops(body.venueId).filter((drop) => drop.id !== latest.pintDropId)
+        .map((drop) => structuredClone(drop));
       vi.setSystemTime(startedAt + 3_000);
       const retry = await POST(post(body, jpegFile("retry.jpg")));
       expect(retry.status).toBe(201);
@@ -1108,6 +1148,7 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       }));
       expect(hidden.status).toBe(200);
       expect(listVisiblePintDrops(body.venueId).some((drop) => drop.id === latest.pintDropId)).toBe(false);
+      expect(listVisiblePintDrops(body.venueId)).toEqual(earlierDrops);
       expect(await readCommunityPrices(body.venueId)).toEqual([]);
     } finally {
       vi.useRealTimers();
