@@ -215,7 +215,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     };
   }
 
-  const lateFood = unsupported ? null : answerLateFoodQuestion(ctx);
+  const lateFood = unsupported ? null : answerLateFoodQuestion(ctx, input.turns);
   let toolResults: AskToolResult[] = lateFood ? [lateFood] : deterministicOnly
     ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
     : [];
