@@ -1,104 +1,306 @@
-// Every tool download in a required workflow retries (Firstmate decision,
-// 8 Nov 2026). Security CI and RLS session tests are required checks, and a
-// GitHub release asset that answered 504 once removed two green pull requests
-// from the merge queue. A download retry is not a test retry: the checksum
+// Every tool download in a required workflow survives a GitHub release outage
+// (Firstmate decisions, 8 Nov 2026). Security CI and RLS session tests are
+// required checks. GitHub release assets answered 504 to hosted runners for
+// most of an hour, and the merge queue removed green pull requests because
+// those summaries went red. A download retry is not a test retry: the checksum
 // still checks the bytes, and a test that passes only on retry still fails its
 // gate (scripts/assert-playwright-gate.mjs).
 //
-// Each install step runs under bash with `curl` and `sudo` replaced by
-// recorders, so the test reads the arguments the step really passes.
+// The Security CI tools install through scripts/ci/install-pinned-tool.sh: the
+// cached release download, else the release download with a long retry
+// window, else a verified source that is not a GitHub release. The script runs
+// here for real, with curl, python3, go and sudo replaced by recorders.
 
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-type Step = { name?: string; run?: string };
+type Step = { name?: string; run?: string; uses?: string; env?: Record<string, string>; with?: Record<string, string> };
 type Workflow = { jobs: Record<string, { steps?: Step[] }> };
 
 const ROOT = process.cwd();
+const INSTALLER = join(ROOT, "scripts/ci/install-pinned-tool.sh");
 const REQUIRED_WORKFLOWS = ["ci.yml", "e2e.yml", "rls-session.yml", "security-ci.yml", "freshness.yml"];
 
-const scratch = mkdtempSync(join(tmpdir(), "ci-download-retries-"));
+const scratch = mkdtempSync(join(tmpdir(), "ci-tool-install-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
-function recorder(name: string, log: string, exitCode: number): string {
-  const bin = mkdtempSync(join(scratch, `${name}-`));
-  const path = join(bin, name);
-  writeFileSync(path, `#!/bin/sh\nprintf '%s\\0' "$@" >> "${log}"\nprintf '\\n' >> "${log}"\nexit ${exitCode}\n`);
-  chmodSync(path, 0o755);
-  return bin;
+function dir(name: string): string {
+  return mkdtempSync(join(scratch, `${name}-`));
 }
 
-type Calls = { curl: string[][]; sudo: string[][] };
+function script(path: string, body: string): void {
+  writeFileSync(path, `#!/bin/sh\n${body}\n`);
+  chmodSync(path, 0o755);
+}
 
-/** Run one step's script until its first download, recording curl and sudo calls. */
-function runStep(run: string): Calls {
-  const curlLog = join(mkdtempSync(join(scratch, "log-")), "curl.log");
-  const sudoLog = join(mkdtempSync(join(scratch, "log-")), "sudo.log");
-  writeFileSync(curlLog, "");
-  writeFileSync(sudoLog, "");
-  // curl fails, so `set -e` stops the step before its checksum and install.
-  const curlBin = recorder("curl", curlLog, 22);
-  const sudoBin = recorder("sudo", sudoLog, 0);
-  spawnSync("bash", ["-c", run], {
+function readCalls(log: string): string[][] {
+  if (!existsSync(log)) return [];
+  return readFileSync(log, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.split("\0").filter(Boolean));
+}
+
+const RECORD = (log: string) => `printf '%s\\0' "$@" >> "${log}"; printf '\\n' >> "${log}"`;
+
+function workflow(file: string): Workflow {
+  return parse(readFileSync(join(ROOT, ".github/workflows", file), "utf8")) as Workflow;
+}
+
+describe("the required workflows", () => {
+  const securityJobs = Object.entries(workflow("security-ci.yml").jobs).flatMap(([job, { steps = [] }]) =>
+    steps.flatMap((step, index) =>
+      step.run?.includes("scripts/ci/install-pinned-tool.sh") ? [{ job, step, before: steps[index - 1] }] : [],
+    ),
+  );
+
+  it("installs zizmor, osv-scanner and gitleaks through the pinned installer", () => {
+    expect(securityJobs.map(({ step }) => step.env?.TOOL_NAME).sort()).toEqual(["gitleaks", "osv-scanner", "zizmor"]);
+  });
+
+  it.each(securityJobs.map((entry) => [entry.step.env?.TOOL_NAME, entry] as const))(
+    "%s restores its download from a cache keyed on version and checksum",
+    (_tool, { step, before }) => {
+      const env = step.env ?? {};
+      expect(before?.uses).toMatch(/^actions\/cache@[0-9a-f]{40}$/);
+      expect(before?.with?.path).toBe("~/.cache/pubmax-tools");
+      expect(before?.with?.key).toContain(env.TOOL_VERSION);
+      expect(before?.with?.key).toContain(env.TOOL_SHA256);
+      expect(env.TOOL_SHA256).toMatch(/^[0-9a-f]{64}$/);
+      expect(env.TOOL_URL).toMatch(/^https:\/\/github\.com\/.+\/releases\/download\//);
+      expect(env.TOOL_URL).toContain(env.TOOL_VERSION);
+      if (env.TOOL_FALLBACK === "pip") {
+        expect(env.TOOL_PIP_REQUIREMENT).toMatch(new RegExp(`==${env.TOOL_VERSION} --hash=sha256:[0-9a-f]{64}$`));
+      } else {
+        expect(env.TOOL_FALLBACK).toBe("go");
+        expect(env.TOOL_GO_MODULE).toMatch(new RegExp(`@v${env.TOOL_VERSION}$`));
+      }
+    },
+  );
+
+  // A download that is still a plain curl in a step retries over a window.
+  const curlSteps = REQUIRED_WORKFLOWS.flatMap((file) =>
+    Object.values(workflow(file).jobs).flatMap(({ steps = [] }) =>
+      steps.filter((step) => /\b(curl|apt-get)\b/.test(step.run ?? "")).map((step) => ({ file, step })),
+    ),
+  );
+
+  it("records the PostgREST and PostgreSQL downloads in RLS session tests", () => {
+    expect(curlSteps.map(({ file }) => file)).toContain("rls-session.yml");
+  });
+
+  it.each(curlSteps.map((entry) => [`${entry.file} / ${entry.step.name}`, entry] as const))(
+    "%s retries every download",
+    (_where, { step }) => {
+      const curlLog = join(dir("log"), "curl.log");
+      const sudoLog = join(dir("log"), "sudo.log");
+      const bin = dir("bin");
+      script(join(bin, "curl"), `${RECORD(curlLog)}\nexit 22`);
+      script(join(bin, "sudo"), RECORD(sudoLog));
+      spawnSync("bash", ["-c", step.run ?? ""], {
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: dir("runner"), GITHUB_PATH: join(scratch, "path") },
+      });
+      const curls = readCalls(curlLog);
+      expect(curls.length).toBeGreaterThan(0);
+      for (const args of curls) expectRetryWindow(args);
+      const apt = readCalls(sudoLog).filter((args) => args[0] === "apt-get");
+      expect(apt.length).toBeGreaterThan(0);
+      for (const args of apt) expect(args.slice(0, 3)).toEqual(["apt-get", "-o", "Acquire::Retries=5"]);
+    },
+  );
+});
+
+function expectRetryWindow(args: string[]): void {
+  const value = (flag: string) => Number(args[args.indexOf(flag) + 1]);
+  expect(args).toEqual(expect.arrayContaining(["--fail", "--retry-all-errors"]));
+  expect(value("--retry")).toBeGreaterThanOrEqual(5);
+  // Five quick retries covered about 30 seconds and lost to a longer outage.
+  expect(value("--retry-max-time")).toBeGreaterThanOrEqual(300);
+  expect(value("--connect-timeout")).toBeGreaterThan(0);
+}
+
+/** A release asset: a tar.gz holding a tool that prints its version. */
+function releaseAsset(tool: string, version: string): { path: string; sha256: string } {
+  const src = dir("asset-src");
+  script(join(src, tool), `echo "${tool} ${version} (release)"`);
+  const path = join(dir("asset"), `${tool}.tar.gz`);
+  const tar = spawnSync("tar", ["-czf", path, "-C", src, tool]);
+  expect(tar.status).toBe(0);
+  return { path, sha256: createHash("sha256").update(readFileSync(path)).digest("hex") };
+}
+
+type Run = { status: number | null; stdout: string; stderr: string; curl: string[][]; pip: string[][]; go: string[][]; installed: string };
+
+function install(options: {
+  tool?: string;
+  version?: string;
+  sha256: string;
+  serve?: string;
+  fallback: "pip" | "go";
+  cache: string;
+  goVersion?: string;
+  goOnPath?: boolean;
+}): Run {
+  const tool = options.tool ?? "zizmor";
+  const version = options.version ?? "1.30.1";
+  const bin = dir("bin");
+  const logs = dir("logs");
+  const curlLog = join(logs, "curl");
+  const pipLog = join(logs, "pip");
+  const goLog = join(logs, "go");
+  const target = dir("target");
+  const toolCache = dir("toolcache");
+  // curl copies the served asset to --output, or fails like a 504.
+  script(
+    join(bin, "curl"),
+    `${RECORD(curlLog)}\n${
+      options.serve
+        ? `while [ $# -gt 0 ]; do if [ "$1" = --output ]; then cp "${options.serve}" "$2"; fi; shift; done; exit 0`
+        : "exit 22"
+    }`,
+  );
+  // python3 -m venv DIR makes a pip that records its arguments and the
+  // requirements file, then provides the tool.
+  script(
+    join(bin, "python3"),
+    `mkdir -p "$3/bin"
+cat > "$3/bin/pip" <<'PIP'
+#!/bin/sh
+printf '%s\\0' "$@" >> "${pipLog}"; printf '\\n' >> "${pipLog}"
+while [ $# -gt 0 ]; do if [ "$1" = --requirement ]; then printf 'REQ\\0%s\\n' "$(cat "$2")" >> "${pipLog}"; fi; shift; done
+dir=$(dirname "$0")
+printf '#!/bin/sh\\necho "${tool} ${version} (pip)"\\n' > "$dir/${tool}"; chmod +x "$dir/${tool}"
+PIP
+chmod +x "$3/bin/pip"`,
+  );
+  const goScript = `if [ "$1" = install ]; then
+  ${RECORD(goLog)}
+  printf 'ENV\\0%s\\0%s\\0%s\\0%s\\n' "GOPROXY=$GOPROXY" "GOSUMDB=$GOSUMDB" "GOTOOLCHAIN=$GOTOOLCHAIN" "GOFLAGS=$GOFLAGS" >> "${goLog}"
+  mkdir -p "$GOBIN"; printf '#!/bin/sh\\necho "${tool} (go)"\\n' > "$GOBIN/${tool}"; chmod +x "$GOBIN/${tool}"
+elif [ "$1" = version ]; then
+  printf '%s: go1.27.0\\n\\tpath\\tthe/cmd\\n\\tmod\\tthe/module\\t${options.goVersion ?? `v${version}`}\\th1:abc=\\n' "$3"
+fi`;
+  if (options.goOnPath === false) {
+    const goBin = join(toolCache, "go", "1.26.10", "x64", "bin");
+    mkdirSync(goBin, { recursive: true });
+    script(join(goBin, "go"), goScript);
+  } else {
+    script(join(bin, "go"), goScript);
+  }
+  script(join(bin, "sudo"), `"$@"`);
+  const result = spawnSync("bash", [INSTALLER], {
     encoding: "utf8",
     env: {
-      ...process.env,
-      PATH: `${curlBin}:${sudoBin}:${process.env.PATH}`,
-      RUNNER_TEMP: mkdtempSync(join(scratch, "runner-")),
-      GITHUB_PATH: join(scratch, "github-path"),
+      NODE_ENV: "test",
+      PATH: `${bin}:/usr/bin:/bin:/usr/sbin:/sbin`,
+      HOME: dir("home"),
+      TOOL_NAME: tool,
+      TOOL_VERSION: version,
+      TOOL_URL: `https://github.com/example/${tool}/releases/download/v${version}/${tool}.tar.gz`,
+      TOOL_SHA256: options.sha256,
+      TOOL_ARCHIVE: "tar.gz",
+      TOOL_FALLBACK: options.fallback,
+      TOOL_PIP_REQUIREMENT: `${tool}==${version} --hash=sha256:${"e".repeat(64)}`,
+      TOOL_GO_MODULE: `the/module/cmd/${tool}@v${version}`,
+      PUBMAX_TOOL_CACHE: options.cache,
+      PUBMAX_TOOL_BIN: target,
+      RUNNER_TOOL_CACHE: toolCache,
     },
   });
-  const read = (log: string) =>
-    readFileSync(log, "utf8")
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => line.split("\0").filter(Boolean));
-  return { curl: read(curlLog), sudo: read(sudoLog) };
+  const binary = join(target, tool);
+  const installed = existsSync(binary) ? spawnSync(binary, { encoding: "utf8" }).stdout.trim() : "";
+  return {
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    curl: readCalls(curlLog),
+    pip: readCalls(pipLog),
+    go: readCalls(goLog),
+    installed,
+  };
 }
 
-const downloadSteps = REQUIRED_WORKFLOWS.flatMap((file) => {
-  const { jobs } = parse(readFileSync(join(ROOT, ".github/workflows", file), "utf8")) as Workflow;
-  return Object.entries(jobs).flatMap(([job, { steps = [] }]) =>
-    steps
-      .filter((step) => /\b(curl|apt-get)\b/.test(step.run ?? ""))
-      .map((step) => ({ file, where: `${file} / ${job} / ${step.name}`, calls: runStep(step.run ?? "") })),
-  );
-});
+describe("scripts/ci/install-pinned-tool.sh", () => {
+  it("installs the release download when it matches the pin, retrying over a window, and caches it", () => {
+    const asset = releaseAsset("zizmor", "1.30.1");
+    const cache = dir("cache");
+    const run = install({ sha256: asset.sha256, serve: asset.path, fallback: "pip", cache });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.installed).toBe("zizmor 1.30.1 (release)");
+    expect(run.curl).toHaveLength(1);
+    expectRetryWindow(defined(run.curl[0]));
+    expect(run.pip).toEqual([]);
 
-describe("tool downloads in the required workflows", () => {
-  it.each(["security-ci.yml", "rls-session.yml"])("records a curl download in %s", (file) => {
-    const curlCalls = downloadSteps.filter((step) => step.file === file).flatMap(({ calls }) => calls.curl);
-    expect(curlCalls.length).toBeGreaterThan(0);
+    // The next run finds the verified download in the cache and asks no one.
+    const again = install({ sha256: asset.sha256, fallback: "pip", cache });
+    expect(again.status, again.stderr).toBe(0);
+    expect(again.installed).toBe("zizmor 1.30.1 (release)");
+    expect(again.curl).toEqual([]);
+    expect(again.stdout).toContain("from the cache source");
   });
 
-  it.each(downloadSteps.map((entry) => [entry.where, entry] as const))(
-    "%s retries a failed or timed-out download",
-    (_where, { calls }) => {
-      for (const args of calls.curl) {
-        expect(args).toEqual(expect.arrayContaining(["--fail", "--retry-all-errors"]));
-        expect(Number(args[args.indexOf("--retry") + 1])).toBe(5);
-        expect(Number(args[args.indexOf("--connect-timeout") + 1])).toBeGreaterThan(0);
-        expect(args.some((arg) => arg.startsWith("https://github.com/"))).toBe(true);
-      }
-      for (const args of calls.sudo.filter((call) => call[0] === "apt-get")) {
-        expect(args.slice(0, 3)).toEqual(["apt-get", "-o", "Acquire::Retries=5"]);
-      }
-    },
-  );
+  it("discards a cached download that no longer matches the pin", () => {
+    const asset = releaseAsset("zizmor", "1.30.1");
+    const cache = dir("cache");
+    writeFileSync(join(cache, `zizmor-1.30.1-${asset.sha256}`), "tampered");
+    const run = install({ sha256: asset.sha256, serve: asset.path, fallback: "pip", cache });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.curl).toHaveLength(1);
+    expect(run.installed).toBe("zizmor 1.30.1 (release)");
+  });
 
-  it("installs PostgreSQL through apt-get with retries before PostgREST", () => {
-    const aptCalls = downloadSteps
-      .filter(({ file }) => file === "rls-session.yml")
-      .flatMap(({ calls }) => calls.sudo)
-      .filter((args) => args[0] === "apt-get");
-    expect(aptCalls.map((args) => args.filter((arg) => !arg.startsWith("-") && !arg.includes("=")))).toEqual([
-      ["apt-get", "update"],
-      ["apt-get", "install", "postgresql-16"],
+  it("never installs a release download that does not match the pin", () => {
+    const asset = releaseAsset("zizmor", "1.30.1");
+    const run = install({ sha256: "0".repeat(64), serve: asset.path, fallback: "pip", cache: dir("cache") });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.installed).toBe("zizmor 1.30.1 (pip)");
+  });
+
+  it("installs zizmor from a hash-pinned wheel when GitHub releases fail", () => {
+    const run = install({ sha256: "a".repeat(64), fallback: "pip", cache: dir("cache") });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.installed).toBe("zizmor 1.30.1 (pip)");
+    expect(run.stdout).toContain("::warning::zizmor 1.30.1");
+    const [args, requirement] = run.pip;
+    expect(args).toEqual(expect.arrayContaining(["install", "--require-hashes", "--no-deps", "--only-binary=:all:"]));
+    expect(requirement).toEqual(["REQ", `zizmor==1.30.1 --hash=sha256:${"e".repeat(64)}`]);
+  });
+
+  it("builds a Go tool through the module proxy and checksum database when GitHub releases fail", () => {
+    const run = install({ tool: "gitleaks", version: "8.30.0", sha256: "a".repeat(64), fallback: "go", cache: dir("cache") });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.installed).toBe("gitleaks (go)");
+    expect(run.go[0]).toEqual(["install", "the/module/cmd/gitleaks@v8.30.0"]);
+    expect(run.go[1]).toEqual([
+      "ENV",
+      "GOPROXY=https://proxy.golang.org",
+      "GOSUMDB=sum.golang.org",
+      "GOTOOLCHAIN=auto",
+      "GOFLAGS=-mod=mod",
     ]);
   });
+
+  it("refuses a Go build that was not made from the pinned version", () => {
+    const run = install({ tool: "osv-scanner", version: "2.6.0", sha256: "a".repeat(64), fallback: "go", goVersion: "v2.5.9", cache: dir("cache") });
+    expect(run.status).not.toBe(0);
+    expect(run.installed).toBe("");
+    expect(run.stderr).toContain("was not built from v2.6.0");
+  });
+
+  it("finds Go in the runner tool cache when it is not on PATH", () => {
+    const run = install({ tool: "osv-scanner", version: "2.6.0", sha256: "a".repeat(64), fallback: "go", goOnPath: false, cache: dir("cache") });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.installed).toBe("osv-scanner (go)");
+  });
 });
+
+function defined<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error("expected a value");
+  return value;
+}

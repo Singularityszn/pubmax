@@ -175,18 +175,36 @@ them installs them:
 - **zizmor 1.30.1, osv-scanner 2.6.0, gitleaks 8.30.0 and Semgrep 1.179.0** in
   `security-ci.yml`, each checksummed or version-pinned.
 
-Direct `curl` downloads in
-[`security-ci.yml`](../.github/workflows/security-ci.yml) and
-[`rls-session.yml`](../.github/workflows/rls-session.yml) retry failed or
-timed-out requests. The RLS job also enables retries for PostgreSQL package
-downloads through `apt-get`. These workflow files own the retry options.
+GitHub release assets answered 504 to hosted runners for most of an hour on
+8 Nov 2026, so every tool download in a required workflow is built to outlast
+an outage. The Security CI tools (zizmor, osv-scanner and gitleaks) install
+through [`scripts/ci/install-pinned-tool.sh`](../scripts/ci/install-pinned-tool.sh).
+The workflow step names the pins: version, release URL, sha256 and fallback.
+The script tries three sources in order and installs from the first that
+works:
 
-The downloads still require checksum verification.
+1. The cached release download. `actions/cache` restores
+   `~/.cache/pubmax-tools` with a key built from the version and the sha256,
+   and the script uses the file only when its sha256 still matches.
+2. The release download, with `curl --retry 8 --retry-delay 15
+   --retry-max-time 300 --retry-all-errors --connect-timeout 30`. The script
+   keeps it only when its sha256 matches.
+3. A source that is not a GitHub release. zizmor installs from its PyPI wheel
+   with `pip --require-hashes` and the wheel's sha256. osv-scanner and gitleaks
+   build with `go install` at the pinned version through `proxy.golang.org`,
+   checked against `sum.golang.org`, and the script then checks the version the
+   binary was built from. The step logs a warning when it uses this source.
+
+PostgREST in [`rls-session.yml`](../.github/workflows/rls-session.yml) still
+uses a single checksummed `curl` with the same retry window, and the
+PostgreSQL packages install through `apt-get -o Acquire::Retries=5`.
+
 [`ciToolDownloadRetries.test.ts`](../__tests__/ciToolDownloadRetries.test.ts)
-records `curl` and `sudo` arguments and checks the retry options. Its `curl`
-recorder fails before checksum verification or installation, so the test does
-not exercise those commands. Test retries follow
-[the required-check policy](#the-required-checks-and-the-merge-queue).
+holds the workflow steps to the cache key and the pins. It also runs the
+script through each source, a damaged cache and a checksum mismatch, with
+`curl`, `python3`, `go` and `sudo` replaced by recorders. A download retry is
+not a test retry. A test that passes only on retry still fails its gate, as
+[the required-check policy](#the-required-checks-and-the-merge-queue) says.
 
 `PW_PORT` still comes from `.github/actions/pubmax-playwright-port`. Each
 hosted job has its own network namespace, so two jobs cannot collide. A Mac

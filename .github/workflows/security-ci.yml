@@ -38,20 +38,27 @@ jobs:
         with:
           persist-credentials: false
 
-      # Every tool download retries a failed or timed-out request (a GitHub
-      # release asset answered 504 in the merge queue on 8 Nov 2026); the
-      # checksum still checks the bytes. docs/CI_RUNBOOK.md, "What a job installs".
+      # A pinned, checksummed tool: the cached release download, else the
+      # release download with retries, else a source that is not a GitHub
+      # release (scripts/ci/install-pinned-tool.sh; docs/CI_RUNBOOK.md,
+      # "What a job installs"). The cache key is the version and checksum.
+      - name: Restore the pinned zizmor download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pubmax-tools
+          key: pubmax-tool-zizmor-1.30.1-e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
+
       - name: Install zizmor
+        env:
+          TOOL_NAME: zizmor
+          TOOL_VERSION: 1.30.1
+          TOOL_URL: https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz
+          TOOL_SHA256: e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
+          TOOL_ARCHIVE: tar.gz
+          TOOL_FALLBACK: pip
+          TOOL_PIP_REQUIREMENT: "zizmor==1.30.1 --hash=sha256:eee12266b793cb87ad4a7e3af2e72404f8a63e3de5eb099b80bf7b1cfd232a8e"
         run: |
-          set -euo pipefail
-          curl --fail --location --silent --show-error \
-            --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 \
-            --output "$RUNNER_TEMP/zizmor.tar.gz" \
-            https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz
-          echo "e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a  $RUNNER_TEMP/zizmor.tar.gz" \
-            | sha256sum --check
-          tar --extract --gzip --file "$RUNNER_TEMP/zizmor.tar.gz" --directory "$RUNNER_TEMP"
-          sudo mv "$RUNNER_TEMP/zizmor" /usr/local/bin/zizmor
+          scripts/ci/install-pinned-tool.sh
           zizmor --version
 
       # Online, so the audits that ask GitHub about each pinned action
@@ -72,17 +79,27 @@ jobs:
         with:
           persist-credentials: false
 
+      # A pinned, checksummed tool: the cached release download, else the
+      # release download with retries, else a source that is not a GitHub
+      # release (scripts/ci/install-pinned-tool.sh; docs/CI_RUNBOOK.md,
+      # "What a job installs"). The cache key is the version and checksum.
+      - name: Restore the pinned osv-scanner download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pubmax-tools
+          key: pubmax-tool-osv-scanner-2.6.0-ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108
+
       - name: Install osv-scanner
+        env:
+          TOOL_NAME: osv-scanner
+          TOOL_VERSION: 2.6.0
+          TOOL_URL: https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64
+          TOOL_SHA256: ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108
+          TOOL_ARCHIVE: binary
+          TOOL_FALLBACK: go
+          TOOL_GO_MODULE: github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.6.0
         run: |
-          set -euo pipefail
-          curl --fail --location --silent --show-error \
-            --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 \
-            --output "$RUNNER_TEMP/osv-scanner" \
-            https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64
-          echo "ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108  $RUNNER_TEMP/osv-scanner" \
-            | sha256sum --check
-          chmod +x "$RUNNER_TEMP/osv-scanner"
-          sudo mv "$RUNNER_TEMP/osv-scanner" /usr/local/bin/osv-scanner
+          scripts/ci/install-pinned-tool.sh
           osv-scanner --version
 
       # Recursive, so scripts/chatgpt-map, the iOS Package.resolved and any
@@ -104,17 +121,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # A pinned, checksummed tool: the cached release download, else the
+      # release download with retries, else a source that is not a GitHub
+      # release (scripts/ci/install-pinned-tool.sh; docs/CI_RUNBOOK.md,
+      # "What a job installs"). The cache key is the version and checksum.
+      - name: Restore the pinned gitleaks download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pubmax-tools
+          key: pubmax-tool-gitleaks-8.30.0-79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e
+
       - name: Install gitleaks
+        env:
+          TOOL_NAME: gitleaks
+          TOOL_VERSION: 8.30.0
+          TOOL_URL: https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz
+          TOOL_SHA256: 79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e
+          TOOL_ARCHIVE: tar.gz
+          TOOL_FALLBACK: go
+          TOOL_GO_MODULE: github.com/zricethezav/gitleaks/v8@v8.30.0
         run: |
-          set -euo pipefail
-          curl --fail --location --silent --show-error \
-            --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 \
-            --output "$RUNNER_TEMP/gitleaks.tar.gz" \
-            https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz
-          echo "79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e  $RUNNER_TEMP/gitleaks.tar.gz" \
-            | sha256sum --check
-          tar --extract --gzip --file "$RUNNER_TEMP/gitleaks.tar.gz" --directory "$RUNNER_TEMP" gitleaks
-          sudo mv "$RUNNER_TEMP/gitleaks" /usr/local/bin/gitleaks
+          scripts/ci/install-pinned-tool.sh
           gitleaks version
 
       # --redact keeps a found value out of the job log. The allowlists and
