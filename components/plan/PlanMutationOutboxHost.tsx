@@ -10,7 +10,6 @@ import { requestNightModeEndingFromFlush } from "@/lib/nightModeHandoff";
 import {
   applyActivePlanFlushRollbacks,
   flushPlanMutationOutbox,
-  removePlanMutationOutboxEntry,
   subscribePlanMutationOutbox,
 } from "@/lib/planMutationOutbox";
 
@@ -22,13 +21,6 @@ export default function PlanMutationOutboxHost() {
         for (const result of results) {
           if (result.outcome === "confirmed") {
             requestNightModeEndingFromFlush(result);
-          }
-          if (
-            result.outcome === "forbidden" ||
-            result.outcome === "rejected" ||
-            result.outcome === "conflict"
-          ) {
-            removePlanMutationOutboxEntry(result.entryId);
           }
         }
       });
