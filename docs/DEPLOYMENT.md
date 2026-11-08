@@ -46,11 +46,16 @@ The `x-admin-token` header remains available for scripts.
 | Var | Purpose |
 |---|---|
 | `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
-| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask). Pal typed chat and voice do not use OpenRouter. |
+| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask) when `ANTHROPIC_API_KEY` is unset. Pal typed chat and voice do not use OpenRouter. |
+
+### Optional user chat on Claude
+
+[Claude setup](PUB_PAL_SETUP.md#typed-chat-on-claude) owns `ANTHROPIC_API_KEY`, spend limits, and the shared `PUB_PAL_CLAUDE_MODEL` setting for Pub Pal typed chat and map Ask.
 
 ### Pub Pal voice and hosted typed chat (ElevenLabs)
 
-Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs (`/api/pub-pal/chat` falls back to the same grounded `runAsk` tools). Voice and the hosted-LLM typed path need the agent values below. Full runbook: `docs/PUB_PAL_SETUP.md`.
+For provider selection and keyless behaviour, see [Pub Pal setup](PUB_PAL_SETUP.md).
+Voice and the ElevenLabs typed path need the agent values below.
 
 | Var | Purpose |
 |---|---|

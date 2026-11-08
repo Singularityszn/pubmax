@@ -22,11 +22,16 @@ function transcript(query: string, body: { answer: string; toolsUsed: string[] }
 
 export async function runPalEvalSuite(options: RunPalEvalOptions): Promise<PalEvalScoreboard> {
   const typesafeKey = process.env.TYPESAFE_API_KEY;
+  // The live suite scores the OpenRouter loop and meters it through fetch. A
+  // Claude key would send Ask to Claude instead, so it is held back too.
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
   delete process.env.TYPESAFE_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
   try {
     return await runSuiteWithoutTypesafe(options);
   } finally {
     if (typesafeKey !== undefined) process.env.TYPESAFE_API_KEY = typesafeKey;
+    if (anthropicKey !== undefined) process.env.ANTHROPIC_API_KEY = anthropicKey;
   }
 }
 
