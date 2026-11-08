@@ -45,7 +45,7 @@
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
-import { v5 as uuidV5 } from "uuid";
+import { createHash } from "node:crypto";
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
@@ -410,7 +410,14 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 function observationDropId(id: string, submittedAt: number, priceGbp: number): string {
-  return uuidV5(`${submittedAt}:${priceGbp}`, id);
+  const hash = createHash("sha1")
+    .update(Buffer.from(id.replaceAll("-", ""), "hex"))
+    .update(`${submittedAt}:${priceGbp}`)
+    .digest();
+  hash.writeUInt8((hash.readUInt8(6) & 0x0f) | 0x50, 6);
+  hash.writeUInt8((hash.readUInt8(8) & 0x3f) | 0x80, 8);
+  const hex = hash.toString("hex", 0, 16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 async function submitPriceObservation(
