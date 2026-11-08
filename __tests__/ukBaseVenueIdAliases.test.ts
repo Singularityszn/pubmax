@@ -70,6 +70,14 @@ describe("ukBaseIdDepartures", () => {
     ]);
   });
 
+  it("sends the way of a pub OSM maps twice to the node the build keeps", () => {
+    const node = row("n1", "The Swan", 51.5, -0.1);
+    const way = row("w2", "The Swan", 51.50005, -0.1);
+    expect(ukBaseIdDepartures([node, way], [node], NO_CURATED, new Map([["w2", "n1"]]))).toEqual([
+      expect.objectContaining({ from: "venue-uk-w2", to: "venue-uk-n1" }),
+    ]);
+  });
+
   it("names no successor for a same-named pub over 50 m away, or a different pub next door", () => {
     const node = row("n1", "The Bell", 51.5, -0.1);
     const far = row("w2", "The Bell", 51.5006, -0.1);
