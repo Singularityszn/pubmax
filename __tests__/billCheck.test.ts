@@ -266,13 +266,28 @@ describe("judgeBill", () => {
     expect(judgeBill(read([[product, 5.2]]), 5.2, served, measure).result).toBe("match");
     expect(judgeBill(read([[served, 5.2]]), 5.2, product, different).result).toBe("mismatch");
     expect(judgeBill(read([[product, 5.2]]), 5.2, served, different).result).toBe("mismatch");
-    expect(judgeBill(read([[served, 5.2]]), 5.2, served, different).result).toBe("mismatch");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, served, different).result).toBe("match");
     expect(judgeBill(read([[served, 5.2]]), 5.2, `${different} ${product}`).result).toBe("mismatch");
     expect(judgeBill(read([[served, 5.2]]), 5.2, `${product} ${measure}`, measure).result).toBe("match");
     expect(judgeBill(read([[`${product} ${measure}`, 5.2]]), 5.2, served, measure).result).toBe("match");
     expect(judgeBill(read([[served, 5.2]]), 5.2, product).result).toBe("match");
     expect(judgeBill(read([[product, 5.2]]), 5.2, served).result).toBe("match");
     expect(judgeBill(read([[served, 5.2]]), 5.3, product, measure).result).toBe("mismatch");
+  });
+
+  it.each([
+    "Double Chocolate Stout",
+    "Single Hop Pale Ale",
+    "Bottle Conditioned Ale",
+    "Half Baked Pale Ale",
+    "Pint Sized Pale Ale",
+  ])("preserves a shared product prefix in %s", (drink) => {
+    const lines = read([[drink, 5.2]]);
+    expect(judgeBill(lines, 5.2, drink, "pint")).toEqual({ result: "match", lines: lines.lines });
+    expect(judgeBill(lines, 5.2, drink).result).toBe("match");
+    expect(judgeBill(lines, 5.3, drink, "pint").result).toBe("mismatch");
+    expect(judgeBill(read([[`${drink} pint`, 5.2]]), 5.2, drink, "pint").result).toBe("match");
+    expect(judgeBill(lines, 5.2, `${drink} pint`, "pint").result).toBe("match");
   });
 
   it.each(["Double IPA", "Single Malt Whisky", "Half Moon IPA", "Bottle Rocket IPA", "Halfway House Pale"])(

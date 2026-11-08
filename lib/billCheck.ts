@@ -136,7 +136,8 @@ function billItem(name: string, counterpart = ""): { name: string; measure?: str
       brandCategory !== undefined;
     if (!startsWithDrink) {
       if (match.index !== 0 || /^(?:single malt|double ipa|half moon|bottle rocket)\b/.test(text)) return false;
-      const otherServing = [...counterpart.matchAll(serving)].find((other) => other.index === 0);
+      const otherServing = [...counterpart.matchAll(serving)].find((other) =>
+        other.index === 0 && other[0] !== match[0]);
       const otherProduct = otherServing ? counterpart.slice(otherServing[0].length) : counterpart;
       const product = billProductName(following);
       if (product !== billProductName(counterpart) && product !== billProductName(otherProduct)) return false;
