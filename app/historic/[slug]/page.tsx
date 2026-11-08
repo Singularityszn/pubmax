@@ -147,7 +147,7 @@ function historicPubJsonLd(pub: HistoricPub) {
 // then says so and offers the way to log one.
 async function historicListedPint(pub: HistoricPub): Promise<VenueListedPint | null> {
   if (!pub.venueId) return null;
-  const venue = (await getPricedVenues()).find((row) => row.id === pub.venueId);
+  const venue = (await getPricedVenues().catch(() => [])).find((row) => row.id === pub.venueId);
   return venue ? venueListedPint(venue) : null;
 }
 

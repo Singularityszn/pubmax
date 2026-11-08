@@ -132,7 +132,7 @@ export default async function TodayPage() {
     // Cheapest priced pints per area and the lunch pubs, both precomputed from
     // the bundled price dataset so the client answers the viewer's remembered
     // area with no venue data of its own and no request-time work.
-    getPricedVenues(),
+    getPricedVenues().catch(() => []),
     loadHistoricPubs(),
     // The menu links a lunch row needs (the venue sheet's own overlay).
     loadVenueMenuEnrichmentIndex(),

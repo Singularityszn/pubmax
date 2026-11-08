@@ -22,7 +22,7 @@ const fixtures = vi.hoisted(() => ({
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
-vi.mock("@/lib/aboutStats", () => ({ loadAboutStats: async () => fixtures.stats }));
+vi.mock("@/lib/aboutStats", () => ({ loadAboutStats: vi.fn(async () => fixtures.stats) }));
 vi.mock("@/lib/pricedPubCount.server", () => ({
   loadPricedPubCount: async () => ({
     count: { listPubs: 2_034, pricedPubs: 960 },
@@ -35,6 +35,7 @@ vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
 }));
 
 import AboutPage from "@/app/about/page";
+import { loadAboutStats } from "@/lib/aboutStats";
 
 function priceLine(html: string): string {
   const line = html.match(/<p class="aboutPriceLine">([\s\S]*?)<\/p>/)?.[1] ?? "";
@@ -52,5 +53,18 @@ describe("/about names the cohort its average pint is taken over", () => {
   it("never prints a bare average a reader could set against the landing's", async () => {
     const line = priceLine(renderToStaticMarkup(await AboutPage()));
     expect(line).not.toMatch(/The average is/);
+  });
+});
+
+describe("/about when the price read fails", () => {
+  it("says the figures are unavailable and prints no zeros in their place", async () => {
+    vi.mocked(loadAboutStats).mockRejectedValueOnce(new Error("EIO: price read failed"));
+    const html = renderToStaticMarkup(await AboutPage());
+    const numbers = html.match(/aria-labelledby="traction">([\s\S]*?)<\/section>/)?.[1] ?? "";
+
+    expect(numbers).toContain("Price figures are temporarily unavailable.");
+    expect(numbers).not.toContain("aboutFigure");
+    expect(priceLine(html)).toBe("");
+    expect(html).not.toContain("A round of four");
   });
 });

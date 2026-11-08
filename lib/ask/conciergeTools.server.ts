@@ -273,7 +273,7 @@ export async function toolCheapestPintNear(
     };
   }
 
-  const pricedVenues = ctx.cityId === "london" ? await getPricedVenues() : [];
+  const pricedVenues = ctx.cityId === "london" ? await getPricedVenues().catch(() => []) : [];
   const byId = new Map([...venues, ...pricedVenues].map((venue) => [venue.id, venue]));
   const cards: AskCard[] = rows.map((row) => {
     const venue = byId.get(row.id);

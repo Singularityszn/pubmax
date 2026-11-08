@@ -62,18 +62,61 @@ afterEach(() => {
   resetVenuePriceIndexForTests();
 });
 
+// Fails every read of the bundled price dataset while `failing()` holds and
+// passes every other file, and the dataset once it stops, to the real read.
+function failPriceReadsWhile(failing: () => boolean) {
+  const realReadFile = fs.readFile.bind(fs) as (...args: unknown[]) => Promise<unknown>;
+  return vi.spyOn(fs, "readFile").mockImplementation(((file: unknown, ...rest: unknown[]) =>
+    failing() && String(file).endsWith("pint_prices_app_dataset.json")
+      ? Promise.reject(new Error("EIO: price read failed"))
+      : realReadFile(file, ...rest)) as never);
+}
+
 describe("getPricedVenues", () => {
-  it("does not cache an empty list after a transient read failure", async () => {
+  it("rejects a failed read and reads again on the next call", async () => {
     const readFile = vi.spyOn(fs, "readFile");
     readFile
       .mockRejectedValueOnce(new Error("missing prices"))
       .mockResolvedValueOnce(JSON.stringify([priceRow()]));
 
-    await expect(getPricedVenues()).resolves.toEqual([]);
+    await expect(getPricedVenues()).rejects.toThrow("missing prices");
     const retried = await getPricedVenues();
 
     expect(retried).toHaveLength(1);
     expect(retried[0]?.name).toBe("The Retry Arms");
     expect(readFile).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("a page cache over the price read", () => {
+  it("gives the landing real figures on the request after a failed read", async () => {
+    let failing = true;
+    failPriceReadsWhile(() => failing);
+    const { loadLandingHeroData } = await import("@/lib/landingPubCard.server");
+
+    const failed = await loadLandingHeroData();
+    expect(failed.averages).toBeNull();
+    expect(failed.card).toBeNull();
+
+    failing = false;
+    const retried = await loadLandingHeroData();
+    expect(retried.averages?.sampleSize).toBeGreaterThan(0);
+    expect(retried.card).not.toBeNull();
+  });
+
+  it("gives /about real figures on the request after a failed read", async () => {
+    let failing = true;
+    failPriceReadsWhile(() => failing);
+    const { loadAboutStats, resetAboutStatsForTests } = await import("@/lib/aboutStats");
+    resetAboutStatsForTests();
+
+    await expect(loadAboutStats()).rejects.toThrow();
+
+    failing = false;
+    const retried = await loadAboutStats();
+    expect(retried.pintPricesObserved).toBeGreaterThan(0);
+    expect(retried.pubsTracked).toBeGreaterThan(0);
+    expect(retried.averagePint).not.toBeNull();
+    resetAboutStatsForTests();
   });
 });
