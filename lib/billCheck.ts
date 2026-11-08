@@ -132,7 +132,7 @@ function billBrandCategory(name: string): DrinkCategory | null {
 
 function billItem(name: string, counterpart = ""): { name: string; categoryText: string; measure?: string } {
   const text = name.trim().toLowerCase();
-  const serving = /\b(half(?:[\s-]+pint)?|(?:(?:a|one|two|three)[\s-]+)?(?:thirds?|quarters?)(?:[\s-]+(?:of[\s-]+)?(?:a[\s-]+)?pint)?|\d+\/\d+(?:[\s-]+pint)?|pint|\d+(?:\.\d+)?\s*(?:ml|cl|litres?|l)|bottles?|bottled|cans?|canned|single|double)\b|[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞](?:[\s-]+pint)?/gi;
+  const serving = /\b((?:(?:a|one|two|three)[\s-]+)?(?:half|thirds?|quarters?)(?:[\s-]+(?:of[\s-]+)?(?:a[\s-]+)?pint)?|\d+\/\d+(?:[\s-]+pint)?|pint|\d+(?:\.\d+)?\s*(?:ml|cl|litres?|l)|bottles?|bottled|cans?|canned|single|double)\b|[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞](?:[\s-]+pint)?/gi;
   const found = [...text.matchAll(serving)].find((match) => {
     if (!/^(half|pint|bottles?|bottled|cans?|canned|single|double|thirds?|quarters?)$/.test(match[0])) return true;
     const following = text.slice(match.index + match[0].length).trim();
@@ -156,15 +156,21 @@ function billItem(name: string, counterpart = ""): { name: string; categoryText:
       ? category === "gin" || category === "vodka" || category === "rum" || category === "whisky" || category === "shot"
       : category !== null;
   });
-  const raw = found?.[0].replace(/\s+/g, "");
+  const raw = found?.[0].normalize("NFKC").replace("⁄", "/")
+    .replace(/^(?:a|one)[\s-]+/, "")
+    .replace(/^two[\s-]+thirds?/, "2/3")
+    .replace(/^thirds?/, "1/3")
+    .replace(/^half/, "1/2")
+    .replace(/[\s-]+(?:of[\s-]+)?(?:a[\s-]+)?pint$/, "")
+    .replace(/\s+/g, "");
   const volume = raw?.match(/^(\d+(?:\.\d+)?)(ml|cl|litres?|l)$/);
   const millilitres = volume
     ? Number((Number(volume[1]) * (volume[2] === "ml" ? 1 : volume[2] === "cl" ? 10 : 1000)).toFixed(6))
     : undefined;
-  const fraction = raw?.normalize("NFKC").replace("⁄", "/").match(/^(\d+)\/(\d+)/);
+  const fraction = raw?.match(/^(\d+)\/(\d+)/);
   const measure = millilitres !== undefined
     ? millilitres === 568 ? "pint" : `${millilitres}ml`
-    : raw?.startsWith("half") || (fraction && Number(fraction[1]) / Number(fraction[2]) === 0.5)
+    : fraction && Number(fraction[1]) / Number(fraction[2]) === 0.5
     ? "half"
     : raw?.startsWith("bottl") ? "bottle"
     : raw?.startsWith("can") ? "can"

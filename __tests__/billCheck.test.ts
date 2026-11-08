@@ -251,6 +251,26 @@ describe("judgeBill", () => {
     expect(judgeBill(lines, 3.5, "Guinness", "half").result).toBe("match");
   });
 
+  it.each([
+    ["third", ["third", "one third", "1/3 pint", "1/3-pint", "⅓ pint", "a third of a pint"], "two-thirds"],
+    ["two-thirds", ["two thirds", "two-thirds", "2/3 pint", "2/3-pint", "⅔ pint", "two thirds of a pint"], "half"],
+    ["half", ["half", "half pint", "1/2 pint", "1/2-pint", "½ pint", "a half of a pint", "one-half pint"], "third"],
+  ] as const)("compares equivalent spellings of %s across labels and drink names", (label, spellings, different) => {
+    for (const spelling of spellings) {
+      for (const name of [`Guinness ${spelling}`, `${spelling} Guinness`]) {
+        const lines = read([[name, 3.5]]);
+        expect(judgeBill(lines, 3.5, "Guinness", "other", label).result).toBe("match");
+        expect(judgeBill(lines, 3.5, "Beer", "other", label).result).toBe("match");
+        expect(judgeBill(read([[`Guinness ${label}`, 3.5]]), 3.5, "Guinness", "other", spelling).result).toBe("match");
+        expect(judgeBill(lines, 3.5, `Guinness ${label}`).result).toBe("match");
+        expect(judgeBill(read([[`Guinness ${label}`, 3.5]]), 3.5, name).result).toBe("match");
+        expect(judgeBill(lines, 3.5, name, "other", label).result).toBe("match");
+        expect(judgeBill(lines, 3.5, "Guinness", "other", different).result).toBe("mismatch");
+        expect(judgeBill(lines, 3.6, "Guinness", "other", label).result).toBe("mismatch");
+      }
+    }
+  });
+
   it.each(["17.5cl", "0.175l", "0.175 litres"])("compares the volume in %s with glass measures", (serving) => {
     const lines = read([[`Merlot ${serving}`, 5.2]]);
     expect(judgeBill(lines, 5.2, "Merlot", "175ml").result).toBe("match");
