@@ -1,8 +1,8 @@
 -- Social safety moderation: person reports, the admin report and flagged DM
--- queues, and an audited suspend (0223).
+-- queues, and an audited suspend (0224).
 -- Captain applies; agents ship SQL only.
 --
--- Reverse: supabase/migrations/rollback/20261107190000_0223_social_safety_moderation_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261107220000_0224_social_safety_moderation_rollback.sql
 --
 -- WHAT IT IS. Launch plan P0 item 6. Reports are stored (0073) and a DM report
 -- sets `messages.flagged_at` (0019), but no admin screen reads either, a person
@@ -78,7 +78,7 @@ begin
       )
     into v_visible from public.social_quotes quote join public.social_posts post on post.id = quote.source_post_id where quote.id = p_content_id;
   elsif p_kind = 'profile' then
-    -- 0223: a person. Any profile but the reporter's own, blocked or not.
+    -- 0224: a person. Any profile but the reporter's own, blocked or not.
     select profile.id <> p_actor
     into v_visible from public.profiles profile where profile.id = p_content_id;
   end if;
@@ -114,6 +114,19 @@ create table public.message_flag_evidence_audit (
 
 create index message_flag_evidence_audit_message_idx on public.message_flag_evidence_audit(message_id);
 create index message_flag_evidence_audit_staff_idx on public.message_flag_evidence_audit(staff_role_id);
+
+create table public.social_report_evidence_audit (
+  id uuid primary key default gen_random_uuid(),
+  report_id uuid not null,
+  post_id uuid not null,
+  staff_role_id uuid not null,
+  staff_display_name text not null,
+  viewed_at timestamptz not null default now()
+);
+
+alter table public.social_report_evidence_audit enable row level security;
+revoke all on table public.social_report_evidence_audit from public, anon, authenticated, service_role;
+grant select, insert on table public.social_report_evidence_audit to service_role;
 
 create table public.social_account_moderation_audit (
   id uuid primary key default gen_random_uuid(),
@@ -214,6 +227,46 @@ begin
       limit p_limit
     ) item
   ), '[]'::jsonb);
+end;
+$$;
+
+create function public.read_reported_post_evidence_admin(p_staff_role_id uuid, p_report_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_staff public.private_social_staff_roles;
+  v_report public.social_content_reports;
+  v_post public.social_posts;
+  v_media jsonb;
+begin
+  select * into v_staff from public.private_social_staff_roles
+  where id = p_staff_role_id and active and revoked_at is null and role = 'moderator';
+  if v_staff.id is null then raise exception 'staff required'; end if;
+  select * into v_report from public.social_content_reports
+  where id = p_report_id and content_kind = 'post' and state in ('queued', 'reviewing')
+  for share;
+  if v_report.id is null then return null; end if;
+  select * into v_post from public.social_posts where id = v_report.content_id for share;
+  if v_post.id is null then return null; end if;
+  select coalesce(jsonb_agg(item.evidence order by item.evidence->>'kind'), '[]'::jsonb) into v_media
+  from (
+    select jsonb_build_object('kind', 'photo', 'objectKey', media.object_key) as evidence
+    from public.social_post_media media
+    where media.id = v_post.photo_media_id and media.owner_profile_id = v_post.author_profile_id
+      and media.attachment_state = 'active'
+    union all
+    select jsonb_build_object('kind', 'video', 'objectKey', video.object_key)
+    from public.social_post_videos video
+    join public.social_video_uploads upload on upload.id = video.upload_id
+      and upload.claimed_post_id = v_post.id and upload.object_key = video.object_key
+    where video.post_id = v_post.id and video.author_profile_id = v_post.author_profile_id
+  ) item;
+  insert into public.social_report_evidence_audit(report_id, post_id, staff_role_id, staff_display_name)
+  values (v_report.id, v_post.id, v_staff.id, v_staff.display_name);
+  return jsonb_build_object('reportId', v_report.id, 'postId', v_post.id, 'body', v_post.body, 'media', v_media);
 end;
 $$;
 
@@ -426,12 +479,14 @@ end;
 $$;
 
 revoke all on function public.read_social_report_queue_admin(uuid, integer) from public, anon, authenticated;
+revoke all on function public.read_reported_post_evidence_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.resolve_social_report_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.read_flagged_message_evidence_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.read_flagged_messages_admin(uuid, integer) from public, anon, authenticated;
 revoke all on function public.review_flagged_message_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.set_social_account_suspension_admin(uuid, uuid, text, text, uuid) from public, anon, authenticated;
 grant execute on function public.read_social_report_queue_admin(uuid, integer) to service_role;
+grant execute on function public.read_reported_post_evidence_admin(uuid, uuid) to service_role;
 grant execute on function public.resolve_social_report_admin(uuid, uuid) to service_role;
 grant execute on function public.read_flagged_message_evidence_admin(uuid, uuid) to service_role;
 grant execute on function public.read_flagged_messages_admin(uuid, integer) to service_role;

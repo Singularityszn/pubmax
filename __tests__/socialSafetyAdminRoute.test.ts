@@ -243,3 +243,82 @@ describe("reported attachment evidence", () => {
     expect(sign).not.toHaveBeenCalled();
   });
 });
+
+describe("reported post evidence", () => {
+  const input = { action: "view_post_evidence", reportId: REPORT };
+  const photo = `social/${PROFILE}/${MESSAGE}/image.jpg`;
+  const video = `social-video/${MESSAGE}/video.mp4`;
+  const body = "Reported text beyond the queue excerpt. ".repeat(20);
+
+  it("requires a moderator credential before reading or signing a post", async () => {
+    const response = await post(input, {});
+    expect(response.status).toBe(403);
+    expect(await response.json()).not.toHaveProperty("evidence");
+    expect(rpc).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it("requires a configured staff role before reading or signing a post", async () => {
+    vi.stubEnv("SOCIAL_MODERATOR_STAFF_ROLE_ID", "");
+    const response = await post(input);
+    expect(response.status).toBe(503);
+    expect(await response.json()).not.toHaveProperty("evidence");
+    expect(rpc).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { ...input, postId: PROFILE },
+    { ...input, objectKey: photo },
+    { ...input, reportId: "not-a-report-id" },
+  ])("refuses caller-selected content or malformed report IDs", async (request) => {
+    const response = await post(request);
+    expect(response.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it("returns full text and only short-lived signed photo and video URLs", async () => {
+    rpc.mockResolvedValue({ data: { reportId: REPORT, postId: PROFILE, body,
+      media: [{ kind: "photo", objectKey: photo }, { kind: "video", objectKey: video }], unrelatedPost: "private" }, error: null });
+    sign.mockImplementation(async (key: string) => ({ data: { signedUrl: `https://storage.example/signed?token=${key === photo ? "photo" : "video"}` }, error: null }));
+    const response = await post(input);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(await response.json()).toEqual({ evidence: { reportId: REPORT, postId: PROFILE, body,
+      media: [{ kind: "photo", url: "https://storage.example/signed?token=photo" },
+        { kind: "video", url: "https://storage.example/signed?token=video" }] } });
+    expect(sign).toHaveBeenCalledWith(photo, 180);
+    expect(sign).toHaveBeenCalledWith(video, 180);
+    expect(rpc).toHaveBeenCalledWith("read_reported_post_evidence_admin", { p_staff_role_id: STAFF_ROLE, p_report_id: REPORT });
+  });
+
+  it("returns a text-only post without a signing operation", async () => {
+    rpc.mockResolvedValue({ data: { reportId: REPORT, postId: PROFILE, body, media: [] }, error: null });
+    const response = await post(input);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ evidence: { reportId: REPORT, postId: PROFILE, body, media: [] } });
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [null, null, 404],
+    [null, { message: "staff required" }, 503],
+    [{ reportId: MESSAGE, postId: PROFILE, body, media: [] }, null, 503],
+    [{ reportId: REPORT, postId: PROFILE, body, media: [{ kind: "photo", objectKey: "private/other.jpg" }] }, null, 503],
+  ])("refuses unavailable or mismatched evidence without signing", async (data, error, status) => {
+    rpc.mockResolvedValue({ data, error });
+    const response = await post(input);
+    expect(response.status).toBe(status);
+    expect(await response.json()).not.toHaveProperty("evidence");
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it("refuses a signing failure without returning post text or media", async () => {
+    rpc.mockResolvedValue({ data: { reportId: REPORT, postId: PROFILE, body, media: [{ kind: "photo", objectKey: photo }] }, error: null });
+    sign.mockResolvedValue({ data: null, error: { message: "unavailable" } });
+    const response = await post(input);
+    expect(response.status).toBe(503);
+    expect(await response.json()).not.toHaveProperty("evidence");
+  });
+});

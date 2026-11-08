@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// A suspended account opens and sends no DM (launch plan P0 item 6, 0223).
+// A suspended account opens and sends no DM (launch plan P0 item 6, 0224).
 // The withdrawn-account read is passed in; the refusal is the public contract.
 
 import { MESSAGE_SUSPENDED_REFUSAL } from "@/lib/messageSafety";

@@ -2,7 +2,7 @@
 // flagged DMs, and an audited suspend. A pure leaf: the store, the admin route
 // and the admin console all read their shapes and their input rules here.
 //
-// The database is the authority (migration 0223): every function checks an
+// The database is the authority (migration 0224): every function checks an
 // active moderator staff role, and every suspend or reinstate writes one audit
 // row in the same transaction. This file only decides what a well-formed
 // answer and a well-formed request look like.
@@ -57,6 +57,7 @@ export type SafetyModerationAction =
   | { action: "resolve_report"; reportId: string }
   | { action: "review_message"; messageId: string }
   | { action: "view_message_evidence"; messageId: string }
+  | { action: "view_post_evidence"; reportId: string }
   | {
       action: "suspend" | "reinstate";
       profileId: string;
@@ -200,9 +201,9 @@ export function parseSafetyModerationAction(value: unknown): SafetyModerationAct
   const row = record(value);
   if (!row) return null;
   const keys = Object.keys(row).sort().join(",");
-  if (row.action === "resolve_report") {
+  if (row.action === "resolve_report" || row.action === "view_post_evidence") {
     return keys === "action,reportId" && isUuid(row.reportId)
-      ? { action: "resolve_report", reportId: row.reportId }
+      ? { action: row.action, reportId: row.reportId }
       : null;
   }
   if (row.action === "review_message" || row.action === "view_message_evidence") {
@@ -252,4 +253,25 @@ export function parseMessageEvidence(value: unknown): MessageEvidence | null {
   if (row.kind === "contact" && text(row.handle)) return { kind: "contact", handle: row.handle };
   if (row.kind === "event" && isUuid(row.planId)) return { kind: "event", planId: row.planId };
   return null;
+}
+
+export type ReportedPostEvidence = {
+  reportId: string;
+  postId: string;
+  body: string;
+  media: { kind: "photo" | "video"; url: string }[];
+};
+
+export function parseReportedPostEvidence(value: unknown): ReportedPostEvidence | null {
+  const row = record(value);
+  if (!row || !isUuid(row.reportId) || !isUuid(row.postId) || typeof row.body !== "string"
+    || !Array.isArray(row.media) || row.media.length > 2) return null;
+  const media: ReportedPostEvidence["media"] = [];
+  for (const item of row.media) {
+    const attachment = record(item);
+    if (!attachment || (attachment.kind !== "photo" && attachment.kind !== "video")
+      || typeof attachment.url !== "string" || !attachment.url.startsWith("https://")) return null;
+    media.push({ kind: attachment.kind, url: attachment.url });
+  }
+  return { reportId: row.reportId, postId: row.postId, body: row.body, media };
 }

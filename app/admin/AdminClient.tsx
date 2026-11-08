@@ -2066,7 +2066,7 @@ export default function AdminClient() {
             </div>
           )}
 
-          {/* ── Reports, flagged DMs and suspensions (0223) ───────────────── */}
+          {/* ── Reports, flagged DMs and suspensions (0224) ───────────────── */}
           <SocialSafetyModeration />
 
           {/* ── Social videos held for a person to watch (0183) ───────────── */}

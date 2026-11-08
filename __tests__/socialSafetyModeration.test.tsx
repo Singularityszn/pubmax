@@ -64,6 +64,11 @@ beforeEach(() => {
       if (action.action === "view_message_evidence") return Response.json({ evidence: {
         kind: "poll", question: "Who should we threaten?", options: ["Alice", "Bob"],
       } });
+      if (action.action === "view_post_evidence") return Response.json({ evidence: {
+        reportId: action.reportId, postId: id(100), body: "Full reported post. ".repeat(30),
+        media: [{ kind: "photo", url: "https://storage.example/signed-photo" },
+          { kind: "video", url: "https://storage.example/signed-video" }],
+      } });
       if (action.action === "resolve_report") reports = reports.filter((row) => row.reportId !== action.reportId);
       if (action.action === "review_message") messages = messages.filter((row) => row.messageId !== action.messageId);
       return Response.json({ ok: true });
@@ -122,6 +127,24 @@ describe("bounded moderation queues", () => {
 });
 
 describe("moderation of returning senders and attachments", () => {
+  it("loads the reported post's full text, photo and video only on demand", async () => {
+    reports = [{ ...reports[0]!, kind: "post", excerpt: "" }];
+    messages = [];
+    await render();
+    expect(host.querySelector("img")).toBeNull();
+    expect(host.querySelector("video")).toBeNull();
+    await decide("View reported post");
+    expect(host.querySelector('[aria-label="Reported post evidence"] p')?.textContent).toBe("Full reported post. ".repeat(30));
+    expect(host.querySelector("img")?.getAttribute("src")).toBe("https://storage.example/signed-photo");
+    expect(host.querySelector("video")?.getAttribute("src")).toBe("https://storage.example/signed-video");
+    await decide("View reported post");
+    expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+    decisionFails = true;
+    await decide("View reported post");
+    expect(host.querySelector('[aria-label="Reported post evidence"]')).toBeNull();
+    expect(host.querySelector("[role=alert]")).not.toBeNull();
+  });
+
   it.each(["report", "message"])("suspends a linked person without a Social account from a %s", async (kind) => {
     reports = [{ ...reports[0]!, targetProfileId: id(100), targetHandle: "returning", targetAccountState: null }];
     messages = [{ ...messages[0]!, senderProfileId: id(100), senderHandle: "returning", senderAccountState: null }];

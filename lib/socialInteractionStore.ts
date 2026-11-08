@@ -358,7 +358,7 @@ export function createMemorySocialInteractionStore(options: {
     kind: SocialReportKind,
     contentId: string,
   ): Promise<boolean> {
-    // A person can be reported by anyone but themselves, blocked or not (0223).
+    // A person can be reported by anyone but themselves, blocked or not (0224).
     if (kind === "profile") return contentId !== actor.profileId;
     if (kind === "post") return Boolean(await visiblePost(contentId, actor));
     if (kind === "quote") {

@@ -6059,6 +6059,33 @@ export type Database = {
           },
         ];
       };
+      social_report_evidence_audit: {
+        Row: {
+          id: string;
+          report_id: string;
+          post_id: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          viewed_at: string;
+        };
+        Insert: {
+          id?: string;
+          report_id: string;
+          post_id: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          viewed_at?: string;
+        };
+        Update: {
+          id?: string;
+          report_id?: string;
+          post_id?: string;
+          staff_role_id?: string;
+          staff_display_name?: string;
+          viewed_at?: string;
+        };
+        Relationships: [];
+      };
       social_reposts: {
         Row: {
           id: string;
@@ -8405,6 +8432,13 @@ export type Database = {
       read_private_referral_status: {
         Args: {
           p_inviter_user_id: string | null;
+        };
+        Returns: Json;
+      };
+      read_reported_post_evidence_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_report_id: string | null;
         };
         Returns: Json;
       };

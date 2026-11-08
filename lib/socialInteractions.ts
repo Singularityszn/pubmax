@@ -71,7 +71,7 @@ export type SocialFeatureUpdateDTO = {
   createdAt: string;
 };
 
-/** What a report is about. A "profile" report is about a person (0223). */
+/** What a report is about. A "profile" report is about a person (0224). */
 export const SOCIAL_REPORT_KINDS = ["post", "comment", "quote", "profile"] as const;
 export type SocialReportKind = (typeof SOCIAL_REPORT_KINDS)[number];
 

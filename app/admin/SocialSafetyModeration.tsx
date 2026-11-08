@@ -1,6 +1,6 @@
 "use client";
 
-// The safety queues (launch plan P0 item 6, migration 0223): open Social
+// The safety queues (launch plan P0 item 6, migration 0224): open Social
 // reports, including "Report this person", and flagged DMs. A moderator can
 // close a report, mark a DM reviewed, or suspend the person, which writes an
 // audit row with the reason in the same transaction. This lane fetches and
@@ -15,7 +15,9 @@ import { SOCIAL_REPORT_REASON_LABELS } from "@/lib/socialInteractions";
 import {
   parseSafetyQueues,
   parseMessageEvidence,
+  parseReportedPostEvidence,
   type MessageEvidence,
+  type ReportedPostEvidence,
   SUSPEND_REASON_MAX,
   SUSPEND_REASON_MIN,
   type AccountState,
@@ -153,6 +155,37 @@ function MessageAttachmentEvidence({ messageId, busy, view }: {
   );
 }
 
+function PostEvidence({ reportId, busy, view }: {
+  reportId: string;
+  busy: boolean;
+  view: () => Promise<Record<string, unknown> | null>;
+}) {
+  const [evidence, setEvidence] = useState<ReportedPostEvidence | null>(null);
+  return (
+    <div>
+      <button type="button" className="admin-btn" disabled={busy} onClick={async () => {
+        setEvidence(null);
+        const body = await view();
+        const parsed = parseReportedPostEvidence(body?.evidence);
+        setEvidence(parsed?.reportId === reportId ? parsed : null);
+      }}>View reported post</button>
+      {evidence ? (
+        <div className="admin-post-evidence" aria-label="Reported post evidence">
+          <p className="admin-excerpt">{evidence.body}</p>
+          {evidence.media.map((media) => media.kind === "photo" ? (
+            <picture key={media.url}>
+              <img src={media.url} alt="Reported post photo" referrerPolicy="no-referrer" />
+            </picture>
+          ) : (
+            <video key={media.url} src={media.url} controls preload="metadata" aria-label="Reported post video" />
+          ))}
+          {evidence.media.length > 0 ? <p>Media links expire after 3 minutes. View the post again to renew them.</p> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function SocialSafetyModeration() {
   const [queues, setQueues] = useState<SafetyQueues>({ reports: [], flaggedMessages: [] });
   const [state, setState] = useState<LoadState>("loading");
@@ -200,7 +233,7 @@ export default function SocialSafetyModeration() {
         setError(typeof body?.error === "string" ? body.error : "That decision did not save. Try again.");
         return null;
       }
-      if (payload.action !== "view_message_evidence") await load();
+      if (payload.action !== "view_message_evidence" && payload.action !== "view_post_evidence") await load();
       return body ?? {};
     } catch {
       setError("That decision did not save. Try again.");
@@ -281,6 +314,11 @@ export default function SocialSafetyModeration() {
                   <span className="admin-report">{SOCIAL_REPORT_REASON_LABELS[report.reason]}</span>
                 </div>
                 {report.excerpt ? <p className="admin-excerpt">{report.excerpt}</p> : null}
+                {report.kind === "post" ? <PostEvidence
+                  reportId={report.reportId}
+                  busy={busy}
+                  view={() => post(`evidence:${report.reportId}`, { action: "view_post_evidence", reportId: report.reportId })}
+                /> : null}
                 <div className="admin-meta">
                   <span>{KIND_LABEL[report.kind]}</span>
                   <span>Reported by {displayHandle(report.reporterHandle)}</span>

@@ -3,10 +3,12 @@ import "server-only";
 import {
   parseFlaggedMessages,
   parseMessageEvidence,
+  parseReportedPostEvidence,
   parseSafetyReports,
   parseSuspensionOutcome,
   SAFETY_QUEUE_LIMIT,
   type MessageEvidence,
+  type ReportedPostEvidence,
   type SafetyModerationAction,
   type SafetyQueues,
   type SuspensionOutcome,
@@ -16,7 +18,7 @@ import { requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
 /**
- * The service layer behind the admin safety queues (0223). Every call names
+ * The service layer behind the admin safety queues (0224). Every call names
  * the moderator's staff role; the database refuses a role that is not an
  * active moderator, so this store is no authority of its own.
  */
@@ -24,6 +26,7 @@ type SocialSafetyRpcName =
   | "read_social_report_queue_admin"
   | "read_flagged_messages_admin"
   | "read_flagged_message_evidence_admin"
+  | "read_reported_post_evidence_admin"
   | "resolve_social_report_admin"
   | "review_flagged_message_admin"
   | "set_social_account_suspension_admin";
@@ -62,7 +65,36 @@ export function createSocialSafetyStore(rpc: SocialSafetyRpc = defaultRpc) {
     async act(
       staffRoleId: string,
       input: SafetyModerationAction,
-    ): Promise<{ changed: boolean } | SuspensionOutcome | { evidence: MessageEvidence | null }> {
+    ): Promise<{ changed: boolean } | SuspensionOutcome | { evidence: MessageEvidence | ReportedPostEvidence | null }> {
+      if (input.action === "view_post_evidence") {
+        const value = await rpc("read_reported_post_evidence_admin", {
+          p_staff_role_id: staffRoleId,
+          p_report_id: input.reportId,
+        });
+        if (value === null) return { evidence: null };
+        const row = value as Record<string, unknown>;
+        if (!row || row.reportId !== input.reportId || !Array.isArray(row.media) || row.media.length > 2) {
+          throw new SocialSafetyStoreError("Evidence answer is malformed.");
+        }
+        const uuid = "[0-9a-f-]{36}";
+        for (const media of row.media) {
+          const pattern = media?.kind === "photo"
+            ? new RegExp(`^social/${uuid}/${uuid}/image\\.jpg$`)
+            : media?.kind === "video" ? new RegExp(`^social-video/${uuid}/video\\.(mp4|webm|mov)$`) : null;
+          if (!pattern || typeof media.objectKey !== "string" || !pattern.test(media.objectKey)) {
+            throw new SocialSafetyStoreError("Evidence answer is malformed.");
+          }
+        }
+        const media = await Promise.all(row.media.map(async (item: { kind: string; objectKey: string }) => {
+          const { data, error } = await requireSupabaseAdmin().storage.from(STORAGE_BUCKET)
+            .createSignedUrl(item.objectKey, 180);
+          if (error || !data?.signedUrl) throw new SocialSafetyStoreError("Evidence signing is unavailable.");
+          return { kind: item.kind, url: data.signedUrl };
+        }));
+        const evidence = parseReportedPostEvidence({ ...row, media });
+        if (!evidence) throw new SocialSafetyStoreError("Evidence answer is malformed.");
+        return { evidence };
+      }
       if (input.action === "view_message_evidence") {
         const value = await rpc("read_flagged_message_evidence_admin", {
           p_staff_role_id: staffRoleId,

@@ -1,6 +1,6 @@
 begin;
 
--- Reverses 20261107190000_0223_social_safety_moderation.sql.
+-- Reverses 20261107220000_0224_social_safety_moderation.sql.
 --
 -- COST, read before applying:
 -- - Every person report ('profile') is DELETED, because the 0073 kind check
@@ -16,10 +16,12 @@ drop function if exists public.read_flagged_message_evidence_admin(uuid, uuid);
 drop function if exists public.read_flagged_messages_admin(uuid, integer);
 drop function if exists public.resolve_social_report_admin(uuid, uuid);
 drop function if exists public.read_social_report_queue_admin(uuid, integer);
+drop function if exists public.read_reported_post_evidence_admin(uuid, uuid);
 
 drop table if exists public.social_account_moderation_audit;
 drop table if exists public.message_flag_evidence_audit;
 drop table if exists public.message_flag_reviews;
+drop table if exists public.social_report_evidence_audit;
 drop index if exists public.messages_flagged_at_idx;
 
 delete from public.social_content_reports where content_kind = 'profile';

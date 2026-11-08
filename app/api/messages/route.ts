@@ -152,7 +152,7 @@ export async function POST(request: Request): Promise<Response> {
   const adultRefusal = await messageAdultRefusal(actor.userId);
   if (adultRefusal) return adultRefusal;
 
-  // A suspended account opens and sends nothing (0223).
+  // A suspended account opens and sends nothing (0224).
   const suspended = await messageSuspendedRefusal(handle);
   if (suspended) return suspended;
 

@@ -3,7 +3,7 @@
 //                                or suspend or reinstate an account.
 //
 // Launch plan P0 item 6. Admin-only twice: this route checks the moderator
-// door (lib/adminAuth.ts) and names the staff role, and every 0223 function
+// door (lib/adminAuth.ts) and names the staff role, and every 0224 function
 // refuses a role that is not an active moderator. A suspend writes its audit
 // row in the database, in the same transaction as the state change.
 
@@ -65,7 +65,7 @@ export async function POST(request: Request): Promise<Response> {
     const result = await store.act(staffRoleId, input);
     if ("evidence" in result) {
       if (!result.evidence) {
-        return publicApiError("That reported attachment is unavailable.", "NOT_FOUND", 404, { headers: PRIVATE });
+        return publicApiError("That reported evidence is unavailable.", "NOT_FOUND", 404, { headers: PRIVATE });
       }
       return Response.json({ evidence: result.evidence }, { headers: PRIVATE });
     }

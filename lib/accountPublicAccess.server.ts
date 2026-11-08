@@ -323,7 +323,7 @@ export async function withdrawnHandles(handles: readonly string[]): Promise<Read
 
 /**
  * Whether this handle's own account is withdrawn: suspended by a moderator
- * (0223), banned, or deleted. Unlike `withdrawnHandles`, the operational smoke
+ * (0224), banned, or deleted. Unlike `withdrawnHandles`, the operational smoke
  * handle is not counted, because this asks about the account, not about what
  * a stranger may see.
  */
