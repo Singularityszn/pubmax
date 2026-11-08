@@ -21,7 +21,7 @@ for (const width of [1024, 1440]) {
       test(`${dismissal} restores the opener after child interaction`, async ({ page }, testInfo) => {
         await prepare(page);
         await page.goto("/places");
-        const opener = page.getByRole("button", { name: "Open command palette", exact: true });
+        const opener = page.getByRole("button", { name: "Open command palette ⌘K", exact: true });
         const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
         await expect(async () => {
           await opener.click();
