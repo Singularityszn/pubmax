@@ -937,7 +937,9 @@ describe("POST /api/rounds/[code] — actions", () => {
 
     expect(res.status).toBe(200);
     const saved = ((await res.clone().json()) as RoundState).spends[0];
-    expect(saved?.receiptPhotoKey).toBe(`venue-1/${saved?.id}/receipt.jpg`);
+    const [receiptKey] = receiptStorage.upload.mock.calls[0] as unknown as [string, Blob];
+    expect(receiptKey).toMatch(new RegExp(`^venue-1/${saved?.id}/receipt-[0-9a-f-]+\\.jpg$`));
+    expect(saved?.receiptPhotoKey).toBe(receiptKey);
     expect(receiptStorage.upload).toHaveBeenCalledWith(
       saved?.receiptPhotoKey,
       expect.any(Blob),

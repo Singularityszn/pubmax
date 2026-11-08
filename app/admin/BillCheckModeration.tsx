@@ -102,7 +102,7 @@ export default function BillCheckModeration({ request }: { request: AdminRequest
         </div>
       ) : null}
       {loaded && !loading && rows.length === 0 ? <p className="admin-empty">No bills to check.</p> : null}
-      <div className="admin-list">
+      <div className="admin-list admin-bill-queue">
         {rows.map((row) => (
           <article key={row.id} className="admin-card" data-testid="admin-bill-check">
             <div className="admin-card-head">

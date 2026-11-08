@@ -237,6 +237,20 @@
 }
 
 /* The bill check queue: the lines a bill showed beside the bill itself. */
+.admin-bill-queue {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-bill-queue .admin-card-head,
+.admin-bill-queue .admin-actions {
+  flex-wrap: wrap;
+}
+
+.admin-bill-queue .admin-card-head,
+.admin-bill-queue .admin-meta {
+  overflow-wrap: anywhere;
+}
+
 .admin-bill-sent {
   color: var(--ink);
   font-weight: 600;
