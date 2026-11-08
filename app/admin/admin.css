@@ -254,6 +254,7 @@
 .admin-bill-sent {
   color: var(--ink);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .admin-bill-read {
@@ -293,6 +294,11 @@
 .admin-bill-lines li span:first-child {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.admin-bill-lines li span:last-child {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .admin-bill-photo img {
