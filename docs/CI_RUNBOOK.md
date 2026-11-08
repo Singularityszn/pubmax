@@ -172,8 +172,18 @@ them installs them:
 - **Playwright Chromium** with `npx playwright install --with-deps chromium`
   in the browser and performance jobs. On macOS `--with-deps` needs no
   system packages or `sudo`. Playwright still installs Chromium.
-- **zizmor 1.30.1, osv-scanner 2.6.0 and Semgrep 1.179.0** in
+- **zizmor 1.30.1, osv-scanner 2.6.0, gitleaks 8.30.0 and Semgrep 1.179.0** in
   `security-ci.yml`, each checksummed or version-pinned.
+
+Every tool download in a required workflow retries a failed or timed-out
+request. Each `curl` passes `--retry 5 --retry-delay 5 --retry-all-errors
+--connect-timeout 30`, and each `apt-get` passes `-o Acquire::Retries=5`. On
+8 Nov 2026 a GitHub release asset answered 504 once, and the merge queue then
+removed two green pull requests because `Security CI check` and `RLS session
+check` were red. A download retry is not a test retry: the checksum still
+checks the bytes, and a test that passes only on retry still fails its gate.
+`__tests__/ciToolDownloadRetries.test.ts` runs each install step with a
+recording `curl` and `sudo` and holds them to these options.
 
 `PW_PORT` still comes from `.github/actions/pubmax-playwright-port`. Each
 hosted job has its own network namespace, so two jobs cannot collide. A Mac
