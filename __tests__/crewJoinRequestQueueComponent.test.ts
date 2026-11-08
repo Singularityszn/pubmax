@@ -13,8 +13,15 @@ const REQUEST_ID = "80000000-0000-4000-8000-000000000001";
 const responseBody = vi.hoisted(() => ({
   discardBody: vi.fn(),
 }));
+const arrivalsTracked = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/hostLoopAnalytics", () => ({
+  trackHostLoopStep: vi.fn(),
+  trackCrewArrivedReceipts: arrivalsTracked,
+}));
 
 const state = vi.hoisted(() => ({
+  arrival: undefined as { open: boolean; here: boolean } | undefined,
+  arrivalFails: false,
   queue: [
     {
       requestId: "80000000-0000-4000-8000-000000000001",
@@ -86,6 +93,7 @@ vi.mock("@/lib/authedFetch", () => ({
         crewId: CREW_ID,
         title: "Open Friday",
         visibility: state.visibility,
+        arrival: state.arrival,
         phase: "planning",
         nightArea: "camden",
         startsAt: "2026-08-24T18:30:00.000Z",
@@ -153,6 +161,12 @@ vi.mock("@/lib/authedFetch", () => ({
       }
       return Response.json({ code: "accepted", replayed: false });
     }
+    if (url.endsWith("/arrival") && init?.method === "POST") {
+      if (state.arrivalFails) return Response.json({ error: "Arrival unavailable." }, { status: 503 });
+      const { here } = JSON.parse(String(init.body)) as { here: boolean };
+      state.arrival = { open: true, here };
+      return Response.json({ here, crewArrived: [{ deliveryToken: "signed", guestsArrived: "1" }] });
+    }
     if (url === "/api/social/access") {
       return Response.json(
         state.accessStatus === 200
@@ -179,6 +193,9 @@ async function settle(): Promise<void> {
 }
 
 beforeEach(() => {
+  state.arrival = undefined;
+  state.arrivalFails = false;
+  arrivalsTracked.mockClear();
   state.queue = [
     {
       requestId: REQUEST_ID,
@@ -226,6 +243,24 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+});
+
+it("lets an open-crawl member mark Here, recover from failure and undo arrival", async () => {
+  state.arrival = { open: true, here: false };
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "I'm here");
+  await vi.waitFor(() => expect(button()).toBeDefined());
+  state.arrivalFails = true;
+  await act(async () => button()!.click());
+  expect(button()!.getAttribute("aria-pressed")).toBe("false");
+  expect(arrivalsTracked).not.toHaveBeenCalled();
+  state.arrivalFails = false;
+  await act(async () => button()!.click());
+  const undo = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Undo arrival");
+  expect(undo?.getAttribute("aria-pressed")).toBe("true");
+  expect(arrivalsTracked).toHaveBeenCalledWith([{ deliveryToken: "signed", guestsArrived: "1" }]);
+  await act(async () => undo!.click());
+  expect(button()!.getAttribute("aria-pressed")).toBe("false");
 });
 
 describe("host join-request queue", () => {

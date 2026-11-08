@@ -89,6 +89,7 @@ const state = vi.hoisted(() => ({
 }));
 
 const store = vi.hoisted(() => ({
+  markArrival: vi.fn(),
   read: vi.fn(),
   readPublicPreview: vi.fn(),
   create: vi.fn(),
@@ -137,6 +138,7 @@ import {
   DELETE as cancelJoinRequest,
 } from "@/app/api/social/crews/[crewId]/join-requests/route";
 import { POST as leaveCrew } from "@/app/api/social/crews/[crewId]/leave/route";
+import { POST as markArrival } from "@/app/api/social/crews/[crewId]/arrival/route";
 import {
   PATCH as changeMember,
   DELETE as removeMember,
@@ -179,6 +181,7 @@ beforeEach(() => {
   state.access = { ok: true, actor };
   state.limited = false;
   store.read.mockResolvedValue(crew);
+  store.markArrival.mockResolvedValue({ here: true, crewArrived: [{ deliveryToken: "signed", guestsArrived: "1" }] });
   store.create.mockResolvedValue({
     code: "created",
     replayed: false,
@@ -202,6 +205,23 @@ beforeEach(() => {
 });
 
 describe("Social Crew route authority and HTTP policy", () => {
+  it("marks the verified actor's arrival and returns only status and receipts", async () => {
+    const response = await markArrival(mutationRequest(`http://localhost/api/social/crews/${CREW_ID}/arrival`, "POST", { here: true }), context({ crewId: CREW_ID }));
+    expect(response.status).toBe(200);
+    expectPrivate(response);
+    expect(await response.json()).toEqual({ here: true, crewArrived: [{ deliveryToken: "signed", guestsArrived: "1" }] });
+    expect(store.markArrival).toHaveBeenCalledWith(actor, { crewId: CREW_ID, here: true });
+  });
+
+  it("refuses injected seat authority, malformed status and rate-limited arrivals", async () => {
+    for (const body of [{ here: true, memberId: BOB_MEMBER_ID }, { here: "true" }, {}, { here: null }]) {
+      expect((await markArrival(mutationRequest(`http://localhost/api/social/crews/${CREW_ID}/arrival`, "POST", body), context({ crewId: CREW_ID }))).status).toBe(422);
+    }
+    state.limited = true;
+    expect((await markArrival(mutationRequest(`http://localhost/api/social/crews/${CREW_ID}/arrival`, "POST", { here: true }), context({ crewId: CREW_ID }))).status).toBe(429);
+    expect(store.markArrival).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["Crew creation", (request: Request) => createCrew(request)],
     ["Crew read", readCrew],
@@ -215,6 +235,7 @@ describe("Social Crew route authority and HTTP policy", () => {
     ["member change", changeMember],
     ["member removal", removeMember],
     ["leave", leaveCrew],
+    ["arrival", markArrival],
   ] as const)("resolves actor before request data for %s", async (_label, invoke) => {
     state.access = {
       ok: false,

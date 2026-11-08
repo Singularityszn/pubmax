@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -87,6 +87,85 @@ const planState: PlanState = {
   ],
   ending: null,
 };
+
+describe("open-crawl member arrival", () => {
+  afterEach(() => vi.useRealTimers());
+
+  function arrivalFixture(visibility: RawSocialCrew["visibility"] = "open") {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-07T19:00:00Z"));
+    const crew = rawCrew({ visibility });
+    const seats = crew.members.map((member) => ({
+      id: member.planMemberId, name: member.handle, status: "in" as "in" | "here",
+      joinedAt: member.joinedAt, updatedAt: member.joinedAt,
+    }));
+    const deps = dependencies({
+      snapshot: async (name) => name === "read_social_crew_snapshot"
+        ? { kind: "member", ownerRelationship: "not_mutual", crew, plan: planState }
+        : null,
+    });
+    const store = createSocialCrewStore({
+      ...deps,
+      planSeats: {
+        read: async () => seats.map((seat) => ({ ...seat })),
+        setStatus: async (planId, seatId, accountId, status) => {
+          const member = crew.members.find((member) =>
+            member.planMemberId === seatId && member.accountId === accountId && member.state === "active");
+          const seat = seats.find((seat) => seat.id === seatId);
+          if (planId !== PLAN_ID || !member || !seat) return false;
+          seat.status = status;
+          return true;
+        },
+      },
+    });
+    return { store, crew, seats };
+  }
+
+  it("lets an accepted non-mutual member mark only their own seat Here and undo it", async () => {
+    const { store, seats } = arrivalFixture();
+    expect(await store.read(CREW_ID, bob)).toMatchObject({ arrival: { open: true, here: false } });
+    const result = await store.markArrival(bob, { crewId: CREW_ID, here: true });
+    expect(result.here).toBe(true);
+    expect(seats.map((seat) => seat.status)).toEqual(["in", "here"]);
+    expect(result.crewArrived.map((receipt) => receipt.guestsArrived)).toEqual(["1"]);
+    expect(await store.read(CREW_ID, bob)).toMatchObject({ arrival: { here: true } });
+    const replay = await store.markArrival(bob, { crewId: CREW_ID, here: true });
+    expect(replay.crewArrived).toEqual(result.crewArrived);
+    expect(await store.markArrival(bob, { crewId: CREW_ID, here: false }))
+      .toEqual({ here: false, crewArrived: [] });
+  });
+
+  it("excludes the first plan seat, even when crew ownership has changed", async () => {
+    const { store, crew } = arrivalFixture();
+    const host = crew.members[0]!;
+    crew.members[0] = { ...host, role: "member" };
+    crew.members[1] = { ...crew.members[1]!, role: "owner" };
+    crew.ownerAccountId = BOB_ACCOUNT_ID;
+    crew.ownerProfileId = BOB_PROFILE_ID;
+    expect((await store.markArrival(alice, { crewId: CREW_ID, here: true })).crewArrived).toEqual([]);
+  });
+
+  it.each(["private", "friends"] as const)("refuses %s crews without writing a seat", async (visibility) => {
+    const { store, seats } = arrivalFixture(visibility);
+    await expect(store.markArrival(bob, { crewId: CREW_ID, here: true })).rejects.toMatchObject({ status: 404 });
+    expect(seats.every((seat) => seat.status === "in")).toBe(true);
+  });
+
+  it("refuses a removed member and a member from another crew", async () => {
+    const { store, crew, seats } = arrivalFixture();
+    crew.members[1]!.state = "removed";
+    await expect(store.markArrival(bob, { crewId: CREW_ID, here: true })).rejects.toMatchObject({ status: 404 });
+    await expect(store.markArrival(bob, { crewId: OTHER_CREW_ID, here: true })).rejects.toMatchObject({ status: 404 });
+    expect(seats.every((seat) => seat.status === "in")).toBe(true);
+  });
+
+  it.each(["2026-08-06T22:59:59Z", "2026-08-08T06:30:00Z"])("closes arrival outside the night at %s", async (now) => {
+    const { store, seats } = arrivalFixture();
+    vi.setSystemTime(new Date(now));
+    await expect(store.markArrival(bob, { crewId: CREW_ID, here: true })).rejects.toMatchObject({ status: 409 });
+    expect(seats.every((seat) => seat.status === "in")).toBe(true);
+  });
+});
 
 function rawCrew(overrides: Partial<RawSocialCrew> = {}): RawSocialCrew {
   return {
