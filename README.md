@@ -27,7 +27,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   On the account page, **Bring this device** saves finished-night recaps as private Memories without publishing them. **Keep only on this device** leaves them local. If a save fails or you switch accounts during transfer, all device drafts remain. Earlier saves can appear in your Memories while the remaining recaps wait. Retrying with the same account reuses each saved Memory. A successful save refreshes your Memories without clearing the draft in the Memory editor.
 
-  Switching accounts clears Mates' prices, drinker-added regular-night rows and **Still on** receipts. The rows stay hidden until the new read finishes. Anonymous regular-night browsing remains available. See the [account read contract](docs/rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device) for implementation rules.
+  Switching accounts clears Mates' prices, presence rows, drinker-added regular-night rows and **Still on** receipts. The rows stay hidden until the new read finishes. Anonymous regular-night browsing remains available. See the [account read contract](docs/rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device) for implementation rules.
+
+- **I'm here** - in a pub's map sheet, open **Overview** and tap **I'm here** to record a check-in. The [privacy notice](https://pubmaxxing.com/privacy#presence) explains who can see it and for how long.
 
 - **Control readiness** - Import, Near, and shared header buttons stay unavailable until page scripts can handle a click. Shared navigation links show a loading line while an accepted page change waits. If you choose **Meet your Pub Pal** while the session loads, the page keeps your request and shows a status message. The button stays unavailable while the request waits.
 

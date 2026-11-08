@@ -1367,6 +1367,12 @@ export default function VenueOverviewTab({
               {presenceState === "sending" ? "Checking in…" : "I'm here"}
             </button>
           )}
+          <p
+            className="description muted"
+            style={{ margin: "6px 0 0", fontSize: "0.82rem", textAlign: "center" }}
+          >
+            Only your mates see this, for two hours.
+          </p>
           {presenceState === "no-handle" && promptSlot.owner === "presence" ? (
             <p
               className="description muted"

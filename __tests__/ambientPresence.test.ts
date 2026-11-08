@@ -189,4 +189,16 @@ describe("recentPresenceWithAmbient — fallback wiring", () => {
   it("returns [] during shut hours when nobody real is out (honest empty strip)", async () => {
     await expect(recentPresenceWithAmbient(undefined, SHUT.getTime())).resolves.toEqual([]);
   });
+
+  it("keeps demo rows when 45 hidden real taps fill the store", async () => {
+    for (let i = 0; i < 45; i += 1) {
+      await markPresence(
+        { handle: `stranger_${i}`, venueId: "venue-16pnwmm", actorHash: `actor-${i}` },
+        PEAK.getTime(),
+      );
+    }
+    const rows = await recentPresenceWithAmbient(undefined, PEAK.getTime() + 1000, []);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.provenance === "demo")).toBe(true);
+  });
 });
