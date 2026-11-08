@@ -1229,10 +1229,10 @@ export function isMissingReceiptColumnError(error: { code?: string; message?: st
 /**
  * Additive-rollout guard for the evidence column (migration 0218).
  *
- * A BILLED price retries without the column, because an absent evidence reads
- * exactly as a billed row always has. An UNCHECKED price is refused instead
- * (`UncheckedPriceNotStorableError`): stored without its word it would read as
- * billed and mark the pin, which is the measure guard's reasoning about a half.
+ * Every new priced drop starts unchecked under lib/pintDropReceipt.ts.
+ * Without this column, it would read as legacy receipt evidence and mark the
+ * pin. Creation therefore throws UncheckedPriceNotStorableError even with an
+ * attached bill. An unpriced drop can retry without the column.
  */
 function isMissingPriceEvidenceColumnError(
   error: { code?: string; message?: string } | null,
