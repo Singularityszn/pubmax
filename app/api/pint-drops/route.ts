@@ -373,11 +373,12 @@ async function settleConfirmation(
  * nothing about a read that will never happen.
  */
 function scheduleDropBillCheck(
+  created: boolean,
   drop: PintDropDTO,
   priceGbp: number | null,
   receipt: File | null,
 ): "reading" | null {
-  if (priceGbp === null || !receipt || !billReaderKeyed()) return null;
+  if (!created || priceGbp === null || !receipt || !billReaderKeyed()) return null;
   scheduleBillCheck({ photo: receipt, venueId: drop.venueId, priceGbp, drink: drop.drink, measure: drop.measure, pintDropId: drop.id });
   return "reading";
 }
@@ -584,7 +585,7 @@ export async function POST(request: Request): Promise<Response> {
     // THE BILL IS READ AFTER THE ANSWER, never before it: the drinker's 201
     // does not wait on a vision model. `billCheck: "reading"` tells the
     // composer to say so, and is said only when this deployment can read.
-    const billCheck = created ? scheduleDropBillCheck(drop, dropPayload.priceGbp, photos.receipt) : null;
+    const billCheck = scheduleDropBillCheck(created, drop, dropPayload.priceGbp, photos.receipt);
     return jsonNoStore(
       {
         drop,
