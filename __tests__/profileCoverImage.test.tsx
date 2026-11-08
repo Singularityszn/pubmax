@@ -12,7 +12,7 @@ import { AuthContext, useAuth, type AuthContextValue } from "@/components/auth/a
 import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
 import ProfileCoverImage from "@/components/profile/ProfileCoverImage";
 import { publishAuthActionState } from "@/lib/authedFetch";
-import { readProviderAccountRevision, setProviderAuthState, setProviderIdentity, type ProviderAuthState } from "@/lib/authProviderRevision";
+import { readProviderAccountRevision, readProviderAuthState, setProviderAuthState, setProviderIdentity, type ProviderAuthState } from "@/lib/authProviderRevision";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 
 const COVER = "/api/cover/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222";
@@ -35,6 +35,7 @@ function AuthFixture({ userId, providerAuthState, children }: {
     identityResolved: true,
     accountRevision: readProviderAccountRevision(),
     providerAuthState: providerAuthState ?? (userId ? "authenticated" : "signed-out"),
+    supabaseAuthState: readProviderAuthState("supabase"),
   };
   return createElement(AuthContext.Provider, { value }, children);
 }
@@ -81,6 +82,8 @@ afterEach(async () => {
   container.remove();
   setProviderIdentity("supabase", null);
   setProviderAuthState("supabase", "signed-out");
+  setProviderIdentity("clerk", null);
+  setProviderAuthState("clerk", "signed-out");
   publishAuthActionState({ status: "signed-out", identityResolved: true });
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -176,6 +179,31 @@ describe("private cover rendering", () => {
       direct
         ? createElement(ProfileCoverImage, { src: COVER, alt: "Cover", width: 1200, height: 360 })
         : createElement(ProfileCoverCarousel, { covers: [COVER] }))));
+    expect(fetchCover).toHaveBeenCalledTimes(1);
+    expect(fetchCover.mock.calls[0]![0]).toBe(COVER);
+    expect(new Headers(fetchCover.mock.calls[0]![1]?.headers).get("Authorization")).toBeNull();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:approved-cover");
+  });
+
+  it.each([true, false])("loads a public cover when Supabase fails with a persisted Clerk session (direct: %s)", async (direct) => {
+    switchAccount(null);
+    setProviderIdentity("clerk", "clerk-reader");
+    setProviderAuthState("clerk", "authenticated");
+    setProviderAuthState("supabase", "unresolved");
+    publishAuthActionState({ status: "unknown", identityResolved: false });
+    auth.token = "stale-token";
+    const view = () => createElement(AuthFixture,
+      { userId: null, providerAuthState: "authenticated" },
+      direct
+        ? createElement(ProfileCoverImage, { src: COVER, alt: "Cover", width: 1200, height: 360 })
+        : createElement(ProfileCoverCarousel, { covers: [COVER] }));
+    await act(async () => root.render(view()));
+    expect(fetchCover).not.toHaveBeenCalled();
+
+    await act(async () => {
+      setProviderAuthState("supabase", "unavailable");
+      root.render(view());
+    });
     expect(fetchCover).toHaveBeenCalledTimes(1);
     expect(fetchCover.mock.calls[0]![0]).toBe(COVER);
     expect(new Headers(fetchCover.mock.calls[0]![1]?.headers).get("Authorization")).toBeNull();

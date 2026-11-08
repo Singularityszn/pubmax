@@ -46,9 +46,9 @@ export default function ProfileCoverImage({
   priority,
   onError,
 }: Props) {
-  const { accountRevision, providerAuthState, session, user } = useAuth();
+  const { accountRevision, providerAuthState, supabaseAuthState, session, user } = useAuth();
   const userId = user?.id;
-  const readerKey = `${accountRevision}:${userId ?? ""}:${providerAuthState}:${src}`;
+  const readerKey = `${accountRevision}:${userId ?? ""}:${providerAuthState}:${supabaseAuthState}:${src}`;
   const [loaded, setLoaded] = useState<{ readerKey: string; url: string } | null>(null);
   const onErrorRef = useRef(onError);
   const restartRef = useRef(() => {});
@@ -59,7 +59,7 @@ export default function ProfileCoverImage({
   }, [onError]);
 
   useEffect(() => {
-    if (!userId && providerAuthState === "unresolved") return;
+    if (!userId && supabaseAuthState === "unresolved") return;
     if (!COVER_SRC.test(src)) return;
     const accountSignal = readProviderAccountSignal();
     let active = true;
@@ -73,7 +73,7 @@ export default function ProfileCoverImage({
         const response = await authedActionFetch(
           src,
           { cache: "no-store", redirect: "error", signal: compositeActionSignal([accountSignal, signal]) },
-          { requiresIdentity: providerAuthState !== "signed-out" && providerAuthState !== "unavailable" },
+          { requiresIdentity: supabaseAuthState !== "signed-out" && supabaseAuthState !== "unavailable" },
         );
         if (!current()) {
           discardBody(response);
@@ -111,7 +111,7 @@ export default function ProfileCoverImage({
       const released = objectUrl;
       setLoaded((prev) => (prev?.url === released ? null : prev));
     };
-  }, [src, readerKey, providerAuthState, userId]);
+  }, [src, readerKey, supabaseAuthState, userId]);
 
   // A refreshed session for the same account retries a read that has no bytes
   // yet. A photo already on screen stays.

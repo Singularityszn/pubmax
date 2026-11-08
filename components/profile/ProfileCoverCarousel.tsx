@@ -62,8 +62,8 @@ export default function ProfileCoverCarousel({
 }: {
   covers: readonly string[];
 }) {
-  const { accountRevision, providerAuthState, session, user } = useAuth();
-  const readerKey = `${accountRevision}:${user?.id ?? ""}:${providerAuthState}`;
+  const { accountRevision, providerAuthState, supabaseAuthState, session, user } = useAuth();
+  const readerKey = `${accountRevision}:${user?.id ?? ""}:${providerAuthState}:${supabaseAuthState}`;
   const [failedState, setFailed] = useState<{
     readerKey: string;
     session: typeof session;
