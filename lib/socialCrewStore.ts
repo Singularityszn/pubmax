@@ -1,6 +1,8 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { markOpenCrawlArrival, openCrawlPlanSeats, readOpenCrawlArrival, type OpenCrawlPlanSeats } from "@/lib/openCrawlArrivalStore";
+import type { PlanCrewArrivedReceipt } from "@/lib/planCrewArrived.server";
 
 import { hashPlanMemberToken } from "@/lib/planStore";
 import type { OutOpenPlan } from "@/lib/out";
@@ -82,6 +84,7 @@ function crewRpcNamesMatchCatalog(
 crewRpcNamesMatchCatalog(true);
 
 export type SocialCrewStoreDependencies = {
+  planSeats?: OpenCrawlPlanSeats;
   rpc(name: SocialCrewRpcName, input: Record<string, unknown>): Promise<unknown>;
   snapshot(
     name: SocialCrewSnapshotRpcName,
@@ -147,6 +150,7 @@ type SocialCrewListInput = {
 };
 
 export type SocialCrewStore = {
+  markArrival(actor: SocialPostActor, input: { crewId: string; here: boolean }): Promise<{ here: boolean; crewArrived: PlanCrewArrivedReceipt[] }>;
   read(crewId: string, actor: SocialPostActor): Promise<SocialCrewReadDTO>;
   readPublicPreview(crewId: string): Promise<SocialCrewPublicPreviewSource>;
   readShareCard(crewId: string): Promise<SocialCrewShareCardSource>;
@@ -449,6 +453,7 @@ function parseOpenPlanRow(value: unknown): OutOpenPlan | null {
 }
 
 const defaultDependencies: SocialCrewStoreDependencies = {
+  planSeats: openCrawlPlanSeats,
   async rpc(name, input) {
     const { data, error } = await requireDynamicSupabaseAdmin().rpc(name, input);
     if (error) throw new Error(error.message);
@@ -507,6 +512,10 @@ export function createSocialCrewStore(
   }
 
   return {
+    markArrival(actor, input) {
+      if (!isUuid(input.crewId) || !validActor(actor)) return Promise.reject(new SocialCrewStoreError("NOT_FOUND", 404, "Social Crew not found."));
+      return markOpenCrawlArrival(dependencies, actor, input);
+    },
     async read(crewId, actor) {
       if (!isUuid(crewId) || !validActor(actor)) return notFound();
       let snapshot: unknown;
@@ -531,7 +540,14 @@ export function createSocialCrewStore(
       // The member snapshot admitted this reader; only then are the open
       // crawl facts read. A read that cannot run leaves them off rather than
       // failing the crew page (before 0208 is applied the function is absent).
-      return { ...projected, openCrawl: await readOpenCrawlDetails(crewId) };
+      try {
+        return {
+          ...projected, openCrawl: await readOpenCrawlDetails(crewId),
+          ...(dependencies.planSeats ? { arrival: await readOpenCrawlArrival(snapshot, crewId, actor, dependencies.planSeats) } : {}),
+        };
+      } catch {
+        return unavailable();
+      }
     },
 
     readPublicPreview,

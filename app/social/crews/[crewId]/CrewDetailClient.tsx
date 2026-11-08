@@ -21,7 +21,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import ReportPerson from "@/components/social/ReportPerson";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
-import { trackHostLoopStep } from "@/lib/hostLoopAnalytics";
+import { trackCrewArrivedReceipts, trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -446,6 +446,22 @@ export default function CrewDetailClient({
       router.push("/social");
     });
 
+  const markArrival = () =>
+    run(async () => {
+      if (crew?.kind !== "member" || !crew.arrival?.open) return;
+      const result = await write(`/api/social/crews/${encodeURIComponent(crewId)}/arrival`, {
+        method: "POST",
+        body: JSON.stringify({ here: !crew.arrival.here }),
+        prefix: "crew-arrival",
+      });
+      if (typeof result?.here !== "boolean") throw new Error("Could not update your arrival.");
+      if (previousScopeKey.current !== scopeKey) return;
+      const here = result.here;
+      setCrew((current) => current?.kind === "member"
+        ? { ...current, arrival: { open: true, here } } : current);
+      trackCrewArrivedReceipts(result.crewArrived);
+    });
+
   const changeJoinRequest = (action: "request" | "cancel") =>
     run(async () => {
       const body = await write(`/api/social/crews/${encodeURIComponent(crewId)}/join-requests`, {
@@ -636,6 +652,25 @@ export default function CrewDetailClient({
         </header>
 
         <CrewPlanSection crew={crew} />
+
+        {crew.visibility === "open" && crew.arrival ? (
+          <section className="crews__notice" aria-labelledby="crew-arrival-title">
+            <h2 id="crew-arrival-title" className="crews__title">On the night</h2>
+            <p className="crews__muted" role="status">
+              {crew.arrival.here ? "You're marked Here." : crew.arrival.open
+                ? "Let the crew know when you've arrived." : "Arrival opens on the day of the crawl."}
+            </p>
+            <button
+              type="button"
+              className={crew.arrival.here ? "crews__button" : "crews__button crews__button--primary"}
+              disabled={busy || !crew.arrival.open}
+              aria-pressed={crew.arrival.here}
+              onClick={() => void markArrival()}
+            >
+              {busy ? "Working…" : crew.arrival.here ? "Undo arrival" : "I'm here"}
+            </button>
+          </section>
+        ) : null}
 
         <section aria-labelledby="crew-members-title">
           <h2 id="crew-members-title" className="crews__title">
