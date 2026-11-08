@@ -7,7 +7,7 @@ Modules under `lib/`: the closed vocabularies, the policy leaves and the stores.
 - **One owner per rule.** A closed vocabulary lives in one `lib/` module. A policy leaf imports nothing heavy, so a page that needs it does not pull a store behind it.
 - **Dual-backend stores share one interface.** Process memory runs keyless. Supabase is the durable backend. Both go through `lib/storeBackend.ts`.
 - **Price trust is decided in one place.** `lib/pintTrust.ts`, `lib/priceTier.ts` and `lib/venues.ts` decide price lanes. A retired contributor changes a name, never a price's authority.
-- **A new price carries its bill, or it saves as unchecked.** `lib/pintDropReceipt.ts` owns the rule. An unchecked price stays off the pin until a second drinker agrees.
+- **A bill attachment does not verify a price.** See the [bill check rule](../docs/rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price).
 - **A referral confers recognition only.** Nothing in the product may branch on it. `lib/referrals.ts` owns the rule, and `__tests__/referralMarkLaw.test.ts` fences it.
 - **Push registration is identity-free by design.** `lib/pushTokenStore.ts` stores no account or plan identity.
 

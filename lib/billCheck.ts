@@ -22,10 +22,10 @@
 // WHAT IS KEPT. The model is asked for the venue name, the priced lines and
 // the date, because that is the shape a bill has. Only the priced lines leave
 // this parser, and only the lines the verdict needs are stored: the matching
-// line on a match, every priced line on a mismatch (the moderator's evidence),
+// lines on a match, every priced line on a mismatch (the moderator's evidence),
 // none on an unreadable bill. The venue name and the date are never kept. A
-// line name loses every run of four or more digits, so a card number, a phone
-// number or a table code read off the bill cannot be stored beside a price.
+// line name loses every run of four or more digits. A fully redacted name uses
+// the privacy-safe marker `Item` and keeps its price.
 
 import type { DrinkMeasure } from "@/lib/drinkMeasure";
 import { drinkCategoryFromText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";

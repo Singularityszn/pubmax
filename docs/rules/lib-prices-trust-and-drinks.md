@@ -60,6 +60,9 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      The Pint Drop composer then prints `BILL_READING_RECEIPT_LINE`.
      A one-tap repeat inside the six-second duplicate window schedules no check for the new photo.
      The existing drop keeps its own photo and check.
+     A paired drop's identity includes the community row ID, submission time and submitted price.
+     Both backends return the stored drop for an identical ID, venue, account and price, and report whether this request created it.
+     Only the creator schedules a bill check. A duplicate success never rolls back the paired community price.
      The Round diary uses `scheduleBillChecks` to read one photo for all promoted observations that become the current community prices.
      A Round retry reads the stored spend's original photo, not the retry's attachment.
      Check reuse requires the same observation, price, photo hash and Round source, when present.
@@ -72,10 +75,12 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      If migration `0220` is missing in production, the check write refuses and grants no receipt evidence.
   4. The judge compares the submitted drink's normalised name and price to the penny.
      An unrelated item at the same price cannot match.
-     The stated measure and any serving in the submitted name must agree.
+     The stated measure and any recognised serving in the submitted name must agree.
      A serving on the bill must agree with the submitted serving when one is known.
      Serving recognition uses the shared drink taxonomy, including canonical brand names such as Heineken and London Pride.
      A bill line without a stated serving can still match by name and price.
+     Compound half-pint labels, including `half-pint`, `1/2-pint` and `½-pint`, mean a half.
+     Product prefixes in `Double Chocolate Stout`, `Single Hop Pale Ale` and `Bottle Conditioned Ale` remain part of the name.
      An outer serving word in `Double Single Malt Whisky` leaves `Single Malt Whisky` as the product name.
      If the drink is identified but no line satisfies the price and serving constraints, the verdict is `mismatch`.
      A bill without an identifiable priced line for the drink is `unreadable`.
@@ -86,6 +91,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      The verdict keeps matching lines for `match`, all parsed priced lines for `mismatch`, and no lines for `unreadable`.
      The parser drops the venue name and date read from the bill.
      Product digits survive matching, but stored line names lose runs of four or more digits.
+     If redaction removes the entire name, the stored line uses `Item` and keeps its price.
      The admin **Bills** tab lists unreviewed mismatches.
      Community-only submissions keep no photo reference, key, column or association.
      Their moderation cards show the submitted drink category and price beside the read lines and their prices.

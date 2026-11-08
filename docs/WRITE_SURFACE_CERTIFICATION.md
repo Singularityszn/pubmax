@@ -1898,8 +1898,10 @@ A Round photo also requires the recorded venue and line price to match.
 `POST` takes `{ id, decision, note? }`, where `decision` is `kept` or `hidden`. Any other decision answers 400. There is no `delete`.
 The caller must pass `isModerator` (`lib/adminAuth.ts`), the same gate as every other queue. Writes are limited to 60 a minute for each address.
 `kept` stamps the check and leaves the price unchanged. It grants no receipt evidence.
-`hidden` hides each price the check names through that lane's own moderator door: the Pint Drop's `moderate`, and the community price's `moderateWithState` with its trust reconciliation. A conditional update claims the pending check before either decision changes a price. A losing request answers 404 and changes nothing. A failed hide answers 503 and attempts to release the review claim so a moderator can retry. Any completed hide remains in place. A community hide also checks the submitted date, price and Round source line, so a correction survives an older bill review.
-A check that is not an unreviewed mismatch, or an unknown id, answers 404.
+`hidden` hides the checked Pint Drop through `moderate`. It hides a matching current community observation through `moderateWithState` and reconciles its trust. A conditional update claims the pending check before either decision changes a price. A losing request answers 404 and changes nothing. A failed hide answers 503 and attempts to release the review claim so a moderator can retry. Any completed hide remains in place. A community hide also checks the submitted date, price and Round source line, so a correction survives an older bill review.
+When a newer community observation supersedes the checked one, the route completes the review with 200 after hiding any checked drop.
+It leaves the newer price unchanged and does not reconcile its trust.
+An unknown id, a completed review or a result other than `mismatch` answers 404.
 Nothing is deleted: the check row (`public.price_bill_checks`, migration 0220, service role only), the drop and the community price all survive either decision.
 `__tests__/billChecksAdminRoute.test.ts` exercises these responses through the real entry point.
 
