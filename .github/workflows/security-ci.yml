@@ -45,7 +45,7 @@ jobs:
       - name: Restore the pinned zizmor download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.cache/pubmax-tools
+          path: ~/.cache/pubmax-tools/zizmor-1.30.1-e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
           key: pubmax-tool-zizmor-1.30.1-e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
 
       - name: Install zizmor
@@ -86,7 +86,7 @@ jobs:
       - name: Restore the pinned osv-scanner download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.cache/pubmax-tools
+          path: ~/.cache/pubmax-tools/osv-scanner-2.6.0-ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108
           key: pubmax-tool-osv-scanner-2.6.0-ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108
 
       - name: Install osv-scanner
@@ -128,7 +128,7 @@ jobs:
       - name: Restore the pinned gitleaks download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.cache/pubmax-tools
+          path: ~/.cache/pubmax-tools/gitleaks-8.30.0-79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e
           key: pubmax-tool-gitleaks-8.30.0-79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e
 
       - name: Install gitleaks

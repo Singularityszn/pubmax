@@ -183,8 +183,8 @@ The workflow step names the pins: version, release URL, sha256 and fallback.
 The script tries three sources in order and installs from the first that
 works:
 
-1. The cached release download. `actions/cache` restores
-   `~/.cache/pubmax-tools` with a key built from the version and the sha256,
+1. The cached release download. `actions/cache` restores the verified asset
+   under `~/.cache/pubmax-tools` with a key built from the version and the sha256,
    and the script uses the file only when its sha256 still matches.
 2. The release download, with `curl --retry 8 --retry-delay 15
    --retry-max-time 300 --retry-all-errors --connect-timeout 30`. The script

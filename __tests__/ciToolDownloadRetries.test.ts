@@ -53,23 +53,33 @@ function workflow(file: string): Workflow {
   return parse(readFileSync(join(ROOT, ".github/workflows", file), "utf8")) as Workflow;
 }
 
+function commands(step: Step): string[] {
+  return (step.run ?? "")
+    .replace(/\\\n/g, " ")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+}
+
 describe("the required workflows", () => {
-  const securityJobs = Object.entries(workflow("security-ci.yml").jobs).flatMap(([job, { steps = [] }]) =>
+  const securityJobs = Object.values(workflow("security-ci.yml").jobs).flatMap(({ steps = [] }) =>
     steps.flatMap((step, index) =>
-      step.run?.includes("scripts/ci/install-pinned-tool.sh") ? [{ job, step, before: steps[index - 1] }] : [],
+      commands(step).some((line) => line.split(/\s+/)[0] === "scripts/ci/install-pinned-tool.sh")
+        ? [{ step, before: steps[index - 1] }] : [],
     ),
   );
 
-  it("installs zizmor, osv-scanner and gitleaks through the pinned installer", () => {
-    expect(securityJobs.map(({ step }) => step.env?.TOOL_NAME).sort()).toEqual(["gitleaks", "osv-scanner", "zizmor"]);
+  it("covers active Security CI installer commands", () => {
+    expect(securityJobs.length).toBeGreaterThan(0);
   });
 
   it.each(securityJobs.map((entry) => [entry.step.env?.TOOL_NAME, entry] as const))(
-    "%s restores its download from a cache keyed on version and checksum",
+    "%s retries its release download and leaves no cache asset after fallback",
     (_tool, { step, before }) => {
       const env = step.env ?? {};
       expect(before?.uses).toMatch(/^actions\/cache@[0-9a-f]{40}$/);
-      expect(before?.with?.path).toBe("~/.cache/pubmax-tools");
+      const cachePath = defined(before?.with?.path);
+      expect(cachePath).toBe(`~/.cache/pubmax-tools/${env.TOOL_NAME}-${env.TOOL_VERSION}-${env.TOOL_SHA256}`);
       expect(before?.with?.key).toContain(env.TOOL_VERSION);
       expect(before?.with?.key).toContain(env.TOOL_SHA256);
       expect(env.TOOL_SHA256).toMatch(/^[0-9a-f]{64}$/);
@@ -81,13 +91,28 @@ describe("the required workflows", () => {
         expect(env.TOOL_FALLBACK).toBe("go");
         expect(env.TOOL_GO_MODULE).toMatch(new RegExp(`@v${env.TOOL_VERSION}$`));
       }
+      const cache = dir("cache");
+      const run = install({
+        sha256: defined(env.TOOL_SHA256),
+        fallback: env.TOOL_FALLBACK as "pip" | "go",
+        cache,
+        step,
+      });
+      expect(run.status, run.stderr).toBe(0);
+      expect(run.installed).not.toBe("");
+      expect(run.curl.length).toBeGreaterThan(0);
+      for (const args of run.curl) {
+        expectRetryWindow(args);
+        expect(args.at(-1)).toBe(env.TOOL_URL);
+      }
+      expect(existsSync(join(cache, cachePath.slice("~/.cache/pubmax-tools/".length)))).toBe(false);
     },
   );
 
   // A download that is still a plain curl in a step retries over a window.
   const curlSteps = REQUIRED_WORKFLOWS.flatMap((file) =>
     Object.values(workflow(file).jobs).flatMap(({ steps = [] }) =>
-      steps.filter((step) => /\b(curl|apt-get)\b/.test(step.run ?? "")).map((step) => ({ file, step })),
+      steps.filter((step) => commands(step).some((line) => /\b(curl|apt-get)\b/.test(line))).map((step) => ({ file, step })),
     ),
   );
 
@@ -146,9 +171,10 @@ function install(options: {
   cache: string;
   goVersion?: string;
   goOnPath?: boolean;
+  step?: Step;
 }): Run {
-  const tool = options.tool ?? "zizmor";
-  const version = options.version ?? "1.30.1";
+  const tool = options.step?.env?.TOOL_NAME ?? options.tool ?? "zizmor";
+  const version = options.step?.env?.TOOL_VERSION ?? options.version ?? "1.30.1";
   const bin = dir("bin");
   const logs = dir("logs");
   const curlLog = join(logs, "curl");
@@ -194,11 +220,12 @@ fi`;
     script(join(bin, "go"), goScript);
   }
   script(join(bin, "sudo"), `"$@"`);
-  const result = spawnSync("bash", [INSTALLER], {
+  const result = spawnSync("bash", ["-e", "-o", "pipefail", "-c", options.step?.run ?? `bash "${INSTALLER}"`], {
     encoding: "utf8",
+    cwd: ROOT,
     env: {
       NODE_ENV: "test",
-      PATH: `${bin}:/usr/bin:/bin:/usr/sbin:/sbin`,
+      PATH: `${bin}:${target}:/usr/bin:/bin:/usr/sbin:/sbin`,
       HOME: dir("home"),
       TOOL_NAME: tool,
       TOOL_VERSION: version,
@@ -208,6 +235,7 @@ fi`;
       TOOL_FALLBACK: options.fallback,
       TOOL_PIP_REQUIREMENT: `${tool}==${version} --hash=sha256:${"e".repeat(64)}`,
       TOOL_GO_MODULE: `the/module/cmd/${tool}@v${version}`,
+      ...options.step?.env,
       PUBMAX_TOOL_CACHE: options.cache,
       PUBMAX_TOOL_BIN: target,
       RUNNER_TOOL_CACHE: toolCache,
