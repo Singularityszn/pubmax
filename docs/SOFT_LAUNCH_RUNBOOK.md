@@ -414,7 +414,7 @@ Do all of 8.2 by Sunday 15 November. The one exception is the last migrations, w
 
 #### 8.2.1 Migrations (Owner action)
 
-Migration 0222 has a separate approval condition in its [header](../supabase/migrations/20261107180000_0222_open_crawl_share_card.sql).
+Migration 0225 has a separate approval condition in its [header](../supabase/migrations/20261108090000_0225_open_crawl_share_card.sql).
 Without that approval, do not apply it or proceed with a release that requires it.
 
 Production must hold every file in `supabase/migrations/` before Monday's release, because `npm run release:prod` refuses when the ledger lacks one ([release rule](rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)).

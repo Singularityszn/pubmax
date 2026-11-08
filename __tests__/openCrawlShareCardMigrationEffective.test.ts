@@ -1,4 +1,4 @@
-// Migration 0222, proved against a real PostgreSQL replay of every migration:
+// Migration 0225, proved against a real PostgreSQL replay of every migration:
 // the share card read answers an open, upcoming crew with its capacity, its
 // active seat count, the host's chosen meeting pub and its stop ids; it answers
 // nothing for a crew 0115 would not describe; no browser role can call it; and
@@ -19,8 +19,8 @@ import {
 const skipReason = postgresSkipReason();
 
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
-const FORWARD = join(MIGRATIONS, "20261107180000_0222_open_crawl_share_card.sql");
-const ROLLBACK = join(MIGRATIONS, "rollback/20261107180000_0222_open_crawl_share_card_rollback.sql");
+const FORWARD = join(MIGRATIONS, "20261108090000_0225_open_crawl_share_card.sql");
+const ROLLBACK = join(MIGRATIONS, "rollback/20261108090000_0225_open_crawl_share_card_rollback.sql");
 
 const HOST_USER = "aaaaaaaa-aaaa-4aaa-8aaa-222222220001";
 const HOST_PROFILE = "aaaaaaaa-aaaa-4aaa-8aaa-222222220002";
@@ -90,7 +90,7 @@ function seed(): void {
 
 beforeAll(async () => {
   if (skipReason) return;
-  session = await startMigratedPostgres({ label: "open-crawl-share-card-0222", database: "pubmax_share_card_0222" });
+  session = await startMigratedPostgres({ label: "open-crawl-share-card-0225", database: "pubmax_share_card_0225" });
   session.sql(`
     insert into auth.users(id) values ('${HOST_USER}'),('${GUEST_USER}'),('${LEFT_USER}');
     insert into public.profiles(id,user_id,handle) values
@@ -112,7 +112,7 @@ afterAll(async () => {
   await session?.stop();
 });
 
-describe.skipIf(skipReason !== null)("0222 open crawl share card applied to PostgreSQL", () => {
+describe.skipIf(skipReason !== null)("0225 open crawl share card applied to PostgreSQL", () => {
   it("answers the host, the cap, the active seats, the host's meeting pub and the stop ids", () => {
     const card = shareCard();
     expect(card).toEqual({

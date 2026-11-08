@@ -55,7 +55,7 @@ describe("Social Crew public preview store", () => {
   });
 });
 
-describe("Social Crew share card store (0222)", () => {
+describe("Social Crew share card store (0225)", () => {
   const CARD = {
     crewId: CREW_ID,
     title: "Friday in Camden",
@@ -68,7 +68,7 @@ describe("Social Crew share card store (0222)", () => {
     stopVenueIds: ["venue-camden-arms", "venue-good-mixer"],
   };
 
-  it("reads the 0222 service RPC and keeps the stop list server side", async () => {
+  it("reads the 0225 service RPC and keeps the stop list server side", async () => {
     supabase.rpc.mockResolvedValueOnce({ data: CARD, error: null });
 
     await expect(createSocialCrewStore().readShareCard(CREW_ID)).resolves.toEqual({
@@ -81,7 +81,7 @@ describe("Social Crew share card store (0222)", () => {
     });
   });
 
-  it("answers not found for a crew 0222 does not describe", async () => {
+  it("answers not found for a crew 0225 does not describe", async () => {
     supabase.rpc.mockResolvedValueOnce({ data: null, error: null });
 
     await expect(createSocialCrewStore().readShareCard(CREW_ID)).rejects.toMatchObject({
@@ -115,9 +115,9 @@ describe("Social Crew share card store (0222)", () => {
     });
   });
 
-  it("keeps the host's Stop 2 meeting facts before 0222 is applied", async () => {
+  it("keeps the host's Stop 2 meeting facts before 0225 is applied", async () => {
     supabase.rpc
-      .mockResolvedValueOnce({ data: null, error: { message: "0222 unavailable" } })
+      .mockResolvedValueOnce({ data: null, error: { message: "0225 unavailable" } })
       .mockResolvedValueOnce({ data: SOURCE, error: null })
       .mockResolvedValueOnce({
         data: {
@@ -153,7 +153,7 @@ describe("Social Crew share card store (0222)", () => {
     ["malformed 0208 facts", { data: { capacity: 8 }, error: null }],
   ])("refuses the card after %s instead of guessing Stop 1", async (_label, response) => {
     supabase.rpc
-      .mockResolvedValueOnce({ data: null, error: { message: "0222 unavailable" } })
+      .mockResolvedValueOnce({ data: null, error: { message: "0225 unavailable" } })
       .mockResolvedValueOnce({ data: SOURCE, error: null })
       .mockResolvedValueOnce(response);
 
@@ -165,7 +165,7 @@ describe("Social Crew share card store (0222)", () => {
 
   it("does not read 0208 facts when the public preview refuses the crew", async () => {
     supabase.rpc
-      .mockResolvedValueOnce({ data: null, error: { message: "0222 unavailable" } })
+      .mockResolvedValueOnce({ data: null, error: { message: "0225 unavailable" } })
       .mockResolvedValueOnce({ data: null, error: null });
 
     await expect(createSocialCrewStore().readShareCard(CREW_ID)).rejects.toMatchObject({

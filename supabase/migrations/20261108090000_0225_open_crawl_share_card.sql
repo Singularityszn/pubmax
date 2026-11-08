@@ -1,8 +1,8 @@
--- Open crawl share card: the facts a link preview prints (0222).
+-- Open crawl share card: the facts a link preview prints (0225).
 -- Captain applies; agents ship SQL only.
--- Apply only after the captain says "apply 0222".
+-- Apply only after the captain says "apply 0225".
 --
--- Reverse: supabase/migrations/rollback/20261107180000_0222_open_crawl_share_card_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261108090000_0225_open_crawl_share_card_rollback.sql
 --
 -- WHAT IT IS. Launch plan P0 item 4: hosts post an open crawl's link on Luma
 -- and X, and today that link unfurls as a bare "Crew". The card needs the

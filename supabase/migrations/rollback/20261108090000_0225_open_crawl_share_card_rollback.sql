@@ -1,6 +1,6 @@
 begin;
 
--- Reverses 20261107180000_0222_open_crawl_share_card.sql.
+-- Reverses 20261108090000_0225_open_crawl_share_card.sql.
 --
 -- COST: an open crawl's link preview loses the places left and price band.
 -- The app uses the fallback described by SocialCrewShareCardSource in

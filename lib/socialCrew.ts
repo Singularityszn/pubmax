@@ -291,7 +291,7 @@ export function parseSocialCrewPublicPreviewSource(
 }
 
 /**
- * Service-only source for an open crawl's link preview (0222). The stop ids
+ * Service-only source for an open crawl's link preview (0225). The stop ids
  * are read on the server for a price band and never reach a browser. A null
  * capacity is an open crew with no open crawl facts. The fallback uses 0115
  * for public visibility and 0208 for the host's meeting pub and capacity.
@@ -327,7 +327,7 @@ function nonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-/** Parse 0222 service output before the link preview can use it. */
+/** Parse 0225 service output before the link preview can use it. */
 export function parseSocialCrewShareCardSource(
   value: unknown,
 ): SocialCrewShareCardSource | null {
