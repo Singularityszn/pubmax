@@ -256,6 +256,12 @@ function billedPromotionOwner(
   return unbilled ? null : contributor.actor;
 }
 
+function promotionErrorResponse(error: RoundWriteError): Response {
+  return error === "forbidden"
+    ? publicApiError("This saved round belongs to another account.", "FORBIDDEN", 403)
+    : errorResponse(error);
+}
+
 // One immutable buying turn, plus the price submissions its drink lines earn.
 async function recordSpend(
   request: Request,
@@ -334,9 +340,7 @@ async function recordSpend(
     promotionOwner,
   );
   if (!owner.ok) {
-    return owner.error === "forbidden"
-      ? publicApiError("This saved round belongs to another account.", "FORBIDDEN", 403)
-      : errorResponse(owner.error);
+    return promotionErrorResponse(owner.error);
   }
   const reconciled = await store.reconcilePromotionKeys(
     code,
@@ -344,9 +348,7 @@ async function recordSpend(
     promotionOwner,
   );
   if (!reconciled.ok) {
-    return reconciled.error === "forbidden"
-      ? publicApiError("This saved round belongs to another account.", "FORBIDDEN", 403)
-      : errorResponse(reconciled.error);
+    return promotionErrorResponse(reconciled.error);
   }
 
   const prepared = await preparePendingRoundPrices({
