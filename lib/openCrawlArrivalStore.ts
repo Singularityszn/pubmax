@@ -55,7 +55,7 @@ function arrivalContext(snapshot: unknown, crewId: string, actor: SocialPostActo
   return { projected, raw, member };
 }
 
-export function openCrawlArrivalWindow(startTime: string, now = new Date()): boolean {
+function openCrawlArrivalWindow(startTime: string, now = new Date()): boolean {
   const start = Date.parse(startTime);
   return Number.isFinite(start) && londonDayKey(now) >= londonDayKey(startTime)
     && now.getTime() < start + 12 * 60 * 60 * 1000;
