@@ -149,7 +149,7 @@ type PublicDrop = ProfileDrop & {
   createdAt?: string;
 };
 
-type LoadState = "loading" | "ready" | "error" | "gone";
+type LoadState = "loading" | "ready" | "error" | "retrying" | "gone";
 
 type ProfileGeographyRead = {
   key: string;
@@ -292,7 +292,7 @@ export function profileSurfaceFor({
     return "identity-loading";
   }
   if (state === "gone") return "gone";
-  if (state === "error") return "error";
+  if (state === "error" || state === "retrying") return "error";
   return "profile";
 }
 
@@ -1368,8 +1368,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         <EmptyState
           title="Couldn't load pints right now."
           action={
-            <Button type="button" variant="secondary" onClick={() => {
-              setState("loading");
+            <Button type="button" variant="secondary" disabled={state === "retrying"} aria-busy={state === "retrying"} onClick={() => {
+              setState("retrying");
               setPintsReadAttempt((attempt) => attempt + 1);
             }}>Retry</Button>
           }
