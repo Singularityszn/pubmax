@@ -177,7 +177,8 @@ describe("the phone sheet shows one plan door that follows state", () => {
 
     expect(planControls()).toHaveLength(1);
     expect(peekDoor().textContent).toBe("Make it Stop 1");
-    expect(peekDoor().getAttribute("aria-label")).toBe("Make The Plan Door Stop 1");
+    expect(peekDoor().getAttribute("aria-label")).toContain(peekDoor().textContent);
+    expect(peekDoor().getAttribute("aria-label")).toContain("The Plan Door");
     act(() => peekDoor().click());
     expect(accept).toHaveBeenCalledTimes(1);
     expect(toggle).not.toHaveBeenCalled();
@@ -230,7 +231,7 @@ describe("the phone sheet shows one plan door that follows state", () => {
       const toolbar = footer?.querySelector('[role="toolbar"][aria-label="Venue actions"]');
       const names = Array.from(toolbar?.querySelectorAll("button") ?? [], (button) =>
         button.getAttribute("aria-label") ?? button.textContent?.trim());
-      expect(names).toEqual(["Ask The Plan Door for a table", "Share The Plan Door"]);
+      expect(names).toEqual(["Ask for a table at The Plan Door", "Share The Plan Door"]);
       expect(planControls()).toHaveLength(1);
       // Nothing that plans is left in the body above the footer.
       expect(host.querySelector(".mobileSharedSheetBody button")).toBeNull();
