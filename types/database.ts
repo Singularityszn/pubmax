@@ -6063,7 +6063,8 @@ export type Database = {
         Row: {
           id: string;
           report_id: string;
-          post_id: string;
+          content_kind: string;
+          content_id: string;
           staff_role_id: string;
           staff_display_name: string;
           viewed_at: string;
@@ -6071,7 +6072,8 @@ export type Database = {
         Insert: {
           id?: string;
           report_id: string;
-          post_id: string;
+          content_kind: string;
+          content_id: string;
           staff_role_id: string;
           staff_display_name: string;
           viewed_at?: string;
@@ -6079,7 +6081,8 @@ export type Database = {
         Update: {
           id?: string;
           report_id?: string;
-          post_id?: string;
+          content_kind?: string;
+          content_id?: string;
           staff_role_id?: string;
           staff_display_name?: string;
           viewed_at?: string;
@@ -8435,7 +8438,7 @@ export type Database = {
         };
         Returns: Json;
       };
-      read_reported_post_evidence_admin: {
+      read_reported_content_evidence_admin: {
         Args: {
           p_staff_role_id: string | null;
           p_report_id: string | null;
