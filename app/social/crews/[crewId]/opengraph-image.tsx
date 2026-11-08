@@ -14,11 +14,8 @@ import { isCrewId } from "@/lib/socialCrewsUi";
 import { CardShell, OG, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
 import { clampOgText } from "@/lib/ogCardText";
 
-// Share card for an open crawl's link (launch plan P0 item 4). Hosts post this
-// link on Luma and X, so the card carries what a stranger needs to decide: the
-// host's public handle, the day and time, the area, the meeting pub, the places
-// left and the pint price band. It never names a member or a stop. A crew that
-// is not open, or a read that cannot run, degrades to a plain PUBMAXX poster.
+// The Social Crews notice at /privacy#crews owns the public disclosure contract.
+// A crew that is not open, or a read that cannot run, gets a plain PUBMAXX poster.
 //
 // runtime = "nodejs": loadOgFonts reads the Space Grotesk TTFs from
 // public/fonts via node:fs, same as every sibling OG route.

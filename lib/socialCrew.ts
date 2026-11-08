@@ -143,8 +143,8 @@ export type SocialCrewPageDTO = {
 export type SocialCrewReadDTO = SocialCrewPreviewDTO | SocialCrewPageDTO;
 
 /**
- * Service-only source row for anonymous Open Crew reads. Stop 1 is resolved
- * against the current venue and POI indexes before this reaches a browser.
+ * Legacy 0115 public source used by the share-card fallback to check visibility.
+ * SocialCrewShareCardSource below owns the fallback's meeting-point rules.
  */
 export type SocialCrewPublicPreviewSource = {
   crewId: string;

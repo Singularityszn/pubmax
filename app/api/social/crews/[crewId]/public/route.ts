@@ -14,10 +14,8 @@ type Context = { params: Promise<{ crewId: string }> };
 /**
  * Account-free read for a listed Open Crew. The database is the visibility and
  * lifecycle authority; the current venue/POI index is the meeting-point
- * authority. It answers what the link preview prints (launch plan P0 item 4):
- * the host's handle, the time, the meeting pub, the area, the places left and
- * the pint price band. It never names a member or a stop. Joining remains on
- * the verified Social route.
+ * authority. The Social Crews notice at /privacy#crews owns the public
+ * disclosure contract. Joining remains on the verified Social route.
  */
 export async function GET(_request: Request, context: Context): Promise<Response> {
   const { crewId } = await context.params;
