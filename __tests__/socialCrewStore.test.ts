@@ -145,6 +145,30 @@ describe("open-crawl member arrival", () => {
     expect((await store.markArrival(alice, { crewId: CREW_ID, here: true })).crewArrived).toEqual([]);
   });
 
+  it("returns all reached bands at four guests and excludes inactive seats", async () => {
+    const { store, crew, seats } = arrivalFixture();
+    const guest = crew.members[1]!;
+    for (let i = 3; i <= 6; i++) {
+      const suffix = String(i).padStart(12, "0");
+      const member = {
+        ...guest, memberId: `30000000-0000-4000-8000-${suffix}`,
+        planMemberId: `40000000-0000-4000-8000-${suffix}`,
+        accountId: `10000000-0000-4000-8000-${suffix}`,
+        profileId: `20000000-0000-4000-8000-${suffix}`,
+        handle: `guest${i}`,
+      };
+      crew.members.push(member);
+      seats.push({ id: member.planMemberId, name: member.handle, status: "here",
+        joinedAt: member.joinedAt, updatedAt: member.joinedAt });
+    }
+    crew.members.at(-1)!.state = "removed";
+    expect((await store.markArrival(bob, { crewId: CREW_ID, here: true })).crewArrived
+      .map((receipt) => receipt.guestsArrived)).toEqual(["1", "2-3", "4+"]);
+    crew.members.at(-2)!.state = "removed";
+    expect((await store.markArrival(bob, { crewId: CREW_ID, here: true })).crewArrived
+      .map((receipt) => receipt.guestsArrived)).toEqual(["1", "2-3"]);
+  });
+
   it.each(["private", "friends"] as const)("refuses %s crews without writing a seat", async (visibility) => {
     const { store, seats } = arrivalFixture(visibility);
     await expect(store.markArrival(bob, { crewId: CREW_ID, here: true })).rejects.toMatchObject({ status: 404 });

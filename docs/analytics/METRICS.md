@@ -240,14 +240,14 @@ The [invite delivery notes](../METRICS_FUNNEL.md#2-invites-per-planner-and-invit
 These corrections change documentation only. Existing saved reports require owner review before their names or definitions change.
 Keep old report exports with their original definition and reporting dates.
 
-### 3.3 The host loop and private hosted-plan arrivals
+### 3.3 The host loop and hosted-night arrivals
 
 The launch metric is hosted nights where 4 or more people other than the host
-arrived. Today, `crew_arrived` measures arrivals on private hosted plans only.
-Count events with `guestsArrived = 4+` for those plans.
-Open crawls cannot report arrivals until [issue 2587](https://github.com/Singularityszn/pubmax/issues/2587) lands.
+arrived. `crew_arrived` measures arrivals on private hosted plans and open crawls.
+Count events with `guestsArrived = 4+`.
 
-- `crew_arrived` counts guests currently marked "Here" on a private hosted plan page.
+- `crew_arrived` counts guests currently marked "Here" on a private hosted plan page
+  or by active open-crawl members on their crew page.
   The host is the first seat by join order and is never a guest.
 - Each qualifying band counts once for the plan's scheduled London date.
   Count one band. Never add the bands together.
@@ -258,11 +258,14 @@ Open crawls cannot report arrivals until [issue 2587](https://github.com/Singula
 The receipt window starts at London midnight on the plan's scheduled date.
 `crewArrivedEventToken` in `lib/verifiedAnalytics.server.ts` defines its expiry.
 Status writes can report arrivals throughout this window, beyond the scheduled evening.
-Outside this window, status writes still succeed but carry no arrival receipts.
+Outside this window, private Plan status writes still succeed but carry no arrival receipts.
+Open-crawl arrival writes open at London midnight on the scheduled date and
+close 12 hours after the start. They refuse writes outside this shorter window.
+The private Plan page's relationship-based access rule is unchanged.
 
 | Measure | Numerator | Denominator | Limits |
 |---|---|---|---|
-| Private hosted nights with 4 or more guests | `crew_arrived` with `guestsArrived = 4+` | Not a rate | The open-crawl limitation above applies. At least four guests must be marked "Here" in the same status-write response |
+| Hosted nights with 4 or more guests | `crew_arrived` with `guestsArrived = 4+` | Not a rate | At least four guests must be marked "Here" in the same status-write response. Consent and successful receipt delivery are required |
 | Join acceptances | `crew_join_accepted` count | Not a rate | Includes open crawls and friends crews. Declines, cancels and time to answer are not measured |
 | Requests per opened crawl | `crew_join_requested` count | `open_crawl_opened` count | Open-crawl requests only. Two weekly totals, not unique crawls or a matched cohort. Each event requires the acting device's consent |
 

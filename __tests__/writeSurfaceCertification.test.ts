@@ -217,7 +217,8 @@ describe("mutating API surface certification", () => {
     // 176: private Plan beacon PUT/DELETE and mystery presentation PUT.
     // 177: plus POST /api/table-requests, "Ask the pub for a table" (0219).
     // 178: plus POST /api/admin/social-safety, audited Social moderation (0224).
-    expect(mutationHandlers).toHaveLength(178);
+    // 179: plus POST /api/social/crews/[crewId]/arrival, open crawl arrival (#2587).
+    expect(mutationHandlers).toHaveLength(179);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );
@@ -266,6 +267,7 @@ describe("mutating API surface certification", () => {
       "app/api/social/crews/[crewId]/join-requests/[requestId]",
       "app/api/social/crews/[crewId]/members/[memberId]",
       "app/api/social/crews/[crewId]/leave",
+      "app/api/social/crews/[crewId]/arrival",
     ];
 
     for (const route of routes) expect(section).toContain(`\`${route}\``);

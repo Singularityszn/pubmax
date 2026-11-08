@@ -55,6 +55,31 @@ type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
 type Match = { id: string; handle: string; displayName?: string };
 type IdentityMessage = { identityKey: string; text: string } | null;
 
+function CrewArrivalControl({ arrival, busy, onMark }: {
+  arrival: { open: boolean; here: boolean };
+  busy: boolean;
+  onMark: () => void;
+}) {
+  return (
+    <section className="crews__notice" aria-labelledby="crew-arrival-title">
+      <h2 id="crew-arrival-title" className="crews__title">On the night</h2>
+      <p className="crews__muted" role="status">
+        {arrival.here ? "You're marked Here." : arrival.open
+          ? "Let the crew know when you've arrived." : "Arrival is only open on the night."}
+      </p>
+      <button
+        type="button"
+        className={arrival.here ? "crews__button" : "crews__button crews__button--primary"}
+        disabled={busy || !arrival.open}
+        aria-pressed={arrival.here}
+        onClick={onMark}
+      >
+        {busy ? "Working…" : arrival.here ? "Undo arrival" : "I'm here"}
+      </button>
+    </section>
+  );
+}
+
 export default function CrewDetailClient({
   crewId,
   invitationId,
@@ -654,22 +679,7 @@ export default function CrewDetailClient({
         <CrewPlanSection crew={crew} />
 
         {crew.visibility === "open" && crew.arrival ? (
-          <section className="crews__notice" aria-labelledby="crew-arrival-title">
-            <h2 id="crew-arrival-title" className="crews__title">On the night</h2>
-            <p className="crews__muted" role="status">
-              {crew.arrival.here ? "You're marked Here." : crew.arrival.open
-                ? "Let the crew know when you've arrived." : "Arrival opens on the day of the crawl."}
-            </p>
-            <button
-              type="button"
-              className={crew.arrival.here ? "crews__button" : "crews__button crews__button--primary"}
-              disabled={busy || !crew.arrival.open}
-              aria-pressed={crew.arrival.here}
-              onClick={() => void markArrival()}
-            >
-              {busy ? "Working…" : crew.arrival.here ? "Undo arrival" : "I'm here"}
-            </button>
-          </section>
+          <CrewArrivalControl arrival={crew.arrival} busy={busy} onMark={() => void markArrival()} />
         ) : null}
 
         <section aria-labelledby="crew-members-title">

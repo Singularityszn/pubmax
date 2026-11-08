@@ -175,6 +175,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/crews/[crewId]/invitations`
 - `POST app/api/social/crews/[crewId]/join-requests`
 - `POST app/api/social/crews/[crewId]/leave`
+- `POST app/api/social/crews/[crewId]/arrival`
 - `POST app/api/social/interactions`
 - `POST app/api/social/posts`
 - `POST app/api/social/posts/[postId]/photos`
@@ -457,12 +458,12 @@ bodies.
   Unavailable staff authority, storage or database reads return 503.
   Queue and evidence responses are private and no-store.
 
-### Social Crew authority routes (routes 81-88)
+### Social Crew authority routes (routes 81-89)
 
-All eight route files resolve a verified Social actor before parameter, header,
+All nine route files resolve a verified Social actor before parameter, header,
 or bounded JSON reads. No body can assert account ownership, role authority, or
 an owner. JSON objects use exact keys, so unknown keys fail. Every mutation
-requires a header-only `Idempotency-Key` of 16 to 128 trimmed characters. Body
+except the desired-state arrival write requires a header-only `Idempotency-Key` of 16 to 128 trimmed characters. Body
 fallback is not supported. A salted stable-profile budget limits writes to 30
 per minute. Every success and failure is `private, no-store` JSON. Statuses are
 stable: 401 for sign-in, 403 for Social policy, 404 for unknown or protected
@@ -513,6 +514,17 @@ ID.
 
 `POST` leaves as verified actor. Self-leave stays available after friendship
 loss or a block; owner leave remains a durable conflict until ownership moves.
+
+#### `app/api/social/crews/[crewId]/arrival` (route 89)
+
+`POST` accepts only `{ here: boolean }`. A verified actor must be an active
+member of the named open crew. The server derives the Plan and seat from that
+membership and updates only the seat bound to that account. It reads authority
+again before minting the existing arrival receipts. Private and friends crews
+return 404. No Plan capability or account ID is returned. Arrival opens at London
+midnight on the scheduled date and closes 12 hours after the start.
+Setting the desired status is idempotent without a receipt key; analytics
+deduplicates each signed band per Plan and scheduled London date.
 
 ### `app/api/cheap-pint-ping` - weekday push preference
 

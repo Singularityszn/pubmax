@@ -47,6 +47,9 @@ import type { SocialPostActor } from "@/lib/socialPostStore";
 import type { Database } from "@/types/database";
 import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import { SocialCrewStoreError } from "@/lib/socialCrewStoreError";
+
+export { SocialCrewStoreError } from "@/lib/socialCrewStoreError";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -92,16 +95,6 @@ export type SocialCrewStoreDependencies = {
   ): Promise<unknown>;
   signingKey(): Buffer;
 };
-
-export class SocialCrewStoreError extends Error {
-  constructor(
-    public readonly code: "INVALID" | "NOT_FOUND" | "CONFLICT" | "UNAVAILABLE",
-    public readonly status: 400 | 404 | 409 | 422 | 503,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 
 type WriteInput = { idempotencyKey: string };
 type CreateInput = WriteInput & {

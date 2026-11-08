@@ -4,7 +4,8 @@ import { type CrewMemberDTO, isCrewPresenceStatus } from "@/lib/crew";
 import { londonDayKey } from "@/lib/pintContributions";
 import { planCrewArrivedReceipts } from "@/lib/planCrewArrived.server";
 import { projectSocialCrewRead, type RawSocialCrew } from "@/lib/socialCrewProjection.server";
-import { SocialCrewStoreError, type SocialCrewStoreDependencies } from "@/lib/socialCrewStore";
+import type { SocialCrewStoreDependencies } from "@/lib/socialCrewStore";
+import { SocialCrewStoreError } from "@/lib/socialCrewStoreError";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 

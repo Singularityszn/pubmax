@@ -1008,6 +1008,8 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/savedPubsStore.ts": { lane: "savedPubs" },
   "lib/socialConnectionStore.ts": { lane: "socialLinks" },
   "lib/socialCrewStore.ts": { excluded: "A Crew is shared and its rows name its other members." },
+  "lib/openCrawlArrivalStore.ts": { excluded: "Arrival updates the existing shared Plan crew seats, whose rows name other members." },
+  "lib/socialCrewStoreError.ts": { excluded: "A shared error type holds no account data." },
   "lib/socialInteractionStore.ts": {
     gap: "A cheer, a save and a comment are the account's own actions, and every read here is keyed on a POST rather than on the actor.",
   },
