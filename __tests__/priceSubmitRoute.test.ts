@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetBillChecks, memoryBillCheckStore } from "@/lib/billCheckStore";
 import type { BillCheckRun } from "@/lib/billCheck.server";
-import { memoryPintDropStore, type PersistableDrop } from "@/lib/pintDropsStore";
+import { memoryPintDropStore, supabasePintDropStore, type PersistableDrop } from "@/lib/pintDropsStore";
+import * as supabase from "@/lib/supabase";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 
 // Two Vercel-vs-local seams to pin (both would otherwise pass locally and fail
@@ -939,6 +942,128 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       expect(scheduled()).toHaveLength(1);
       expect(scheduled()[0]).toMatchObject({ pintDropId: defined(drops[0]).id });
       expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5.5 }]);
+      expect(moderateCommunityPrice).not.toHaveBeenCalled();
+    } finally {
+      createSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the creator's stored photos and community price after concurrent identical submissions", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.parse("2026-11-05T19:30:00.000Z"));
+    const rows = new Map<string, Record<string, unknown>>();
+    const objects = new Map<string, ArrayBuffer>();
+    const uploads: string[] = [];
+    const client = createClient("https://storage.test", "test-key", {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: async (input, init) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        if (url.pathname === "/rest/v1/pint_drops") {
+          if (request.method === "POST") {
+            const row = await request.json() as Record<string, unknown>;
+            const id = String(row.id);
+            if (rows.has(id)) return Response.json({ code: "23505", message: 'duplicate key violates "pint_drops_pkey"' }, { status: 409 });
+            rows.set(id, row);
+            return new Response(null, { status: 201 });
+          }
+          const row = rows.get(url.searchParams.get("id")?.replace(/^eq\./, "") ?? "");
+          return Response.json(row ? [row] : []);
+        }
+        if (url.pathname.startsWith("/storage/v1/object/sign/pint-drops/")) {
+          return Response.json({ signedURL: `${url.pathname}?token=test` });
+        }
+        if (url.pathname.startsWith("/storage/v1/object/pint-drops/") && request.method === "POST") {
+          const key = url.pathname.slice("/storage/v1/object/pint-drops/".length);
+          const form = await request.formData();
+          const file = defined([...form.values()].find((value): value is File => value instanceof File));
+          const bytes = await file.arrayBuffer();
+          uploads.push(key);
+          if (objects.has(key)) return Response.json({ message: "The resource already exists" }, { status: 409 });
+          objects.set(key, bytes);
+          return Response.json({ Key: key });
+        }
+        if (url.pathname === "/storage/v1/object/pint-drops" && request.method === "DELETE") {
+          const body = await request.json() as { prefixes: string[] };
+          for (const key of body.prefixes) objects.delete(key);
+          return Response.json([]);
+        }
+        throw new Error(`Unexpected storage request: ${request.method} ${url.pathname}`);
+      } },
+    });
+    const adminSpy = vi.spyOn(supabase, "requireSupabaseAdmin").mockReturnValue(client);
+    let arrivals = 0;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => { release = resolve; });
+    const createSpy = vi.spyOn(memoryPintDropStore, "create").mockImplementation(async (...args) => {
+      arrivals += 1;
+      if (arrivals === 2) release();
+      await ready;
+      return supabasePintDropStore.create(...args);
+    });
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure: "pint" };
+      const requests = await Promise.all(["red", "blue"].map(async (background) => {
+        const bytes = await sharp({ create: { width: 2, height: 2, channels: 3, background } }).jpeg().toBuffer();
+        const photo = new File([new Uint8Array(bytes)], `${background}.jpg`, { type: "image/jpeg" });
+        const form = await post(body, photo).formData();
+        form.set("pint_photo", photo);
+        return new Request("http://localhost/api/price-submit", { method: "POST", body: form });
+      }));
+      const responses = await Promise.all(requests.map((request) => POST(request)));
+      expect(responses.map((response) => response.status)).toEqual([201, 201]);
+      expect(rows.size).toBe(1);
+      expect(uploads).toHaveLength(4);
+      expect(new Set(uploads).size).toBe(4);
+      const stored = defined([...rows.values()][0]);
+      expect(objects.size).toBe(2);
+      expect(objects.has(String(stored.pint_photo_key))).toBe(true);
+      expect(objects.has(String(stored.receipt_photo_key))).toBe(true);
+      expect(scheduled()).toHaveLength(1);
+      const run = defined(scheduled()[0]);
+      expect(run.pintDropId).toBe(stored.id);
+      const bill = run.photo as File;
+      expect(["red.jpg", "blue.jpg"]).toContain(bill.name);
+      const pixels = await sharp(Buffer.from(defined(objects.get(String(stored.receipt_photo_key))))).raw().toBuffer();
+      expect(defined(pixels[0]) > defined(pixels[2])).toBe(bill.name === "red.jpg");
+      expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5.5 }]);
+      expect(moderateCommunityPrice).not.toHaveBeenCalled();
+    } finally {
+      createSpy.mockRestore();
+      adminSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps different same-millisecond prices in separate drops without rollback", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.parse("2026-11-05T19:30:00.000Z"));
+    const create = memoryPintDropStore.create;
+    let arrivals = 0;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => { release = resolve; });
+    const createSpy = vi.spyOn(memoryPintDropStore, "create").mockImplementation(async (...args) => {
+      arrivals += 1;
+      if (arrivals === 2) release();
+      await ready;
+      return create(...args);
+    });
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", measure: "pint" };
+      const responses = await Promise.all([5.5, 6.5].map((priceGbp) => POST(post({ ...body, priceGbp }))));
+      expect(responses.map((response) => response.status)).toEqual([201, 201]);
+      const drops = listVisiblePintDrops(body.venueId);
+      expect(drops).toHaveLength(2);
+      expect(new Set(drops.map((drop) => drop.id)).size).toBe(2);
+      expect(drops.map((drop) => drop.priceGbp).sort()).toEqual([5.5, 6.5]);
+      expect(scheduled()).toHaveLength(2);
+      for (const run of scheduled()) {
+        expect(drops.find((drop) => drop.id === run.pintDropId)?.priceGbp).toBe(run.priceGbp);
+      }
+      const prices = await readCommunityPrices(body.venueId);
+      expect(prices).toHaveLength(1);
+      expect([5.5, 6.5]).toContain(defined(prices[0]).priceGbp);
       expect(moderateCommunityPrice).not.toHaveBeenCalled();
     } finally {
       createSpy.mockRestore();

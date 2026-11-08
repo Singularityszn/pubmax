@@ -7,7 +7,7 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import sharp from "sharp";
 
 import { COMMUNITY_PRICE_MAX_AGE_MS, isWithinMaxAge } from "@/lib/communityPrice";
@@ -1525,8 +1525,7 @@ export const supabasePintDropStore: PintDropStore = {
     }
     const existing = creation.existing;
     if (existing) {
-      const kept = [existing.pintPhotoKey, existing.venuePhotoKey, existing.receiptPhotoKey];
-      await deletePhotos(uploaded.filter((key) => !kept.includes(key)));
+      await deletePhotos(uploaded);
       return { ...await toDTOWithPhotos(existing), created: false };
     }
     return { ...await toDTOWithPhotos(persistable), created: true };
@@ -1914,14 +1913,6 @@ async function normalizeImage(input: Uint8Array): Promise<Buffer> {
 }
 
 /**
- * Validate + normalize + upload one photo (pint or venue) to Storage. Returns
- * the object key to stash on the drop. Keys are deterministic
- * (`${venueId}/${dropId}/${slot}.${ext}`) so a failed insert has an exact key
- * to clean up — no orphan hunt. Throws a user-safe Error on an invalid file
- * (trust boundary — the client is untrusted, so type/size are checked here, not
- * just in the browser).
- */
-/**
  * A refusal ABOUT THE FILE, as against a failure about US.
  *
  * The two used to be one `Error`, told apart by the route only by the fact that
@@ -2009,7 +2000,7 @@ export async function uploadPhoto(
     throw new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
   }
 
-  const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
+  const key = `${venueId}/${dropId}/${slot}-${randomUUID()}.${NORMALIZED_EXT}`;
 
   const error = await uploadUploadedImageObject(key, processed, NORMALIZED_CONTENT_TYPE, { upsert: false });
   if (error) {

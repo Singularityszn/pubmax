@@ -409,8 +409,8 @@ export async function POST(request: Request): Promise<Response> {
   );
 }
 
-function observationDropId(id: string, submittedAt: number): string {
-  return uuidV5(String(submittedAt), id);
+function observationDropId(id: string, submittedAt: number, priceGbp: number): string {
+  return uuidV5(`${submittedAt}:${priceGbp}`, id);
 }
 
 async function submitPriceObservation(
@@ -439,7 +439,7 @@ async function submitPriceObservation(
       const original = observations.find((row) =>
         row.actor === input.actor &&
         row.priceGbp === input.priceGbp &&
-        duplicate.id === observationDropId(row.id, row.submittedAt),
+        duplicate.id === observationDropId(row.id, row.submittedAt, row.priceGbp),
       );
       if (original) {
         return {
@@ -463,7 +463,7 @@ async function submitPriceObservation(
     ...result,
     duplicateDrop: null,
     ...(price?.id && price.submittedAt === now && price.priceGbp === input.priceGbp
-      ? { dropId: observationDropId(price.id, price.submittedAt) }
+      ? { dropId: observationDropId(price.id, price.submittedAt, price.priceGbp) }
       : {}),
   };
 }
