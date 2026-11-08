@@ -106,6 +106,7 @@ silently stale.
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
 | socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
+| socialSafetyModerationStore | not dual-backend | Service-role RPCs for moderator report queues, flagged-message evidence, reviews and audited suspension decisions. No memory implementation. |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | tableRequestsStore | factory-ready | "Ask the pub for a table" requests PUBMAXX emailed to a verified operator: stored pending, stamped emailed or discarded, listed to that operator alone, and read back for the requester's own export. |
 | venueCorrectionsStore | factory-ready | "That's wrong" notes about a pub (shut, hours, other) and the moderator's resolve or dismiss. |
@@ -130,7 +131,7 @@ The following stores intentionally stay outside the factory-ready path:
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
 - **not dual-backend:** `importNotesStore`, `socialCrewStore`,
-  `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
+  `socialPostConsentStore`, `socialSafetyModerationStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `planBeaconStore`, `planPresentationStore`,
