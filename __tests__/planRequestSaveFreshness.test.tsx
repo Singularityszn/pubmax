@@ -4880,6 +4880,32 @@ function createdAcceptedPlan(generated: Pick<ReturnType<typeof generatedProofFix
   };
 }
 
+it.each(["venue", "source", "city", "area", "start", "expiry"] as const)(
+  "does not adopt a different %s identity merely by reopening the older accepted route",
+  async (field) => {
+    await generateAcceptedRouteForLock();
+    const intent = JSON.parse(sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY)!);
+    if (field === "venue") intent.acceptedVenueId = "venue-foreign";
+    if (field === "source") intent.source = "near";
+    if (field === "city") intent.cityId = "manchester";
+    if (field === "area") intent.acceptedArea = { kind: "night-patch", id: "clapham" };
+    if (field === "start") intent.startsAt = "2026-11-03T21:00:00.000Z";
+    if (field === "expiry") {
+      intent.acceptedAt = new Date(Date.parse(intent.acceptedAt) + 1000).toISOString();
+      intent.expiresAt = new Date(Date.parse(intent.expiresAt) + 1000).toISOString();
+    }
+    sessionStorage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify(intent));
+    expect(readPlanningIntent()).not.toBeNull();
+    const newerRecords = acceptanceRecords();
+    await remountComposer();
+    expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+    await editInput("#plan-title", "Do not overwrite the newer acceptance");
+    await act(async () => action("Release this pub").click());
+    await settle();
+    expect(acceptanceRecords()).toEqual(newerRecords);
+  },
+);
+
 it.each(
   (["route V1", "route V2", "Plan V1", "Plan V2", "intake", "intent"] as const).flatMap((record) =>
     (["before Lock", "during POST", "during PATCH"] as const).map((when) => ({ record, when }))),
@@ -4902,7 +4928,7 @@ it.each(
       if (record === "Plan V1") replacement.title = "Newer night";
       if (record === "Plan V2") replacement.draft.title = "Newer night";
       if (record === "route V1") replacement.createOperationKey = "newer-route-operation";
-      if (record === "route V2") replacement.value.operationKey = "newer-route-operation";
+      if (record === "route V2") replacement.operationKey = "newer-route-operation";
       if (record === "intake") replacement.draft.answers.groupSize = 7;
       storage.setItem(key, JSON.stringify(replacement));
     }
