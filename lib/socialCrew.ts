@@ -8,8 +8,7 @@ import type {
 import type { NightContext } from "@/lib/nightPlanning";
 import type { OutOpenPlanMeetingPoint } from "@/lib/out";
 import type { OpenCrawlDetails } from "@/lib/openCrawl";
-import type { OpenCrawlShareArea } from "@/lib/openCrawlShareCard";
-import type { PlanInviteSpendBand } from "@/lib/shareArtifacts";
+import type { OpenCrawlShareArea, OpenCrawlShareSpendBand } from "@/lib/openCrawlShareCard";
 import { PLAN_STOP_MAX } from "@/lib/plan";
 
 const SOCIAL_CREW_ROLES = ["owner", "cohost", "member"] as const;
@@ -172,7 +171,7 @@ export type SocialCrewPublicPreviewDTO = {
   /** Places left, or null when capacity or active seat count is unavailable. Never a member count. */
   placesLeft: number | null;
   /** Min-max listed pint price over the stops, or null. Never the stops themselves. */
-  spendBand: PlanInviteSpendBand | null;
+  spendBand: OpenCrawlShareSpendBand | null;
 };
 
 export type SocialCrewListItemDTO = Pick<

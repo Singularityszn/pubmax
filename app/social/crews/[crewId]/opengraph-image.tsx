@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
 
-import { formatPlanInviteSpendBand } from "@/lib/shareArtifacts";
 import { displayHandle } from "@/lib/handleDisplay";
 import {
+  formatOpenCrawlShareSpendBand,
   openCrawlShareAreaLine,
   openCrawlShareDay,
   openCrawlSharePlacesLine,
@@ -80,7 +80,7 @@ function Card({ card }: { card: OpenCrawlShareCard }) {
   const time = openCrawlShareTime(card.startsAt);
   const area = openCrawlShareAreaLine(card.area);
   const places = openCrawlSharePlacesLine(card.placesLeft);
-  const band = card.spendBand ? formatPlanInviteSpendBand(card.spendBand) : null;
+  const band = card.spendBand ? formatOpenCrawlShareSpendBand(card.spendBand) : null;
   return (
     <CardShell>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
@@ -122,8 +122,12 @@ function Card({ card }: { card: OpenCrawlShareCard }) {
         <div style={{ display: "flex", marginTop: 30 }}>
           <Fact label="When" value={time ? `${day}, ${time}` : day} />
           {places ? <Fact label="Places" value={places} accent={OG.pint} /> : null}
-          {band ? <Fact label="Pints" value={band} accent={OG.amber} /> : null}
         </div>
+        {band ? (
+          <div style={{ display: "flex", color: OG.amber, fontSize: 24, marginTop: 16 }}>
+            {band}
+          </div>
+        ) : null}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

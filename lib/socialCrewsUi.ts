@@ -35,8 +35,7 @@ import {
   parseSocialCrewJoinRequestQueue,
 } from "@/lib/socialCrew";
 import type { OpenPlanPlaceKind } from "@/lib/openSocialCrew";
-import type { OpenCrawlShareArea } from "@/lib/openCrawlShareCard";
-import type { PlanInviteSpendBand } from "@/lib/shareArtifacts";
+import { isOpenCrawlShareSpendBand, type OpenCrawlShareArea } from "@/lib/openCrawlShareCard";
 
 export { CREW_EMPTY_COPY, CREW_WHAT_IT_IS } from "@/lib/socialCrewsCopy";
 
@@ -314,18 +313,6 @@ function isPublicShareArea(value: unknown): value is OpenCrawlShareArea {
     (value.relation === "inside" || value.relation === "nearby");
 }
 
-function isPublicSpendBand(value: unknown): value is PlanInviteSpendBand {
-  if (!isRecord(value)) return false;
-  const keys = Object.keys(value);
-  return keys.length === 2 &&
-    typeof value.minGbp === "number" &&
-    typeof value.maxGbp === "number" &&
-    Number.isFinite(value.minGbp) &&
-    Number.isFinite(value.maxGbp) &&
-    value.minGbp > 0 &&
-    value.maxGbp >= value.minGbp;
-}
-
 const PUBLIC_CREW_PREVIEW_KEYS = [
   "kind",
   "crewId",
@@ -357,7 +344,7 @@ export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewD
     (value.area !== null && !isPublicShareArea(value.area)) ||
     (value.placesLeft !== null &&
       (!Number.isInteger(value.placesLeft) || Number(value.placesLeft) < 0)) ||
-    (value.spendBand !== null && !isPublicSpendBand(value.spendBand))
+    (value.spendBand !== null && !isOpenCrawlShareSpendBand(value.spendBand))
   ) {
     return null;
   }
@@ -377,7 +364,12 @@ export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewD
     placesLeft: value.placesLeft === null ? null : Number(value.placesLeft),
     spendBand: value.spendBand === null
       ? null
-      : { minGbp: value.spendBand.minGbp, maxGbp: value.spendBand.maxGbp },
+      : {
+          minGbp: value.spendBand.minGbp,
+          maxGbp: value.spendBand.maxGbp,
+          observedOn: value.spendBand.observedOn,
+          sourceKind: value.spendBand.sourceKind,
+        },
   };
 }
 

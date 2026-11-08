@@ -5,10 +5,10 @@ import ReportPerson from "@/components/social/ReportPerson";
 import { displayHandle } from "@/lib/handleDisplay";
 import { crewStartsCaption } from "@/lib/socialCrewsUi";
 import {
+  formatOpenCrawlShareSpendBand,
   openCrawlShareAreaLine,
   openCrawlSharePlacesLine,
 } from "@/lib/openCrawlShareCard";
-import { formatPlanInviteSpendBand } from "@/lib/shareArtifacts";
 
 export type PublicCrewJoinState = "none" | "pending" | "declined";
 
@@ -28,7 +28,7 @@ export default function PublicCrewPreview({
   const starts = crewStartsCaption(preview.startsAt);
   const area = openCrawlShareAreaLine(preview.area);
   const places = openCrawlSharePlacesLine(preview.placesLeft);
-  const band = preview.spendBand ? formatPlanInviteSpendBand(preview.spendBand) : null;
+  const band = preview.spendBand ? formatOpenCrawlShareSpendBand(preview.spendBand) : null;
   return (
     <>
       <header className="crewPage__head">

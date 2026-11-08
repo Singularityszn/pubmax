@@ -2,9 +2,15 @@ import "server-only";
 
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import { resolveOpenMeetingPoint } from "@/lib/openSocialCrew.server";
-import type { OpenCrawlShareArea, OpenCrawlShareCard } from "@/lib/openCrawlShareCard";
+import {
+  isOpenCrawlShareSpendBand,
+  type OpenCrawlShareArea,
+  type OpenCrawlShareCard,
+  type OpenCrawlShareSpendBand,
+} from "@/lib/openCrawlShareCard";
+import { oldestPintRead } from "@/lib/drinks";
 import type { OutOpenPlanMeetingPoint } from "@/lib/out";
-import { planInviteSpendBandFromListedPrices, type PlanInviteSpendBand } from "@/lib/shareArtifacts";
+import { planInviteSpendBandFromListedPrices } from "@/lib/shareArtifacts";
 import {
   createSocialCrewStore,
   SocialCrewStoreError,
@@ -13,7 +19,7 @@ import {
 import type { SocialCrewShareCardSource } from "@/lib/socialCrew";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
-import { venueListedPint } from "@/lib/venueListedPint";
+import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import { venueAreaClaim } from "@/lib/venueTruth";
 
 /**
@@ -29,14 +35,13 @@ type Dependencies = {
   store: Pick<SocialCrewStore, "readShareCard">;
   enabled: () => boolean;
   resolveMeetingPoint: typeof resolveOpenMeetingPoint;
-  listedPintGbp: (venueId: string) => Promise<number | null>;
+  listedPint: (venueId: string) => Promise<VenueListedPint | null>;
 };
 
-async function listedPintGbp(venueId: string): Promise<number | null> {
+async function listedPint(venueId: string): Promise<VenueListedPint | null> {
   const lookup = await lookupVenueDetail(venueId);
   if (lookup.status !== "found") return null;
-  // The same rule the private invite's band reads: a price with its row.
-  return venueListedPint(lookup.venue)?.priceGbp ?? null;
+  return venueListedPint(lookup.venue);
 }
 
 let defaultStore: SocialCrewStore | null = null;
@@ -48,7 +53,7 @@ const DEFAULTS: Dependencies = {
   },
   enabled: () => isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]),
   resolveMeetingPoint: resolveOpenMeetingPoint,
-  listedPintGbp,
+  listedPint,
 };
 
 /** The area a stranger is told about: the claim's strength decides "in" or "near". */
@@ -70,12 +75,15 @@ function shareArea(
  */
 async function shareSpendBand(
   source: SocialCrewShareCardSource,
-  priceOf: Dependencies["listedPintGbp"],
-): Promise<PlanInviteSpendBand | null> {
+  priceOf: Dependencies["listedPint"],
+): Promise<OpenCrawlShareSpendBand | null> {
   if (!source.stopVenueIds || source.stopVenueIds.length === 0) return null;
   try {
     const prices = await Promise.all(source.stopVenueIds.map((venueId) => priceOf(venueId)));
-    return planInviteSpendBandFromListedPrices(prices);
+    const range = planInviteSpendBandFromListedPrices(prices.map((price) => price?.priceGbp));
+    const observedOn = oldestPintRead(prices.map((price) => price?.publisher ? price.observedOn : null));
+    const band = { ...range, observedOn, sourceKind: "listed" };
+    return isOpenCrawlShareSpendBand(band) ? band : null;
   } catch {
     return null;
   }
@@ -116,7 +124,7 @@ export async function loadOpenCrawlShareCard(
       meetingPubName: meetingPoint.name,
       area: shareArea(cityId, meetingPoint),
       placesLeft: placesLeft(source),
-      spendBand: await shareSpendBand(source, dependencies.listedPintGbp),
+      spendBand: await shareSpendBand(source, dependencies.listedPint),
     },
   };
 }

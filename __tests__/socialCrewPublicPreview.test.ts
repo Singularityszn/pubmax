@@ -16,7 +16,7 @@ const PREVIEW = {
   },
   area: { name: "Camden Town", relation: "inside" },
   placesLeft: 3,
-  spendBand: { minGbp: 4.5, maxGbp: 6.2 },
+  spendBand: { minGbp: 4.5, maxGbp: 6.2, observedOn: "2026-11-03", sourceKind: "listed" },
 };
 
 describe("public Open Crew preview parser", () => {
@@ -49,8 +49,13 @@ describe("public Open Crew preview parser", () => {
   it.each([
     ["negative places", { placesLeft: -1 }],
     ["fractional places", { placesLeft: 1.5 }],
-    ["inverted band", { spendBand: { minGbp: 6, maxGbp: 4 } }],
-    ["band with stops", { spendBand: { minGbp: 4, maxGbp: 6, stops: ["venue-1"] } }],
+    ["inverted band", { spendBand: { ...PREVIEW.spendBand, minGbp: 6, maxGbp: 4 } }],
+    ["band without provenance", { spendBand: { minGbp: 4, maxGbp: 6 } }],
+    ["invalid observation day", { spendBand: { ...PREVIEW.spendBand, observedOn: "2026-02-30" } }],
+    ["missing observation day", { spendBand: { ...PREVIEW.spendBand, observedOn: null } }],
+    ["publisher as source kind", { spendBand: { ...PREVIEW.spendBand, sourceKind: "Secret Pub" } }],
+    ["band with publisher", { spendBand: { ...PREVIEW.spendBand, publisher: "Secret Pub" } }],
+    ["band with stops", { spendBand: { ...PREVIEW.spendBand, stops: ["venue-1"] } }],
     ["unknown area relation", { area: { name: "Soho", relation: "far" } }],
     ["area with extra fields", { area: { name: "Soho", relation: "inside", venueId: "venue-1" } }],
   ])("rejects %s", (_label, extra) => {

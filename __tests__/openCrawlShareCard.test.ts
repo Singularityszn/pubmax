@@ -12,8 +12,10 @@ vi.mock("next/og", () => ({
 }));
 
 vi.mock("@/lib/openCrawlShareCard.server", () => ({ loadOpenCrawlShareCard: vi.fn() }));
+vi.mock("@/components/social/PublicCrewRouteClient", () => ({ default: () => null }));
 
 import Image from "@/app/social/crews/[crewId]/opengraph-image";
+import { generateMetadata } from "@/app/social/crews/[crewId]/page";
 import { displayHandle } from "@/lib/handleDisplay";
 import { clampOgText } from "@/lib/ogCardText";
 import { loadOpenCrawlShareCard } from "@/lib/openCrawlShareCard.server";
@@ -35,7 +37,7 @@ const CARD: OpenCrawlShareCard = {
   meetingPubName: "The Blue Posts",
   area: { name: "Piccadilly & Soho", relation: "inside" },
   placesLeft: 5,
-  spendBand: { minGbp: 4.5, maxGbp: 6.2 },
+  spendBand: { minGbp: 4.5, maxGbp: 6.2, observedOn: "2026-11-03", sourceKind: "listed" },
 };
 
 describe("open crawl link preview words", () => {
@@ -45,7 +47,7 @@ describe("open crawl link preview words", () => {
 
   it("describes day, time, area, meeting pub, places left and price band", () => {
     expect(openCrawlShareDescription(CARD)).toBe(
-      "Thu 12 Nov, 19:00 in Piccadilly & Soho. Meet at The Blue Posts. 5 places left. £4.50–£6.20 per pint.",
+      "Thu 12 Nov, 19:00 in Piccadilly & Soho. Meet at The Blue Posts. 5 places left. £4.50–£6.20 per pint, listed prices seen 3 Nov 2026.",
     );
   });
 
@@ -113,7 +115,22 @@ describe("open crawl share image text", () => {
     expect(lines).toContain("Meet at The Blue Posts");
     expect(lines).toContain("Thu 12 Nov, 19:00");
     expect(lines).toContain("5 places left");
-    expect(lines).toContain("£4.50–£6.20 per pint");
+    expect(lines).toContain("£4.50–£6.20 per pint, listed prices seen 3 Nov 2026");
+  });
+
+  it("dates the band in page, Open Graph and Twitter descriptions", async () => {
+    vi.mocked(loadOpenCrawlShareCard).mockResolvedValue({
+      ok: true,
+      card: CARD,
+      meetingPoint: { kind: "venue", name: CARD.meetingPubName, lat: 51.51, lng: -0.13 },
+    });
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ crewId: CARD.crewId }),
+      searchParams: Promise.resolve({}),
+    });
+    for (const description of [metadata.description, metadata.openGraph?.description, metadata.twitter?.description]) {
+      expect(description).toContain("£4.50–£6.20 per pint, listed prices seen 3 Nov 2026");
+    }
   });
 
   it.each([

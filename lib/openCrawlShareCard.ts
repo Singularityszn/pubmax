@@ -22,6 +22,32 @@ export type OpenCrawlShareArea = {
   relation: Exclude<VenueAreaRelation, "unplaced">;
 };
 
+export type OpenCrawlShareSpendBand = PlanInviteSpendBand & {
+  observedOn: string;
+  sourceKind: "listed";
+};
+
+export function isOpenCrawlShareSpendBand(value: unknown): value is OpenCrawlShareSpendBand {
+  if (!value || typeof value !== "object") return false;
+  const band = value as Record<string, unknown>;
+  if (
+    Object.keys(band).length !== 4 ||
+    typeof band.minGbp !== "number" || !Number.isFinite(band.minGbp) || band.minGbp <= 0 ||
+    typeof band.maxGbp !== "number" || !Number.isFinite(band.maxGbp) || band.maxGbp < band.minGbp ||
+    band.sourceKind !== "listed" ||
+    typeof band.observedOn !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(band.observedOn)
+  ) return false;
+  const day = Date.parse(band.observedOn);
+  return Number.isFinite(day) && new Date(day).toISOString().slice(0, 10) === band.observedOn;
+}
+
+export function formatOpenCrawlShareSpendBand(band: OpenCrawlShareSpendBand): string {
+  const day = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+  }).format(new Date(band.observedOn));
+  return `${formatPlanInviteSpendBand(band)}, listed prices seen ${day}`;
+}
+
 export type OpenCrawlShareCard = {
   crewId: string;
   title: string;
@@ -33,7 +59,7 @@ export type OpenCrawlShareCard = {
   /** Null when capacity or active seat count is unavailable. */
   placesLeft: number | null;
   /** Null unless EVERY stop has a listed pint price. Never a per-person total. */
-  spendBand: PlanInviteSpendBand | null;
+  spendBand: OpenCrawlShareSpendBand | null;
 };
 
 const LONDON = "Europe/London";
@@ -88,7 +114,6 @@ export function openCrawlShareTitle(card: Pick<OpenCrawlShareCard, "title" | "ho
 
 /**
  * The link description, one fact per clause:
- * "Thu 12 Nov, 19:00 in Soho. Meet at The Blue Posts. 5 places left. £4.50–£6.20 per pint."
  */
 export function openCrawlShareDescription(card: OpenCrawlShareCard): string {
   const when = openCrawlShareWhen(card.startsAt) ?? "Time to be confirmed";
@@ -96,6 +121,6 @@ export function openCrawlShareDescription(card: OpenCrawlShareCard): string {
   const sentences = [area ? `${when} ${area}.` : `${when}.`, `Meet at ${card.meetingPubName}.`];
   const places = openCrawlSharePlacesLine(card.placesLeft);
   if (places) sentences.push(`${places}.`);
-  if (card.spendBand) sentences.push(`${formatPlanInviteSpendBand(card.spendBand)}.`);
+  if (card.spendBand) sentences.push(`${formatOpenCrawlShareSpendBand(card.spendBand)}.`);
   return sentences.join(" ");
 }

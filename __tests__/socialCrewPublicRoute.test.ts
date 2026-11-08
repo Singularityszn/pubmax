@@ -20,6 +20,19 @@ const PRICES: Record<string, number> = {
   "venue-london-good-mixer": 4.5,
 };
 
+const venuePrice = (venueId: string) => ({
+  name: venueId === shareSource.meetingVenueId ? "Camden Arms" : "Hidden Good Mixer",
+  cheapestPrice: PRICES[venueId] ?? null,
+  cheapestPint: "Lager",
+  prices: [{
+    app_price_id: venueId,
+    pint_name: "Lager",
+    price_gbp: PRICES[venueId] ?? null,
+    pub_url: "https://hidden-publisher.example/hidden-good-mixer",
+    scraped_at_values: venueId === shareSource.meetingVenueId ? "2026-08-20" : "2026-08-03",
+  }],
+});
+
 const store = vi.hoisted(() => ({ readShareCard: vi.fn() }));
 const resolveMeeting = vi.hoisted(() => ({ resolveOpenMeetingPoint: vi.fn() }));
 const venues = vi.hoisted(() => ({ lookupVenueDetail: vi.fn() }));
@@ -31,10 +44,6 @@ vi.mock("@/lib/socialCrewStore", async (importOriginal) => ({
 
 vi.mock("@/lib/openSocialCrew.server", () => resolveMeeting);
 vi.mock("@/lib/venueDetailIndex", () => venues);
-vi.mock("@/lib/venueListedPint", () => ({
-  venueListedPint: (venue: { cheapestPrice: number | null }) =>
-    venue.cheapestPrice === null ? null : { priceGbp: venue.cheapestPrice },
-}));
 
 import { SocialCrewStoreError } from "@/lib/socialCrewStore";
 import { GET } from "@/app/api/social/crews/[crewId]/public/route";
@@ -49,7 +58,7 @@ beforeEach(() => {
   store.readShareCard.mockResolvedValue(shareSource);
   venues.lookupVenueDetail.mockImplementation(async (venueId: string) => ({
     status: "found",
-    venue: { cheapestPrice: PRICES[venueId] ?? null },
+    venue: venuePrice(venueId),
   }));
   resolveMeeting.resolveOpenMeetingPoint.mockResolvedValue({
     ok: true,
@@ -100,7 +109,7 @@ describe("GET /api/social/crews/:crewId/public", () => {
       },
       area: { name: "Camden", relation: "inside" },
       placesLeft: 5,
-      spendBand: { minGbp: 4.5, maxGbp: 6.2 },
+      spendBand: { minGbp: 4.5, maxGbp: 6.2, observedOn: "2026-08-03", sourceKind: "listed" },
     });
     expect(resolveMeeting.resolveOpenMeetingPoint).toHaveBeenCalledWith(
       shareSource.meetingVenueId,
@@ -111,6 +120,41 @@ describe("GET /api/social/crews/:crewId/public", () => {
     expect(serialized).not.toContain("visibility");
     expect(serialized).not.toContain("stopVenueId");
     expect(serialized).not.toContain("good-mixer");
+    expect(serialized).not.toContain("Hidden Good Mixer");
+    expect(serialized).not.toContain("hidden-publisher");
+  });
+
+  it("keeps the oldest day when the cheapest stop has the newest price", async () => {
+    venues.lookupVenueDetail.mockImplementation(async (venueId: string) => ({
+      status: "found",
+      venue: {
+        ...venuePrice(venueId),
+        prices: [{
+          ...venuePrice(venueId).prices[0],
+          scraped_at_values: venueId === shareSource.meetingVenueId ? "2026-08-03" : "2026-08-20",
+        }],
+      },
+    }));
+    const response = await GET(new Request("https://pubmaxxing.com/api/social/crews/x/public"), context());
+    expect((await response.json()).spendBand).toEqual({
+      minGbp: 4.5, maxGbp: 6.2, observedOn: "2026-08-03", sourceKind: "listed",
+    });
+  });
+
+  it.each(["scraped_at_values", "pub_url"] as const)("omits the band when a stop lacks %s", async (field) => {
+    venues.lookupVenueDetail.mockImplementation(async (venueId: string) => ({
+      status: "found",
+      venue: {
+        ...venuePrice(venueId),
+        prices: [{
+          ...venuePrice(venueId).prices[0],
+          ...(venueId === shareSource.meetingVenueId ? {} : { [field]: "" }),
+        }],
+      },
+    }));
+    const response = await GET(new Request("https://pubmaxxing.com/api/social/crews/x/public"), context());
+    expect(response.status).toBe(200);
+    expect((await response.json()).spendBand).toBeNull();
   });
 
   it("prints no band when one stop has no listed price, and Full at the cap", async () => {
