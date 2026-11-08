@@ -58,13 +58,13 @@ function ProfileStatTile({
   href?: Route;
   hint: string;
 }) {
-  // A sampled tile never asks the server for its sample page.
+  // The sample ships in the server HTML, so a crawler would follow its links.
   const sampled = useIsSample();
   const content = <><span className="profileStatLabel">{label}</span><strong className="profileStatValue">{value}</strong></>;
   return (
     <div className="profileStat" role="listitem">
-      {href ? (
-        <Link className="profileStatLink" data-pressable href={href} prefetch={sampled ? false : undefined} aria-label={`${label}: ${value}. ${hint}.`}>
+      {href && !sampled ? (
+        <Link className="profileStatLink" data-pressable href={href} aria-label={`${label}: ${value}. ${hint}.`}>
           {content}
         </Link>
       ) : <div className="profileStatLink" aria-label={`${label}: ${value}.`}>{content}</div>}
