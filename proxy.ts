@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextFetchEvent, NextRequest, ProxyConfig } from "next/server";
 
 import { CHOOSE_CITY_PATH, PLACES_PATH } from "@/lib/cityPickerRoute";
+import { getCity, parseCityId } from "@/lib/cities";
 import { MAP_LIST_PATH, MAP_LIST_SEARCH_PARAM } from "@/lib/mapListRoute";
 import { OUT_PATH, TONIGHT_PATH } from "@/lib/outRoute";
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
@@ -152,6 +153,25 @@ function servesCdnCachedDocument(pathname: string): boolean {
 // Preview and development deploys must never be indexed. VERCEL_ENV is the
 // authority (preview hostnames change every deployment). Production keeps no
 // extra robots header so the crawl invitation in app/robots.ts stands alone.
+// app/map/loading.tsx starts the stream before app/map/[city]/page.tsx can
+// call notFound(), and a started stream has already answered 200. So the city
+// is checked here, before the render, against the same test the page makes.
+// `_not-found` is a private folder name, so no route of ours can ever take it.
+const NOT_FOUND_REWRITE_PATH = "/_not-found";
+
+function servesUnknownMapCity(pathname: string): boolean {
+  const slug = /^\/map\/([^/]+)$/.exec(pathname)?.[1];
+  if (!slug || pathname === MAP_DOCUMENT_TWIN_PATH) return false;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch {
+    return true;
+  }
+  const cityId = parseCityId(decoded);
+  return !cityId || !getCity(cityId).enabled;
+}
+
 function applyNonProductionRobotsTag(response: NextResponse): NextResponse {
   if (process.env.VERCEL_ENV !== "production") {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
@@ -496,18 +516,24 @@ export function securityProxy(request: NextRequest) {
   // arrival, national browse, a curated share card) is rewritten to the twin
   // that renders it per request. The address bar keeps /map, and the twin is
   // the same page: only which requests pay for a render changes.
-  const documentTwinUrl =
+  // An unknown city's map is rewritten to the not-found route the same way.
+  const rewritePath =
     pathname === MAP_DOCUMENT_PATH &&
     mapRequestNeedsDocumentTwin(request.nextUrl.searchParams)
-      ? (() => {
-          const target = new URL(request.url);
-          target.pathname = MAP_DOCUMENT_TWIN_PATH;
-          return target;
-        })()
-      : null;
+      ? MAP_DOCUMENT_TWIN_PATH
+      : servesUnknownMapCity(pathname)
+        ? NOT_FOUND_REWRITE_PATH
+        : null;
+  const rewriteUrl = rewritePath
+    ? (() => {
+        const target = new URL(request.url);
+        target.pathname = rewritePath;
+        return target;
+      })()
+    : null;
   if (shouldSkipContentSecurityPolicy(request)) {
     return applyNonProductionRobotsTag(
-      documentTwinUrl ? NextResponse.rewrite(documentTwinUrl) : NextResponse.next(),
+      rewriteUrl ? NextResponse.rewrite(rewriteUrl) : NextResponse.next(),
     );
   }
 
@@ -517,7 +543,7 @@ export function securityProxy(request: NextRequest) {
   // allow-listed paths take `script-src 'unsafe-inline'` instead. A /map
   // request rewritten to the twin above gets no CDN copy, so it has nothing to
   // buy with the nonce and keeps it.
-  const cdnCachedDocument = servesCdnCachedDocument(pathname) && !documentTwinUrl;
+  const cdnCachedDocument = servesCdnCachedDocument(pathname) && !rewriteUrl;
 
   // Crypto-random, base64-encoded nonce (a fresh UUID per request).
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -554,8 +580,8 @@ export function securityProxy(request: NextRequest) {
         return { request: { headers: requestHeaders } };
       })();
 
-  const response = documentTwinUrl
-    ? NextResponse.rewrite(documentTwinUrl, forwardedRequest)
+  const response = rewriteUrl
+    ? NextResponse.rewrite(rewriteUrl, forwardedRequest)
     : NextResponse.next(forwardedRequest);
   // And on the RESPONSE header so the browser actually enforces it.
   response.headers.set("Content-Security-Policy", contentSecurityPolicy);

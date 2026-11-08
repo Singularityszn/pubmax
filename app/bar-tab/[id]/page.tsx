@@ -2,6 +2,7 @@ import type { Metadata, Route } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import EmptyState from "@/components/ui/empty-state";
@@ -31,7 +32,7 @@ import "./barTab.css";
 // A server component: the first paint already carries the grid. The only client
 // slivers are the ShareBar strips (native-share + copy-link fallback).
 //
-// missing is the not-found card. unavailable is the read-unavailable surface.
+// missing is notFound(), a 404 (./not-found.tsx draws the card). unavailable is the read-unavailable surface.
 // lookupVenueDetail does not cache a failed read, so the next request reads again.
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -66,24 +67,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-function NotInTheTab() {
-  return (
-    <main id="main" className="barTabPage barTabPage--empty">
-      <SiteNav active="feed" />
-      <div className="barTabEmptyCard">
-        <p className="barTabEyebrow">The Bar Tab</p>
-        <h1 className="barTabEmptyTitle">This pub isn&rsquo;t on the tab</h1>
-        <p className="barTabEmptyBody">
-          It may have moved, or the link is wrong. Every mapped pub still has a home.
-        </p>
-        <Link prefetch={false} className="barTabPrimaryLink" href="/map">
-          Back to the map
-        </Link>
-      </div>
-    </main>
-  );
-}
-
 function TabReadUnavailable({ id }: { id: string }) {
   return (
     <main id="main" className="barTabPage barTabPage--empty">
@@ -116,7 +99,7 @@ export default async function BarTabPage({ params }: PageProps) {
     await headers();
     return <TabReadUnavailable id={id} />;
   }
-  if (read.status !== "found") return <NotInTheTab />;
+  if (read.status !== "found") notFound();
   const { venue } = read;
   // Everything below reads/links off the canonical venue id (D1) so a merged
   // alias URL and the surviving canonical URL share the same drops/ratings,

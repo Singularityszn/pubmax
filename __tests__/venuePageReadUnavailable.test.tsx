@@ -6,7 +6,8 @@
 // unreadable alias file into the original id, and the not-found card would
 // swallow a read we could not run. An unavailable alias lookup renders the
 // read-unavailable surface, and the next request reads the file again. A
-// missing id still renders the not-found card. A famous-venue seed that the
+// missing id calls Next's notFound(), so the document answers a real 404 and
+// never a 200 "not here" page. A famous-venue seed that the
 // old dataset index never held still opens, because the detail module folds
 // those seeds.
 
@@ -46,6 +47,11 @@ vi.mock("next/navigation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/navigation")>();
   return { ...actual, usePathname: () => ledgerPath.value };
 });
+// The board page asks for a request before it reads; a test render has none.
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: async () => {},
+}));
 vi.mock("next/og", () => ({
   ImageResponse: class ImageResponse {
     element: unknown;
@@ -78,6 +84,7 @@ vi.mock("fs", async (importOriginal) => {
 });
 
 import BarTabCard from "@/app/bar-tab/[id]/opengraph-image";
+import BoardPage from "@/app/board/[venueId]/page";
 import BarTabPage, { generateMetadata as barTabMetadata } from "@/app/bar-tab/[id]/page";
 import LedgerError from "@/app/ledger/[id]/error";
 import { LEDGER_READ_UNAVAILABLE } from "@/app/ledger/[id]/ledgerReadUnavailable";
@@ -107,6 +114,9 @@ const mergedId = Object.keys(aliasDoc.aliases)[0];
 const mergedCanonical = groupVenuePrices(rows).find(
   (row) => row.id === aliasDoc.aliases[defined(mergedId)],
 )!;
+
+// What next/navigation's notFound() throws. Next answers 404 for it.
+const NOT_FOUND = { digest: "NEXT_HTTP_ERROR_FALLBACK;404" };
 
 async function render(page: (props: { params: Promise<{ id: string }> }) => Promise<unknown>, id: string) {
   const element = await page({ params: Promise.resolve({ id }) });
@@ -244,17 +254,13 @@ describe.each([
     expect(aliases.reads).toBe(2 + VENUE_ALIAS_FILES.length);
   });
 
-  it("answers a missing id with the not-found card", async () => {
-    const markup = await render(page, "venue-does-not-exist");
-    expect(markup).toContain(notFoundLine);
-    expect(markup).not.toContain("We could not load this pub");
+  it("answers a missing id with a real not-found, never a 200 page", async () => {
+    await expect(render(page, "venue-does-not-exist")).rejects.toMatchObject(NOT_FOUND);
   });
 
-  it("answers a pub that left the map with the not-found card, never a live page", async () => {
+  it("answers a pub that left the map with a real not-found, never a live page", async () => {
     // Henman & Cooper, Birmingham: retired in public/data/cities/venue_id_aliases.json.
-    const markup = await render(page, "venue-bhm-y7p3wr");
-    expect(markup).toContain(notFoundLine);
-    expect(markup).not.toContain("Henman");
+    await expect(render(page, "venue-bhm-y7p3wr")).rejects.toMatchObject(NOT_FOUND);
     const meta = await metadata({ params: Promise.resolve({ id: "venue-bhm-y7p3wr" }) });
     expect(JSON.stringify(meta)).not.toContain("Henman");
   });
@@ -293,6 +299,24 @@ describe.each([
     expect(resolved).toContain(
       mergedCanonical.name.replace(/&/g, "&amp;").replace(/'/g, "&#x27;").replace(/"/g, "&quot;"),
     );
+  });
+});
+
+describe("the board reader page", () => {
+  const renderBoard = async (venueId: string) =>
+    renderToStaticMarkup((await BoardPage({ params: Promise.resolve({ venueId }) })) as React.ReactElement);
+
+  it("answers a missing pub with a real not-found", async () => {
+    await expect(renderBoard("venue-does-not-exist")).rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it("answers a read it could not run as a page, never as a missing pub", async () => {
+    aliases.fail = true;
+    expect(await renderBoard(venue.id)).toContain("We could not open this pub just now");
+  });
+
+  it("opens a pub that is on the map", async () => {
+    expect(await renderBoard(hatton.id)).toContain(hatton.name);
   });
 });
 
