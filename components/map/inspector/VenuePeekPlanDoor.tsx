@@ -27,7 +27,7 @@ export default function VenuePeekPlanDoor({
         type="button"
         className="mobileVenuePeekPlanDoor"
         data-plan-door="stop-1"
-        aria-label={`Make ${venueName} Stop 1`}
+        aria-label={`${door.label}: ${venueName}`}
         onClick={onAcceptStop1}
       >
         {door.label}

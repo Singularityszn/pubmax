@@ -134,7 +134,7 @@ export default function BeenHereFirstRun({
             data-venue-id={pub.venueId}
             onClick={() => tap(pub.venueId)}
           >
-            <span className="beenHereFirstRunName">{pub.name}</span>
+            <span className="beenHereFirstRunName">{pub.name}</span>{" "}
             <span className="beenHereFirstRunArea">{pub.area}</span>
           </Chip>
         ))}
