@@ -184,6 +184,7 @@ async function promoteReadyRoundPrices(input: {
   stored: RoundSpendDTO;
   contributor: ResolvedContributor;
   request: Request;
+  receipt: File | null;
 }): Promise<Response> {
   const ready = input.stored.items
     .map((item, index) => ({ item, index }))
@@ -195,7 +196,9 @@ async function promoteReadyRoundPrices(input: {
     const saved = input.stored.receiptPhotoKey
       ? await downloadUploadedImageObject(input.stored.receiptPhotoKey)
       : null;
-    receipt = saved ? new File([new Uint8Array(saved.bytes)], "bill.jpg", { type: saved.contentType }) : null;
+    receipt = saved
+      ? new File([new Uint8Array(saved.bytes)], "bill.jpg", { type: saved.contentType })
+      : input.receipt;
   }
   const recordedAt = Date.parse(input.stored.recordedAt);
   for (const { item, index } of ready) {
@@ -361,6 +364,7 @@ async function recordSpend(
     stored: prepared.stored,
     contributor,
     request,
+    receipt: result.created ? result.receipt ?? null : null,
   });
 }
 

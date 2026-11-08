@@ -956,7 +956,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(receiptStorage.upload).not.toHaveBeenCalled();
   });
 
-  it("keeps the spend and logs a receipt Storage failure", async () => {
+  it("checks the creator's normalised bill when receipt Storage fails", async () => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
     await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
@@ -976,6 +976,29 @@ describe("POST /api/rounds/[code] — actions", () => {
       expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
       expect(await readCommunityPrices("venue-1")).toHaveLength(1);
       expect(logged).toHaveBeenCalledWith(expect.stringContaining('"event":"rounds.receipt_upload_failed"'));
+      expect(billChecks.schedule).toHaveBeenCalledTimes(1);
+      const [photo, observations] = defined(billChecks.schedule.mock.calls[0]) as [File, BillCheckObservation[]];
+      const [, uploaded] = defined(receiptStorage.upload.mock.calls[0]);
+      const bytes = Buffer.from(await photo.arrayBuffer());
+      expect(bytes).toEqual(Buffer.from(await uploaded.arrayBuffer()));
+      expect((await sharp(bytes).metadata()).format).toBe("jpeg");
+      const { runBillChecks } = await vi.importActual<typeof import("@/lib/billCheck.server")>("@/lib/billCheck.server");
+      expect(await runBillChecks(photo, observations, {
+        env: { OPENROUTER_API_KEY: "test-key" },
+        admit: async () => true,
+        fetcher: async () => Response.json({
+          choices: [{ message: { content: JSON.stringify({
+            venue_name: "The Ship", date: "2026-11-05", lines: [{ name: "Guinness", price_gbp: 7.2 }],
+          }) } }],
+        }),
+        store: memoryBillCheckStore,
+      })).toEqual(["mismatch"]);
+      expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([
+        expect.objectContaining({
+          result: "mismatch", priceGbp: 6.2,
+          roundSource: { spendId: defined(state.spends[0]).id, lineIndex: 0 },
+        }),
+      ]);
     } finally {
       logged.mockRestore();
       errors.mockRestore();

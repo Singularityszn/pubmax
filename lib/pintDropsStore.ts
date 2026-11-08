@@ -1934,13 +1934,13 @@ export class PhotoRefusalError extends Error {}
 export const UNREADABLE_PHOTO_REFUSAL =
   "That photo could not be read. Choose a different image.";
 
-export async function uploadPhoto(
+export async function preparePhoto(
   slot: "pint" | "venue" | "receipt",
   venueId: string,
   dropId: string,
   file: File,
   maxBytes = MAX_PHOTO_BYTES,
-): Promise<string> {
+): Promise<Buffer> {
   const invalid = validatePhoto(file.type, file.size, maxBytes);
   if (invalid) throw new PhotoRefusalError(invalid);
 
@@ -2000,6 +2000,25 @@ export async function uploadPhoto(
     throw new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
   }
 
+  return processed;
+}
+
+export async function uploadPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  file: File,
+  maxBytes = MAX_PHOTO_BYTES,
+): Promise<string> {
+  return uploadPreparedPhoto(slot, venueId, dropId, await preparePhoto(slot, venueId, dropId, file, maxBytes));
+}
+
+export async function uploadPreparedPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  processed: Buffer,
+): Promise<string> {
   const key = `${venueId}/${dropId}/${slot}-${randomUUID()}.${NORMALIZED_EXT}`;
 
   const error = await uploadUploadedImageObject(key, processed, NORMALIZED_CONTENT_TYPE, { upsert: false });
