@@ -154,7 +154,7 @@ describe("the required workflows", () => {
       script(join(bin, "sudo"), RECORD(sudoLog));
       for (const tool of ["initdb", "postgres", "psql"]) script(join(bin, tool), "exit 0");
       spawnSync("bash", ["-c", step.run ?? ""], {
-        env: { PATH: `${bin}:${hostBin}`, RUNNER_TEMP: dir("runner"), GITHUB_PATH: join(scratch, "path") },
+        env: { NODE_ENV: "test", PATH: `${bin}:${hostBin}`, RUNNER_TEMP: dir("runner"), GITHUB_PATH: join(scratch, "path") },
       });
       const curls = readCalls(curlLog);
       for (const args of curls) expectRetryWindow(args);
