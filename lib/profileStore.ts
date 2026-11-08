@@ -59,7 +59,7 @@ export type ModeratorProfileImage = {
   reportReason?: string;
   moderatedAt?: string;
   moderatorNote?: string;
-  /** Public serve path while the image is still approved; absent once hidden. */
+  /** Preview path while approved. Cover previews require moderator access and an undecided report. */
   previewUrl?: string;
 };
 

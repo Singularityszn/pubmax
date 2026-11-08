@@ -19,7 +19,7 @@ import { profileImageOutputBox } from "@/lib/profileImageSlots";
 //    cannot ask the reader's setting and a page that starts moving and then
 //    stops is worse than one that starts still and then moves. The first paint
 //    reserves one still frame for cover #1. `ProfileCoverImage` loads its bytes
-//    after the auth provider answers. The rotation only begins once the browser
+//    for the current reader. The rotation only begins once the browser
 //    answers the motion query.
 //
 // 2. REDUCED MOTION MEANS NO ROTATION AT ALL. Not a slower one, not a fade

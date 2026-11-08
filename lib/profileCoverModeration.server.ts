@@ -79,7 +79,7 @@ export async function moderateProfileImageAcrossStores(
 /** Apply a moderator decision to one rotation row. Rows reported through the
  * carousel have no profile-mirror handle when mirroring failed, so the admin
  * lane must address the row by id. When the row is the current mirror, retain
- * the whole-profile decision so the two public cover lanes cannot disagree. */
+ * the whole-profile decision so the two cover stores cannot disagree. */
 export async function moderateProfileCoverPhotoAcrossStores(
   handle: string,
   coverId: string,
