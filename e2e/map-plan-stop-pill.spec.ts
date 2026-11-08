@@ -111,7 +111,7 @@ test("phone 390: with no crawl in progress, the one door is Make it Stop 1 and h
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
   const makeStop1 = venuePortal
     .locator(".mobileVenuePeekSummary")
-    .getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+    .getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` });
   await expect(makeStop1).toBeVisible({ timeout: 30_000 });
   await expect(makeStop1).toHaveText("Make it Stop 1");
   await expect(venuePortal.getByRole("button", { name: PLAN_DOOR_NAME })).toHaveCount(1);
@@ -133,7 +133,7 @@ test("phone 390: removing the last stop ends the crawl, and the door reads Make 
     await door.click();
     await expect(door).toHaveText("Make it Stop 1", { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
-  await expect(door).toHaveAttribute("aria-label", `Make ${VENUE_NAME} Stop 1`);
+  await expect(door).toHaveAttribute("aria-label", `Make it Stop 1: ${VENUE_NAME}`);
   await expect.poll(() => new URL(page.url()).searchParams.get("pubs")).toBeNull();
   await expect(venuePortal.getByRole("button", { name: PLAN_DOOR_NAME })).toHaveCount(1);
 });

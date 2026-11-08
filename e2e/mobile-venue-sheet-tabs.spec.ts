@@ -151,7 +151,7 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   // that (lib/pintTrust.ts, `overviewPriceDoor`). It carries no plan action
   // either, in build mode too: the action card's ONE plan door, on the row
   // above it, owns those (lib/venuePlanDoor.ts).
-  expect(actions.map((action) => action.name)).toEqual(["Ask Arnos Arms for a table", "Share Arnos Arms"]);
+  expect(actions.map((action) => action.name)).toEqual(["Ask for a table at Arnos Arms", "Share Arnos Arms"]);
   const planDoors = page
     .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
     .getByRole("button", { name: /Stop 1$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });

@@ -17,7 +17,7 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
   const pub = page.getByRole("dialog", { name: venueName, exact: true });
   await expect(pub).toContainText(price!);
   await expect(pub.getByRole("link", { name: "Pint Prices", exact: true })).toBeVisible();
-  await pub.getByRole("button", { name: `Make ${venueName} Stop 1` }).click();
+  await pub.getByRole("button", { name: `Make it Stop 1: ${venueName}` }).click();
   await expect(page).toHaveURL(/\/plan$/);
 
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });

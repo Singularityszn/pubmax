@@ -297,7 +297,7 @@ describe("one coral action", () => {
       expect(view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)).toHaveLength(1);
       // Every other command on the card is a ghost.
       const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
-      expect(ghosts.map(actionName)).toEqual([`Ask The Action Arms for a table`, "Share The Action Arms"]);
+      expect(ghosts.map(actionName)).toEqual(["Ask for a table at The Action Arms", "Share The Action Arms"]);
       for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
     }
   });
