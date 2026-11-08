@@ -2036,24 +2036,30 @@ describe("Social Crew: open crawl arrival", () => {
       expectNoDisclosure(await readJson(denied));
       expect(status()).toBe("in");
     }
-    for (const here of [true, true, false]) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       const response = await defined(handlers.crewArrival)(
-        crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here } }),
+        crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: true } }),
         context({ crewId: crew.id }),
       );
       expect(response.status, await response.clone().text()).toBe(200);
-      expect(status()).toBe(here ? "here" : "in");
+      expect(status()).toBe("here");
       const body = await readJson<{ crewArrived: { guestsArrived: string }[] }>(response);
-      expect(body.crewArrived.map((receipt) => receipt.guestsArrived)).toEqual(here ? ["1"] : []);
+      expect(body.crewArrived.map((receipt) => receipt.guestsArrived)).toEqual(["1"]);
       expect(truth(`select status from public.plan_crew_members where id='${CREW_HOST_MEMBER_ID}'`)).toBe("in");
     }
+    const undo = await defined(handlers.crewArrival)(
+      crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: false } }),
+      context({ crewId: crew.id }),
+    );
+    expect(undo.status).toBe(422);
+    expect(status()).toBe("here");
     truth(`update public.social_crews set visibility='private' where id='${crew.id}';`);
     const denied = await defined(handlers.crewArrival)(
       crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: true } }),
       context({ crewId: crew.id }),
     );
     expect(denied.status).toBe(404);
-    expect(status()).toBe("in");
+    expect(status()).toBe("here");
   });
 });
 

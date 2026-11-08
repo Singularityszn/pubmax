@@ -2,6 +2,7 @@ import "server-only";
 
 import { type CrewMemberDTO, isCrewPresenceStatus } from "@/lib/crew";
 import { londonDayKey } from "@/lib/pintContributions";
+import { londonMsSinceMidnight } from "@/lib/londonHour";
 import { planCrewArrivedReceipts } from "@/lib/planCrewArrived.server";
 import { projectSocialCrewRead, type RawSocialCrew } from "@/lib/socialCrewProjection.server";
 import type { SocialCrewStoreDependencies } from "@/lib/socialCrewStore";
@@ -11,7 +12,7 @@ import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 
 export type OpenCrawlPlanSeats = {
   read(planId: string): Promise<CrewMemberDTO[]>;
-  setStatus(planId: string, seatId: string, accountId: string, status: "here" | "in"): Promise<boolean>;
+  markHere(planId: string, seatId: string, accountId: string): Promise<boolean>;
 };
 
 export const openCrawlPlanSeats: OpenCrawlPlanSeats = {
@@ -25,9 +26,9 @@ export const openCrawlPlanSeats: OpenCrawlPlanSeats = {
       joinedAt: seat.joined_at, updatedAt: seat.updated_at,
     }));
   },
-  async setStatus(planId, seatId, accountId, status) {
+  async markHere(planId, seatId, accountId) {
     const { data, error } = await requireDynamicSupabaseAdmin().from("plan_crew_members")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({ status: "here", updated_at: new Date().toISOString() })
       .eq("plan_id", planId).eq("id", seatId).eq("social_account_id", accountId)
       .select("id");
     if (error) throw new Error("Arrival unavailable.");
@@ -55,10 +56,16 @@ function arrivalContext(snapshot: unknown, crewId: string, actor: SocialPostActo
   return { projected, raw, member };
 }
 
-function openCrawlArrivalWindow(startTime: string, now = new Date()): boolean {
+function openCrawlArrivalWindow(startTime: string, now = new Date()) {
   const start = Date.parse(startTime);
-  return Number.isFinite(start) && londonDayKey(now) >= londonDayKey(startTime)
-    && now.getTime() < start + 12 * 60 * 60 * 1000;
+  if (!Number.isFinite(start)) return { open: false, refreshAt: null };
+  const midnight = new Date(`${londonDayKey(startTime)}T00:00:00Z`);
+  const opensAt = midnight.getTime() - londonMsSinceMidnight(midnight);
+  const closesAt = start + 12 * 60 * 60 * 1000;
+  return {
+    open: now.getTime() >= opensAt && now.getTime() < closesAt,
+    refreshAt: now.getTime() < opensAt ? opensAt : now.getTime() < closesAt ? closesAt : null,
+  };
 }
 
 export async function readOpenCrawlArrival(
@@ -68,30 +75,30 @@ export async function readOpenCrawlArrival(
   const roster = await seats.read(projected.plan.plan.id);
   const seat = roster.find((seat) => seat.id === member.planMemberId);
   if (!seat) return notFound();
-  return { open: openCrawlArrivalWindow(projected.startsAt), here: seat.status === "here" };
+  return { ...openCrawlArrivalWindow(projected.startsAt), here: seat.status === "here" };
 }
 
 export async function markOpenCrawlArrival(
-  dependencies: SocialCrewStoreDependencies, actor: SocialPostActor, input: { crewId: string; here: boolean },
+  dependencies: SocialCrewStoreDependencies, actor: SocialPostActor, input: { crewId: string; here: true },
 ) {
   try {
-    if (typeof input.here !== "boolean") throw new SocialCrewStoreError("INVALID", 400, "Arrival is not valid.");
+    if (input.here !== true) throw new SocialCrewStoreError("INVALID", 400, "Arrival is not valid.");
     const snapshot = () => dependencies.snapshot("read_social_crew_snapshot", {
       p_viewer_account_id: actor.accountId, p_viewer_profile_id: actor.profileId, p_crew_id: input.crewId,
     });
     const { projected, member } = arrivalContext(await snapshot(), input.crewId, actor);
-    if (!openCrawlArrivalWindow(projected.startsAt)) {
+    if (!openCrawlArrivalWindow(projected.startsAt).open) {
       throw new SocialCrewStoreError("CONFLICT", 409, "Arrival is closed.");
     }
     const seats = dependencies.planSeats;
     if (!seats) throw new Error("Arrival unavailable.");
-    if (!await seats.setStatus(projected.plan.plan.id, member.planMemberId, actor.accountId, input.here ? "here" : "in")) return notFound();
+    if (!await seats.markHere(projected.plan.plan.id, member.planMemberId, actor.accountId)) return notFound();
     const current = arrivalContext(await snapshot(), input.crewId, actor);
     const roster = await seats.read(projected.plan.plan.id);
     const active = new Set(current.raw.members.filter((member) => member.state === "active").map((member) => member.planMemberId));
     // Keep the original first seat as host, including after an ownership transfer.
     const crew = roster.filter((seat, index) => index === 0 || active.has(seat.id));
-    return { here: input.here, crewArrived: planCrewArrivedReceipts({ ...projected.plan, crew }) };
+    return { here: true as const, crewArrived: planCrewArrivedReceipts({ ...projected.plan, crew }) };
   } catch (error) {
     if (error instanceof SocialCrewStoreError) throw error;
     throw new SocialCrewStoreError("UNAVAILABLE", 503, "Social Crew is unavailable right now.");

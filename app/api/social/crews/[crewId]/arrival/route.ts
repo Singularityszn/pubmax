@@ -16,8 +16,8 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!isSocialCrewId(crewId)) return socialCrewNotFoundResponse();
   const input = await socialCrewBody(request);
   if (!input.ok) return input.response;
-  if (!socialCrewExactKeys(input.body, ["here"]) || typeof input.body.here !== "boolean") return socialCrewInvalidResponse();
+  if (!socialCrewExactKeys(input.body, ["here"]) || input.body.here !== true) return socialCrewInvalidResponse();
   return socialCrewMutation(() => store.markArrival(authority.actor, {
-    crewId, here: input.body.here as boolean,
+    crewId, here: true,
   }));
 }

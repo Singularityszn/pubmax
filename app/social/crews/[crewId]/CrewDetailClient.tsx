@@ -70,11 +70,11 @@ function CrewArrivalControl({ arrival, busy, onMark }: {
       <button
         type="button"
         className={arrival.here ? "crews__button" : "crews__button crews__button--primary"}
-        disabled={busy || !arrival.open}
+        disabled={busy || !arrival.open || arrival.here}
         aria-pressed={arrival.here}
         onClick={onMark}
       >
-        {busy ? "Working…" : arrival.here ? "Undo arrival" : "I'm here"}
+        {busy ? "Working…" : arrival.here ? "You're here" : "I'm here"}
       </button>
     </section>
   );
@@ -114,6 +114,27 @@ export default function CrewDetailClient({
   const joinRequestHeading = useRef<HTMLHeadingElement | null>(null);
   const previousScopeKey = useRef(scopeKey);
   const queueRefreshAuthorityRevision = useRef<number | null>(null);
+  const canRefreshArrival = identityResolved && loadedIdentityKey === identityKey
+    && crew?.kind === "member" && crew.visibility === "open" && Boolean(crew.arrival);
+  const arrivalRefreshAt = crew?.kind === "member" ? crew.arrival?.refreshAt : null;
+
+  useEffect(() => {
+    if (!canRefreshArrival) return;
+    const refresh = () => setAttempt((value) => value + 1);
+    const resume = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", resume);
+    const timer = typeof arrivalRefreshAt === "number"
+      ? setTimeout(refresh, Math.min(2_147_483_647, Math.max(0, arrivalRefreshAt - Date.now())))
+      : undefined;
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", resume);
+      clearTimeout(timer);
+    };
+  }, [arrivalRefreshAt, canRefreshArrival, scopeKey]);
 
   useEffect(() => {
     if (previousScopeKey.current === scopeKey) return;
@@ -473,17 +494,16 @@ export default function CrewDetailClient({
 
   const markArrival = () =>
     run(async () => {
-      if (crew?.kind !== "member" || !crew.arrival?.open) return;
+      if (crew?.kind !== "member" || !crew.arrival?.open || crew.arrival.here) return;
       const result = await write(`/api/social/crews/${encodeURIComponent(crewId)}/arrival`, {
         method: "POST",
-        body: JSON.stringify({ here: !crew.arrival.here }),
+        body: JSON.stringify({ here: true }),
         prefix: "crew-arrival",
       });
-      if (typeof result?.here !== "boolean") throw new Error("Could not update your arrival.");
+      if (result?.here !== true) throw new Error("Could not update your arrival.");
       if (previousScopeKey.current !== scopeKey) return;
-      const here = result.here;
-      setCrew((current) => current?.kind === "member"
-        ? { ...current, arrival: { open: true, here } } : current);
+      setCrew((current) => current?.kind === "member" && current.arrival
+        ? { ...current, arrival: { ...current.arrival, here: true } } : current);
       trackCrewArrivedReceipts(result.crewArrived);
     });
 

@@ -20,7 +20,7 @@ vi.mock("@/lib/hostLoopAnalytics", () => ({
 }));
 
 const state = vi.hoisted(() => ({
-  arrival: undefined as { open: boolean; here: boolean } | undefined,
+  arrival: undefined as { open: boolean; here: boolean; refreshAt: number | null } | undefined,
   arrivalFails: false,
   queue: [
     {
@@ -163,9 +163,9 @@ vi.mock("@/lib/authedFetch", () => ({
     }
     if (url.endsWith("/arrival") && init?.method === "POST") {
       if (state.arrivalFails) return Response.json({ error: "Arrival unavailable." }, { status: 503 });
-      const { here } = JSON.parse(String(init.body)) as { here: boolean };
-      state.arrival = { open: true, here };
-      return Response.json({ here, crewArrived: [{ deliveryToken: "signed", guestsArrived: "1" }] });
+      if (JSON.parse(String(init.body)).here !== true) return Response.json({}, { status: 422 });
+      state.arrival = { open: true, here: true, refreshAt: null };
+      return Response.json({ here: true, crewArrived: [{ deliveryToken: "signed", guestsArrived: "1" }] });
     }
     if (url === "/api/social/access") {
       return Response.json(
@@ -243,10 +243,12 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
-it("lets an open-crawl member mark Here, recover from failure and undo arrival", async () => {
-  state.arrival = { open: true, here: false };
+it("lets an open-crawl member recover from failure and mark Here once", async () => {
+  state.arrival = { open: true, here: false, refreshAt: null };
   await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
   const button = () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "I'm here");
   await vi.waitFor(() => expect(button()).toBeDefined());
@@ -256,11 +258,46 @@ it("lets an open-crawl member mark Here, recover from failure and undo arrival",
   expect(arrivalsTracked).not.toHaveBeenCalled();
   state.arrivalFails = false;
   await act(async () => button()!.click());
-  const undo = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Undo arrival");
-  expect(undo?.getAttribute("aria-pressed")).toBe("true");
+  const arrived = container.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
+  expect(arrived?.disabled).toBe(true);
   expect(arrivalsTracked).toHaveBeenCalledWith([{ deliveryToken: "signed", guestsArrived: "1" }]);
-  await act(async () => undo!.click());
-  expect(button()!.getAttribute("aria-pressed")).toBe("false");
+  await act(async () => arrived!.click());
+  expect(arrivalsTracked).toHaveBeenCalledTimes(1);
+  expect(state.arrival?.here).toBe(true);
+});
+
+it("refreshes the arrival control at the server's opening and closing boundaries", async () => {
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+  const opensAt = Date.parse("2026-08-23T23:00:00Z");
+  const closesAt = Date.parse("2026-08-25T06:30:00Z");
+  vi.setSystemTime(opensAt - 1_000);
+  state.arrival = { open: false, here: false, refreshAt: opensAt };
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = () => container.querySelector<HTMLButtonElement>('button[aria-pressed]');
+  expect(button()?.disabled).toBe(true);
+
+  state.arrival = { open: true, here: false, refreshAt: closesAt };
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+  expect(button()?.disabled).toBe(false);
+
+  state.arrival = { open: false, here: false, refreshAt: null };
+  await act(async () => { await vi.advanceTimersByTimeAsync(closesAt - opensAt); });
+  expect(button()?.disabled).toBe(true);
+});
+
+it.each(["focus", "visibilitychange"])("refreshes arrival availability on %s", async (event) => {
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  state.arrival = { open: false, here: false, refreshAt: null };
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = () => container.querySelector<HTMLButtonElement>('button[aria-pressed]');
+  expect(button()?.disabled).toBe(true);
+  state.arrival = { open: true, here: false, refreshAt: null };
+  await act(async () => {
+    (event === "focus" ? window : document).dispatchEvent(new Event(event));
+  });
+  expect(button()?.disabled).toBe(false);
+  await act(async () => button()!.click());
+  expect(state.arrival?.here).toBe(true);
 });
 
 describe("host join-request queue", () => {

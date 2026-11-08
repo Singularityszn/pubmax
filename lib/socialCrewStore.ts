@@ -143,7 +143,7 @@ type SocialCrewListInput = {
 };
 
 export type SocialCrewStore = {
-  markArrival(actor: SocialPostActor, input: { crewId: string; here: boolean }): Promise<{ here: boolean; crewArrived: PlanCrewArrivedReceipt[] }>;
+  markArrival(actor: SocialPostActor, input: { crewId: string; here: true }): Promise<{ here: true; crewArrived: PlanCrewArrivedReceipt[] }>;
   read(crewId: string, actor: SocialPostActor): Promise<SocialCrewReadDTO>;
   readPublicPreview(crewId: string): Promise<SocialCrewPublicPreviewSource>;
   readShareCard(crewId: string): Promise<SocialCrewShareCardSource>;

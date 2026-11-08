@@ -214,7 +214,7 @@ describe("Social Crew route authority and HTTP policy", () => {
   });
 
   it("refuses injected seat authority, malformed status and rate-limited arrivals", async () => {
-    for (const body of [{ here: true, memberId: BOB_MEMBER_ID }, { here: "true" }, {}, { here: null }]) {
+    for (const body of [{ here: true, memberId: BOB_MEMBER_ID }, { here: "true" }, { here: false }, {}, { here: null }]) {
       expect((await markArrival(mutationRequest(`http://localhost/api/social/crews/${CREW_ID}/arrival`, "POST", body), context({ crewId: CREW_ID }))).status).toBe(422);
     }
     state.limited = true;

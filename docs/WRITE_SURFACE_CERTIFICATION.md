@@ -463,7 +463,7 @@ bodies.
 All nine route files resolve a verified Social actor before parameter, header,
 or bounded JSON reads. No body can assert account ownership, role authority, or
 an owner. JSON objects use exact keys, so unknown keys fail. Every mutation
-except the desired-state arrival write requires a header-only `Idempotency-Key` of 16 to 128 trimmed characters. Body
+except the mark-Here arrival write requires a header-only `Idempotency-Key` of 16 to 128 trimmed characters. Body
 fallback is not supported. A salted stable-profile budget limits writes to 30
 per minute. Every success and failure is `private, no-store` JSON. Statuses are
 stable: 401 for sign-in, 403 for Social policy, 404 for unknown or protected
@@ -517,13 +517,13 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 
 #### `app/api/social/crews/[crewId]/arrival` (route 89)
 
-`POST` accepts only `{ here: boolean }`. A verified actor must be an active
+`POST` accepts only `{ here: true }`. A verified actor must be an active
 member of the named open crew. The server derives the Plan and seat from that
 membership and updates only the seat bound to that account. It reads authority
 again before minting the existing arrival receipts. Private and friends crews
 return 404. No Plan capability or account ID is returned. Arrival opens at London
 midnight on the scheduled date and closes 12 hours after the start.
-Setting the desired status is idempotent without a receipt key; analytics
+Marking Here is idempotent without a receipt key; analytics
 deduplicates each signed band per Plan and scheduled London date.
 
 ### `app/api/cheap-pint-ping` - weekday push preference

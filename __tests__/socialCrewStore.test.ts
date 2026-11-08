@@ -91,29 +91,33 @@ const planState: PlanState = {
 describe("open-crawl member arrival", () => {
   afterEach(() => vi.useRealTimers());
 
-  function arrivalFixture(visibility: RawSocialCrew["visibility"] = "open") {
+  function arrivalFixture(
+    visibility: RawSocialCrew["visibility"] = "open",
+    startsAt = planState.plan.startTime,
+  ) {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-08-07T19:00:00Z"));
     const crew = rawCrew({ visibility });
+    const plan = { ...planState, plan: { ...planState.plan, startTime: startsAt } };
     const seats = crew.members.map((member) => ({
       id: member.planMemberId, name: member.handle, status: "in" as "in" | "here",
       joinedAt: member.joinedAt, updatedAt: member.joinedAt,
     }));
     const deps = dependencies({
       snapshot: async (name) => name === "read_social_crew_snapshot"
-        ? { kind: "member", ownerRelationship: "not_mutual", crew, plan: planState }
+        ? { kind: "member", ownerRelationship: "not_mutual", crew, plan }
         : null,
     });
     const store = createSocialCrewStore({
       ...deps,
       planSeats: {
         read: async () => seats.map((seat) => ({ ...seat })),
-        setStatus: async (planId, seatId, accountId, status) => {
+        markHere: async (planId, seatId, accountId) => {
           const member = crew.members.find((member) =>
             member.planMemberId === seatId && member.accountId === accountId && member.state === "active");
           const seat = seats.find((seat) => seat.id === seatId);
           if (planId !== PLAN_ID || !member || !seat) return false;
-          seat.status = status;
+          seat.status = "here";
           return true;
         },
       },
@@ -121,7 +125,7 @@ describe("open-crawl member arrival", () => {
     return { store, crew, seats };
   }
 
-  it("lets an accepted non-mutual member mark only their own seat Here and undo it", async () => {
+  it("lets an accepted non-mutual member mark only their own seat Here idempotently", async () => {
     const { store, seats } = arrivalFixture();
     expect(await store.read(CREW_ID, bob)).toMatchObject({ arrival: { open: true, here: false } });
     const result = await store.markArrival(bob, { crewId: CREW_ID, here: true });
@@ -131,8 +135,23 @@ describe("open-crawl member arrival", () => {
     expect(await store.read(CREW_ID, bob)).toMatchObject({ arrival: { here: true } });
     const replay = await store.markArrival(bob, { crewId: CREW_ID, here: true });
     expect(replay.crewArrived).toEqual(result.crewArrived);
-    expect(await store.markArrival(bob, { crewId: CREW_ID, here: false }))
-      .toEqual({ here: false, crewArrived: [] });
+    await expect(store.markArrival(bob, { crewId: CREW_ID, here: false } as unknown as Parameters<typeof store.markArrival>[1]))
+      .rejects.toMatchObject({ status: 400 });
+    expect(seats.map((seat) => seat.status)).toEqual(["in", "here"]);
+  });
+
+  it.each([
+    ["2026-08-06T22:59:59Z", "2026-08-07T18:30:00Z", false, "2026-08-06T23:00:00Z"],
+    ["2026-08-06T23:00:00Z", "2026-08-07T18:30:00Z", true, "2026-08-08T06:30:00Z"],
+    ["2026-08-08T06:30:00Z", "2026-08-07T18:30:00Z", false, null],
+    ["2026-03-28T23:59:59Z", "2026-03-29T18:30:00Z", false, "2026-03-29T00:00:00Z"],
+    ["2026-10-24T22:59:59Z", "2026-10-25T18:30:00Z", false, "2026-10-24T23:00:00Z"],
+  ] as const)("reports the London arrival window at %s", async (now, startsAt, open, refreshAt) => {
+    const { store } = arrivalFixture("open", startsAt);
+    vi.setSystemTime(new Date(now));
+    expect(await store.read(CREW_ID, bob)).toMatchObject({
+      arrival: { open, here: false, refreshAt: refreshAt === null ? null : Date.parse(refreshAt) },
+    });
   });
 
   it("excludes the first plan seat, even when crew ownership has changed", async () => {
