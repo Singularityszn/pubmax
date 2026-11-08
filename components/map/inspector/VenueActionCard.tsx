@@ -22,7 +22,7 @@
 // table" and Share are ghosts, and the Overview's price door is drawn in ink.
 
 import dynamic from "next/dynamic";
-import { useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Share2, Users } from "lucide-react";
 
@@ -32,6 +32,7 @@ import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
 import type { ContributionGateStatus } from "@/lib/contributionGateStatus";
 import { TABLE_REQUEST_ACTION_LABEL } from "@/lib/tableRequests";
+import { consumeTableRequestIntent } from "@/lib/tableRequestIntent";
 import type { ShareFeedback } from "@/lib/venueShare";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
@@ -61,6 +62,7 @@ export default function VenueActionCard({
   // Kept by venue id, so selecting another pub never carries a half-typed
   // request or an open gate across.
   const [tableVenueId, setTableVenueId] = useState<string | null>(null);
+  const [initialPartySize, setInitialPartySize] = useState<number | undefined>();
   const [gate, setGate] = useState<{ venueId: string; status: ContributionGateStatus } | null>(null);
   const tableOpen = tableVenueId === venue.id;
   const gateStatus = gate?.venueId === venue.id ? gate.status : null;
@@ -69,7 +71,8 @@ export default function VenueActionCard({
   // form can only ever hand back the pub's own address). The age question is
   // the server's to ask, and the form answers it with the same gate. A session
   // still resolving opens the form too: the route gates the send.
-  function askForTable(): void {
+  function askForTable(partySize?: number): void {
+    setInitialPartySize(partySize);
     if (configured && !loading && !user) {
       setGate({ venueId: venue.id, status: "sign_in_required" });
       return;
@@ -80,6 +83,53 @@ export default function VenueActionCard({
     }
     setTableVenueId(venue.id);
   }
+
+  // Take the consumed ask out of the address, keeping every other param.
+  function clearTableAsk(search: string): void {
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`,
+    );
+  }
+
+  // A signed-out reader who declines the gate has declined the ask: the
+  // address stops carrying it, or the next visit reopens the gate.
+  function closeGate(): void {
+    const intent = consumeTableRequestIntent(window.location.search, venue.id, pub);
+    if (intent) clearTableAsk(intent.search);
+    setGate(null);
+  }
+
+  // The Pal handoff: /map?sel=<id>&table=<n> opens this pub's form with the
+  // crew size prefilled, behind the same gate as the card's own button. The
+  // sign-in gate keeps the ask in the address, because sign-in leaves the
+  // page and the return reads the address again; every other outcome consumes
+  // it at once. Auth still resolving waits, so a settled answer, not the
+  // arrival order, picks the door.
+  const openTableArrival = useEffectEvent((partySize: number, consumedSearch: string) => {
+    if (configured && !user) {
+      askForTable(partySize);
+      return;
+    }
+    clearTableAsk(consumedSearch);
+    askForTable(partySize);
+  });
+  useEffect(() => {
+    if (loading) return;
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const intent = consumeTableRequestIntent(window.location.search, venue.id, pub);
+      if (!intent) return;
+      if (intent.partySize === null) {
+        clearTableAsk(intent.search);
+        return;
+      }
+      openTableArrival(intent.partySize, intent.search);
+    });
+    return () => { active = false; };
+  }, [venue.id, pub, loading]);
 
   const card = (
     <div
@@ -104,7 +154,7 @@ export default function VenueActionCard({
             className="venueSheetStickyGhost"
             aria-haspopup="dialog"
             aria-label={`${TABLE_REQUEST_ACTION_LABEL} at ${venue.name}`}
-            onClick={askForTable}
+            onClick={() => askForTable()}
           >
             <Users size={16} aria-hidden="true" />
             {TABLE_REQUEST_ACTION_LABEL}
@@ -136,10 +186,16 @@ export default function VenueActionCard({
         ) : null}
       </div>
       {tableOpen ? (
-        <TableRequestDialog key={venue.id} venue={venue} onClose={() => setTableVenueId(null)} />
+        <TableRequestDialog
+          key={venue.id}
+          venue={venue}
+          initialPartySize={initialPartySize}
+          source={initialPartySize === undefined ? "sheet" : "pal"}
+          onClose={() => setTableVenueId(null)}
+        />
       ) : null}
       {gateStatus ? (
-        <ContributionGateDialog mode={gateStatus} error={null} onClose={() => setGate(null)} />
+        <ContributionGateDialog mode={gateStatus} error={null} onClose={closeGate} />
       ) : null}
     </div>
   );

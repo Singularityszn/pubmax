@@ -1,0 +1,57 @@
+// The "Ask for a table" handoff's pure leaves (launch plan 1 Nov 2026, section
+// 7 item 3): reading a crew size out of a Pal question, and consuming the
+// `/map?sel=<id>&table=<n>` deep link Pal's answer cards build
+// (lib/venueMapUrl.ts). A crew is 6 to 20, the same doors the form and the
+// route share (lib/tableRequests.ts). Nothing here opens anything: the venue
+// sheet's action card decides, behind its sign-in gate.
+
+import { parseTableRequestPartySize } from "@/lib/tableRequests";
+
+const NUMBER_WORDS = [
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+  "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+  "seventeen", "eighteen", "nineteen", "twenty",
+];
+
+/**
+ * The one crew size a table ask names, or null. A question that is not about
+ * a table, names no size, names two, or names one outside 6 to 20 reads as no
+ * handoff, because a guessed size in a prefilled form is a wrong request sent
+ * in the reader's name.
+ */
+export function tableRequestPartySizeInText(text: string): number | null {
+  if (!/\b(?:table|book(?:ing)?|reserv(?:e|ation))\b/i.test(text)) return null;
+  const sizes = new Set<number | null>();
+  // A number followed by a time tail ("for 20:00", "for 8 pm") is a time,
+  // never a crew.
+  for (const match of text.toLowerCase().matchAll(
+    /\b(?:for|party of|group of)\s+(\d+(?:\.\d+)?(?!\s*(?::|[ap]m\b))|[a-z-]+)\b|\b(\d+(?:\.\d+)?(?!\s*(?::|[ap]m\b))|[a-z-]+)\s+(?:of us|people|mates)\b/g,
+  )) {
+    const raw = match[1] ?? match[2]!;
+    const number = /^\d/.test(raw) ? Number(raw) : NUMBER_WORDS.indexOf(raw);
+    if (number < 0) continue;
+    sizes.add(parseTableRequestPartySize(number));
+  }
+  return sizes.size === 1 ? [...sizes][0]! : null;
+}
+
+/**
+ * Read `?sel=<venueId>&table=<n>` once, for the sheet of the venue it names.
+ * The answer carries the search string with `table` removed, so the caller can
+ * put the consumed address back. An invalid size or a venue that takes no
+ * table requests still consumes the parameter (partySize null): the map
+ * selects the pub and nothing opens. Returns null when the link is not for
+ * this venue, so the handoff survives until its own sheet reads it.
+ */
+export function consumeTableRequestIntent(
+  search: string,
+  venueId: string,
+  isPub: boolean,
+): { partySize: number | null; search: string } | null {
+  const params = new URLSearchParams(search);
+  if (!params.has("table") || params.get("sel") !== venueId) return null;
+  const raw = params.get("table") ?? "";
+  const partySize = isPub && /^\d+$/.test(raw) ? parseTableRequestPartySize(raw) : null;
+  params.delete("table");
+  return { partySize, search: params.toString() };
+}

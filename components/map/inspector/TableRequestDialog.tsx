@@ -29,6 +29,7 @@ import { ContributionGateDialog } from "@/components/identity/ContributionGateDi
 import { Button } from "@/components/ui/button";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { trackEvent } from "@/lib/analytics";
 import {
   readContributionGateStatus,
   type ContributionGateStatus,
@@ -46,6 +47,7 @@ import {
   tableRequestDateBounds,
   tableRequestLines,
   tableRequestMailtoHref,
+  parseTableRequestPartySize,
   validateTableRequest,
   type TableRequestContactKind,
   type TableRequestField,
@@ -120,9 +122,13 @@ function NotSent({ venue, request }: { venue: Venue; request: TableRequestFields
 export default function TableRequestDialog({
   venue,
   onClose,
+  initialPartySize,
+  source = "sheet",
 }: {
   venue: Venue;
   onClose: () => void;
+  initialPartySize?: number;
+  source?: "pal" | "sheet";
 }) {
   const { configured, user } = useAuth();
   const titleId = useId();
@@ -131,7 +137,7 @@ export default function TableRequestDialog({
   const bounds = tableRequestDateBounds();
   const [draft, setDraft] = useState<Draft>(() => ({
     name: "",
-    partySize: String(TABLE_REQUEST_MIN_PARTY),
+    partySize: String(parseTableRequestPartySize(initialPartySize) ?? TABLE_REQUEST_MIN_PARTY),
     date: bounds.min,
     time: "19:00",
     note: "",
@@ -170,6 +176,7 @@ export default function TableRequestDialog({
     setError(null);
     // No sign-in on this deployment: the server could only answer "not sent".
     if (!configured) {
+      trackEvent("table_request_sent", { source, outcome: "not_sent" });
       setStage({ kind: "not_sent", request: validation.fields });
       return;
     }
@@ -194,10 +201,12 @@ export default function TableRequestDialog({
       );
       const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       if (response.ok && body?.outcome === "sent") {
+        trackEvent("table_request_sent", { source, outcome: "sent" });
         setStage({ kind: "sent" });
         return;
       }
       if (response.ok) {
+        trackEvent("table_request_sent", { source, outcome: "not_sent" });
         setStage({ kind: "not_sent", request: validation.fields });
         return;
       }

@@ -31,6 +31,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | `pal_quest_stamped` | _(none)_ |
 | `pal_passport_viewed` | _(none)_ |
 | `pal_lead_started` | _(none)_ |
+| `table_request_sent` | `source` (`pal`, `sheet`), `outcome` (`sent`, `not_sent`) |
 | `voice_ended` | `reason` (`user`, `disconnect`, `cap`, `error`) |
 
 ## Share and errors
