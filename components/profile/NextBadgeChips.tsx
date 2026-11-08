@@ -20,17 +20,8 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./nextBadgeChips.css";
 
-// Quest chips (IDEAS B2-lite): forward-looking "next badge" progress for the
-// viewer's self-asserted handle. Self-contained on purpose — it resolves the
-// handle the same way /activity does (localStorage `pubmax_handle`, read AFTER
-// mount so server render and hydration agree), fetches the public drops, and
-// computes progress with the pure lib/profiles helpers. Honesty rules:
-//  • no handle → renders nothing (no invented identity);
-//  • fetch failed → renders nothing (a guess is worse than silence);
-//  • every badge earned → renders nothing (no fake quests).
-// A `handle` prop skips the localStorage read when the parent already knows it.
-// Loop 2 / Wave G2: optionally shows crawl-walked + Place-story quest chips from
-// local crawlCompletion when `showCrawlsWalked` is set (own-device progress only).
+// Supplied drops can include viewer-permitted history. Never publish them to
+// the shared public cache used by the fallback read.
 
 const HANDLE_KEY = "pubmax_handle";
 const MAX_CHIPS = 2;

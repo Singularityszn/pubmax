@@ -1707,7 +1707,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
         ) : null}
 
-        {/* Reuse this viewer's drops without publishing them to the public cache. */}
         {routeHandle && routeHandle !== YOU_SENTINEL ? (
           <NextBadgeChips handle={routeHandle} drops={drops} showCrawlsWalked={isOwnProfile} />
         ) : null}
