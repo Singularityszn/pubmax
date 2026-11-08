@@ -149,7 +149,7 @@ type PublicDrop = ProfileDrop & {
   createdAt?: string;
 };
 
-type LoadState = "loading" | "ready" | "error" | "gone";
+type LoadState = "loading" | "ready" | "error" | "retrying" | "gone";
 
 type ProfileGeographyRead = {
   key: string;
@@ -292,7 +292,7 @@ export function profileSurfaceFor({
     return "identity-loading";
   }
   if (state === "gone") return "gone";
-  if (state === "error") return "error";
+  if (state === "error" || state === "retrying") return "error";
   return "profile";
 }
 
@@ -509,6 +509,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [geographyRead, setGeographyRead] = useState<ProfileGeographyRead | null>(null);
   const { drops, areas: passportAreas } = profileGeographyForRead(geographyRead, geographyReadKey);
   const [state, setState] = useState<LoadState>("loading");
+  const [pintsReadAttempt, setPintsReadAttempt] = useState(0);
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
   // (savedByList) mapped into DTOs. Null until this handle's read answers for
@@ -721,7 +722,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
     void load();
     return () => controller.abort();
-  }, [accountRevision, geographyIdentityReady, geographyReadKey, geographyUserId, routeHandle]);
+  }, [accountRevision, geographyIdentityReady, geographyReadKey, geographyUserId, routeHandle, pintsReadAttempt]);
 
   // A carry of the first-run Been here taps moves this account's lists, so the
   // saved read below asks again when it lands (lib/beenHere.ts).
@@ -1364,9 +1365,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           following={visibleSocialData.counts?.following}
           actions={headerActions}
         />
-        <p className="profileEmpty">
-          Couldn&apos;t load pints right now. Try again.
-        </p>
+        <EmptyState
+          title="Couldn't load pints right now."
+          action={
+            <Button type="button" variant="secondary" disabled={state === "retrying"} aria-busy={state === "retrying"} onClick={() => {
+              setState("retrying");
+              setPintsReadAttempt((attempt) => attempt + 1);
+            }}>Retry</Button>
+          }
+        />
       </div>
     );
   }
@@ -1700,12 +1707,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
         ) : null}
 
-        {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
-            NextBadgeChips fetches public drops and filters by handle — works
-            for any profile with drops; renders nothing when empty. Own
-            profile also surfaces local "Crawls walked" from crawlCompletion. */}
         {routeHandle && routeHandle !== YOU_SENTINEL ? (
-          <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
+          <NextBadgeChips handle={routeHandle} drops={drops} showCrawlsWalked={isOwnProfile} />
         ) : null}
 
         {seasonalBadgeSection()}

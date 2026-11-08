@@ -91,6 +91,75 @@ import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileSt
 import { __resetMemoryFollows, memoryFollowStore } from "@/lib/followStore";
 
 const author = "local_geography_profile";
+
+it("reads signed-in profile pints only once for the passport and badge progress", async () => {
+  Object.assign(session, { user: { id: "local-owner" }, handle: author });
+  let reads = 0;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/pint-drops") {
+      reads += 1;
+      return Response.json({ drops: [], passportAreas: [] });
+    }
+    return Response.json({});
+  }));
+  const params = Promise.resolve({ handle: author });
+  await act(async () => {
+    root.render(createElement(Suspense, { fallback: null }, createElement(ProfilePageClient, { params })));
+  });
+  expect(host.querySelector(".profileErrorState")).toBeNull();
+  expect(reads).toBe(1);
+});
+
+it("can recover the signed-in pints read after repeated 429 responses", async () => {
+  Object.assign(session, { user: { id: "local-owner" }, handle: author });
+  let reads = 0;
+  let finishRetry!: (response: Response) => void;
+  const sectionReads: string[] = [];
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/pint-drops") {
+      reads += 1;
+      if (reads === 1) return Response.json({ code: "RATE_LIMITED" }, { status: 429 });
+      return new Promise<Response>((resolve) => { finishRetry = resolve; });
+    }
+    if (["/api/social/rankings", "/api/diary", "/api/check-ins",
+      `/api/profiles/${author}/been`, `/api/profiles/${author}/taste`,
+      `/api/profiles/${author}/overlap`].includes(url.pathname)) sectionReads.push(url.pathname);
+    return Response.json({});
+  }));
+  const params = Promise.resolve({ handle: author });
+  await act(async () => {
+    root.render(createElement(Suspense, { fallback: null }, createElement(ProfilePageClient, { params })));
+  });
+  const retry = () => [...host.querySelectorAll<HTMLButtonElement>(".profileErrorState button")]
+    .find((button) => button.textContent === "Retry");
+  const control = retry()!;
+  expect(control.textContent).toBe("Retry");
+  const initialSectionReads = [...sectionReads];
+  await act(async () => { control.click(); });
+  expect(reads).toBe(2);
+  expect(retry()).toBe(control);
+  expect(control.disabled).toBe(true);
+  expect(control.getAttribute("aria-busy")).toBe("true");
+  expect(sectionReads).toEqual(initialSectionReads);
+  await act(async () => { control.click(); });
+  expect(reads).toBe(2);
+  await act(async () => { finishRetry(Response.json({ code: "RATE_LIMITED" }, { status: 429 })); });
+  expect(retry()).toBe(control);
+  expect(control.disabled).toBe(false);
+  expect(sectionReads).toEqual(initialSectionReads);
+  await act(async () => { control.click(); });
+  expect(reads).toBe(3);
+  expect(retry()).toBe(control);
+  expect(control.disabled).toBe(true);
+  expect(sectionReads).toEqual(initialSectionReads);
+  await act(async () => { finishRetry(Response.json({ drops: [], passportAreas: ["Hackney"] })); });
+  expect(host.querySelector(".profileErrorState")).toBeNull();
+  expect(host.querySelector(".passportBoroughs")?.textContent).toContain("Hackney");
+  expect(readSurfaceSnapshot(`/api/pint-drops?author=${author}`)).toBeUndefined();
+});
+
 let host: HTMLElement;
 let root: Root;
 
