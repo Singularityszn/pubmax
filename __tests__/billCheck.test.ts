@@ -253,12 +253,35 @@ describe("judgeBill", () => {
     expect(judgeBill(lines, 5.2, drink).result).toBe("match");
   });
 
+  it.each([
+    ["Pint Halfway House Pale", "pint", "half"],
+    ["Half Halfway House Pale", "half", "pint"],
+    ["Bottle Halfway House Pale", "bottle", "pint"],
+    ["Single Halfway House Pale", "single", "double"],
+    ["Double Halfway House Pale", "double", "single"],
+  ] as const)("checks outer servings on an uncatalogued product in %s", (served, measure, different) => {
+    const product = "Halfway House Pale";
+    expect(judgeBill(read([[served, 5.2]]), 5.2, product, measure).result).toBe("match");
+    expect(judgeBill(read([[product, 5.2]]), 5.2, served, measure).result).toBe("match");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, product, different).result).toBe("mismatch");
+    expect(judgeBill(read([[product, 5.2]]), 5.2, served, different).result).toBe("mismatch");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, served, different).result).toBe("mismatch");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, `${different} ${product}`).result).toBe("mismatch");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, `${product} ${measure}`, measure).result).toBe("match");
+    expect(judgeBill(read([[`${product} ${measure}`, 5.2]]), 5.2, served, measure).result).toBe("match");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, product).result).toBe("match");
+    expect(judgeBill(read([[product, 5.2]]), 5.2, served).result).toBe("match");
+    expect(judgeBill(read([[served, 5.2]]), 5.3, product, measure).result).toBe("mismatch");
+  });
+
   it.each(["Double IPA", "Single Malt Whisky", "Half Moon IPA", "Bottle Rocket IPA", "Halfway House Pale"])(
     "preserves the product words in %s on both sides of the comparison",
     (drink) => {
       const shortened = drink.split(" ").slice(1).join(" ");
       expect(judgeBill(read([[drink, 5.2]]), 5.2, drink, "pint").result).toBe("match");
       expect(judgeBill(read([[`${drink} pint`, 5.2]]), 5.2, drink, "pint").result).toBe("match");
+      expect(judgeBill(read([[`Pint ${drink}`, 5.2]]), 5.2, drink, "pint").result).toBe("match");
+      expect(judgeBill(read([[drink, 5.2]]), 5.2, `Pint ${drink}`, "pint").result).toBe("match");
       expect(judgeBill(read([[shortened, 5.2]]), 5.2, drink, "pint").result).toBe("unreadable");
       expect(judgeBill(read([[drink, 5.2]]), 5.2, shortened, "pint").result).toBe("unreadable");
     },

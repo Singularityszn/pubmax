@@ -109,12 +109,13 @@ vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
     writeOneTapPintDrop: async (
       input: Parameters<typeof actual.writeOneTapPintDrop>[0],
       photos?: Parameters<typeof actual.writeOneTapPintDrop>[1],
+      duplicate?: Parameters<typeof actual.writeOneTapPintDrop>[2],
     ) => {
       if (oneTapState.forcedOutcome !== undefined) {
         await oneTapState.beforeOutcome?.();
         return oneTapState.forcedOutcome;
       }
-      return actual.writeOneTapPintDrop(input, photos);
+      return actual.writeOneTapPintDrop(input, photos, duplicate);
     },
   };
 });
@@ -993,7 +994,7 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
     expect(billChecks.schedule).not.toHaveBeenCalled();
   });
 
-  it.each(["pint", "half"])("does not check a new bill for a duplicate %s drop that arrived without a bill", async (measure) => {
+  it.each(["pint", "half"])("reuses a bill-free %s drop only when no community observation is needed", async (measure) => {
     const { POST: postDrop } = await import("@/app/api/pint-drops/route");
     const form = new FormData();
     form.set("venueId", "venue-xjf3n0");
@@ -1005,7 +1006,8 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
     expect(prior.status).toBe(201);
     billChecks.schedule.mockClear();
     expect((await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure }))).status).toBe(201);
-    expect(billChecks.schedule).not.toHaveBeenCalled();
+    expect(billChecks.schedule).toHaveBeenCalledTimes(measure === "pint" ? 1 : 0);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(measure === "pint" ? 2 : 1);
   });
 
   it.each([
@@ -1056,6 +1058,56 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       }));
       expect(hidden.status).toBe(200);
       expect(listVisiblePintDrops(body.venueId)).toEqual([]);
+      expect(await readCommunityPrices(body.venueId)).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("checks a fresh bill after A then B then A and hides both current price targets", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const startedAt = Date.parse("2026-11-05T19:30:00.000Z");
+    vi.setSystemTime(startedAt);
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure: "pint" };
+      expect((await POST(post(body, jpegFile("first.jpg")))).status).toBe(201);
+      vi.setSystemTime(startedAt + 1_000);
+      expect((await POST(post({ ...body, priceGbp: 6.5 }, jpegFile("correction.jpg")))).status).toBe(201);
+      vi.setSystemTime(startedAt + 2_000);
+      const response = await POST(post(body, jpegFile("latest.jpg")));
+      expect(response.status).toBe(201);
+      expect(((await response.json()) as PriceBody).price?.submittedAt).toBe(startedAt + 2_000);
+      expect(scheduled()).toHaveLength(3);
+      const runs = billChecks.schedule.mock.calls.map(([run]) => run as BillCheckRun);
+      const first = defined(runs[0]);
+      const correction = defined(runs[1]);
+      const latest = defined(runs[2]);
+      expect(new Set([first.pintDropId, correction.pintDropId, latest.pintDropId]).size).toBe(3);
+      expect(latest.photo.name).toBe("latest.jpg");
+      expect(latest.communityPriceSubmittedAt).toBe(startedAt + 2_000);
+      expect(listVisiblePintDrops(body.venueId)).toHaveLength(3);
+      vi.setSystemTime(startedAt + 3_000);
+      const retry = await POST(post(body, jpegFile("retry.jpg")));
+      expect(retry.status).toBe(201);
+      expect(await retry.json()).not.toHaveProperty("billCheck");
+      expect(scheduled()).toHaveLength(3);
+      expect(listVisiblePintDrops(body.venueId)).toHaveLength(3);
+      const check = await memoryBillCheckStore.record({
+        pintDropId: latest.pintDropId,
+        communityPriceId: latest.communityPriceId,
+        communityPriceSubmittedAt: latest.communityPriceSubmittedAt,
+        billHash: createHash("sha256").update(Buffer.from(await latest.photo.arrayBuffer())).digest("hex"),
+        venueId: latest.venueId,
+        priceGbp: latest.priceGbp,
+        result: "mismatch",
+        lines: [{ name: "Beer", priceGbp: 6.5 }],
+      });
+      const hidden = await moderateBillCheck(new Request("http://localhost/api/admin/bill-checks", {
+        method: "POST",
+        body: JSON.stringify({ id: check.id, decision: "hidden" }),
+      }));
+      expect(hidden.status).toBe(200);
+      expect(listVisiblePintDrops(body.venueId).some((drop) => drop.id === latest.pintDropId)).toBe(false);
       expect(await readCommunityPrices(body.venueId)).toEqual([]);
     } finally {
       vi.useRealTimers();

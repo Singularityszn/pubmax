@@ -206,6 +206,7 @@ export async function revertOneTapCommunityPricePairing(
 export async function writeOneTapPintDrop(
   input: OneTapPintDropInput,
   photos: PintDropPhotos = { pint: null, venue: null, receipt: null },
+  existingDrop?: PintDrop | null,
 ): Promise<OneTapPintDropOutcome> {
   // Pint Drops feed pint-only surfaces (pin colour, cheapest-pint buckets,
   // the Confirmed standing, the Pint Index). A non-beer price paired in here
@@ -230,10 +231,10 @@ export async function writeOneTapPintDrop(
     // pub's sheet does not list the same pint three times. A read we could not
     // run writes the drop rather than refusing it: losing a drinker's price to
     // protect against a duplicate is the worse of the two failures.
-    const recent = await listRecentForDedupe(store, input.venueId);
-    const duplicate = recent
+    const recent = existingDrop === undefined ? await listRecentForDedupe(store, input.venueId) : null;
+    const duplicate = existingDrop === undefined && recent
       ? duplicateOneTapDrop(recent, built, Date.parse(built.createdAt))
-      : null;
+      : existingDrop;
     if (duplicate) {
       log("info", "one_tap_pint_drop.duplicate_tap", { venueId: input.venueId });
       return { ok: true, drop: duplicate, created: false };

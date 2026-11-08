@@ -110,7 +110,12 @@ export function parseBillReadAnswer(answer: unknown): BillRead {
   return { lines };
 }
 
-function billItem(name: string): { name: string; measure?: string } {
+function billProductName(name: string): string {
+  return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim().replace(/^of /, "");
+}
+
+function billItem(name: string, counterpart = ""): { name: string; measure?: string } {
   const text = name.trim().toLowerCase();
   const serving = /\b(half(?:[\s-]+pint)?|1\/2(?:[\s-]+pint)?|pint|125\s*ml|175\s*ml|250\s*ml|bottle|single|double)\b|½(?:[\s-]+pint)?/gi;
   const found = [...text.matchAll(serving)].find((match) => {
@@ -129,7 +134,14 @@ function billItem(name: string): { name: string; measure?: string } {
     const category = drinkCategoryFromText(following) ?? brandCategory ?? null;
     const startsWithDrink = drinkKeywordSpans(following).some((span) => span.start === 0) ||
       brandCategory !== undefined;
-    if (!startsWithDrink) return false;
+    if (!startsWithDrink) {
+      if (match.index !== 0 || /^(?:single malt|double ipa|half moon|bottle rocket)\b/.test(text)) return false;
+      const otherServing = [...counterpart.matchAll(serving)].find((other) => other.index === 0);
+      const otherProduct = otherServing ? counterpart.slice(otherServing[0].length) : counterpart;
+      const product = billProductName(following);
+      if (product !== billProductName(counterpart) && product !== billProductName(otherProduct)) return false;
+      return true;
+    }
     return match[0] === "single" || match[0] === "double"
       ? category === "gin" || category === "vodka" || category === "rum" || category === "whisky" || category === "shot"
       : category !== null;
@@ -139,9 +151,7 @@ function billItem(name: string): { name: string; measure?: string } {
     ? "half"
     : raw;
   return {
-    name: (found ? text.slice(0, found.index) + " " + text.slice(found.index + found[0].length) : text)
-      .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, " ").trim().replace(/^of /, ""),
+    name: billProductName(found ? text.slice(0, found.index) + " " + text.slice(found.index + found[0].length) : text),
     ...(measure ? { measure } : {}),
   };
 }
@@ -160,15 +170,16 @@ export function judgeBill(
 ): BillCheckVerdict {
   const submitted = billItem(drink);
   if (!submitted.name) return { result: "unreadable", lines: [] };
-  const named = read.lines.filter((line) => billItem(line.name).name === submitted.name);
+  const named = read.lines.map((line) => {
+    const item = billItem(line.name, submitted.name);
+    return { line, item, submitted: billItem(drink, item.name) };
+  }).filter(({ item, submitted: candidate }) => item.name === candidate.name);
   if (named.length === 0) return { result: "unreadable", lines: [] };
-  if (measure && submitted.measure && measure !== submitted.measure) {
-    return { result: "mismatch", lines: evidenceLines(read.lines) };
-  }
   const target = pence(submittedPriceGbp);
-  const expectedMeasure = measure ?? submitted.measure;
-  const matching = named.filter((line) => {
-    const statedMeasure = billItem(line.name).measure;
+  const matching = named.filter(({ line, item, submitted: candidate }) => {
+    if (measure && candidate.measure && measure !== candidate.measure) return false;
+    const expectedMeasure = measure ?? candidate.measure;
+    const statedMeasure = item.measure;
     return pence(line.priceGbp) === target &&
       (!expectedMeasure || !statedMeasure || statedMeasure === expectedMeasure);
   });
@@ -176,7 +187,7 @@ export function judgeBill(
     return { result: "mismatch", lines: evidenceLines(read.lines) };
   }
   const seen = new Set<string>();
-  const kept = matching.filter((line) => {
+  const kept = matching.map(({ line }) => line).filter((line) => {
     const key = `${line.name.toLowerCase()}|${pence(line.priceGbp)}`;
     if (seen.has(key)) return false;
     seen.add(key);

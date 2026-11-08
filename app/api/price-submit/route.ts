@@ -94,7 +94,7 @@ import { receiptPhotoRefusal } from "@/lib/receiptPhoto.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
-import { isLimited } from "@/lib/pintDrops";
+import { isLimited, type PintDrop } from "@/lib/pintDrops";
 import { log } from "@/lib/log";
 import {
   isUkBaseId,
@@ -293,7 +293,7 @@ export async function POST(request: Request): Promise<Response> {
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
   const submittedAt = Date.now();
-  const { price, failed } = await submitPriceObservation({
+  const { price, failed, duplicateDrop } = await submitPriceObservation({
     ...submission,
     actor: contributor.actor,
     contributorHandle: contributor.handle,
@@ -321,7 +321,6 @@ export async function POST(request: Request): Promise<Response> {
   // The bill behind this figure, handed to the background bill check once the
   // rows it names exist (captain 5 Nov 2026). Read after the answer.
   let pairedDropId: string | undefined;
-  let duplicateDrop = false;
   if (pairsPintDrop) {
     const pairing = await pairSubmittedPintDrop(
       {
@@ -336,11 +335,10 @@ export async function POST(request: Request): Promise<Response> {
         verifiedAccountId: contributor.accountId,
       },
       pintDropPhotos,
-      { actor: contributor.actor, priceId: price.id },
+      { actor: contributor.actor, priceId: price.id, duplicateDrop },
     );
     if (!pairing.ok) return pairing.response;
     pairedDropId = pairing.pintDropId;
-    duplicateDrop = pairing.duplicateDrop;
     confirmationOutcome = pairing.confirmationOutcome;
     pintTrust = pairing.pintTrust;
   }
@@ -409,13 +407,13 @@ export async function POST(request: Request): Promise<Response> {
 async function submitPriceObservation(
   input: CommunityPriceWrite & { contributorHandle: string },
   now: number,
-): Promise<CommunityPriceWriteResult> {
+): Promise<CommunityPriceWriteResult & { duplicateDrop: PintDrop | null }> {
   if (input.drinkCategory === "beer") {
     let recent;
     try {
       recent = await pintDropsStore().listConfirmationCandidates(input.venueId);
     } catch {
-      return { price: null, failed: true };
+      return { price: null, failed: true, duplicateDrop: null };
     }
     const duplicate = duplicateOneTapDrop(recent, {
       venueId: input.venueId,
@@ -423,38 +421,41 @@ async function submitPriceObservation(
       priceGbp: input.priceGbp,
       measure: "pint",
     }, now);
-    if (!duplicate) return submitCommunityPrice(input, now);
-    const { observations, degraded } = await listCommunityPriceObservations(
-      input.venueId,
-      input.drinkCategory,
-    );
-    if (degraded) return { price: null, failed: true };
-    const original = observations.find((row) =>
-      row.actor === input.actor &&
-      row.priceGbp === input.priceGbp,
-    );
-    if (original) {
-      return {
-        price: {
-          id: original.id,
-          venueId: original.venueId,
-          drinkCategory: original.drinkCategory,
-          priceGbp: original.priceGbp,
-          submittedAt: original.submittedAt,
-          source: "community",
-        },
-      };
+    if (duplicate) {
+      const { observations, degraded } = await listCommunityPriceObservations(
+        input.venueId,
+        input.drinkCategory,
+      );
+      if (degraded) return { price: null, failed: true, duplicateDrop: null };
+      const original = observations.find((row) =>
+        row.actor === input.actor &&
+        row.priceGbp === input.priceGbp &&
+        row.submittedAt <= Date.parse(duplicate.createdAt),
+      );
+      if (original) {
+        return {
+          duplicateDrop: duplicate,
+          price: {
+            id: original.id,
+            venueId: original.venueId,
+            drinkCategory: original.drinkCategory,
+            priceGbp: original.priceGbp,
+            submittedAt: original.submittedAt,
+            source: "community",
+          },
+        };
+      }
     }
   }
-  return submitCommunityPrice(input, now);
+  return { ...(await submitCommunityPrice(input, now)), duplicateDrop: null };
 }
 
 async function pairSubmittedPintDrop(
   input: OneTapPintDropInput,
   photos: PintDropPhotos,
-  context: { actor: string; priceId?: string },
+  context: { actor: string; priceId?: string; duplicateDrop: PintDrop | null },
 ) {
-  const pintDrop = await writeOneTapPintDrop(input, photos);
+  const pintDrop = await writeOneTapPintDrop(input, photos, context.duplicateDrop);
   if (!pintDrop.ok) {
     return {
       ok: false as const,
@@ -466,7 +467,6 @@ async function pairSubmittedPintDrop(
     };
   }
   const pintDropId = pintDrop.drop.id;
-  const duplicateDrop = !pintDrop.created;
   void qualifyCheapPintForOwnerActor(context.actor);
   // Confirm the paired observation with the same account authority as its row.
   const confirmationOutcome = await runSecondReporterPass(
@@ -479,7 +479,6 @@ async function pairSubmittedPintDrop(
   return {
     ok: true as const,
     pintDropId,
-    duplicateDrop,
     confirmationOutcome,
     pintTrust,
   };
@@ -493,7 +492,7 @@ function scheduleCommunityPriceBillCheck(input: {
   pairsPintDrop: boolean;
   measure: DrinkMeasure;
   pairedDropId?: string;
-  duplicateDrop: boolean;
+  duplicateDrop: PintDrop | null;
 }): "reading" | null {
   if (input.duplicateDrop) return null;
   const { submission, price } = input;
