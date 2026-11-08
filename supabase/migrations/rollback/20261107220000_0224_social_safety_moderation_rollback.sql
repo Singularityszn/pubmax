@@ -16,7 +16,7 @@ drop function if exists public.read_flagged_message_evidence_admin(uuid, uuid);
 drop function if exists public.read_flagged_messages_admin(uuid, integer);
 drop function if exists public.resolve_social_report_admin(uuid, uuid);
 drop function if exists public.read_social_report_queue_admin(uuid, integer);
-drop function if exists public.read_reported_post_evidence_admin(uuid, uuid);
+drop function if exists public.read_reported_content_evidence_admin(uuid, uuid);
 
 drop table if exists public.social_account_moderation_audit;
 drop table if exists public.message_flag_evidence_audit;

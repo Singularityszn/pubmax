@@ -115,7 +115,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | `community_prices.contributor_handle` at the table | denied | denied | denied | n/a |
 | Read Social reports or flagged DMs, resolve a report, review a DM, suspend or reinstate (`/api/admin/social-safety`) | 403 | 403 | 403 | `ADMIN_TOKEN` or admin session plus an active moderator staff role |
 | View a flagged DM attachment (`POST /api/admin/social-safety`, `view_message_evidence`) | 403 | 403 | 403 | moderator only; one flagged message; every read audited; photo URL expires after 180 seconds |
-| View a reported post (`POST /api/admin/social-safety`, `view_post_evidence`) | 403 | 403 | 403 | moderator only; one post named by an open report; every read audited; media URLs expire after 180 seconds |
+| View reported content (`POST /api/admin/social-safety`, `view_report_evidence`) | 403 | 403 | 403 | moderator only; only the post, comment or quote named by an open report; every read audited; media URLs expire after 180 seconds |
 | `social_report_evidence_audit` at the table | denied | denied | denied | RLS on with no policy or browser grant; service role can only select and insert |
 | `message_flag_reviews`, `message_flag_evidence_audit`, `social_account_moderation_audit` at the table | denied | denied | denied | no browser grant or RLS policy; service role only |
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |

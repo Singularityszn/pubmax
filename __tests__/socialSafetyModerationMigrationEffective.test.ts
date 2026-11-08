@@ -47,6 +47,11 @@ const LEGACY_MESSAGE = "d2000000-0000-4000-8000-000000000224";
 const UNFLAGGED = "f3000000-0000-4000-8000-000000000223";
 const PHOTO_POST = "f4000000-0000-4000-8000-000000000224";
 const MEDIA = "f5000000-0000-4000-8000-000000000224";
+const COMMENT = "fc000000-0000-4000-8000-000000000224";
+const OTHER_COMMENT = "fc100000-0000-4000-8000-000000000224";
+const QUOTE = "fd000000-0000-4000-8000-000000000224";
+const OTHER_QUOTE = "fd100000-0000-4000-8000-000000000224";
+const REPORTED_TEXT = "An ordinary introduction. ".repeat(15) + "The threat after the excerpt.";
 const GENERATION = "f6000000-0000-4000-8000-000000000224";
 const VIDEO_UPLOAD = "f7000000-0000-4000-8000-000000000224";
 const PHOTO_KEY = `social/${MEDIA}/${GENERATION}/image.jpg`;
@@ -130,6 +135,12 @@ beforeAll(async () => {
       values ('${VIDEO_UPLOAD}','${TARGET_PROFILE}','${VIDEO_KEY}','video/mp4',100,'${PHOTO_POST}');
     insert into public.social_post_videos(post_id,author_profile_id,upload_id,object_key,content_type,byte_size,review_state)
       values ('${PHOTO_POST}','${TARGET_PROFILE}','${VIDEO_UPLOAD}','${VIDEO_KEY}','video/mp4',100,'approved');
+    insert into public.social_comments(id,post_id,author_profile_id,author_handle,body,moderation_state,idempotency_key_hash,payload_digest) values
+      ('${COMMENT}','${PHOTO_POST}','${TARGET_PROFILE}','targetted','${REPORTED_TEXT}','approved',repeat('c',64),repeat('c',64)),
+      ('${OTHER_COMMENT}','${PHOTO_POST}','${TARGET_PROFILE}','targetted','Unreported comment','approved',repeat('d',64),repeat('d',64));
+    insert into public.social_quotes(id,source_post_id,author_profile_id,author_handle,body,visibility,moderation_state,idempotency_key_hash,payload_digest) values
+      ('${QUOTE}','${PHOTO_POST}','${TARGET_PROFILE}','targetted','${REPORTED_TEXT}','friends','approved',repeat('e',64),repeat('e',64)),
+      ('${OTHER_QUOTE}','${PHOTO_POST}','${TARGET_PROFILE}','targetted','Unreported quote','friends','approved',repeat('f',64),repeat('f',64));
     insert into public.conversations (id, handle_a, handle_b, user_id_a, user_id_b)
       values ('${CONVERSATION}','reporter','targetted','${REPORTER_USER}','${TARGET_USER}'),
       ('${LEGACY_CONVERSATION}','reporter','returning','${REPORTER_USER}','${LEGACY_USER}');
@@ -209,19 +220,54 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
 
   it("reads only the open report's private post, including full text and its media, and audits each view", () => {
     const reportId = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','post','${PHOTO_POST}','harassment')`);
-    const call = `select public.read_reported_post_evidence_admin('${STAFF}','${reportId}')`;
+    const call = `select public.read_reported_content_evidence_admin('${STAFF}','${reportId}')`;
     const media = [{ kind: "photo", objectKey: PHOTO_KEY }, { kind: "video", objectKey: VIDEO_KEY }];
-    expect(json(call)).toEqual({ reportId, postId: PHOTO_POST, body: "", media });
+    expect(json(call)).toEqual({ reportId, kind: "post", contentId: PHOTO_POST, body: "", media });
     db().sql(`update public.social_posts set body=repeat('Reported full text. ',40) where id='${PHOTO_POST}'`);
-    expect(json(call)).toEqual({ reportId, postId: PHOTO_POST, body: "Reported full text. ".repeat(40), media });
-    const rows = json(`select jsonb_agg(jsonb_build_object('report',report_id,'post',post_id,'staff',staff_role_id,'name',staff_display_name,'timed',viewed_at is not null)) from public.social_report_evidence_audit`);
-    expect(rows).toEqual(Array.from({ length: 2 }, () => ({ report: reportId, post: PHOTO_POST, staff: STAFF, name: "Carol", timed: true })));
-    expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${POST}')`)).toBeNull();
-    expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${PHOTO_POST}')`)).toBeNull();
+    expect(json(call)).toEqual({ reportId, kind: "post", contentId: PHOTO_POST, body: "Reported full text. ".repeat(40), media });
+    const rows = json(`select jsonb_agg(jsonb_build_object('report',report_id,'kind',content_kind,'content',content_id,'staff',staff_role_id,'name',staff_display_name,'timed',viewed_at is not null)) from public.social_report_evidence_audit`);
+    expect(rows).toEqual(Array.from({ length: 2 }, () => ({ report: reportId, kind: "post", content: PHOTO_POST, staff: STAFF, name: "Carol", timed: true })));
+    expect(json(`select public.read_reported_content_evidence_admin('${STAFF}','${POST}')`)).toBeNull();
+    expect(json(`select public.read_reported_content_evidence_admin('${STAFF}','${PHOTO_POST}')`)).toBeNull();
     const personReport = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','profile','${TARGET_PROFILE}','harassment')`);
-    expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${personReport}')`)).toBeNull();
+    expect(json(`select public.read_reported_content_evidence_admin('${STAFF}','${personReport}')`)).toBeNull();
     db().sql(`update public.social_content_reports set state='reviewing' where id='${reportId}'`);
-    expect(json(call)).toMatchObject({ reportId, postId: PHOTO_POST });
+    expect(json(call)).toMatchObject({ reportId, kind: "post", contentId: PHOTO_POST });
+    scalar(`select public.resolve_social_report_admin('${STAFF}','${reportId}')`);
+    expect(json(call)).toBeNull();
+    expect(scalar(`select count(*) from public.social_report_evidence_audit`)).toBe("3");
+  });
+
+  it.each([
+    ["comment", COMMENT, OTHER_COMMENT],
+    ["quote", QUOTE, OTHER_QUOTE],
+  ] as const)("returns only the reported %s in full and audits every view", (kind, contentId, otherId) => {
+    const reportId = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','${kind}','${contentId}','threat')`);
+    const call = `select public.read_reported_content_evidence_admin('${STAFF}','${reportId}')`;
+    const queue = json(`select public.read_social_report_queue_admin('${STAFF}',20)`) as Record<string, unknown>[];
+    expect(queue[0]?.excerpt).not.toContain("The threat after the excerpt.");
+    for (let view = 1; view <= 2; view += 1) {
+      expect(json(call)).toEqual({ reportId, kind, contentId, body: REPORTED_TEXT, media: [] });
+      expect(json(`select jsonb_agg(jsonb_build_object('reportId',report_id,'kind',content_kind,
+        'contentId',content_id,'staff',staff_role_id,'name',staff_display_name,'timed',viewed_at is not null))
+        from public.social_report_evidence_audit`)).toEqual(Array.from({ length: view }, () => ({
+        reportId, kind, contentId, staff: STAFF, name: "Carol", timed: true,
+      })));
+    }
+    for (const id of [contentId, otherId, PHOTO_POST]) {
+      expect(json(`select public.read_reported_content_evidence_admin('${STAFF}','${id}')`)).toBeNull();
+    }
+    db().sql(`update public.private_social_staff_roles set role='product_staff' where id='${STAFF}'`);
+    try {
+      expect(db().expectRefusal(asServiceRole(call))).toMatch(/staff required/);
+    } finally {
+      db().sql(`update public.private_social_staff_roles set role='moderator' where id='${STAFF}'`);
+    }
+    for (const role of ["anon", "authenticated"] as const) {
+      expect(db().expectRefusal(asBrowserRole(role, role === "anon" ? null : TARGET_USER, call))).toMatch(/permission denied/i);
+    }
+    db().sql(`update public.social_content_reports set state='reviewing' where id='${reportId}'`);
+    expect(json(call)).toEqual({ reportId, kind, contentId, body: REPORTED_TEXT, media: [] });
     scalar(`select public.resolve_social_report_admin('${STAFF}','${reportId}')`);
     expect(json(call)).toBeNull();
     expect(scalar(`select count(*) from public.social_report_evidence_audit`)).toBe("3");
@@ -240,8 +286,8 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
       ('${unrelated}','${POST}','${TARGET_PROFILE}',2,'social-extra/${unrelated}/image.jpg',repeat('e',64),800,1000,100,'Unreported','approved')`);
     try {
       const reportId = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','post','${PHOTO_POST}','harassment')`);
-      expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${reportId}')`)).toEqual({
-        reportId, postId: PHOTO_POST, body: "", media: [
+      expect(json(`select public.read_reported_content_evidence_admin('${STAFF}','${reportId}')`)).toEqual({
+        reportId, kind: "post", contentId: PHOTO_POST, body: "", media: [
           { kind: "photo", objectKey: PHOTO_KEY },
           { kind: "photo", objectKey: `social-extra/${second}/image.jpg` },
           { kind: "photo", objectKey: `social-extra/${third}/image.jpg` },
@@ -249,37 +295,39 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
           { kind: "video", objectKey: VIDEO_KEY },
         ],
       });
-      expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${POST}')`)).toBeNull();
-      expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${unrelated}')`)).toBeNull();
-      expect(scalar(`select count(*) from public.social_report_evidence_audit where report_id='${reportId}' and post_id='${PHOTO_POST}' and staff_role_id='${STAFF}'`)).toBe("1");
+      expect(json(`select public.read_reported_content_evidence_admin('${STAFF}','${POST}')`)).toBeNull();
+      expect(json(`select public.read_reported_content_evidence_admin('${STAFF}','${unrelated}')`)).toBeNull();
+      expect(scalar(`select count(*) from public.social_report_evidence_audit where report_id='${reportId}' and content_kind='post' and content_id='${PHOTO_POST}' and staff_role_id='${STAFF}'`)).toBe("1");
     } finally {
       db().sql(`delete from public.social_post_extra_photos where media_id in ('${second}','${third}','${fourth}','${unrelated}')`);
     }
   });
 
-  it("refuses a reported post read when its audit cannot be written", () => {
-    const reportId = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','post','${POST}','harassment')`);
-    db().sql(`create function public.reject_post_evidence_audit() returns trigger language plpgsql as $$
-      begin raise exception 'audit unavailable'; end; $$;
-      create trigger reject_post_evidence_audit before insert on public.social_report_evidence_audit
-      for each row execute function public.reject_post_evidence_audit();`);
-    try {
-      expect(db().expectRefusal(asServiceRole(`select public.read_reported_post_evidence_admin('${STAFF}','${reportId}')`))).toMatch(/audit unavailable/);
-      expect(scalar(`select count(*) from public.social_report_evidence_audit`)).toBe("0");
-    } finally {
-      db().sql(`drop trigger reject_post_evidence_audit on public.social_report_evidence_audit; drop function public.reject_post_evidence_audit()`);
-    }
-  });
+  it.each([["post", POST], ["comment", COMMENT], ["quote", QUOTE]] as const)(
+    "refuses a reported %s read when its audit cannot be written", (kind, contentId) => {
+      const reportId = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','${kind}','${contentId}','harassment')`);
+      db().sql(`create function public.reject_report_evidence_audit() returns trigger language plpgsql as $$
+        begin raise exception 'audit unavailable'; end; $$;
+        create trigger reject_report_evidence_audit before insert on public.social_report_evidence_audit
+        for each row execute function public.reject_report_evidence_audit();`);
+      try {
+        expect(db().expectRefusal(asServiceRole(`select public.read_reported_content_evidence_admin('${STAFF}','${reportId}')`))).toMatch(/audit unavailable/);
+        expect(scalar(`select count(*) from public.social_report_evidence_audit`)).toBe("0");
+      } finally {
+        db().sql(`drop trigger reject_report_evidence_audit on public.social_report_evidence_audit; drop function public.reject_report_evidence_audit()`);
+      }
+    },
+  );
 
   it("denies browser reads and mutations even if the evidence audit table is granted", () => {
     const reportId = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','post','${POST}','harassment')`);
-    json(`select public.read_reported_post_evidence_admin('${STAFF}','${reportId}')`);
+    json(`select public.read_reported_content_evidence_admin('${STAFF}','${reportId}')`);
     for (const role of ["anon", "authenticated"] as const) {
       expect(last(db().sql(`begin; grant select on public.social_report_evidence_audit to ${role};
         set role ${role}; select count(*) from public.social_report_evidence_audit; rollback;`))).toBe("0");
       expect(db().expectRefusal(`begin; grant insert on public.social_report_evidence_audit to ${role};
-        set role ${role}; insert into public.social_report_evidence_audit(report_id,post_id,staff_role_id,staff_display_name)
-        values ('${reportId}','${POST}','${STAFF}','forged'); rollback;`)).toMatch(/row-level security/i);
+        set role ${role}; insert into public.social_report_evidence_audit(report_id,content_kind,content_id,staff_role_id,staff_display_name)
+        values ('${reportId}','post','${POST}','${STAFF}','forged'); rollback;`)).toMatch(/row-level security/i);
     }
     expect(scalar(`select count(*) from public.social_report_evidence_audit`)).toBe("1");
   });
@@ -430,7 +478,7 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
     db().sql(`update public.private_social_staff_roles set role='product_staff' where id='${STAFF}'`);
     try {
       expect(db().expectRefusal(asServiceRole(`select public.read_flagged_message_evidence_admin('${STAFF}','${FLAGGED}')`))).toMatch(/staff required/);
-      expect(db().expectRefusal(asServiceRole(`select public.read_reported_post_evidence_admin('${STAFF}','${POST}')`))).toMatch(/staff required/);
+      expect(db().expectRefusal(asServiceRole(`select public.read_reported_content_evidence_admin('${STAFF}','${POST}')`))).toMatch(/staff required/);
       expect(scalar(`select count(*) from public.message_flag_evidence_audit`)).toBe("0");
       expect(scalar(`select count(*) from public.social_report_evidence_audit`)).toBe("0");
     } finally {
@@ -453,7 +501,7 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
         `select public.read_social_report_queue_admin('${staff}',20)`,
         `select public.read_flagged_messages_admin('${staff}',20)`,
         `select public.read_flagged_message_evidence_admin('${staff}','${FLAGGED}')`,
-        `select public.read_reported_post_evidence_admin('${staff}','${POST}')`,
+        `select public.read_reported_content_evidence_admin('${staff}','${POST}')`,
         `select public.review_flagged_message_admin('${staff}','${FLAGGED}')`,
         `select public.resolve_social_report_admin('${staff}','${POST}')`,
         `select public.set_social_account_suspension_admin('${staff}','${TARGET_PROFILE}','suspend','Threats in DMs',null)`,
@@ -472,7 +520,7 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
         `select public.read_social_report_queue_admin('${STAFF}',20)`,
         `select public.read_flagged_messages_admin('${STAFF}',20)`,
         `select public.read_flagged_message_evidence_admin('${STAFF}','${FLAGGED}')`,
-        `select public.read_reported_post_evidence_admin('${STAFF}','${POST}')`,
+        `select public.read_reported_content_evidence_admin('${STAFF}','${POST}')`,
         `select count(*) from public.social_report_evidence_audit`,
         `select count(*) from public.message_flag_evidence_audit`,
         `select public.set_social_account_suspension_admin('${STAFF}','${REPORTER_PROFILE}','suspend','Threats in DMs',null)`,
@@ -519,7 +567,7 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
       )),
     ).toMatch(/content not found/);
     expect(last(db().sql(`select count(*) from pg_proc where proname='set_social_account_suspension_admin'`))).toBe("0");
-    expect(last(db().sql(`select count(*) from pg_proc where proname='read_reported_post_evidence_admin'`))).toBe("0");
+    expect(last(db().sql(`select count(*) from pg_proc where proname='read_reported_content_evidence_admin'`))).toBe("0");
     expect(last(db().sql(`select to_regclass('public.social_report_evidence_audit') is null`))).toBe("t");
     db().applyFile(FORWARD);
     expect(suspend("suspend")).toMatchObject({ ok: true, code: "suspended" });

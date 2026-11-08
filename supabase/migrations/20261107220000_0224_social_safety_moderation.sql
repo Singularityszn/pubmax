@@ -118,7 +118,8 @@ create index message_flag_evidence_audit_staff_idx on public.message_flag_eviden
 create table public.social_report_evidence_audit (
   id uuid primary key default gen_random_uuid(),
   report_id uuid not null,
-  post_id uuid not null,
+  content_kind text not null check (content_kind in ('post', 'comment', 'quote')),
+  content_id uuid not null,
   staff_role_id uuid not null,
   staff_display_name text not null,
   viewed_at timestamptz not null default now()
@@ -230,7 +231,7 @@ begin
 end;
 $$;
 
-create function public.read_reported_post_evidence_admin(p_staff_role_id uuid, p_report_id uuid)
+create function public.read_reported_content_evidence_admin(p_staff_role_id uuid, p_report_id uuid)
 returns jsonb
 language plpgsql
 security definer
@@ -240,37 +241,47 @@ declare
   v_staff public.private_social_staff_roles;
   v_report public.social_content_reports;
   v_post public.social_posts;
-  v_media jsonb;
+  v_media jsonb := '[]'::jsonb;
+  v_body text;
 begin
   select * into v_staff from public.private_social_staff_roles
   where id = p_staff_role_id and active and revoked_at is null and role = 'moderator';
   if v_staff.id is null then raise exception 'staff required'; end if;
   select * into v_report from public.social_content_reports
-  where id = p_report_id and content_kind = 'post' and state in ('queued', 'reviewing')
+  where id = p_report_id and content_kind in ('post', 'comment', 'quote') and state in ('queued', 'reviewing')
   for share;
   if v_report.id is null then return null; end if;
-  select * into v_post from public.social_posts where id = v_report.content_id for share;
-  if v_post.id is null then return null; end if;
-  select coalesce(jsonb_agg(item.evidence order by item.position), '[]'::jsonb) into v_media
-  from (
-    select 1 as position, jsonb_build_object('kind', 'photo', 'objectKey', media.object_key) as evidence
-    from public.social_post_media media
-    where media.id = v_post.photo_media_id and media.owner_profile_id = v_post.author_profile_id
-      and media.attachment_state = 'active'
-    union all
-    select photo.position, jsonb_build_object('kind', 'photo', 'objectKey', photo.object_key)
-    from public.social_post_extra_photos photo
-    where photo.post_id = v_post.id and photo.owner_profile_id = v_post.author_profile_id
-    union all
-    select 5, jsonb_build_object('kind', 'video', 'objectKey', video.object_key)
-    from public.social_post_videos video
-    join public.social_video_uploads upload on upload.id = video.upload_id
-      and upload.claimed_post_id = v_post.id and upload.object_key = video.object_key
-    where video.post_id = v_post.id and video.author_profile_id = v_post.author_profile_id
-  ) item;
-  insert into public.social_report_evidence_audit(report_id, post_id, staff_role_id, staff_display_name)
-  values (v_report.id, v_post.id, v_staff.id, v_staff.display_name);
-  return jsonb_build_object('reportId', v_report.id, 'postId', v_post.id, 'body', v_post.body, 'media', v_media);
+  if v_report.content_kind = 'post' then
+    select * into v_post from public.social_posts where id = v_report.content_id for share;
+    if v_post.id is null then return null; end if;
+    select coalesce(jsonb_agg(item.evidence order by item.position), '[]'::jsonb) into v_media
+    from (
+      select 1 as position, jsonb_build_object('kind', 'photo', 'objectKey', media.object_key) as evidence
+      from public.social_post_media media
+      where media.id = v_post.photo_media_id and media.owner_profile_id = v_post.author_profile_id
+        and media.attachment_state = 'active'
+      union all
+      select photo.position, jsonb_build_object('kind', 'photo', 'objectKey', photo.object_key)
+      from public.social_post_extra_photos photo
+      where photo.post_id = v_post.id and photo.owner_profile_id = v_post.author_profile_id
+      union all
+      select 5, jsonb_build_object('kind', 'video', 'objectKey', video.object_key)
+      from public.social_post_videos video
+      join public.social_video_uploads upload on upload.id = video.upload_id
+        and upload.claimed_post_id = v_post.id and upload.object_key = video.object_key
+      where video.post_id = v_post.id and video.author_profile_id = v_post.author_profile_id
+    ) item;
+    v_body := v_post.body;
+  elsif v_report.content_kind = 'comment' then
+    select body into v_body from public.social_comments where id = v_report.content_id for share;
+  else
+    select body into v_body from public.social_quotes where id = v_report.content_id for share;
+  end if;
+  if v_body is null then return null; end if;
+  insert into public.social_report_evidence_audit(report_id, content_kind, content_id, staff_role_id, staff_display_name)
+  values (v_report.id, v_report.content_kind, v_report.content_id, v_staff.id, v_staff.display_name);
+  return jsonb_build_object('reportId', v_report.id, 'kind', v_report.content_kind,
+    'contentId', v_report.content_id, 'body', v_body, 'media', v_media);
 end;
 $$;
 
@@ -483,14 +494,14 @@ end;
 $$;
 
 revoke all on function public.read_social_report_queue_admin(uuid, integer) from public, anon, authenticated;
-revoke all on function public.read_reported_post_evidence_admin(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.read_reported_content_evidence_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.resolve_social_report_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.read_flagged_message_evidence_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.read_flagged_messages_admin(uuid, integer) from public, anon, authenticated;
 revoke all on function public.review_flagged_message_admin(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.set_social_account_suspension_admin(uuid, uuid, text, text, uuid) from public, anon, authenticated;
 grant execute on function public.read_social_report_queue_admin(uuid, integer) to service_role;
-grant execute on function public.read_reported_post_evidence_admin(uuid, uuid) to service_role;
+grant execute on function public.read_reported_content_evidence_admin(uuid, uuid) to service_role;
 grant execute on function public.resolve_social_report_admin(uuid, uuid) to service_role;
 grant execute on function public.read_flagged_message_evidence_admin(uuid, uuid) to service_role;
 grant execute on function public.read_flagged_messages_admin(uuid, integer) to service_role;

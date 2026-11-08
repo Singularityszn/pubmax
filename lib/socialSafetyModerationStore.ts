@@ -3,13 +3,13 @@ import "server-only";
 import {
   parseFlaggedMessages,
   parseMessageEvidence,
-  parseReportedPostEvidence,
+  parseReportedContentEvidence,
   parseSafetyReports,
   parseSuspensionOutcome,
   REPORTED_POST_MEDIA_LIMIT,
   SAFETY_QUEUE_LIMIT,
   type MessageEvidence,
-  type ReportedPostEvidence,
+  type ReportedContentEvidence,
   type SafetyModerationAction,
   type SafetyQueues,
   type SuspensionOutcome,
@@ -27,7 +27,7 @@ type SocialSafetyRpcName =
   | "read_social_report_queue_admin"
   | "read_flagged_messages_admin"
   | "read_flagged_message_evidence_admin"
-  | "read_reported_post_evidence_admin"
+  | "read_reported_content_evidence_admin"
   | "resolve_social_report_admin"
   | "review_flagged_message_admin"
   | "set_social_account_suspension_admin";
@@ -66,15 +66,17 @@ export function createSocialSafetyStore(rpc: SocialSafetyRpc = defaultRpc) {
     async act(
       staffRoleId: string,
       input: SafetyModerationAction,
-    ): Promise<{ changed: boolean } | SuspensionOutcome | { evidence: MessageEvidence | ReportedPostEvidence | null }> {
-      if (input.action === "view_post_evidence") {
-        const value = await rpc("read_reported_post_evidence_admin", {
+    ): Promise<{ changed: boolean } | SuspensionOutcome | { evidence: MessageEvidence | ReportedContentEvidence | null }> {
+      if (input.action === "view_report_evidence") {
+        const value = await rpc("read_reported_content_evidence_admin", {
           p_staff_role_id: staffRoleId,
           p_report_id: input.reportId,
         });
         if (value === null) return { evidence: null };
         const row = value as Record<string, unknown>;
-        if (!row || row.reportId !== input.reportId || !Array.isArray(row.media) || row.media.length > REPORTED_POST_MEDIA_LIMIT) {
+        if (!row || row.reportId !== input.reportId || !Array.isArray(row.media)
+          || (row.kind !== "post" && row.kind !== "comment" && row.kind !== "quote")
+          || row.media.length > (row.kind === "post" ? REPORTED_POST_MEDIA_LIMIT : 0)) {
           throw new SocialSafetyStoreError("Evidence answer is malformed.");
         }
         const uuid = "[0-9a-f-]{36}";
@@ -92,7 +94,7 @@ export function createSocialSafetyStore(rpc: SocialSafetyRpc = defaultRpc) {
           if (error || !data?.signedUrl) throw new SocialSafetyStoreError("Evidence signing is unavailable.");
           return { kind: item.kind, url: data.signedUrl };
         }));
-        const evidence = parseReportedPostEvidence({ ...row, media });
+        const evidence = parseReportedContentEvidence({ ...row, media });
         if (!evidence) throw new SocialSafetyStoreError("Evidence answer is malformed.");
         return { evidence };
       }

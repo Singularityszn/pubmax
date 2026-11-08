@@ -64,14 +64,21 @@ beforeEach(() => {
       if (action.action === "view_message_evidence") return Response.json({ evidence: {
         kind: "poll", question: "Who should we threaten?", options: ["Alice", "Bob"],
       } });
-      if (action.action === "view_post_evidence") return Response.json({ evidence: {
-        reportId: action.reportId, postId: id(100), body: "Full reported post. ".repeat(30),
-        media: [{ kind: "photo", url: "https://storage.example/signed-photo" },
-          { kind: "photo", url: "https://storage.example/signed-second" },
-          { kind: "photo", url: "https://storage.example/signed-third" },
-          { kind: "photo", url: "https://storage.example/signed-fourth" },
-          { kind: "video", url: "https://storage.example/signed-video" }],
-      } });
+      if (action.action === "view_report_evidence") {
+        const report = reports.find((row) => row.reportId === action.reportId);
+        if (!report) return Response.json({}, { status: 404 });
+        return Response.json({ evidence: {
+          reportId: report.reportId, kind: report.kind, contentId: report.contentId,
+          body: `Full reported ${report.kind}. `.repeat(30),
+          media: report.kind === "post" ? [
+            { kind: "photo", url: "https://storage.example/signed-photo" },
+            { kind: "photo", url: "https://storage.example/signed-second" },
+            { kind: "photo", url: "https://storage.example/signed-third" },
+            { kind: "photo", url: "https://storage.example/signed-fourth" },
+            { kind: "video", url: "https://storage.example/signed-video" },
+          ] : [],
+        } });
+      }
       if (action.action === "resolve_report") reports = reports.filter((row) => row.reportId !== action.reportId);
       if (action.action === "review_message") messages = messages.filter((row) => row.messageId !== action.messageId);
       return Response.json({ ok: true });
@@ -148,6 +155,24 @@ describe("moderation of returning senders and attachments", () => {
     decisionFails = true;
     await decide("View reported post");
     expect(host.querySelector('[aria-label="Reported post evidence"]')).toBeNull();
+    expect(host.querySelector("[role=alert]")).not.toBeNull();
+  });
+
+  it.each(["comment", "quote"] as const)("loads the reported %s in full without its parent or siblings", async (kind) => {
+    reports = [{ ...reports[0]!, kind, excerpt: "A harmless prefix" }];
+    messages = [];
+    await render();
+    expect(host.textContent).not.toContain(`Full reported ${kind}. `);
+    await decide(`View reported ${kind}`);
+    expect(host.querySelector(`[aria-label="Reported ${kind} evidence"] p`)?.textContent)
+      .toBe(`Full reported ${kind}. `.repeat(30));
+    expect(host.querySelector("img")).toBeNull();
+    expect(host.querySelector("video")).toBeNull();
+    await decide(`View reported ${kind}`);
+    expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+    decisionFails = true;
+    await decide(`View reported ${kind}`);
+    expect(host.querySelector(`[aria-label="Reported ${kind} evidence"]`)).toBeNull();
     expect(host.querySelector("[role=alert]")).not.toBeNull();
   });
 

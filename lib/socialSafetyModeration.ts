@@ -59,7 +59,7 @@ export type SafetyModerationAction =
   | { action: "resolve_report"; reportId: string }
   | { action: "review_message"; messageId: string }
   | { action: "view_message_evidence"; messageId: string }
-  | { action: "view_post_evidence"; reportId: string }
+  | { action: "view_report_evidence"; reportId: string }
   | {
       action: "suspend" | "reinstate";
       profileId: string;
@@ -203,7 +203,7 @@ export function parseSafetyModerationAction(value: unknown): SafetyModerationAct
   const row = record(value);
   if (!row) return null;
   const keys = Object.keys(row).sort().join(",");
-  if (row.action === "resolve_report" || row.action === "view_post_evidence") {
+  if (row.action === "resolve_report" || row.action === "view_report_evidence") {
     return keys === "action,reportId" && isUuid(row.reportId)
       ? { action: row.action, reportId: row.reportId }
       : null;
@@ -257,23 +257,25 @@ export function parseMessageEvidence(value: unknown): MessageEvidence | null {
   return null;
 }
 
-export type ReportedPostEvidence = {
+export type ReportedContentEvidence = {
   reportId: string;
-  postId: string;
+  kind: Exclude<SocialReportKind, "profile">;
+  contentId: string;
   body: string;
   media: { kind: "photo" | "video"; url: string }[];
 };
 
-export function parseReportedPostEvidence(value: unknown): ReportedPostEvidence | null {
+export function parseReportedContentEvidence(value: unknown): ReportedContentEvidence | null {
   const row = record(value);
-  if (!row || !isUuid(row.reportId) || !isUuid(row.postId) || typeof row.body !== "string"
-    || !Array.isArray(row.media) || row.media.length > REPORTED_POST_MEDIA_LIMIT) return null;
-  const media: ReportedPostEvidence["media"] = [];
+  if (!row || !isUuid(row.reportId) || !isUuid(row.contentId) || typeof row.body !== "string"
+    || (row.kind !== "post" && row.kind !== "comment" && row.kind !== "quote")
+    || !Array.isArray(row.media) || row.media.length > (row.kind === "post" ? REPORTED_POST_MEDIA_LIMIT : 0)) return null;
+  const media: ReportedContentEvidence["media"] = [];
   for (const item of row.media) {
     const attachment = record(item);
     if (!attachment || (attachment.kind !== "photo" && attachment.kind !== "video")
       || typeof attachment.url !== "string" || !attachment.url.startsWith("https://")) return null;
     media.push({ kind: attachment.kind, url: attachment.url });
   }
-  return { reportId: row.reportId, postId: row.postId, body: row.body, media };
+  return { reportId: row.reportId, kind: row.kind, contentId: row.contentId, body: row.body, media };
 }

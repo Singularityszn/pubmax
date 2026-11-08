@@ -244,13 +244,14 @@ describe("reported attachment evidence", () => {
   });
 });
 
-describe("reported post evidence", () => {
-  const input = { action: "view_post_evidence", reportId: REPORT };
+describe("reported content evidence", () => {
+  const input = { action: "view_report_evidence", reportId: REPORT };
   const photo = `social/${PROFILE}/${MESSAGE}/image.jpg`;
   const video = `social-video/${MESSAGE}/video.mp4`;
   const body = "Reported text beyond the queue excerpt. ".repeat(20);
 
-  it("requires a moderator credential before reading or signing a post", async () => {
+  it.each(["post", "comment", "quote"])("requires moderator credentials for %s evidence", async (kind) => {
+    rpc.mockResolvedValue({ data: { reportId: REPORT, kind, contentId: PROFILE, body, media: [] }, error: null });
     const response = await post(input, {});
     expect(response.status).toBe(403);
     expect(await response.json()).not.toHaveProperty("evidence");
@@ -258,7 +259,8 @@ describe("reported post evidence", () => {
     expect(sign).not.toHaveBeenCalled();
   });
 
-  it("requires a configured staff role before reading or signing a post", async () => {
+  it.each(["post", "comment", "quote"])("requires a staff role for %s evidence", async (kind) => {
+    rpc.mockResolvedValue({ data: { reportId: REPORT, kind, contentId: PROFILE, body, media: [] }, error: null });
     vi.stubEnv("SOCIAL_MODERATOR_STAFF_ROLE_ID", "");
     const response = await post(input);
     expect(response.status).toBe(503);
@@ -268,7 +270,8 @@ describe("reported post evidence", () => {
   });
 
   it.each([
-    { ...input, postId: PROFILE },
+    { ...input, contentId: PROFILE },
+    { ...input, kind: "comment" },
     { ...input, objectKey: photo },
     { ...input, reportId: "not-a-report-id" },
   ])("refuses caller-selected content or malformed report IDs", async (request) => {
@@ -282,7 +285,7 @@ describe("reported post evidence", () => {
     const second = `social-extra/${PROFILE}/image.jpg`;
     const third = `social-extra/${MESSAGE}/image.jpg`;
     const fourth = `social-extra/${REPORT}/image.jpg`;
-    rpc.mockResolvedValue({ data: { reportId: REPORT, postId: PROFILE, body,
+    rpc.mockResolvedValue({ data: { reportId: REPORT, kind: "post", contentId: PROFILE, body,
       media: [{ kind: "photo", objectKey: photo }, { kind: "photo", objectKey: second },
         { kind: "photo", objectKey: third }, { kind: "photo", objectKey: fourth },
         { kind: "video", objectKey: video }], unrelatedPost: "private" }, error: null });
@@ -294,7 +297,7 @@ describe("reported post evidence", () => {
     const response = await post(input);
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(await response.json()).toEqual({ evidence: { reportId: REPORT, postId: PROFILE, body,
+    expect(await response.json()).toEqual({ evidence: { reportId: REPORT, kind: "post", contentId: PROFILE, body,
       media: [{ kind: "photo", url: "https://storage.example/signed?token=photo" },
         { kind: "photo", url: "https://storage.example/signed?token=second" },
         { kind: "photo", url: "https://storage.example/signed?token=third" },
@@ -306,24 +309,27 @@ describe("reported post evidence", () => {
     expect(sign).toHaveBeenCalledWith(third, 180);
     expect(sign).toHaveBeenCalledWith(fourth, 180);
     expect(sign).toHaveBeenCalledWith(video, 180);
-    expect(rpc).toHaveBeenCalledWith("read_reported_post_evidence_admin", { p_staff_role_id: STAFF_ROLE, p_report_id: REPORT });
+    expect(rpc).toHaveBeenCalledWith("read_reported_content_evidence_admin", { p_staff_role_id: STAFF_ROLE, p_report_id: REPORT });
   });
 
-  it("returns a text-only post without a signing operation", async () => {
-    rpc.mockResolvedValue({ data: { reportId: REPORT, postId: PROFILE, body, media: [] }, error: null });
+  it.each(["post", "comment", "quote"] as const)("returns only the reported %s text without signing", async (kind) => {
+    rpc.mockResolvedValue({ data: { reportId: REPORT, kind, contentId: PROFILE, body, media: [] }, error: null });
     const response = await post(input);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ evidence: { reportId: REPORT, postId: PROFILE, body, media: [] } });
+    expect(await response.json()).toEqual({ evidence: { reportId: REPORT, kind, contentId: PROFILE, body, media: [] } });
     expect(sign).not.toHaveBeenCalled();
   });
 
   it.each([
     [null, null, 404],
     [null, { message: "staff required" }, 503],
-    [{ reportId: MESSAGE, postId: PROFILE, body, media: [] }, null, 503],
-    [{ reportId: REPORT, postId: PROFILE, body, media: [{ kind: "photo", objectKey: "private/other.jpg" }] }, null, 503],
-    [{ reportId: REPORT, postId: PROFILE, body, media: [{ kind: "photo", objectKey: `social-extra/${MESSAGE}/other.jpg` }] }, null, 503],
-    [{ reportId: REPORT, postId: PROFILE, body, media: Array.from({ length: 6 }, () => ({ kind: "photo", objectKey: photo })) }, null, 503],
+    [{ reportId: REPORT, kind: "profile", contentId: PROFILE, body, media: [] }, null, 503],
+    [{ reportId: REPORT, kind: "comment", contentId: PROFILE, body, media: [{ kind: "photo", objectKey: photo }] }, null, 503],
+    [{ reportId: REPORT, kind: "quote", contentId: PROFILE, body, media: [{ kind: "photo", objectKey: photo }] }, null, 503],
+    [{ reportId: MESSAGE, kind: "post", contentId: PROFILE, body, media: [] }, null, 503],
+    [{ reportId: REPORT, kind: "post", contentId: PROFILE, body, media: [{ kind: "photo", objectKey: "private/other.jpg" }] }, null, 503],
+    [{ reportId: REPORT, kind: "post", contentId: PROFILE, body, media: [{ kind: "photo", objectKey: `social-extra/${MESSAGE}/other.jpg` }] }, null, 503],
+    [{ reportId: REPORT, kind: "post", contentId: PROFILE, body, media: Array.from({ length: 6 }, () => ({ kind: "photo", objectKey: photo })) }, null, 503],
   ])("refuses unavailable or mismatched evidence without signing", async (data, error, status) => {
     rpc.mockResolvedValue({ data, error });
     const response = await post(input);
@@ -333,7 +339,7 @@ describe("reported post evidence", () => {
   });
 
   it("refuses a signing failure without returning post text or media", async () => {
-    rpc.mockResolvedValue({ data: { reportId: REPORT, postId: PROFILE, body, media: [{ kind: "photo", objectKey: photo }] }, error: null });
+    rpc.mockResolvedValue({ data: { reportId: REPORT, kind: "post", contentId: PROFILE, body, media: [{ kind: "photo", objectKey: photo }] }, error: null });
     sign.mockResolvedValue({ data: null, error: { message: "unavailable" } });
     const response = await post(input);
     expect(response.status).toBe(503);
