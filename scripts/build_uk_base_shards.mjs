@@ -37,6 +37,10 @@
 // (`nearNameOwnerIndex` in lib/outerLondonOwnership.mjs). Nothing is removed
 // from the base layer either way, so a `venue-uk-…` id stays resolvable.
 //
+// TWINS. A pub OSM maps twice, as a node and its building's way under the same
+// name within 50 m, ships as the node alone (scripts/lib/ukBaseOsmTwins.mjs),
+// and the way's id is recorded as an alias of the node's.
+//
 // REMOVAL. A refresh that drops an OSM object drops its `venue-uk-…` id. Each
 // build compares the rows it publishes with the rows already published and
 // records every dropped id in public/data/uk_base_venue_id_aliases.json: the
@@ -71,6 +75,7 @@ import {
   planUkBaseVenueIdAliases,
   publishUkBaseWithAliases,
 } from "./lib/ukBaseVenueIdAliases.mjs";
+import { mergeOsmTwins } from "./lib/ukBaseOsmTwins.mjs";
 import { cityVenueIdForPub } from "./build_city_slim_index.mjs";
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
 
@@ -384,7 +389,8 @@ async function main() {
     cell.rows.push(row);
   };
 
-  for (const pub of renderable) {
+  const pubByRef = new Map();
+  const pubRows = renderable.map((pub) => {
     const source = pub.curatedRef?.source;
     const id = pub.curatedRef?.id;
     const curatedVenueId =
@@ -394,8 +400,15 @@ async function main() {
       ownersByOsmId.get(String(pub.osmId)) ??
       nearNameLondonOwner(pub) ??
       "";
-    if (curatedVenueId) matchedOwners += 1;
-    addRow(pub, toRow(pub, curatedVenueId));
+    const row = toRow(pub, curatedVenueId);
+    pubByRef.set(row[0], pub);
+    return row;
+  });
+  // A pub OSM maps twice, as a node and its building's way, ships once.
+  const { rows: mergedPubRows, twins } = mergeOsmTwins(pubRows);
+  for (const row of mergedPubRows) {
+    if (row[5]) matchedOwners += 1;
+    addRow(pubByRef.get(row[0]), row);
   }
 
   // An unnamed pub has no name to match a curated venue on and no `curatedRef`,
@@ -423,6 +436,7 @@ async function main() {
         previousRows,
         nextRows,
         new Set(curatedVenues.map((venue) => venue.id)),
+        twins,
       )
     : { superseded: [], retired: [], doc: null };
 
@@ -491,8 +505,8 @@ async function main() {
       generatedFrom: {
         fetchedAt: pack.fetchedAt ?? null,
         barsFetchedAt: drinkPack.fetchedAt ?? null,
-        count: renderable.length + renderableUnnamed.length + renderableBars.length,
-        pubs: renderable.length,
+        count: mergedPubRows.length + renderableUnnamed.length + renderableBars.length,
+        pubs: mergedPubRows.length,
         unnamed: renderableUnnamed.length,
         bars: renderableBars.length,
       },
@@ -519,7 +533,8 @@ async function main() {
         `  packs ............... ${pubs.length} pubs, ${unnamedPubs.length} unnamed pubs, ${bars.length} bars`,
         `  curated owners ...... ${matchedOwners}`,
         `  unusable (dropped) .. ${skipped}`,
-        `  shipped ............. ${renderable.length} pubs, ${renderableUnnamed.length} unnamed pubs, ${renderableBars.length} bars`,
+        `  osm twins merged .... ${twins.size}`,
+        `  shipped ............. ${mergedPubRows.length} pubs, ${renderableUnnamed.length} unnamed pubs, ${renderableBars.length} bars`,
         `  cells split ......... ${splitCells}`,
         `  manifest ............ ${formatBytes(publication.manifestBytes)} (deferred until the zoom gate)`,
         `  shards total ........ ${formatBytes(totalBytes)}`,
