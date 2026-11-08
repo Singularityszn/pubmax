@@ -62,8 +62,8 @@ import {
   flushPlanMutationOutbox,
   hasPendingPlanMutation,
   listPlanMutationOutbox,
-  removePlanMutationOutboxEntry,
   subscribePlanMutationOutbox,
+  takeRefusedPlanMutations,
   type PlanMutationFlushResult,
 } from "@/lib/planMutationOutbox";
 import {
@@ -239,7 +239,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           delete next[result.stopPosition];
           return next;
         });
-        setNote(null);
+        setNote((current) => (current?.tone === "rejected" || current?.tone === "forbidden" ? current : null));
         handOffConfirmedStop(result.plan, result.stopPosition);
         return;
       }
@@ -249,12 +249,6 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         delete next[result.stopPosition];
         return next;
       });
-      const tone = result.outcome === "conflict" ? "rejected" : result.outcome;
-      setNote({
-        text: result.routeChanged ? NIGHT_CRAWL_ROUTE_CHANGED_NOTE : nightCrawlActionNote(result.type, result.venueName, tone),
-        tone,
-      });
-      removePlanMutationOutboxEntry(result.entryId);
     },
     [handOffConfirmedStop, planId],
   );
@@ -299,6 +293,35 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       unsub();
     };
   }, [planId, showSurface, applyFlushResult]);
+
+  // A refused replay waits in the outbox, wherever it ran, until this surface
+  // is open to show it. Taking it clears it, so the note shows once.
+  useEffect(() => {
+    if (!showSurface) return;
+    let active = true;
+    const showRefused = () => {
+      if (!active) return;
+      const refused = takeRefusedPlanMutations(planId);
+      const latest = refused.at(-1);
+      if (!latest) return;
+      setOptimistic((previous) => {
+        const next = { ...previous };
+        for (const result of refused) delete next[result.stopPosition];
+        return next;
+      });
+      const tone = latest.outcome === "forbidden" ? "forbidden" : "rejected";
+      setNote({
+        text: latest.routeChanged ? NIGHT_CRAWL_ROUTE_CHANGED_NOTE : nightCrawlActionNote(latest.type, latest.venueName, tone),
+        tone,
+      });
+    };
+    void Promise.resolve().then(showRefused);
+    const unsub = subscribePlanMutationOutbox(showRefused);
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, [planId, showSurface]);
 
   // Refresh on capability changes even while the Crawl overlay is closed. A final
   // action may have confirmed through the site-wide outbox on another route;
