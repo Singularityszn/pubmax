@@ -77,11 +77,32 @@ describe("clean late-food questions through Ask", () => {
     "Food after midnight near Soho",
     "Food in Soho tonight",
     "Food in Soho at 01:00",
+    "Food in Soho after ten pm",
+    "Food in Soho tonight and tomorrow at 1am",
+    "Food in Soho tonight tonight at 1am",
+    "Food in Soho tonight at 01:00 and 02:00",
+    "Food in Soho at midnight and 01:00 on 2026-10-26",
+    "Food in Soho at noon on 2026-10-23",
+    "Food in Soho tomorrow",
+    "Food in Soho tonight at 25:00",
+    "Food in Soho tonight at 1",
+    "Food at 01:00 on 2026-10-23 and 2026-10-24 near Soho",
+    "Food at 01:00 on 2026-02-30 near Soho",
+    "Food in Soho before 1am",
+    "Food in Soho after 1am",
   ])("requests an exact night and time for a clean question: %s", async (query) => {
     const response = await ask(query);
     expect(response.cards).toEqual([]);
     expect(response.proposals).toEqual([]);
     expect(response.answer).toContain("Which night and time");
+  });
+
+  it.each(["Food tonight at 1am", "Food at 01:00 on 2026-10-23"])("asks for the area of a timed question with none: %s", async (query) => {
+    const response = await ask(query);
+    expect(response.cards).toEqual([]);
+    expect(response.proposals).toEqual([]);
+    expect(response.sources).toEqual([]);
+    expect(response.answer).toBe("Which area do you want food in?");
   });
 
   it.each([
@@ -154,24 +175,14 @@ describe("requests outside the agreed late-food parser", () => {
     expect(response.sources).not.toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
   });
   it.each([
-    "Food tonight at 1am",
     "Chinese food in Soho tonight at 1am",
     "Chinese restaurant food in Soho tonight at 1am",
     "Food in Soho tonight at 1am. Find Chinese close to the tube.",
     "Food in Soho tonight at 1am. Vegan please, close to the tube",
     "Directions to London Bridge from The Blackfriar. Vegan food at 01:00 on 2026-10-23 near Soho",
     "Food in Soho tonight at 1am. Directions to London Bridge from The Blackfriar",
-    "Food in Soho after ten pm",
-    "Food in Soho tonight and tomorrow at 1am",
-    "Food in Soho tonight tonight at 1am",
-    "Food in Soho tonight at 01:00 and 02:00",
-    "Food in Soho at midnight and 01:00 on 2026-10-26",
-    "Food in Soho at noon on 2026-10-23",
     "Food in Soho on Friday",
-    "Food in Soho tomorrow",
     "Late food in Soho",
-    "Food in Soho tonight at 25:00",
-    "Food in Soho tonight at 1",
     "Food in Soho at an unknown time",
     "Food at The Devonshire in Soho",
     "Food at The Devonshire in Soho tonight at 1am",
@@ -179,10 +190,6 @@ describe("requests outside the agreed late-food parser", () => {
     "Food in Atlantis tonight at 1am",
     "Food near Soho and near Victoria tonight at 1am",
     "Food at 01:00 on 2026-10-23 near Soho, actually near Victoria",
-    "Food at 01:00 on 2026-10-23 and 2026-10-24 near Soho",
-    "Food at 01:00 on 2026-02-30 near Soho",
-    "Food in Soho before 1am",
-    "Food in Soho after 1am",
     "Find four pubs with food in Soho tonight at 23:00",
     "Which pubs are serving food in Soho tonight at 1am",
     "Food after the pub in Soho tonight at 1am",
@@ -195,8 +202,6 @@ describe("requests outside the agreed late-food parser", () => {
   });
 
   it.each([
-    "Food in Soho after ten pm",
-    "Food in Soho tonight and tomorrow at 1am",
     "Chinese food in Soho tonight at 1am",
     "Food in Soho tonight at 1am. Find Chinese close to the tube.",
     "Find four pubs with food in Soho",
@@ -227,6 +232,9 @@ describe("clean late-food clarification context", () => {
     { query: "2026-10-23 please", previous: "Food in Soho at 01:00" },
     { query: "Soho?", previous: "Food near Victoria tonight at 1am" },
     { query: "Tonight at 1am", previous: "Food after midnight near Soho" },
+    { query: "Soho?", previous: "Food tonight at 1am" },
+    { query: "2026-10-23", previous: "Food at 01:00 near Soho" },
+    { query: "Tonight at 1am", previous: "Food near Soho after ten pm" },
   ])("merges a supported reply into a clean earlier question: $query", async ({ query, previous }) => {
     const turns = [{ role: "user" as const, content: previous }];
     const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
@@ -238,11 +246,8 @@ describe("clean late-food clarification context", () => {
   });
 
   it.each([
-    "Food tonight at 1am",
     "Chinese food near Victoria tonight at 1am",
     "Food near Victoria tonight at 1am. Vegan please, close to the tube",
-    "Food near Victoria after ten pm",
-    "Food near Victoria tonight and tomorrow at 1am",
     "Find restaurants serving sandwiches near Victoria tonight at 1am",
     "Food at The Devonshire near Victoria tonight at 1am",
   ])("does not merge context from a rejected earlier question: %s", (previous) => {
@@ -257,6 +262,15 @@ describe("clean late-food clarification context", () => {
     expect(resolvePubPalToolQuery({ turnQuery: query, args: {}, turns })).toBe(query);
   });
 
+  it("keeps asking for a clear time after an area reply", async () => {
+    const response = await runAsk({
+      query: "Soho?", now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
+      turns: [{ role: "user", content: "Food near Victoria after ten pm" }],
+    });
+    expect(response.cards).toEqual([]);
+    expect(response.answer).toContain("Which night and time");
+  });
+
   it("retains supported dietary requirements during an area correction", async () => {
     const response = await runAsk({
       query: "Soho?", now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch,
@@ -267,12 +281,11 @@ describe("clean late-food clarification context", () => {
     expect(response.answer).toContain("dietary");
   });
 
-  it("retains a clean question across separate supported field replies", async () => {
-    const turns = [
-      { role: "user" as const, content: "Food after midnight near Victoria" },
-      { role: "user" as const, content: "Actually near Soho" },
-      { role: "user" as const, content: "tonight" },
-    ];
+  it.each([
+    ["Food after midnight near Victoria", "Actually near Soho", "tonight"],
+    ["Food after midnight near Soho", "on 2026-10-23"],
+  ])("retains a clean question across separate supported field replies: %s", async (...earlier) => {
+    const turns = earlier.map((content) => ({ role: "user" as const, content }));
     const response = await voiceAsk("1am", turns);
     expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
   });

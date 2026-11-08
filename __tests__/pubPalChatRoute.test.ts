@@ -520,7 +520,8 @@ describe("POST /api/pub-pal/chat", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each(["where should I go", "Food tonight at 1am"])("keeps main's keyless discovery behaviour for %s", async (query) => {
+  it("keeps main's keyless discovery behaviour for where should I go", async () => {
+    const query = "where should I go";
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     authState.userId = "11111111-1111-4111-8111-111111111111";
@@ -548,21 +549,17 @@ describe("POST /api/pub-pal/chat", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    if (query === "where should I go") {
-      expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
-    } else {
-      expect(body.answer).toBe("4 picks from the listed pubs.");
-      expect(body.cards.every((card: { venueId: string }) => card.venueId.startsWith("venue-"))).toBe(true);
-    }
+    expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
     expect(body.cards.length).toBeGreaterThan(0);
     expect(body.toolsUsed).toContain("search_venues");
   });
 
   it.each([
-    { query: "01:00", previous: "Food after midnight near Soho", clarification: true },
-    { query: "Tonight", previous: "Food after midnight near Soho", clarification: true },
-    { query: "Food in Soho tonight", previous: "", clarification: true },
-    { query: "1am", previous: "Food in Soho at 06:00 on 2026-10-23", clarification: false },
+    { query: "01:00", previous: "Food after midnight near Soho", clarification: "Which night and time" },
+    { query: "Tonight", previous: "Food after midnight near Soho", clarification: "Which night and time" },
+    { query: "Food in Soho tonight", previous: "", clarification: "Which night and time" },
+    { query: "Food tonight at 1am", previous: "", clarification: "Which area" },
+    { query: "1am", previous: "Food in Soho at 06:00 on 2026-10-23", clarification: null },
   ])("preserves a food answer before the keyless taste fallback: $query", async ({ query, previous, clarification }) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-22T18:00:00.000Z"));
@@ -585,7 +582,7 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body.proposals).toEqual([]);
     expect(body.answer).not.toContain("Going off Soho");
     if (clarification) {
-      expect(body.answer).toContain("Which night and time");
+      expect(body.answer).toContain(clarification);
       expect(body.cards).toEqual([]);
       expect(body.sources).toEqual([]);
     } else {
