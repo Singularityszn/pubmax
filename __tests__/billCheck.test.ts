@@ -148,6 +148,16 @@ describe("judgeBill", () => {
     expect(judgeBill(lines, 5.5, "Alcohol-free", "pint").result).toBe("match");
   });
 
+  it.each(["Breakfast Stout", "Chocolate Porter"])("identifies the drink %s despite its food modifier", (name) => {
+    const lines = read([[name, 5.2]]);
+    expect(judgeBill(lines, 5.2, name, "pint").result).toBe("match");
+  });
+
+  it("identifies a category from the start of a compound drink name", () => {
+    expect(judgeBill(read([["Pale Ale", 5.5]]), 5.5, "Beer", "pint").result).toBe("match");
+    expect(judgeBill(read([["Pale Ale", 6.5]]), 5.5, "Beer", "pint").result).toBe("mismatch");
+  });
+
   it.each([
     "Beer battered fish", "Fish in beer batter", "Steak and ale pie",
     "Guinness pie", "Guinness burger", "Guinness fish", "Guinness chips",

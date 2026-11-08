@@ -238,12 +238,24 @@ describe("runBillCheck", () => {
 
   it("records a community price's bill against that price and grants no drop", async () => {
     const outcome = await runBillCheck(
-      run({ pintDropId: undefined, communityPriceId: "price-9", communityPriceSubmittedAt: 1_793_900_000_000, priceGbp: 1.5, drink: "Crisps" }),
-      deps(vi.fn(async () => modelAnswer(BILL))),
+      run({ pintDropId: undefined, communityPriceId: "price-9", communityPriceSubmittedAt: 1_793_900_000_000, priceGbp: 1.5, drink: "Coke" }),
+      deps(vi.fn(async () => modelAnswer({ ...BILL, lines: [{ name: "Coke", price_gbp: 1.5 }] }))),
     );
     expect(outcome).toBe("match");
     expect(checks.records[0]).toMatchObject({ communityPriceId: "price-9", result: "match" });
     expect(checks.records[0]).not.toHaveProperty("pintDropId");
+    expect(grantReceipt).not.toHaveBeenCalled();
+  });
+
+  it("queues a compound drink name at a different price for a category submission", async () => {
+    const outcome = await runBillCheck(
+      run({ drink: "Beer", measure: "pint", priceGbp: 5.5 }),
+      deps(vi.fn(async () => modelAnswer({ ...BILL, lines: [{ name: "Pale Ale", price_gbp: 6.5 }] }))),
+    );
+    expect(outcome).toBe("mismatch");
+    expect(await checks.listMismatchesForReview()).toEqual([
+      expect.objectContaining({ pintDropId: "drop-1", priceGbp: 5.5, result: "mismatch" }),
+    ]);
     expect(grantReceipt).not.toHaveBeenCalled();
   });
 

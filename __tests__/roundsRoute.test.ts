@@ -8,10 +8,11 @@ vi.mock("@/lib/billCheck.server", () => ({
 }));
 
 const receiptStorage = vi.hoisted(() => ({
+  objects: new Map<string, Buffer>(),
   read: vi.fn<(_key: string) => Promise<{ bytes: Buffer; contentType: "image/jpeg" } | null>>(),
-  upload: vi.fn(async (): Promise<{
+  upload: vi.fn<(_key: string, _photo: Blob) => Promise<{
     error: { message: string } | null;
-  }> => ({ error: null })),
+  }>>(),
 }));
 
 vi.mock("@/lib/uploadedImage.server", async (importOriginal) => {
@@ -245,6 +246,7 @@ import { POST as CREATE } from "@/app/api/rounds/route";
 import { GET, POST } from "@/app/api/rounds/[code]/route";
 import { judgeBill } from "@/lib/billCheck";
 import type { BillCheckObservation } from "@/lib/billCheck.server";
+import { __resetBillChecks, memoryBillCheckStore } from "@/lib/billCheckStore";
 import { __resetMemoryRounds } from "@/lib/roundsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
@@ -340,8 +342,16 @@ async function authorizeContributor(
 beforeEach(() => {
   billChecks.keyed = true;
   billChecks.schedule.mockClear();
-  receiptStorage.upload.mockReset().mockResolvedValue({ error: null });
-  receiptStorage.read.mockReset().mockResolvedValue(null);
+  __resetBillChecks();
+  receiptStorage.objects.clear();
+  receiptStorage.upload.mockReset().mockImplementation(async (key, photo) => {
+    receiptStorage.objects.set(key, Buffer.from(await photo.arrayBuffer()));
+    return { error: null };
+  });
+  receiptStorage.read.mockReset().mockImplementation(async (key) => {
+    const bytes = receiptStorage.objects.get(key);
+    return bytes ? { bytes, contentType: "image/jpeg" } : null;
+  });
   __resetMemoryRounds();
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
@@ -615,6 +625,59 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect((await readCommunityPrices("venue-1")).map((price) => price.drinkCategory)).toEqual(["wine"]);
   });
 
+  it("reuses one stored JPEG check across an overlapping creator and retry", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+    const body = {
+      action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1", clientRef: "overlapping-bill",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 5.2, source: "round" }],
+    };
+    let releaseWrite = (): void => {};
+    let signalWriteStarted = (): void => {};
+    const writeStarted = new Promise<void>((resolve) => { signalWriteStarted = resolve; });
+    const writeReleased = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    priceWriteState.beforeWrite = async () => {
+      signalWriteStarted();
+      await writeReleased;
+    };
+    const creator = billedAction(round.code, body);
+    await writeStarted;
+    let retry: Response;
+    try {
+      retry = await billedAction(round.code, body);
+    } finally {
+      releaseWrite();
+    }
+    expect(retry.status).toBe(200);
+    expect((await creator).status).toBe(200);
+    const state = await (await get(round.code)).json() as RoundState;
+    const saved = defined(state.spends[0]);
+    const jpeg = defined(receiptStorage.objects.get(defined(saved.receiptPhotoKey)));
+    expect((await sharp(jpeg).metadata()).format).toBe("jpeg");
+    expect(receiptStorage.upload).toHaveBeenCalledTimes(1);
+    expect(billChecks.schedule).toHaveBeenCalledTimes(2);
+    const { runBillChecks } = await vi.importActual<typeof import("@/lib/billCheck.server")>("@/lib/billCheck.server");
+    const fetcher = vi.fn(async () => Response.json({
+      choices: [{ message: { content: JSON.stringify({
+        venue_name: "The Ship", date: "2026-11-05", lines: [{ name: "Guinness", price_gbp: 6.2 }],
+      }) } }],
+    }));
+    const scheduled = billChecks.schedule.mock.calls as [File, BillCheckObservation[]][];
+    for (const [index, [photo, observations]] of scheduled.entries()) {
+      expect(Buffer.from(await photo.arrayBuffer())).toEqual(jpeg);
+      expect(await runBillChecks(photo, observations, {
+        env: { OPENROUTER_API_KEY: "test-key" }, admit: async () => true, fetcher, store: memoryBillCheckStore,
+      })).toEqual([index === 0 ? "mismatch" : "already-checked"]);
+    }
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(await memoryBillCheckStore.listMismatchesForReview()).toEqual([
+      expect.objectContaining({
+        result: "mismatch", priceGbp: 5.2, roundSource: { spendId: saved.id, lineIndex: 0 },
+      }),
+    ]);
+  });
+
   it.each([true, false])("uses only the saved bill on a Round promotion retry when it is available: %s", async (available) => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
@@ -636,7 +699,9 @@ describe("POST /api/rounds/[code] — actions", () => {
       items: [{ drinkName: "Merlot", drinkCategory: "wine", priceGbp: 9.5, source: "round" }],
     }, undefined, new File([new Uint8Array(replacement)], "replacement.png", { type: "image/png" }));
     expect(retry.status).toBe(200);
-    expect(receiptStorage.read).toHaveBeenCalledExactlyOnceWith(saved.receiptPhotoKey);
+    expect(receiptStorage.read).toHaveBeenCalledTimes(2);
+    expect(receiptStorage.read).toHaveBeenNthCalledWith(1, saved.receiptPhotoKey);
+    expect(receiptStorage.read).toHaveBeenNthCalledWith(2, saved.receiptPhotoKey);
     expect(receiptStorage.upload).toHaveBeenCalledTimes(1);
     expect(billChecks.schedule).toHaveBeenCalledTimes(available ? 1 : 0);
     if (available) {

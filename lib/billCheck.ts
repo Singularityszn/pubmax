@@ -195,12 +195,13 @@ function lineNamesDrink(
   candidate: { name: string },
   bareCategory: DrinkCategory | null,
 ): boolean {
-  if (BILL_FOOD_CONTEXT.test(item.categoryText)) return false;
+  const text = item.categoryText;
+  const drinkWords = drinkKeywordSpans(text);
+  if (BILL_FOOD_CONTEXT.test(text) && !drinkWords.some((span) => span.end === text.length)) return false;
   if (!bareCategory) return item.name === candidate.name;
   if (!item.name) return false;
-  const text = item.categoryText;
   const identifiesDrink = billBrandCategory(text) !== null ||
-    drinkKeywordSpans(text).some((span) => span.start === 0 && span.end === text.length);
+    drinkWords.some((span) => span.start === 0);
   return identifiesDrink && drinkCategoryFromText(text) === bareCategory;
 }
 

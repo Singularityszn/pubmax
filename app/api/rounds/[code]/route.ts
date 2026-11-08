@@ -184,16 +184,14 @@ async function promoteReadyRoundPrices(input: {
   stored: RoundSpendDTO;
   contributor: ResolvedContributor;
   request: Request;
-  receipt: File | null;
-  created: boolean;
 }): Promise<Response> {
   const ready = input.stored.items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.promotionStatus === "ready");
   let completed = 0;
   const observations: BillCheckObservation[] = [];
-  let receipt = input.receipt;
-  if (!input.created && ready.length > 0 && billReaderKeyed()) {
+  let receipt: File | null = null;
+  if (ready.length > 0 && billReaderKeyed()) {
     const saved = input.stored.receiptPhotoKey
       ? await downloadUploadedImageObject(input.stored.receiptPhotoKey)
       : null;
@@ -363,8 +361,6 @@ async function recordSpend(
     stored: prepared.stored,
     contributor,
     request,
-    receipt,
-    created: result.created,
   });
 }
 
