@@ -13,6 +13,22 @@ import {
 describe("invite return navigation", () => {
   const planId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
+  it("keeps only a valid table ask through account claim", () => {
+    const target = "/map?sel=venue-a&table=8";
+    const url = `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(target)}`;
+    expect(accountClaimReturnToFromUrl(url)).toBe(target);
+    expect(defaultEmailAuthNext(url)).toBe(`/u/you?returnTo=${encodeURIComponent(target)}`);
+    for (const unsafe of [
+      "//evil.test/map?sel=a&table=8", "/map?sel=a&table=2",
+      "/map?table=8", "/map?sel=a&table=8&next=https://evil.test",
+      "/map?sel=a&table=8#other", "/map?sel=a&table=8&table=10",
+    ]) {
+      expect(accountClaimReturnToFromUrl(
+        `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(unsafe)}`,
+      )).toBeNull();
+    }
+  });
+
   it.each([
     "https://example.com/add/karan",
     "//example.com/add/karan",

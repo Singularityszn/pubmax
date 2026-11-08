@@ -28,6 +28,7 @@ const tableAuth = vi.hoisted(() => ({
 }));
 const tableTrack = vi.hoisted(() => vi.fn());
 const tableFetch = vi.hoisted(() => vi.fn());
+const emailSignIn = vi.hoisted(() => vi.fn(async () => ({ status: "sent", message: "Link sent" })));
 vi.mock("@/lib/analytics", () => ({ trackEvent: tableTrack }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: tableFetch }));
 const dynamicDialog = vi.hoisted(() => ({ component: null as React.ComponentType<never> | null }));
@@ -46,6 +47,10 @@ vi.mock("@/components/visits/VisitReportPanel", () => ({
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     ...tableAuth, session: null,
+    supabaseAuthState: "signed-out",
+    socialProviders: { google: false, apple: false, microsoft: false },
+    signInWithEmail: emailSignIn,
+    cancelAuthAttempt: () => {},
     identityResolved: true, getCurrentUserId: () => tableAuth.user?.id ?? null,
   }),
 }));
@@ -194,14 +199,38 @@ describe("table request arrival", () => {
     expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
   });
 
-  it("consumes the ask behind the handle gate", async () => {
+  it("keeps the ask through the handle claim door", async () => {
     tableAuth.configured = true;
     tableAuth.user = { id: "reader", email: "reader@example.com" };
     window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
     await show();
     expect(document.querySelector(".contributionGate")).not.toBeNull();
     expect(document.querySelector("select")).toBeNull();
-    expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
+    expect(new URLSearchParams(window.location.search).get("table")).toBe("8");
+    const href = document.querySelector<HTMLAnchorElement>(".contributionGatePrimary")?.href;
+    expect(href && new URL(href).searchParams.get("returnTo")).toBe(`/map?sel=${VENUE_ID}&table=8`);
+  });
+
+  it("gives email sign-in the full return address", async () => {
+    tableAuth.configured = true;
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    await input('input[type="email"]', "reader@example.test");
+    await submit();
+    expect(emailSignIn).toHaveBeenCalledWith("reader@example.test", `/map?sel=${VENUE_ID}&table=8`);
+  });
+
+  it("resumes the held ask when sign-in and handle resolve without navigation", async () => {
+    tableAuth.configured = true;
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    tableAuth.user = { id: "reader", email: "reader@example.test" };
+    await show();
+    expect(document.querySelector(".contributionGatePrimary")).not.toBeNull();
+    tableAuth.handle = "reader";
+    await show();
+    expect(document.querySelector(".contributionGate")).toBeNull();
+    expect(document.querySelector("select")?.value).toBe("8");
   });
 
   it("waits for auth to settle before deciding which door to open", async () => {
