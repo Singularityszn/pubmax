@@ -174,11 +174,12 @@ security policy admits only `*.supabase.co`, so the app must run as `next dev`.
    and password.
 7. Remove the account afterwards with `npm run e2e:teardown`, then `supabase stop`.
 
-Two Pub Pal checks cannot pass locally:
+Pub Pal checks have these local limits:
 
-- **With ElevenLabs keys set**, as in production, Pub Pal runs its tools through
-  webhooks to the deployed site. A local reply has no cards, so "venue cards"
-  only passes live or without those keys.
+- [Pub Pal setup](../../docs/PUB_PAL_SETUP.md#typed-chat-on-claude) owns provider selection.
+  When typed chat uses ElevenLabs, its tool webhooks target the configured site.
+  Local venue-card checks need those webhooks to reach the local server.
+  Claude runs tools in process and does not have this webhook limit.
 - **The `/pal` hand-off** opens `/pal/chat?ask=`, but under `next dev` React's
   double effect run cancels the ask before it is sent. A production build sends
   it.

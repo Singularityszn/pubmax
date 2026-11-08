@@ -1,9 +1,7 @@
-// Pub Pal chat — pure answer shaping for grounded cards returned by
-// `POST /api/pub-pal/chat` (ElevenLabs when configured, otherwise the same
-// deterministic tools as `/api/ask`, with no OpenRouter call). The
-// /pal/chat surface is a chat SKIN: the user asks in natural language, webhook
-// tools read our own rows, and ANSWER CARDS ARE THE FACTS — each keeping its
-// provenance label.
+// Pub Pal chat: pure answer shaping for grounded cards returned by
+// `POST /api/pub-pal/chat`. Provider selection is documented in
+// docs/PUB_PAL_SETUP.md. Cards retain the tool results' provenance labels
+// regardless of provider.
 //
 // This module holds ONLY pure normalisation so it is unit-testable in a node
 // environment (no React, no server imports, no clock). It maps chat and legacy
