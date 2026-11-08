@@ -28,10 +28,10 @@
 --
 -- ADMIN-ONLY, TWICE. The route checks the moderator door (lib/adminAuth.ts)
 -- and names the staff role (SOCIAL_MODERATOR_STAFF_ROLE_ID). In the database
--- the two new tables have RLS on with no policy and no browser grant, and every
+-- the new tables have RLS on with no policy and no browser grant, and every
 -- function is SECURITY DEFINER, executable by service_role only, and refuses a
--- staff role that is not an active moderator. The audit table is append-only
--- even for service_role: it holds SELECT and INSERT, never UPDATE or DELETE.
+-- staff role that is not an active moderator. The audit tables are append-only
+-- even for service_role: they hold SELECT and INSERT, never UPDATE or DELETE.
 
 begin;
 

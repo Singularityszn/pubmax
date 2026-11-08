@@ -263,9 +263,19 @@ The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.mjs
 
 Live Social uses the existing admin session and named moderator role for queue
 decisions. Check queue access and moderator ownership during each launch
-review. The historical
+review. The Social safety queues require migration `0224` and the moderator
+configuration in [`.env.example`](../.env.example). The captain must explicitly
+authorise `apply 0224` before anyone applies that migration.
+
+1. Open `/admin` and find **Reports from people** or **Flagged DMs**.
+2. Use **View reported post**, **View reported comment**, **View reported quote**, or **View reported attachment** to inspect the reported item.
+3. Use **Suspend** with a reason when an account needs suspension. A suspended account's card offers **Reinstate** with a reason.
+4. Use **Close report** or **Mark reviewed** when review is complete. These controls clear queue entries without removing the reported content.
+
+The [permission matrix](security/PERMISSION_MATRIX.md) owns the evidence-access
+and audit limits. The historical
 [`SOCIAL_BETA_CONTRACT.md`](social/SOCIAL_BETA_CONTRACT.md) is not a current
-launch gate. During `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, use static preview only.
+launch gate. During `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, the Social feed uses static preview only.
 
 ---
 

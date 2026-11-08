@@ -64,7 +64,7 @@ one that belongs to somebody else, or the refusal is an existence oracle.
 | blocked user (carol) | a mutual follower of the owner whom the owner has blocked |
 | guest (device RSVP) | a Plan seat with a capability token and no account behind it |
 | capability | a Plan member token or invite token, which is not an identity |
-| staff (moderator) | the `ADMIN_TOKEN` credential, never ownership |
+| staff (moderator) | the `ADMIN_TOKEN` credential through a header or admin session, never account ownership |
 
 Carol differs from Bob by the block alone: both are mutual followers of the
 owner, so a cell that refuses Carol is measuring the block rather than a

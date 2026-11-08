@@ -8,21 +8,12 @@ The `planBeaconStore` and `planPresentationStore` rows declare metadata only.
 `__tests__/planNightStorePermissions.test.ts` exercises production refusal, current membership and host permissions.
 The beacon and presentation route tests exercise their HTTP handlers.
 
-## Current snapshot
+## Backend selection
 
-Counted on 31 October 2026 with the V1 night stores included.
-Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
-`createDualBackendStore` whenever a store is added.
-
-- The repository has 66 `lib/*Store.ts` modules.
-- 44 modules call `selectStore` directly.
-- 15 modules use `createDualBackendStore`.
-- 8 modules keep memory state on `globalThis` so it survives a development
-  server reload. That state pattern is separate from backend selection.
-- The remaining 7 modules use an explicit backend, a file or static data path,
-  or an inline legacy selector: `contributorLeaderboardStore`,
-  `crawlStoryStore`, `importNotesStore`, `pubPalStore`, `socialCrewStore`,
-  `socialPostConsentStore` and `whatsOnStore`.
+The [canonical inventory](#canonical-inventory) lists the current stores.
+`STORE_INVENTORY` in `__tests__/storeInventory.test.ts` records their backend
+selectors and classifications. These tests check the inventory against
+the source rather than relying on a copied count.
 
 `lib/storeBackend.ts` owns the narrow backend seam. `createDualBackendStore`
 only curries `selectStore(memory, supabase)` into a zero-argument getter. It
@@ -106,7 +97,7 @@ silently stale.
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
 | socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
-| socialSafetyModerationStore | not dual-backend | Service-role RPCs for moderator report queues, flagged-message evidence, reviews and audited suspension decisions. No memory implementation. |
+| socialSafetyModerationStore | not dual-backend | Service-role RPCs for moderator report queues, reported-content and flagged-message evidence, reviews and audited suspension decisions. No memory implementation. |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | tableRequestsStore | factory-ready | "Ask the pub for a table" requests PUBMAXX emailed to a verified operator: stored pending, stamped emailed or discarded, listed to that operator alone, and read back for the requester's own export. |
 | venueCorrectionsStore | factory-ready | "That's wrong" notes about a pub (shut, hours, other) and the moderator's resolve or dismiss. |
