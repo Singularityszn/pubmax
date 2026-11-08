@@ -122,6 +122,7 @@ export type BillCheckRun = {
   priceGbp: number;
   drink: string;
   measure?: DrinkMeasure;
+  measureLabel?: string;
   communityPriceSubmittedAt?: number;
   roundSource?: RoundPriceSource;
   /** The Pint Drop this bill came with, which a match grants `receipt`. */
@@ -228,7 +229,7 @@ async function checkBillObservation(
 
     const read = await readPhoto();
     if (read.status !== "read") return done(read.status);
-    const verdict = judgeBill(read, run.priceGbp, run.drink, run.measure);
+    const verdict = judgeBill(read, run.priceGbp, run.drink, run.measure, run.measureLabel);
 
     await store.record({
       ...(run.pintDropId ? { pintDropId: run.pintDropId } : {}),

@@ -153,6 +153,16 @@ describe("judgeBill", () => {
     expect(judgeBill(lines, 5.2, name, "pint").result).toBe("match");
   });
 
+  it.each(["(cask)", "[keg]", "- on tap", "- guest"])("identifies drinks with the trailing descriptor %s", (suffix) => {
+    const name = `Breakfast Stout ${suffix}`;
+    const lines = read([[name, 5.2]]);
+    expect(judgeBill(lines, 5.2, name, "pint").result).toBe("match");
+    expect(judgeBill(lines, 5.2, "Beer", "pint").result).toBe("match");
+    const food = `Guinness pie ${suffix}`;
+    expect(judgeBill(read([[food, 5.2]]), 5.2, food, "pint").result).toBe("unreadable");
+    expect(judgeBill(read([[food, 5.2]]), 5.2, "Beer", "pint").result).toBe("unreadable");
+  });
+
   it("identifies a category from the start of a compound drink name", () => {
     expect(judgeBill(read([["Pale Ale", 5.5]]), 5.5, "Beer", "pint").result).toBe("match");
     expect(judgeBill(read([["Pale Ale", 6.5]]), 5.5, "Beer", "pint").result).toBe("mismatch");
@@ -212,6 +222,14 @@ describe("judgeBill", () => {
     expect(judgeBill(read([["Guinness", 5.2]]), 5.2, "Guinness", "half").result).toBe("match");
     expect(judgeBill(read([["Merlot 175ml", 5.2]]), 5.2, "Merlot", "250ml").result).toBe("mismatch");
     expect(judgeBill(read([["Merlot 175 ml", 5.2]]), 5.2, "Merlot", "175ml").result).toBe("match");
+  });
+
+  it.each(["330ml", "33cl", "0.33l"])("uses the custom serving label %s on both sides of a bill check", (label) => {
+    expect(judgeBill(read([["Guinness 330ml", 3.5]]), 3.5, "Guinness", "other", label).result).toBe("match");
+    expect(judgeBill(read([["Guinness pint", 3.5]]), 3.5, "Guinness", "other", label).result).toBe("mismatch");
+    expect(judgeBill(read([["Guinness 330ml", 3.5]]), 3.5, "Guinness 330ml", "other", label).result).toBe("match");
+    expect(judgeBill(read([["Guinness", 3.5]]), 3.5, "Guinness pint", "other", label).result).toBe("mismatch");
+    expect(judgeBill(read([["Guinness 330ml", 3.5]]), 3.5, "Beer", "other", label).result).toBe("match");
   });
 
   it.each([

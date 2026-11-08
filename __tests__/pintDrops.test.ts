@@ -695,20 +695,23 @@ describe("POST /api/pint-drops (create)", () => {
 
   // Captain 5 Nov 2026: a photo attached is not a bill read. The price lands
   // unchecked, the answer goes at once, and the bill is read after it.
-  it("lands a price sent with its bill unchecked and hands the bill to the bill check", async () => {
+  it.each([
+    { measure: "pint", measureLabel: undefined },
+    { measure: "other", measureLabel: "330ml" },
+  ])("lands a $measure price unchecked and hands its serving to the bill check", async ({ measure, measureLabel }) => {
     billChecks.schedule.mockClear();
     billChecks.keyed = true;
     reportAuth.userId = "account-billed";
     await memoryProfileStore.createOwned("billed_drinker", reportAuth.userId);
     await memoryAdultSelfAssertionStore.record(reportAuth.userId);
-    const res = await post({ venueId: VENUE, handle: "billed_drinker", priceGbp: 4.5 });
+    const res = await post({ venueId: VENUE, handle: "billed_drinker", priceGbp: 4.5, measure, measureLabel });
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.drop.priceEvidence).toBe("unchecked");
     expect(body.billCheck).toBe("reading");
     expect(billChecks.schedule).toHaveBeenCalledTimes(1);
     const [run] = billChecks.schedule.mock.calls[0] as [Record<string, unknown>];
-    expect(run).toMatchObject({ venueId: VENUE, priceGbp: 4.5, drink: body.drop.drink, measure: body.drop.measure, pintDropId: body.drop.id });
+    expect(run).toMatchObject({ venueId: VENUE, priceGbp: 4.5, drink: body.drop.drink, measure, measureLabel, pintDropId: body.drop.id });
     expect(run.photo).toBeInstanceOf(File);
   });
 

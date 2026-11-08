@@ -355,6 +355,7 @@ export async function POST(request: Request): Promise<Response> {
     submittedAt,
     pairsPintDrop,
     measure,
+    measureLabel,
     pairedDropId,
     pairedDropCreated,
   });
@@ -517,6 +518,7 @@ function scheduleCommunityPriceBillCheck(input: {
   submittedAt: number;
   pairsPintDrop: boolean;
   measure: DrinkMeasure;
+  measureLabel: string;
   pairedDropId?: string;
   pairedDropCreated: boolean;
 }): "reading" | null {
@@ -527,7 +529,7 @@ function scheduleCommunityPriceBillCheck(input: {
     venueId: submission.venueId,
     priceGbp: submission.priceGbp,
     drink: submitCategoryLabel(submission.drinkCategory),
-    ...(input.pairsPintDrop ? { measure: input.measure } : {}),
+    ...(input.pairsPintDrop ? { measure: input.measure, measureLabel: input.measureLabel } : {}),
     ...(ownsCommunityObservation ? { communityPriceId: price.id, communityPriceSubmittedAt: price.submittedAt } : {}),
     pintDropId: input.pairedDropId,
   });
@@ -542,7 +544,7 @@ function scheduleCommunityPriceBillCheck(input: {
  */
 function scheduleSubmitBillCheck(
   receipt: File | null,
-  subject: { venueId: string; priceGbp: number; drink: string; measure?: DrinkMeasure; communityPriceId?: string; communityPriceSubmittedAt?: number; pintDropId?: string },
+  subject: { venueId: string; priceGbp: number; drink: string; measure?: DrinkMeasure; measureLabel?: string; communityPriceId?: string; communityPriceSubmittedAt?: number; pintDropId?: string },
 ): "reading" | null {
   if (!receipt || !billReaderKeyed()) return null;
   if (!subject.communityPriceId && !subject.pintDropId) return null;
@@ -552,6 +554,7 @@ function scheduleSubmitBillCheck(
     priceGbp: subject.priceGbp,
     drink: subject.drink,
     measure: subject.measure,
+    measureLabel: subject.measureLabel,
     ...(subject.communityPriceId ? { communityPriceId: subject.communityPriceId, communityPriceSubmittedAt: subject.communityPriceSubmittedAt } : {}),
     ...(subject.pintDropId ? { pintDropId: subject.pintDropId } : {}),
   });
@@ -660,6 +663,7 @@ async function nonPintPriceResponse(input: {
     priceGbp: input.priceGbp,
     drink: drop.drop.drink,
     measure: input.measure,
+    measureLabel: input.measureLabel,
     pintDropId: drop.drop.id,
   }) : null;
   return jsonNoStore(

@@ -1183,6 +1183,8 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       expect(first.status).toBe(201);
       const firstBody = (await first.json()) as PriceBody;
       const [run] = billChecks.schedule.mock.calls[0] as [BillCheckRun];
+      expect(run.measure).toBe(measure);
+      if (measure === "other") expect(run.measureLabel).toBe("330ml");
       const stored = listVisiblePintDrops("venue-xjf3n0")[0] as PersistableDrop;
       stored.receiptPhotoKey = `${stored.venueId}/${stored.id}/receipt.jpg`;
       const originalPhotoKey = stored.receiptPhotoKey;

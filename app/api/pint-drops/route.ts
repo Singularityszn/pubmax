@@ -379,7 +379,7 @@ function scheduleDropBillCheck(
   receipt: File | null,
 ): "reading" | null {
   if (!created || priceGbp === null || !receipt || !billReaderKeyed()) return null;
-  scheduleBillCheck({ photo: receipt, venueId: drop.venueId, priceGbp, drink: drop.drink, measure: drop.measure, pintDropId: drop.id });
+  scheduleBillCheck({ photo: receipt, venueId: drop.venueId, priceGbp, drink: drop.drink, measure: drop.measure, measureLabel: drop.measureLabel, pintDropId: drop.id });
   return "reading";
 }
 

@@ -204,7 +204,7 @@ function lineNamesDrink(
   candidate: { name: string },
   bareCategory: DrinkCategory | null,
 ): boolean {
-  const text = item.categoryText;
+  const text = item.categoryText.replace(/\s*(?:\((?:cask|keg|on tap|guest)\)|\[(?:cask|keg|on tap|guest)\]|[-\u2013\u2014]\s*(?:cask|keg|on tap|guest))$/, "");
   const drinkWords = drinkKeywordSpans(text);
   if (BILL_FOOD_CONTEXT.test(text) && !drinkWords.some((span) => span.end === text.length)) return false;
   if (!bareCategory) return item.name === candidate.name;
@@ -226,7 +226,11 @@ export function judgeBill(
   submittedPriceGbp: number,
   drink: string,
   measure?: DrinkMeasure,
+  measureLabel?: string,
 ): BillCheckVerdict {
+  const submittedMeasure = measure === "other" && measureLabel
+    ? billItem(measureLabel).measure ?? measureLabel
+    : measure;
   const submitted = billItem(drink);
   if (!submitted.name) return { result: "unreadable", lines: [] };
   const bareCategory = bareCategoryOf(submitted.name);
@@ -237,8 +241,8 @@ export function judgeBill(
   if (named.length === 0) return { result: "unreadable", lines: [] };
   const target = pence(submittedPriceGbp);
   const matching = named.filter(({ line, item, submitted: candidate }) => {
-    if (measure && candidate.measure && measure !== candidate.measure) return false;
-    const expectedMeasure = measure ?? candidate.measure;
+    if (submittedMeasure && candidate.measure && submittedMeasure !== candidate.measure) return false;
+    const expectedMeasure = submittedMeasure ?? candidate.measure;
     if (expectedMeasure === "pint" &&
       (!billNamesPint(line.name, item) || !billNamesPint(drink, candidate))) return false;
     const statedMeasure = item.measure;

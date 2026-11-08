@@ -175,6 +175,19 @@ describe("runBillCheck", () => {
     expect(signal).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    { serving: "330ml", expected: "match" },
+    { serving: "pint", expected: "mismatch" },
+  ])("compares the custom serving before granting receipt for $serving", async ({ serving, expected }) => {
+    const outcome = await runBillCheck(
+      run({ priceGbp: 3.5, measure: "other", measureLabel: "330ml" }),
+      deps(vi.fn(async () => modelAnswer({ ...BILL, lines: [{ name: `Guinness ${serving}`, price_gbp: 3.5 }] }))),
+    );
+    expect(outcome).toBe(expected);
+    expect(checks.records[0]).toMatchObject({ result: expected });
+    expect(grantReceipt).toHaveBeenCalledTimes(expected === "match" ? 1 : 0);
+  });
+
   it("records a mismatch with every priced line, grants nothing and leaves the price for a moderator", async () => {
     const outcome = await runBillCheck(run({ priceGbp: 4.5 }), deps(vi.fn(async () => modelAnswer(BILL))));
 
