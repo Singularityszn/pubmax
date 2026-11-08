@@ -1740,6 +1740,7 @@ describe("durable rate limiting (Supabase configured)", () => {
     storeCreate.mockReset();
     storeCreate.mockImplementation(async (drop) => ({
       ...(drop as Record<string, unknown>),
+      created: true,
       pintPhotoUrl: null,
       venuePhotoUrl: null,
     }));

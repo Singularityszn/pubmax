@@ -38,6 +38,7 @@ function queryBuilder() {
     return qb;
   };
   qb.order = () => qb;
+  qb.maybeSingle = async () => ({ data: null, error: null });
   qb.limit = async () => ({ data: scriptedRows, error: null });
   return qb;
 }

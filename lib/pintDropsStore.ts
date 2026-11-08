@@ -172,7 +172,7 @@ export type PintDropStore = {
     drop: PintDrop,
     photos: PintDropPhotos,
     options?: PintDropCreateOptions,
-  ): Promise<PintDropDTO>;
+  ): Promise<PintDropDTO & { created: boolean }>;
   /**
    * Public read: visible drops + demo seeds, newest-first, capped at
    * MAX_PUBLIC_DROPS, with per-drop VISIBILITY applied server-side (issue #29).
@@ -832,6 +832,13 @@ async function attributedAuthorVenueIds(
   return [...new Set(published.map((drop) => drop.venueId))].sort();
 }
 
+function sameCreatedDrop(existing: PintDrop, input: PintDrop): boolean {
+  return existing.id === input.id && existing.venueId === input.venueId &&
+    existing.authorityKey === input.authorityKey &&
+    normalizeViewerHandle(existing.handle) === normalizeViewerHandle(input.handle) &&
+    existing.priceGbp === input.priceGbp;
+}
+
 export const memoryPintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const covered = new Set<string>();
@@ -854,18 +861,21 @@ export const memoryPintDropStore: PintDropStore = {
     // pre-check and this create sit either side of an await, so two in-flight
     // requests can both read "no price yet" here exactly as they could against
     // Postgres. Asked against the drop's OWN day, so the row and the rule agree.
-    if (
+    const capped =
       dailyCapDay(drop, options) !== null &&
-      (await hasPricedDropTodayAcrossIds(drop.venueId, drop.handle, new Date(drop.createdAt)))
-    ) {
-      throw new PintDropDailyCapError();
+      (await hasPricedDropTodayAcrossIds(drop.venueId, drop.handle, new Date(drop.createdAt)));
+    const existing = findPintDropsByIds([drop.id]).get(drop.id);
+    if (existing) {
+      if (!sameCreatedDrop(existing, drop)) throw new Error("Pint Drop id already exists.");
+      return { ...toDTO(existing), created: false };
     }
+    if (capped) throw new PintDropDailyCapError();
     // Photos are not stored: there is no Storage without Supabase. The bill
     // itself is read by the route's background bill check, from the bytes
     // that arrived.
     void photos;
     addPintDrop(drop);
-    return toDTO(drop);
+    return { ...toDTO(drop), created: true };
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
     const venueRows = venueId
@@ -1286,6 +1296,7 @@ export const supabasePintDropStore: PintDropStore = {
     const drop = withEarnedEvidence(input);
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
+    const creation: { existing?: PersistableDrop } = {};
     try {
       // Photos upload BEFORE the insert — a bad file throws before anything
       // persists; a failed insert leaves exact keys to clean up.
@@ -1329,6 +1340,16 @@ export const supabasePintDropStore: PintDropStore = {
       const insert = async (candidate: typeof row) => {
         const { error: insertError } = await admin().from(TABLE).insert(candidate);
         if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
+        if (insertError?.code === "23505") {
+          const { data, error: readError } = await admin().from(TABLE).select("*").eq("id", drop.id).maybeSingle();
+          if (!readError && data) {
+            const stored = fromRow(data);
+            if (sameCreatedDrop(stored, drop)) {
+              creation.existing = stored;
+              return null;
+            }
+          }
+        }
         return insertError;
       };
       // First attempt includes vibe_tags + Last Train columns. Once migrations
@@ -1502,7 +1523,13 @@ export const supabasePintDropStore: PintDropStore = {
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
     }
-    return toDTOWithPhotos(persistable);
+    const existing = creation.existing;
+    if (existing) {
+      const kept = [existing.pintPhotoKey, existing.venuePhotoKey, existing.receiptPhotoKey];
+      await deletePhotos(uploaded.filter((key) => !kept.includes(key)));
+      return { ...await toDTOWithPhotos(existing), created: false };
+    }
+    return { ...await toDTOWithPhotos(persistable), created: true };
   },
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic

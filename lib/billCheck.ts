@@ -158,8 +158,7 @@ function billItem(name: string, counterpart = ""): { name: string; measure?: str
 
 function evidenceLines(lines: BillLine[]): BillLine[] {
   return lines.slice(0, BILL_CHECK_MAX_LINES)
-    .map((line) => ({ name: cleanLineName(line.name.replace(/\d{4,}/g, " ")), priceGbp: line.priceGbp }))
-    .filter((line) => line.name !== "");
+    .map((line) => ({ name: cleanLineName(line.name.replace(/\d{4,}/g, " ")) || "Item", priceGbp: line.priceGbp }));
 }
 
 export function judgeBill(

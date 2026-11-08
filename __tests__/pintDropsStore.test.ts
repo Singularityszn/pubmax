@@ -38,7 +38,9 @@ const selectChain = {
   is: vi.fn(),
   order: vi.fn(),
   limit: vi.fn(),
-  maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),
+  maybeSingle: vi.fn(async (): Promise<{ data: Record<string, unknown> | null; error: null }> => (
+    { data: { status: "visible" }, error: null }
+  )),
   then: (
     resolve: (value: { data: Record<string, unknown>[]; error: null }) => unknown,
     reject?: (reason: unknown) => unknown,
@@ -321,6 +323,111 @@ describe("the memory store earns a priced drop's evidence from what arrived", ()
     );
     expect(await memoryPintDropStore.grantBillMatch("m-note-2")).toBe(false);
     expect(await memoryPintDropStore.grantBillMatch("m-unknown")).toBe(false);
+  });
+});
+
+describe("Pint Drop creation ownership", () => {
+  const noPhotos = { pint: null, venue: null, receipt: null };
+
+  it("stores one memory row and reports one creator for concurrent identical ids", async () => {
+    const input = drop({ id: "bound-drop", authorityKey: "account-a" });
+    const results = await Promise.all([
+      memoryPintDropStore.create(input, noPhotos),
+      memoryPintDropStore.create(input, noPhotos),
+    ]);
+    expect(results.map((result) => result.created).sort()).toEqual([false, true]);
+    expect(await memoryPintDropStore.listForModerationByIds([input.id])).toHaveLength(1);
+    expect((await memoryPintDropStore.listConfirmationCandidates(input.venueId)).filter(
+      (row) => row.id === input.id,
+    )).toHaveLength(1);
+  });
+
+  it.each([
+    { venueId: "another-pub" },
+    { authorityKey: "account-b" },
+    { handle: "another-drinker" },
+    { priceGbp: 7 },
+  ])("refuses a memory id collision with different fields %j", async (changed) => {
+    const input = drop({ id: "bound-drop", authorityKey: "account-a" });
+    await memoryPintDropStore.create(input, noPhotos);
+    await expect(memoryPintDropStore.create({ ...input, ...changed }, noPhotos)).rejects.toThrow();
+    expect(await memoryPintDropStore.listForModerationByIds([input.id])).toMatchObject([input]);
+  });
+
+  it.each(["pint_drops_pkey", "visit_reports_pkey"])("returns the stored durable drop and bill after a %s conflict", async (constraint) => {
+    insertMock.mockReset();
+    insertMock.mockResolvedValue({ error: { code: "23505", message: `duplicate key violates "${constraint}"` } });
+    const lookup = vi.spyOn(selectChain, "maybeSingle").mockResolvedValueOnce({
+      data: {
+        id: "bound-drop", venue_id: "the-crown", handle: "ale", authority_key: "account-a",
+        price_gbp: 4.2, status: "visible", drink: "Beer", provenance: "contributor",
+        created_at: "2026-01-01T00:00:00.000Z", passed_down_note: "Original submission",
+        receipt_photo_key: "the-crown/bound-drop/receipt.jpg",
+      },
+      error: null,
+    });
+    try {
+      const result = await supabasePintDropStore.create(
+        drop({ id: "bound-drop", authorityKey: "account-a" }), noPhotos,
+      );
+      expect(result).toMatchObject({
+        id: "bound-drop", priceGbp: 4.2, created: false, passedDownNote: "Original submission",
+        receiptPhotoUrl: "https://cdn.test/signed/pint-drops/the-crown/bound-drop/receipt.jpg",
+      });
+      expect(removeMock).not.toHaveBeenCalled();
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it("reports one durable creator when concurrent inserts collide", async () => {
+    const rows: Record<string, unknown>[] = [];
+    insertMock.mockReset();
+    insertMock.mockImplementation(async (row: Record<string, unknown>) => {
+      if (rows.length) return { error: { code: "23505", message: 'duplicate key violates "pint_drops_pkey"' } };
+      rows.push(structuredClone(row));
+      return { error: null };
+    });
+    const lookup = vi.spyOn(selectChain, "maybeSingle").mockImplementation(async () => ({
+      data: defined(rows[0]), error: null,
+    }));
+    try {
+      const input = drop({ id: "bound-drop", authorityKey: "account-a" });
+      const results = await Promise.all([
+        supabasePintDropStore.create(input, noPhotos),
+        supabasePintDropStore.create(input, noPhotos),
+      ]);
+      expect(results.map((result) => result.created).sort()).toEqual([false, true]);
+      expect(results.map((result) => result.id)).toEqual(["bound-drop", "bound-drop"]);
+      expect(rows).toHaveLength(1);
+      expect(removeMock).not.toHaveBeenCalled();
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it.each([
+    { venue_id: "another-pub" },
+    { authority_key: "account-b" },
+    { handle: "another-drinker" },
+    { price_gbp: 7 },
+  ])("refuses a durable id collision with different fields %j", async (changed) => {
+    insertMock.mockReset();
+    insertMock.mockResolvedValue({ error: { code: "23505", message: 'duplicate key violates "pint_drops_pkey"' } });
+    const lookup = vi.spyOn(selectChain, "maybeSingle").mockResolvedValueOnce({
+      data: {
+        id: "bound-drop", venue_id: "the-crown", handle: "ale", authority_key: "account-a",
+        price_gbp: 4.2, status: "visible", ...changed,
+      },
+      error: null,
+    });
+    try {
+      await expect(supabasePintDropStore.create(
+        drop({ id: "bound-drop", authorityKey: "account-a" }), noPhotos,
+      )).rejects.toThrow("duplicate key");
+    } finally {
+      lookup.mockRestore();
+    }
   });
 });
 

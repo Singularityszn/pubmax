@@ -565,10 +565,10 @@ export async function POST(request: Request): Promise<Response> {
     // unique index behind it (0141) refuses the burst the pre-check above
     // cannot see. The community-price pairing lane writes without this and
     // keeps its own rule.
-    const drop = await pintDropsStore().create(dropPayload, photos, {
+    const { created, ...drop } = await pintDropsStore().create(dropPayload, photos, {
       underDailyPriceCap: true,
     });
-    signalPintDropLanded();
+    if (created) signalPintDropLanded();
     // The second-reporter pass, awaited so the drinker's own answer carries the
     // standing their report just earned. It never throws and never fails the
     // drop: when it cannot read or write, the pill stays grey and the drop
@@ -584,7 +584,7 @@ export async function POST(request: Request): Promise<Response> {
     // THE BILL IS READ AFTER THE ANSWER, never before it: the drinker's 201
     // does not wait on a vision model. `billCheck: "reading"` tells the
     // composer to say so, and is said only when this deployment can read.
-    const billCheck = scheduleDropBillCheck(drop, dropPayload.priceGbp, photos.receipt);
+    const billCheck = created ? scheduleDropBillCheck(drop, dropPayload.priceGbp, photos.receipt) : null;
     return jsonNoStore(
       {
         drop,

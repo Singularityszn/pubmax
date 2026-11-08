@@ -323,6 +323,7 @@ export async function POST(request: Request): Promise<Response> {
   // The bill behind this figure, handed to the background bill check once the
   // rows it names exist (captain 5 Nov 2026). Read after the answer.
   let pairedDropId: string | undefined;
+  let pairedDropCreated = false;
   if (pairsPintDrop) {
     const pairing = await pairSubmittedPintDrop(
       {
@@ -342,6 +343,7 @@ export async function POST(request: Request): Promise<Response> {
     );
     if (!pairing.ok) return pairing.response;
     pairedDropId = pairing.pintDropId;
+    pairedDropCreated = pairing.created;
     confirmationOutcome = pairing.confirmationOutcome;
     pintTrust = pairing.pintTrust;
   }
@@ -354,7 +356,7 @@ export async function POST(request: Request): Promise<Response> {
     pairsPintDrop,
     measure,
     pairedDropId,
-    duplicateDrop,
+    pairedDropCreated,
   });
 
   const trust = await syncTrustAfterPriceWrite(
@@ -495,6 +497,7 @@ async function pairSubmittedPintDrop(
   return {
     ok: true as const,
     pintDropId,
+    created: pintDrop.created,
     confirmationOutcome,
     pintTrust,
   };
@@ -508,9 +511,9 @@ function scheduleCommunityPriceBillCheck(input: {
   pairsPintDrop: boolean;
   measure: DrinkMeasure;
   pairedDropId?: string;
-  duplicateDrop: PintDrop | null;
+  pairedDropCreated: boolean;
 }): "reading" | null {
-  if (input.duplicateDrop) return null;
+  if (input.pairsPintDrop && !input.pairedDropCreated) return null;
   const { submission, price } = input;
   const ownsCommunityObservation = price.submittedAt === input.submittedAt && price.priceGbp === submission.priceGbp;
   return scheduleSubmitBillCheck(input.receipt, {

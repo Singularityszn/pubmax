@@ -240,10 +240,12 @@ export async function writeOneTapPintDrop(
       log("info", "one_tap_pint_drop.duplicate_tap", { venueId: input.venueId });
       return { ok: true, drop: duplicate, created: false };
     }
-    const drop = await store.create(built, photos);
-    signalPintDropLanded();
-    void ensureProfileForHandle(handle);
-    return { ok: true, drop, created: true };
+    const { created, ...drop } = await store.create(built, photos);
+    if (created) {
+      signalPintDropLanded();
+      void ensureProfileForHandle(handle);
+    }
+    return { ok: true, drop, created };
   } catch (err) {
     // The CLASS, not the sentence: an unreadable image is refused with words
     // of its own, and asking about the words sent it down the storage branch

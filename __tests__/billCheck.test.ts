@@ -296,7 +296,14 @@ describe("judgeBill", () => {
     const verdict = judgeBill(parsed, result === "match" ? 5.2 : 6.2, "1664", "pint");
     expect(verdict).toEqual({
       result,
-      lines: result === "match" ? [] : [{ name: "Visa ****", priceGbp: 5.2 }],
+      lines: result === "match"
+        ? [{ name: "Item", priceGbp: 5.2 }]
+        : [{ name: "Item", priceGbp: 5.2 }, { name: "Visa ****", priceGbp: 5.2 }],
+    });
+    expect(judgeBill(parseBillReadAnswer(bill([{ name: "1664", price_gbp: 5.2 }])),
+      result === "match" ? 5.2 : 6.2, "1664", "pint")).toEqual({
+      result,
+      lines: [{ name: "Item", priceGbp: 5.2 }],
     });
     expect(judgeBill(parsed, 5.2, "1234", "pint").result).toBe("unreadable");
   });

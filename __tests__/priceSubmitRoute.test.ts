@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetBillChecks, memoryBillCheckStore } from "@/lib/billCheckStore";
 import type { BillCheckRun } from "@/lib/billCheck.server";
-import type { PersistableDrop } from "@/lib/pintDropsStore";
+import { memoryPintDropStore, type PersistableDrop } from "@/lib/pintDropsStore";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 
 // Two Vercel-vs-local seams to pin (both would otherwise pass locally and fail
@@ -911,6 +911,40 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
   function scheduled(): Record<string, unknown>[] {
     return billChecks.schedule.mock.calls.map(([run]) => run as Record<string, unknown>);
   }
+
+  it("keeps one drop, one bill check and a visible price for concurrent same-millisecond submissions", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.parse("2026-11-05T19:30:00.000Z"));
+    const create = memoryPintDropStore.create;
+    let arrivals = 0;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => { release = resolve; });
+    const createSpy = vi.spyOn(memoryPintDropStore, "create").mockImplementation(async (...args) => {
+      arrivals += 1;
+      if (arrivals === 2) release();
+      await ready;
+      return create(...args);
+    });
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5, measure: "pint" };
+      const responses = await Promise.all([
+        POST(post(body, jpegFile("first.jpg"))),
+        POST(post(body, jpegFile("second.jpg"))),
+      ]);
+      expect(responses.map((response) => response.status)).toEqual([201, 201]);
+      const answers = await Promise.all(responses.map((response) => response.json()));
+      expect(answers.filter((answer) => answer.billCheck === "reading")).toHaveLength(1);
+      const drops = listVisiblePintDrops(body.venueId);
+      expect(drops).toHaveLength(1);
+      expect(scheduled()).toHaveLength(1);
+      expect(scheduled()[0]).toMatchObject({ pintDropId: defined(drops[0]).id });
+      expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5.5 }]);
+      expect(moderateCommunityPrice).not.toHaveBeenCalled();
+    } finally {
+      createSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 
   it("names the community price AND its paired Pint Drop on a pint of beer", async () => {
     const res = await POST(post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5.5 }));
