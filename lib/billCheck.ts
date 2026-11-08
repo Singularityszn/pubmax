@@ -216,7 +216,7 @@ function lineNamesDrink(
   if (!bareCategory) return item.name === candidate.name;
   if (!item.name) return false;
   const identifiesDrink = billBrandCategory(text) !== null ||
-    drinkWords.some((span) => span.start === 0);
+    drinkWords.some((span) => span.start === 0 || span.end === text.length);
   return identifiesDrink && drinkCategoryFromText(text) === bareCategory;
 }
 
