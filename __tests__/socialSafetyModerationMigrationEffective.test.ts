@@ -227,6 +227,36 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
     expect(scalar(`select count(*) from public.social_report_evidence_audit`)).toBe("3");
   });
 
+  it("returns all reported carousel photos in slot order without another post's photos", () => {
+    const second = "f8000000-0000-4000-8000-000000000224";
+    const third = "f9000000-0000-4000-8000-000000000224";
+    const fourth = "fa000000-0000-4000-8000-000000000224";
+    const unrelated = "fb000000-0000-4000-8000-000000000224";
+    db().sql(`insert into public.social_post_extra_photos
+      (media_id,post_id,owner_profile_id,position,object_key,sha256,width,height,byte_size,alt_text,moderation_state) values
+      ('${fourth}','${PHOTO_POST}','${TARGET_PROFILE}',4,'social-extra/${fourth}/image.jpg',repeat('b',64),800,1000,100,'Fourth','needs_review'),
+      ('${third}','${PHOTO_POST}','${TARGET_PROFILE}',3,'social-extra/${third}/image.jpg',repeat('c',64),800,1000,100,'Third','pending'),
+      ('${second}','${PHOTO_POST}','${TARGET_PROFILE}',2,'social-extra/${second}/image.jpg',repeat('d',64),800,1000,100,'Second','approved'),
+      ('${unrelated}','${POST}','${TARGET_PROFILE}',2,'social-extra/${unrelated}/image.jpg',repeat('e',64),800,1000,100,'Unreported','approved')`);
+    try {
+      const reportId = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','post','${PHOTO_POST}','harassment')`);
+      expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${reportId}')`)).toEqual({
+        reportId, postId: PHOTO_POST, body: "", media: [
+          { kind: "photo", objectKey: PHOTO_KEY },
+          { kind: "photo", objectKey: `social-extra/${second}/image.jpg` },
+          { kind: "photo", objectKey: `social-extra/${third}/image.jpg` },
+          { kind: "photo", objectKey: `social-extra/${fourth}/image.jpg` },
+          { kind: "video", objectKey: VIDEO_KEY },
+        ],
+      });
+      expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${POST}')`)).toBeNull();
+      expect(json(`select public.read_reported_post_evidence_admin('${STAFF}','${unrelated}')`)).toBeNull();
+      expect(scalar(`select count(*) from public.social_report_evidence_audit where report_id='${reportId}' and post_id='${PHOTO_POST}' and staff_role_id='${STAFF}'`)).toBe("1");
+    } finally {
+      db().sql(`delete from public.social_post_extra_photos where media_id in ('${second}','${third}','${fourth}','${unrelated}')`);
+    }
+  });
+
   it("refuses a reported post read when its audit cannot be written", () => {
     const reportId = scalar(`select id from public.report_social_content('${REPORTER_PROFILE}','post','${POST}','harassment')`);
     db().sql(`create function public.reject_post_evidence_audit() returns trigger language plpgsql as $$

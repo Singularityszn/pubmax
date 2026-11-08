@@ -6,6 +6,7 @@ import {
   parseReportedPostEvidence,
   parseSafetyReports,
   parseSuspensionOutcome,
+  REPORTED_POST_MEDIA_LIMIT,
   SAFETY_QUEUE_LIMIT,
   type MessageEvidence,
   type ReportedPostEvidence,
@@ -73,13 +74,13 @@ export function createSocialSafetyStore(rpc: SocialSafetyRpc = defaultRpc) {
         });
         if (value === null) return { evidence: null };
         const row = value as Record<string, unknown>;
-        if (!row || row.reportId !== input.reportId || !Array.isArray(row.media) || row.media.length > 2) {
+        if (!row || row.reportId !== input.reportId || !Array.isArray(row.media) || row.media.length > REPORTED_POST_MEDIA_LIMIT) {
           throw new SocialSafetyStoreError("Evidence answer is malformed.");
         }
         const uuid = "[0-9a-f-]{36}";
         for (const media of row.media) {
           const pattern = media?.kind === "photo"
-            ? new RegExp(`^social/${uuid}/${uuid}/image\\.jpg$`)
+            ? new RegExp(`^(social/${uuid}/${uuid}|social-extra/${uuid})/image\\.jpg$`)
             : media?.kind === "video" ? new RegExp(`^social-video/${uuid}/video\\.(mp4|webm|mov)$`) : null;
           if (!pattern || typeof media.objectKey !== "string" || !pattern.test(media.objectKey)) {
             throw new SocialSafetyStoreError("Evidence answer is malformed.");

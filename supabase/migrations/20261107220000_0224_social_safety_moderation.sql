@@ -251,14 +251,18 @@ begin
   if v_report.id is null then return null; end if;
   select * into v_post from public.social_posts where id = v_report.content_id for share;
   if v_post.id is null then return null; end if;
-  select coalesce(jsonb_agg(item.evidence order by item.evidence->>'kind'), '[]'::jsonb) into v_media
+  select coalesce(jsonb_agg(item.evidence order by item.position), '[]'::jsonb) into v_media
   from (
-    select jsonb_build_object('kind', 'photo', 'objectKey', media.object_key) as evidence
+    select 1 as position, jsonb_build_object('kind', 'photo', 'objectKey', media.object_key) as evidence
     from public.social_post_media media
     where media.id = v_post.photo_media_id and media.owner_profile_id = v_post.author_profile_id
       and media.attachment_state = 'active'
     union all
-    select jsonb_build_object('kind', 'video', 'objectKey', video.object_key)
+    select photo.position, jsonb_build_object('kind', 'photo', 'objectKey', photo.object_key)
+    from public.social_post_extra_photos photo
+    where photo.post_id = v_post.id and photo.owner_profile_id = v_post.author_profile_id
+    union all
+    select 5, jsonb_build_object('kind', 'video', 'objectKey', video.object_key)
     from public.social_post_videos video
     join public.social_video_uploads upload on upload.id = video.upload_id
       and upload.claimed_post_id = v_post.id and upload.object_key = video.object_key

@@ -278,17 +278,33 @@ describe("reported post evidence", () => {
     expect(sign).not.toHaveBeenCalled();
   });
 
-  it("returns full text and only short-lived signed photo and video URLs", async () => {
+  it("returns full text, four carousel photos and video as short-lived signed URLs", async () => {
+    const second = `social-extra/${PROFILE}/image.jpg`;
+    const third = `social-extra/${MESSAGE}/image.jpg`;
+    const fourth = `social-extra/${REPORT}/image.jpg`;
     rpc.mockResolvedValue({ data: { reportId: REPORT, postId: PROFILE, body,
-      media: [{ kind: "photo", objectKey: photo }, { kind: "video", objectKey: video }], unrelatedPost: "private" }, error: null });
-    sign.mockImplementation(async (key: string) => ({ data: { signedUrl: `https://storage.example/signed?token=${key === photo ? "photo" : "video"}` }, error: null }));
+      media: [{ kind: "photo", objectKey: photo }, { kind: "photo", objectKey: second },
+        { kind: "photo", objectKey: third }, { kind: "photo", objectKey: fourth },
+        { kind: "video", objectKey: video }], unrelatedPost: "private" }, error: null });
+    sign.mockResolvedValueOnce({ data: { signedUrl: "https://storage.example/signed?token=photo" }, error: null })
+      .mockResolvedValueOnce({ data: { signedUrl: "https://storage.example/signed?token=second" }, error: null })
+      .mockResolvedValueOnce({ data: { signedUrl: "https://storage.example/signed?token=third" }, error: null })
+      .mockResolvedValueOnce({ data: { signedUrl: "https://storage.example/signed?token=fourth" }, error: null })
+      .mockResolvedValueOnce({ data: { signedUrl: "https://storage.example/signed?token=video" }, error: null });
     const response = await post(input);
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(await response.json()).toEqual({ evidence: { reportId: REPORT, postId: PROFILE, body,
       media: [{ kind: "photo", url: "https://storage.example/signed?token=photo" },
+        { kind: "photo", url: "https://storage.example/signed?token=second" },
+        { kind: "photo", url: "https://storage.example/signed?token=third" },
+        { kind: "photo", url: "https://storage.example/signed?token=fourth" },
         { kind: "video", url: "https://storage.example/signed?token=video" }] } });
+    expect(sign).toHaveBeenCalledTimes(5);
     expect(sign).toHaveBeenCalledWith(photo, 180);
+    expect(sign).toHaveBeenCalledWith(second, 180);
+    expect(sign).toHaveBeenCalledWith(third, 180);
+    expect(sign).toHaveBeenCalledWith(fourth, 180);
     expect(sign).toHaveBeenCalledWith(video, 180);
     expect(rpc).toHaveBeenCalledWith("read_reported_post_evidence_admin", { p_staff_role_id: STAFF_ROLE, p_report_id: REPORT });
   });
@@ -306,6 +322,8 @@ describe("reported post evidence", () => {
     [null, { message: "staff required" }, 503],
     [{ reportId: MESSAGE, postId: PROFILE, body, media: [] }, null, 503],
     [{ reportId: REPORT, postId: PROFILE, body, media: [{ kind: "photo", objectKey: "private/other.jpg" }] }, null, 503],
+    [{ reportId: REPORT, postId: PROFILE, body, media: [{ kind: "photo", objectKey: `social-extra/${MESSAGE}/other.jpg` }] }, null, 503],
+    [{ reportId: REPORT, postId: PROFILE, body, media: Array.from({ length: 6 }, () => ({ kind: "photo", objectKey: photo })) }, null, 503],
   ])("refuses unavailable or mismatched evidence without signing", async (data, error, status) => {
     rpc.mockResolvedValue({ data, error });
     const response = await post(input);

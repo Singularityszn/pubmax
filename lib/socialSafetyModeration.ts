@@ -13,8 +13,10 @@ import {
   type SocialReportKind,
   type SocialReportReason,
 } from "@/lib/socialInteractions";
+import { SOCIAL_POST_MAX_PHOTOS } from "@/lib/socialPostPhotos";
 
 export const SAFETY_QUEUE_LIMIT = 50;
+export const REPORTED_POST_MEDIA_LIMIT = SOCIAL_POST_MAX_PHOTOS + 1;
 export const SUSPEND_REASON_MIN = 3;
 export const SUSPEND_REASON_MAX = 500;
 
@@ -265,7 +267,7 @@ export type ReportedPostEvidence = {
 export function parseReportedPostEvidence(value: unknown): ReportedPostEvidence | null {
   const row = record(value);
   if (!row || !isUuid(row.reportId) || !isUuid(row.postId) || typeof row.body !== "string"
-    || !Array.isArray(row.media) || row.media.length > 2) return null;
+    || !Array.isArray(row.media) || row.media.length > REPORTED_POST_MEDIA_LIMIT) return null;
   const media: ReportedPostEvidence["media"] = [];
   for (const item of row.media) {
     const attachment = record(item);

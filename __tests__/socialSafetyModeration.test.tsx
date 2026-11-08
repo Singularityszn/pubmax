@@ -67,6 +67,9 @@ beforeEach(() => {
       if (action.action === "view_post_evidence") return Response.json({ evidence: {
         reportId: action.reportId, postId: id(100), body: "Full reported post. ".repeat(30),
         media: [{ kind: "photo", url: "https://storage.example/signed-photo" },
+          { kind: "photo", url: "https://storage.example/signed-second" },
+          { kind: "photo", url: "https://storage.example/signed-third" },
+          { kind: "photo", url: "https://storage.example/signed-fourth" },
           { kind: "video", url: "https://storage.example/signed-video" }],
       } });
       if (action.action === "resolve_report") reports = reports.filter((row) => row.reportId !== action.reportId);
@@ -127,7 +130,7 @@ describe("bounded moderation queues", () => {
 });
 
 describe("moderation of returning senders and attachments", () => {
-  it("loads the reported post's full text, photo and video only on demand", async () => {
+  it("loads the reported post's full text, four carousel photos and video only on demand", async () => {
     reports = [{ ...reports[0]!, kind: "post", excerpt: "" }];
     messages = [];
     await render();
@@ -135,7 +138,10 @@ describe("moderation of returning senders and attachments", () => {
     expect(host.querySelector("video")).toBeNull();
     await decide("View reported post");
     expect(host.querySelector('[aria-label="Reported post evidence"] p')?.textContent).toBe("Full reported post. ".repeat(30));
-    expect(host.querySelector("img")?.getAttribute("src")).toBe("https://storage.example/signed-photo");
+    expect([...host.querySelectorAll("img")].map((image) => image.getAttribute("src"))).toEqual([
+      "https://storage.example/signed-photo", "https://storage.example/signed-second",
+      "https://storage.example/signed-third", "https://storage.example/signed-fourth",
+    ]);
     expect(host.querySelector("video")?.getAttribute("src")).toBe("https://storage.example/signed-video");
     await decide("View reported post");
     expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
