@@ -54,4 +54,4 @@ Route and API ceilings live in `perf/AGENTS.md` and `lib/apiBudgets.mjs`. A ceil
 
 ## Proof
 
-`npm run verify` is the merge bar. Run the route's own tests with `npx vitest run __tests__/<name>.test.ts` while you work.
+Follow the [verification policy](../../../AGENTS.md#verifying) for local checks and the [CI runbook](../../../docs/CI_RUNBOOK.md#the-required-checks-and-the-merge-queue) for merge requirements. Run the route's own tests with `npx vitest run __tests__/<name>.test.ts` while you work.

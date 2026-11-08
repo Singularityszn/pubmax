@@ -3,14 +3,14 @@ name: Security CI
 # zizmor (workflow lint), osv-scanner (lockfile CVEs), Semgrep CE (SAST),
 # gitleaks (secrets in git history; the range each event scans is set at the
 # gitleaks step).
-# Each job installs its CLI on ubuntu-latest. These checks are advisory: no
-# branch protection requires them, so a red job here blocks nothing on its own.
+# Each job installs its CLI on ubuntu-latest.
 # The weekly run catches a new advisory against a lockfile or a pinned action
 # when no pull request is open. The zizmor token is the job token, not a
 # repository secret.
 
 on:
   pull_request:
+  merge_group:
   push:
     branches: [main]
   schedule:
@@ -127,7 +127,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$EVENT_NAME" in
-            pull_request)
+            pull_request|merge_group)
               log_opts="--full-history HEAD"
               ;;
             push)
@@ -177,3 +177,22 @@ jobs:
             --exclude public/data \
             --exclude uk_base/public/data \
             app lib components scripts proxy.ts next.config.mjs
+
+  check:
+    name: Security CI check
+    if: ${{ always() }}
+    needs: [zizmor, osv-scanner, gitleaks, semgrep]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a needed job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          red="$(printf '%s' "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')"
+          if [ -n "$red" ]; then
+            echo "::error::Not green: $red"
+            exit 1
+          fi

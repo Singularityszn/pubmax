@@ -331,7 +331,7 @@ Current verification rules live in [PERFORMANCE_BUDGETS.md](../PERFORMANCE_BUDGE
 3. The Vercel challenge rule (item 15) and a written note of the threshold in `docs/DEPLOYMENT.md`.
 4. Confirm participant access after the `profiles.user_id` backfill. Astra reports migration 0152 applied; its old in-flight label is stale.
 5. Per-IP limits that a pub's shared Wi-Fi can survive: `/api/ask` 10 per minute per IP becomes 10 per minute per account with a 60 per minute IP ceiling; the same shape for `/api/out` and `/api/whats-on`.
-6. `check:freshness` on the merge bar with the store-backed weather row (thermo P1-5 done; keep it green).
+6. Follow the [freshness gate policy](../CI_RUNBOOK.md#the-freshness-gate) for the store-backed weather row.
 7. Offline: precache the reader's chosen area's shard on first pins so a pub with no signal still has its pins.
 
 ---

@@ -45,6 +45,31 @@ export class ReleaseRefusal extends Error {
   }
 }
 
+// The release checks freshness before any upload. docs/CI_RUNBOOK.md owns
+// the trigger policy. __tests__/ciSummaryCheck.test.ts checks each command
+// independently in the workflow and the release preflight.
+export const FRESHNESS_GATE_COMMANDS = [
+  ["node", ["scripts/check_freshness.mjs", "--artifacts-only"]],
+  ["node", ["scripts/check-production-store-freshness.mjs"]],
+];
+
+/** A release preflight that refuses while the freshness gate is red. */
+export function freshnessPreflight(run) {
+  return {
+    name: "the freshness gate passes",
+    run: async () => {
+      for (const [command, args] of FRESHNESS_GATE_COMMANDS) {
+        const result = await run(command, args, {});
+        if (result.status !== 0) {
+          throw new ReleaseRefusal(
+            `The freshness gate is red: ${command} ${args.join(" ")} failed, so nothing was uploaded.`,
+          );
+        }
+      }
+    },
+  };
+}
+
 /**
  * @param {object} deps
  * @param {(command: string, args: string[], options?: { capture?: boolean }) => Promise<{ status: number, stdout: string }>} deps.run

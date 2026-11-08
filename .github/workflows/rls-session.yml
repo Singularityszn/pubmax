@@ -1,13 +1,16 @@
 # Effective RLS session tests against real PostgreSQL 16 and PostgREST 14.
 #
 # The main `npm run ci` gate skips these tests loudly when local database
-# binaries are absent. This job is the push and pull-request proof.
+# binaries are absent. This job proves policies on pushes, pull requests and merge groups.
 name: RLS session tests
 
 on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue tests the exact commit that will land on main
+  # (docs/CI_RUNBOOK.md, "The required checks and the merge queue").
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -109,3 +112,22 @@ jobs:
           # Vitest still reports intentional skips only when binaries are missing;
           # with postgresql-16 on PATH they must all run and pass.
           CI: true
+
+  check:
+    name: RLS session check
+    if: ${{ always() }}
+    needs: [rls-session]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a needed job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          red="$(printf '%s' "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')"
+          if [ -n "$red" ]; then
+            echo "::error::Not green: $red"
+            exit 1
+          fi

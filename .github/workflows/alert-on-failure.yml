@@ -27,6 +27,7 @@ on:
       - API performance
       - Browser tests
       - Drink price refresh
+      - Freshness release gate
       - Performance
       - Production smoke
       - Production uptime

@@ -99,11 +99,24 @@ describe("browser jobs on their runners", () => {
     expect(pullRequestWorkflows.map(({ file }) => file)).toEqual([
       "ci.yml",
       "e2e.yml",
+      "freshness.yml",
       "rls-session.yml",
       "security-ci.yml",
     ]);
     for (const { file, parsed } of pullRequestWorkflows) {
       expect(parsed.concurrency, file).toEqual({
+        group: file === "e2e.yml" ? MAIN_PUSH_GROUP : OWN_RUN_GROUP,
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
+      });
+    }
+  });
+
+  it("gives all five required workflows separate merge queue runs", () => {
+    const required = ["ci.yml", "e2e.yml", "freshness.yml", "rls-session.yml", "security-ci.yml"];
+    for (const file of required) {
+      const parsed = workflows.find((entry) => entry.file === file)?.parsed;
+      expect(parsed?.on, file).toHaveProperty("merge_group");
+      expect(parsed?.concurrency, file).toEqual({
         group: file === "e2e.yml" ? MAIN_PUSH_GROUP : OWN_RUN_GROUP,
         "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
       });
