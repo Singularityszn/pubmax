@@ -861,7 +861,12 @@ export default function PrivacyPage() {
             <dt>Email and push</dt>
             <dd>
               Supabase sends account magic links and stores an optional contact
-              address when you ask PUBMAXX to cover an area. There is no
+              address when you ask PUBMAXX to cover an area. When somebody asks
+              to join a crawl, PUBMAXX emails the host through Resend. When a
+              host lets them in, PUBMAXX emails the guest through Resend. Each
+              email uses the recipient&rsquo;s account email address, the handle
+              of the person who acted, the crawl title and a link to the crawl.
+              We only send these emails when email delivery is set up. There is no
               marketing list or email digest. If you turn notifications on,
               PUBMAXX stores your browser&rsquo;s push subscription, the endpoint
               plus its keys, so it can send you the notification; the
