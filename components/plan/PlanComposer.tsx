@@ -107,6 +107,7 @@ import { parsePlanRouteDraftV2, reconcilePlanRouteDrafts, PLAN_ROUTE_DRAFT_V2_KE
 import {
   PLANNING_INTENT_SOURCES,
   PLANNING_INTENT_STORAGE_KEY,
+  parsePlanningIntent,
   readPlanningIntent,
   settlePlanningIntent,
   type PlanningIntentArea,
@@ -794,14 +795,17 @@ const COMPOSER_OWNERSHIP_CHANGED = "The saved planning request changed. Reload t
 
 type ComposerDraftPair = { v1: string | null; v2: string | null };
 type ComposerRequestOwner = {
-  session: Record<string, string | null> | null;
-  local: Record<string, string | null> | null;
+  identity: ComposerHydration["acceptedAnchor"];
+  session: Record<string, string | null | undefined> | null;
+  local: Record<string, string | null | undefined> | null;
 };
 
-function readComposerAcceptanceRecords(): ComposerRequestOwner {
-  function read(storage: Storage | null, keys: string[]): Record<string, string | null> | null {
+function readComposerAcceptanceRecords(): Omit<ComposerRequestOwner, "identity"> {
+  function read(storage: Storage | null, keys: string[]): Record<string, string | null | undefined> | null {
     if (!storage) return null;
-    try { return Object.fromEntries(keys.map((key) => [key, storage.getItem(key)])); } catch { return null; }
+    return Object.fromEntries(keys.map((key) => {
+      try { return [key, storage.getItem(key)]; } catch { return [key, undefined]; }
+    }));
   }
   return {
     session: read(safeSessionStorage(), [PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, PLANNING_INTENT_STORAGE_KEY]),
@@ -812,11 +816,24 @@ function readComposerAcceptanceRecords(): ComposerRequestOwner {
 function ownsAcceptance(owner: ComposerRequestOwner | null): boolean {
   if (!owner) return true;
   const current = readComposerAcceptanceRecords();
+  const rawIntent = current.session?.[PLANNING_INTENT_STORAGE_KEY];
+  const intent = rawIntent ? parsePlanningIntent(rawIntent) : null;
+  if (intent && owner.identity) {
+    const anchor = owner.identity;
+    if (anchor.venueId !== intent.acceptedVenueId || anchor.source !== intent.source
+      || anchor.cityId !== intent.cityId || anchor.startsAt !== intent.startsAt
+      || anchor.expiresAt !== intent.expiresAt
+      || JSON.stringify(anchor.acceptedArea) !== JSON.stringify(intent.acceptedArea)) return false;
+  }
+  // Shared intake joins the acceptance only once this tab holds a grounded route.
+  let tracksIntake = false;
+  try { tracksIntake = Boolean(JSON.parse(owner.local?.[PLAN_ROUTE_DRAFT_KEY] ?? "null")?.groundingProof); } catch {}
   return (["session", "local"] as const).every((scope) => {
     const expected = owner[scope];
     const stored = current[scope];
-    return expected !== null && stored !== null
-      && Object.entries(expected).every(([key, value]) => stored[key] === value);
+    return expected === null || stored !== null
+      && Object.entries(expected).every(([key, value]) =>
+        (key === PLAN_INTAKE_STORAGE_KEY && !tracksIntake) || stored[key] === value);
   });
 }
 
@@ -889,7 +906,7 @@ function composerRouteValidationFailed(
   route: StoredRouteDraft | null,
   value: ParsedPlanRouteDraft["value"],
 ): boolean {
-  return value.routeStale && (!route?.routeStale || Boolean(route.groundingProof && !value.groundingProof));
+  return value.routeStale && !route?.routeStale;
 }
 
 function recoverLegacyComposerRoute(
@@ -900,6 +917,9 @@ function recoverLegacyComposerRoute(
   // Raw V1 supplies rollback stops. The route reader supplies approval.
   if (!value || composerRouteValidationFailed(route, value)) {
     return composerRoutePreview(route.stops, route.savedAt, route.explicitNightContext);
+  }
+  if (route.groundingProof && !value.groundingProof) {
+    return { ...route, groundingProof: null, createOperationKey: null, planAnchor: null };
   }
   return {
     ...route,
@@ -1058,7 +1078,10 @@ function recoveredPreviewForStorage(
   if (recovery.recoveredDraft?.provisionalStop || recovery.route === stored || !preview?.routeStale || !stored.route || !stored.pair) return null;
   const corroboratedSessionDate = recovery.sessionWins ? recovery.planDraft?.savedAt ?? null : null;
   if (!canCopyRecoveredRoute(corroboratedSessionDate, stored)) return null;
-  return preview.savedAt !== stored.route.savedAt || composerRouteContent(preview) !== composerRouteContent(stored.route)
+  // A stale record without proof keeps its rollback bytes when its stops already match.
+  const storedPreview = stored.route.routeStale && !stored.route.groundingProof && !stored.route.createOperationKey
+    ? composerRoutePreview(stored.route.stops, stored.route.savedAt, stored.route.explicitNightContext) : stored.route;
+  return preview.savedAt !== stored.route.savedAt || composerRouteContent(preview) !== composerRouteContent(storedPreview)
     ? { route: preview, corroboratedSessionDate, originalPair: stored.pair } : null;
 }
 
@@ -2856,8 +2879,8 @@ function PlanComposerForm({
     const savedRoute = retainedPreview ?? saveComposerRouteCopy(routeDraft, routeCopy, {
       savedAt, successfulGeneration, actualMutation, preserveStoredDrafts, recoveredRouteDraft, recoveredPreviewToCopy, owner,
     });
-    if (!ownsAcceptance(owner)) return showSaveFailure("request");
     const { routeChanged, hasRouteDetails, routeSaved, previewSaved, routeReference } = savedRoute;
+    if (!ownsAcceptance(owner)) return showSaveFailure(hasRouteDetails && !routeSaved ? "route" : "request");
     if (!actualMutation && !canSaveRecoveredComposerRequest(requestAmbiguous, routeCopy.current.savedAt, acceptedIntentTime)) return;
     const keepRevocation = (provisionalStop && acceptanceReleased) || preserveComposerRouteRevocation(routeSorted, recoveredDraft, previousIntake);
     const sessionDraft = composerSessionDraftForSave({
@@ -4166,20 +4189,19 @@ export default function PlanComposer() {
   const recovery = useMemo(() => {
     if (!hydrated || accountGeneration > 0) return null;
     try {
-      const acceptedRecords = readComposerAcceptanceRecords();
       const session = readComposerSessionDraft();
       const routeRecovery = readComposerRouteDraft();
       const recovery = projectComposerRecovery({
         plan: session.plan,
         legacyDraft: session.legacyDraft,
         legacyDraftMissing: session.legacyDraftMissing,
-        intake: readComposerIntakeForSave(),
+        intake: readPlanIntakeDraftWithMetadata(),
         planningIntent: readPlanningIntent({ cleanupInvalid: false }),
       }, routeRecovery);
       return {
         ...recovery,
         acceptedOwner: recovery.provisionalRequest || recovery.datedProvisionalSuccessor || recovery.handoff?.heldVenueId
-          ? acceptedRecords : null,
+          ? { ...readComposerAcceptanceRecords(), identity: recovery.handoff?.acceptedAnchor ?? null } : null,
         previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery),
       };
     } catch { return null; }
