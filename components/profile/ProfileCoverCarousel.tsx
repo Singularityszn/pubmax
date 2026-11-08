@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
+import ProfileCoverImage from "@/components/profile/ProfileCoverImage";
 import {
   coverCarouselRotates,
   nextCoverIndex,
@@ -17,17 +18,21 @@ import { profileImageOutputBox } from "@/lib/profileImageSlots";
 // 1. IT STARTS STILL. `reducedMotion` begins true, because a server render
 //    cannot ask the reader's setting and a page that starts moving and then
 //    stops is worse than one that starts still and then moves. The first paint
-//    is therefore cover #1 alone, on every reader's machine, and the rotation
-//    only begins once the browser has answered.
+//    reserves one still frame for cover #1. `ProfileCoverImage` loads its bytes
+//    for the current reader. The rotation only begins once the browser
+//    answers the motion query.
 //
 // 2. REDUCED MOTION MEANS NO ROTATION AT ALL. Not a slower one, not a fade
 //    without a timer: the first cover, static, and the other four are never
 //    even fetched. `coverCarouselRotates` is the one predicate that decides it.
 //
-// 3. A COVER THAT WILL NOT LOAD LEAVES THE ROTATION. A moderator hide or a
-//    storage refusal answers 404, and a broken frame in a five-photo cycle
-//    would return every 25 seconds. The band keeps the brass treatment
-//    underneath, so an empty rotation is still a card rather than a gap.
+// 3. A COVER THAT WILL NOT LOAD LEAVES THIS READER'S ROTATION. A moderator
+//    hide, a private account or a storage refusal answers 404, and a broken
+//    frame in a five-photo cycle would return every 25 seconds. The answer
+//    depends on who is reading (`ProfileCoverImage`), so a new reader or a
+//    refreshed session starts with no exclusions. The band keeps the brass
+//    treatment underneath, so an empty rotation is still a card rather than
+//    a gap.
 //
 // Tapping does nothing: this is a backdrop, not a gallery. It is `aria-hidden`
 // through its parent for the same reason the single cover always was.
@@ -57,7 +62,15 @@ export default function ProfileCoverCarousel({
 }: {
   covers: readonly string[];
 }) {
-  const [failed, setFailed] = useState<string[]>([]);
+  const { accountRevision, providerAuthState, supabaseAuthState, session, user } = useAuth();
+  const readerKey = `${accountRevision}:${user?.id ?? ""}:${providerAuthState}:${supabaseAuthState}`;
+  const [failedState, setFailed] = useState<{
+    readerKey: string;
+    session: typeof session;
+    urls: string[];
+  }>({ readerKey, session, urls: [] });
+  const failed =
+    failedState.readerKey === readerKey && failedState.session === session ? failedState.urls : [];
   const [active, setActive] = useState(0);
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
@@ -86,16 +99,21 @@ export default function ProfileCoverCarousel({
   return (
     <div className="profileCoverFrames" data-cover-count={frames.length}>
       {frames.map((url, index) => (
-        <Image
+        <ProfileCoverImage
           key={url}
           className={`profileCoverImage${index === shown ? " profileCoverImageActive" : ""}`}
           src={url}
           alt=""
           width={BOX.width}
           height={BOX.height}
-          unoptimized
           priority={index === 0}
-          onError={() => setFailed((prev) => (prev.includes(url) ? prev : [...prev, url]))}
+          onError={() =>
+            setFailed((prev) => {
+              const urls =
+                prev.readerKey === readerKey && prev.session === session ? prev.urls : [];
+              return { readerKey, session, urls: urls.includes(url) ? urls : [...urls, url] };
+            })
+          }
         />
       ))}
     </div>

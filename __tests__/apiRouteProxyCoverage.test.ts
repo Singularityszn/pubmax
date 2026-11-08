@@ -89,7 +89,7 @@ describe("the proxy matcher runs on every /api route", () => {
   });
 });
 
-describe("every /api route skips Clerk once both keys are set", () => {
+describe("API and image optimiser requests skip Clerk once both keys are set", () => {
   const clerkProxy = vi.fn(() => new Response(null, { status: 418 }));
   let proxy: (request: NextRequest, event: NextFetchEvent) => unknown;
 
@@ -113,6 +113,39 @@ describe("every /api route skips Clerk once both keys are set", () => {
     const response = await proxy(new NextRequest("https://pubmaxxing.com/login"), {} as NextFetchEvent);
     expect((response as Response).status).toBe(418);
     clerkProxy.mockClear();
+  });
+
+  it("refuses cover generations at the optimiser but passes ordinary local images", async () => {
+    const cases = [
+      ["/api/cover/profile-id/generation-one", 400],
+      ["/api/cover/profile-id/generation-two", 400],
+      ["/api/%63over/profile-id/generation-one", 400],
+      ["/api%2Fcover%2Fprofile-id%2Fgeneration-one", 400],
+      ["/brand/../api/cover/profile-id/generation-one", 400],
+      ["https://pubmaxxing.com/api/cover/profile-id/generation-one", 400],
+      ["/brand/icon-192.png", 200],
+      ["/api/avatar/profile-id/generation-one", 200],
+    ] as const;
+
+    for (const host of HOSTS) {
+      for (const prefetch of [false, true]) {
+        for (const [source, status] of cases) {
+          const url = new URL(`https://${host}/_next/image`);
+          url.search = new URLSearchParams({ url: source, w: "640", q: "75" }).toString();
+          const headers: Record<string, string> = { host };
+          if (prefetch) headers["next-router-prefetch"] = "1";
+          expect(unstable_doesMiddlewareMatch({ config, url: url.href, headers })).toBe(true);
+          const response = await proxy(
+            new NextRequest(url, { headers }),
+            {} as NextFetchEvent,
+          ) as Response;
+          expect(response.status, source).toBe(status);
+          expect(response.headers.get("x-middleware-next"), source).toBe(status === 200 ? "1" : null);
+          if (status === 400) expect(response.headers.get("cache-control")).toBe("private, no-store");
+        }
+      }
+    }
+    expect(clerkProxy).not.toHaveBeenCalled();
   });
 
   it.each(HOSTS)("hands every route on %s to securityProxy", async (host) => {
