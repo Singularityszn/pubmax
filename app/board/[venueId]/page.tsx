@@ -1,5 +1,6 @@
 import type { Metadata, Route } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
 import BoardReader from "@/components/board/BoardReader";
@@ -45,14 +46,14 @@ export default async function BoardPage({ params }: PageProps): Promise<React.JS
   const { venueId } = await params;
   const read = await lookupVenueDetail(venueId);
 
-  if (read.status !== "found" || !isPubVenueKind(read.venue.kind)) {
+  if (read.status === "unavailable") {
     return (
       <Shell>
         <Screen
           as="section"
           className="boardScreen"
           kicker={BOARD_READ_ACTION}
-          title={read.status === "unavailable" ? "We could not open this pub just now" : "This pub isn't on the map"}
+          title="We could not open this pub just now"
           titleId="board-title"
         >
           <Link prefetch={false} href={"/map" as Route}>Back to the map</Link>
@@ -60,6 +61,7 @@ export default async function BoardPage({ params }: PageProps): Promise<React.JS
       </Shell>
     );
   }
+  if (read.status !== "found" || !isPubVenueKind(read.venue.kind)) notFound();
 
   const { venue } = read;
   return (

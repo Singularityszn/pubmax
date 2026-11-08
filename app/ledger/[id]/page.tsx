@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import { BRAND_NAME } from "@/lib/brandNaming";
@@ -58,8 +59,9 @@ type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-// missing is the not-found card, and it may be held: the dataset only changes
-// on a deploy. A read we could not RUN is never held: the page throws, so ISR
+// missing is notFound(), a 404 that may be held: the dataset only changes on
+// a deploy (./not-found.tsx draws the card). A read we could not RUN is never
+// held: the page throws, so ISR
 // keeps the last good copy (or holds nothing) and the next request reads
 // again, and app/ledger/[id]/error.tsx draws the read-unavailable card.
 
@@ -160,33 +162,13 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
   };
 }
 
-function NotInTheLedger() {
-  return (
-    <main id="main" className="ledgerPage ledgerPage--empty">
-      <div className="ledgerEmptyCard">
-        <Link className="ledgerHomeLink" href="/">
-          PUBMAXX
-        </Link>
-        <p className="ledgerEyebrow">The Ledger</p>
-        <h1 className="ledgerEmptyTitle">This pub isn&rsquo;t in the ledger</h1>
-        <p className="ledgerEmptyBody">
-          It may have moved, or the link is wrong. Every mapped pub still has a home.
-        </p>
-        <Link prefetch={false} className="ledgerPrimaryLink" href="/map">
-          Back to the map
-        </Link>
-      </div>
-    </main>
-  );
-}
-
 export default async function LedgerPage({ params }: PageProps) {
   const { id } = await params;
   // Three answers, and the order is the rule: a read we could not run is
   // answered BEFORE the not-found card, or the card swallows it.
   const read = await lookupVenueDetail(id);
   if (read.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
-  if (read.status !== "found") return <NotInTheLedger />;
+  if (read.status !== "found") notFound();
   const { venue } = read;
   // Everything below reads/links off the canonical venue id (D1) so a merged
   // alias URL and the surviving canonical URL share the same logbook, Family
