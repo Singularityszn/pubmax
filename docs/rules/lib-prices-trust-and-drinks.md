@@ -84,6 +84,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      An outer serving word in `Double Single Malt Whisky` leaves `Single Malt Whisky` as the product name.
      If the drink is identified but no line satisfies the price and serving constraints, the verdict is `mismatch`.
      A bill without an identifiable priced line for the drink is `unreadable`.
+     A price sent with only its category ("Beer" from the one-tap door) is tied to a line whose product resolves to that category through the drink keywords and brand tables, so "Pint of Guinness" can confirm a Beer price and an item of another category never can.
      Only `match` grants a priced Pint Drop `receipt` through `grantBillMatch` and signals maps to read again.
      The check never hides or deletes a price.
   5. `price_bill_checks` stores each observation's verdict, photo hash, submitted price and pub identifier.

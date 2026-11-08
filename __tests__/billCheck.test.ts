@@ -124,6 +124,30 @@ describe("judgeBill", () => {
     ]);
   });
 
+  // A one-tap price names only its category ("Beer"). A bill line names the
+  // drink when its product belongs to that category, so "Pint of Guinness"
+  // can confirm a Beer price; an item of another category never can.
+  it("matches a bare category against a bill line whose product is in that category", () => {
+    expect(judgeBill(read([["Pint of Guinness", 6.2], ["Crisps", 1.5]]), 6.2, "Beer", "pint")).toEqual({
+      result: "match",
+      lines: [{ name: "Pint of Guinness", priceGbp: 6.2 }],
+    });
+    expect(judgeBill(read([["Peroni", 6.2]]), 6.2, "Beer").result).toBe("match");
+  });
+
+  it("reads a different price on a same-category line as a bare-category mismatch", () => {
+    expect(judgeBill(read([["Pint of Guinness", 6.8], ["Crisps", 1.5]]), 6.2, "Beer", "pint").result).toBe(
+      "mismatch",
+    );
+    expect(judgeBill(read([["Guinness half pint", 6.2]]), 6.2, "Beer", "pint").result).toBe("mismatch");
+  });
+
+  it("never lets an item of another category confirm a bare category", () => {
+    expect(judgeBill(read([["Chips", 6.2]]), 6.2, "Beer").result).toBe("unreadable");
+    expect(judgeBill(read([["House Merlot 175ml", 6.2]]), 6.2, "Beer").result).toBe("unreadable");
+    expect(judgeBill(read([["Pint of Guinness", 6.8], ["Chips", 6.2]]), 6.2, "Beer").result).toBe("mismatch");
+  });
+
   it("does not approve Guinness because chips share the submitted amount", () => {
     expect(judgeBill(read([["Guinness", 6.2], ["Chips", 5.2]]), 5.2, "Guinness").result).toBe("mismatch");
     expect(judgeBill(read([["Chips", 5.2]]), 5.2, "Guinness").result).toBe("unreadable");

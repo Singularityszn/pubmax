@@ -30,7 +30,8 @@
 import type { DrinkMeasure } from "@/lib/drinkMeasure";
 import { drinkCategoryFromText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import { brandsForCategory, normalizeDrinkHaystack } from "@/lib/drinkBrands";
-import { DRINK_CATEGORIES } from "@/lib/drinks";
+import { submitCategoryLabel } from "@/lib/communityPrice";
+import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { BEERS } from "@/lib/beers";
 import { drinkBrandCategoryAtStart } from "@/lib/drinkSubtypes";
 
@@ -162,6 +163,33 @@ function evidenceLines(lines: BillLine[]): BillLine[] {
     .map((line) => ({ name: cleanLineName(line.name.replace(/\d{4,}/g, " ")) || "Item", priceGbp: line.priceGbp }));
 }
 
+/**
+ * The category a submitted drink names when it is ONLY a category label, such
+ * as "Beer" from the one-tap price door, or null for a named drink. A bare
+ * category cannot equal one bill line's product name, so its lines are tied to
+ * it through the category their product belongs to instead.
+ */
+function bareCategoryOf(submittedName: string): DrinkCategory | null {
+  return DRINK_CATEGORIES.find((category) =>
+    billProductName(submitCategoryLabel(category).toLowerCase()) === submittedName) ?? null;
+}
+
+/**
+ * Whether a bill line names the submitted drink. A named drink needs the same
+ * product name. A bare category needs a product that resolves to that same
+ * category, through the drink keywords and the brand tables, so an item of any
+ * other category (chips, a glass of wine for a Beer price) never names it.
+ */
+function lineNamesDrink(
+  item: { name: string },
+  candidate: { name: string },
+  bareCategory: DrinkCategory | null,
+): boolean {
+  if (!bareCategory) return item.name === candidate.name;
+  if (!item.name) return false;
+  return drinkCategoryFromText(item.name) === bareCategory;
+}
+
 export function judgeBill(
   read: BillRead,
   submittedPriceGbp: number,
@@ -170,10 +198,11 @@ export function judgeBill(
 ): BillCheckVerdict {
   const submitted = billItem(drink);
   if (!submitted.name) return { result: "unreadable", lines: [] };
+  const bareCategory = bareCategoryOf(submitted.name);
   const named = read.lines.map((line) => {
-    const item = billItem(line.name, submitted.name);
-    return { line, item, submitted: billItem(drink, item.name) };
-  }).filter(({ item, submitted: candidate }) => item.name === candidate.name);
+    const item = billItem(line.name, bareCategory ? "" : submitted.name);
+    return { line, item, submitted: bareCategory ? submitted : billItem(drink, item.name) };
+  }).filter(({ item, submitted: candidate }) => lineNamesDrink(item, candidate, bareCategory));
   if (named.length === 0) return { result: "unreadable", lines: [] };
   const target = pence(submittedPriceGbp);
   const matching = named.filter(({ line, item, submitted: candidate }) => {
