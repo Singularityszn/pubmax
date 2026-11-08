@@ -26,6 +26,7 @@ type SurfaceReadExemption = {
 
 const SURFACE_READ_EXEMPTIONS = [
   { path: "app/admin/AdminClient.tsx", fetchCount: 30, reason: "admin moderation reads and writes use the admin lane" },
+  { path: "app/admin/SocialSafetyModeration.tsx", fetchCount: 2, reason: "admin safety queue reads and moderation or evidence requests use the private no-store admin session lane" },
   { path: "app/discover/DiscoverPageClient.tsx", fetchCount: 2, reason: "Social discover access and feed reads are explicit no-store" },
   { path: "app/feed/FeedPageClient.tsx", fetchCount: 4, reason: "Social feed and optimistic post actions keep their no-store and retry semantics" },
   { path: "app/rounds/[code]/RoundPageClient.tsx", fetchCount: 1, reason: "shared round view and report actions use their own lifecycle" },

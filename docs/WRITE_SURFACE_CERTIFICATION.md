@@ -11,7 +11,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 176 mutating handlers across 141 route files.** Each exported
+> **Inventory: 178 mutating handlers across 143 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -81,6 +81,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/profile-avatars`
 - `POST app/api/admin/session`
 - `POST app/api/admin/social-posts`
+- `POST app/api/admin/social-safety`
 - `POST app/api/admin/social-videos`
 - `POST app/api/admin/venue-submissions`
 - `POST app/api/area-demand`
@@ -439,6 +440,22 @@ bodies.
   missing migration, named staff authority, or storage failures return 503.
   Responses are private and no-store. No partial moderation result is
   returned.
+
+### `app/api/admin/social-safety` - Social safety moderation (0224)
+
+- **Route / method:** `GET` and `POST app/api/admin/social-safety/route.ts`.
+- **Authority:** both methods require `isModerator` and a named staff role.
+  Each service-role RPC checks that the staff role is an active moderator.
+- **Abuse control:** POST uses the `admin-social-safety` hashed-IP limiter,
+  with a limit of 60 requests per window, before the moderator check.
+- **Moderation:** POST resolves reports, reviews flagged messages, suspends
+  or reinstates accounts, and reads reported evidence. The
+  [permission matrix](security/PERMISSION_MATRIX.md) owns the evidence scope,
+  audit requirements and media access limits.
+- **Failure:** malformed input returns 400, missing moderator access returns
+  403, missing evidence or accounts return 404, and deleted accounts return 409.
+  Unavailable staff authority, storage or database reads return 503.
+  Queue and evidence responses are private and no-store.
 
 ### Social Crew authority routes (routes 81-88)
 

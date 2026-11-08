@@ -1019,6 +1019,9 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/socialPostStore.ts": { lane: "socialPosts" },
   "lib/socialPostVideoStore.ts": { lane: "socialPosts" },
   "lib/socialPubRankingStore.ts": { lane: "pubRankings" },
+  "lib/socialSafetyModerationStore.ts": {
+    excluded: "Moderator-side report queues, flagged-message reviews and moderation audit records are staff records, not account export content.",
+  },
   "lib/stepOutNudgeStore.ts": {
     excluded: "Push preferences and the day each nudge was last sent: a delivery record we keep, changed from the account's own settings surface.",
   },

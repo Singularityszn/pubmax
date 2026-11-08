@@ -244,6 +244,30 @@ describe("Social interactions route", () => {
     });
   });
 
+  it("reports a person by handle, resolving the handle on the server", async () => {
+    store.report.mockResolvedValue({ id: "33333333-3333-4333-8333-333333333333", createdAt: "2026-11-07T18:00:00.000Z" });
+    const { POST } = await import("@/app/api/social/interactions/route");
+    const send = (body: Record<string, unknown>) => POST(new Request(URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+
+    const response = await send({ action: "report", kind: "profile", targetHandle: "@Bob", reason: "harassment" });
+    expect(response.status).toBe(202);
+    expect(store.report).toHaveBeenCalledWith(actor, {
+      kind: "profile",
+      id: "22222222-2222-4222-8222-222222222222",
+      reason: "harassment",
+    });
+
+    store.report.mockClear();
+    expect((await send({ action: "report", kind: "profile", targetHandle: "nobody", reason: "spam" })).status).toBe(404);
+    expect((await send({ action: "report", kind: "profile", targetHandle: "bob", reason: "rude" })).status).toBe(400);
+    expect((await send({ action: "report", kind: "profile", id: "22222222-2222-4222-8222-222222222222", reason: "spam" })).status).toBe(400);
+    expect(store.report).not.toHaveBeenCalled();
+  });
+
   it("exposes report review and resolution only through the verified actor", async () => {
     store.reportQueue.mockResolvedValue({ items: [], nextCursor: null });
     const { GET, POST } = await import("@/app/api/social/interactions/route");

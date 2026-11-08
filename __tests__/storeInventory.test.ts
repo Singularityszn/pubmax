@@ -192,6 +192,11 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/socialPostStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostVideoStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPubRankingStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/socialSafetyModerationStore.ts": {
+    class: "not-dual-backend",
+    selector: "none",
+    reason: "Service-role RPC store for moderator queues, evidence and audited decisions; no memory implementation.",
+  },
   "lib/stepOutNudgeStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/tableRequestsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/venueOperatorsStore.ts": { class: "policy-heavy", selector: "selectStore" },
