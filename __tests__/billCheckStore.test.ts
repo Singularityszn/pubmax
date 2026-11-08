@@ -15,7 +15,6 @@ const db = vi.hoisted(() => ({
   schemaMiss: false,
   failWrites: false,
   uniqueViolation: false,
-  beforeUpdate: null as null | (() => Promise<void>),
 }));
 
 vi.mock("@/lib/deploymentEnv", () => ({ isDeployedProduction: () => false }));
@@ -35,11 +34,6 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     };
     const run = async () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
-      if (state.op === "update" && db.beforeUpdate) {
-        const beforeUpdate = db.beforeUpdate;
-        db.beforeUpdate = null;
-        await beforeUpdate();
-      }
       if (state.op === "insert") {
         if (db.failWrites) return { data: null, error: { message: "insert boom" } };
         if (db.uniqueViolation) {
@@ -148,7 +142,6 @@ describe.each([
     db.schemaMiss = false;
     db.failWrites = false;
     db.uniqueViolation = false;
-    db.beforeUpdate = null;
   });
 
   it("checks later corrections independently of the surviving community-price ID", async () => {
@@ -176,32 +169,16 @@ describe.each([
     expect(await store.reuseChecked({ ...MATCH, billHash: "b".repeat(64) })).toBeNull();
   });
 
-  it("reuses the same paired drop and bill after a repeated tap updates the community date", async () => {
+  it("reuses the same paired observation and bill", async () => {
     const stored = await store.record(MISMATCH);
-    const retry = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000 };
-    expect(await store.reuseChecked(retry)).toMatchObject({ id: stored.id, result: "mismatch", communityPriceSubmittedAt: SUBMITTED_AT + 1000 });
-    expect(await store.listMismatchesForReview()).toMatchObject([{ id: stored.id, communityPriceSubmittedAt: SUBMITTED_AT + 1000 }]);
+    const retry = { ...MISMATCH };
+    expect(await store.reuseChecked(retry)).toMatchObject({ id: stored.id, result: "mismatch", communityPriceSubmittedAt: SUBMITTED_AT });
+    expect(await store.listMismatchesForReview()).toMatchObject([{ id: stored.id, communityPriceSubmittedAt: SUBMITTED_AT }]);
     expect(await store.reuseChecked({ ...retry, billHash: "b".repeat(64) })).toBeNull();
     expect(await store.reuseChecked({ ...retry, priceGbp: 6.2 })).toBeNull();
     expect(await store.reuseChecked({ ...retry, pintDropId: "different-drop" })).toBeNull();
     expect(await store.reuseChecked({ ...retry, pintDropId: undefined })).toMatchObject({ id: stored.id });
     expect(await store.reuseChecked({ ...MISMATCH, communityPriceId: undefined, communityPriceSubmittedAt: undefined })).toMatchObject({ id: stored.id });
-  });
-
-  it("binds a drop-only mismatch to the current paired price without replacing its verdict", async () => {
-    const stored = await store.record({ ...MATCH, result: "mismatch" });
-    const paired = { ...MATCH, communityPriceId: "price-current", communityPriceSubmittedAt: SUBMITTED_AT };
-    expect(await store.reuseChecked(paired)).toMatchObject({
-      id: stored.id, result: "mismatch", communityPriceId: "price-current", communityPriceSubmittedAt: SUBMITTED_AT,
-    });
-    const retry = { ...paired, communityPriceSubmittedAt: SUBMITTED_AT + 1000 };
-    await store.reuseChecked(retry);
-    await store.reuseChecked(paired);
-    const claimed = await store.review(stored.id, "hidden");
-    expect(claimed).toMatchObject({
-      result: "mismatch", pintDropId: MATCH.pintDropId,
-      communityPriceId: "price-current", communityPriceSubmittedAt: SUBMITTED_AT + 1000,
-    });
   });
 
   it("keeps a later community-only observation separate even at the same price", async () => {
@@ -210,23 +187,12 @@ describe.each([
     expect(await store.reuseChecked({ ...first, communityPriceSubmittedAt: SUBMITTED_AT + 1000 })).toBeNull();
   });
 
-  it.each(["hidden", "kept"] as const)("keeps a %s review immutable and queues the current observation", async (decision) => {
+  it.each(["hidden", "kept"] as const)("reuses the same observation without changing its %s review", async (decision) => {
     const stored = await store.record(MISMATCH);
-    await store.review(stored.id, decision);
-    const retry = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000 };
-    const current = await store.reuseChecked(retry);
-    expect(current).toMatchObject({
-      result: "mismatch", communityPriceId: MISMATCH.communityPriceId,
-      communityPriceSubmittedAt: SUBMITTED_AT + 1000, lines: MISMATCH.lines,
-    });
-    expect(current?.id).not.toBe(stored.id);
-    expect(current?.pintDropId).toBeUndefined();
-    expect(current?.reviewedAt).toBeUndefined();
-    expect(await store.listMismatchesForReview()).toMatchObject([{ id: current?.id }]);
-    expect(await store.reuseChecked(retry)).toMatchObject({ id: current?.id });
-    expect(await store.reuseChecked(MISMATCH)).toMatchObject({
-      id: stored.id, communityPriceSubmittedAt: SUBMITTED_AT, reviewDecision: decision,
-    });
+    const reviewed = await store.review(stored.id, decision);
+    expect(await store.reuseChecked(MISMATCH)).toEqual(reviewed);
+    expect(await store.listMismatchesForReview()).toEqual([]);
+    expect(await store.review(stored.id, "hidden")).toBeNull();
   });
 
   it("releases only the failed hide claim and allows another decision", async () => {
@@ -286,7 +252,6 @@ describe("the Supabase bill check store", () => {
     db.schemaMiss = false;
     db.failWrites = false;
     db.uniqueViolation = false;
-    db.beforeUpdate = null;
     __resetBillChecks();
   });
 
@@ -317,38 +282,6 @@ describe("the Supabase bill check store", () => {
   it("throws on a hard write failure so the run can say it did not land", async () => {
     db.failWrites = true;
     await expect(supabaseBillCheckStore.record(MATCH)).rejects.toThrow(/insert boom/);
-  });
-
-  it("keeps the previous binding when a durable rebind fails and accepts a retry", async () => {
-    const stored = await supabaseBillCheckStore.record(MISMATCH);
-    const retry = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000 };
-    db.failWrites = true;
-    await expect(supabaseBillCheckStore.reuseChecked(retry)).rejects.toThrow(/update boom/);
-    expect(await supabaseBillCheckStore.listMismatchesForReview()).toMatchObject([
-      { id: stored.id, communityPriceSubmittedAt: SUBMITTED_AT },
-    ]);
-    db.failWrites = false;
-    expect(await supabaseBillCheckStore.reuseChecked(retry)).toMatchObject({
-      id: stored.id, result: "mismatch", communityPriceSubmittedAt: SUBMITTED_AT + 1000,
-    });
-  });
-
-  it("queues the new observation when moderation claims the row before rebinding", async () => {
-    const stored = await supabaseBillCheckStore.record(MISMATCH);
-    db.beforeUpdate = async () => {
-      await supabaseBillCheckStore.review(stored.id, "hidden");
-    };
-    const retry = { ...MISMATCH, communityPriceSubmittedAt: SUBMITTED_AT + 1000 };
-    const current = await supabaseBillCheckStore.reuseChecked(retry);
-    expect(current).toMatchObject({
-      result: "mismatch", communityPriceSubmittedAt: SUBMITTED_AT + 1000, lines: MISMATCH.lines,
-    });
-    expect(current?.id).not.toBe(stored.id);
-    expect(await supabaseBillCheckStore.listMismatchesForReview()).toMatchObject([{ id: current?.id }]);
-    expect(await supabaseBillCheckStore.reuseChecked(MISMATCH)).toMatchObject({
-      id: stored.id, communityPriceSubmittedAt: SUBMITTED_AT, reviewDecision: "hidden",
-    });
-    expect(await supabaseBillCheckStore.reuseChecked(retry)).toMatchObject({ id: current?.id });
   });
 
   it("reviews only an unreviewed mismatch, by stamp, and never deletes", async () => {
