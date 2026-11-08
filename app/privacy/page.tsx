@@ -553,8 +553,10 @@ export default function PrivacyPage() {
           day and time. Its page and shared link previews can also show the
           meeting area, places left and a listed pint price range. Unavailable
           details are omitted. The price range is per pint, not a total for the
-          night. Public discovery can also show how many people are in the
-          plan. The roster and remaining stops stay behind the member read.
+          night. It shows the oldest observation date across the priced stops
+          and labels the source as listed prices. It never names a publisher
+          or a remaining stop. Public discovery can also show how many people
+          are in the plan. The roster and remaining stops stay behind the member read.
           Close the plan and it drops out of the public list.
         </p>
         <p className="legalBody">

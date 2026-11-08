@@ -150,9 +150,9 @@ export default function TermsPage() {
         <h2 id="crews" className="legalH2">Social Crews</h2>
         <p className="legalBody">
           A Social Crew takes its name from the linked Planned Night title. Its
-          owner chooses one visibility setting: private, friends-only, or open. While a
-          plan is open, anyone can see its title, the pub or place it starts at,
-          its start time, how many people are in it, and the host handle. Close
+          owner chooses one visibility setting: private, friends-only, or open.
+          The <Link href="/privacy#crews" className="legalLink">Social Crews privacy notice</Link>{" "}
+          lists the details that anyone can see while a plan is open. Close
           the plan and it drops out of the public list. Active members
           who remain Mutual with the owner can read the roster and Crew-bound
           Plan. A private Crew stays with the owner and those active members.
