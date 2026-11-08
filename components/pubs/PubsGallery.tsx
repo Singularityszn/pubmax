@@ -9,6 +9,10 @@ import PubsFilters, {
 } from "@/components/pubs/PubsFilters";
 import VenueImage from "@/components/media/VenueImage";
 import PriceBadge from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
+import { DRINK_MEASURE_LABEL } from "@/lib/drinkMeasure";
+import { formatDrinkTagName } from "@/lib/drinkTagName";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { LANDING_RECEIPT_LABEL, pintDropDoorHref } from "@/lib/landingHero";
 import {
   SCRAPED_SOURCE_LABELS,
@@ -132,6 +136,7 @@ export default function PubsGallery({
 
       <ul className="pubsGrid">
         {pubs.map((pub) => {
+          const priceEvidence = pub.priceEvidence?.priceGbp === pub.cheapestPrice ? pub.priceEvidence : null;
           const menuUrl = firstHttps(pub.menuUrl);
           const booking = resolveBookingAction({
             name: pub.name,
@@ -156,7 +161,8 @@ export default function PubsGallery({
                   {pub.cheapestPrice != null ? (
                     <>
                       <span className="listingFrom">from</span>
-                      <PriceBadge variant="current" band={priceBand(pub.cheapestPrice, { city: "london" })}>
+                      <PriceBadge variant="current" band={isComparablePintServing({ measure: priceEvidence?.measure, cheapestPint: priceEvidence?.pintName })
+                        ? priceBand(pub.cheapestPrice, { city: "london" }) : null}>
                         {formatPrice(pub.cheapestPrice)}
                       </PriceBadge>
                     </>
@@ -173,6 +179,15 @@ export default function PubsGallery({
                     </>
                   )}
                 </p>
+                {pub.cheapestPrice != null ? (
+                  <>
+                    <p className="pubsCardServing">
+                      {priceEvidence?.pintName ? formatDrinkTagName(priceEvidence.pintName) : "Drink not recorded"}
+                      {" · "}{priceEvidence?.measure ? DRINK_MEASURE_LABEL[priceEvidence.measure] : "Serving not recorded"}
+                    </p>
+                    <ListedPriceSource className="pubsCardPriceSource" evidence={priceEvidence ?? { publisher: null, observedOn: null }} />
+                  </>
+                ) : null}
                 {/* THE CARD IS ONE DOOR: the whole card opens the pub on the
                     map. "On the map" is the card's own link, stretched over the
                     card (`.pubsMapLink::after`), and it carries the pub's name

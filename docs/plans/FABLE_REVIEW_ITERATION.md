@@ -64,7 +64,7 @@ Keep shipping useful product slices overnight as **small, reviewable PRs**. Each
 
 1. One concern per PR; prefer stacked base notes in the PR body when depending on #817.
 2. No invented biography, fake counts, or Wetherspoons app reverse.
-3. Captain applies migrations — agents only ship SQL.
+3. Follow the [migration apply policy](../../supabase/AGENTS.md#traps).
 4. Do not touch `AuthProvider` token-fragment paths.
 5. Commit + push + open/update draft PR per branch before claiming done.
 

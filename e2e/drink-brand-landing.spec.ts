@@ -14,7 +14,7 @@ const BRAND_SLUG = "guinness";
 // own answer for this brand and a change to it is a change worth reading.
 const COLLECTED_DAY = formatObservedDate(PINT_DATASET_OBSERVED_AT);
 const SUMMARY = `345 pubs with listed Guinness pints. Collected ${COLLECTED_DAY}.`;
-const TRACKED_PROOF_DIR = "docs/proof/drink-brand-landing";
+const TRACKED_PROOF_DIR = "artifacts/proof/drink-brand-landing";
 type ProofScreenshotName =
   | "guinness-390-light.png"
   | "guinness-390-dark.png"

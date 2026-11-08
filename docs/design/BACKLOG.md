@@ -1,9 +1,8 @@
 # Design backlog
 
-Open design debt and raised design decisions. A `docs/proof/` directory records
-one finished measurement and nobody re-reads one, so anything still OPEN when a
-review lane closes belongs here instead. `docs/DESIGN_SYSTEM.md` points at this
-file from its "Where each law is fenced" index.
+Open design debt and raised design decisions. Anything still open when a review lane closes belongs here.
+See [the PR evidence policy](../../AGENTS.md#pull-requests) for finished measurements.
+`docs/DESIGN_SYSTEM.md` points here from its "Where each law is fenced" index.
 
 A row leaves this file when it is shipped or withdrawn, and the commit that
 closes it says which. A row is not a plan: it names the defect, where it is,
@@ -13,7 +12,7 @@ and the one thing that makes it hard.
 
 The three rows this file opened with shipped together in the design-review
 follow-ups lane; the measurement is
-[`docs/proof/design-review-followups/`](../proof/design-review-followups/), and
+[`docs/proof/design-review-followups/`](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/design-review-followups), and
 each row is in Closed below. The rows here were measured on 14 September 2026
 at 1440 and 1280 with a venue drawer open over a mapped two-stop route.
 
@@ -36,6 +35,6 @@ at 1440 and 1280 with a venue drawer open over a mapped two-stop route.
 | `consent-before-answer` | [Consent timing contract](../rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked) | Regression: `e2e/consent-after-first-answer.spec.ts`. |
 | The zoom buttons at 1280 | They were never missing: measured 17 September 2026 they are painted, 44×44, at 1024 and 1280 and `elementFromPoint` at "Zoom in"'s own centre answered `div.mapToolbarRow`, so the button was dead rather than absent. The column reads the toolbar's own published berth now (`components/map/mapToolbar.css`). The `Recenter` control this row named is in no viewport's DOM. | The UI-review follow-ups lane; fence `e2e/map-desktop-arrival-chrome.spec.ts`. |
 | `head-primary-on-form-screens` | A form screen paints no head primary: the form's own submit, beside the field it submits, is the one painted control. | Captain, 7 September 2026; applied in #1597 and written into `docs/design/LAUNCH_SCREENS.md`'s rules list. |
-| The profile editor's own form buttons | Every text button on `/u/you` is the Button primitive in its quiet variant, and the surface's stylesheet paints none of them. A destructive action is the primitive's `danger` fill rather than a box of its own. | The design-review follow-ups lane; proof `docs/proof/design-review-followups/`. |
+| The profile editor's own form buttons | Every text button on `/u/you` is the Button primitive in its quiet variant, and the surface's stylesheet paints none of them. A destructive action is the primitive's `danger` fill rather than a box of its own. | The design-review follow-ups lane; [historical proof](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/design-review-followups/). |
 | One family for number-square chips | The planner's pub-stop count and the /pubs fare-zone picker both render `Chip variant="number"`, painted from the `--control-*` row by `components/ui/chip.css`. The map's segmented zone picker keeps its own recorded treatment. | Same lane. |
 | The five quick price chips wrapping 4 + 1 at 390 | `lib/priceChipLadder.ts` owns the column count and the composer's grid reads it: four across at every width, so the fifth chip starts the second row in the first column. Four rather than five because the desktop drawer's row is 238px and five 44px targets need 244px. | Same lane. |

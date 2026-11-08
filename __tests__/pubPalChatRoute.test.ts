@@ -551,7 +551,7 @@ describe("POST /api/pub-pal/chat", () => {
     if (query === "where should I go") {
       expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
     } else {
-      expect(body.answer).toBe("4 picks from the listed pubs, each with its source.");
+      expect(body.answer).toBe("4 picks from the listed pubs.");
       expect(body.cards.every((card: { venueId: string }) => card.venueId.startsWith("venue-"))).toBe(true);
     }
     expect(body.cards.length).toBeGreaterThan(0);

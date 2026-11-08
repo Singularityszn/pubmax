@@ -44,6 +44,16 @@ describe("planVenueOptions", () => {
     ]);
   });
 
+  it("never offers a bar the public cannot walk into (launch plan P0 #1)", () => {
+    expect(
+      planVenueOptions([
+        { id: "venue-p7p18j", name: "The Three Tuns - LSE Student Union", kind: "pub" },
+        { id: "club", name: "Fulham Constitutional Club" },
+        { id: "lamb", name: "The Lamb", kind: "pub" },
+      ]),
+    ).toEqual([{ id: "lamb", name: "The Lamb" }]);
+  });
+
   it("drops malformed rows and unknown kinds", () => {
     expect(
       planVenueOptions([

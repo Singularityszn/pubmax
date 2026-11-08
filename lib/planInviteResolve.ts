@@ -1,6 +1,5 @@
-// Shared invite-token → classic-plan resolution for public invite write routes.
-// Matches the page gate: a token for a Crew-bound (or missing) plan must 404,
-// never write orphan RSVPs/reactions after the invite surface has gone dark.
+// Public invite writes require a classic plan. Crew-bound or missing plans
+// return 404. A public-page redirect must not authorise crew RSVPs or reactions.
 
 import { publicApiError } from "@/lib/apiError";
 import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";

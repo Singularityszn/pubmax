@@ -12,7 +12,8 @@ import { landmarks } from "@/lib/landmarks";
 import { namedRoutePathForCrawl } from "@/lib/namedRoutes";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
 import { formatGbp } from "@/lib/formatGbp";
-import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
+import { formatObservedDate } from "@/lib/dataFreshnessFormat";
+import { loadSlimVenuesForCityResult, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
 import HostOnDate from "@/components/crawls/HostOnDate";
@@ -27,6 +28,7 @@ import {
   crawlPriceRange,
   formatPriceRange,
   visibleCuratedCrawls,
+  type CrawlPriceRange,
 } from "./routeSummary";
 import CrawlsYouCanJoin from "./CrawlsYouCanJoin";
 import "@/components/listing/listing.css";
@@ -144,11 +146,11 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
   );
   useEffect(() => {
     let active = true;
-    void loadSlimVenues()
-      .then((venues) => {
+    void loadSlimVenuesForCityResult()
+      .then(({ rows, status }) => {
         if (!active) return;
-        setSlimVenues(venues);
-        setVenueIndexStatus("ready");
+        setSlimVenues(rows);
+        setVenueIndexStatus(status === "ready" ? "ready" : "error");
       })
       .catch(() => {
         if (active) setVenueIndexStatus("error");
@@ -261,7 +263,7 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
             </nav>
 
             {featuredCrawl ? (
-              <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} photo={featuredPhoto} />
+              <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} photo={featuredPhoto} priceStatus={venueIndexStatus} />
             ) : null}
 
             {compactGroups.length ? (
@@ -280,7 +282,7 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
                     </h3>
                     <RowList className="crawlCompactList" label={`${groupLabel} crawls`}>
                       {crawlsInGroup.map((crawl) => (
-                        <CompactCrawlRow key={crawl.id} crawl={crawl} slimById={slimById} />
+                        <CompactCrawlRow key={crawl.id} crawl={crawl} slimById={slimById} priceStatus={venueIndexStatus} />
                       ))}
                     </RowList>
                   </section>
@@ -305,27 +307,66 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
   );
 }
 
-// The one featured crawl, said in four things (taste plan, 18 Oct 2026): its
-// name, its one line, a meta line and one quiet link. It used to stack eight
-// treatments: a coral caps style pill, the name, the line, a 58px route glyph,
-// the walk, "Pints from", a flag chip, the stop count and a coral link.
-//
-// When a photograph we hold is honestly of the patch the route walks through,
-// it leads the card, captioned with the place it shows and its credit. A route
-// with no such photograph gets none, never a stand-in.
+// Each endpoint retains its own pub, drink, serving and source day. The slim
+// index drops the drink name of a comparable pint to stay small, so a missing
+// drink or serving means "not in this index", never "not recorded": the line
+// leaves it out rather than claim an absence. The compact row renders this
+// evidence beside its navigation link, never inside it.
+function CrawlPriceEvidence({ range, status }: {
+  range: CrawlPriceRange | undefined;
+  status: "loading" | "ready" | "error";
+}) {
+  if (!range) return status === "loading" ? null : (
+    <p className="crawlPriceCoverage">
+      {status === "error" ? "Price evidence unavailable." : "No comparable listed pint prices recorded for these stops."}
+    </p>
+  );
+  const endpoints = range.minGbp === range.maxGbp ? [range.min] : [range.min, range.max];
+  return (
+    <div className="crawlPriceEvidence">
+      <p className="crawlPriceCoverage">Listed pint prices for {range.pricedStops} of {range.totalStops} stops.</p>
+      <ul className="crawlPriceEndpoints" aria-label="Price range endpoints">
+        {endpoints.map((point) => (
+          <li key={point.venueId}>
+            <p className="crawlPriceEndpointSummary">
+              <span className="curatedPriceRange">{formatGbp(point.priceGbp)}</span>
+              {point.evidence.drinkLabel ? <>{" · "}{point.evidence.drinkLabel}</> : null}
+              {point.evidence.servingSize ? <>{" · "}{point.evidence.servingSize}</> : null}
+              {" at "}{point.venueName}.
+            </p>
+            <p className="crawlPriceSource">
+              {point.evidence.publisher?.label || "Publisher not recorded"}. {point.evidence.observedOn
+                ? `Source read ${formatObservedDate(new Date(point.evidence.observedOn))}`
+                : "Source read date unknown"}.
+            </p>
+          </li>
+        ))}
+      </ul>
+      {range.pricedStops < range.totalStops ? (
+        <p className="crawlPriceCoverage">Other stops have no comparable listed pint price in this view.</p>
+      ) : null}
+    </div>
+  );
+}
+
+// The featured crawl keeps its photograph, one-line introduction and quiet map
+// link. Its price range now carries the endpoint evidence immediately below.
+// A route with no honest photograph gets none, never a stand-in.
 function FeaturedCrawlCard({
   crawl,
   slimById,
   photo,
+  priceStatus,
 }: {
   crawl: CuratedCrawl;
   slimById: ReadonlyMap<string, SlimVenue>;
   photo: PlacePhotoData | null;
+  priceStatus: "loading" | "ready" | "error";
 }) {
   const originName = startLandmarkName(crawl);
   const routePath = namedRoutePathForCrawl(crawl.id);
   const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
-  const priceRange = crawlPriceRange(crawl.venueIds, slimById);
+  const priceRange = priceStatus === "ready" ? crawlPriceRange(crawl.venueIds, slimById) : undefined;
   const stops = crawl.venueIds.length;
   const hostStops = curatedStops(crawl, slimById);
   const meta = [
@@ -364,11 +405,12 @@ function FeaturedCrawlCard({
           {meta}
           {priceRange ? (
             <>
-              {". Pints "}
+              {". Listed pints "}
               <span className="curatedPriceRange">{formatPriceRange(priceRange)}</span>
             </>
           ) : null}
         </p>
+        <CrawlPriceEvidence range={priceRange} status={priceStatus} />
         <Link
           prefetch={false}
           href={curatedCrawlMapHref(crawl)}
@@ -385,27 +427,17 @@ function FeaturedCrawlCard({
   );
 }
 
-// Compact scannable row for every other curated crawl: name, area (the
-// landmark it starts at, when known), stop count, and the price range in the
-// trailing cell. Tap anywhere to open the crawl on the map (its existing
-// "detail" surface; curated crawls have no standalone detail page, and
-// /crawls/[slug] is reserved for durable, user-shared Crawl Stories, a
-// different id namespace).
-//
-// A row of the shared RowList (components/ui/row-list.tsx): one hairline
-// between rows and no panel round the group (taste plan, 18 Oct 2026). The
-// heritage group used to read as one filled, bordered box and every group
-// with it. The link is the whole row, so the tap target is the row's height,
-// never the name's line.
 function CompactCrawlRow({
   crawl,
   slimById,
+  priceStatus,
 }: {
   crawl: CuratedCrawl;
   slimById: ReadonlyMap<string, SlimVenue>;
+  priceStatus: "loading" | "ready" | "error";
 }) {
   const originName = startLandmarkName(crawl);
-  const priceRange = crawlPriceRange(crawl.venueIds, slimById);
+  const priceRange = priceStatus === "ready" ? crawlPriceRange(crawl.venueIds, slimById) : undefined;
   const stopCount = crawl.venueIds.length;
   const hostStops = curatedStops(crawl, slimById);
 
@@ -430,6 +462,7 @@ function CompactCrawlRow({
           <span className="rowListTrailing crawlCompactPrice">{formatPriceRange(priceRange)}</span>
         ) : null}
       </Link>
+      <CrawlPriceEvidence range={priceRange} status={priceStatus} />
       {hostStops ? (
         <HostOnDate title={crawl.name} stops={hostStops} returnPath={`/crawls#${crawl.id}`} compact />
       ) : null}

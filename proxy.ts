@@ -225,6 +225,10 @@ function servesIngestRelay(pathname: string): boolean {
   return pathname === "/ingest" || pathname.startsWith("/ingest/");
 }
 
+function servesImageOptimiser(pathname: string): boolean {
+  return pathname === "/_next/image" || pathname.startsWith("/_next/image/");
+}
+
 // AN API REQUEST IS A CALLER, NOT A READER, SO IT IS NEVER SENT ELSEWHERE.
 //
 // A 308 tells the client to ask again at another address, and a client that is
@@ -270,8 +274,7 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
     isStaticAssetPath(pathname) ||
     pathname === "/_next/static" ||
     pathname.startsWith("/_next/static/") ||
-    pathname === "/_next/image" ||
-    pathname.startsWith("/_next/image/") ||
+    servesImageOptimiser(pathname) ||
     // Webpack-mode `next dev` upgrades `/_next/hmr` to a WebSocket. Running
     // this function in front of that handshake answers ordinary HTTP (CSP
     // headers, no upgrade) and the browser logs ERR_INVALID_HTTP_RESPONSE —
@@ -333,6 +336,17 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // it with no Clerk key or NextFetchEvent.
 export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (servesImageOptimiser(pathname)) {
+    try {
+      const source = request.nextUrl.searchParams.get("url") ?? "";
+      const sourcePath = decodeURIComponent(new URL(source, request.url).pathname);
+      if (!sourcePath.startsWith("/api/cover/")) return NextResponse.next();
+    } catch {}
+    return new NextResponse(null, {
+      status: 400,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  }
   if (servesApiCaller(pathname)) {
     if (pathname.length > 1 && pathname.endsWith("/")) {
       const canonicalUrl = new URL(request.url);
@@ -586,7 +600,8 @@ const clerkSecurityProxy = isClerkMiddlewareConfigured()
 export const proxy = clerkSecurityProxy
   ? (request: NextRequest, event: NextFetchEvent) =>
       servesApiCaller(request.nextUrl.pathname) ||
-      servesIngestRelay(request.nextUrl.pathname)
+      servesIngestRelay(request.nextUrl.pathname) ||
+      servesImageOptimiser(request.nextUrl.pathname)
         ? securityProxy(request)
         : clerkSecurityProxy(request, event)
   : securityProxy;
@@ -595,6 +610,7 @@ export const config = {
   matcher: [
     { source: "/api" },
     { source: "/api/:path*" },
+    { source: "/_next/image/:path*" },
     {
       source: "/:path*",
       has: [{ type: "host", value: ".+\\.vercel\\.app" }],

@@ -157,6 +157,8 @@
 }
 
 .admin-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
@@ -165,6 +167,7 @@
 
 .admin-card-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
   gap: 0.5rem;
@@ -229,6 +232,7 @@
 
 .admin-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -244,6 +248,7 @@
 
 .admin-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   margin: 0 0 1.25rem;
 }
@@ -393,4 +398,33 @@
   max-height: 480px;
   border-radius: var(--radius);
   background: var(--panel);
+}
+
+/* Safety queues (0224): the reported words, kept whole and readable, and the
+   reason form a suspend asks for before it saves. */
+.admin-excerpt {
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-suspend {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  flex-basis: 100%;
+}
+
+.admin-suspend textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+.admin-post-evidence img,
+.admin-post-evidence video {
+  display: block;
+  max-width: 100%;
+  max-height: 32rem;
+  object-fit: contain;
 }

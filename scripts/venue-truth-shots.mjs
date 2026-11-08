@@ -16,7 +16,7 @@ const arg = (name, fallback) =>
 
 const baseUrl = arg("--base-url", "http://127.0.0.1:3000");
 const label = arg("--label", "shot");
-const outDir = join(process.cwd(), "docs", "proof", "venue-truth-contract", label);
+const outDir = join(process.cwd(), "artifacts", "proof", "venue-truth-contract", label);
 
 const WIDTHS = [
   { w: 320, h: 568 },

@@ -88,7 +88,7 @@ Day 7: buffer. It will be needed.
 
 ## Verification bar (every lane)
 
-Vitest green locally AND on Vercel (ci runs tests inside builds); tsc clean; no em dashes in product copy; provenance label on every sourced claim; hermetic tests only (fixed dates, no real clock, env stripped); no destructive migrations; write-surface certification updated for any new mutating route; screenshots both themes for UI lanes before merge request.
+Follow the [root verification policy](../AGENTS.md#verifying) for local checks and merge requirements. Other requirements: tsc clean; no em dashes in product copy; provenance label on every sourced claim; hermetic tests only (fixed dates, no real clock, env stripped); no destructive migrations; write-surface certification updated for any new mutating route; screenshots both themes for UI lanes before merge request.
 
 ## STATE OF THE BUILD (2026-07-20, through main 8f20c87f — Sol reads this before touching anything)
 
@@ -119,8 +119,8 @@ Everything below is MERGED, deployed to production (pubmaxxing.com, chengdu Verc
 
 ### Ops incidents Sol must internalize
 
-- **Semantic-collision class (twice this week):** two individually-green PRs broke main only combined (#424+#425 → fixed by #428; docs push 4f35de82 → fixed by #436). Vercel runs vitest INSIDE builds: main-red = prod deploys dead. Therefore: run FULL local vitest at latest main before opening a PR, and after any merge race re-verify.
-- **Migrations:** additive only, ever. Owner applies; nothing auto-applies. Pin `search_path` on functions (e6dfa164 convention).
+- **Integration checks:** Recheck the combined change after a rebase or merge race, under the [root verification policy](../AGENTS.md#verifying).
+- **Migrations:** additive only, ever. Nothing auto-applies. Follow the [migration apply policy](../supabase/AGENTS.md#traps). Pin `search_path` on functions (e6dfa164 convention).
 - **GNHF CLI is not trusted** (0-token run); native lanes + watcher loops are the proven machine.
 
 ## TASTE DOCTRINE (owner-forged, binding on every lane)

@@ -25,7 +25,8 @@ import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } fro
 import {
   cleanSocialText,
   emptyInteractionSummary,
-  payloadDigest,
+  SOCIAL_REPORT_KINDS,
+  SOCIAL_REPORT_REASONS,
   validIdempotencyKey,
   type SocialCommentDTO,
   type SocialCommentInput,
@@ -41,12 +42,17 @@ import {
   type SocialNotificationDTO,
   type SocialQuoteInput,
   type SocialRelationship,
+  type SocialReportKind,
   type SocialReportReason,
 } from "@/lib/socialInteractions";
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { requireSupabaseAdmin, requiresSupabaseStore, hashActor } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
+
+function payloadDigest(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
 
 export type { SocialInteractionActor } from "@/lib/socialInteractions";
 
@@ -106,7 +112,7 @@ export type SocialInteractionStore = {
   markNotificationRead(viewer: SocialInteractionActor, id: string, read: boolean): Promise<void>;
   updateFeatureRequest(actor: SocialInteractionActor, postId: string, input: SocialFeatureUpdateInput): Promise<SocialFeatureUpdateDTO>;
   featureHistory(viewer: SocialInteractionActor, postId: string, page: PageInput): Promise<Page<SocialFeatureUpdateDTO> & { currentStatus: SocialFeatureStatus }>;
-  report(actor: SocialInteractionActor, input: { kind: "post" | "comment" | "quote"; id: string; reason: SocialReportReason }): Promise<{ id: string; createdAt: string }>;
+  report(actor: SocialInteractionActor, input: { kind: SocialReportKind; id: string; reason: SocialReportReason }): Promise<{ id: string; createdAt: string }>;
   reportQueue(actor: SocialInteractionActor, page: PageInput): Promise<Page<SocialContentReportDTO>>;
   resolveReport(actor: SocialInteractionActor, id: string): Promise<void>;
   moderate(actor: SocialInteractionActor, input: { kind: "comment" | "quote"; id: string; action: "hide" | "restore" }): Promise<void>;
@@ -349,9 +355,11 @@ export function createMemorySocialInteractionStore(options: {
 
   async function reportableContent(
     actor: SocialInteractionActor,
-    kind: "post" | "comment" | "quote",
+    kind: SocialReportKind,
     contentId: string,
   ): Promise<boolean> {
+    // A person can be reported by anyone but themselves, blocked or not (0224).
+    if (kind === "profile") return contentId !== actor.profileId;
     if (kind === "post") return Boolean(await visiblePost(contentId, actor));
     if (kind === "quote") {
       const target = quotes.get(contentId);
@@ -696,7 +704,7 @@ export function createMemorySocialInteractionStore(options: {
     },
 
     async report(actor, input) {
-      if (!["post", "comment", "quote"].includes(input.kind) || !["harassment", "hate", "threat", "doxxing", "spam", "other"].includes(input.reason)) {
+      if (!SOCIAL_REPORT_KINDS.includes(input.kind) || !SOCIAL_REPORT_REASONS.includes(input.reason)) {
         throw new SocialInteractionStoreError("INVALID_INTERACTION", "Report details are not valid.");
       }
       if (!await reportableContent(actor, input.kind, input.id)) {
@@ -704,7 +712,10 @@ export function createMemorySocialInteractionStore(options: {
       }
       const key = createHash("sha256").update(`${actor.profileId}:${input.kind}:${input.id}:${input.reason}`).digest("hex");
       const prior = reports.get(key);
-      if (prior) return { id: prior.id, createdAt: prior.createdAt };
+      if (prior) {
+        if (input.kind === "profile" && prior.state === "resolved") prior.state = "queued";
+        return { id: prior.id, createdAt: prior.createdAt };
+      }
       const row: ReportRow = {
         id: randomUUID(),
         reporterProfileId: actor.profileId,

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 
+import SocialSafetyModeration from "./SocialSafetyModeration";
 import SocialVideoModeration from "./SocialVideoModeration";
 import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
@@ -2064,6 +2065,9 @@ export default function AdminClient() {
               ))}
             </div>
           )}
+
+          {/* ── Reports, flagged DMs and suspensions (0224) ───────────────── */}
+          <SocialSafetyModeration />
 
           {/* ── Social videos held for a person to watch (0183) ───────────── */}
           <SocialVideoModeration />

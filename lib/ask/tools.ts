@@ -61,6 +61,7 @@ import {
   heritageVenueNameMatches,
 } from "@/lib/ask/heritageQuestion";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { STATIC_STATIONS } from "@/lib/staticStations";
 import type {
   AskProvenance,
@@ -712,7 +713,10 @@ async function toolProposePlan(
   const query = str(args.query) || ctx.query;
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
-    const venues = await loadConciergeVenues(ctx.cityId);
+    // A draft crawl may be sent to people who have never met, so it never
+    // holds a members', students' or staff bar (lib/venueKindFilters.ts).
+    const venues = (await loadConciergeVenues(ctx.cityId))
+      .filter((venue) => !isNonPublicVenueName(venue.name));
     // Rank a wider pool than the three stops, then keep only a crawl that
     // walks under Plan's own rule (lib/palPlanDraft.ts), so "Open in Plan"
     // hands over pubs Plan can keep rather than three that merely rank well.

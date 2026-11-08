@@ -1,4 +1,4 @@
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
@@ -21,7 +21,9 @@ export function planVenueOptions(value: unknown): PlanVenueOption[] {
     const name = typeof row.name === "string" ? row.name.trim() : "";
     const kind: VenueKind | undefined | null =
       row.kind === undefined ? undefined : isVenueKind(row.kind) ? row.kind : null;
-    if (!id || !name || kind === null || !isPubVenueKind(kind)) return [];
+    // A plan may be shared with people who have never met, so its pub picker
+    // offers only pubs the public can walk into (lib/venueKindFilters.ts).
+    if (!id || !name || kind === null || !isPublicRankablePub({ kind, name })) return [];
     const address =
       typeof row.address === "string" ? row.address.trim() : "";
     const borough =

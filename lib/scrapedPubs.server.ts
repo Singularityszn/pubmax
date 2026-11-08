@@ -12,6 +12,8 @@ import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import { firstHttp, firstHttps } from "@/lib/httpUrl";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { statedDrinkMeasure } from "@/lib/drinkMeasure";
+import { legacyCheapestPriceReadDay, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import {
   normaliseScrapedSource,
   SCRAPED_SOURCE_LABELS,
@@ -63,6 +65,8 @@ async function readScrapedPubs(): Promise<ScrapedPubsRead> {
 
   for (const [id, record] of index.entries()) {
     const venue = byId.get(id);
+    const priceGbp = venue?.cheapestPrice ?? null;
+    const priceRow = venue?.prices?.find((row) => row.price_gbp === priceGbp);
     const source = normaliseScrapedSource(record.source);
     const tilePhoto = record.categoryTiles?.find((tile) => tile.imageUrl)?.imageUrl;
     const venuePhoto = venue ? proxiedVenueImageUrl(venue.imageUrl) : "";
@@ -77,7 +81,14 @@ async function readScrapedPubs(): Promise<ScrapedPubsRead> {
       menuUrl: firstHttps(record.menuUrl) || undefined,
       bookingUrl: firstHttp(record.bookingUrl) || undefined,
       photoUrl,
-      cheapestPrice: venue?.cheapestPrice ?? null,
+      cheapestPrice: priceGbp,
+      ...(priceGbp !== null ? { priceEvidence: {
+        priceGbp,
+        pintName: priceRow?.pint_name.trim() || null,
+        measure: statedDrinkMeasure(priceRow?.measure),
+        publisher: priceRow ? namedLegacyPintPriceSource(priceRow) : null,
+        observedOn: priceRow ? legacyCheapestPriceReadDay([priceRow], priceGbp) : null,
+      } } : {}),
       zone: zonesById.get(id) ?? null,
     });
   }

@@ -9,7 +9,7 @@ const AREA_NAME = "Victoria";
 const BRAND_SLUG = "guinness";
 const BRAND_LABEL = "Guinness";
 const LANDING_PATH = `/area/${AREA_SLUG}/drink/${BRAND_SLUG}`;
-const TRACKED_PROOF_DIR = "docs/proof/drink-brand-area-landing";
+const TRACKED_PROOF_DIR = "artifacts/proof/drink-brand-area-landing";
 // Checked browser fixture for Victoria and Guinness (first checked against the
 // 3 July 2026 collection). Unit tests own policy and dataset derivation; this
 // proof owns rendered URLs. The collection day is DERIVED from

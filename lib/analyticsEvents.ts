@@ -12,6 +12,7 @@
 
 import { CONTRIBUTION_GATE_STATUSES } from "@/lib/contributionGateStatus";
 import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
+import { CREW_ARRIVED_BANDS } from "@/lib/crew";
 import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
 import { RSVP_STATUSES } from "@/lib/planInvite";
 import { REACTION_KEYS } from "@/lib/reactions";
@@ -81,6 +82,14 @@ export const ANALYTICS_EVENTS = {
   map_search_jump: [],
   tonight_result_opened: ["kind", "localityBasis"],
   crew_committed: ["source", "participants", "routeReady"],
+  // No props on purpose: a crew id, a capacity or a meeting pub would narrow
+  // toward one night and one person. lib/hostLoopAnalytics.ts owns eligibility.
+  open_crawl_opened: [],
+  crew_join_requested: [],
+  crew_join_accepted: [],
+  // A band avoids sending an exact roster size or a per-plan key.
+  // docs/analytics/METRICS.md section 3.3 owns the counting rules and limits.
+  crew_arrived: ["guestsArrived"],
   account_claimed: ["source"],
   social_account_connected: ["provider", "connectionType"],
   // PostHog wizard adoption. Auth state and successful writes carry no account,
@@ -633,6 +642,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   plan_draft_saved: ["stops", "grounded", "anchored", "routeReady", "source"],
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   crew_committed: ["source", "participants", "routeReady"],
+  crew_arrived: ["guestsArrived"],
   message_attach_selected: ["kind"],
   meaningful_core_action: ["action"],
   // The funnel is a ratio, so a step with no drink category would be an
@@ -916,6 +926,16 @@ function isAllowedInviteLoopProp(
   return true;
 }
 
+/** The night's arrival band: one of the three bands `lib/crew.ts` owns. */
+function isAllowedCrewArrivedProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name !== "crew_arrived") return true;
+  return key === "guestsArrived" && includesValue(CREW_ARRIVED_BANDS, value);
+}
+
 function isAllowedMessageAttachProp(
   name: AnalyticsEventName,
   key: string,
@@ -1049,6 +1069,7 @@ export function sanitizeEvent(
               && isAllowedContributionGateProp(name, key, value)
               && isAllowedPintIndexArrivalProp(name, key, value)
               && isAllowedInviteLoopProp(name, key, value)
+              && isAllowedCrewArrivedProp(name, key, value)
               && isAllowedMessageAttachProp(name, key, value)
               && isAllowedLandingCtaProp(name, key, value)
               && isAllowedVenueSheetProp(name, key, value)

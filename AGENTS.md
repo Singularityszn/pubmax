@@ -1,113 +1,138 @@
-# AGENTS.md
+# PubMaxxing
 
-PubMaxxing is a single Next.js 16 (App Router, React 19, TypeScript) web app, a price-aware London pub-crawl planner with a MapLibre 3-D map. There is one service.
+PubMaxxing (pubmaxxing.com) is a price-aware London pub-crawl planner. It is one Next.js 16 app (App Router,
+React 19, TypeScript) with a MapLibre 3-D map, Supabase, and a Capacitor shell for iOS and Android.
 
-## Cursor Cloud specific instructions
+## What we never compromise
 
-- **Factory docs:** See [`docs/factory/`](docs/factory/) for PUBMAXX vision and roadmap.
+1. **Honest prices.** Every price shows its source and date. A city with no prices says so. AI never invents
+   a price, opening hours or pub lore. Heritage and plan answers fail closed.
+2. **Speed.** Time to the first priced pin on a phone is the metric. Performance ceilings come down, never up.
+   Raising one needs the measured figure and the captain's word. See `perf/AGENTS.md`.
+3. **Nothing is fetched without permission.** `lib/harvest/sourcePolicy.ts` is the fence in front of every
+   harvested URL. No caller passes it a URL of its own.
+4. **Drinkers never pay.** First revenue comes from venues. A referral is a mark of honour, never a feature
+   (`lib/referrals.ts`). The Year in Pints wrap is free forever. The full anti-goals are in
+   `docs/factory/vision.md`.
+5. **Launch first.** Until launch, do not add a page, API route or migration that the launch plan does not need.
 
-### Where the rules live
+## A note from the captain
 
-This file is an index. Every rule belongs to the area file that owns the code it is
-about, and an agent reads the nearest one up the tree from the file it is editing.
-Where an area file is a short index, the rule's full text, pins and proof are written
-down once in its [`docs/rules/`](docs/rules/) detail file, and the area file keeps
-only its title and link. Nothing here is a summary of a child: read the child (and
-the detail it links) before you change code in that area. Add or change a rule in
-its detail file and keep the area file's title line in step, never in this file.
+Speed, performance, design and customer onboarding decide every change. Fight scope creep. Find the smallest
+change that makes the correct behaviour obvious. Do not keep complexity because it exists. If a rule here fights
+the task, say so and ask before you break it.
 
-| Area file | What it owns |
+## Words
+
+Use the terms in `CONTEXT.md`. **Captain** is the owner. **You** is the agent. **Pint Drop** is a price a person
+logged. **Plan** is a night out with stops. **Pal** is the Pub Pal assistant.
+
+## Ways to hurt yourself
+
+1. **Writing to production.** Preview deployments use the production Supabase project. A signed-in preview test
+   writes production data. Never run a schema experiment against a shared database.
+2. **Applying a migration.** Agents ship SQL with a rollback beside it. An agent applies one migration only on the
+   captain's explicit "apply <n>", and a separate agent verifies it. Only the captain decides a deploy. See
+   `supabase/AGENTS.md`.
+3. **Killing by pattern.** Never `pkill` or `killall`. Stop only a PID you started. Use a private port.
+4. **Sharing `.next`.** A concurrent `next dev` and `next build` corrupt `.next`. For production QA, build and
+   serve with `NEXT_DIST_DIR=.next-prod`.
+5. **Fetching around the fence.** No script or route fetches a harvested URL without `sourcePolicy`.
+
+## Hit every surface
+
+A change that works on the path you tested is often missing elsewhere. Before you call UI work done, say which
+of these applied:
+
+- **Widths:** 390, 768 and 1440. Large text. Light and night theme.
+- **Shells:** web, iOS (Capacitor), Android.
+- **People:** signed out, signed in, under 18, a new account.
+- **Places:** London, a city with prices, a city with no prices.
+- **Doors:** the map, the venue sheet, Plan, Pal, a shared link. A way in needs a way out.
+- **Copy:** `docs/VOICE.md`. Tokens and primitives: `docs/DESIGN_SYSTEM.md`. Tests fence both.
+
+## Dev
+
+- `npm run dev` runs with no secrets: in-memory stores and grounded structured-only heritage answers.
+  `.env.local` adds Supabase and model keys. See `.env.example`.
+- To drive the app in a browser and take evidence, follow `e2e/AGENTS.md`.
+- Do not commit `next-env.d.ts` or tooling churn. A build, `validate-data` or a plain `npm run verify` restamps
+  `public/data`. Unless your change rebuilds data on purpose, run `git restore public/data` before you stage.
+- Change `allowScripts` only with its reason in `scripts/ci/install-script-allowlist.mjs`.
+
+## Verifying
+
+- Before you push, run `npm run verify:no-mistakes:changed`: the lint, typecheck and tests that your change reaches.
+- Do not run `npm run verify` or the full suite locally unless asked. CI owns it, and a merge needs CI green on
+  the latest commit.
+- A red check is fixed at its source. Rerunning a red job does not fix a flaky test. Fix a flaky test without
+  test-runner retries or skips. If the fix is outside your task, file it with the evidence and tell Firstmate.
+
+## Tests
+
+- Test behaviour that can break: prices and trust, auth and RLS, money and limits, data parsing, persistence,
+  race fixes, and the logic a bug fix changed.
+- Do not test what types guarantee, copy text, static markup, mock-call mirrors or file lists.
+- Extend an existing test before you add one. Test at one layer: the lowest one that fails on main.
+- A logic bug gets a failing test first. A purely visual bug gets before/after screenshots and no test.
+- No fixed sleeps, manual polling loops, per-test timeouts or test-runner retries. Wait for the event.
+  Web-first auto-retrying assertions (`expect(...).toPass()`) and auto-waiting locators are allowed. A skip names its tracking issue.
+- Do not add a test that reads source or workflow files as text. If a rule needs a machine check, make it a lint rule.
+
+## Pull requests
+
+- One problem per PR. Aim for under 400 changed lines, tests excluded. Say why if it is bigger.
+- Title: a conventional commit in plain words, for example `fix(map): pins no longer flash on zoom`.
+- Body, in plain English: the problem in one or two sentences, the change, how you checked it, what you could
+  not check. UI changes include before/after images. Motion needs a short video.
+- A PR that touches auth, RLS, prices, money or migrations also carries the show-me body: pseudocode of the
+  changed logic, one Mermaid diagram of the flow, and the three-commit TDD proof (failing-test commit, red run, green run).
+  Other PRs keep the short body. `.github/PULL_REQUEST_TEMPLATE.md` has both.
+- Upload evidence to the PR. Never commit screenshots, proof sheets, plans or scratch notes.
+- Check each review finding against the source. Fix real ones. Dismiss false ones with a reason. Stop when the
+  checks are green on the latest commit.
+- No `Co-Authored-By` agent trailer and no session link. Merges happen only on the captain's word.
+
+## Docs
+
+- Most changes need no doc change. Agents can read the code.
+- An area `AGENTS.md` holds only traps that the code cannot show, in under 4 KB. No incident stories, dates
+  or PR numbers. The PR is the history. Long rules live in `docs/rules/`. Read one only for the rule you change.
+- When a decision changes, rewrite or delete the old text. Do not append.
+- Talk to the captain in Simplified Technical English. Follow `.agents/skills/ste/SKILL.md`.
+
+## Where things live
+
+Each agent reads the nearest `AGENTS.md` up the tree from the file it edits.
+
+| Area | Owner file |
 | --- | --- |
-| [`app/AGENTS.md`](app/AGENTS.md) | Routes, pages, the API envelope, the proxy, CSP and file tracing. |
-| [`components/AGENTS.md`](components/AGENTS.md) | The map canvas, the sheets and chrome, and the launch primitives. |
-| [`lib/AGENTS.md`](lib/AGENTS.md) | The policy leaves, the closed vocabularies and the stores. |
-| [`lib/harvest/AGENTS.md`](lib/harvest/AGENTS.md) | Pointer to scripts/AGENTS.md, which owns the harvest rules. |
-| [`__tests__/AGENTS.md`](__tests__/AGENTS.md) | The unit suite: the PostgreSQL harness, jsdom and the launch fences. |
-| [`e2e/AGENTS.md`](e2e/AGENTS.md) | Driving the app in a browser: evidence shots and page checks (`npm run e2e:cli`), a private-port server, and the Playwright suite. |
-| [`scripts/AGENTS.md`](scripts/AGENTS.md) | The CLIs: harvest, builders, quality gates and deploys. |
-| [`supabase/AGENTS.md`](supabase/AGENTS.md) | Migration labels, rollbacks, RLS and the permission matrix. |
-| [`ios/AGENTS.md`](ios/AGENTS.md) | The Capacitor shell seams and the iOS capabilities. |
-| [`android/AGENTS.md`](android/AGENTS.md) | The Android half of every native promise. |
-| [`docs/AGENTS.md`](docs/AGENTS.md) | How copy reads, and what a number means. |
-| [`data/AGENTS.md`](data/AGENTS.md) | The committed datasets, packs and price lanes. |
-| [`public/data/AGENTS.md`](public/data/AGENTS.md) | Pointer to data/AGENTS.md. |
-| [`perf/AGENTS.md`](perf/AGENTS.md) | Page and API ceilings, the Core Web Vitals baseline and the findings behind them. |
+| Routes, API envelope, proxy, CSP | [`app/AGENTS.md`](app/AGENTS.md) |
+| Map, sheets, design primitives | [`components/AGENTS.md`](components/AGENTS.md) |
+| Stores, policy leaves, vocabularies | [`lib/AGENTS.md`](lib/AGENTS.md) |
+| Harvest modules (pointer to scripts) | [`lib/harvest/AGENTS.md`](lib/harvest/AGENTS.md) |
+| Harvest, builders, gates, deploys | [`scripts/AGENTS.md`](scripts/AGENTS.md) |
+| Migrations, RLS, permissions | [`supabase/AGENTS.md`](supabase/AGENTS.md) |
+| Unit tests, PostgreSQL harness | [`__tests__/AGENTS.md`](__tests__/AGENTS.md) |
+| Browser tests and browser evidence | [`e2e/AGENTS.md`](e2e/AGENTS.md) |
+| iOS shell and shared native seams | [`ios/AGENTS.md`](ios/AGENTS.md) |
+| Android shell | [`android/AGENTS.md`](android/AGENTS.md) |
+| Datasets and price lanes | [`data/AGENTS.md`](data/AGENTS.md) |
+| Published data packs (pointer to data) | [`public/data/AGENTS.md`](public/data/AGENTS.md) |
+| Copy and analytics | [`docs/AGENTS.md`](docs/AGENTS.md) |
+| Performance ceilings | [`perf/AGENTS.md`](perf/AGENTS.md) |
 
-`CLAUDE.md` imports this file and nothing else. `__tests__/agentsMdTree.test.ts`
-holds the table to the tree: every file named here exists, every area file in the
-tree is named here, and this file stays under 12 KB.
+Issues: GitHub Issues on Singularityszn/pubmax, labels in `docs/agents/triage-labels.md`.
+Decisions: `docs/adr/`. Vision and roadmap: `docs/factory/`. Task workflow: `docs/agents/build-methodology.md`.
 
-### Laws that apply everywhere
+## Taste
 
-- **Never red.** `npm run verify` is the merge bar and it is run locally, because
-  a gate nobody spends is not a gate. Lint, a failing test and a flaky test are all
-  yours to fix, whoever wrote them.
-- **A ceiling comes down, never up.** Route and API budgets follow the measured
-  figure down. Raising one takes the commit that needs it, the reason, and a
-  measured figure beside it. See [`perf/AGENTS.md`](perf/AGENTS.md).
-- **A commit carries no agent trailer.** No `Co-Authored-By` for an agent and no
-  session link in a commit message.
-- **Design and copy have a door.** `docs/DESIGN_SYSTEM.md` owns the launch tokens
-  and primitives, `docs/VOICE.md` owns the words, and both are fenced by tests.
-  See [`components/AGENTS.md`](components/AGENTS.md) and [`docs/AGENTS.md`](docs/AGENTS.md).
-- **Nothing is fetched without permission.** `lib/harvest/sourcePolicy.ts` is the
-  fence in front of every harvested URL, and no caller may hand it one of its own.
-  See [`scripts/AGENTS.md`](scripts/AGENTS.md).
-- **The captain applies migrations and decides a deploy.** Agents ship SQL and a
-  rollback beside it. See [`supabase/AGENTS.md`](supabase/AGENTS.md).
-- **Talk to the captain in Simplified Technical English (ASD-STE100).** Every
-  message to the captain (chat replies, summaries, questions, PR descriptions
-  and PR comments) is written in STE style, for a reader who is not an engineer.
-  Start with what happened and what the captain must do, if anything. One idea
-  in each sentence: 20 words or fewer for an instruction, 25 or fewer for a
-  description. Use the active voice, simple tenses, common words, no
-  contractions, and the same word for the same thing every time. Put a condition
-  before its command. Use a list for three or more items. Explain a technical
-  term in a few words the first time you use it, or do not use it. File paths,
-  commands and test names come after the plain summary, never in place of it.
-  A request for a checked rewrite or an STE compliance check counts as asking
-  for the skill by name: follow [`.agents/skills/ste/SKILL.md`](.agents/skills/ste/SKILL.md).
-
-### Working in this tree
-
-- **Runs keyless.** `npm run dev` works with no secrets: Pint Drops use an in-memory store and `/api/heritage` returns grounded structured-only answers. Supabase and `OPENROUTER_API_KEY` in `.env.local` are only needed for durable persistence, browser auth, admin moderation and narrated heritage replies. See `.env.example`.
-- **Standard commands** live in `package.json` scripts and `README.md`. `npm run verify` is the pre-push gate; `npm run ci` is verify plus build.
-- **Pre-push hook** (`.githooks/pre-push`) runs `npm run verify`, but only after `npm run setup` sets `core.hooksPath=.githooks`; it is not enabled in a fresh clone.
-- **Do not commit tooling churn.** `next-env.d.ts` is generated by `next dev`, `next build` and `next typegen`, and it is ignored, never committed. The `allowScripts` block in `package.json` is committed policy, and `npm install-scripts approve` rewrites it; change a row only with its reason in `scripts/ci/install-script-allowlist.mjs`.
-- **Shared-worktree build gotcha:** a concurrent `next dev` and `next build` can clobber `.next` mid-build and leave `BUILD_ID` missing, so the guard at the head of `npm run start` refuses to `next start`. For isolated production QA, build and serve with `NEXT_DIST_DIR=.next-prod`.
-
-### Anti-goals
-
-- **Honest path anti-goals (London night OS first).** Do not ship a Twitter-for-pubs growth engine; the UK-wide hunt for the cheapest pint may be marketed (captain decision 3, 1 Nov 2026), but every claim shows a real price with its date, a city with no prices says so, and London stays the deep, complete city; do not add Stripe Checkout or payments theatre before venue trust density; do not build AI that fabricates prices, hours or pub lore (heritage and plan generate fail closed to grounded or scarcity answers); do not claim "we beat Stripe" in marketing or investor copy. THREE STANDING COMMITMENTS ride with these. (1) A REFERRAL IS A MARK OF HONOUR, NEVER A FEATURE: a milestone confers recognition and nothing in the product may branch on it (`lib/referrals.ts`, fence `__tests__/referralMarkLaw.test.ts`). The old capability-grant model is deleted, not switched off, in TypeScript and in SQL. (2) THE ANNUAL YEAR IN PINTS WRAP IS FREE FOREVER: it is a person's own year read back to them, so it may never sit behind a price, a tier, a referral count or an account upgrade. (3) FIRST REVENUE COMES FROM VENUES, NEVER DRINKERS: a drinker pays for nothing, and no drinker-facing paywall, membership or metered read may be built before the venue rail earns. Platform prep is ADR-only: `docs/adr/0011-venue-operator-rail.md`, `docs/adr/0012-entitlement-ledger-contract.md`. Ops checklist: `docs/growth/HORIZON0_OPS_CHECKLIST.md`. Extend `docs/plans/PLG_STRATEGY.md` waves rather than inventing a parallel roadmap.
-
-## Agent workflow
-
-Every task moves through four beats: isolate, build, prove and ship. The beats, the multi-agent rules,
-the task completion list and the skill sources are in `docs/agents/build-methodology.md`. Test
-infrastructure is in [`e2e/AGENTS.md`](e2e/AGENTS.md) and [`__tests__/AGENTS.md`](__tests__/AGENTS.md).
-
-## Agent skills
-
-### Issue tracker
-
-Issues live in this repo's GitHub Issues (Singularityszn/pubmax), driven by the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical triage roles use their default names: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: `CONTEXT.md` at the root plus `docs/adr/`. See `docs/agents/domain.md`.
-
-## Maintaining this file
-
-Keep this file for knowledge useful to almost every future agent session in this project.
-Do not repeat what the codebase already shows; point to the authoritative file or command instead.
-Prefer rewriting or pruning existing entries over appending new ones.
-A rule about one area belongs in that area's own `AGENTS.md`, not here; this file keeps
-the index, the laws that apply everywhere and nothing else.
-When updating this file, preserve this bar for all agents and keep entries concise.
+- Routes stay thin: decode input, call one store or service function, map errors to the one API envelope.
+- One owner per rule. Closed vocabularies live in `lib/`.
+- Design primitives own their look. Pick a variant. Do not restyle one in place.
+- No new file over 800 lines. Do not grow `components/PubMap.tsx`, `components/PubMapCanvas.tsx` or
+  `app/globals.css`. Extract from them.
+- Default to no comment. Write one only for a constraint the code cannot show.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

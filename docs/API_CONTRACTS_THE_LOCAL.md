@@ -76,6 +76,26 @@ Most THE LOCAL routes are `Cache-Control: no-store` (`jsonNoStore` and flat `pub
 
 `cityId` is validated by `parseCityId` (`lib/cities.ts`); `DEFAULT_CITY_ID = "london"`. A Night Area belongs to exactly one city; generate returns `422` if the selected area's `cityId` ≠ the request `cityId`. IMPLEMENTED LOCALLY.
 
+### 1.4 Public venue eligibility
+
+[`isNonPublicVenueName`](../lib/venueKindFilters.ts) detects names that indicate access for members, students or staff.
+This name check does not confirm current admission rules.
+
+The affected paths apply these checks.
+
+- Plan generation excludes matching venues from its candidates, including swap alternatives and ending extensions.
+- Pub Pal's `propose_plan` excludes matching venues before ranking its draft stops.
+- The Plan pub picker uses `isPublicRankablePub`, which also checks [venue kind](rules/lib-venues-areas-listings-and-nights.md#a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n).
+- **Host this on a date** first omits story stops whose supplied names match, through `planStopsFromStory`.
+- Plan creation and route replacement resolve each venue ID through [`planStopResolver`](../lib/planRoute.ts) before checking its canonical name.
+  A public-looking caller label cannot bypass this check.
+  Creation returns `400 PLAN_VENUES_INVALID` with "Choose listed venues." for a refused stop.
+  Route replacement returns `400 PLAN_ROUTE_INVALID` for a refused stop.
+  Both reject the request rather than save a shortened route.
+  Listed `place:<poi id>` meeting points retain their separate resolver path.
+
+Regression coverage: `__tests__/planNonPublicVenueFence.test.ts`, `__tests__/palProposePlanNonPublicVenue.test.ts`, `__tests__/planVenueOptions.test.ts`, and `__tests__/planStopPublicEligibility.test.ts`.
+
 ---
 
 ## 2. Core lifecycle types (per #252 TL-1)
@@ -183,7 +203,7 @@ Creation hashes canonical submitted intent, including the cleaned hint, independ
 
 Accepted proposals copy their proposal-time evidence only when it matches the current drink category and the context is not zero-proof. Durable acceptance checks that context while holding the Plan row lock. Completion records preserve saved stop evidence as history, so later live-route edits do not rewrite the completion. These operations do not refresh the historical report date. Anchor-only generation can return selected-drink evidence; the map-to-Plan transfer still omits it.
 
-The SQL in [`supabase/migrations/`](../supabase/migrations/) and its matching [rollbacks](../supabase/migrations/rollback/) owns durable storage, lifecycle writes, and database value constraints. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
+The SQL in [`supabase/migrations/`](../supabase/migrations/) and its matching [rollbacks](../supabase/migrations/rollback/) owns durable storage, lifecycle writes, and database value constraints. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
 
 ### 2.4 NightArea catalogue
 
@@ -391,7 +411,10 @@ type PatchPlanRequest = {
 ```
 
 Rules:
-- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (3 to 6 distinct ids, per `isPlanStopCount`, that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`.
+  `canonicalPlanRoute` requires distinct IDs and a supported count under the [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary).
+  Each ID must resolve under the [public venue eligibility rules](#14-public-venue-eligibility), which return canonical names.
+  Replacing the route increments `routeRevision`.
 - Route replacement uses the first-pub and completed-prefix checks described in [§5.5](#55-night-feature-contracts).
 - The grounded upgrade is permanent and unflagged: a `stops` replacement carrying a `groundingProof` plus an `operationKey` is verified against the exact new order, and only that path raises a one-Stop anchor draft to a grounded route and emits `plan_accepted` once. A legacy V1 creation proof is not an upgrade claim and takes the ordinary update path. Every V2 proof failure is a `422`.
 - `context` must pass strict `cleanNightContext` or `400`.
@@ -561,7 +584,7 @@ Migrations `0213`, `0214` and `0215` and their matching [rollbacks](../supabase/
 Migration `0213` adds nullable arrival bindings without backfilling historical actions.
 Revert the application before rolling back these migrations.
 Rollback removes table signs, mystery settings and proposal proof metadata, while retaining saved routes and proposals.
-The captain controls migration application. The [proof record](proof/v1-night-features/README.md) records local checks, not production migration state.
+The captain controls migration application. The [proof record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/v1-night-features/README.md) records local checks, not production migration state.
 
 ---
 

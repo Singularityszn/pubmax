@@ -58,7 +58,7 @@ import { messagePhotoRouteDeps } from "@/lib/messagePhotoRoute.server";
 import { attachMessageAttachmentCards } from "@/lib/messageAttachmentCards.server";
 import type { ConversationMembership, MessageDTO } from "@/lib/messages";
 import { MessageReadUnavailableError, messagesStore } from "@/lib/messagesStore";
-import { messageAdultRefusal, messageBlockRefusal } from "@/lib/messageSafety.server";
+import { messageAdultRefusal, messageBlockRefusal, messageSuspendedRefusal } from "@/lib/messageSafety.server";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -306,6 +306,8 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   // Sending asks the one adult gate, like opening does.
   const adultRefusal = await messageAdultRefusal(actor.userId);
   if (adultRefusal) return adultRefusal;
+  const suspended = await messageSuspendedRefusal(handle);
+  if (suspended) return suspended;
 
   const blockRefusal = await directThreadBlockRefusal(store, id, handle);
   if (blockRefusal) return blockRefusal;

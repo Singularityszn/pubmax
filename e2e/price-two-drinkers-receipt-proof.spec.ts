@@ -18,13 +18,13 @@ import { attachBill, attachSpillBill } from "./helpers/priceBill";
  * it. The split fixture is the pub Grok read on the 08:37 deploy: £4.50 and
  * £4.70, both public, both in window.
  *
- * Shots land in docs/proof/price-two-drinkers-receipt/.
+ * Shots land in the gitignored artifacts/proof/price-two-drinkers-receipt/ folder.
  */
 test.use({
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
 });
 
-const PROOF = "docs/proof/price-two-drinkers-receipt";
+const PROOF = "artifacts/proof/price-two-drinkers-receipt";
 const HATTON = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const DAY_MS = 24 * 60 * 60 * 1000;
 

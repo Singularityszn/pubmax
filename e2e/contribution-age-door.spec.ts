@@ -26,7 +26,7 @@ test.use({
 const UNPRICED = "venue-1kt3p9o";
 const SHOT_DIR = resolve(
   process.cwd(),
-  "docs/proof/contribution-age-door",
+  "artifacts/proof/contribution-age-door",
   process.env.PW_PROOF_LANE ?? "after",
 );
 const SHOOTING = process.env.PW_PROOF_SHOTS === "1";

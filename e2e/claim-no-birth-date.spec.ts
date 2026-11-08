@@ -26,7 +26,7 @@ const AUTH_USER_ID = "00000000-0000-4000-8000-000000000001";
 const HANDLE = "undated_owl";
 const SHOT_DIR = resolve(
   process.cwd(),
-  "docs/proof/one-rule-claim-card",
+  "artifacts/proof/one-rule-claim-card",
   process.env.PW_PROOF_LANE ?? "after",
 );
 const SHOOTING = process.env.PW_PROOF_SHOTS === "1";

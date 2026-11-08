@@ -14,7 +14,7 @@ import { expect, test } from "@playwright/test";
 //   6. voice, unconfigured, explains itself instead of failing on the tap.
 
 const PHONE = { width: 390, height: 844 };
-const SHOTS = "docs/proof/pubpal-v01";
+const SHOTS = "artifacts/proof/pubpal-v01";
 
 async function askOnPhone(page: import("@playwright/test").Page, ask: string) {
   await page.getByRole("textbox", { name: /Where, how many, what budget/i }).fill(ask);

@@ -2,6 +2,9 @@ name: Browser tests
 
 on:
   pull_request:
+  # The merge queue tests the exact commit that will land on main
+  # (docs/CI_RUNBOOK.md, "The required checks and the merge queue").
+  merge_group:
   push:
     branches: [main]
   schedule:
@@ -225,8 +228,12 @@ jobs:
     # The nightly and a dispatch skip them: the full suite below runs every
     # one of these specs on the same commit, and the three jobs would hold
     # the pool while the full suite waits for them.
+    # The merge queue skips them too. When they run (on a pull request push
+    # and a main push) was left as it is (captain, 7 Nov 2026), so the queue
+    # adds no Mac run. A pull request reaches the queue only after its own
+    # Browser tests check, which needs these jobs, is green.
     needs: [change-scope]
-    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && github.event_name != 'merge_group' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
@@ -354,7 +361,7 @@ jobs:
   layout-pins-2:
     name: Browser layout pins (2/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && github.event_name != 'merge_group' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
@@ -364,12 +371,39 @@ jobs:
   layout-pins-3:
     name: Browser layout pins (3/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && github.event_name != 'merge_group' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
       LAYOUT_SHARD: 3
     steps: *layout-pin-steps
+
+  # THE REQUIRED CHECK (docs/CI_RUNBOOK.md, "The required checks and the merge
+  # queue"). The main ruleset requires this one check by name, not each job,
+  # so a shard can be added or a job skipped with no settings change. It needs
+  # every job a pull request runs (__tests__/ciSummaryCheck.test.ts) and is
+  # red when any of them failed or was cancelled. `always()` makes it report
+  # even then: a summary that was skipped would count as passed. A layout pin
+  # skipped by its own `if` (no screen code, a fork, the merge queue) passes.
+  # The nightly full suite is not a pull request job, so it is not needed here.
+  check:
+    name: Browser tests check
+    if: ${{ always() }}
+    needs: [law-pins, change-scope, layout-pins-1, layout-pins-2, layout-pins-3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a needed job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          red="$(printf '%s' "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')"
+          if [ -n "$red" ]; then
+            echo "::error::Not green: $red"
+            exit 1
+          fi
 
   full-suite:
     name: Full browser suite (${{ matrix.shard }}/8)

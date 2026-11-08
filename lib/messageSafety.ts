@@ -13,6 +13,9 @@ export const MESSAGE_BLOCKED_LINE = "You can't message this account.";
 /** The tap is the way through: the account has not answered the age question. */
 export const MESSAGE_ADULT_REFUSAL = "Confirm you are 18 or over before messaging.";
 
+/** A moderator suspended this account, so it cannot open or send a DM. */
+export const MESSAGE_SUSPENDED_REFUSAL = "Your account is suspended, so you cannot send messages.";
+
 /** The account answered under 18. There is no tap behind this one. */
 export const MESSAGE_UNDER_18_REFUSAL =
   "The date of birth on your account is under 18, so messages are not open to you.";

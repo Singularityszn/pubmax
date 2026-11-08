@@ -74,6 +74,7 @@ describe("browser CI policy", () => {
     { event: "pull_request", fork: false, expected: false },
     { event: "pull_request", fork: true, expected: false },
     { event: "push", expected: false },
+    { event: "merge_group", expected: false },
     { event: "schedule", expected: true },
     { event: "workflow_dispatch", expected: true },
   ] as const)("applies full-suite eligibility to $event ($expected)", ({ expected, ...context }) => {
@@ -165,7 +166,7 @@ describe("browser CI policy", () => {
     });
   });
 
-  it.each(["schedule", "push", "pull_request", "workflow_dispatch"])(
+  it.each(["schedule", "push", "pull_request", "merge_group", "workflow_dispatch"])(
     "reports only scheduled failures or cancellations for %s",
     (event) => {
       const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
@@ -302,6 +303,7 @@ if (args[0] === "issue" && args[1] === "list") {
       "law-pins",
       "change-scope",
       ...LAYOUT_PIN_JOBS,
+      "check",
       ...FULL_SUITE_JOBS,
       "nightly-failure-issue",
     ]);

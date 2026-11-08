@@ -19,7 +19,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import ReportPerson from "@/components/social/ReportPerson";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
+import { trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -446,11 +448,12 @@ export default function CrewDetailClient({
 
   const changeJoinRequest = (action: "request" | "cancel") =>
     run(async () => {
-      await write(`/api/social/crews/${encodeURIComponent(crewId)}/join-requests`, {
+      const body = await write(`/api/social/crews/${encodeURIComponent(crewId)}/join-requests`, {
         method: action === "request" ? "POST" : "DELETE",
         body: "{}",
         prefix: "crew-join",
       });
+      if (action === "request") trackHostLoopStep("request", parseCrewMutation(body), crew);
       setAttempt((value) => value + 1);
     });
 
@@ -459,20 +462,22 @@ export default function CrewDetailClient({
     decision: "accept" | "decline",
   ) =>
     run(async () => {
+      let outcome: ReturnType<typeof parseCrewMutation> = null;
       try {
-        await write(
+        outcome = parseCrewMutation(await write(
           `/api/social/crews/${encodeURIComponent(crewId)}/join-requests/${encodeURIComponent(request.requestId)}`,
           {
             method: "PATCH",
             body: JSON.stringify({ decision }),
             prefix: "crew-join-decide",
           },
-        );
+        ));
       } catch (error) {
         setFocusJoinRequests(true);
         setJoinRequestAttempt((value) => value + 1);
         throw error;
       }
+      trackHostLoopStep("decide", outcome);
       setJoinRequests((current) =>
         current.filter((item) => item.requestId !== request.requestId),
       );
@@ -655,6 +660,11 @@ export default function CrewDetailClient({
               </li>
             ))}
           </ul>
+          <ReportPerson
+            handles={crew.members
+              .filter((member) => member.memberId !== crew.viewer.memberId)
+              .map((member) => member.handle)}
+          />
         </section>
 
         {managesOpenCrew ? (

@@ -401,7 +401,7 @@ test("public discovery embeds one body and passes keyboard and axe checks", asyn
   expect(accessReads).toBe(0);
 
   if (process.env.PW_SOCIAL_PROOF === "1") {
-    const proofDirectory = join(process.cwd(), "docs", "proof", "social-shell");
+    const proofDirectory = join(process.cwd(), "artifacts", "proof", "social-shell");
     mkdirSync(proofDirectory, { recursive: true });
     await page.evaluate(() =>
       (document.activeElement as HTMLElement | null)?.blur(),
@@ -689,7 +689,7 @@ test("Social shell fits target viewports in light and dark themes", async ({
   baseURL,
 }) => {
   test.setTimeout(120_000);
-  const proofDirectory = join(process.cwd(), "docs", "proof", "social-shell");
+  const proofDirectory = join(process.cwd(), "artifacts", "proof", "social-shell");
   const saveProof = process.env.PW_SOCIAL_PROOF === "1";
   if (saveProof) mkdirSync(proofDirectory, { recursive: true });
 

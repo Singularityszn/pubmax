@@ -36,7 +36,11 @@ import {
   type ProfileCoverPhoto,
   type ProfileCoverPhotoFields,
 } from "@/lib/profileCovers";
-import { profileImageServePath, profileImageServingKey } from "@/lib/profileImageSlots";
+import {
+  moderatorCoverPreviewPath,
+  profileImageServePath,
+  profileImageServingKey,
+} from "@/lib/profileImageSlots";
 import {
   PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE,
   profileOwnerImageWriteBlocked,
@@ -88,6 +92,7 @@ export type ProfileCoverPhotoStore = {
   /** How many stored covers this profile already holds. */
   countForProfile(profileId: string): Promise<number>;
   getById(id: string): Promise<ProfileCoverPhoto | null>;
+  hasPendingReport(profileId: string, generation: string): Promise<boolean>;
   /**
    * The serving key this profile may hand out for one generation, or null. The
    * serve route's second lane: a profile holds up to five covers and every one
@@ -161,7 +166,7 @@ export function toModeratorProfileCover(
     ...(photo.moderatedAt ? { moderatedAt: photo.moderatedAt } : {}),
     ...(photo.moderatorNote ? { moderatorNote: photo.moderatorNote } : {}),
     ...(photo.moderationState === "approved"
-      ? { previewUrl: profileImageServePath("cover", photo.profileId, photo.generation) }
+      ? { previewUrl: moderatorCoverPreviewPath(photo.profileId, photo.generation) }
       : {}),
     rotationOnly,
   };
@@ -292,6 +297,15 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
 
   async getById(id) {
     return byId.get(id) ?? null;
+  },
+
+  async hasPendingReport(profileId, generation) {
+    return memoryRowsFor(profileId).some((row) =>
+      row.generation === generation &&
+      row.moderationState === "approved" &&
+      (row.reportCount ?? 0) > 0 &&
+      !row.moderatedAt,
+    );
   },
 
   async approvedObjectKey(profileId, generation) {
@@ -569,6 +583,27 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
         if (error) throw new Error(error.message);
         return data ? fromRow(data as Record<string, unknown>) : null;
+      },
+    });
+  },
+
+  async hasPendingReport(profileId, generation) {
+    return guard<boolean>({
+      context: "hasPendingReport",
+      onSchemaMiss: () =>
+        memoryProfileCoverPhotoStore.hasPendingReport(profileId, generation),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("id")
+          .eq("profile_id", profileId)
+          .eq("generation", generation)
+          .eq("moderation_state", "approved")
+          .gt("report_count", 0)
+          .is("moderated_at", null)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        return data !== null;
       },
     });
   },

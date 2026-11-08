@@ -35,7 +35,7 @@ Useful scripts (`package.json`):
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run verify` | Local pre-push gate; see the [common command reference](../README.md) |
+| `npm run verify` | See the [common command reference](../README.md#quick-start) |
 | `npm run ci` | Full local gate; see the [common command reference](../README.md) |
 | `npm test` | Vitest unit suite (~100+ cases) |
 | `npm run test:e2e` | Playwright smoke (builds + starts, drives Chromium) |
@@ -395,7 +395,7 @@ A successful deployment build does not prove the full local gate passed.
 | **The Landlord** | Grounded-only; rejects phantom citations; temp 0 + timeout; honest refusal | — |
 | **Moderation** | Report ≠ hide (threshold 2); atomic increment; token-gated `/admin` | Public bucket serves hidden objects to kept URLs (needs private bucket for real takedowns) |
 | **Frontend** | Hydration-safe theme; single URL write path; reduced-motion + no-JS safe | `set-state-in-effect` is an ERROR — follow the established patterns |
-| **CI/CD** | See the [common command reference](../README.md) and [CI runbook](CI_RUNBOOK.md) | Deployment builds do not replace the local merge gate |
+| **CI/CD** | See the [common command reference](../README.md) and [CI runbook](CI_RUNBOOK.md) | A deployment build does not prove the local gate passed. |
 
 **Before opening to real public UGC**, the honest to-do list (from `docs/PRD_ADDENDUM_BUILD_REVIEW.md`): unify the two Pint-Drop backends, make the rate limiter's outage behaviour observable/decided, confirm the `x-forwarded-for` trust boundary for the deploy target, move to a private photo bucket + signed URLs if real takedowns are needed, and set `ADMIN_TOKEN` + `RATE_LIMIT_SALT` on every reachable environment.
 

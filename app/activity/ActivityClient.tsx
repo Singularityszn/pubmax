@@ -33,11 +33,10 @@ const KIND_FILTERS: ReadonlyArray<{ kind: NotificationKind; label: string }> = [
   { kind: "reaction", label: "Cheers" },
   { kind: "comment", label: "Comments" },
   { kind: "crawl_save", label: "Saves" },
+  { kind: "crew_join_request", label: "Join requests" },
+  { kind: "crew_join_accepted", label: "Let in" },
 ];
 
-// A grounded one-liner per kind. Keeps the vocabulary in lockstep with the four
-// notification kinds; an unknown kind (shouldn't happen — the store validates)
-// falls back to a neutral verb.
 function verb(kind: NotificationKind): string {
   switch (kind) {
     case "follow":
@@ -48,6 +47,10 @@ function verb(kind: NotificationKind): string {
       return "commented on your Pint Drop";
     case "crawl_save":
       return "saved your crawl";
+    case "crew_join_request":
+      return "asked to join your crawl";
+    case "crew_join_accepted":
+      return "let you into their crawl";
     default:
       return "did something";
   }
@@ -55,7 +58,7 @@ function verb(kind: NotificationKind): string {
 
 // The subject link for a notification, or null when there's nothing to link to.
 // follow → the actor's profile; reaction/comment → the drop on the map; crawl_save
-// → the crawl story permalink.
+// → the crawl story permalink; the two crew kinds → the crew page.
 function subjectHref(n: NotificationDTO): Route | null {
   switch (n.kind) {
     case "follow":
@@ -65,6 +68,9 @@ function subjectHref(n: NotificationDTO): Route | null {
       return n.subjectRef ? `/map?drop=${encodeURIComponent(n.subjectRef)}` : null;
     case "crawl_save":
       return n.subjectRef ? (`/crawls/${encodeURIComponent(n.subjectRef)}` as Route) : null;
+    case "crew_join_request":
+    case "crew_join_accepted":
+      return n.subjectRef ? (`/social/crews/${encodeURIComponent(n.subjectRef)}` as Route) : null;
     default:
       return null;
   }

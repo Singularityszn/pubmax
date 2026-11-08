@@ -61,7 +61,8 @@ rise-in only, with no physics or count-up. Drag, scroll, another selection, or
 Escape interrupts the entrance and settles the sheet. Reduced motion disables
 all new reveal motion. The trust-tier choreography, short-form timing, and
 browser contract live in
-[`docs/proof/venue-reveal/README.md`](proof/venue-reveal/README.md) and
+[`lib/venueReveal.ts`](../lib/venueReveal.ts),
+[`lib/sheetSnap.ts`](../lib/sheetSnap.ts), and
 [`e2e/venue-reveal.spec.ts`](../e2e/venue-reveal.spec.ts).
 
 ## 3. The `/map` URL param contract

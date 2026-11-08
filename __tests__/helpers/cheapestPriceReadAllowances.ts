@@ -5,7 +5,7 @@ import type { PriceReadAllowance } from "./cheapestPriceReadFence";
 export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]> = {
   "lib/ask/conciergeTools.server.ts": [
     {"owner": "toPricedPoints", "count": 1, "reason": "Carries the selected slim evidence into the Near ranker."},
-    {"owner": "toolCheapestPintNear", "count": 3, "reason": "Prints and transports cards returned by the qualified Near rankers."},
+    {"owner": "toolCheapestPintNear", "count": 5, "reason": "Prints and transports cards returned by the qualified Near rankers, and joins each card to its own venue evidence only when the amounts match."},
     {"owner": "venueDrinkAnswerHint", "count": 3, "reason": "Describes a named venue rather than selecting a cheapest winner."},
     {"owner": "toolVenueDrinks", "count": 6, "reason": "Displays a requested venue and its recorded drink evidence."},
   ],
@@ -188,7 +188,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "lib/thenVsNow.ts": [
     {"owner": "computeThenVsNow", "count": 1, "reason": "Compares historical baselines with community reports."},
-    {"owner": "computeVenuePriceStory", "count": 1, "reason": "Builds a selected venue history without choosing a cheapest winner."},
+    {"owner": "selectedPriceRecord", "count": 1, "reason": "Builds a selected venue history without choosing a cheapest winner."},
   ],
   "lib/tonightAnswers.ts": [
     {"owner": "tonightCheapestAnswer", "count": 2, "reason": "Prints the qualified nearby winner."},
@@ -294,7 +294,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "PalChatBody", "count": 1, "reason": "Matches a qualified Near glance to its source venue."},
   ],
   "components/pubs/PubsGallery.tsx": [
-    {"owner": "PubsGallery", "count": 3, "reason": "Preserves user-selected general gallery browsing."},
+    {"owner": "PubsGallery", "count": 5, "reason": "Preserves user-selected general gallery browsing, and joins each card to its own price evidence only when the amounts match."},
   ],
   "components/tonight/useTonightAnswerReads.ts": [
     {"owner": "useTonightNearbyVenues", "count": 1, "reason": "Carries serving and evidence into the Tonight ranker."},
@@ -310,9 +310,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "app/borough/[slug]/page.tsx": [
     {"owner": "BoroughPubRow", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
-  ],
-  "app/crawls/routeSummary.ts": [
-    {"owner": "crawlPriceRange", "count": 1, "reason": "Estimates a predetermined route without cheapest selection."},
   ],
   "app/invite/[token]/opengraph-image.tsx": [
     {"owner": "loadStops", "count": 4, "reason": "Displays the explicitly shared plan stops."},

@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -33,7 +34,7 @@ async function openHostPlan(page: Page): Promise<void> {
   const slim = await (await page.request.get("/data/venues_slim.json")).json() as {
     rows: Array<{ id: string; name: string }>;
   };
-  const venues = slim.rows.slice(0, 3);
+  const venues = slim.rows.filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   expect(venues).toHaveLength(3);
   const created = await page.request.post("/api/plans", {
     headers: { "idempotency-key": randomUUID() },

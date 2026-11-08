@@ -144,7 +144,7 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page },
   await expect(page).toHaveURL(/[?&]accept=1(&|$)/);
   await expect(page).toHaveURL(/[?&]src=near(&|$)/);
   await page.screenshot({
-    path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-map-390-light.png"),
+    path: proofShotPath(testInfo, "artifacts/proof/venue-acceptance/accepted-map-390-light.png"),
   });
   await page.evaluate(() => {
     localStorage.setItem("pubmax-theme", "dark");
@@ -163,7 +163,7 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page },
     });
   });
   await page.screenshot({
-    path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-map-390-dark.png"),
+    path: proofShotPath(testInfo, "artifacts/proof/venue-acceptance/accepted-map-390-dark.png"),
   });
   const stored = await page.evaluate((key) => {
     const raw = window.sessionStorage.getItem(key);

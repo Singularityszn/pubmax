@@ -1,61 +1,28 @@
 # CLIs, harvest, gates and deploys
 
-Rules whose subject is a command: the harvest lanes, the builders and publishers, the quality gates and the deploy scripts.
+Commands: the harvest lanes, the builders and publishers, the quality gates and the deploy scripts. `lib/harvest/*` follows this file. Repo-wide rules are in the root [AGENTS.md](../AGENTS.md).
 
-Repo-wide laws and the index of every other area file are in the root [AGENTS.md](../AGENTS.md).
+## Traps
 
-Long-form incident history, measured proof and review finding IDs live under [`docs/rules/`](../docs/rules/). Each line below names one invariant and links to its full rule. Write or change a rule in its detail file, and keep its title line here in step.
+- **Nothing is fetched without permission.** `lib/harvest/sourcePolicy.ts` is the fence in front of every harvested URL. No caller passes it a URL of its own. Ask the allow-list about the URL you landed on after redirects.
+- **A price source is fenced like every other source.** The narrower price governance table binds.
+- **A page that names another branch is not this pub's price.** A shared name is not a match. An Exa website is read for a price only when its own page states the pub's address.
+- **The Wetherspoon directory is never edited by hand.**
+- **Harvest spend is capped in code.** This covers the London Tavily pass and the London promotion. Every row keeps its evidence.
+- **Knip is the dead-code gate.** Every ignore names the caller knip cannot see.
+- **Every gate is run by something.** A gate that nothing runs is not a gate.
+- **An audit waiver is a documented exception, not a mute button.** `scripts/resilient-audit.mjs` waives only advisories in `WAIVED_ADVISORIES`, each with a reason and a removal condition.
+- **Generated database types come from the harness cluster.** `verify` refuses drift.
+- **A deploy uploads the working tree, not the commit.** `.vercelignore` replaces `.gitignore` for an upload, so a heavy folder missing from it is uploaded.
+- **A production release is one command, and the captain decides it.** It refuses when production lacks a migration, and it ends at the smoke verdict.
+- **The database backup is a private copy on the captain's Mac.** It is never a workflow artifact.
+- **A builder refuses rather than rewrites.** A slim rebuild that drops a shipped famous venue fails.
 
-## CI, gates and audits
+## Detail
 
-Full rules: [`docs/rules/scripts-ci-gates-and-audits.md`](../docs/rules/scripts-ci-gates-and-audits.md).
+Read a detail file only for the rule you change. Each holds the full rules, pins and history:
 
-- [CI RUNNER CONFIGURATION HAS ONE OWNER, AND A BUILD IS NOT A PRODUCTION RUNTIME.](../docs/rules/scripts-ci-gates-and-audits.md#every-job-runs-on-the-avrea-label-and-a-build-is-not-a-production-runtime)
-- [KNIP IS THE DEAD-CODE GATE, AND EVERY IGNORE NAMES THE CALLER KNIP CANNOT SEE.](../docs/rules/scripts-ci-gates-and-audits.md#knip-is-the-dead-code-gate-and-every-ignore-names-the-caller-knip-cannot-see)
-- [A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT, AND NOTHING ELSE MAY.](../docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may)
-- [EVERY GATE IS RUN BY SOMETHING, AND A REPORT-GATE RUNS WHERE THE REPORT IS.](../docs/rules/scripts-ci-gates-and-audits.md#every-gate-is-run-by-something-and-a-report-gate-runs-where-the-report-is)
-- [An audit waiver is a documented exception, not a mute button.](../docs/rules/scripts-ci-gates-and-audits.md#an-audit-waiver-is-a-documented-exception-not-a-mute-button)
-- [The no-mistakes Test step runs `npm run verify:no-mistakes:changed` as its own command.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command)
-- [The local no-mistakes Test step uses scoped checks unless the change requires full verification.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-change-scoped-checks-and-ci-runs-the-full-suite)
-- [Generated database types are cut from the harness cluster, and verify refuses drift.](../docs/rules/scripts-ci-gates-and-audits.md#generated-database-types-are-cut-from-the-harness-cluster-and-verify-refuses-drift)
-- [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH, AND A CHECK NAME IS THE CAPTAIN'S.](../docs/rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path)
-
-## Harvest and source permission
-
-Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rules/scripts-harvest-and-source-permission.md).
-
-- [The all-UK pub harvest enumerates OSM then enriches via Exa.](../docs/rules/scripts-harvest-and-source-permission.md#the-all-uk-pub-harvest-enumerates-osm-then-enriches-via-exa)
-- [A MENU URL THE FOLD RECORDED IS A CRAWL INPUT, AND THE TABLE IS EMPTY.](../docs/rules/scripts-harvest-and-source-permission.md#a-menu-url-the-fold-recorded-is-a-crawl-input-and-the-table-is-empty)
-- [A URL WE DECIDE TO FETCH IS SOMEBODY ELSE'S STRING, AND THE ALLOW-LIST IS ASKED ABOUT WHERE WE LANDED.](../docs/rules/scripts-harvest-and-source-permission.md#a-url-we-decide-to-fetch-is-somebody-else-s-string-and-the-allow-list-is-asked-a)
-- [A PRICE source is fenced like every other source, and the NARROWER table binds.](../docs/rules/scripts-harvest-and-source-permission.md#a-price-source-is-fenced-like-every-other-source-and-the-narrower-table-binds)
-- [The London harvest reads first-party pages, and a skip is a finding.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-harvest-reads-first-party-pages-and-a-skip-is-a-finding)
-- [AN OPEN-DATA API IS A SOURCE TOO, AND ITS BUILDER ASKS THE TABLE FOR ITS URL.](../docs/rules/scripts-harvest-and-source-permission.md#an-open-data-api-is-a-source-too-and-its-builder-asks-the-table-for-its-url)
-- [THE WETHERSPOON DIRECTORY IS THE PUBS THE CHAIN RUNS TODAY, AND IT IS NEVER EDITED BY HAND.](../docs/rules/scripts-harvest-and-source-permission.md#the-wetherspoon-directory-is-the-pubs-the-chain-runs-today-and-it-is-never-edite)
-- [The UK venue extraction is OSM-stated or it does not exist, save one London restaurant lane.](../docs/rules/scripts-harvest-and-source-permission.md#the-uk-venue-extraction-is-osm-stated-or-it-does-not-exist-save-one-london-resta)
-- [The nightly Tavily pass spends the plan and writes Listed evidence only.](../docs/rules/scripts-harvest-and-source-permission.md#the-nightly-tavily-pass-spends-the-plan-and-writes-listed-evidence-only)
-- [The London Tavily pass and the London promotion are capped in code, and every row keeps its evidence.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-tavily-pass-and-the-london-promotion-are-capped-in-code)
-- [A PUB'S OWN FOOD MENU IS READ LIKE ITS DRINKS LIST, AND ONLY ITS PRICE FACT SHIPS.](../docs/rules/scripts-harvest-and-source-permission.md#a-pub-s-own-food-menu-is-read-like-its-drinks-list-and-only-its-price-fact-ships)
-- [AN EXA WEBSITE IS READ FOR A PRICE ONLY WHEN ITS OWN PAGE STATES THE PUB'S ADDRESS.](../docs/rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address)
-- [A MENU IS THE PUB'S WHOSE WEBSITE IT IS, AND A SHARED NAME IS NOT A MATCH.](../docs/rules/scripts-harvest-and-source-permission.md#a-menu-is-the-pub-s-whose-website-it-is-and-a-shared-name-is-not-a-match)
-- [A PAGE THAT NAMES ANOTHER BRANCH IS NOT THIS PUB'S PRICE, EVEN ON A ONE-PUB HOST.](../docs/rules/scripts-harvest-and-source-permission.md#a-page-that-names-another-branch-is-not-this-pub-s-price-even-on-a-one-pub-host)
-
-## Builders and publishers
-
-Full rules: [`docs/rules/scripts-builders-and-publishers.md`](../docs/rules/scripts-builders-and-publishers.md).
-
-- [THE HYPED-PUBS PUBLISH IS ONE COMMAND, AND IT FETCHES NOTHING.](../docs/rules/scripts-builders-and-publishers.md#the-hyped-pubs-publish-is-one-command-and-it-fetches-nothing)
-- [The Pint Index PUBLISHES what drinkers confirmed, and the producer is a script.](../docs/rules/scripts-builders-and-publishers.md#the-pint-index-publishes-what-drinkers-confirmed-and-the-producer-is-a-script)
-- [A SLIM REBUILD THAT DROPS A SHIPPED FAMOUS VENUE FAILS.](../docs/rules/scripts-builders-and-publishers.md#a-slim-rebuild-that-drops-a-shipped-famous-venue-fails)
-- [THE HISTORIC DIRECTORY PUBLISHES THROUGH THREE GATES, AND EACH ONE REFUSES RATHER THAN REWRITES.](../docs/rules/scripts-builders-and-publishers.md#the-historic-directory-publishes-through-three-gates-and-each-one-refuses-rather)
-
-## Deploys and uploads
-
-Full rules: [`docs/rules/scripts-deploys-and-uploads.md`](../docs/rules/scripts-deploys-and-uploads.md).
-
-- [A `.vercelignore` REPLACES the `.gitignore` fallback, so a heavy directory absent from it is uploaded.](../docs/rules/scripts-deploys-and-uploads.md#a-vercelignore-replaces-the-gitignore-fallback-so-a-heavy-directory-absent-from-)
-- [A DEPLOY UPLOADS THE WORKING TREE, NOT THE COMMIT, so `.vercelignore` is what keeps it small.](../docs/rules/scripts-deploys-and-uploads.md#a-deploy-uploads-the-working-tree-not-the-commit-so-vercelignore-is-what-keeps-i)
-- [A DEPLOY NAMES ITS OWN COMMIT, AND A CLI DEPLOY HAS TO CARRY IT.](../docs/rules/scripts-deploys-and-uploads.md#a-deploy-names-its-own-commit-and-a-cli-deploy-has-to-carry-it)
-- [A PRODUCTION RELEASE IS ONE COMMAND, AND IT ENDS AT THE SMOKE VERDICT.](../docs/rules/scripts-deploys-and-uploads.md#a-production-release-is-one-command-and-it-ends-at-the-smoke-verdict)
-- [THE RELEASE REFUSES WHEN PRODUCTION LACKS A MIGRATION, AND THE CHECK COMPARES NAMES.](../docs/rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)
-- [PRODUCTION IS ASKED EVERY FIVE MINUTES, AND ONLY A ROUTE THAT FAILS TWICE IS AN OUTAGE.](../docs/rules/scripts-deploys-and-uploads.md#production-is-asked-every-five-minutes-and-only-a-route-that-fails-twice-is-an-outage)
-- [THE ONLY DATABASE BACKUP IS A PRIVATE COPY ON THE CAPTAIN'S MAC, AND IT IS NEVER A WORKFLOW ARTIFACT.](../docs/rules/scripts-deploys-and-uploads.md#the-only-database-backup-is-a-private-copy-on-the-captain-s-mac)
+- CI, gates and audits: [`docs/rules/scripts-ci-gates-and-audits.md`](../docs/rules/scripts-ci-gates-and-audits.md)
+- Harvest and source permission: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rules/scripts-harvest-and-source-permission.md)
+- Builders and publishers: [`docs/rules/scripts-builders-and-publishers.md`](../docs/rules/scripts-builders-and-publishers.md)
+- Deploys and uploads: [`docs/rules/scripts-deploys-and-uploads.md`](../docs/rules/scripts-deploys-and-uploads.md)

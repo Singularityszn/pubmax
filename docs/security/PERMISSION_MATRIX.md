@@ -64,7 +64,7 @@ one that belongs to somebody else, or the refusal is an existence oracle.
 | blocked user (carol) | a mutual follower of the owner whom the owner has blocked |
 | guest (device RSVP) | a Plan seat with a capability token and no account behind it |
 | capability | a Plan member token or invite token, which is not an identity |
-| staff (moderator) | the `ADMIN_TOKEN` credential, never ownership |
+| staff (moderator) | the `ADMIN_TOKEN` credential through a header or admin session, never account ownership |
 
 Carol differs from Bob by the block alone: both are mutual followers of the
 owner, so a cell that refuses Carol is measuring the block rather than a
@@ -113,6 +113,11 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Hidden rows and `actor` or `hidden_at` columns at the table | denied | denied | denied | n/a |
 | Pint Drop and structured visit rows at the table, including an anonymous author's handle and moderator notes | denied | denied | denied | n/a |
 | `community_prices.contributor_handle` at the table | denied | denied | denied | n/a |
+| Read Social reports or flagged DMs, resolve a report, review a DM, suspend or reinstate (`/api/admin/social-safety`) | 403 | 403 | 403 | Both an admin credential (`ADMIN_TOKEN` header or admin session) and an active moderator staff role are required. Suspension and reinstatement require a reason. Each state change writes its audit row in the same transaction. |
+| View a flagged DM attachment (`POST /api/admin/social-safety`, `view_message_evidence`) | 403 | 403 | 403 | moderator only; one flagged message; every read audited; photo URL expires after 180 seconds |
+| View reported content (`POST /api/admin/social-safety`, `view_report_evidence`) | 403 | 403 | 403 | Moderator access only. Only the post, comment or quote named by an open report is available. Evidence includes its full text and, for posts, the primary photo, every carousel photo and video. Parent threads and other items by the author are excluded. Every read writes an audit row. Media URLs expire after 180 seconds. |
+| `social_report_evidence_audit` at the table | denied | denied | denied | RLS on with no policy or browser grant; service role can only select and insert |
+| `message_flag_reviews`, `message_flag_evidence_audit`, `social_account_moderation_audit` at the table | denied | denied | denied | RLS is on with no policy or browser grant. The service role can only select and insert. |
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |
 | Delete account (`DELETE /api/account`) | 401 | own account only, whatever the body names | own account only | n/a |
 | Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |

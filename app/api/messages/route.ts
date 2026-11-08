@@ -39,6 +39,7 @@ import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadca
 import { attachParticipantCards } from "@/lib/messageParticipantCards.server";
 import {
   messageAdultRefusal,
+  messageSuspendedRefusal,
   messageBlockRefusal,
   messageMatesRefusal,
   messageNewPairMatesRefusal,
@@ -150,6 +151,10 @@ export async function POST(request: Request): Promise<Response> {
   // `status`, so the surface can offer the one tap.
   const adultRefusal = await messageAdultRefusal(actor.userId);
   if (adultRefusal) return adultRefusal;
+
+  // A suspended account opens and sends nothing (0224).
+  const suspended = await messageSuspendedRefusal(handle);
+  if (suspended) return suspended;
 
   // A conversation is opened WITH somebody. A handle nobody holds is not
   // somebody, and accepting one minted a durable row per fabricated name.

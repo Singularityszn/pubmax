@@ -63,12 +63,12 @@ test("390px Map acceptance persists before Plan receives Stop 1", async ({ page 
     localStorage.setItem("pubmax-theme", "light");
     document.documentElement.dataset.theme = "light";
   });
-  await page.screenshot({ path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-plan-390-light.png") });
+  await page.screenshot({ path: proofShotPath(testInfo, "artifacts/proof/venue-acceptance/accepted-plan-390-light.png") });
   await page.evaluate(() => {
     localStorage.setItem("pubmax-theme", "dark");
     document.documentElement.dataset.theme = "dark";
   });
-  await page.screenshot({ path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-plan-390-dark.png") });
+  await page.screenshot({ path: proofShotPath(testInfo, "artifacts/proof/venue-acceptance/accepted-plan-390-dark.png") });
 });
 
 /**
@@ -165,7 +165,7 @@ for (const width of [320, 390] as const) {
         await page.screenshot({
           path: proofShotPath(
             testInfo,
-            `docs/proof/one-plan-door/stop-1-${width}${textScale === 1 ? "" : "-large-text"}.png`,
+            `artifacts/proof/one-plan-door/stop-1-${width}${textScale === 1 ? "" : "-large-text"}.png`,
           ),
         });
       }

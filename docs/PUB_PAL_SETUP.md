@@ -190,7 +190,7 @@ workspace tool list also causes a refusal. Update resolves all identities before
 writing a secret, a tool, or the agent. Other tool settings remain part of the
 normal update and drift check.
 
-The [tool identity CLI proof](proof/2026-10-08-pubpal-tool-identity/README.md)
+The [tool identity CLI proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/2026-10-08-pubpal-tool-identity/README.md)
 records the regression fixture, captured results, and proof limits.
 
 Provider-backed typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.

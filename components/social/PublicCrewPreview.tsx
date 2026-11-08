@@ -1,6 +1,7 @@
 "use client";
 
 import type { SocialCrewPublicPreviewDTO } from "@/lib/socialCrew";
+import ReportPerson from "@/components/social/ReportPerson";
 import { displayHandle } from "@/lib/handleDisplay";
 import { crewStartsCaption } from "@/lib/socialCrewsUi";
 import {
@@ -77,6 +78,7 @@ export default function PublicCrewPreview({
           </button>
         </section>
       )}
+      <ReportPerson handles={[preview.hostHandle]} />
     </>
   );
 }

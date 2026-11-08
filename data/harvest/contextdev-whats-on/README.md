@@ -48,4 +48,4 @@ The saved plan records the original allowance, and a second `--plan` keeps it.
 
 `proof/data-before-after.json` contains the dataset counts after the final publish.
 `proof/venue-hours-response.json` contains the venue response that shows published opening hours.
-The browser captures are in [`docs/proof/contextdev-whats-on/`](../../../docs/proof/contextdev-whats-on/README.md).
+The browser captures are in [`docs/proof/contextdev-whats-on/`](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/contextdev-whats-on/README.md).

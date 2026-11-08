@@ -11,6 +11,7 @@ import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
 import ProfileMuteBlock from "@/components/social/ProfileMuteBlock";
+import ReportPerson from "@/components/social/ReportPerson";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import OutTonightBoard from "@/components/profile/OutTonightBoard";
 import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
@@ -1238,6 +1239,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       {socialFriendsLaunchEnabled ? (
         <ProfileMuteBlock targetHandle={routeHandle} viewerHandle={viewerHandle} />
       ) : null}
+      {/* Report this person, folded shut. Reports stay open while Social is
+          paused, as the report route does. */}
+      <ReportPerson handles={[routeHandle]} viewerHandle={viewerHandle} />
     </>
     );
   }

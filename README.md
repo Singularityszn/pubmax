@@ -7,6 +7,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 ## Features
 
 - **Pub pictures** - the pub gallery, map venue sheet and pub page try usable real photos before showing an illustrated sign. The map sheet tries the pub website photo, then an available community photo. If no usable photo remains, the sign shows the real pub name and area, with no founding year, price or photo credit. Its accessible name starts with "Illustrated sign for" and names the pub. Photos with unknown provenance are skipped. The sign works without wild mode. Historic cover art stays behind wild mode.
+- **Chain pub gallery** - each **from** price at `/pubs` shows its own recorded drink, stated serving, publisher and source-read day when available. The card uses evidence only when the evidence amount matches the shown price. The card labels missing facts without borrowing evidence from the menu link. Uppercase drink tags appear in title case. A recorded half keeps its amount and stays outside pint price bands. The source-read day does not confirm today's price.
 - **Night preview selector** - these public browser choices do not grant account access. The master wild switch and the preview selection start off. To show the selector, open a page with `?wild=1`, such as `/plan?wild=1`. Desktop choices appear inside **More**. On phones, **Night preview** appears below the header on Home, Map, and pages with shared navigation.
 
   Choose **Round Rota**, **Borough Bingo**, or **Previews off**. Only one idea can be selected at a time. Pub Tarot remains deferred. See the [browser preview parameter contract](docs/MAP_URL_PARAMS.md#browser-preview-parameters) for link handling and storage limits.
@@ -24,9 +25,13 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Your profile has a cover, personal details, statistics and section links. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.
 
+  Shared cover links follow your **Who can see your profile** setting. The [account privacy rule](docs/rules/lib-identity-accounts-and-sessions.md#an-account-is-public-or-private-and-that-is-a-visible-choice-rather-than-a-prope) explains reader access and moderator previews.
+
   On the account page, **Bring this device** saves finished-night recaps as private Memories without publishing them. **Keep only on this device** leaves them local. If a save fails or you switch accounts during transfer, all device drafts remain. Earlier saves can appear in your Memories while the remaining recaps wait. Retrying with the same account reuses each saved Memory. A successful save refreshes your Memories without clearing the draft in the Memory editor.
 
-  Switching accounts clears Mates' prices, drinker-added regular-night rows and **Still on** receipts. The rows stay hidden until the new read finishes. Anonymous regular-night browsing remains available. See the [account read contract](docs/rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device) for implementation rules.
+  Switching accounts clears Mates' prices, presence rows, drinker-added regular-night rows and **Still on** receipts. The rows stay hidden until the new read finishes. Anonymous regular-night browsing remains available. See the [account read contract](docs/rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device) for implementation rules.
+
+- **I'm here** - in a pub's map sheet, open **Overview** and tap **I'm here** to record a check-in. The [privacy notice](https://pubmaxxing.com/privacy#presence) explains who can see it and for how long.
 
 - **Control readiness** - Import, Near, and shared header buttons stay unavailable until page scripts can handle a click. Shared navigation links show a loading line while an accepted page change waits. If you choose **Meet your Pub Pal** while the session loads, the page keeps your request and shows a status message. The button stays unavailable while the request waits.
 
@@ -87,6 +92,11 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Map Ask and keyless typed chat accept "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use."
   The evidence instruction preserves your requested pub count and preferences. It does not require a recorded price for every pub.
 
+  Ask "Cheapest pint near Soho" for cards with walk times when available.
+  Each price shows its own recorded drink, stated serving, publisher and full source-read day.
+  Missing facts are labelled in words. A publisher name does not provide a source link.
+  These captions say **Link unavailable** when a publisher is recorded.
+
   "Hi show me the map" and "OK. Show me the map" focus the existing recommendation map when available.
   Otherwise, these commands open `/map`.
   A discovery or service request beside a generic map command stays in chat.
@@ -130,11 +140,15 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Use **Open in Plan** to continue a Pub Pal draft in the planner. The [draft handoff rules](docs/adr/0014-night-os-ask-agent.md#decision) explain how Plan handles your chosen pub, requested stop count, and incomplete routes.
 
+  The [public venue checks](docs/API_CONTRACTS_THE_LOCAL.md#14-public-venue-eligibility) explain which venues the planner, hosted crawls and Pub Pal drafts exclude.
+
   The [account isolation contract](docs/rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device) explains what resets when you switch accounts or sign out with the planner open.
 
   If **Tonight near me** cannot select a checked area, type an area in the description. Choose **Plan it**. You can still make an editable draft. Check the [opening and travel notice beside the stops](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it) before you go. Restored drafts also show when these checks are unavailable.
 
   On a shared invite, **Open the plan** stays available when this browser restores guest access, including after a page reload.
+
+  After the host chooses **Open it up**, the existing invite link opens the public crew page. Visitors ask to join there. The host accepts or declines each request.
 
   The route map's accessible description uses the areas recorded for its stops. It names every distinct area when the route crosses areas. If any stop lacks a specific area, the description omits geography. Search distance does not establish a borough boundary.
 
@@ -157,6 +171,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 - **Curated routes** - named Featured crawls load as ordered stops. The `/crawls` directory lists these routes without JavaScript. Each `/routes/{slug}` page includes the Pint Line, the crawl receipt, and **Plan this crawl**, which opens the existing map route. The stop list, diagram and receipt use the same selected row under the [comparable-pint rules](docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings). The receipt shows each selected pint's price, drink, publisher and full read date. Its per-person subtotal covers one pint at each priced stop. This subtotal does not cover the whole night's spend. The group total multiplies that subtotal by the selected number of people. An equal split gives the same per-person subtotal. Stops without a qualifying pint price show **No price yet** on the receipt and stay outside its subtotal. The receipt counts these stops and missing planned stops. Once all stops load, the featured card shows minutes as a **straight-line estimate**. This estimate does not follow streets. If any stop is missing, the card omits the estimate.
 
+  On `/crawls`, the featured card and compact rows show a range of comparable listed pint prices. Each endpoint names its pub, publisher and full source-read day in London time. Drink and serving appear only when the slim index carries them. The page counts stops with a comparable listed pint. The evidence appears outside **Plan this crawl** links.
+
+  An unavailable price read shows **Price evidence unavailable.** The page then omits ranges and coverage claims. A successful read with no qualifying prices states that none are recorded for these stops.
+
   Below the London routes, **Crawls in other cities** lists complete routes by city, with each route's name and stop count. Choose a route to open its ordered stops on that city's map. A route appears only when it has at least two stops and every stop has valid coordinates inside its city. Price coverage notes appear under each city's name. If every listed city has the same note, that note appears once below the section heading.
 
   A valid shared Crawl Story link shows the story instead of the directory. An unreadable shared link shows the directory, including available city routes.
@@ -165,7 +183,11 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   On `/borough/{slug}`, each cheapest and dearest pint shows its own drink, serving, publisher and full read day. Missing facts are labelled. The average states its pub count, publisher coverage and full-read-day coverage. The visible FAQ and its structured data use identical answers. The borough share image uses the same average and cheapest pint, with their evidence captions. The [price population contract](docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings) explains which prices enter the average and priced-pub count.
 
-- **Pubs near me** - `/near` compares nearby listed pints, cheapest first, under the [comparable-pint rules](docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings). Each result shows its recorded publisher status, while one shared date tells you when the Venue Dataset was collected. When the answer names different pubs with the same name, it adds a recorded street or area when available. This applies to the summary and result rows, including names that differ only by a leading "The". Location stays on the device, and a denied or unavailable location falls back to a remembered or default area. An optional price check loads separately once the app confirms sign-in and Pint results appear. The Pint results stay available while the price check loads or if it fails. If it fails to load, choose **Try again** to retry the price check.
+- **Pubs near me** - `/near` compares nearby listed pints, cheapest first, under the [comparable-pint rules](docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings). Each priced result shows its recorded publisher status, while one shared date tells you when the Venue Dataset was collected. When the price answer names different pubs with the same name, it adds a recorded street or area when available. This applies to the summary and result rows, including names that differ only by a leading "The". Location stays on the device, and a denied or unavailable location falls back to a remembered or default area. An optional price check loads separately once the app confirms sign-in and Pint results appear. The Pint results stay available while the price check loads or if it fails. If it fails to load, choose **Try again** to retry the price check.
+
+  With a location, **Nearest listed pub** separately names the closest public pub in the available list, including pubs without a pint price. It shows distance and an estimated walk based on straight-line distance, without a price. On `/near`, it uses the current city's listed pubs. On the map, it uses the pubs allowed by the current filters, including **Saved only**. It does not claim the nearest pub outside that list. **View pub** opens that pub on the map.
+
+  Area answers hide the nearest result. A location update also hides it until a new location answer arrives. When map filters change, the answers refresh for the same location or area without another location request.
 - **Lucia 🐐** - open **Drink** on the map. Under **Soft drinks**, choose **Lucia 🐐** for the Coke Zero and Diet Coke price list. The link opens `/soft-drinks-and-water?sub=soft-drink-lucia-special` on mobile and desktop. The mobile Drink panel opens at full height.
 
 - **Spoons** - on desktop, the Spoons tab opens `/spoons-value`. On a phone, open **Drink** on the map and choose **Spoons value** instead. Search the published ranking by pub, town or postcode. Open **Round costs** to read each drink's recorded cost and units, the round total and the source date. These figures come from SpoonMe's dated report, so prices may have changed. They describe recorded rounds, not complete current menus. The page links each matched pub to the Spoons map.
@@ -183,6 +205,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Choose **Friends** to share notes with people you follow who also follow you. **Legacy** keeps an entry in the pub's Ledger. Other people see the entry without your note or price. Anyone with a photo's link can open it while the link remains valid.
 
+- **Venue price stories** - open a pub's **Prices** tab to see **The Golden Thread**. Each listed or updated price keeps its own drink, serving, publisher and source-read day. A drinker report keeps its own drink, serving, attribution and log date. Missing facts are labelled. Another row never supplies missing evidence, even when its price matches. Only reports for the selected pub count.
+
+  A change requires the same named drink and serving, positive prices, named publishers and valid dates in order. The report must follow the earlier record and remain within the [community-price freshness window](lib/priceAuthorityWindow.ts). Demo prices and anecdotes cannot establish a change. Otherwise, two displayed records show **Price comparison unavailable**, without an arrow, comparison bars, percentage or spoken change claim. A memory's era does not date its logged price, so the story shows no inflation adjustment. Source reads and reports do not confirm today's price.
 - **Offline pages** - with a registered service worker, previously cached public `/plan/<id>` previews can reopen without signal. Cached landing, Map, Tonight and offline fallback pages can also reopen.
 
   Nearby links (`/near`, with or without query parameters) need a connection. When navigation fails, the service worker shows the cached offline explanation. If that page is unavailable, it shows a plain offline error.
@@ -205,6 +230,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Choose **Ask to join** to request a place. The host accepts or declines the request.
   Crews that are not open and failed reads show a plain PUBMAXX image instead.
 
+  For open crawls, a new join request notifies the host, and an acceptance notifies the guest. Each notice links to the crawl page. Delivery uses Activity and, when [email is configured](.env.example), the recipient's account email. A decline, cancellation or replay sends no notice.
+
+  Delivery is best effort and does not block the join action. Missing email settings do not prevent in-app delivery. These notices do not use push.
+
   If the signed-out London feed is empty, its [public next actions](docs/design/LAUNCH_SCREENS.md#social-action-order) appear before the body sign-in offer.
 
   On phones, posts appear before crews and other supporting tools. Desktop keeps those tools beside the feed. The Posts view links to **Messages**, **Your Pub Pal**, **Plan a crawl**, and **Save a Moment**. **Post** opens a composer with visibility guidance and a character count.
@@ -219,6 +248,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations.
 
+  A suspended account cannot start a conversation or send a message. If PUBMAXX cannot check suspension, it refuses the send and asks you to retry.
+
 - **Founders wall** - `/founders` keeps the first hundred claimed handles on public record. Social Posts and Your PUBMAXX link to it.
 - **Log tonight's price** - on the mobile map, open **More map controls**, choose **Layers**, then **Log a price** to keep the map's city and selected drink. Choose a pub if none is selected. **Search pubs** keeps the request active while you search; **Show all pubs** clears constraints but keeps the drink category. Wine and cocktail requests open their own price forms, and sign-in returns to the same city, pub, and drink. You can also tap **Add price** from a pub's sheet, choose a category, and enter the price. Each submission shows on the pub's own page instantly, on its own dated row, never overwriting the price on record. [Contribution access rules](docs/rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s) govern the sign-in, handle and age checks. A first pint report also marks the pub's pin at once with a small unconfirmed dot, but the pin's colour and card restamp with a dated community badge only once a second independent drinker logs the same figure, and a community price over 30 days old hands the map back to the price on record.
 
@@ -232,7 +263,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Pint Index** - `/pint-index` ranks London boroughs by observed pint price, with a TfL fare-zone median strip beside it and a dearest-end view of the same league. Only prices carrying a public source and the day they were seen are eligible, which is stricter than the map: an area can post a zone median and still sit empty in the league. Every closed month freezes into its own dated page so a quoted figure stays quotable, and the live page and each dated edition publish `Dataset` structured data, with a CSV download whenever they hold rows. Cited national benchmarks sit above the league as somebody else's figures, each naming who counted it and when, never merged into ours.
 - **Price coverage** - the map's **Drink** control counts pubs loaded so far. Pints use prices on record. Other drinks use confirmed prices from drinkers. Coffee and alcohol-free drinks also show a separate Listed menu count. Its source-read date names the newest eligible listing among loaded pubs. A failed menu read shows an unavailable message. The Shoreditch café count stays separate. Pint Index also shows coverage across its London pub list, including listed prices and published menus. Each pub counts once per drink. This total is not every pub in London, and it is separate from the borough league and CSV. Partial reads disclose incomplete counts. These listed prices do not promise today's price.
 - **The Landlord** - pub-history answers use recorded facts and keep dates attached to their sourced events, without calculating present-day ages. For typed history questions, use a complete listed pub name or recorded alias. A shared name such as The Lamb asks you to choose a pub on the map. An unlisted name produces no pub card. An unlisted or ambiguous name does not discard another uniquely matched pub in the same question.
-- **Moderation** - reports from two distinct signed-in accounts hide a Pint Drop; anonymous reports queue it for moderator review without auto-hiding it. A token-gated `/admin` console reviews hidden drops. A community price or a drinker's pub observation can also be reported by anyone, but never auto-hides: only a moderator hides it (hide, never delete) through the moderator-gated admin API, one queue for both shapes.
+- **Report a person** - when signed in, open **Report @handle** on a profile or crew page and choose a reason. If several people are listed, open **Report someone** and choose the person first. The public crew preview offers a report for its host. A report enters the moderation queue without blocking the person or removing content.
+- **Moderation** - reports from two distinct signed-in accounts hide a Pint Drop; anonymous reports queue it for moderator review without auto-hiding it. The `/admin` console reviews hidden drops. A community price or a drinker's pub observation can also be reported by anyone, but never auto-hides: only a moderator hides it (hide, never delete) through the moderator-gated admin API, one queue for both shapes. Social reports and flagged DMs have separate queues in the same console. The [Social moderation guide](docs/SOFT_LAUNCH_RUNBOOK.md#52-social-moderation-rota) covers those controls.
 
 ## Stack
 
@@ -295,8 +327,9 @@ Useful scripts:
 |---|---|
 | `npm run dev` | Dev server |
 | `npm run typecheck` | Checks project types; [compiler compatibility](next.config.mjs) explains how this differs from the Next build check |
-| `npm run verify` | Local pre-push gate; its complete check sequence is defined by the `verify` script in [`package.json`](package.json). `test:rls` and `db:types:check` need PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
-| `npm run ci` | `verify` + build - the full local gate; Vercel's build command is defined separately in [`vercel.json`](vercel.json) |
+| `npm run verify:no-mistakes:changed` | Runs change-scoped checks before push. See [verification policy](AGENTS.md#verifying). |
+| `npm run verify` | Full checks for CI or an explicitly requested local run. [`package.json`](package.json) defines the sequence. `test:rls` and `db:types:check` need PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
+| `npm run ci` | `verify` + build, for an explicitly requested full local check. [`vercel.json`](vercel.json) defines Vercel's build command |
 | `npm run ci:isolated` | Collision-safe keyless `ci` in a unique temporary Next dist directory; restores Next-managed tracked files |
 | `npm test` | Vitest unit suite ([PostgreSQL suite inventory](scripts/rls/postgresSuites.mjs); those suites boot throwaway PostgreSQL 16 clusters, `PUBMAX_PG_MAX_CLUSTERS` caps concurrency, and `PUBMAX_RLS_NO_PG=1` skips them) |
 | `npm run test:chatgpt-map` | Installs the pinned local MCP package and runs its Node tests; included in `verify`. Separate browser proof is described in the [setup guide](scripts/chatgpt-map/README.md) |
@@ -305,9 +338,9 @@ Useful scripts:
 | `npm run test:e2e:plan-auth` | Disposable local Plan authentication and recovery checks. See the [recovery guide](docs/testing/signed-in-review.md#disposable-plan-recovery) for requirements, configuration, and cleanup. |
 | `node scripts/e2e/run-disposable-plan-browser.mjs` | Wine and cocktail persistence and forged-hint browser checks against disposable PostgreSQL/PostgREST. Requires local PostgreSQL 16, PostgREST, and Playwright Chromium. Builds an isolated production server, applies the [fixture's migration range](scripts/e2e/disposable-plan-db.mjs) only to its temporary database, and cleans up its server, database, and build directory. Results stay in `test-results/`. |
 | [Signed-in review harness](docs/testing/signed-in-review.md) | Seeded local authenticated browser review |
-| `npm run shots` | Generates required 390/1440 light/dark Gate-Z screenshots; map captures fail unless MapLibre paints a pub mark |
+| `npm run shots` | Generates 390/1440 light/dark Gate-Z screenshots under ignored `artifacts/screenshots/` for upload to the PR. Map captures require a painted pub mark |
 | `npm run shots:extended` | Runs the same gate with the 430/1280 breakpoint audit |
-| `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
+| `npm run setup` | Enables the optional pre-push hook (`core.hooksPath=.githooks`). See the [verification policy](AGENTS.md#verifying) |
 | `npm run build:slim` | Slim map index + **venue detail artifacts** (`data/generated/`) — also runs in `npm run build` |
 | `npm run build:city-slim` | Regenerates enabled city slim packs, compatibility cores, and manifests |
 

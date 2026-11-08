@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 test.setTimeout(90_000);
 
-const SHOTS_DIR = "docs/screenshots/near-desk-mode";
+const SHOTS_DIR = "artifacts/screenshots/near-desk-mode";
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];

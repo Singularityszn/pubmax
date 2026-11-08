@@ -90,7 +90,7 @@ describe("the landing FAQ", () => {
   });
 
   it("sells a drinker nothing: no price, no Pro and no waitlist", () => {
-    // First revenue comes from venues, never drinkers (AGENTS.md anti-goals).
+    // First revenue comes from venues, never drinkers (docs/factory/vision.md anti-goals).
     // The front door once priced a drinker "Pro" at £9.99 a month with an email
     // field; a price a drinker is asked to pay does not appear here again.
     const html = renderToStaticMarkup(createElement(LandingFaq));

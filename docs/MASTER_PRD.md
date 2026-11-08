@@ -205,7 +205,7 @@ flashes a blank canvas or repeatedly re-fits after the user begins interacting.
 ### Rendering and caching
 
 - Launch keeps the current per-request nonce CSP and dynamic HTML rendering.
-  The [CSP and caching decision brief](evidence/csp-vs-caching.md) owns the
+  The [CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md) owns the
   post-launch choice between retaining that boundary and prototyping static
   public routes with hash-based CSP.
 - Authentication, owner profiles, private memories, and Pub Pal remain

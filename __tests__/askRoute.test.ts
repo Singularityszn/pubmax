@@ -744,7 +744,7 @@ describe("POST /api/ask", () => {
 
     const result = await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
 
-    expect(result.answer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
+    expect(result.answer).toBe("1 pick from the listed pubs. The Lamb is listed.");
     expect(result.answer).not.toMatch(/CityMCP|grounded/iu);
   });
 });
