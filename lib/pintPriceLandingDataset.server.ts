@@ -10,7 +10,7 @@ import type { Venue } from "@/lib/venues";
 
 /** Degrades to an empty list, so a page says "no rows" rather than 500ing. */
 export async function loadPintPriceLandingVenues(): Promise<Venue[]> {
-  return getPricedVenues();
+  return getPricedVenues().catch(() => []);
 }
 
 /**

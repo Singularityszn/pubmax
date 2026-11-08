@@ -56,8 +56,9 @@ async function readScrapedPubs(): Promise<ScrapedPubsRead> {
     loadVenueMenuEnrichmentIndex(),
     // The SHARED priced-venue index rather than a second parse of the same
     // 6.7 MB file: lib/venuePriceIndex.ts already holds exactly this grouping
-    // for every other surface that needs it.
-    getPricedVenues(),
+    // for every other surface that needs it. A failed read lists the pubs
+    // without prices and marks the read incomplete, so it is not memoised.
+    getPricedVenues().catch(() => []),
     loadZonesById(),
   ]);
   const byId = new Map(venues.map((venue) => [venue.id, venue]));
