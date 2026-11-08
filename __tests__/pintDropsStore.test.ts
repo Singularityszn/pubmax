@@ -94,6 +94,7 @@ import {
   type PintDropReportIdentity,
 } from "@/lib/pintDrops";
 import { defined } from "@/__tests__/helpers/defined";
+import { billTable } from "@/__tests__/helpers/billTable";
 import {
   __resetMemoryIdentityHandles,
   memoryIdentityHandleStore,
@@ -877,25 +878,25 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
     warn.mockRestore();
   });
 
-  it("grants receipt on a bill match with ONE guarded update: only a priced drop still unchecked moves", async () => {
-    const filters: string[] = [];
-    const chain = {
-      eq: vi.fn((column: string, value: unknown) => {
-        filters.push(`${column}=${String(value)}`);
-        return chain;
-      }),
-      not: vi.fn((column: string, op: string, value: unknown) => {
-        filters.push(`${column} not ${op} ${String(value)}`);
-        return chain;
-      }),
-      select: vi.fn(async () => ({ data: [{ id: "drop-1" }], error: null })),
-    };
-    updateMock.mockImplementationOnce(((values: Record<string, unknown>) => {
-      expect(values).toEqual({ price_evidence: "receipt" });
-      return chain;
-    }) as never);
-    expect(await supabasePintDropStore.grantBillMatch("drop-1")).toBe(true);
-    expect(filters).toEqual(["id=drop-1", "price_evidence=unchecked", "price_gbp not is null"]);
+  it.each([
+    ["a priced unchecked drop", "unchecked", 5.5, true],
+    ["an unpriced drop", "unchecked", null, false],
+    ["an already checked drop", "receipt", 5.5, false],
+    ["a drop without evidence", null, 5.5, false],
+  ] as const)("grants receipt only when eligible: %s", async (_name, evidence, price, grants) => {
+    const target = { id: "drop-1", price_evidence: evidence, price_gbp: price, status: "visible" };
+    const other = { id: "drop-2", price_evidence: "unchecked", price_gbp: 5.5, status: "visible" };
+    const before = { ...other };
+    const rows = [target, other];
+    const update = (values: Record<string, unknown>) => billTable(rows).update(values);
+    updateMock.mockImplementationOnce(update as never).mockImplementationOnce(update as never);
+    expect(await supabasePintDropStore.grantBillMatch("drop-1")).toBe(grants);
+    expect(target).toEqual({
+      id: "drop-1", price_evidence: grants ? "receipt" : evidence, price_gbp: price, status: "visible",
+    });
+    expect(other).toEqual(before);
+    expect(await supabasePintDropStore.grantBillMatch("drop-1")).toBe(false);
+    expect(other).toEqual(before);
   });
 
   it("missing evidence column: a bill match grants nothing and does not throw", async () => {

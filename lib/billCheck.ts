@@ -34,6 +34,7 @@ import { submitCategoryLabel } from "@/lib/communityPrice";
 import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { BEERS } from "@/lib/beers";
 import { drinkBrandCategoryAtStart } from "@/lib/drinkSubtypes";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 
 /** The three answers a bill check can give. */
 export const BILL_CHECK_RESULTS = ["match", "mismatch", "unreadable"] as const;
@@ -116,7 +117,17 @@ function billProductName(name: string): string {
     .replace(/[^a-z0-9]+/g, " ").trim().replace(/^of /, "");
 }
 
-function billItem(name: string, counterpart = ""): { name: string; measure?: string } {
+function billBrandCategory(name: string): DrinkCategory | null {
+  const words = normalizeDrinkHaystack(name);
+  return drinkBrandCategoryAtStart(name) ?? DRINK_CATEGORIES.find((category) =>
+    [...brandsForCategory(category), ...(category === "beer" ? BEERS : [])].some((brand) =>
+      [brand.label, ...(brand.aliases ?? [])].some((label) => {
+        const prefix = normalizeDrinkHaystack(label);
+        return words === prefix || words.startsWith(`${prefix} `);
+      }))) ?? null;
+}
+
+function billItem(name: string, counterpart = ""): { name: string; categoryText: string; measure?: string } {
   const text = name.trim().toLowerCase();
   const serving = /\b(half(?:[\s-]+pint)?|1\/2(?:[\s-]+pint)?|pint|125\s*ml|175\s*ml|250\s*ml|bottle|single|double)\b|½(?:[\s-]+pint)?/gi;
   const found = [...text.matchAll(serving)].find((match) => {
@@ -125,16 +136,10 @@ function billItem(name: string, counterpart = ""): { name: string; measure?: str
     if (!following || /^of\b/.test(following)) return true;
     if (match.index === 0 && /^(single|double|half|pint)$/.test(match[0]) &&
       /^(single|double|half|pint)\b/.test(following)) return true;
-    const words = normalizeDrinkHaystack(following);
-    const brandCategory = drinkBrandCategoryAtStart(following) ?? DRINK_CATEGORIES.find((category) =>
-      [...brandsForCategory(category), ...(category === "beer" ? BEERS : [])].some((brand) =>
-        [brand.label, ...(brand.aliases ?? [])].some((label) => {
-          const prefix = normalizeDrinkHaystack(label);
-          return words === prefix || words.startsWith(`${prefix} `);
-        })));
+    const brandCategory = billBrandCategory(following);
     const category = drinkCategoryFromText(following) ?? brandCategory ?? null;
     const startsWithDrink = drinkKeywordSpans(following).some((span) => span.start === 0) ||
-      brandCategory !== undefined;
+      brandCategory !== null;
     if (!startsWithDrink) {
       if (match.index !== 0 || /^(?:single malt|double ipa|half moon|bottle rocket)\b/.test(text)) return false;
       const otherServing = [...counterpart.matchAll(serving)].find((other) =>
@@ -152,8 +157,10 @@ function billItem(name: string, counterpart = ""): { name: string; measure?: str
   const measure = raw?.startsWith("half") || raw?.startsWith("1/2") || raw?.startsWith("½")
     ? "half"
     : raw;
+  const product = found ? text.slice(0, found.index) + " " + text.slice(found.index + found[0].length) : text;
   return {
-    name: billProductName(found ? text.slice(0, found.index) + " " + text.slice(found.index + found[0].length) : text),
+    name: billProductName(product),
+    categoryText: product.trim().replace(/^of\s+/, "").replace(/\s+/g, " "),
     ...(measure ? { measure } : {}),
   };
 }
@@ -181,13 +188,23 @@ function bareCategoryOf(submittedName: string): DrinkCategory | null {
  * other category (chips, a glass of wine for a Beer price) never names it.
  */
 function lineNamesDrink(
-  item: { name: string },
+  item: { name: string; categoryText: string },
   candidate: { name: string },
   bareCategory: DrinkCategory | null,
 ): boolean {
   if (!bareCategory) return item.name === candidate.name;
   if (!item.name) return false;
-  return drinkCategoryFromText(item.name) === bareCategory;
+  const text = item.categoryText;
+  const identifiesDrink = billBrandCategory(text) !== null ||
+    drinkKeywordSpans(text).some((span) => span.start === 0 && span.end === text.length);
+  return identifiesDrink && drinkCategoryFromText(text) === bareCategory;
+}
+
+function billNamesPint(name: string, item: { name: string; measure?: string }): boolean {
+  const servingText = item.measure !== "bottle" && item.name.startsWith("bottle ")
+    ? name.replace(/\bbottle\b/i, "")
+    : name;
+  return isComparablePintServing({ cheapestPint: servingText });
 }
 
 export function judgeBill(
@@ -208,6 +225,8 @@ export function judgeBill(
   const matching = named.filter(({ line, item, submitted: candidate }) => {
     if (measure && candidate.measure && measure !== candidate.measure) return false;
     const expectedMeasure = measure ?? candidate.measure;
+    if (expectedMeasure === "pint" &&
+      (!billNamesPint(line.name, item) || !billNamesPint(drink, candidate))) return false;
     const statedMeasure = item.measure;
     return pence(line.priceGbp) === target &&
       (!expectedMeasure || !statedMeasure || statedMeasure === expectedMeasure);
