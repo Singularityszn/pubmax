@@ -81,7 +81,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      A bill line without a stated serving can still match by name and price.
      A custom measure uses `measureLabel` when the submitted measure is `other`.
      Equivalent half, third and two-thirds servings match across written, fractional, glyph and hyphenated forms.
-     For example, `third`, `1/3 pint`, `1/3-pint`, `⅓ pint` and `a third of a pint` name the same serving.
+     For example, "third", "1/3 pint", "1/3-pint", "⅓ pint" and "a third of a pint" name the same serving.
      Product prefixes in `Double Chocolate Stout`, `Single Hop Pale Ale` and `Bottle Conditioned Ale` remain part of the name.
      An outer serving word in `Double Single Malt Whisky` leaves `Single Malt Whisky` as the product name.
      If the drink is identified but no line satisfies the price and serving constraints, the verdict is `mismatch`.
