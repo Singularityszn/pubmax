@@ -215,6 +215,49 @@ describe("judgeBill", () => {
   });
 
   it.each([
+    "third", "1/3-pint", "⅓ pint", "a third of a pint", "2/3 pint", "3/4 pint",
+    "330ml", "33cl", "0.33l", "0.33 litres", "bottled", "canned", "can", "bottle",
+  ])("rejects %s as a half on either side of the bill check", (serving) => {
+    for (const name of [`Guinness ${serving}`, `${serving} Guinness`]) {
+      const lines = read([[name, 3.5]]);
+      expect(judgeBill(lines, 3.5, "Beer", "half").result).toBe("mismatch");
+      expect(judgeBill(lines, 3.5, "Guinness", "half").result).toBe("mismatch");
+      expect(judgeBill(read([["Guinness", 3.5]]), 3.5, name, "half").result).toBe("mismatch");
+      expect(judgeBill(lines, 3.5, name, "half").result).toBe("mismatch");
+    }
+  });
+
+  it.each(["half pint", "1/2-pint", "½ pint"])("accepts a half stated as %s", (serving) => {
+    const lines = read([[`Guinness ${serving}`, 3.5]]);
+    expect(judgeBill(lines, 3.5, "Beer", "half").result).toBe("match");
+    expect(judgeBill(lines, 3.5, "Guinness", "half").result).toBe("match");
+  });
+
+  it.each(["17.5cl", "0.175l", "0.175 litres"])("compares the volume in %s with glass measures", (serving) => {
+    const lines = read([[`Merlot ${serving}`, 5.2]]);
+    expect(judgeBill(lines, 5.2, "Merlot", "175ml").result).toBe("match");
+    expect(judgeBill(lines, 5.2, "Merlot", "250ml").result).toBe("mismatch");
+    expect(judgeBill(read([["Merlot", 5.2]]), 5.2, `Merlot ${serving}`, "175ml").result).toBe("match");
+    expect(judgeBill(read([["Merlot", 5.2]]), 5.2, `Merlot ${serving}`, "250ml").result).toBe("mismatch");
+  });
+
+  it.each(["pint", "half", "125ml", "175ml", "250ml", "bottle", "single", "double", "other"] as const)(
+    "does not accept a third or a 330ml serving for measure %s", (measure) => {
+      for (const name of ["Guinness third", "Guinness 330ml"]) {
+        expect(judgeBill(read([[name, 3.5]]), 3.5, "Beer", measure).result).toBe("mismatch");
+      }
+    },
+  );
+
+  it.each(["568ml", "56.8cl", "0.568l"])("keeps %s compatible with a pint", (serving) => {
+    expect(judgeBill(read([[`Guinness ${serving}`, 5.2]]), 5.2, "Beer", "pint").result).toBe("match");
+  });
+
+  it.each(["bottle", "bottled", "bottles"])("keeps %s compatible with the bottle measure", (serving) => {
+    expect(judgeBill(read([[`Guinness ${serving}`, 5.2]]), 5.2, "Guinness", "bottle").result).toBe("match");
+  });
+
+  it.each([
     ["Pint of lager", "Lager pint", "pint", "half"],
     ["Half of lager", "Lager half pint", "half", "pint"],
     ["Lager 1/2 pint", "1/2 lager", "half", "pint"],

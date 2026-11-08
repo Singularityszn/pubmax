@@ -132,9 +132,9 @@ function billBrandCategory(name: string): DrinkCategory | null {
 
 function billItem(name: string, counterpart = ""): { name: string; categoryText: string; measure?: string } {
   const text = name.trim().toLowerCase();
-  const serving = /\b(half(?:[\s-]+pint)?|1\/2(?:[\s-]+pint)?|pint|125\s*ml|175\s*ml|250\s*ml|bottle|single|double)\b|½(?:[\s-]+pint)?/gi;
+  const serving = /\b(half(?:[\s-]+pint)?|(?:(?:a|one|two|three)[\s-]+)?(?:thirds?|quarters?)(?:[\s-]+(?:of[\s-]+)?(?:a[\s-]+)?pint)?|\d+\/\d+(?:[\s-]+pint)?|pint|\d+(?:\.\d+)?\s*(?:ml|cl|litres?|l)|bottles?|bottled|cans?|canned|single|double)\b|[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞](?:[\s-]+pint)?/gi;
   const found = [...text.matchAll(serving)].find((match) => {
-    if (!/^(half|pint|bottle|single|double)$/.test(match[0])) return true;
+    if (!/^(half|pint|bottles?|bottled|cans?|canned|single|double|thirds?|quarters?)$/.test(match[0])) return true;
     const following = text.slice(match.index + match[0].length).trim();
     if (!following || /^of\b/.test(following)) return true;
     if (match.index === 0 && /^(single|double|half|pint)$/.test(match[0]) &&
@@ -157,8 +157,17 @@ function billItem(name: string, counterpart = ""): { name: string; categoryText:
       : category !== null;
   });
   const raw = found?.[0].replace(/\s+/g, "");
-  const measure = raw?.startsWith("half") || raw?.startsWith("1/2") || raw?.startsWith("½")
+  const volume = raw?.match(/^(\d+(?:\.\d+)?)(ml|cl|litres?|l)$/);
+  const millilitres = volume
+    ? Number((Number(volume[1]) * (volume[2] === "ml" ? 1 : volume[2] === "cl" ? 10 : 1000)).toFixed(6))
+    : undefined;
+  const fraction = raw?.normalize("NFKC").replace("⁄", "/").match(/^(\d+)\/(\d+)/);
+  const measure = millilitres !== undefined
+    ? millilitres === 568 ? "pint" : `${millilitres}ml`
+    : raw?.startsWith("half") || (fraction && Number(fraction[1]) / Number(fraction[2]) === 0.5)
     ? "half"
+    : raw?.startsWith("bottl") ? "bottle"
+    : raw?.startsWith("can") ? "can"
     : raw;
   const product = found ? text.slice(0, found.index) + " " + text.slice(found.index + found[0].length) : text;
   return {
