@@ -58,7 +58,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
   2. The Pint Drop and one-tap price routes schedule checks with `scheduleBillCheck` after the response.
      Their response includes `billCheck: "reading"` only when they schedule a check on a deployment with a vision key.
      The Pint Drop composer then prints `BILL_READING_RECEIPT_LINE`.
-     A one-tap repeat inside the six-second duplicate window schedules no check for the new photo.
+     A paired pint repeat inside the six-second duplicate window schedules no check for the new photo.
      The existing drop keeps its own photo and check.
      A paired drop's identity includes the community row ID, submission time and submitted price.
      Both backends return the stored drop for an identical ID, venue, account and price, and report whether this request created it.
@@ -79,11 +79,15 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      A serving on the bill must agree with the submitted serving when one is known.
      Serving recognition uses the shared drink taxonomy, including canonical brand names such as Heineken and London Pride.
      A bill line without a stated serving can still match by name and price.
-     Compound half-pint labels, including `half-pint`, `1/2-pint` and `½-pint`, mean a half.
+     A custom measure uses `measureLabel` when the submitted measure is `other`.
+     Equivalent half, third and two-thirds servings match across written, fractional, glyph and hyphenated forms.
+     For example, `third`, `1/3 pint`, `1/3-pint`, `⅓ pint` and `a third of a pint` name the same serving.
      Product prefixes in `Double Chocolate Stout`, `Single Hop Pale Ale` and `Bottle Conditioned Ale` remain part of the name.
      An outer serving word in `Double Single Malt Whisky` leaves `Single Malt Whisky` as the product name.
      If the drink is identified but no line satisfies the price and serving constraints, the verdict is `mismatch`.
      A bill without an identifiable priced line for the drink is `unreadable`.
+     Drink identification ignores trailing `cask`, `keg`, `on tap` and `guest` descriptors in brackets or after a dash.
+     This preserves drink names such as `Breakfast Stout (cask)` while rejecting food such as `Guinness pie`.
      A price sent with only its category ("Beer" from the one-tap door) is tied to a line whose product resolves to that category through the drink keywords and brand tables, so "Pint of Guinness" can confirm a Beer price and an item of another category never can.
      Only `match` grants a priced Pint Drop `receipt` through `grantBillMatch` and signals maps to read again.
      The check never hides or deletes a price.
