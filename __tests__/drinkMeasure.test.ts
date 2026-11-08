@@ -203,6 +203,16 @@ describe("measure words in a drink text", () => {
     expect(measureNamedInDrinkText("stout 2/3")).toBe("other");
   });
 
+  it.each([
+    "1/3-pint", "2/3-pint", "⅓-pint", "⅔-pint",
+    "1/3 pint", "2/3 pint", "⅓ pint", "⅔ pint", "a third of a pint",
+    "(1/3 pint)", "(⅓ pint)",
+  ])("keeps %s out of the pint lane in either name position", (serving) => {
+    for (const drink of [`${serving} Guinness`, `Guinness ${serving}`]) {
+      expect(measureNamedInDrinkText(drink)).toBe("other");
+    }
+  });
+
   it("says nothing about an ordinary pint", () => {
     expect(measureNamedInDrinkText("Pint of Guinness")).toBe(null);
     expect(measureNamedInDrinkText("")).toBe(null);

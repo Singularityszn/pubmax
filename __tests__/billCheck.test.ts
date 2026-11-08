@@ -148,9 +148,15 @@ describe("judgeBill", () => {
     expect(judgeBill(lines, 5.5, "Alcohol-free", "pint").result).toBe("match");
   });
 
-  it.each(["Beer battered fish", "Fish in beer batter", "Steak and ale pie"])(
+  it.each([
+    "Beer battered fish", "Fish in beer batter", "Steak and ale pie",
+    "Guinness pie", "Guinness burger", "Guinness fish", "Guinness chips",
+    "Guinness battered", "Guinness sandwich", "Guinness cake",
+  ])(
     "does not treat the food line %s as a Beer price", (name) => {
       expect(judgeBill(read([[name, 5.5]]), 5.5, "Beer", "pint").result).toBe("unreadable");
+      expect(judgeBill(read([[name, 5.5]]), 5.5, name, "pint").result).toBe("unreadable");
+      expect(judgeBill(read([[`Pint of ${name}`, 5.5]]), 5.5, "Beer", "pint").result).toBe("unreadable");
     },
   );
 
@@ -162,6 +168,20 @@ describe("judgeBill", () => {
     expect(judgeBill(lines, 5.5, "Beer", "pint").result).not.toBe("match");
     expect(judgeBill(lines, 5.5, name, "pint").result).not.toBe("match");
     expect(judgeBill(read([["Heineken", 5.5]]), 5.5, name, "pint").result).not.toBe("match");
+  });
+
+  it.each([
+    "1/3-pint", "2/3-pint", "⅓-pint", "⅔-pint",
+    "1/3 pint", "2/3 pint", "⅓ pint", "⅔ pint", "a third of a pint",
+    "(1/3 pint)", "(⅓ pint)",
+  ])("never verifies a full pint from %s on either side", (serving) => {
+    for (const name of [`${serving} Guinness`, `Guinness ${serving}`]) {
+      const lines = read([[name, 5.5]]);
+      expect(judgeBill(lines, 5.5, "Beer", "pint").result).not.toBe("match");
+      expect(judgeBill(lines, 5.5, name, "pint").result).not.toBe("match");
+      expect(judgeBill(lines, 5.5, "Guinness", "pint").result).not.toBe("match");
+      expect(judgeBill(read([["Guinness", 5.5]]), 5.5, name, "pint").result).not.toBe("match");
+    }
   });
 
   it("never lets an item of another category confirm a bare category", () => {

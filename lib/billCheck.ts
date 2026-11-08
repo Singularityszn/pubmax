@@ -35,6 +35,9 @@ import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { BEERS } from "@/lib/beers";
 import { drinkBrandCategoryAtStart } from "@/lib/drinkSubtypes";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { PLAN_FOOD_ITEM } from "@/lib/planPriceLimits";
+
+const BILL_FOOD_CONTEXT = new RegExp(String.raw`\b(?:${PLAN_FOOD_ITEM}|pies?|fish|batter(?:ed)?|crisps|fries|desserts?|cakes?|puddings?)\b`, "i");
 
 /** The three answers a bill check can give. */
 export const BILL_CHECK_RESULTS = ["match", "mismatch", "unreadable"] as const;
@@ -192,6 +195,7 @@ function lineNamesDrink(
   candidate: { name: string },
   bareCategory: DrinkCategory | null,
 ): boolean {
+  if (BILL_FOOD_CONTEXT.test(item.categoryText)) return false;
   if (!bareCategory) return item.name === candidate.name;
   if (!item.name) return false;
   const text = item.categoryText;
