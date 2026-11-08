@@ -10,6 +10,8 @@ import {
   socialCrewPrivateJson,
   socialCrewErrorResponse,
 } from "@/lib/socialCrewHttp";
+import { crewJoinRequestNotice, deferCrewJoinNotice } from "@/lib/crewJoinNotice.server";
+import { siteOrigin } from "@/lib/siteUrl";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
@@ -51,11 +53,19 @@ async function changeJoinRequest(
   if (!input.ok) return input.response;
   if (!socialCrewEmptyBody(input.body)) return socialCrewInvalidResponse();
 
-  return socialCrewMutation(() => store.requestJoin(authority.actor, {
-    crewId,
-    action,
-    idempotencyKey,
-  }), action === "request" ? 201 : 200);
+  const actor = authority.actor;
+  return socialCrewMutation(async () => {
+    const result = await store.requestJoin(actor, { crewId, action, idempotencyKey });
+    // P0 item 3: a new request tells the host. A replay or a cancel tells nobody.
+    const requestId = result.requestId;
+    if (action === "request" && result.code === "requested" && requestId) {
+      deferCrewJoinNotice(
+        () => crewJoinRequestNotice(() => store.readPublicPreview(crewId), actor, crewId, requestId),
+        siteOrigin(request.url) ?? new URL(request.url).origin,
+      );
+    }
+    return result;
+  }, action === "request" ? 201 : 200);
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {

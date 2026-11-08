@@ -6,8 +6,8 @@
 // then gateHandleAction. A read, including the inbox a mark-read returns, is
 // allowed only when the caller's account owns the handle. An unowned row and
 // a tombstone are the same refusal as a handle owned by somebody else. A
-// notification carries only already-public feed signal (a follow, a reaction,
-// a comment, a crawl save). See lib/notifications.ts and migration 0010.
+// notification can include private crew membership activity. The event
+// vocabulary lives in lib/notifications.ts.
 //
 // Reads are fail-soft (the store returns an empty inbox on any error), so a
 // notifications outage can never 500 the bell / activity page. Store choice is the

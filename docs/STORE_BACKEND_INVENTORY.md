@@ -190,6 +190,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/crawlStoryStore.ts",
     "lib/creatorListDiscoveryRoute.server.ts",
     "lib/crewFriendEdges.ts",
+    "lib/crewJoinNotice.server.ts",
     "lib/emailProvider.ts",
     "lib/followStore.ts",
     "lib/followWrite.server.ts",
