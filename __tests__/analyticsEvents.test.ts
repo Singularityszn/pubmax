@@ -33,6 +33,25 @@ describe("isKnownEvent", () => {
 });
 
 describe("sanitizeEvent", () => {
+  it.each(["pal", "sheet"])("counts completed table requests from %s without personal data", (source) => {
+    for (const outcome of ["sent", "not_sent"]) {
+      expect(sanitizeEvent("table_request_sent", {
+        source, outcome, venueId: "pub", planId: "private", name: "Sam", email: "sam@example.com",
+      })).toEqual({ name: "table_request_sent", props: { source, outcome } });
+    }
+  });
+
+  it.each([
+    {},
+    { source: "pal" },
+    { outcome: "sent" },
+    { source: "near", outcome: "sent" },
+    { source: "pal", outcome: "failed" },
+    { source: "sam@example.com", outcome: "sent" },
+  ])("refuses incomplete or invented table request properties %j", (props) => {
+    expect(sanitizeEvent("table_request_sent", props)).toBeNull();
+  });
+
   it("sanitizes near answer and open events to closed, coarse props", () => {
     expect(sanitizeEvent("near_answer_ready", {
       source: "picked-area",

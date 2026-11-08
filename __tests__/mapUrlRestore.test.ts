@@ -24,6 +24,11 @@ describe("Clean-URL hold — what a restored session may write", () => {
   const restored = encodeCrawl(state());
   const hold = { encodedAtMount: restored };
 
+  it("keeps a table ask until the selected sheet consumes it", () => {
+    expect(mergeCrawlUrlSearch("sel=pub", "?sel=pub&table=8")).toBe("sel=pub&table=8");
+    expect(mergeCrawlUrlSearch("sel=pub", "?sel=pub")).toBe("sel=pub");
+  });
+
   it("has something to write, which is the whole defect", () => {
     expect(restored).toBe("q=Camden");
   });

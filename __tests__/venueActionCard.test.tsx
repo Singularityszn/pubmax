@@ -15,22 +15,44 @@
 //      commands are ghosts.
 //   3. No action appears twice on the sheet: the card's actions left the body.
 
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const tableAuth = vi.hoisted(() => ({
+  configured: false,
+  loading: false,
+  user: null as { id: string; email: string } | null,
+  handle: null as string | null,
+}));
+const tableTrack = vi.hoisted(() => vi.fn());
+const tableFetch = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/analytics", () => ({ trackEvent: tableTrack }));
+vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: tableFetch }));
+const dynamicDialog = vi.hoisted(() => ({ component: null as React.ComponentType<never> | null }));
+vi.mock("next/dynamic", async () => {
+  const { createElement: create } = await import("react");
+  return {
+    default: () => function DynamicDialog(props: never) {
+      return dynamicDialog.component ? create(dynamicDialog.component, props) : null;
+    },
+  };
+});
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
 }));
 
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
-    user: null, session: null, loading: false, configured: false,
-    handle: null, identityResolved: true, getCurrentUserId: () => null,
+    ...tableAuth, session: null,
+    identityResolved: true, getCurrentUserId: () => tableAuth.user?.id ?? null,
   }),
 }));
 
 import VenueActionCard from "@/components/map/inspector/VenueActionCard";
+import TableRequestDialog from "@/components/map/inspector/TableRequestDialog";
+dynamicDialog.component = TableRequestDialog as React.ComponentType<never>;
 import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
@@ -66,6 +88,12 @@ beforeEach(() => {
   vi.setSystemTime(new Date(NOW));
 });
 afterEach(() => {
+  window.history.replaceState(null, "", "/");
+  tableAuth.configured = false;
+  tableAuth.loading = false;
+  tableAuth.user = null;
+  tableAuth.handle = null;
+  vi.clearAllMocks();
   vi.useRealTimers();
 });
 
@@ -97,6 +125,127 @@ function venue(overrides: Partial<Venue> = {}): Venue {
     ...overrides,
   } as Venue;
 }
+
+describe("table request arrival", () => {
+  let root: Root;
+  let host: HTMLDivElement;
+  beforeEach(() => {
+    vi.useRealTimers();
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+  });
+
+  const show = async (pub = venue()) => {
+    await act(async () => root.render(createElement(VenueActionCard, {
+      venue: pub, shareVenue: async () => {}, currentShareFeedback: null,
+    })));
+  };
+  const input = async (selector: string, value: string) => {
+    const field = defined(document.querySelector<HTMLInputElement>(selector));
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  };
+  const submit = async () => {
+    await act(async () => defined(document.querySelector("form")).dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    ));
+  };
+
+  it("opens the named pub with the party prefilled, consumes the intent and does not reopen", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    expect(document.querySelector("select")?.value).toBe("8");
+    expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
+    await act(async () => defined(document.querySelector<HTMLButtonElement>(".tableRequestClose")).click());
+    await act(async () => root.render(null));
+    await show();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("keeps a signed-out ask in the address for the sign-in return, and drops it on Not now", async () => {
+    tableAuth.configured = true;
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    expect(document.querySelector(".contributionGate")).not.toBeNull();
+    expect(document.querySelector("select")).toBeNull();
+    expect(new URLSearchParams(window.location.search).get("table")).toBe("8");
+    await act(async () => defined(document.querySelector<HTMLButtonElement>(".contributionGateClose")).click());
+    expect(document.querySelector(".contributionGate")).toBeNull();
+    expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
+  });
+
+  it("opens the prefilled form when the reader comes back signed in", async () => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    tableAuth.handle = "reader";
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=12`);
+    await show();
+    expect(document.querySelector(".contributionGate")).toBeNull();
+    expect(document.querySelector("select")?.value).toBe("12");
+    expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
+  });
+
+  it("consumes the ask behind the handle gate", async () => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    expect(document.querySelector(".contributionGate")).not.toBeNull();
+    expect(document.querySelector("select")).toBeNull();
+    expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
+  });
+
+  it("waits for auth to settle before deciding which door to open", async () => {
+    tableAuth.configured = true;
+    tableAuth.loading = true;
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    tableAuth.loading = false;
+    await show();
+    expect(document.querySelector(".contributionGate")).not.toBeNull();
+    expect(document.querySelector("select")).toBeNull();
+  });
+
+  it("consumes but never opens a table form for a non-pub", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show(venue({ kind: "cafe" }));
+    expect(window.location.search).not.toContain("table=");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it.each(["sent", "not_sent"])("counts a completed Pal request as %s", async (outcome) => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    tableAuth.handle = "reader";
+    tableFetch.mockResolvedValue(Response.json({ outcome }));
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    await input('input[autocomplete="name"]', "Sam");
+    await submit();
+    expect(document.querySelector(`[data-table-request-outcome="${outcome}"]`)).not.toBeNull();
+    expect(tableTrack).toHaveBeenCalledWith("table_request_sent", { source: "pal", outcome });
+  });
+
+  it("counts the keyless fallback as a sheet request, but not invalid input", async () => {
+    await act(async () => root.render(createElement(TableRequestDialog, { venue: venue(), onClose: noop })));
+    await submit();
+    expect(tableTrack).not.toHaveBeenCalled();
+    await input('input[autocomplete="name"]', "Sam");
+    await input('input[type="email"]', "sam@example.com");
+    await submit();
+    expect(tableTrack).toHaveBeenCalledWith("table_request_sent", { source: "sheet", outcome: "not_sent" });
+  });
+});
 
 function daysAgo(days: number): string {
   return new Date(NOW - days * DAY_MS).toISOString();

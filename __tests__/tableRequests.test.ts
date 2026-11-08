@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { tableRequestPartySizeInText } from "@/lib/tableRequestIntent";
 
 // The pure leaf behind "Ask the pub for a table" (lib/tableRequests.ts): the
 // one validator the form and the route share, and every word a request is
@@ -19,6 +20,36 @@ import {
 
 const NOW = Date.parse("2026-11-02T18:00:00.000Z");
 const USER = "a1111111-1111-4111-8111-111111111111";
+
+describe("tableRequestPartySizeInText", () => {
+  it.each([
+    ["A table for 8 near Soho on Friday", 8],
+    ["Where in Soho can 8 of us book a table on Friday?", 8],
+    ["Table for 8 people please", 8],
+    ["Can we get a table for eight?", 8],
+    ["Reserve for a party of 10", 10],
+    ["A booking for six on Friday", 6],
+    ["A reservation for twenty", 20],
+    ["Table for 12", 12],
+    ["A table for 6", 6],
+    ["A table for 20", 20],
+    ["A table for 5", null],
+    ["A table for 21", null],
+    ["A table for twenty-one", null],
+    ["A table for 8.5", null],
+    ["8 of us fancy a pint on Friday", null],
+    ["A table at 8pm on Friday", null],
+    ["Book a table under £8", null],
+    ["Book a table at 20:00", null],
+    ["Book a table for 20:00", null],
+    ["Book a table for 8 pm", null],
+    ["Get a table for 6 or 8 people", null],
+    ["Can I book a table?", null],
+    ["", null],
+  ])("reads a group size from %s", (text, expected) => {
+    expect(tableRequestPartySizeInText(text)).toBe(expected);
+  });
+});
 
 function body(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
