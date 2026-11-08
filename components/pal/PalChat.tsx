@@ -36,6 +36,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
 import { confirmPalMemoryProposal } from "@/lib/palMemoryConfirmClient";
@@ -228,12 +229,14 @@ export function AnswerCard({
   knownVenueIds = null,
   locality,
   tablePartySize = null,
+  tableVenueIds = null,
 }: {
   card: PalCard;
   onOpen: (venueId: string) => void;
   knownVenueIds?: ReadonlySet<string> | null;
   locality: PalLocality | null;
   tablePartySize?: number | null;
+  tableVenueIds?: ReadonlySet<string> | null;
 }) {
   const when = card.when ? formatPalWhen(card.when) : "";
   return (
@@ -280,7 +283,7 @@ export function AnswerCard({
           Use this pub
         </Link>
       ) : null}
-      {card.venueId && tablePartySize !== null ? (
+      {tableVenueIds?.has(card.venueId) && tablePartySize !== null ? (
         <Button asChild variant="ghost">
           <Link
             prefetch={false}
@@ -316,6 +319,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // The answer text so far while the Pal is still writing it, "" until it starts.
   const [streamText, setStreamText] = useState("");
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
+  const [tableVenueIds, setTableVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const newestAnswerRef = useRef<HTMLDivElement | null>(null);
@@ -425,10 +429,14 @@ function PalChatBody({ owner }: { owner: string | null }) {
         setKnownVenueIds(
           result.status === "ready" ? palKnownVenueIds(result.rows) : null,
         );
+        setTableVenueIds(result.status === "ready"
+          ? new Set(result.rows.filter((venue) => isPubVenueKind(venue.kind)).map((venue) => venue.id))
+          : null);
       })
       .catch(() => {
         if (!alive) return;
         setKnownVenueIds(null);
+        setTableVenueIds(null);
       });
     return () => {
       alive = false;
@@ -998,6 +1006,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
                         knownVenueIds={knownVenueIds}
                         locality={locality}
                         tablePartySize={tablePartySize}
+                        tableVenueIds={tableVenueIds}
                       />
                     ))}
                   </ul>

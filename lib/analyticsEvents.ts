@@ -734,6 +734,12 @@ function isAllowedVerifiedOutcomeProp(
   return key === "routeReady" && typeof value === "boolean";
 }
 
+function isAllowedTableRequestProp(key: string, value: string | number | boolean): boolean {
+  return key === "source"
+    ? includesValue(TABLE_REQUEST_SOURCES, value)
+    : key === "outcome" && includesValue(TABLE_REQUEST_OUTCOMES, value);
+}
+
 function isAllowedTrustedHandoffEventProp(
   name: AnalyticsEventName,
   key: string,
@@ -744,9 +750,7 @@ function isAllowedTrustedHandoffEventProp(
   }
   switch (name) {
     case "table_request_sent":
-      return key === "source"
-        ? includesValue(TABLE_REQUEST_SOURCES, value)
-        : key === "outcome" && includesValue(TABLE_REQUEST_OUTCOMES, value);
+      return isAllowedTableRequestProp(key, value);
     case "pub_list_import_started":
       return key === "input_kind" && value === "pasted_text";
     case "pub_list_import_matched":

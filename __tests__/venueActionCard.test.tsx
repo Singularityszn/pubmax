@@ -153,14 +153,14 @@ describe("table request arrival", () => {
     })));
   };
   const input = async (selector: string, value: string) => {
-    const field = defined(document.querySelector<HTMLInputElement>(selector));
+    const field = defined(document.querySelector<HTMLInputElement>(selector) ?? undefined);
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, value);
       field.dispatchEvent(new Event("input", { bubbles: true }));
     });
   };
   const submit = async () => {
-    await act(async () => defined(document.querySelector("form")).dispatchEvent(
+    await act(async () => defined(document.querySelector("form") ?? undefined).dispatchEvent(
       new Event("submit", { bubbles: true, cancelable: true }),
     ));
   };
@@ -170,7 +170,7 @@ describe("table request arrival", () => {
     await show();
     expect(document.querySelector("select")?.value).toBe("8");
     expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
-    await act(async () => defined(document.querySelector<HTMLButtonElement>(".tableRequestClose")).click());
+    await act(async () => defined(document.querySelector<HTMLButtonElement>(".tableRequestClose") ?? undefined).click());
     await act(async () => root.render(null));
     await show();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
@@ -183,7 +183,7 @@ describe("table request arrival", () => {
     expect(document.querySelector(".contributionGate")).not.toBeNull();
     expect(document.querySelector("select")).toBeNull();
     expect(new URLSearchParams(window.location.search).get("table")).toBe("8");
-    await act(async () => defined(document.querySelector<HTMLButtonElement>(".contributionGateClose")).click());
+    await act(async () => defined(document.querySelector<HTMLButtonElement>(".contributionGateClose") ?? undefined).click());
     expect(document.querySelector(".contributionGate")).toBeNull();
     expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
   });

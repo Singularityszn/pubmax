@@ -5,6 +5,7 @@
 // route share (lib/tableRequests.ts). Nothing here opens anything: the venue
 // sheet's action card decides, behind its sign-in gate.
 
+import type { Route } from "next";
 import { parseTableRequestPartySize } from "@/lib/tableRequests";
 
 const NUMBER_WORDS = [
@@ -54,4 +55,14 @@ export function consumeTableRequestIntent(
   const partySize = isPub && /^\d+$/.test(raw) ? parseTableRequestPartySize(raw) : null;
   params.delete("table");
   return { partySize, search: params.toString() };
+}
+
+export function safeTableRequestReturnTo(raw: string | null | undefined): Route | null {
+  if (!raw?.startsWith("/map?") || raw.includes("#") || raw.includes("\\")) return null;
+  const params = new URLSearchParams(raw.slice("/map?".length));
+  const venueId = params.get("sel");
+  if (!venueId || !/^[\w:-]{1,200}$/.test(venueId)) return null;
+  if ([...params.keys()].length !== 2 || !params.has("table")) return null;
+  const intent = consumeTableRequestIntent(params.toString(), venueId, true);
+  return intent?.partySize ? (`/map?${params.toString()}` as Route) : null;
 }

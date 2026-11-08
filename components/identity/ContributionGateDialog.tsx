@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { createPortal } from "react-dom";
 import {
   useCallback,
@@ -46,6 +47,7 @@ type ContributionGateDialogProps = {
   onClose: () => void;
   /** Called once the one tap is recorded, so the held action can run. */
   onAsserted?: () => void;
+  returnTo?: Route;
 };
 
 /**
@@ -128,6 +130,7 @@ export function ContributionGateDialog({
   error,
   onClose,
   onAsserted,
+  returnTo,
 }: ContributionGateDialogProps): React.JSX.Element {
   // A blocking dialog owes a keyboard way out. This one had a close button and
   // nothing else, so a reader who reached it with the keyboard had to tab to
@@ -161,7 +164,7 @@ export function ContributionGateDialog({
               first. Email sign-in works even when Google, Apple and
               Microsoft are unavailable.
             </p>
-            <SignInButton />
+            <SignInButton next={returnTo} />
           </>
         ) : mode === "adult_check_required" ? (
           <>
@@ -191,7 +194,7 @@ export function ContributionGateDialog({
             </p>
             <Link
               className="contributionGatePrimary"
-              href={HANDLE_CLAIM_NEXT}
+              href={returnTo ? `${HANDLE_CLAIM_NEXT}?returnTo=${encodeURIComponent(returnTo)}` as Route : HANDLE_CLAIM_NEXT}
               onClick={onClose}
             >
               Choose a handle

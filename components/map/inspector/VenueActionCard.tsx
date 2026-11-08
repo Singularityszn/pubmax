@@ -33,6 +33,7 @@ import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
 import type { ContributionGateStatus } from "@/lib/contributionGateStatus";
 import { TABLE_REQUEST_ACTION_LABEL } from "@/lib/tableRequests";
 import { consumeTableRequestIntent } from "@/lib/tableRequestIntent";
+import { venueTableRequestUrl } from "@/lib/venueMapUrl";
 import type { ShareFeedback } from "@/lib/venueShare";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
@@ -81,6 +82,7 @@ export default function VenueActionCard({
       setGate({ venueId: venue.id, status: "onboarding_required" });
       return;
     }
+    setGate(null);
     setTableVenueId(venue.id);
   }
 
@@ -108,7 +110,7 @@ export default function VenueActionCard({
   // it at once. Auth still resolving waits, so a settled answer, not the
   // arrival order, picks the door.
   const openTableArrival = useEffectEvent((partySize: number, consumedSearch: string) => {
-    if (configured && !user) {
+    if (configured && (!user || !handle)) {
       askForTable(partySize);
       return;
     }
@@ -129,7 +131,7 @@ export default function VenueActionCard({
       openTableArrival(intent.partySize, intent.search);
     });
     return () => { active = false; };
-  }, [venue.id, pub, loading]);
+  }, [venue.id, pub, loading, user?.id, handle]);
 
   const card = (
     <div
@@ -195,7 +197,12 @@ export default function VenueActionCard({
         />
       ) : null}
       {gateStatus ? (
-        <ContributionGateDialog mode={gateStatus} error={null} onClose={closeGate} />
+        <ContributionGateDialog
+          mode={gateStatus}
+          error={null}
+          onClose={closeGate}
+          returnTo={initialPartySize === undefined ? undefined : venueTableRequestUrl(venue.id, initialPartySize)}
+        />
       ) : null}
     </div>
   );

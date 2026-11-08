@@ -124,6 +124,7 @@ function authMenuCanShow({
 
 export default function SignInButton({
   compact = false,
+  next,
 }: {
   /**
    * Nav-host mode (SiteNav + landing top bar). The two full "Continue with …"
@@ -135,6 +136,7 @@ export default function SignInButton({
    * Standalone hosts (signed-out empty states) keep the full pair as before.
    */
   compact?: boolean;
+  next?: string;
 }): React.JSX.Element | null {
   const {
     user,
@@ -303,7 +305,7 @@ export default function SignInButton({
     // back-forward cache restore releases them.
     let navigating = false;
     try {
-      const { error: signInError, navigating: leaving } = await start();
+      const { error: signInError, navigating: leaving } = await start(next);
       navigating = leaving === true && !signInError;
       if (ownsOperation() && !accountSignal.aborted && signInError) setError(signInError);
     } catch {
@@ -314,7 +316,12 @@ export default function SignInButton({
         setBusy(null);
       }
     }
-  }, []);
+  }, [next]);
+
+  const sendEmailLink = useCallback(
+    (email: string) => (next ? signInWithEmail(email, next) : signInWithEmail(email)),
+    [signInWithEmail, next],
+  );
 
   const onSignOut = useCallback(
     async (scope: SignOutScope = "account") => {
@@ -508,7 +515,7 @@ export default function SignInButton({
       <MagicLinkForm
         disabled={busy !== null}
         hasSocialProviders={hasSocialProviders}
-        signInWithEmail={signInWithEmail}
+        signInWithEmail={sendEmailLink}
         cancelAuthAttempt={cancelAuthAttempt}
       />
     </>
@@ -607,7 +614,7 @@ export default function SignInButton({
                   <MagicLinkForm
                     disabled={busy !== null}
                     hasSocialProviders={hasSocialProviders}
-                    signInWithEmail={signInWithEmail}
+                    signInWithEmail={sendEmailLink}
                     cancelAuthAttempt={cancelAuthAttempt}
                   />
                 ) : null}
