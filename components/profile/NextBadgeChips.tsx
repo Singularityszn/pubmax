@@ -37,17 +37,24 @@ const MAX_CHIPS = 2;
 
 export default function NextBadgeChips({
   handle,
+  drops,
   showCrawlsWalked = false,
 }: {
   handle?: string;
+  drops?: readonly ProfileDrop[];
   showCrawlsWalked?: boolean;
 }): React.JSX.Element | null {
-  const [quests, setQuests] = useState<BadgeProgress[]>([]);
+  const [loadedQuests, setQuests] = useState<BadgeProgress[]>([]);
+  const mine = drops?.filter((drop) => normalizeHandle(drop.handle) === normalizeHandle(handle));
+  const quests = mine
+    ? nextBadgeProgress(mine, profileStats(mine)).filter((quest) => quest.current > 0)
+    : loadedQuests;
   const [crawlsWalked, setCrawlsWalked] = useState(0);
   const [crawlQuests, setCrawlQuests] = useState<CrawlQuestChip[]>([]);
   const [eventQuests, setEventQuests] = useState<CrawlQuestChip[]>([]);
 
   useEffect(() => {
+    if (drops !== undefined) return;
     const controller = new AbortController();
 
     async function load() {
@@ -85,7 +92,7 @@ export default function NextBadgeChips({
 
     void load();
     return () => controller.abort();
-  }, [handle]);
+  }, [handle, drops]);
 
   useEffect(() => {
     if (!showCrawlsWalked) return;
