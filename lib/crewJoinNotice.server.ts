@@ -140,7 +140,7 @@ export async function deliverCrewJoinNotice(
   return { inApp, email };
 }
 
-/** A request goes to the host the requester's own preview names. */
+/** A request goes to the host named by the public preview. */
 export async function crewJoinRequestNotice(
   read: () => Promise<SocialCrewPublicPreviewSource>,
   requester: { handle: string },
@@ -159,7 +159,7 @@ export async function crewJoinRequestNotice(
   };
 }
 
-/** An acceptance goes to the member the host's decision created. */
+/** An acceptance goes to the member identified by the host's decision. */
 export async function crewJoinAcceptedNotice(
   read: ReadCrew,
   host: { handle: string },
