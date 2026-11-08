@@ -172,8 +172,45 @@ them installs them:
 - **Playwright Chromium** with `npx playwright install --with-deps chromium`
   in the browser and performance jobs. On macOS `--with-deps` needs no
   system packages or `sudo`. Playwright still installs Chromium.
-- **zizmor 1.30.1, osv-scanner 2.6.0 and Semgrep 1.179.0** in
-  `security-ci.yml`, each checksummed or version-pinned.
+- **zizmor, osv-scanner, gitleaks and Semgrep** in
+  [`security-ci.yml`](../.github/workflows/security-ci.yml), which owns their
+  versions and checksum pins.
+
+PostgREST and the Security CI tools (zizmor, osv-scanner and gitleaks) install
+through [`scripts/ci/install-pinned-tool.sh`](../scripts/ci/install-pinned-tool.sh).
+The workflow step names the pins: version, release URL, sha256 and fallback.
+The script selects an installation source in this order:
+
+1. The cached release download. Each `actions/cache` step targets one verified
+   asset file under `~/.cache/pubmax-tools`, rather than the directory.
+   The file name and cache key include the tool name, version and sha256.
+   The script uses the file only when its sha256 still matches.
+2. The release download, with `curl --retry 8 --retry-delay 15
+   --retry-max-time 300 --retry-all-errors --connect-timeout 30`. The script
+   keeps it only when its sha256 matches.
+3. A source that is not a GitHub release. zizmor installs from its PyPI wheel
+   with `pip --require-hashes` and the wheel's sha256. osv-scanner and gitleaks
+   build with `go install` at the pinned version through `proxy.golang.org`,
+   checked against `sum.golang.org`, and the script then checks the version the
+   binary was built from. PostgREST copies `/bin/postgrest` from a digest-pinned
+   Docker Hub image with `--platform linux/amd64` for both pull and create.
+   The script removes the container and checks the copied binary's sha256
+   before installation. The step logs a warning when it uses a fallback.
+
+If a download fails or its checksum differs, the script removes the unverified
+file. A fallback installation leaves no release asset for `actions/cache` to save.
+The retry window is bounded. Installation can still fail if all sources fail.
+
+The PostgreSQL packages in [`rls-session.yml`](../.github/workflows/rls-session.yml)
+install through `apt-get -o Acquire::Retries=5`.
+
+[`ciToolDownloadRetries.test.ts`](../__tests__/ciToolDownloadRetries.test.ts)
+executes the Security CI and PostgREST installation steps with their own pinned
+environments and the real installer. It checks the download arguments and confirms that
+fallback installations leave no release asset to cache.
+It also runs the installer through each source, a damaged cache and a checksum
+mismatch, with `curl`, `python3`, `go`, `docker` and `sudo` replaced by recorders.
+Download retries do not change [the test retry policy](#the-required-checks-and-the-merge-queue).
 
 `PW_PORT` still comes from `.github/actions/pubmax-playwright-port`. Each
 hosted job has its own network namespace, so two jobs cannot collide. A Mac
