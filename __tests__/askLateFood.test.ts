@@ -225,6 +225,41 @@ describe("requests outside the agreed late-food parser", () => {
 
 describe("clean late-food clarification context", () => {
   it.each([
+    "Food in Soho tonight and tomorrow at 1am",
+    "Food in Soho tonight and today at 1am",
+    "Food in Soho tomorrow at 1am",
+    "Food in Soho at 1am on 2026-10-23 and 2026-10-24",
+  ])("preserves unresolved days when only the clock changes: %s", async (previous) => {
+    const turns = [{ role: "user" as const, content: previous }];
+    for (const query of ["2am", "at 02:00"]) {
+      const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+      const voice = await voiceAsk(query, turns);
+      for (const response of [typed, voice]) {
+        expect(response.cards).toEqual([]);
+        expect(response.proposals).toEqual([]);
+        expect(response.sources).toEqual([]);
+        expect(response.answer).toContain("Which night and time");
+      }
+    }
+  });
+
+  it.each([
+    { query: "Food tonight at 1am", history: ["Find quiet pubs in Soho", "Hi"] },
+    { query: "Food tonight at 1am", history: ["Find quiet pubs in Soho", "Thanks"] },
+    { query: "Find food tonight at 1am", history: ["Find quiet pubs in Soho"] },
+  ])("asks for an area when general refinement cannot supply one: $query $history", async ({ query, history }) => {
+    const turns = history.map((content) => ({ role: "user" as const, content }));
+    const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await voiceAsk(query, turns);
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect(response.sources).toEqual([]);
+      expect(response.answer).toBe("Which area do you want food in?");
+    }
+  });
+
+  it.each([
     { query: "make it 2am", previous: "Food in Soho tonight at 06:00" },
     { query: "01:00", previous: "Food in Soho tonight at 06:00" },
     { query: "01:00 please", previous: "Food in Soho tonight at 06:00" },
@@ -235,6 +270,8 @@ describe("clean late-food clarification context", () => {
     { query: "Soho?", previous: "Food tonight at 1am" },
     { query: "2026-10-23", previous: "Food at 01:00 near Soho" },
     { query: "Tonight at 1am", previous: "Food near Soho after ten pm" },
+    { query: "Tonight at 1am", previous: "Food in Soho tonight and tomorrow at 1am" },
+    { query: "on 2026-10-23", previous: "Food in Soho tonight and tomorrow at 1am" },
   ])("merges a supported reply into a clean earlier question: $query", async ({ query, previous }) => {
     const turns = [{ role: "user" as const, content: previous }];
     const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });

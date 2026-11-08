@@ -5,7 +5,8 @@ import { londonDateTimeInputToIso, parseLondonInput } from "@/lib/planIntake";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import placeNames from "@/lib/ask/placeNames.generated.json";
 import { stripTrailingPunctuation } from "@/lib/ask/requestPolicy";
-import { FOOD_RE } from "@/lib/ask/routingPolicy";
+import { extractArea, FOOD_RE } from "@/lib/ask/routingPolicy";
+import { refineRoutedAskQuery } from "@/lib/ask/router";
 
 export type LateFoodQuestion = {
   area: string | null;
@@ -19,7 +20,8 @@ const CONTEXT_AREA = /\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorro
 const CONTEXT_DATE = /\b(?:on\s+)?(\d{4}-\d{2}-\d{2})\b/gi;
 const CONTEXT_NIGHT = /\b(?:tonight|after\s+midnight)\b/gi;
 // Time wording the parser cannot turn into one instant. It sends the question back for a clearer time.
-const VAGUE_TIME = /\b(?:(?:at\s+)?(?:midnight|noon|midday)|at\s+\d{1,2}(?:[.:]\d{2})?(?:\s*o'?clock)?|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:[ap]m|o'?clock)|after|before|until|till|tomorrow|today)\b/gi;
+const VAGUE_TIME = /\b(?:(?:at\s+)?(?:midnight|noon|midday)|at\s+\d{1,2}(?:[.:]\d{2})?(?:\s*o'?clock)?|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:[ap]m|o'?clock)|after|before|until|till)\b/gi;
+const VAGUE_DAY = /\b(?:tomorrow|today)\b/gi;
 const DIETARY = /\b(?:vegan|vegetarian|gluten[- ]free)\b/gi;
 const CATEGORIES = [
   [/^pizzas?$/, "pizza"], [/^kebabs?$/, "kebab"],
@@ -79,22 +81,15 @@ function userTurns(recentTurns: unknown): string[] {
   return recentTurns.flatMap((turn) => {
     if (!turn || typeof turn !== "object" || Array.isArray(turn)) return [];
     const row = turn as { role?: unknown; content?: unknown };
-    return row.role === "user" && typeof row.content === "string" && row.content.trim()
-      ? [row.content.trim().slice(0, 800)] : [];
-  }).slice(-6);
-}
-
-function namesArea(text: string): boolean {
-  const wording = foodWording(text);
-  return recognisedArea(clarificationFields(text).replace(/^near\s+/i, ""))
-    || [...wording.matchAll(CONTEXT_AREA)].some((match) => recognisedArea(match[1]!.trim()));
+    return (row.role === "user" || row.role === "assistant") && typeof row.content === "string" && row.content.trim()
+      ? [{ role: row.role, content: row.content.trim().slice(0, 800) }] : [];
+  }).slice(0, 6).flatMap((turn) => turn.role === "user" ? [turn.content] : []);
 }
 
 /**
  * Read one area, one time and one optional date, then decide. A question with
  * an area but no single clear time asks for the time. A timed question with no
- * area asks for the area, unless an earlier turn names one: that area belongs
- * to the general refinement, not to recorded food service.
+ * area asks for the area.
  */
 export function parseLateFoodQuestion(query: string, now: number, recentTurns?: unknown): LateFoodQuestion | null {
   const wording = stripTrailingPunctuation(foodWording(query));
@@ -110,6 +105,8 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
   rest = rest.replace(CONTEXT_NIGHT, " ");
   const vague = [...rest.matchAll(VAGUE_TIME)];
   rest = rest.replace(VAGUE_TIME, " ");
+  const vagueDays = [...rest.matchAll(VAGUE_DAY)];
+  rest = rest.replace(VAGUE_DAY, " ");
   const dietary = [...rest.matchAll(DIETARY)].map((match) => match[0].toLowerCase().replace(" ", "-"));
   rest = rest.replace(DIETARY, " ");
   const foodWords = [...rest.matchAll(new RegExp(FOOD_RE.source, "gi"))].map((match) => match[0].toLowerCase());
@@ -124,7 +121,7 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
 
   const minutes = clocks.length === 1 ? requestedMinutes(clocks[0]!) : null;
   const date = dates.length === 1 ? dates[0]![1] : undefined;
-  const clearTime = dates.length <= 1 && clocks.length <= 1 && nights.length <= 1 && vague.length === 0
+  const clearTime = dates.length <= 1 && clocks.length <= 1 && nights.length <= 1 && vague.length === 0 && vagueDays.length === 0
     && (clocks.length > 0 || nights.length > 0)
     && !(dates.length && nights.some((night) => /^tonight$/i.test(night[0])))
     && !(clocks.length && nights.some((night) => !/^tonight$/i.test(night[0])))
@@ -132,8 +129,11 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
     && !(date && !parseLondonInput(wallTimeInput(date, minutes ?? 0)));
   const area = areas[0]?.[1]?.trim() ?? null;
   if (area === null) {
-    if (!clearTime || minutes === null || userTurns(recentTurns).some(namesArea)) return null;
-  } else if (!clearTime && dates.length + clocks.length + nights.length + vague.length === 0) {
+    if (!clearTime || minutes === null) return null;
+    const turns = userTurns(recentTurns);
+    const inheritedArea = extractArea(foodWording(refineRoutedAskQuery(query, turns.at(-1), turns)));
+    if (inheritedArea && recognisedArea(inheritedArea)) return null;
+  } else if (!clearTime && dates.length + clocks.length + nights.length + vague.length + vagueDays.length === 0) {
     return null;
   }
   const day = clearTime ? requestedDay(date, nights.length > 0, minutes, now) : null;
@@ -166,7 +166,7 @@ function correctFoodQuery(previous: string, rawFragment: string): string {
   if (has(CLOCK)) query = query.replace(CLOCK, " ").replace(/\bafter\s+midnight\b/gi, " ").replace(VAGUE_TIME, " ");
   if (has(CONTEXT_NIGHT)) query = query.replace(CONTEXT_DATE, " ").replace(CONTEXT_NIGHT, " ");
   if (has(CONTEXT_DATE)) query = query.replace(CONTEXT_DATE, " ").replace(/\btonight\b/gi, " ");
-  if (has(CONTEXT_NIGHT) || has(CONTEXT_DATE)) query = query.replace(/\b(?:tomorrow|today)\b/gi, " ");
+  if (has(CONTEXT_NIGHT) || has(CONTEXT_DATE)) query = query.replace(VAGUE_DAY, " ");
   return `${stripTrailingPunctuation(query)} ${fragment}`.replace(/\s+/g, " ").trim();
 }
 
