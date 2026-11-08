@@ -228,9 +228,12 @@ describe("legal content pages", () => {
     expect(privacyText).toMatch(/Public discovery can also show how many people are in the plan/i);
     expect(privacyText).toMatch(/The roster and remaining stops stay behind the member read/i);
     expect(privacyText).toMatch(/Close the plan and it drops out of the public list/i);
-    expect(termsText).toMatch(
-      /While a plan is open, anyone can see its title, the pub or place it starts at, its start time, how many people are in it, and the host handle/i,
-    );
+    const termsDom = new JSDOM(renderToStaticMarkup(createElement(TermsPage)));
+    try {
+      expect(termsDom.window.document.querySelector('#crews + p a[href="/privacy#crews"]')).not.toBeNull();
+    } finally {
+      termsDom.window.close();
+    }
     expect(termsText).toMatch(/Close the plan and it drops out of the public list/i);
     expect(privacy).toMatch(/private Crew[^]*owner[^]*active members who\s+remain Mutual with the owner/i);
     expect(privacy).toMatch(/invitation[^]*sender[^]*recipient[^]*expiry[^]*state/i);
