@@ -27,6 +27,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.
 
+  **Followers** and **Following** open a profile's people lists. A link under `/u/you/people/` returns to the account page. People lists ask search engines not to index them or follow their links.
+
   Shared cover links follow your **Who can see your profile** setting. The [account privacy rule](docs/rules/lib-identity-accounts-and-sessions.md#an-account-is-public-or-private-and-that-is-a-visible-choice-rather-than-a-prope) explains reader access and moderator previews.
 
   On the account page, **Bring this device** saves finished-night recaps as private Memories without publishing them. **Keep only on this device** leaves them local. If a save fails or you switch accounts during transfer, all device drafts remain. Earlier saves can appear in your Memories while the remaining recaps wait. Retrying with the same account reuses each saved Memory. A successful save refreshes your Memories without clearing the draft in the Memory editor.

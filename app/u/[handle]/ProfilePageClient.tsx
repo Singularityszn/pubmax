@@ -249,10 +249,7 @@ async function localSavedDTOs(
   return groups;
 }
 
-// "you" is the sentinel handle the nav uses (/u/you) before a viewer handle is
-// known. It is NOT a real person's handle - it means "the current viewer". A
-// signed-in account handle or signed-out device handle redirects /u/you to the
-// real profile; without either, /u/you renders the first-run passport (story 30).
+// "you" is the nav's sentinel for the current viewer, never a real person's handle.
 const YOU_SENTINEL = "you";
 
 /**
@@ -871,10 +868,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [routeHandle, unlistedLimit, viewerHandle]);
 
-  // /u/you resolution: once viewer identity is known, redirect the sentinel
-  // route to its real profile. With no signed-out fallback, /u/you stays put and
-  // renders the anonymous first-run passport below. Preserve any hash (e.g.
-  // #night-memories from the landing CTA) so the destination can honour it.
+  // Preserve the hash, such as #night-memories from the landing CTA, so the
+  // destination can honour it.
   useEffect(() => {
     if (!isYouRoute) return;
     if (viewerHandle && viewerHandle !== YOU_SENTINEL) {

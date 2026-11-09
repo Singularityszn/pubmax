@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
 import { normalizeHandle } from "@/lib/profiles";
@@ -25,7 +25,7 @@ export async function generateMetadata({
   const title = relation === "followers" ? "Followers" : "Following";
   return {
     title: `${title} of @${clean}`,
-    alternates: { canonical: `/u/${clean}/people/${relation}` },
+    robots: { index: false, follow: false },
   };
 }
 
@@ -36,6 +36,7 @@ export default async function ProfilePeoplePage({
 }) {
   const { handle, relation } = await params;
   const clean = normalizeHandle(handle);
+  if (clean === "you") redirect("/u/you");
   if (!clean || !isRelation(relation)) notFound();
 
   return (

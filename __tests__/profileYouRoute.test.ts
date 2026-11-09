@@ -15,6 +15,21 @@ import {
   profileSurfaceFor,
   YouSignedOutSurface,
 } from "@/app/u/[handle]/ProfilePageClient";
+import ProfilePeoplePage, {
+  generateMetadata as peopleMetadata,
+} from "@/app/u/[handle]/people/[relation]/page";
+
+/** The redirect target Next carries on the error `redirect()` throws, or null. */
+async function redirectTarget(run: () => Promise<unknown>): Promise<string | null> {
+  try {
+    await run();
+    return null;
+  } catch (error) {
+    const digest = (error as { digest?: unknown }).digest;
+    if (typeof digest !== "string" || !digest.startsWith("NEXT_REDIRECT")) throw error;
+    return digest.split(";")[2] ?? null;
+  }
+}
 
 describe("signed-out /u/you surface", () => {
   it("shows a sign-in boundary instead of an unusable Follow button", () => {
@@ -78,5 +93,26 @@ describe("signed-out /u/you surface", () => {
     expect(html).not.toContain("@you");
     expect(html).not.toContain("Couldn&#x27;t load pints");
     expect(html).not.toContain("profileErrorState");
+  });
+});
+
+describe("the people pages under /u", () => {
+  it("sends the /u/you sentinel back to the You door", async () => {
+    for (const relation of ["followers", "following"]) {
+      const target = await redirectTarget(() =>
+        ProfilePeoplePage({ params: Promise.resolve({ handle: "you", relation }) }),
+      );
+      expect(target).toBe("/u/you");
+    }
+  });
+
+  it("keeps every people list out of search", async () => {
+    for (const handle of ["you", "handle", "alice"]) {
+      const metadata = await peopleMetadata({
+        params: Promise.resolve({ handle, relation: "followers" }),
+      });
+      expect(metadata.robots).toEqual({ index: false, follow: false });
+      expect(metadata.alternates?.canonical).toBeUndefined();
+    }
   });
 });
