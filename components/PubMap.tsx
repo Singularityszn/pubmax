@@ -6120,7 +6120,7 @@ export default function PubMap({
         ? venueRevealRequest
         : null;
     // The sheet's three drop-lane inputs, built by the same helper as the peek,
-    // so a typed price with no bill prints "not checked" and no band on both.
+    // so an unchecked price prints "not checked" and no band on both.
     const sheetDropLanes = dropLaneInputsFor(dropSignals.get(selectedVenue.id));
 
     return (

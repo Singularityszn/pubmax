@@ -91,10 +91,8 @@ export type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 export type PhotoSlot = { file: File; previewUrl: string };
 /**
- * THREE SLOTS since 7 Sept 2026. `pint` is what they drank, `venue` is where,
- * and `receipt` is the photo of the bill a new price now carries
- * (lib/pintDropReceipt.ts). Three names rather than a reused one, because the
- * drop's own row prints them apart and only one of them is required.
+ * Keep the pint, venue and bill photos separate because the drop displays
+ * them separately. lib/pintDropReceipt.ts owns the attachment requirements.
  */
 export type PhotoSlotName = "pint" | "venue" | "receipt";
 

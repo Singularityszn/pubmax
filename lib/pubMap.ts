@@ -1186,7 +1186,7 @@ export function peekPriceChip(
   // The chip carries the same state the Overview chip carries, read from the
   // signal rather than re-derived: the peek holds no confirmation of its own.
   const trust = trustChipStateFor(lane, pintTrust === "confirmed" ? "confirmed" : "none");
-  // A TYPED PRICE WITH NO BILL (captain decision 9) keeps its figure and loses
+  // An unchecked price (lib/pintDropReceipt.ts) keeps its figure and loses
   // its band: `priceGbp` is what the chip bands, so it is withheld exactly as
   // a split withholds it. The in-window one names its drinker as "not checked";
   // an aged one keeps the aged line, which already says it needs a drinker.
