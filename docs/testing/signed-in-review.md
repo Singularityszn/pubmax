@@ -86,9 +86,11 @@ The mounted journey checks that recovery causes no document navigation.
 The signed-in journeys are skipped in the normal keyless suite.
 Shared keyless authentication doubles do not verify these account recovery paths.
 
-On exit, the runner stops its child processes and removes its local Supabase project without a backup.
-It removes the temporary configuration and build directories after their dependent processes stop.
-If backend cleanup fails, it reports the project and preserves its configuration directory for recovery.
+After its child processes stop, the runner calls `supabase stop --no-backup`.
+It then checks for leftover Docker containers, volumes, and networks, even when `supabase stop` succeeds.
+It removes only resources with the `supabase_` prefix and the exact `_<projectId>` suffix.
+If resources remain or Docker cleanup cannot be confirmed, the runner reports the project, exits unsuccessfully, and preserves its configuration directory for recovery.
+It removes build output after its child processes stop and configuration only after backend cleanup succeeds.
 Playwright results remain in `test-results/`.
 
 ## PostgreSQL test contention
