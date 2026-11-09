@@ -123,7 +123,6 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/tflDisruption.ts", fetchCount: 1, reason: "transport provider client has its own live disruption contract" },
   { path: "lib/slimShards.ts", fetchCount: 3, reason: "static map shard loading is owned by the map data lifecycle" },
   { path: "lib/venuesSlim.ts", fetchCount: 2, reason: "static venue pack loading is owned by the map data lifecycle" },
-  { path: "lib/optimisticSpillPost.ts", fetchCount: 1, reason: "feed overflow transport is an optimistic mutation fallback" },
   { path: "lib/reactionClient.ts", fetchCount: 1, reason: "Social reaction reads and writes are no-store interaction state" },
   { path: "lib/prefetchVenue.ts", fetchCount: 1, reason: "hover prefetch warms an interaction detail, not a painted reload read" },
   { path: "lib/ukBasePubs.ts", fetchCount: 2, reason: "UK base shard loading is viewport-owned static map data" },
