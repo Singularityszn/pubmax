@@ -1627,13 +1627,7 @@ export const PLAN_INTAKE_CONFLICT_NO_ROUTE =
   "That answer clashed with an earlier step. Start again from the first question.";
 export function releasedAcceptanceStatus(input: {
   venueName: string | null;
-  routeStale: boolean;
-  staleStatus?: string | null;
 }): string {
-  if (input.routeStale) {
-    const stale = input.staleStatus?.trim();
-    return stale || "The route needs refreshing before it can be locked.";
-  }
   const pub = input.venueName?.trim() || "this pub";
   return `Released ${pub}. Stop 1 is yours to change.`;
 }
@@ -3246,8 +3240,6 @@ function PlanComposerForm({
     dropAcceptance();
     setRouteStatus(releasedAcceptanceStatus({
       venueName: acceptedVenueName,
-      routeStale,
-      staleStatus: routeStatus,
     }));
   }
 
@@ -4225,7 +4217,7 @@ export default function PlanComposer() {
     }
     window.history.replaceState(window.history.state, "", url);
   }, [accountGeneration]);
-  // Account resets need a fresh ownership snapshot even when hydration is unchanged.
+  // Account resets must read ownership again even when hydration is unchanged.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const records = useMemo(() => hydrated ? readComposerAcceptanceRecords() : null, [hydrated, accountGeneration]);
   const recovery = useMemo(() => {

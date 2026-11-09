@@ -4186,6 +4186,48 @@ async function seedLaterMapAcceptance(format: "v1" | "v2") {
   return { advance, routeV1, routeV2, intake };
 }
 
+it.each(["fresh", "expired", "malformed"] as const)("announces held-pub Release and keeps the city with a %s recovered proof", async (proofState) => {
+  const advance = pinClock();
+  sessionStorage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify({
+    version: 1, source: "near", cityId: "manchester", acceptedVenueId: "venue-a",
+    acceptedArea: { kind: "night-patch", id: "clapham" },
+    startsAt: new Date(T0 + 3_600_000).toISOString(),
+    displayEvidence: { kind: "directory", observedAt: null },
+    acceptedAt: new Date(T0).toISOString(), expiresAt: new Date(T0 + 7_200_000).toISOString(),
+  }));
+  const proof = proofState === "malformed" ? "signed-proof"
+    : `${btoa(JSON.stringify({ v: 1, expiresAt: T0 + (proofState === "expired" ? -1 : CLIENT_PROOF_LIFETIME) }))}.fixture`;
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+    ...(proofState === "fresh" ? { savedAt: new Date(T0 + 1000).toISOString() } : {}),
+    stops: generatedProofFixture(3).stops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
+    nightContext: null, routeRevision: 1, routeStale: false,
+    groundingProof: proof, createOperationKey: "operation-key",
+    planAnchor: { venueId: "venue-a", source: "near", outcome: "route" },
+  }));
+  advance(1000);
+  await mountComposer();
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(document.querySelector("#plan-route-status")?.textContent)
+    .toBe("Released Pub A. Stop 1 is yours to change.");
+  expect(document.activeElement?.id).toBe("plan-route-status");
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+  expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
+    .toEqual(["Pub A", "Pub B", "Pub C"]);
+  await editInput("#plan-name", "Captain");
+  await editInput("#plan-time", START);
+  if (proofState === "fresh") {
+    const body = await saveRoute();
+    expect(body.cityId).toBe("manchester");
+    expect(body).not.toHaveProperty("anchor");
+    expect(body).not.toHaveProperty("groundingProof");
+  } else {
+    expect(document.querySelector("#plan-route-stale-title")?.textContent).toBe("This route needs a refresh");
+    await attemptRouteSave();
+  }
+});
+
 it.each(["v1", "v2"] as const)("keeps the later Map request and release separate from the expired %s route", async (format) => {
   const { advance, routeV1, routeV2, intake } = await seedLaterMapAcceptance(format);
   const legacy = format === "v1";
