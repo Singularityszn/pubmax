@@ -27,7 +27,7 @@
 // line name loses every run of four or more digits. A fully redacted name uses
 // the privacy-safe marker `Item` and keeps its price.
 
-import type { DrinkMeasure } from "@/lib/drinkMeasure";
+import { DRINK_MEASURES, MEASURE_OTHER_SUGGESTIONS, NON_PINT_MEASURE_PATTERNS, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { drinkCategoryFromText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import { brandsForCategory, normalizeDrinkHaystack } from "@/lib/drinkBrands";
 import { submitCategoryLabel } from "@/lib/communityPrice";
@@ -38,6 +38,12 @@ import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { PLAN_FOOD_ITEM } from "@/lib/planPriceLimits";
 
 const BILL_FOOD_CONTEXT = new RegExp(String.raw`\b(?:${PLAN_FOOD_ITEM}|pies?|fish|batter(?:ed)?|crisps|fries|desserts?|cakes?|puddings?)\b`, "i");
+const BILL_SERVING_LABELS = [
+  ...DRINK_MEASURES.filter((measure) => measure !== "other"),
+  ...NON_PINT_MEASURE_PATTERNS.map(({ word }) => word),
+  ...MEASURE_OTHER_SUGGESTIONS,
+].map((label) => label.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+const BILL_SERVING_PATTERN = new RegExp(String.raw`\b((?:(?:a|one|two|three)[\s-]+)?(?:half|thirds?|quarters?)(?:[\s-]+(?:of[\s-]+)?(?:a[\s-]+)?pint)?|\d+\/\d+(?:[\s-]+pint)?|\d+(?:\.\d+)?\s*(?:ml|cl|litres?|l)|bottles?|bottled|cans?|canned|${BILL_SERVING_LABELS.join("|")})\b|[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞](?:[\s-]+pint)?`, "gi");
 
 /** The three answers a bill check can give. */
 export const BILL_CHECK_RESULTS = ["match", "mismatch", "unreadable"] as const;
@@ -132,9 +138,8 @@ function billBrandCategory(name: string): DrinkCategory | null {
 
 function billItem(name: string, counterpart = ""): { name: string; categoryText: string; measure?: string } {
   const text = name.trim().toLowerCase();
-  const serving = /\b((?:(?:a|one|two|three)[\s-]+)?(?:half|thirds?|quarters?)(?:[\s-]+(?:of[\s-]+)?(?:a[\s-]+)?pint)?|\d+\/\d+(?:[\s-]+pint)?|pint|\d+(?:\.\d+)?\s*(?:ml|cl|litres?|l)|bottles?|bottled|cans?|canned|single|double)\b|[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞](?:[\s-]+pint)?/gi;
-  const found = [...text.matchAll(serving)].find((match) => {
-    if (!/^(half|pint|bottles?|bottled|cans?|canned|single|double|thirds?|quarters?)$/.test(match[0])) return true;
+  const found = [...text.matchAll(BILL_SERVING_PATTERN)].find((match) => {
+    if (!/^[a-z]+$/.test(match[0])) return true;
     const following = text.slice(match.index + match[0].length).trim();
     if (!following || /^of\b/.test(following)) return true;
     if (match.index === 0 && /^(single|double|half|pint)$/.test(match[0]) &&
@@ -145,7 +150,7 @@ function billItem(name: string, counterpart = ""): { name: string; categoryText:
       brandCategory !== null;
     if (!startsWithDrink) {
       if (match.index !== 0 || /^(?:single malt|double ipa|half moon|bottle rocket)\b/.test(text)) return false;
-      const otherServing = [...counterpart.matchAll(serving)].find((other) =>
+      const otherServing = [...counterpart.matchAll(BILL_SERVING_PATTERN)].find((other) =>
         other.index === 0 && other[0] !== match[0]);
       const otherProduct = otherServing ? counterpart.slice(otherServing[0].length) : counterpart;
       const product = billProductName(following);
@@ -156,7 +161,8 @@ function billItem(name: string, counterpart = ""): { name: string; categoryText:
       ? category === "gin" || category === "vodka" || category === "rum" || category === "whisky" || category === "shot"
       : category !== null;
   });
-  const raw = found?.[0].normalize("NFKC").replace("⁄", "/")
+  const alias = NON_PINT_MEASURE_PATTERNS.find(({ word, measure }) => word === found?.[0] && measure !== "other");
+  const raw = (alias?.measure ?? found?.[0])?.normalize("NFKC").replace("⁄", "/")
     .replace(/^(?:a|one)[\s-]+/, "")
     .replace(/^(?:(two|three)[\s-]+)?(half|thirds?|quarters?)/, (_, count: string, unit: string) =>
       `${count === "two" ? 2 : count === "three" ? 3 : 1}/${unit === "half" ? 2 : unit.startsWith("third") ? 3 : 4}`)

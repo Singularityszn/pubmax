@@ -252,6 +252,33 @@ describe("judgeBill", () => {
   });
 
   it.each([
+    ["schooner", "schooner"],
+    ["halves", "half"],
+    ["small", "small"],
+    ["carafe", "carafe"],
+  ])("checks the supported serving %s in names and custom labels", (serving, label) => {
+    const plain = read([["Guinness", 3.5]]);
+    for (const name of [`Guinness ${serving}`, `${serving} Guinness`]) {
+      const lines = read([[name, 3.5]]);
+      expect(judgeBill(lines, 3.5, "Beer", "pint").result).toBe("mismatch");
+      expect(judgeBill(lines, 3.5, "Guinness", "pint").result).toBe("mismatch");
+      expect(judgeBill(plain, 3.5, name, "pint").result).toBe("mismatch");
+      expect(judgeBill(lines, 3.5, name, "pint").result).toBe("mismatch");
+      expect(judgeBill(lines, 3.5, "Beer", "other", label).result).toBe("match");
+      expect(judgeBill(lines, 3.5, "Guinness", "other", label).result).toBe("match");
+      expect(judgeBill(plain, 3.5, name, "other", label).result).toBe("match");
+      expect(judgeBill(lines, 3.5, name, "other", label).result).toBe("match");
+      expect(judgeBill(read([["Guinness pint", 3.5]]), 3.5, "Guinness", "other", serving).result).toBe("mismatch");
+      for (const different of ["schooner", "half", "small", "carafe"].filter((other) => other !== label)) {
+        expect(judgeBill(lines, 3.5, "Beer", "other", different).result).toBe("mismatch");
+        expect(judgeBill(plain, 3.5, name, "other", different).result).toBe("mismatch");
+      }
+      expect(judgeBill(lines, 3.5, "Beer", "half").result).toBe(label === "half" ? "match" : "mismatch");
+    }
+    expect(judgeBill(read([[`Guinness ${label}`, 3.5]]), 3.5, "Guinness", "other", serving).result).toBe("match");
+  });
+
+  it.each([
     ["quarter", ["quarter", "one quarter", "1/4 pint", "¼ pint", "142ml", "14.2cl", "0.142l"], "half"],
     ["third", ["third", "one third", "1/3 pint", "1/3-pint", "⅓ pint", "a third of a pint", "2/6 pint", "189ml", "18.94cl"], "two-thirds"],
     ["two-thirds", ["two thirds", "two-thirds", "2/3 pint", "2/3-pint", "⅔ pint", "two thirds of a pint", "4/6 pint", "379ml"], "half"],
