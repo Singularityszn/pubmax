@@ -50,6 +50,7 @@ export const ANALYTICS_EVENTS = {
   lane_to_plan: ["source", "stops"],
   night_mode_active: [],
   booking_click: ["tier"],
+  table_request_sent: ["source", "outcome"],
   whats_on_filter: [],
   // Wave F · F3 — concierge-as-map-home
   concierge_ask: [],
@@ -470,6 +471,13 @@ export const ERROR_SHOWN_SURFACES = [
 ] as const;
 export const ERROR_SHOWN_KINDS = ["network", "auth", "validation", "server", "unknown"] as const;
 
+// A completed table request: where the ask began (a Pal answer's handoff or
+// the venue sheet's own button) and how it ended (PUBMAXX emailed the pub, or
+// the reader was handed the pub's own contact). Never the venue, the size, or
+// a name.
+const TABLE_REQUEST_SOURCES = ["pal", "sheet"] as const;
+const TABLE_REQUEST_OUTCOMES = ["sent", "not_sent"] as const;
+
 /**
  * How many reviewed late-food terminals the food-ending shortlist held.
  *
@@ -630,6 +638,8 @@ const SAFE_STRING_VALUES = new Set([
   ...ROUTE_OPENED_SURFACES,
   ...PLAN_ONE_TAP_OUTCOMES,
   ...VOICE_END_REASONS,
+  ...TABLE_REQUEST_SOURCES,
+  ...TABLE_REQUEST_OUTCOMES,
   ...CONTENT_SHARE_CHANNELS,
   ...CONTENT_SHARE_SURFACES,
   ...ERROR_SHOWN_SURFACES,
@@ -637,6 +647,7 @@ const SAFE_STRING_VALUES = new Set([
 ]);
 
 const TRUSTED_HANDOFF_REQUIRED_KEYS = {
+  table_request_sent: ["source", "outcome"],
   pub_list_import_started: ["input_kind"],
   pub_list_import_matched: ["count_matched", "count_ambiguous", "count_unmatched"],
   pub_list_import_routed: ["stops"],
@@ -731,6 +742,12 @@ function isAllowedVerifiedOutcomeProp(
   return key === "routeReady" && typeof value === "boolean";
 }
 
+function isAllowedTableRequestProp(key: string, value: string | number | boolean): boolean {
+  return key === "source"
+    ? includesValue(TABLE_REQUEST_SOURCES, value)
+    : key === "outcome" && includesValue(TABLE_REQUEST_OUTCOMES, value);
+}
+
 function isAllowedTrustedHandoffEventProp(
   name: AnalyticsEventName,
   key: string,
@@ -740,6 +757,8 @@ function isAllowedTrustedHandoffEventProp(
     return isAllowedVerifiedOutcomeProp(name, key, value);
   }
   switch (name) {
+    case "table_request_sent":
+      return isAllowedTableRequestProp(key, value);
     case "pub_list_import_started":
       return key === "input_kind" && value === "pasted_text";
     case "pub_list_import_matched":

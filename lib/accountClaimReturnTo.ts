@@ -1,6 +1,7 @@
 import type { Route } from "next";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 import { isPlanId } from "@/lib/planId";
+import { safeTableRequestReturnTo } from "@/lib/tableRequestIntent";
 
 const RETURN_ORIGIN = "https://pubmax.invalid";
 
@@ -29,7 +30,7 @@ export function safePlanReturnTo(raw: string | null | undefined): Route | null {
 }
 
 function accountClaimReturnTo(raw: string | null | undefined): Route | null {
-  return safeInviteReturnTo(raw) ?? safePlanReturnTo(raw);
+  return safeInviteReturnTo(raw) ?? safePlanReturnTo(raw) ?? safeTableRequestReturnTo(raw);
 }
 
 export function accountClaimReturnToFromUrl(rawUrl: string): Route | null {

@@ -196,7 +196,7 @@ function parseRequestTime(raw: unknown): string | null {
 }
 
 /** A party size the form offers, or null. */
-function parsePartySize(raw: unknown): number | null {
+export function parseTableRequestPartySize(raw: unknown): number | null {
   const value = typeof raw === "string" && raw.trim() ? Number(raw) : raw;
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
   return value >= TABLE_REQUEST_MIN_PARTY && value <= TABLE_REQUEST_MAX_PARTY ? value : null;
@@ -240,7 +240,7 @@ export function validateTableRequest(
   const name = cleanText(raw.name, MAX_NAME);
   if (!name) return refuse("name", "Add the name the table is under.");
 
-  const partySize = parsePartySize(raw.partySize);
+  const partySize = parseTableRequestPartySize(raw.partySize);
   if (partySize === null) {
     return refuse(
       "partySize",

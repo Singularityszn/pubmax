@@ -36,6 +36,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
 import { confirmPalMemoryProposal } from "@/lib/palMemoryConfirmClient";
@@ -66,7 +67,9 @@ import {
 } from "@/lib/palVoiceTranscript";
 import { palMapAskTarget, palPubAskVenue, type PalMapAskVenue } from "@/lib/palMapAsk";
 import { formatPalWhen, type PalCard } from "@/lib/palChat";
-import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
+import { venueAcceptUrl, venueMapUrl, venueTableRequestUrl } from "@/lib/venueMapUrl";
+import { tableRequestPartySizeInText } from "@/lib/tableRequestIntent";
+import { TABLE_REQUEST_ACTION_LABEL } from "@/lib/tableRequests";
 import { palRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
@@ -225,11 +228,15 @@ export function AnswerCard({
   onOpen,
   knownVenueIds = null,
   locality,
+  tablePartySize = null,
+  tableVenueIds = null,
 }: {
   card: PalCard;
   onOpen: (venueId: string) => void;
   knownVenueIds?: ReadonlySet<string> | null;
   locality: PalLocality | null;
+  tablePartySize?: number | null;
+  tableVenueIds?: ReadonlySet<string> | null;
 }) {
   const when = card.when ? formatPalWhen(card.when) : "";
   return (
@@ -276,6 +283,17 @@ export function AnswerCard({
           Use this pub
         </Link>
       ) : null}
+      {tableVenueIds?.has(card.venueId) && tablePartySize !== null ? (
+        <Button asChild variant="ghost">
+          <Link
+            prefetch={false}
+            href={venueTableRequestUrl(card.venueId, tablePartySize)}
+            aria-label={`Ask ${card.title} for a table`}
+          >
+            {TABLE_REQUEST_ACTION_LABEL}
+          </Link>
+        </Button>
+      ) : null}
     </li>
   );
 }
@@ -301,6 +319,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // The answer text so far while the Pal is still writing it, "" until it starts.
   const [streamText, setStreamText] = useState("");
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
+  const [tableVenueIds, setTableVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const newestAnswerRef = useRef<HTMLDivElement | null>(null);
@@ -410,10 +429,14 @@ function PalChatBody({ owner }: { owner: string | null }) {
         setKnownVenueIds(
           result.status === "ready" ? palKnownVenueIds(result.rows) : null,
         );
+        setTableVenueIds(result.status === "ready"
+          ? new Set(result.rows.filter((venue) => isPubVenueKind(venue.kind)).map((venue) => venue.id))
+          : null);
       })
       .catch(() => {
         if (!alive) return;
         setKnownVenueIds(null);
+        setTableVenueIds(null);
       });
     return () => {
       alive = false;
@@ -846,7 +869,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
               <p className="palChatBubble">Hi. What kind of night are you planning?</p>
             </div>
           ) : null}
-          {entries.map((entry) => {
+          {entries.map((entry, entryIndex) => {
             if (entry.kind === "user") {
               return (
                 <div key={entry.id} className="palChatRow palChatRow--user">
@@ -892,6 +915,10 @@ function PalChatBody({ owner }: { owner: string | null }) {
               );
             }
             const { answer, locality, proposals, recall } = entry;
+            const question = entries.slice(0, entryIndex).findLast((row) => row.kind === "user");
+            const tablePartySize = question?.kind === "user"
+              ? tableRequestPartySizeInText(question.text)
+              : null;
             const actions = proposals.filter((proposal) => proposal.kind !== "open_venue"
               || !answer.cards.some((card) => card.venueId === proposal.venueId));
             return (
@@ -978,6 +1005,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
                         onOpen={openVenue}
                         knownVenueIds={knownVenueIds}
                         locality={locality}
+                        tablePartySize={tablePartySize}
+                        tableVenueIds={tableVenueIds}
                       />
                     ))}
                   </ul>

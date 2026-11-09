@@ -287,6 +287,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `whats_on_filter` | A what's-on filter was used. |
 | `event_chip_view` | A tonight chip was shown on a venue. |
 | `booking_click` | A booking link was taken. |
+| `table_request_sent` | Did a completed table request reach the pub, or need the reader to contact it directly, and did the request start in Pal or the venue sheet? Counts consented completed requests, not bookings, seated groups or revenue. |
 | `price_submit_viewed` | A price entry panel was seen. The contribution funnel's denominator. |
 | `price_submitted` | A price landed. The product's core action. |
 | `price_submit_outcome` | What that price turned out to be worth: trusted, still one voice, or kept on the page. |
