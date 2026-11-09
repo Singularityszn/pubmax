@@ -9,6 +9,11 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   };
 });
 
+const bundleRows = vi.hoisted(() => ({ rows: [] as unknown[] }));
+vi.mock("@/lib/ukPriceBundle.server", () => ({
+  ukPriceBundleRowsFor: async () => ({ status: bundleRows.rows.length ? "ready" : "empty", rows: bundleRows.rows }),
+}));
+
 import { GET } from "@/app/api/harvest-overlay/route";
 import { parseOverlayRow } from "@/lib/harvestFold";
 import { __resetHarvestOverlayStore, harvestOverlayStore } from "@/lib/harvestOverlayStore";
@@ -19,6 +24,7 @@ function get(query: string): Promise<Response> {
 }
 
 beforeEach(() => {
+  bundleRows.rows = [];
   __resetHarvestOverlayStore();
   __resetPintDrops();
 });
@@ -167,5 +173,41 @@ describe("GET /api/harvest-overlay", () => {
     const res = await get("venueId=venue-uk-n123");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "ready", overlay: null });
+  });
+});
+
+describe("GET /api/harvest-overlay listed pint", () => {
+  const row = (lane: string, standing: string, extra: Record<string, unknown> = {}) => ({
+    venueId: "venue-uk-n1720298837",
+    name: "Eagle Ale House",
+    category: "beer",
+    priceGbp: 6.75,
+    lane,
+    standing,
+    sourceUrl: standing === "listed" ? "https://guinndex.co.uk/pub/the-eagle-ale-house-london" : null,
+    publisher: standing === "listed" ? "Guinndex" : null,
+    observedAt: "2026-04-23T10:00:00.000Z",
+    basis: standing === "estimate" ? "london:all" : null,
+    sampleSize: standing === "estimate" ? 40 : null,
+    ...extra,
+  });
+
+  it("carries a base pub's listed pint with its page, day and drink", async () => {
+    bundleRows.rows = [row("listing-site", "listed", { drinkLabel: "Guinness", servingSize: "Pint" })];
+    const body = await (await get("venueId=venue-uk-n1720298837")).json();
+    expect(body.listedPrice).toEqual({
+      priceGbp: 6.75,
+      sourceUrl: "https://guinndex.co.uk/pub/the-eagle-ale-house-london",
+      observedAt: "2026-04-23T10:00:00.000Z",
+      publisher: "Guinndex",
+      drinkLabel: "Guinness",
+      servingSize: "Pint",
+    });
+  });
+
+  it("never carries a modelled figure as a listed pint", async () => {
+    bundleRows.rows = [row("estimate", "estimate")];
+    const body = await (await get("venueId=venue-uk-n1720298837")).json();
+    expect(body.listedPrice).toBeUndefined();
   });
 });

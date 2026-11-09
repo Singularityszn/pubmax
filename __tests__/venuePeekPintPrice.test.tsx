@@ -50,7 +50,7 @@ const HELD: Array<{
     name: "listed", lane: {
       lane: "listed", listed: { priceGbp: 4.7, sourceUrl: "https://example.com/menu", observedAt: NOW },
     },
-    figure: "£4.70", caption: "listed by the pub",
+    figure: "£4.70", caption: "published price",
   },
   {
     name: "baseline", lane: {

@@ -133,7 +133,7 @@ describe("what a bundle row owes", () => {
   });
 
   it("names its lanes and nothing else", () => {
-    expect(UK_PRICE_BUNDLE_LANES).toEqual(["site-harvest", "drink-price-update", "estimate"]);
+    expect(UK_PRICE_BUNDLE_LANES).toEqual(["site-harvest", "drink-price-update", "listing-site", "estimate"]);
     expect(isUkPriceBundleLane("guesswork")).toBe(false);
   });
 });
