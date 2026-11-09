@@ -221,13 +221,15 @@ describe("a main push after the merge queue", () => {
     expect(jobsThatRun("ci.yml", "pull_request", { result: "success" }, { "unit-tests": result })).not.toContain("coverage");
   });
 
-  it.each(FILES)("%s carries the same proof job", (file) => {
-    expect(workflow(file).jobs["queue-proof"]).toEqual(workflow("ci.yml").jobs["queue-proof"]);
+  it.each(FILES)("%s exposes read-only queue proof on pushes", (file) => {
+    const proof = defined(workflow(file).jobs["queue-proof"]);
+    expect(proof.if).toBe("github.event_name == 'push'");
+    expect(proof).toHaveProperty("permissions", { actions: "read" });
+    expect(proof.outputs).toEqual({ passed: "${{ steps.proof.outputs.passed }}" });
   });
 
-  const proofStep = defined(defined(workflow("ci.yml").jobs["queue-proof"]).steps?.[0]);
-
-  function prove(runs: Array<{ path: string }> | "error") {
+  function prove(file: string, runs: Array<{ path: string }> | "error") {
+    const proofStep = defined(defined(workflow(file).jobs["queue-proof"]).steps?.find((step) => step.id === "proof"));
     const dir = mkdtempSync(join(scratch, "proof-"));
     const calls = join(dir, "calls");
     const output = join(dir, "github-output");
@@ -244,7 +246,7 @@ describe("a main push after the merge queue", () => {
         ...process.env,
         PATH: `${dir}:${process.env.PATH ?? ""}`,
         REPO: "Singularityszn/pubmax",
-        WORKFLOW_REF: "Singularityszn/pubmax/.github/workflows/ci.yml@refs/heads/main",
+        WORKFLOW_REF: `Singularityszn/pubmax/.github/workflows/${file}@refs/heads/main`,
         SHA: "abc123",
         GITHUB_OUTPUT: output,
       },
@@ -252,17 +254,20 @@ describe("a main push after the merge queue", () => {
     return { result, output: readFileSync(output, "utf8").trim(), calls: readFileSync(calls, "utf8").trim() };
   }
 
-  it.each<{ runs: Array<{ path: string }> | "error"; passed: string }>([
-    { runs: [{ path: ".github/workflows/e2e.yml" }, { path: ".github/workflows/ci.yml" }], passed: "true" },
-    { runs: [{ path: ".github/workflows/e2e.yml" }], passed: "false" },
-    { runs: [], passed: "false" },
-    { runs: "error", passed: "false" },
-  ])("proves a commit only by a green queue run of the same workflow: $runs", ({ runs, passed }) => {
-    const { result, output, calls } = prove(runs);
-    expect(result.status, result.stderr).toBe(0);
-    expect(output).toBe(`passed=${passed}`);
-    expect(calls).toBe("api repos/Singularityszn/pubmax/actions/runs?event=merge_group&status=success&head_sha=abc123&per_page=100");
-    if (runs === "error") expect(result.stdout).toContain("::warning::");
+  describe.each(FILES)("%s queue proof", (file) => {
+    const otherPath = `.github/workflows/${file === "ci.yml" ? "e2e.yml" : "ci.yml"}`;
+    it.each<{ runs: Array<{ path: string }> | "error"; passed: string }>([
+      { runs: [{ path: otherPath }, { path: `.github/workflows/${file}` }], passed: "true" },
+      { runs: [{ path: otherPath }], passed: "false" },
+      { runs: [], passed: "false" },
+      { runs: "error", passed: "false" },
+    ])("proves a commit only by a green queue run of the same workflow: $runs", ({ runs, passed }) => {
+      const { result, output, calls } = prove(file, runs);
+      expect(result.status, result.stderr).toBe(0);
+      expect(output).toBe(`passed=${passed}`);
+      expect(calls).toBe("api repos/Singularityszn/pubmax/actions/runs?event=merge_group&status=success&head_sha=abc123&per_page=100");
+      if (runs === "error") expect(result.stdout).toContain("::warning::");
+    });
   });
 });
 
