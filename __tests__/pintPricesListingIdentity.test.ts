@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import type { HarvestSource } from "@/lib/harvest/sourcePolicy";
 
+import { attachMatchedListings, type PintPricesListing } from "../scripts/lib/pintPricesListings.mjs";
 import {
   collect as collectPintPrices,
   freshPriceFor,
@@ -108,8 +109,9 @@ async function observe(listings: Listing[]) {
   };
   const fetchImpl = (async (input: RequestInfo | URL) => {
     const url = String(input);
-    if (!(url in pages)) throw new Error(`unexpected fetch ${url}`);
-    return page(pages[url], url, url === SITEMAP ? "application/xml" : "text/html");
+    const body = pages[url];
+    if (body === undefined) throw new Error(`unexpected fetch ${url}`);
+    return page(body, url, url === SITEMAP ? "application/xml" : "text/html");
   }) as typeof fetch;
   const allow = async (url: string) => ({ allowed: true, reason: "allowed", evidence: url });
   return (await collectPintPrices({ source: ROW, fetchImpl, robots: allow, sleepImpl: async () => {} }))
@@ -129,5 +131,134 @@ describe("pint-prices refresh: a merged row keeps its own listing's price", () =
       price_gbp: example.published,
     };
     expect(freshPriceFor(observations, merged)).toBe(example.expected);
+  });
+});
+
+const READ_AT = "2026-11-09T13:07:13+00:00";
+
+function heldRow(overrides: Record<string, unknown>) {
+  return {
+    app_price_id: "app_price_000001",
+    pub_name: "",
+    pint_name: "",
+    price_gbp: null as number | null,
+    price_text: "",
+    address: "",
+    latitude: 51.5,
+    longitude: -0.1,
+    primary_borough: "Westminster",
+    pub_url: "",
+    constructed_pub_url: "",
+    source_datasets: "london_osm_promotion",
+    has_raw_embedded_map_row: false,
+    scraped_at_values: "",
+    ...overrides,
+  };
+}
+
+function listing(name: string, address: string, at: [number, number], pints: [string, number][]): PintPricesListing {
+  return {
+    name,
+    address,
+    latitude: at[0],
+    longitude: at[1],
+    url: null,
+    pints: new Map(pints.map(([pint, price]) => [pint.toLowerCase(), { pint, prices: new Set([price]) }])),
+  };
+}
+
+const WELLINGTON = heldRow({
+  app_price_id: "app_price_003175",
+  pub_name: "The Wellington",
+  address: "351 Strand, Covent Garden, WC2R 0HS, London",
+  latitude: 51.51142,
+  longitude: -0.11954,
+  source_datasets: "london_chain_gazetteer_seed",
+});
+
+describe("pint-prices attach: a new pint joins a venue we already hold, never a new one", () => {
+  it("puts a matched listing's pint on the held venue, credited to its own page and read day", () => {
+    const listings = new Map([
+      ["w", listing("The Wellington", "351 The Strand London WC2R 0HS", [51.5114, -0.119542], [["Neck Oil", 8.65]])],
+    ]);
+    const { added, unmatched } = attachMatchedListings([WELLINGTON], listings, READ_AT);
+
+    expect(unmatched).toEqual([]);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({
+      app_price_id: "app_price_003176",
+      pub_name: WELLINGTON.pub_name,
+      address: WELLINGTON.address,
+      latitude: WELLINGTON.latitude,
+      longitude: WELLINGTON.longitude,
+      pint_name: "Neck Oil",
+      price_gbp: 8.65,
+      price_text: "£8.65",
+      pub_url: "https://www.pint-prices.com/pub/351%20The%20Strand%20London%20WC2R%200HS/The%20Wellington",
+      scraped_at_values: READ_AT,
+    });
+  });
+
+  it("reports a listing no held venue matches, and a listing outside London, instead of adding a venue", () => {
+    const listings = new Map([
+      ["t", listing("Theatreship", "E14 9SH", [51.501, -0.0161262], [["Beavertown Bones", 4.95]])],
+      ["b", listing("Farmers Boy", "1 Brickendon Lane, Brickendon", [51.7634, -0.0905], [["Amstel", 5.55]])],
+    ]);
+    const { added, unmatched } = attachMatchedListings([WELLINGTON], listings, READ_AT);
+
+    expect(added).toEqual([]);
+    expect(Object.fromEntries(unmatched.map((row) => [row.name, row.reason]))).toEqual({
+      "Farmers Boy": "outside-london",
+      Theatreship: "no-matching-venue",
+    });
+  });
+
+  it("refuses a same-name listing whose postcode is another place's", () => {
+    const listings = new Map([
+      ["w", listing("The Wellington", "CT2 8AF", [51.5114, -0.119542], [["Guinness", 6.9]])],
+    ]);
+    const { added, unmatched } = attachMatchedListings([WELLINGTON], listings, READ_AT);
+
+    expect(added).toEqual([]);
+    expect(unmatched[0]?.reason).toBe("no-matching-venue");
+  });
+
+  it("leaves a pint the venue already prices to the row that prices it", () => {
+    const priced = heldRow({
+      ...WELLINGTON,
+      app_price_id: "app_price_003177",
+      pint_name: "NECK OIL",
+      price_gbp: 7.9,
+      source_datasets: "wetherspoons_directory",
+    });
+    const listings = new Map([
+      ["w", listing("The Wellington", "351 The Strand London WC2R 0HS", [51.5114, -0.119542], [["Neck Oil", 8.65]])],
+    ]);
+    const { added, unmatched } = attachMatchedListings([WELLINGTON, priced], listings, READ_AT);
+
+    expect(added).toEqual([]);
+    expect(unmatched[0]?.reason).toBe("venue-already-prices-this-pint");
+  });
+
+  it("treats a pint held under the row's map listing as held, whatever its pub page is called", () => {
+    const fox = heldRow({
+      pub_name: "Fox on the green",
+      address: "1 Islington Grn, London N1 2XH, Reino Unido",
+      pint_name: "CAMDEN HELLS",
+      price_gbp: 7.45,
+      pub_url: "https://www.pint-prices.com/pub/1%20Islington%20Grn,%20London%20N1%202XH/Fox%20on%20the%20green",
+      constructed_pub_url:
+        "https://www.pint-prices.com/pub/1%20Islington%20Grn%2C%20London%20N1%202XH%2C%20Reino%20Unido/Fox%20on%20the%20green",
+    });
+    const listings = new Map([
+      [
+        "f",
+        listing("Fox on the green", "1 Islington Grn, London N1 2XH, Reino Unido", [51.5367, -0.103155], [
+          ["Camden Hells", 7.45],
+        ]),
+      ],
+    ]);
+
+    expect(attachMatchedListings([fox], listings, READ_AT)).toEqual({ added: [], unmatched: [] });
   });
 });

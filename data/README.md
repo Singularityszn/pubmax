@@ -39,11 +39,19 @@ pub's own site; that row is the captain's call. With the row in place, every
 page is asked of robots.txt live and must stay on the row's own host. For every row the source still
 states, it writes the figure the source states and stamps the row's
 `scraped_at_values` with the run's instant, whether or not the figure moved. It
-can neither add a row nor remove one, so the layered artifact below keeps every
-row it holds. The CSV is read against the source by each record's own pub,
-address and pint, never by the bundle's `app_price_id`: a later build reassigned
-the CSV's ids, so they no longer name the records the bundle's ids name. Then
-stamp the registry:
+never removes a row, so the layered artifact below keeps every row it holds.
+Each row and CSV record is read against the listing page in its own `pub_url`
+(or `constructed_pub_url`), never by its display name or the bundle's
+`app_price_id`. The venue canonicalizer rewrites a merged row's name and address
+to another listing's, and a later build reassigned the CSV's ids.
+
+`--capture <dir>` replays pages an earlier collection saved, with nothing
+fetched, and dates the rows by that capture's last request.
+`--attach-matched-listings` adds a priced row for a pint no held row states,
+only where the canonicalizer's same-pub rule puts its listing on exactly one
+venue the dataset already holds. It never adds a venue. It writes every pint it
+did not attach, with the reason, to `--unmatched-report <path>`. Then stamp the
+registry:
 
     python3 scripts/export_app_dataset_json.py --collected-at <ISO> --stamp-only
 
