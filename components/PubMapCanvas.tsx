@@ -4069,6 +4069,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     );
     announceOpeningFrame(mapRef.current, mapViewRef.current, pubsDataRef.current.features);
     publishRenderedState(readTokens());
+    if (!mapReady) return;
     // Updating an existing GeoJSON source is safe once style structure exists.
     // `applyToMap` waits for every tile and image through isStyleLoaded(); a
     // slim-index update arriving after the one style.load would otherwise sit
@@ -4088,6 +4089,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     lensPrices,
     spoonsValue,
     publishRenderedState,
+    mapReady,
   ]);
 
   // UK base pubs → their own source, streamed per settled viewport and only
