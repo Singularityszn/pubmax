@@ -136,9 +136,16 @@ function onError(current: Session, error: GeolocationPositionError): void {
     return;
   }
   const shared = current.sent !== null || current.inFlight !== null;
-  halt(current);
-  if (shared) void removePosition(current.seat, current.request, current).catch(() => undefined);
-  publish(current.seat.planId, "denied");
+  if (shared) {
+    void stopLiveLocationShare(current.seat).then((response) => {
+      if (response.ok && snapshot.planId === current.seat.planId && snapshot.status === "off") {
+        publish(current.seat.planId, "denied");
+      }
+    }).catch(() => undefined);
+  } else {
+    halt(current);
+    publish(current.seat.planId, "denied");
+  }
 }
 
 function removePosition(seat: LiveLocationSeat, request: Request, current?: Session | null): Promise<Response> {
@@ -153,18 +160,26 @@ function removePosition(seat: LiveLocationSeat, request: Request, current?: Sess
 }
 
 /** Runs on the person's tap. This is the only place the browser is asked for location. */
-export function startLiveLocationShare(seat: LiveLocationSeat, ownerKey: string, deps: Deps = {}): void {
-  if (stopping.has(seat.planId)) return;
+export async function startLiveLocationShare(seat: LiveLocationSeat, ownerKey: string, deps: Deps = {}): Promise<void> {
+  if (stopping.size) return;
   const geolocation = deps.geolocation !== undefined ? deps.geolocation
     : typeof navigator !== "undefined" ? navigator.geolocation ?? null : null;
   if (session && session.seat.planId === seat.planId && session.ownerKey === ownerKey
     && session.seat.via === seat.via && session.seat.memberToken === seat.memberToken && session.watchId !== null) return;
-  if (session) halt(session);
+  const ownerSignal = readProviderAccountSignal();
+  if (session) {
+    try {
+      const response = await stopLiveLocationShare(session.seat);
+      if (!response.ok) return;
+    } catch {
+      return;
+    }
+    if (ownerSignal.aborted || session || stopping.size) return;
+  }
   if (!geolocation) {
     publish(seat.planId, "unsupported");
     return;
   }
-  const ownerSignal = readProviderAccountSignal();
   const request = deps.request ?? liveLocationRequest;
   const current: Session = {
     seat, ownerKey, ownerSignal,
@@ -194,12 +209,16 @@ export function startLiveLocationShare(seat: LiveLocationSeat, ownerKey: string,
 /** Stops the watch and deletes the position for everyone. */
 export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<Deps, "request"> = {}): Promise<Response> {
   const current = session?.seat.planId === seat.planId ? session : null;
+  const ownsStatus = !session || current !== null;
   if (current) halt(current);
   const deletion = removePosition(current?.seat ?? seat, current?.request ?? deps.request ?? liveLocationRequest, current);
-  publish(seat.planId, "stopping");
+  if (ownsStatus) publish(seat.planId, "stopping");
   try {
-    return (await deletion).clone();
-  } finally {
-    if (snapshot.planId === seat.planId && snapshot.status === "stopping") publish(seat.planId, "off");
+    const response = await deletion;
+    if (snapshot.planId === seat.planId && snapshot.status === "stopping") publish(seat.planId, response.ok ? "off" : "failed");
+    return response.clone();
+  } catch (error) {
+    if (snapshot.planId === seat.planId && snapshot.status === "stopping") publish(seat.planId, "failed");
+    throw error;
   }
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { liveShareSnapshot, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { liveShareSnapshot, startLiveLocationShare, stopLiveLocationShare, subscribeLiveShare, type LiveLocationSeat } from "@/lib/planLiveLocationShare";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 const SEAT = { planId: "11111111-1111-4111-8111-111111111111", via: "plan" as const };
@@ -87,7 +87,104 @@ describe("sharing a live location from the phone", () => {
     geo.fail(1);
     await seen;
     expect(route.calls.at(-1)).toEqual({ method: "DELETE", body: undefined });
-    expect(liveShareSnapshot().status).toBe("denied");
+    await vi.waitFor(() => expect(liveShareSnapshot().status).toBe("denied"));
+  });
+
+  it.each(["offline", "503"])("keeps deletion unconfirmed after permission withdrawal when %s", async (failure) => {
+    const geo = fakeGeolocation();
+    let sharing = false;
+    let failDelete = true;
+    const request = vi.fn(async (_seat: unknown, method: string) => {
+      if (method === "PUT") sharing = true;
+      if (method === "DELETE") {
+        if (failDelete) {
+          if (failure === "offline") throw new Error("offline");
+          return new Response("{}", { status: 503 });
+        }
+        sharing = false;
+      }
+      return new Response("{}");
+    });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request });
+    geo.fix(51.5, -0.13);
+    await vi.waitFor(() => expect(liveShareSnapshot().status).toBe("on"));
+    geo.fail(1);
+    await vi.waitFor(() => expect(liveShareSnapshot().status).toBe("failed"));
+    expect(sharing).toBe(true);
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    failDelete = false;
+    await stopLiveLocationShare(SEAT, { request });
+    expect(sharing).toBe(false);
+    expect(liveShareSnapshot().status).toBe("off");
+  });
+
+  it("finishes the previous Plan's PUT and DELETE before starting another watch", async () => {
+    const otherSeat = { ...SEAT, planId: "22222222-2222-4222-8222-222222222222" };
+    const geo = fakeGeolocation();
+    const other = fakeGeolocation();
+    let finishPut!: () => void;
+    let finishDelete!: () => void;
+    let deleting!: () => void;
+    const deletion = new Promise<void>((resolve) => { deleting = resolve; });
+    const positions = new Set<string>();
+    const request = vi.fn(async (seat: LiveLocationSeat, method: string) => {
+      if (method === "PUT") {
+        await new Promise<void>((resolve) => { finishPut = resolve; });
+        positions.add(seat.planId);
+      }
+      if (method === "DELETE") {
+        deleting();
+        await new Promise<void>((resolve) => { finishDelete = resolve; });
+        positions.delete(seat.planId);
+      }
+      return new Response("{}");
+    });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request });
+    geo.fix(51.5, -0.13);
+    const started = startLiveLocationShare(otherSeat, "owner", { geolocation: other.geolocation, request: fakeRoute().request });
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    expect(other.spy.watchPosition).not.toHaveBeenCalled();
+    const competing = fakeGeolocation();
+    startLiveLocationShare(otherSeat, "owner", { geolocation: competing.geolocation, request: fakeRoute().request });
+    expect(competing.spy.watchPosition).not.toHaveBeenCalled();
+    finishPut();
+    await deletion;
+    expect(positions.has(SEAT.planId)).toBe(true);
+    expect(other.spy.watchPosition).not.toHaveBeenCalled();
+    finishDelete();
+    await started;
+    expect(positions.size).toBe(0);
+    expect(other.spy.watchPosition).toHaveBeenCalledTimes(1);
+    try {
+      other.fix(51.6, -0.13);
+      await vi.waitFor(() => expect(liveShareSnapshot()).toEqual({ planId: otherSeat.planId, status: "on" }));
+      const states: unknown[] = [];
+      const unsubscribe = subscribeLiveShare(() => states.push(liveShareSnapshot()));
+      try {
+        await stopLiveLocationShare(SEAT, { request: fakeRoute().request });
+        expect(states).toEqual([]);
+        expect(liveShareSnapshot()).toEqual({ planId: otherSeat.planId, status: "on" });
+      } finally {
+        unsubscribe();
+      }
+    } finally {
+      await stopLiveLocationShare(otherSeat);
+    }
+  });
+
+  it.each(["delete fails", "owner changes"])("does not start another Plan when %s", async (reason) => {
+    const geo = fakeGeolocation();
+    const other = fakeGeolocation();
+    let finish!: (response: Response) => void;
+    const request = vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request });
+    const started = startLiveLocationShare({ ...SEAT, planId: "other-plan" }, "owner", { geolocation: other.geolocation, request: fakeRoute().request });
+    await Promise.resolve();
+    if (reason === "owner changes") setProviderIdentity("supabase", "changed-during-stop");
+    finish(new Response("{}", { status: reason === "delete fails" ? 503 : 200 }));
+    await started;
+    expect(other.spy.watchPosition).not.toHaveBeenCalled();
+    setProviderIdentity("supabase", null);
   });
 
   it("keeps watching through a lost signal", () => {
@@ -174,7 +271,7 @@ describe("sharing a live location from the phone", () => {
     await stopped;
     await stopping;
     expect(committed).toEqual(["PUT", "DELETE"]);
-    expect(liveShareSnapshot().status).toBe("off");
+    expect(liveShareSnapshot().status).toBe(reason === "denied" ? "denied" : "off");
     startLiveLocationShare(SEAT, "owner", { geolocation: other.geolocation, request: fakeRoute().request });
     expect(other.spy.watchPosition).toHaveBeenCalledTimes(1);
   });

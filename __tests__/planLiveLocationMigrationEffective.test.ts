@@ -41,7 +41,7 @@ function call(operation: string, hash: string | null, options: { plan?: string; 
   return JSON.parse(db().sql(asServiceRole(`select public.plan_live_location('${options.plan ?? PLAN}', ${token}, ${account}, '${operation}', ${lat}, -0.1318, 12)::text`)));
 }
 
-function seed(start = "now()") {
+function seed(start = "now() + interval '3 hours'") {
   db().sql(`delete from public.plan_live_locations;
     update public.plans set start_time=${start}, status='active' where id in ('${PLAN}','${OTHER_PLAN}','${CREW_PLAN}');
     update public.plan_crew_members set membership_revoked_at=null;

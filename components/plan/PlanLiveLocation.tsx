@@ -29,7 +29,7 @@ const STATUS_LINE: Partial<Record<LiveShareStatus, string>> = {
   denied: "Location is blocked for this app, so nobody can see you. Allow it in your browser or phone settings, then try again.",
   unsupported: "This phone can't share its location here.",
   ended: "Sharing has ended for this night.",
-  failed: "That didn't go through. Try again.",
+  failed: "That didn't go through. Your last spot may still show. Tap Stop sharing to try again.",
 };
 
 function clock(iso: string): string {
@@ -127,27 +127,27 @@ function LiveLocationMember({ seat, ownerKey }: Props) {
   }
 
   const watching = status === "asking" || status === "on" || status === "no-signal";
-  const paused = view.sharing && !watching;
+  const paused = (view.sharing || status === "failed" || status === "stopping") && !watching;
   const until = view.endsAt ? clock(view.endsAt) : null;
   return (
     <section className="liveLocation" aria-label="Share where you are" aria-busy={stopping}>
       <h3>Share where you are</h3>
       {!view.live ? <p className="liveLocation__muted">You can share your location with your crew on the night.</p> : (
         <>
-          {watching || view.sharing ? (
-            <p>{paused ? "Your crew still sees where you were last. Resume to keep your dot live, or stop sharing." : `You're sharing your live location with your crew until ${until}.`}</p>
+          {watching || paused ? (
+            <p>{paused ? "Your crew may still see where you were last. Resume to keep your dot live, or stop sharing." : `You're sharing your live location with your crew until ${until}.`}</p>
           ) : (
             <p className="liveLocation__muted">Your crew sees your exact spot as a live dot on their map while this app is open. Only people in this night can see it. We keep only your latest spot, and sharing switches off by itself at {until}.</p>
           )}
           {STATUS_LINE[status] ? <p role="status">{STATUS_LINE[status]}</p> : null}
           <div className="liveLocation__actions">
-            {watching || view.sharing ? (
+            {watching || paused ? (
               <>
-                {paused ? <Button variant="secondary" disabled={stopping} onClick={() => startLiveLocationShare(seat, ownerKey)}>Resume sharing</Button> : null}
+                {paused ? <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat, ownerKey)}>Resume sharing</Button> : null}
                 <Button variant={paused ? "ghost" : "secondary"} disabled={stopping} onClick={() => void stop()}>{stopping ? "Stopping" : "Stop sharing"}</Button>
               </>
             ) : status !== "ended" && status !== "unsupported" ? (
-              <Button variant="secondary" disabled={stopping} onClick={() => startLiveLocationShare(seat, ownerKey)}>{stopping ? "Stopping" : status === "denied" || status === "failed" ? "Try again" : "Share my location tonight"}</Button>
+              <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat, ownerKey)}>{stopping ? "Stopping" : status === "denied" ? "Try again" : "Share my location tonight"}</Button>
             ) : null}
           </div>
           {view.people.length ? (

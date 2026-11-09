@@ -31,6 +31,7 @@ let sharing: boolean;
 let watch: ReturnType<typeof vi.fn>;
 let clearWatch: ReturnType<typeof vi.fn>;
 let fix: PositionCallback;
+let fail: PositionErrorCallback | null | undefined;
 let fetcher: ReturnType<typeof vi.fn>;
 
 function view() {
@@ -41,7 +42,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   setProviderIdentity("supabase", "component-owner-a");
   sharing = false;
-  watch = vi.fn((success: PositionCallback) => { fix = success; return 7; });
+  watch = vi.fn((success: PositionCallback, error?: PositionErrorCallback | null) => { fix = success; fail = error; return 7; });
   clearWatch = vi.fn();
   vi.stubGlobal("navigator", {
     geolocation: { watchPosition: watch, clearWatch, getCurrentPosition: vi.fn() },
@@ -112,6 +113,30 @@ describe("live location consent at the account boundary", () => {
     expect(container.textContent).toContain("Stop sharing");
     await click("Resume sharing");
     expect(watch).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Stop after permission withdrawal fails to delete the first spot", async () => {
+    let failDelete = true;
+    fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => {
+      if (init?.method === "PUT") sharing = true;
+      if (init?.method === "DELETE") {
+        if (failDelete) return Response.json({}, { status: 503 });
+        sharing = false;
+      }
+      return Response.json(view());
+    });
+    await mountPlan();
+    await click("Share my location tonight");
+    await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    await act(async () => fail?.({ code: 1 } as GeolocationPositionError));
+    expect(sharing).toBe(true);
+    expect(container.textContent).toContain("Your last spot may still show");
+    expect(container.textContent).not.toContain("nobody can see you");
+    expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Stop sharing")).toBe(true);
+    failDelete = false;
+    await click("Stop sharing");
+    expect(sharing).toBe(false);
+    expect(clearWatch).toHaveBeenCalledWith(7);
   });
 
   it("removes the old account's map dots before the next read finishes", async () => {
