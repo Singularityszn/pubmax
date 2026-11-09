@@ -82,11 +82,14 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      A custom measure uses `measureLabel` when the submitted measure is `other`.
      Equivalent half, third and two-thirds servings match across written, fractional, glyph and hyphenated forms.
      For example, "third", "1/3 pint", "1/3-pint", "⅓ pint" and "a third of a pint" name the same serving.
-     Product prefixes in `Double Chocolate Stout`, `Single Hop Pale Ale` and `Bottle Conditioned Ale` remain part of the name.
+     Protected product names include `Small Beer Lager`, `Double IPA`, `Single Malt Whisky`, `Double Chocolate Stout`, `Single Hop Pale Ale` and `Bottle Conditioned Ale`.
      An outer serving word in `Double Single Malt Whisky` leaves `Single Malt Whisky` as the product name.
      If the drink is identified but no line satisfies the price and serving constraints, the verdict is `mismatch`.
      A bill without an identifiable priced line for the drink is `unreadable`.
-     Drink identification ignores trailing `cask`, `keg`, `on tap` and `guest` descriptors in brackets or after a dash.
+     The judge lowercases text, treats punctuation as word boundaries and removes `cask`, `keg`, `on tap` and `guest` wherever they occur.
+     Decimal points and fraction slashes between digits remain available for serving detection.
+     Serving detection, product identification and the pint compatibility check use the same normalised text.
+     This applies to bill lines, submitted drink names and custom measure labels.
      This preserves drink names such as `Breakfast Stout (cask)` while rejecting food such as `Guinness pie`.
      A price sent with only its category ("Beer" from the one-tap door) is tied to a line whose product resolves to that category through the drink keywords and brand tables, so "Pint of Guinness" can confirm a Beer price and an item of another category never can.
      Only `match` grants a priced Pint Drop `receipt` through `grantBillMatch` and signals maps to read again.
