@@ -4,7 +4,6 @@
 //   npm run build:guinndex-prices -- --collect     read the site, then build
 //   npm run build:guinndex-prices                  build from the cache only
 //   npm run build:guinndex-prices -- --collect --county "Greater London"
-//   npm run build:guinndex-prices -- --cache-dir /path/outside/the/repo
 //
 // THE REGISTRY IS THE PERMISSION. Every URL comes from `openDataSourceUrl`
 // with the `guinndex-uk` row (lib/harvest/sourceRegistry.ts), so robots.txt's
@@ -13,11 +12,11 @@
 // is not JSON stops the run, and nothing is written. A pub page is read only
 // when the county list already places the pub at one PubMaxx venue.
 //
-// FACTS ONLY. The cache keeps the raw answers so a rebuild needs no network,
-// and it lives in data-harvest/, which is never committed. The committed file,
+// FACTS ONLY. The cache keeps price evidence and matching keys for rebuilding
+// in data-harvest/guinndex, which is never committed. The committed file,
 // data/uk_prices/guinndex.json, holds the price, the day, the drink, the
 // measure, the Guinndex page and the PubMaxx venue it matched. Guinndex's
-// names, addresses, points and Google Places fields stay in the cache.
+// names, addresses and points stay in the cache. Other fields are discarded.
 //
 // A PRICE THE PAGE DOES NOT DATE IS SKIPPED (lib/harvest/guinndex.ts). A pub
 // that matches no PubMaxx pub, or matches two, is counted and left out.
@@ -127,10 +126,33 @@ function readCache(dir, kind, key) {
   return existsSync(file) ? read(file) : undefined;
 }
 
-function writeCache(dir, kind, key, value) {
+function pickFacts(value, keys) {
+  return Object.fromEntries(keys.flatMap((key) => {
+    const fact = value?.[key];
+    return fact === null || ["string", "number", "boolean"].includes(typeof fact) ? [[key, fact]] : [];
+  }));
+}
+
+export function writeGuinndexCache(dir, kind, key, value) {
+  const pubFacts = (pub) => pickFacts(pub, [
+    "slug", "name", "lat", "lng", "formatted_address", "guinness_price_cents",
+    "currency", "business_status", "price_source", "call_completed_at",
+  ]);
+  const facts = kind === "county" ? {
+    pubs: (Array.isArray(value?.pubs) ? value.pubs : []).map(pubFacts),
+  } : {
+    pub: value?.pub ? pubFacts(value.pub) : null,
+    drink_prices: (Array.isArray(value?.drink_prices) ? value.drink_prices : [])
+      .filter((row) => typeof row?.drink_brand === "string" && /^guinness$/i.test(row.drink_brand.trim()))
+      .map((row) => pickFacts(row, ["drink_brand", "drink_type", "measure", "price_cents", "created_at"])),
+    price_history: (Array.isArray(value?.price_history) ? value.price_history : []).map((row) => ({
+      ...pickFacts(row, ["new_price_cents", "created_at"]),
+      flag_reason: typeof row?.flag_reason === "string" && row.flag_reason.trim() ? "flagged" : null,
+    })),
+  };
   const file = cacheFile(dir, kind, key);
   mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(value)}\n`);
+  writeFileSync(file, `${JSON.stringify(facts)}\n`);
 }
 
 async function collect({ cacheDir, counties: only, gapMs, grid, log }) {
@@ -143,7 +165,7 @@ async function collect({ cacheDir, counties: only, gapMs, grid, log }) {
     let list = readCache(cacheDir, "county", county);
     if (list === undefined) {
       list = await session.get(`/api/county/${encodeURIComponent(county)}?sort=cheapest&page=1&limit=30`);
-      writeCache(cacheDir, "county", county, list);
+      writeGuinndexCache(cacheDir, "county", county, list);
     }
     const pubs = Array.isArray(list?.pubs) ? list.pubs : [];
     if (pubs.length === 0) report.emptyCounties.push(county);
@@ -160,7 +182,7 @@ async function collect({ cacheDir, counties: only, gapMs, grid, log }) {
         report.detailsMissing += 1;
         continue;
       }
-      writeCache(cacheDir, "pub", pub.slug, detail);
+      writeGuinndexCache(cacheDir, "pub", pub.slug, detail);
       report.detailsRead += 1;
     }
   }
@@ -333,17 +355,11 @@ function readdirJson(dir) {
     .map((name) => [name.slice(0, -".json".length), read(path.join(dir, name))]);
 }
 
-function option(name) {
-  const at = process.argv.indexOf(name);
-  return at >= 0 ? process.argv[at + 1] : undefined;
-}
-
 async function main() {
-  const cacheDir = path.resolve(option("--cache-dir") ?? path.join(ROOT, "data-harvest/guinndex"));
+  const cacheDir = path.join(ROOT, "data-harvest/guinndex");
   const counties = process.argv.flatMap((arg, i) => (arg === "--county" ? [process.argv[i + 1]] : []));
   const source = harvestSource(GUINNDEX_SOURCE_ID);
-  // --gap-ms may slow the run, never speed it past the registry's delay.
-  const gapMs = Math.max((source?.crawlDelaySeconds ?? 5) * 1000, Number(option("--gap-ms")) || 0);
+  const gapMs = source.crawlDelaySeconds * 1000;
   const log = (line) => process.stderr.write(`${line}\n`);
 
   const slim = existsSync(LONDON_SLIM) ? read(LONDON_SLIM) : { rows: [] };
@@ -375,8 +391,8 @@ async function main() {
   };
   if (collectReport) log(`collect: ${JSON.stringify(collectReport)}`);
   log(`guinndex: ${JSON.stringify(pack.counts)}`);
+  mkdirSync(cacheDir, { recursive: true });
   writeFileSync(path.join(cacheDir, "unmatched.json"), `${JSON.stringify(built.unmatchedPubs, null, 2)}\n`);
-  if (process.argv.includes("--dry-run")) return;
   mkdirSync(path.dirname(OUT_FILE), { recursive: true });
   writeFileSync(OUT_FILE, `${JSON.stringify(pack, null, 2)}\n`);
   log(`wrote ${path.relative(ROOT, OUT_FILE)}: ${built.rows.length} row(s)`);

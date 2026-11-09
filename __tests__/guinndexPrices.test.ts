@@ -2,10 +2,12 @@
 // same pub, and no fresher price on record says otherwise.
 
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import path from "node:path";
 
 import { readGuinndexObservation } from "@/lib/harvest/guinndex";
 import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
-import { indexCandidates, matchGuinndexPub, venueCandidates } from "../scripts/build_guinndex_prices.mjs";
+import { indexCandidates, matchGuinndexPub, venueCandidates, writeGuinndexCache } from "../scripts/build_guinndex_prices.mjs";
 import { addListingSiteRows } from "../scripts/build_uk_price_bundle.mjs";
 
 const NOW = Date.parse("2026-11-09T12:00:00Z");
@@ -20,6 +22,54 @@ function detail(pub: Record<string, unknown>, extra: Record<string, unknown> = {
 }
 
 const guinness = (cents: number, at: string) => ({ drink_type: "stout", drink_brand: "Guinness", price_cents: cents, created_at: at });
+
+describe("Guinndex persisted cache contract", () => {
+  it("persists only approved facts in county and pub responses", () => {
+    const dir = mkdtempSync(path.join(process.cwd(), ".guinndex-cache-test-"));
+    const pub = { slug: "the-pub-london", name: "The Pub", lat: 51.5, lng: -0.1, formatted_address: "London SW1A 1AA", guinness_price_cents: 650, currency: "GBP", price_source: "crowdsourced" };
+    const record = guinness(650, "2026-06-01T09:00:00Z");
+    const unrelated = { google_place_id: "secret-place", rating: 5, opening_hours: ["always"], phone: "012345", photos: ["photo"], taps: ["lager"] };
+    try {
+      writeGuinndexCache(dir, "county", "Greater London", { pubs: [{ ...pub, ...unrelated }], ...unrelated });
+      expect(JSON.parse(readFileSync(path.join(dir, "county/Greater%20London.json"), "utf8"))).toEqual({ pubs: [pub] });
+      writeGuinndexCache(dir, "pub", pub.slug, {
+        pub: { ...pub, ...unrelated },
+        ...unrelated,
+        drink_prices: [{ ...record, contributor: "private-name", ...unrelated }, { ...record, drink_brand: "Other tap" }],
+        price_history: [{ new_price_cents: 650, created_at: record.created_at, contributor: "private-name" }],
+      });
+      const cached = JSON.parse(readFileSync(path.join(dir, `pub/${pub.slug}.json`), "utf8"));
+      expect(cached).toEqual({
+        pub,
+        drink_prices: [record],
+        price_history: [{ new_price_cents: 650, created_at: record.created_at, flag_reason: null }],
+      });
+      expect(readGuinndexObservation(cached, NOW)).toEqual({
+        ok: true,
+        observation: { slug: pub.slug, priceGbp: 6.5, observedAt: "2026-06-01T09:00:00.000Z", priceSource: "crowdsourced" },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    { pub: { price_source: "ai_call", call_completed_at: "2026-06-01T09:00:00Z" }, extra: {}, expected: { ok: true, observation: { slug: "the-pub-london", priceGbp: 6.5, observedAt: "2026-06-01T09:00:00.000Z", priceSource: "ai_call" } } },
+    { pub: {}, extra: { price_history: [{ new_price_cents: 650, created_at: "2026-06-01T09:00:00Z", flag_reason: "untrusted submission" }] }, expected: { ok: false, reason: "flagged" } },
+    { pub: {}, extra: { drink_prices: [guinness(700, "2026-06-01T09:00:00Z")] }, expected: { ok: false, reason: "newer-record-disagrees" } },
+    { pub: { business_status: "CLOSED_PERMANENTLY" }, extra: {}, expected: { ok: false, reason: "closed" } },
+    { pub: { currency: "EUR" }, extra: {}, expected: { ok: false, reason: "not-gbp" } },
+  ])("preserves the observation decision after trimming: $expected", ({ pub, extra, expected }) => {
+    const dir = mkdtempSync(path.join(process.cwd(), ".guinndex-cache-test-"));
+    try {
+      writeGuinndexCache(dir, "pub", "the-pub-london", detail(pub, extra));
+      const cached = JSON.parse(readFileSync(path.join(dir, "pub/the-pub-london.json"), "utf8"));
+      expect(readGuinndexObservation(cached, NOW)).toEqual(expected);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("readGuinndexObservation", () => {
   it("takes the headline price dated by the newest record that states it", () => {

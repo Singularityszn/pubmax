@@ -516,7 +516,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "price-listing",
     firstParty: false,
     nonFirstPartyException:
-      "Captain decision, 9 Nov 2026. FACTS ONLY plus a link out: the Guinness price, the drink, the measure, the day the price was recorded and the pub's own guinndex.co.uk page. A row is a listed price, never a confirmed one, and it is shown with the day it was recorded, a note that it may have changed since, and a link to that pub's Guinndex page, as Guinndex's /voice.txt asks. Ratings, opening hours, phone numbers, photos, taps and anything Guinndex took from Google Places are never stored or shown. The name, address and point Guinndex states for a pub are read only to match it to a PubMaxx venue, and are never committed.",
+      "Captain decision, 9 Nov 2026. FACTS ONLY plus a link out: the Guinness price, the drink, the measure, the day the price was recorded and the pub's own guinndex.co.uk page. A row is a listed price, never a confirmed one, and it is shown with the day it was recorded, a note that it may have changed since, and a link to that pub's Guinndex page, as Guinndex's /voice.txt asks. The local cache keeps only the pub slug and name, matching coordinates and formatted address, Guinness price records, drink and measure, price timestamps, price source, flag state, currency and business status. Names, addresses and points are used only for matching and are never committed. Other Google Places fields, ratings, opening hours, phone numbers, photos, contributor details and other taps are never stored or shown.",
     access: {
       allowed: true,
       evidence:
@@ -526,7 +526,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     crawlDelaySeconds: 5,
     disallowedPaths: ["/spoons", "/api/spoons"],
     notes:
-      "Read by scripts/build_guinndex_prices.mjs into data/uk_prices/guinndex.json: one county list per county from /api/county/{name}, then /api/pub/{slug} for each priced pub the list places at a PubMaxx venue, one request every 5 seconds, one session, a User-Agent naming PubMaxx, and redirects refused. A 403, a 429 or a challenge page stops the run and writes nothing. A price without a dated record on the pub's own page is skipped, never dated by guess. scripts/build_uk_price_bundle.mjs carries the matched rows into the bundle as `listing-site` rows.",
+      "Read by scripts/build_guinndex_prices.mjs into data/uk_prices/guinndex.json: one county list per county from /api/county/{name}, then /api/pub/{slug} for each priced pub the list places at a PubMaxx venue, the registry delay between requests, one session, a User-Agent naming PubMaxx, and redirects refused. County and pub responses are trimmed before caching in data-harvest/guinndex. Without --collect, the same command rebuilds from that cache. A 403, a 429 or a challenge page stops the run and writes nothing. A price without a dated record on the pub's own page is skipped, never dated by guess. scripts/build_uk_price_bundle.mjs carries the matched rows into the bundle as `listing-site` rows.",
   },
 ];
 

@@ -40,6 +40,7 @@ export async function GET(request: Request): Promise<Response> {
     ]);
     const listedPrice = bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY).listed;
     const sources = {
+      listedPriceStatus: bundle.status,
       ...(placesContent ? { placesContent } : {}),
       ...(osmFacts ? { osmFacts } : {}),
       ...(listedPrice ? { listedPrice } : {}),
@@ -55,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
             ),
           )
         : [{ status: "ready" as const, overlay: null }];
-    if (reads.some((read) => read.status === "degraded")) {
+    if (bundle.status === "unavailable" || reads.some((read) => read.status === "degraded")) {
       return jsonNoStore({ status: "degraded", overlay: null, ...sources }, { status: 200 });
     }
     const publicOverlays = reads.flatMap((read) =>

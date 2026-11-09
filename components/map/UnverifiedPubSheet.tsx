@@ -45,6 +45,7 @@ import {
   drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
+  type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 
 import "./unverifiedPubSheet.css";
@@ -145,13 +146,13 @@ function sheetTag(hasCommunityPrice: boolean, hasListedPrice: boolean, readStatu
  * it listed, so a figure past its age falls back to the empty sheet.
  */
 function visibleListedPint(
-  listed: { id: string; price: ListedPriceInput } | null,
+  listed: { id: string; price: ListedPriceInput | null } | null,
   pubId: string,
   hasCommunityPrice: boolean,
   experienceLens: MapExperienceLens,
   drinkLensCategory: DrinkCategory | null,
 ): ListedPriceInput | null {
-  if (!listed || listed.id !== pubId || hasCommunityPrice || experienceLens !== "all" || drinkLensCategory) return null;
+  if (!listed?.price || listed.id !== pubId || hasCommunityPrice || experienceLens !== "all" || drinkLensCategory) return null;
   return priceStandingFor({ listed: listed.price }).standing === "listed" ? listed.price : null;
 }
 
@@ -200,14 +201,19 @@ export default function UnverifiedPubSheet({
   const [overlay, setOverlay] = useState<PublicHarvestOverlay | null>(null);
   const [places, setPlaces] = useState<{ id: string; record: PlacesEnrichmentRecord } | null>(null);
   const [osm, setOsm] = useState<{ id: string; facts: OsmPubFacts } | null>(null);
-  const [listed, setListed] = useState<{ id: string; price: ListedPriceInput } | null>(null);
+  const [listed, setListed] = useState<{ id: string; price: ListedPriceInput | null; status: VenuePriceReadStatus } | null>(null);
   const osmFacts = factsForPub(osm, pub.id);
   const detailVenue = applyPlacesEnrichment({
     ...slimVenueToPin({ id: pub.id, name: pub.name, lat: pub.lat, lng: pub.lng, borough: "", cheapestPrice: null }),
     address: pub.address,
     osmFacts,
   }, places?.id === pub.id ? places.record : null);
-  const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
+  const communityStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
+  const listedStatus = listed?.id === pub.id ? listed.status : "loading";
+  const needsListedRead = experienceLens === "all" && !drinkLensCategory;
+  const readStatus = !needsListedRead ? communityStatus
+    : communityStatus === "degraded" || listedStatus === "degraded" ? "degraded"
+    : communityStatus === "ready" ? listedStatus : communityStatus;
   const pricesKnown = readStatus === "ready";
   const readFailed = readStatus === "degraded";
   const rows = communityPrices.byVenueId.get(pub.id);
@@ -253,11 +259,16 @@ export default function UnverifiedPubSheet({
         );
         if (!res.ok) {
           discardBody(res);
+          if (!controller.signal.aborted) setListed({ id: pub.id, price: null, status: "degraded" });
           return;
         }
-        const body = (await res.json()) as { overlay?: unknown; placesContent?: PlacesEnrichmentRecord; osmFacts?: unknown; listedPrice?: unknown };
+        const body = (await res.json()) as { overlay?: unknown; placesContent?: PlacesEnrichmentRecord; osmFacts?: unknown; listedPrice?: unknown; listedPriceStatus?: unknown };
         const listedPrice = listedPriceFromBody(body.listedPrice);
-        if (listedPrice && !controller.signal.aborted) setListed({ id: pub.id, price: listedPrice });
+        if (!controller.signal.aborted) setListed({
+          id: pub.id,
+          price: listedPrice,
+          status: body.listedPriceStatus === "ready" || body.listedPriceStatus === "empty" ? "ready" : "degraded",
+        });
         if (body.placesContent && !controller.signal.aborted) setPlaces({ id: pub.id, record: body.placesContent });
         const facts = osmPubFactsFromRow(body.osmFacts);
         if (facts && !controller.signal.aborted) setOsm({ id: pub.id, facts });
@@ -267,7 +278,7 @@ export default function UnverifiedPubSheet({
           if (!controller.signal.aborted) setOverlay(parsed);
         });
       } catch {
-        /* fail-soft: overlay unknown */
+        if (!controller.signal.aborted) setListed({ id: pub.id, price: null, status: "degraded" });
       }
     })();
     return () => controller.abort();

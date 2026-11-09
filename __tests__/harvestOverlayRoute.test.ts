@@ -9,9 +9,9 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   };
 });
 
-const bundleRows = vi.hoisted(() => ({ rows: [] as unknown[] }));
+const bundleRows = vi.hoisted(() => ({ rows: [] as unknown[], unavailable: false }));
 vi.mock("@/lib/ukPriceBundle.server", () => ({
-  ukPriceBundleRowsFor: async () => ({ status: bundleRows.rows.length ? "ready" : "empty", rows: bundleRows.rows }),
+  ukPriceBundleRowsFor: async () => ({ status: bundleRows.unavailable ? "unavailable" : bundleRows.rows.length ? "ready" : "empty", rows: bundleRows.rows }),
 }));
 
 import { GET } from "@/app/api/harvest-overlay/route";
@@ -25,6 +25,8 @@ function get(query: string): Promise<Response> {
 
 beforeEach(() => {
   bundleRows.rows = [];
+  bundleRows.unavailable = false;
+  vi.restoreAllMocks();
   __resetHarvestOverlayStore();
   __resetPintDrops();
 });
@@ -76,7 +78,7 @@ describe("GET /api/harvest-overlay", () => {
     const res = await get("venueId=venue-uk-n999");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ status: "ready", overlay: null });
+    expect(body).toEqual({ status: "ready", overlay: null, listedPriceStatus: "empty" });
   });
 
   it("returns https website, menu, and cited web lore for a folded OSM id", async () => {
@@ -172,7 +174,7 @@ describe("GET /api/harvest-overlay", () => {
 
     const res = await get("venueId=venue-uk-n123");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ready", overlay: null });
+    expect(await res.json()).toEqual({ status: "ready", overlay: null, listedPriceStatus: "empty" });
   });
 });
 
@@ -190,6 +192,25 @@ describe("GET /api/harvest-overlay listed pint", () => {
     basis: standing === "estimate" ? "london:all" : null,
     sampleSize: standing === "estimate" ? 40 : null,
     ...extra,
+  });
+
+  it.each(["venue-uk-n1720298837", "unknown-venue"])("does not cache an unread bundle for %s", async (venueId) => {
+    bundleRows.unavailable = true;
+    const response = await get(`venueId=${venueId}`);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(await response.json()).toMatchObject({ status: "degraded", listedPriceStatus: "unavailable" });
+  });
+
+  it("preserves a read price when the overlay store fails", async () => {
+    bundleRows.rows = [row("listing-site", "listed")];
+    vi.spyOn(harvestOverlayStore(), "getByVenueId").mockResolvedValue({ status: "degraded", overlay: null });
+    const response = await get("venueId=venue-uk-n1720298837");
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(await response.json()).toMatchObject({
+      status: "degraded",
+      listedPriceStatus: "ready",
+      listedPrice: { priceGbp: 6.75, publisher: "Guinndex" },
+    });
   });
 
   it("carries a base pub's listed pint with its page, day and drink", async () => {

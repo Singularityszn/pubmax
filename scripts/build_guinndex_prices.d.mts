@@ -6,6 +6,13 @@ export type GuinndexVenueCandidate = {
   lng: number;
 };
 
+export declare function writeGuinndexCache(
+  dir: string,
+  kind: "county" | "pub",
+  key: string,
+  value: unknown,
+): void;
+
 export declare function venueCandidates(input: {
   baseRows: ReadonlyArray<ReadonlyArray<unknown>>;
   slimRows: ReadonlyArray<Record<string, unknown>>;
