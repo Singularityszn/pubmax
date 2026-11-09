@@ -101,8 +101,8 @@ export type UkPriceBundleRow = {
 };
 
 /**
- * These reviewed claims have a printed item that contradicts the assigned
- * category or insufficient evidence of a full pint. Keep the observations
+ * These reviewed claims have a category contradiction, insufficient evidence
+ * of a full pint, or a truncated price. Keep the observations
  * in site_harvest.jsonl for audit. Match the source and printed item as well
  * as category and price so other drinks on these menus still publish.
  */
@@ -294,9 +294,9 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
 ];
 
 /**
- * A label that opens on pence (".2 0.5% UK ROTHAUS PILSNER") was cut from a
- * "£6.5" that an older reader took as £6, so the figure is short and belongs to
- * another drink. The ledger keeps the row for audit and the bundle withholds it.
+ * A leading decimal fragment can come from a legacy price split that also
+ * misassigns the drink. Preserve the ledger evidence rather than infer a price
+ * or drink from the fragment.
  */
 const TRUNCATED_PRICE_LABEL = /^\.\d/;
 

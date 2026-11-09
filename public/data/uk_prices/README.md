@@ -90,10 +90,14 @@ and Simmons in Camden priced off the Shoreditch page.
 **A demo fixture is not a price.** `isDemoDrinkProvenance` spots one and it is
 never carried into a dataset that claims to say what a pint costs.
 
-**Reviewed category contradictions and claims without full-pint evidence stay in the source ledger.**
-`CATEGORY_QUARANTINE` in `lib/ukPriceBundle.ts` owns the exact exclusions by
-source URL, printed item, category and price. The builder counts exclusions in
-`manifest.json`; bundle readers also refuse those claims in older files.
+**Quarantined claims stay in the source ledger.**
+`isCategoryQuarantined` in `lib/ukPriceBundle.ts` owns the exclusions for listed
+site-harvest rows. It rejects labels that start with a decimal point followed
+by a digit, a legacy price-splitting signature.
+`CATEGORY_QUARANTINE` holds additional reviewed exclusions for category contradictions,
+missing full-pint evidence and truncated prices, matched by source URL, printed
+item, category and price. The builder counts exclusions in `manifest.json`.
+Bundle readers also refuse those claims in older files.
 The observations remain in `data/uk_prices/site_harvest.jsonl` for audit.
 Quarantine neither reclassifies a drink nor supplies a fresh observation.
 Current coverage and exclusion counts come from the generated manifest.
