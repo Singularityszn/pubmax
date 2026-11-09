@@ -33,7 +33,7 @@ import { usePintDrops, type PintDropsState } from "@/components/map/usePintDrops
 import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
 import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
 import { ADULT_ASSERTED_EVENT } from "@/lib/contributionGateStatus";
-import { readOptimisticSpills } from "@/lib/optimisticSpillPost";
+import { buildOptimisticSpillRetryFormData, readOptimisticSpills } from "@/lib/optimisticSpillPost";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -299,6 +299,36 @@ describe("Pint Drop preview URL lifetime", () => {
       }
     },
   );
+
+  it("retries a failed half with its original bill without fetching the preview", async () => {
+    // A live bill must survive retry, even when CSP blocks blob fetches.
+    const bill = new File(["original bill bytes"], "bill.jpg", { type: "image/jpeg" });
+    io.post.mockRejectedValueOnce(new TypeError("Offline"));
+    await act(async () => {
+      drops.pickPhoto("receipt", bill, null);
+      drops.setDropForm((form) => ({ ...form, price: "3.40", drink: "Guinness", measure: "half" }));
+    });
+    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    const entry = readOptimisticSpills(localStorage)[0]!;
+    expect(entry.drop.optimistic?.state).toBe("failed");
+    vi.mocked(fetch).mockRejectedValue(new TypeError("Blocked by connect-src CSP"));
+
+    const form = await buildOptimisticSpillRetryFormData(entry.retry!);
+    expect(form.get("measure")).toBe("half");
+    expect(form.get("priceGbp")).toBe("3.40");
+    const receipt = form.get("receipt_photo") as File;
+    expect(receipt.size).toBe(bill.size);
+    expect(await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsText(receipt);
+    })).toBe("original bill bytes");
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await expect(buildOptimisticSpillRetryFormData(entry.retry!)).rejects.toThrow("Photo preview is no longer available.");
+  });
 
   it("changing the receipt slot revokes only the receipt it replaced", async () => {
     await act(async () => { drops.pickPhoto("pint", photo("pint.jpg"), null); });

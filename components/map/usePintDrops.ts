@@ -17,11 +17,13 @@ import type { PintDropDTO } from "@/lib/feed";
 import {
   buildOptimisticSpillDrop,
   buildOptimisticSpillRetryPayload,
+  createOptimisticSpillPhotoPreview,
   emitOptimisticSpillChange,
   failOptimisticSpill,
   newOptimisticSpillClientId,
   readOptimisticSpills,
   reconcileOptimisticSpill,
+  revokeOptimisticSpillPhotoPreview,
   shouldOptimisticallyAppearInFeed,
   upsertOptimisticSpill,
   writeOptimisticSpills,
@@ -210,6 +212,10 @@ function measureFieldsOf(form: {
 
 function fileOfPhoto(photo: PhotoSlot | null): File | null {
   return photo?.file ?? null;
+}
+
+function previewUrlOfPhoto(photo: PhotoSlot | null): string | null {
+  return photo?.previewUrl ?? null;
 }
 
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
@@ -489,7 +495,7 @@ export function usePintDrops(
 
   function revokePreview(url: string) {
     if (!livePreviewUrls.current.delete(url)) return;
-    URL.revokeObjectURL(url);
+    revokeOptimisticSpillPhotoPreview(url);
   }
 
   function pickPhoto(slot: PhotoSlotName, file: File | undefined, inputEl: HTMLInputElement | null) {
@@ -504,7 +510,7 @@ export function usePintDrops(
     }
     if (current) revokePreview(current.previewUrl);
     setDropMsg(null);
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = createOptimisticSpillPhotoPreview(file);
     livePreviewUrls.current.add(previewUrl);
     setSlot({ file, previewUrl });
   }
@@ -535,7 +541,7 @@ export function usePintDrops(
   const resetComposer = useCallback((options?: { keepPreviews?: boolean }) => {
     const release = (current: PhotoSlot | null) => {
       if (current && !options?.keepPreviews && livePreviewUrls.current.delete(current.previewUrl)) {
-        URL.revokeObjectURL(current.previewUrl);
+        revokeOptimisticSpillPhotoPreview(current.previewUrl);
       }
       return null;
     };
@@ -574,7 +580,7 @@ export function usePintDrops(
   useEffect(() => {
     const held = livePreviewUrls.current;
     return () => {
-      for (const url of held) URL.revokeObjectURL(url);
+      for (const url of held) revokeOptimisticSpillPhotoPreview(url);
       held.clear();
     };
   }, []);
@@ -664,8 +670,11 @@ export function usePintDrops(
       era: dropForm.era,
       visibility,
       vibeTags,
-      pintPhotoUrl: pintPhoto?.previewUrl ?? null,
-      venuePhotoUrl: venuePhoto?.previewUrl ?? null,
+      pintPhotoUrl: previewUrlOfPhoto(pintPhoto),
+      venuePhotoUrl: previewUrlOfPhoto(venuePhoto),
+      // The retry sends the bill and the measure too, never a default pint.
+      receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
+      ...measureFieldsOf(dropForm),
       createdAt: new Date().toISOString(),
       ...(trainFields ?? {}),
       // The retry payload keeps them only when there are some.
@@ -710,7 +719,7 @@ export function usePintDrops(
       // The bill shows on the row the moment it is posted, from the same local
       // preview the other two use, so the drinker sees their own evidence
       // before the upload lands.
-      receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
+      receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
       optimistic: optimisticDrop.optimistic,
       ...trainFields,
     };
