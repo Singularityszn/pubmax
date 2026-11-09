@@ -1,5 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { verifyCallerAuth } from "@/lib/authServer";
 import { isLimited } from "@/lib/pintDrops";
 import { isPlanId } from "@/lib/planId";
 import {
@@ -12,7 +13,7 @@ import { planMemberCapability } from "@/lib/planMemberCapability";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { socialCrewActor } from "@/lib/socialCrewHttp";
-import { clientIp, hashIp } from "@/lib/supabase";
+import { clientIp, hashIp, requireSupabaseAdmin } from "@/lib/supabase";
 
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
@@ -29,10 +30,26 @@ function refusal(error: PlanLiveLocationFailure): Response {
 }
 
 /** `?via=crew` is an Open Crew seat, proved by the signed-in account. Anything else is a Plan seat. */
-async function authority(request: Request): Promise<{ ok: true; authority: PlanLiveLocationAuthority | null } | { ok: false; response: Response }> {
+async function authority(request: Request, operation: PlanLiveLocationOperation): Promise<{ ok: true; authority: PlanLiveLocationAuthority | null } | { ok: false; response: Response }> {
   if (new URL(request.url).searchParams.get("via") !== "crew") {
     const token = planMemberCapability(request, undefined);
     return { ok: true, authority: token ? { kind: "plan", token } : null };
+  }
+  if (operation === "stop") {
+    const verified = await verifyCallerAuth(request);
+    if (verified.status === "unavailable") return { ok: false, response: refusal("unavailable") };
+    if (verified.status !== "verified") {
+      return { ok: false, response: publicApiError("Sign in to stop sharing.", "SOCIAL_SIGN_IN_REQUIRED", 401, { headers: PRIVATE }) };
+    }
+    try {
+      const { data, error } = await requireSupabaseAdmin().from("private_social_accounts")
+        .select("id").eq("supabase_user_id", verified.identity.id).limit(1);
+      if (error) return { ok: false, response: refusal("unavailable") };
+      const accountId = data?.[0]?.id;
+      return { ok: true, authority: accountId ? { kind: "crew", accountId } : null };
+    } catch {
+      return { ok: false, response: refusal("unavailable") };
+    }
   }
   const actor = await socialCrewActor(await requireVerifiedSocialActor(request));
   return actor.ok ? { ok: true, authority: { kind: "crew", accountId: actor.actor.accountId } } : actor;
@@ -53,7 +70,7 @@ async function handle(request: Request, context: Context, operation: PlanLiveLoc
       body = raw as Record<string, unknown>;
     } catch { return refusal("invalid"); }
   }
-  const seat = await authority(request);
+  const seat = await authority(request, operation);
   if (!seat.ok) return seat.response;
   const result = await operatePlanLiveLocation(id, seat.authority, operation, body);
   if (!result.ok) return refusal(result.error);

@@ -5,7 +5,8 @@
 
 import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { DELETE, GET, PUT } from "@/app/api/plans/[id]/live-location/route";
 import { asBrowserRole, asServiceRole, postgresSkipReason, startMigratedPostgres, type PostgresSession } from "./helpers/postgres";
 
 const skipReason = postgresSkipReason();
@@ -86,6 +87,7 @@ beforeAll(async () => {
       ('${MATE_MEMBER}','${CREW}','${MATE_ACCOUNT}','${MATE_SEAT}','member','active');`);
 }, 600_000);
 beforeEach(() => { if (session) seed(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 afterAll(async () => { await session?.stop(); session = null; });
 
 describe.skipIf(skipReason !== null)("0226 live location database boundary", () => {
@@ -298,6 +300,95 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     expect(call("share", null, { ...options, startAt })).toEqual({ ok: false, error: "stopped" });
     expect(call("share", null, { ...options, startAt: tapTime() })).toMatchObject({ ok: true, view: { sharing: true } });
     expect(call("read", null, ownerOptions)).toMatchObject({ ok: true, view: { people: [expect.objectContaining({ memberId: MATE_SEAT })] } });
+  });
+
+  it("lets a suspended owner revoke sharing through DELETE without reopening reads or uploads", async () => {
+    vi.stubEnv("SUPABASE_URL", "https://live-location.test");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-key");
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
+    const literal = (value: unknown) => value == null ? "null" : `'${String(value).replaceAll("'", "''")}'`;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const received = new Request(input, init);
+      const url = new URL(received.url);
+      if (url.hostname !== "live-location.test") throw new Error("Unexpected fixture host.");
+      const json = (body: unknown, status = 200) => Response.json(body, { status });
+      const sqlJson = (sql: string) => json(JSON.parse(db().sql(asServiceRole(sql))));
+      if (url.pathname === "/auth/v1/user") {
+        return received.headers.get("authorization") === "Bearer owner-token"
+          ? json({ id: OWNER_USER, aud: "authenticated", role: "authenticated" })
+          : json({ code: "bad_jwt", msg: "Invalid token" }, 401);
+      }
+      if (url.pathname === "/rest/v1/rpc/check_rate_limit") return json(false);
+      if (url.pathname === "/rest/v1/rpc/provision_social_product_account") {
+        const body = await received.json();
+        return sqlJson(`select public.provision_social_product_account(${literal(body.p_supabase_user_id)})::text`);
+      }
+      if (url.pathname === "/rest/v1/private_social_accounts") {
+        const filters = ["id", "supabase_user_id"].flatMap((column) => {
+          const filter = url.searchParams.get(column);
+          return filter?.startsWith("eq.") ? [`${column}=${literal(filter.slice(3))}`] : [];
+        });
+        if (filters.length === 0) throw new Error("An account owner filter is required.");
+        return sqlJson(`select coalesce(jsonb_agg(r), '[]'::jsonb)::text from (
+          select id,clerk_user_id,supabase_user_id,profile_id,ownership_state
+          from public.private_social_accounts where ${filters.join(" and ")}
+        ) r`);
+      }
+      if (url.pathname === "/rest/v1/profiles") {
+        return sqlJson(`select jsonb_agg(r)::text from (
+          select id,user_id,handle from public.profiles where id='${OWNER_USER}'
+        ) r`);
+      }
+      if (url.pathname === "/rest/v1/private_account_identities") return json([{ date_of_birth: "1990-01-01" }]);
+      if (url.pathname === "/rest/v1/adult_self_assertions") return json([]);
+      if (url.pathname === "/rest/v1/rpc/plan_live_location") {
+        const body = await received.json();
+        const args = [body.p_plan_id, body.p_token_hash, body.p_social_account_id, body.p_operation,
+          body.p_latitude, body.p_longitude, body.p_accuracy_m, body.p_start_at].map(literal).join(",");
+        return sqlJson(`select public.plan_live_location(${args})::text`);
+      }
+      throw new Error(`Unexpected fixture path: ${url.pathname}`);
+    });
+    const send = (method: "GET" | "PUT" | "DELETE", body?: unknown, token = "owner-token") => {
+      const request = new Request(`https://app.test/api/plans/${CREW_PLAN}/live-location?via=crew`, {
+        method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      return ({ GET, PUT, DELETE })[method](request, { params: Promise.resolve({ id: CREW_PLAN }) });
+    };
+    const fix = { latitude: 51.5138, longitude: -0.1318, accuracyM: 12 };
+    const oldTap = Date.now();
+    expect((await send("PUT", { ...fix, startAt: oldTap })).status).toBe(200);
+    expect(call("share", null, { plan: CREW_PLAN, account: MATE_ACCOUNT })).toMatchObject({ ok: true });
+    db().sql(`update public.private_social_accounts set ownership_state='suspended' where id='${OWNER_ACCOUNT}'`);
+    for (const method of ["GET", "PUT"] as const) {
+      const refused = await send(method, method === "PUT" ? fix : undefined);
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toMatchObject({ code: "SOCIAL_ACCOUNT_SUSPENDED" });
+    }
+    const unauthorised = await send("DELETE", undefined, "invalid-token");
+    expect(unauthorised.status).toBe(401);
+    expect(await unauthorised.json()).toMatchObject({ code: "SOCIAL_SIGN_IN_REQUIRED" });
+    expect(db().sql(`select count(*) from public.plan_live_location_stops where member_id='${OWNER_SEAT}'`)).toBe("0");
+    expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${OWNER_SEAT}'`)).toBe("1");
+    const stopped = await send("DELETE");
+    expect(stopped.status).toBe(200);
+    expect(stopped.headers.get("cache-control")).toBe("private, no-store");
+    expect(await stopped.json()).toMatchObject({ sharing: false, people: [] });
+    expect(db().sql(`select count(*) from public.plan_live_location_stops where member_id='${OWNER_SEAT}'`)).toBe("1");
+    expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${OWNER_SEAT}'`)).toBe("0");
+    expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${MATE_SEAT}'`)).toBe("1");
+    db().sql(`update public.private_social_accounts set ownership_state='active' where id='${OWNER_ACCOUNT}'`);
+    expect(call("read", null, { plan: CREW_PLAN, account: MATE_ACCOUNT })).toMatchObject({ ok: true, view: { people: [] } });
+    for (const body of [fix, { ...fix, startAt: oldTap }]) {
+      const refused = await send("PUT", body);
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toMatchObject({ code: "PLAN_LIVE_LOCATION_STOPPED" });
+    }
+    expect((await send("PUT", { ...fix, startAt: Date.now() })).status).toBe(200);
+    expect(call("read", null, { plan: CREW_PLAN, account: MATE_ACCOUNT })).toMatchObject({
+      ok: true, view: { people: [expect.objectContaining({ memberId: OWNER_SEAT, latitude: fix.latitude })] },
+    });
   });
 
   it.each(["read", "share", "stop"])("checks the committed owner after a concurrent transfer during %s", async (operation) => {
