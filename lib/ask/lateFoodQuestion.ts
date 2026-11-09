@@ -14,12 +14,19 @@ export type LateFoodQuestion = {
   dietary: string[];
   category: "pizza" | "kebab" | "cafe" | "restaurant" | null;
   additionalRequirements: string[];
+  /** The clock time read from "late" or "after midnight" tonight, so the answer can name it. */
+  readAs: string | null;
 };
 
 const CLOCK = /\b(?:at\s+)?(\d{1,2})(?::(\d{2})\s*([ap]m)?|\s*([ap]m))\b/gi;
 const CONTEXT_AREA = /\b(?:near|in|around)\s+(.+?)(?=\s+(?:tonight|at|on|tomorrow|today|after|before|until|till|midnight|noon|midday|with|that|which|serving|for)\b|\s+\d{4}-\d{2}-\d{2}\b|\s+\d{1,2}(?::\d{2}|\s*[ap]m\b)|[?,.!;]|$)/gi;
 const CONTEXT_DATE = /\b(?:on\s+)?(\d{4}-\d{2}-\d{2})\b/gi;
 const CONTEXT_NIGHT = /\b(?:tonight|after\s+midnight)\b/gi;
+const AFTER_MIDNIGHT = /\bafter\s+midnight\b/gi;
+const TONIGHT = /\btonight\b/gi;
+const LATE = /\blate(?:[- ]night)?\b/gi;
+const LATE_TONIGHT_MINUTES = 23 * 60;
+const AFTER_MIDNIGHT_TONIGHT_MINUTES = 60;
 // Time wording the parser cannot turn into one instant. It sends the question back for a clearer time.
 const VAGUE_TIME = /\b(?:(?:at\s+)?(?:midnight|noon|midday)|at\s+\d{1,2}(?:[.:]\d{2})?(?:\s*o'?clock)?|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:[ap]m|o'?clock)|after|before|until|till)\b/gi;
 const VAGUE_DAY = /\b(?:tomorrow|today)\b/gi;
@@ -56,8 +63,12 @@ function nextCalendarDay(day: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+function clockLabel(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
 function wallTimeInput(day: string, minutes: number): string {
-  return `${day}T${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  return `${day}T${clockLabel(minutes)}`;
 }
 
 function londonInstant(day: string, minutes: number): string | null {
@@ -104,12 +115,21 @@ function readTime(wording: string, dates: RegExpMatchArray[], date: string | und
   rest = rest.replace(CLOCK, " ");
   const nights = [...rest.matchAll(CONTEXT_NIGHT)];
   rest = rest.replace(CONTEXT_NIGHT, " ");
+  const tonights = nights.filter((night) => /^tonight$/i.test(night[0])).length;
+  const afterMidnights = nights.length - tonights;
+  const wordedTonight = clocks.length === 0 && tonights === 1 && afterMidnights <= 1;
+  const lates = [...rest.matchAll(LATE)];
+  if (wordedTonight) rest = rest.replace(LATE, " ");
+  const wordedMinutes = !wordedTonight || lates.length > 1 ? null
+    : afterMidnights === 1 ? AFTER_MIDNIGHT_TONIGHT_MINUTES
+      : lates.length === 1 ? LATE_TONIGHT_MINUTES : null;
   const vague = [...rest.matchAll(VAGUE_TIME)];
   rest = rest.replace(VAGUE_TIME, " ");
   const vagueDays = [...rest.matchAll(VAGUE_DAY)];
   rest = rest.replace(VAGUE_DAY, " ");
-  const minutes = clocks.length === 1 ? requestedMinutes(clocks[0]!) : null;
-  const clearTime = dates.length <= 1 && clocks.length <= 1 && nights.length <= 1 && vague.length === 0 && vagueDays.length === 0
+  const minutes = clocks.length === 1 ? requestedMinutes(clocks[0]!) : wordedMinutes;
+  const clearTime = dates.length <= 1 && clocks.length <= 1 && (nights.length <= 1 || wordedMinutes !== null)
+    && lates.length <= 1 && vague.length === 0 && vagueDays.length === 0
     && (clocks.length > 0 || nights.length > 0)
     && !(dates.length && nights.some((night) => /^tonight$/i.test(night[0])))
     && !(clocks.length && nights.some((night) => !/^tonight$/i.test(night[0])))
@@ -119,8 +139,9 @@ function readTime(wording: string, dates: RegExpMatchArray[], date: string | und
     rest,
     minutes,
     clearTime,
+    readAs: wordedMinutes === null ? null : clockLabel(wordedMinutes),
     hasNight: nights.length > 0,
-    hasTimeWording: dates.length + clocks.length + nights.length + vague.length + vagueDays.length > 0,
+    hasTimeWording: dates.length + clocks.length + nights.length + lates.length + vague.length + vagueDays.length > 0,
   };
 }
 
@@ -152,7 +173,9 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
   if (!areaFields) return null;
   const { area } = areaFields;
   const { dates, date, rest } = readOptionalDate(areaFields.rest);
-  const time = readTime(rest, dates, date);
+  const implicitTonight = area !== null && dates.length === 0 && [...rest.matchAll(LATE)].length === 1
+    && ![CLOCK, CONTEXT_NIGHT, VAGUE_DAY, VAGUE_TIME].some((pattern) => [...rest.matchAll(pattern)].length > 0);
+  const time = readTime(implicitTonight ? `${rest} tonight` : rest, dates, date);
   const requirements = readFoodRequirements(time.rest, additionalRequirements);
   if (!requirements) return null;
   if (area === null) {
@@ -169,12 +192,14 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
     at: day !== null && time.minutes !== null ? londonInstant(day, time.minutes) : null,
     ...requirements,
     additionalRequirements,
+    readAs: time.clearTime ? time.readAs : null,
   };
 }
 
 function clarificationFields(query: string): string {
   const polite = stripTrailingPunctuation(foodWording(query)).replace(/(?:\b(?:please|thanks)[\s,.!?;:]*)+$/i, "");
-  const fragment = stripTrailingPunctuation(polite.trim()).replace(/^(?:actually|please|make\s+(?:that|it))\b[\s,:]*/i, "");
+  const fragment = stripTrailingPunctuation(polite.trim())
+    .replace(/^(?:actually|please|make\s+(?:that|it)|(?:what|how)\s+about)\b[\s,:]*/i, "");
   if (recognisedArea(fragment)) return `near ${fragment}`;
   return fragment;
 }
@@ -191,10 +216,13 @@ function correctFoodQuery(previous: string, rawFragment: string): string {
   const has = (pattern: RegExp) => [...fragment.matchAll(pattern)].length > 0;
   const area = has(CONTEXT_AREA) ? "" : request.match(CONTEXT_AREA)?.[0] ?? "";
   let query = request.replace(CONTEXT_AREA, " ");
-  if (has(CLOCK)) query = query.replace(CLOCK, " ").replace(/\bafter\s+midnight\b/gi, " ").replace(VAGUE_TIME, " ");
-  if (has(CONTEXT_NIGHT)) query = query.replace(CONTEXT_DATE, " ").replace(CONTEXT_NIGHT, " ");
+  if (![...request.matchAll(TONIGHT)].length && parseLateFoodQuestion(previous, Date.now())?.readAs) query += " tonight";
+  // "After midnight" after a question about tonight moves the time, not the night.
+  const laterTonight = has(AFTER_MIDNIGHT) && !has(TONIGHT) && [...query.matchAll(TONIGHT)].length > 0;
+  if (has(CLOCK) || has(AFTER_MIDNIGHT)) query = query.replace(CLOCK, " ").replace(AFTER_MIDNIGHT, " ").replace(LATE, " ").replace(VAGUE_TIME, " ");
+  if (has(CONTEXT_NIGHT) && !laterTonight) query = query.replace(CONTEXT_DATE, " ").replace(TONIGHT, " ");
   if (has(CONTEXT_DATE)) query = query.replace(CONTEXT_DATE, " ").replace(/\btonight\b/gi, " ");
-  if (has(CONTEXT_NIGHT) || has(CONTEXT_DATE)) query = query.replace(VAGUE_DAY, " ");
+  if ((has(CONTEXT_NIGHT) && !laterTonight) || has(CONTEXT_DATE)) query = query.replace(VAGUE_DAY, " ");
   return [`${stripTrailingPunctuation(query)} ${area} ${fragment}`, ...additionalRequirements]
     .join(". ").replace(/\s+/g, " ").trim();
 }

@@ -103,6 +103,7 @@ describe("clean late-food questions through Ask", () => {
     "Food in Soho at 01:00",
     "Food in Soho after ten pm",
     "Food in Soho tonight and tomorrow at 1am",
+    "Food late in Soho tonight and tomorrow",
     "Food in Soho tonight tonight at 1am",
     "Food in Soho tonight at 01:00 and 02:00",
     "Food in Soho at midnight and 01:00 on 2026-10-26",
@@ -202,7 +203,6 @@ describe("requests outside the agreed late-food parser", () => {
   it.each([
     "Directions to London Bridge from The Blackfriar. Vegan food at 01:00 on 2026-10-23 near Soho",
     "Food in Soho on Friday",
-    "Late food in Soho",
     "Food in Soho at an unknown time",
     "Food at The Devonshire in Soho",
     "Food at The Devonshire in Soho at an unknown time",
@@ -378,6 +378,147 @@ describe("clean late-food clarification context", () => {
       [{ role: "assistant", content: "Food after midnight near Soho" }],
     ]) {
       expect(resolveLateFoodQuery("Tonight at 1am", turns)).toBe("Tonight at 1am");
+    }
+  });
+});
+
+describe("late tonight wording", () => {
+  const FIRST = "Where can I get food late in Soho tonight?";
+  const MONDAY_NOW = Date.parse("2026-11-09T18:00:00.000Z");
+
+  async function bothPaths(query: string, history: string[], now = OCTOBER_REVIEW_NOW) {
+    vi.setSystemTime(new Date(now));
+    const turns = history.map((content) => ({ role: "user" as const, content }));
+    const typed = await runAsk({ query, turns, now, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await voiceAsk(query, turns);
+    return [typed, { ...voice, answer: voice.answerHint }];
+  }
+
+  it.each([
+    "Food late in Soho",
+    "Late food in Soho",
+    "Where can I get late food in Soho?",
+    "Food late night in Soho",
+    "Food late-night in Soho",
+  ])(
+    "checks 23:00 tonight when late food omits the night: %s", async (query) => {
+      for (const response of await bothPaths(query, [])) {
+        expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+        expect(response.proposals).toEqual([]);
+        expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+        expect(response.answer).toContain("I checked 23:00 tonight.");
+      }
+    },
+  );
+
+  it("reads late tonight as 23:00 instead of asking for the night and time", async () => {
+    for (const response of await bothPaths(FIRST, [])) {
+      expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+      expect(response.answer).toContain("23:00 tonight");
+      expect(response.answer).not.toContain("Which night and time");
+    }
+  });
+
+  it.each([
+    "Food late in Soho on 2026-10-23",
+    "Food late in Soho tomorrow",
+    "Food late in Soho today",
+    "Food late in Soho at 1am",
+  ])("does not infer tonight beside another day or clock: %s", async (query) => {
+    for (const response of await bothPaths(query, [])) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect(response.sources).toEqual([]);
+      expect(response.answer).toContain("Which night and time");
+    }
+  });
+
+  it.each(["What about after midnight?", "How about after midnight"])(
+    "keeps the food question on a follow-up: %s", async (query) => {
+      for (const previous of [FIRST, "Food late in Soho"]) {
+        for (const response of await bothPaths(query, [previous])) {
+          expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+          expect(response.answer).toContain("I checked 01:00 tonight.");
+          expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+        }
+      }
+    },
+  );
+
+  it.each(["after midnight", "What about after midnight tonight?", "How about after midnight tonight?"])(
+    "replaces an earlier clock with after-midnight service: %s", async (query) => {
+      for (const previous of ["Food in Soho tonight at 11pm", FIRST]) {
+        for (const response of await bothPaths(query, [previous])) {
+          expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+          expect(response.proposals).toEqual([]);
+          expect(response.answer).toContain("01:00 tonight");
+          expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+        }
+      }
+    },
+  );
+
+  it.each(["tonight", "What about tonight?", "How about tonight?"])(
+    "preserves after-midnight service in a night-only reply: %s", async (query) => {
+      for (const response of await bothPaths(query, ["Food after midnight near Soho"])) {
+        expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+        expect(response.proposals).toEqual([]);
+        expect(response.answer).toContain("01:00 tonight");
+        expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+      }
+    },
+  );
+
+  it.each(["1am", "What about 1am?", "Tonight at 1am", "01:00 please"])(
+    "replaces the earlier time wording with a clock: %s", async (query) => {
+      for (const history of [[FIRST], [FIRST, "What about after midnight?"]]) {
+        for (const response of await bothPaths(query, history)) {
+          expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+          expect(response.proposals).toEqual([]);
+          expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+        }
+      }
+    },
+  );
+
+  it.each(["2026-10-23", "on 2026-10-23 please"])(
+    "asks for a clear time after a date-only correction: %s", async (query) => {
+      for (const history of [[FIRST], [FIRST, "What about after midnight?"]]) {
+        for (const response of await bothPaths(query, history)) {
+          expect(response.cards).toEqual([]);
+          expect(response.proposals).toEqual([]);
+          expect(response.sources).toEqual([]);
+          expect(response.answer).toContain("Which night and time");
+        }
+        for (const response of await bothPaths("1am", [...history, query])) {
+          expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+        }
+      }
+    },
+  );
+
+  it.each([
+    "Food in Soho tonight and tomorrow at 1am",
+    "Food in Soho tonight and today at 1am",
+    "Food late in Soho tonight and tomorrow",
+    "Food late in Soho tonight and today",
+  ])("preserves unresolved nights after an after-midnight reply: %s", async (previous) => {
+    for (const response of await bothPaths("after midnight", [previous])) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect(response.sources).toEqual([]);
+      expect(response.answer).toContain("Which night and time");
+    }
+  });
+
+  it("answers both turns honestly on a night with no recorded late service", async () => {
+    for (const [query, history, time] of [[FIRST, [], "23:00"], ["What about after midnight?", [FIRST], "01:00"]] as const) {
+      for (const response of await bothPaths(query, [...history], MONDAY_NOW)) {
+        expect(response.cards).toEqual([]);
+        expect(response.proposals).toEqual([]);
+        expect(response.answer).toContain(`${time} tonight`);
+        expect(response.answer).toMatch(/no current record of food service/i);
+      }
     }
   });
 });
