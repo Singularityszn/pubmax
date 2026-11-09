@@ -21,7 +21,7 @@ export function comparisonPubLabel(venue: Pick<PubComparisonResultVenue, "name" 
   return [venue.name, venue.address || venue.borough].filter(Boolean).join(", ");
 }
 
-/** Public venue references only. The person's order, meeting point and totals stay on their device. */
+/** Public sharing excludes the person's order, meeting point and totals. */
 export function comparisonShareText(venues: readonly PubComparisonResultVenue[]): string {
   return ["Which pub works for us?", ...venues.map((venue, index) =>
     `${index + 1}. ${comparisonPubLabel(venue)}${venue.totalPence === null ? " (Order incomplete)" : ""}\n${PRODUCTION_SITE_ORIGIN}/ledger/${encodeURIComponent(venue.id)}`),

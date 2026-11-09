@@ -56,14 +56,17 @@ then leads into planning and invitations. This avoids inventing a new plan sourc
 that the current database contract cannot store. The action is labelled
 "Open this pub to plan". It does not claim that a plan already exists.
 
+The comparison service processes the submitted order but does not save it on the server.
 The last submitted request stays in tab-scoped session storage for up to two hours.
 It is bound to the resolved account or the signed-out session. An account change
 cannot restore the previous account's request. Return navigation restores the
 order and pub IDs, then reads current catalogue data. It never restores old totals.
 The existing planner uses its own drink choices. It does not import a mixed order.
 
-Public sharing includes reviewed pub labels and ledger links. Orders, totals,
-meeting points, individual budgets and private plan tokens are excluded.
+Public sharing includes reviewed pub labels and ledger links.
+It marks a pub with "Order incomplete" when its total is missing.
+Drink choices, quantities, totals, meeting points, individual budgets and private
+plan tokens are excluded.
 Private polls use the existing authenticated conversation endpoint. The user
 loads their conversations, selects one, reviews the options and explicitly sends.
 Account changes cancel private requests and discard their results.
