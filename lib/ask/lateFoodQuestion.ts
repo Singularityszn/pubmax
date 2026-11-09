@@ -198,7 +198,7 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
 function clarificationFields(query: string): string {
   const polite = stripTrailingPunctuation(foodWording(query)).replace(/(?:\b(?:please|thanks)[\s,.!?;:]*)+$/i, "");
   const fragment = stripTrailingPunctuation(polite.trim())
-    .replace(/^(?:actually|please|make\s+(?:that|it)|(?:what|how)\s+about|and)\b[\s,:]*/i, "");
+    .replace(/^(?:actually|please|make\s+(?:that|it)|(?:what|how)\s+about)\b[\s,:]*/i, "");
   if (recognisedArea(fragment)) return `near ${fragment}`;
   return fragment;
 }
@@ -217,7 +217,7 @@ function correctFoodQuery(previous: string, rawFragment: string): string {
   let query = request.replace(CONTEXT_AREA, " ");
   // "After midnight" after a question about tonight moves the time, not the night.
   const laterTonight = has(AFTER_MIDNIGHT) && !has(TONIGHT) && [...request.matchAll(TONIGHT)].length > 0;
-  if (has(CLOCK) || laterTonight) query = query.replace(CLOCK, " ").replace(AFTER_MIDNIGHT, " ").replace(LATE, " ").replace(VAGUE_TIME, " ");
+  if (has(CLOCK) || has(AFTER_MIDNIGHT)) query = query.replace(CLOCK, " ").replace(AFTER_MIDNIGHT, " ").replace(LATE, " ").replace(VAGUE_TIME, " ");
   if (has(CONTEXT_NIGHT) && !laterTonight) query = query.replace(CONTEXT_DATE, " ").replace(CONTEXT_NIGHT, " ");
   if (has(CONTEXT_DATE)) query = query.replace(CONTEXT_DATE, " ").replace(/\btonight\b/gi, " ");
   if ((has(CONTEXT_NIGHT) && !laterTonight) || has(CONTEXT_DATE)) query = query.replace(VAGUE_DAY, " ");

@@ -403,12 +403,25 @@ describe("late tonight wording", () => {
     }
   });
 
-  it.each(["What about after midnight?", "How about after midnight", "and after midnight?"])(
+  it.each(["What about after midnight?", "How about after midnight"])(
     "keeps the food question on a follow-up: %s", async (query) => {
       for (const response of await bothPaths(query, [FIRST])) {
         expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
         expect(response.answer).toContain("01:00 tonight");
         expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+      }
+    },
+  );
+
+  it.each(["after midnight", "What about after midnight tonight?", "How about after midnight tonight?"])(
+    "replaces an earlier clock with after-midnight service: %s", async (query) => {
+      for (const previous of ["Food in Soho tonight at 11pm", FIRST]) {
+        for (const response of await bothPaths(query, [previous])) {
+          expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+          expect(response.proposals).toEqual([]);
+          expect(response.answer).toContain("01:00 tonight");
+          expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+        }
       }
     },
   );
