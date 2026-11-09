@@ -140,7 +140,7 @@ test.describe("Pub Pal concierge at 390px", () => {
     await planLink.click();
 
     await expect(page).toHaveURL(/\/plan\?/);
-    await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible({
+    await expect(page.getByText("Route ready. Review the preview")).toBeVisible({
       timeout: 30_000,
     });
   });

@@ -49,7 +49,7 @@ test.describe("locked plan route map", () => {
     await openHydratedPlanComposer(page);
     await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
     await describeFirstSubmit(page).click();
-    await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+    await expect(page.getByText("Route ready. Review the preview")).toBeVisible();
     await page.getByLabel("Your name").fill("Keyboard route tester");
     await page.getByLabel("First pint").fill(futureLondonFirstPint());
     await page.getByRole("button", { name: "Regenerate route", exact: true }).click();
@@ -154,7 +154,7 @@ test.describe("locked plan route map", () => {
     await openHydratedPlanComposer(page);
     await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
     await describeFirstSubmit(page).click();
-    await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+    await expect(page.getByText("Route ready. Review the preview")).toBeVisible();
     await page.getByLabel("Your name").fill("Route map tester");
     await page.getByLabel("First pint").fill(futureLondonFirstPint());
     await page.getByRole("button", { name: "Regenerate route" }).click();

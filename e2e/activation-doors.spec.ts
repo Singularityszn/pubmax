@@ -72,7 +72,7 @@ test.describe("activation doors at 390x844", () => {
     await page.getByRole("button", { name: "Quiet in Clapham for 4, not pricey" }).click();
 
     const status = page.locator("#plan-route-status");
-    await expect(status).toContainText("Route refreshed", { timeout: 20_000 });
+    await expect(status).toContainText("Route ready", { timeout: 20_000 });
 
     // The route is IN the viewport without a manual scroll: the page moved and
     // the status sits inside the 844px fold.

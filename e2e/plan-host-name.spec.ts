@@ -27,7 +27,7 @@ async function describeAPlan(page: Page): Promise<void> {
     .getByRole("textbox", { name: "Where, how many, what budget" })
     .fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Plan it" }).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await expect(page.getByText("Route ready. Review the preview")).toBeVisible();
 }
 
 test("L05: the composer's Your name is the public handle, never the email", async ({ page }) => {
