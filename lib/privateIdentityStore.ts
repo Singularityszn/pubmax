@@ -348,14 +348,18 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
       row.gender_self_described =
         cleanGenderSelfDescribed(gender, details.genderSelfDescribed) ?? null;
     }
-    const { data, error } = await requireSupabaseAdmin()
-      .from(TABLE)
-      .upsert(row, { onConflict: "user_id" })
-      .select("*")
-      .limit(1);
+    const table = requireSupabaseAdmin().from(TABLE);
+    const write = current
+      ? table
+          .update(row)
+          .eq("user_id", key)
+          .eq("date_of_birth", current.dateOfBirth)
+      : table.insert(row);
+    const { data, error } = await write.select("*").limit(1);
     if (error) throw new Error(error.message);
     const updated = (data ?? [])[0];
-    return updated ? fromRow(updated as Record<string, unknown>) : null;
+    if (!updated) throw new Error("Account details changed during the save.");
+    return fromRow(updated as Record<string, unknown>);
   },
 
   async completeOnboarding(input) {
