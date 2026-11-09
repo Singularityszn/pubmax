@@ -94,6 +94,7 @@ export default function CrewDetailClient({
   const scopeKey = `${crewId}:${identityKey}:${identityResolved ? "resolved" : "unresolved"}`;
   const [status, setStatus] = useState<LoadState>("loading");
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
+  const [liveLocationPlan, setLiveLocationPlan] = useState<{ scopeKey: string; planId: string } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<IdentityMessage>(null);
@@ -200,6 +201,7 @@ export default function CrewDetailClient({
           return;
         }
         setCrew(result);
+        if (result.kind === "member") setLiveLocationPlan({ scopeKey, planId: result.plan.plan.id });
         setStatus("ready");
       })
       .catch((error: unknown) => {
@@ -220,7 +222,7 @@ export default function CrewDetailClient({
       active = false;
       controller.abort();
     };
-  }, [attempt, crewId, identityKey, identityResolved]);
+  }, [attempt, crewId, identityKey, identityResolved, scopeKey]);
 
   useEffect(() => {
     if (
@@ -943,6 +945,10 @@ export default function CrewDetailClient({
           </p>
         ) : null}
         {body}
+        {identityResolved && liveLocationPlan?.scopeKey === scopeKey
+          && (status !== "ready" || loadedIdentityKey !== identityKey || crew?.kind !== "member") ? (
+          <PlanLiveLocation seat={{ planId: liveLocationPlan.planId, via: "crew" }} ownerKey={identityKey} stopOnly />
+        ) : null}
       </main>
     </>
   );

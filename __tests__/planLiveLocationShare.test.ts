@@ -441,7 +441,7 @@ describe("sharing a live location from the phone", () => {
     expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
   });
 
-  it.each(["stop", "denied"])("deletes after the first pending PUT on %s", async (reason) => {
+  it.each(["stop", "denied"])("revokes sharing without waiting for a stalled PUT on %s", async (reason) => {
     const geo = fakeGeolocation();
     let finish!: (response: Response) => void;
     const committed: string[] = [];
@@ -467,20 +467,42 @@ describe("sharing a live location from the phone", () => {
     const other = fakeGeolocation();
     startLiveLocationShare({ ...SEAT, via: "crew" }, { geolocation: other.geolocation, request });
     expect(other.spy.watchPosition).not.toHaveBeenCalled();
-    finish(new Response("{}"));
     await deletion;
     startLiveLocationShare(SEAT, { geolocation: other.geolocation, request });
     expect(other.spy.watchPosition).not.toHaveBeenCalled();
     geo.fix(51.7, -0.13);
-    expect(committed).toEqual(["PUT"]);
+    expect(committed).toEqual([]);
     const stopping = stopLiveLocationShare(SEAT, { request });
     finishDelete();
     await stopped;
     await stopping;
-    expect(committed).toEqual(["PUT", "DELETE"]);
+    expect(committed).toEqual(["DELETE"]);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe(reason === "denied" ? "denied" : "off");
+    finish(new Response("{}"));
+    await Promise.resolve();
     expect(liveShareSnapshot(SEAT.planId).status).toBe(reason === "denied" ? "denied" : "off");
     startLiveLocationShare(SEAT, { geolocation: other.geolocation, request: fakeRoute().request });
     expect(other.spy.watchPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a failed Stop while the old upload remains stalled", async () => {
+    const geo = fakeGeolocation();
+    let finish!: (response: Response) => void;
+    let deletions = 0;
+    const request = vi.fn(async (_seat: unknown, method: string) => {
+      if (method === "PUT") return new Promise<Response>((resolve) => { finish = resolve; });
+      deletions += 1;
+      return new Response("{}", { status: deletions === 1 ? 503 : 200 });
+    });
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request });
+    geo.fix(51.5, -0.13);
+    expect((await stopLiveLocationShare(SEAT)).status).toBe(503);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("failed");
+    expect((await stopLiveLocationShare(SEAT, { request })).status).toBe(200);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("off");
+    finish(new Response("{}"));
+    await Promise.resolve();
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("off");
   });
 
   it("blocks starts and shares one deletion while a paused share stops", async () => {

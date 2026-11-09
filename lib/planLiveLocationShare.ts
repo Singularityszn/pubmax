@@ -271,9 +271,8 @@ export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<D
   stopping.set(seat.planId, stop);
   ownerSignal.addEventListener("abort", stop.onOwnerChange, { once: true });
   setExpiry(seat.planId, stop, endsAt);
-  const deletion = (async () => {
+  const deletion = Promise.resolve().then(async () => {
     try {
-      await current?.inFlight?.catch(() => undefined);
       if (ownerSignal.aborted) throw ownerSignal.reason;
       const response = await request(current?.seat ?? seat, "DELETE", undefined, ownerSignal);
       if (stopping.get(seat.planId) === stop) {
@@ -292,7 +291,7 @@ export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<D
       }
       throw error;
     }
-  })();
+  });
   stop.promise = deletion;
   if (stopping.get(seat.planId) === stop) publish(seat.planId, "stopping");
   return (await deletion).clone();

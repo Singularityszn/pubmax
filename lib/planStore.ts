@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanPlanUsualDrink } from "@/lib/planUsualDrink";
+import { memoryPlanLiveLocations } from "@/lib/planLiveLocationMemory";
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { CLASSIC_PLAN_INVITE_TOKEN_PATTERN } from "@/lib/planCrewInviteUrl";
@@ -1141,6 +1142,7 @@ export function removeMemoryPlanInviteRsvpMember(id: string, memberId: string): 
   if (!plan) return true;
   const memberIndex = plan.crew.findIndex((member) => member.id === memberId);
   if (memberIndex === 0) return false;
+  memoryPlanLiveLocations.get(id)?.delete(memberId);
   if (memberIndex > 0) plan.crew.splice(memberIndex, 1);
   for (const [requestKey, request] of planMemory.joinRequests) {
     if (requestKey.startsWith(`${id}:`) && request.memberId === memberId) {

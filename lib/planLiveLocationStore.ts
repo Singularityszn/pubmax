@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isPlanId } from "@/lib/planId";
+import { memoryPlanLiveLocations, type StoredFix } from "@/lib/planLiveLocationMemory";
 import {
   cleanLiveLocationFix,
   isPlanLiveLocationOpen,
@@ -22,10 +23,8 @@ export type PlanLiveLocationAuthority = { kind: "plan"; token: string } | { kind
 type Backend = {
   operate(id: string, authority: PlanLiveLocationAuthority, operation: PlanLiveLocationOperation, fix: PlanLiveLocationFix | null, startAt: number | null): Promise<PlanLiveLocationResult>;
 };
-type StoredFix = PlanLiveLocationFix & { memberId: string; updatedAt: string; expiresAt: number };
 type Stopped = { stoppedAt: number; expiresAt: number };
 
-const memory = new Map<string, Map<string, StoredFix>>();
 const stopped = new Map<string, Map<string, Stopped>>();
 
 const memoryBackend: Backend = {
@@ -42,7 +41,7 @@ const memoryBackend: Backend = {
     const live = isPlanLiveLocationOpen(state.plan.plan.startTime, state.plan.plan.status, now);
     const endsAt = planLiveLocationEndsAtMs(state.plan.plan.startTime);
     const crew = new Map(state.plan.crew.map((seat) => [seat.id, seat.name]));
-    const rows = memory.get(id) ?? new Map<string, StoredFix>();
+    const rows = memoryPlanLiveLocations.get(id) ?? new Map<string, StoredFix>();
     const stops = stopped.get(id) ?? new Map<string, Stopped>();
     for (const [memberId, row] of rows) {
       if (!live || row.expiresAt <= now || !crew.has(memberId)) rows.delete(memberId);
@@ -62,7 +61,7 @@ const memoryBackend: Backend = {
       if (live && endsAt !== null) stops.set(self, { stoppedAt: now, expiresAt: endsAt });
       rows.delete(self);
     }
-    memory.set(id, rows);
+    memoryPlanLiveLocations.set(id, rows);
     const people: PlanLiveLocationPerson[] = live && operation !== "stop" ? [...rows.values()]
       .filter((row) => row.memberId !== self)
       .map((row) => ({ memberId: row.memberId, name: crew.get(row.memberId)!, latitude: row.latitude, longitude: row.longitude, accuracyM: row.accuracyM, updatedAt: row.updatedAt }))

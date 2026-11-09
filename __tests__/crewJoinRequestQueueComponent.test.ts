@@ -3,6 +3,8 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
+import { liveShareSnapshot } from "@/lib/planLiveLocationShare";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -44,10 +46,13 @@ const state = vi.hoisted(() => ({
   deferredLotResponses: [] as Array<() => void>,
   crewReadCount: 0,
   crewUnavailableAfterFirst: false,
+  crewReadResult: null as null | 403 | 404 | "preview",
+  liveLocationEnabled: false,
+  sharing: false,
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
+  default: ({ href, children, prefetch: _prefetch, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) =>
     createElement("a", { href: String(href), ...props }, children),
 }));
 
@@ -74,8 +79,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 vi.mock("@/lib/responseBody", () => responseBody);
 
-// Live location reads its own private route; this suite owns only the crew read and the invite lot.
-vi.mock("@/components/plan/PlanLiveLocation", () => ({ default: () => null }));
+vi.mock("@/components/plan/PlanLiveLocation", async (importOriginal) => {
+  const { default: Panel } = await importOriginal<typeof import("@/components/plan/PlanLiveLocation")>();
+  return { default: (props: React.ComponentProps<typeof Panel>) => state.liveLocationEnabled ? createElement(Panel, props) : null };
+});
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
 }));
@@ -86,6 +93,11 @@ vi.mock("@/lib/authedFetch", () => ({
     const url = String(input);
     if (url === `/api/social/crews/${CREW_ID}`) {
       state.crewReadCount += 1;
+      if (typeof state.crewReadResult === "number") return Response.json({}, { status: state.crewReadResult });
+      if (state.crewReadResult === "preview") return Response.json({
+        kind: "preview", title: "Open Friday", phase: "planning", nightArea: "camden",
+        startsAt: "2026-08-24T18:30:00.000Z", joinRequestState: "none",
+      });
       if (state.crewMissing) return Response.json({}, { status: 404 });
       if (state.crewUnavailableAfterFirst && state.crewReadCount > 1) {
         return Response.json({}, { status: 503 });
@@ -195,6 +207,9 @@ async function settle(): Promise<void> {
 }
 
 beforeEach(() => {
+  state.crewReadResult = null;
+  state.liveLocationEnabled = false;
+  state.sharing = false;
   state.arrival = undefined;
   state.arrivalFails = false;
   arrivalsTracked.mockClear();
@@ -223,7 +238,17 @@ beforeEach(() => {
   state.crewUnavailableAfterFirst = false;
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/live-location")) {
+        if (init?.method === "DELETE") state.sharing = false;
+        if (init?.method === "PUT") state.sharing = true;
+        if (state.crewReadResult !== null && init?.method !== "DELETE") return Response.json({}, { status: 403 });
+        return Response.json({
+          visibility: "member", live: true, sharing: state.sharing,
+          endsAt: new Date(Date.now() + 60_000).toISOString(),
+          people: init?.method === "DELETE" ? [] : [{ memberId: "mate", name: "Private mate", latitude: 51.5, longitude: -0.13, accuracyM: 10, updatedAt: new Date().toISOString() }],
+        });
+      }
       const revision = state.accountRevision;
       const response = Response.json({
         lot: [revision === 2 ? "dave" : "bob-from-old-account"],
@@ -243,10 +268,38 @@ beforeEach(() => {
 
 afterEach(async () => {
   await act(async () => root.unmount());
+  setProviderIdentity("supabase", null);
+  if (state.liveLocationEnabled) Reflect.deleteProperty(navigator, "geolocation");
   container.remove();
   vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+it.each([403, 404, "preview"] as const)("keeps account Stop after the Crew refresh returns %s", async (result) => {
+  state.liveLocationEnabled = true;
+  state.arrival = { open: true, here: false, refreshAt: null };
+  setProviderIdentity("supabase", "crew-location-owner");
+  let fix!: PositionCallback;
+  const geolocation = { watchPosition: vi.fn((success: PositionCallback) => { fix = success; return 7; }), clearWatch: vi.fn(), getCurrentPosition: vi.fn() };
+  Object.defineProperty(navigator, "geolocation", { configurable: true, value: geolocation });
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = (text: string) => Array.from(container.querySelectorAll("button")).find((node) => node.textContent === text);
+  await act(async () => button("Share my location tonight")!.click());
+  await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+  expect(state.sharing).toBe(true);
+  expect(geolocation.watchPosition).toHaveBeenCalledTimes(1);
+  expect(container.textContent).toContain("Private mate");
+  state.crewReadResult = result;
+  await act(async () => window.dispatchEvent(new Event("focus")));
+  expect(container.textContent).not.toContain("Private mate");
+  expect(container.textContent).not.toContain("@alice");
+  expect(button("Stop sharing")).toBeDefined();
+  await act(async () => button("Stop sharing")!.click());
+  expect(state.sharing).toBe(false);
+  expect(geolocation.clearWatch).toHaveBeenCalledWith(7);
+  expect(liveShareSnapshot("60000000-0000-4000-8000-000000000001").status).toBe("off");
+  expect(button("Stop sharing")).toBeUndefined();
 });
 
 it("lets an open-crawl member recover from failure and mark Here once", async () => {

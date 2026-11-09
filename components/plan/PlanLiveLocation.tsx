@@ -44,15 +44,15 @@ function lastSeen(updatedAt: string, now: number): string | null {
   return `last seen ${Math.max(1, Math.round(age / 60_000))} min ago`;
 }
 
-type Props = { seat: LiveLocationSeat; ownerKey: string };
+type Props = { seat: LiveLocationSeat; ownerKey: string; stopOnly?: boolean };
 
 /** The remount boundary drops one owner's view before another can paint. */
-export default function PlanLiveLocation({ seat, ownerKey }: Props) {
+export default function PlanLiveLocation({ seat, ownerKey, stopOnly = false }: Props) {
   if (!ownerKey || (seat.via === "plan" && !seat.memberToken)) return null;
-  return <LiveLocationMember key={`${seat.planId}:${seat.via}:${seat.memberToken ?? ""}:${ownerKey}`} seat={seat} />;
+  return <LiveLocationMember key={`${seat.planId}:${seat.via}:${seat.memberToken ?? ""}:${ownerKey}:${stopOnly}`} seat={seat} stopOnly={stopOnly} />;
 }
 
-function LiveLocationMember({ seat }: Pick<Props, "seat">) {
+function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">) {
   const [view, setView] = useState<PlanLiveLocationView | null>(null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
@@ -98,6 +98,7 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
   }, [planId, via, memberToken]);
 
   useEffect(() => {
+    if (stopOnly) return;
     const controller = new AbortController();
     queueMicrotask(() => { if (!controller.signal.aborted) void read(controller.signal); });
     const poll = window.setInterval(() => { if (document.visibilityState !== "hidden") void read(controller.signal); }, POLL_MS);
@@ -108,7 +109,7 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
       window.clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [read, status]);
+  }, [read, status, stopOnly]);
 
   async function stop() {
     setBusy(true);
@@ -124,13 +125,13 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
     }
   }
 
-  if (!view) {
-    return problem || canStop ? (
+  if (!view || stopOnly) {
+    return (stopOnly ? canStop : problem || canStop) ? (
       <section className="liveLocation" aria-label="Share where you are" aria-busy={stopping}>
         {problem ? <p role="alert">{problem}</p> : null}
         {STATUS_LINE[status] ? <p role="status">{STATUS_LINE[status]}</p> : null}
         {canStop ? <Button variant="secondary" disabled={stopping} onClick={() => void stop()}>{stopping ? "Stopping" : "Stop sharing"}</Button> : null}
-        {problem ? <Button variant="secondary" onClick={() => void read()}>Try again</Button> : null}
+        {problem && !stopOnly ? <Button variant="secondary" onClick={() => void read()}>Try again</Button> : null}
       </section>
     ) : null;
   }

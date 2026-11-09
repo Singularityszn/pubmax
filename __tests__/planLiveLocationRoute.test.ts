@@ -10,6 +10,7 @@ vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => false }));
 
 import { DELETE, GET, PUT } from "@/app/api/plans/[id]/live-location/route";
 import { planLiveLocationEndsAtMs } from "@/lib/planLiveLocation";
+import { __resetMemoryRsvps, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { __resetMemoryPlans, memoryPlanStore, removeMemoryPlanInviteRsvpMember } from "@/lib/planStore";
 
 const NOW = new Date("2026-11-07T20:00:00.000Z");
@@ -20,6 +21,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
   __resetMemoryPlans();
+  __resetMemoryRsvps();
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
@@ -81,6 +83,24 @@ describe("live location through the private plan route", () => {
     expect(await read(id, host)).toMatchObject({ people: [] });
     expect((await GET(request(id, guest), context(id))).status).toBe(404);
     expect((await PUT(request(id, guest, "PUT", FIX), context(id))).status).toBe(404);
+  });
+
+  it.each(["maybe", "remove"] as const)("deletes an RSVP guest's position on %s before immediate rejoin", async (action) => {
+    const { id, host } = await night();
+    const store = rsvpStore();
+    const joined = await store.upsert(id, "rsvp-location-guest", "RSVP guest", "going");
+    const token = joined.membership!.memberToken;
+    expect((await PUT(request(id, token, "PUT", FIX), context(id))).status).toBe(200);
+    expect(await read(id, host)).toMatchObject({ people: [{ name: "RSVP guest" }] });
+    if (action === "maybe") await store.upsert(id, "rsvp-location-guest", "RSVP guest", "maybe");
+    else await store.remove(id, joined.summary.guests.find((guest) => guest.displayName === "RSVP guest")!.id);
+    expect((await GET(request(id, token), context(id))).status).toBe(404);
+    const rejoined = await store.upsert(id, "rsvp-location-guest", "RSVP guest", "going");
+    expect(rejoined.membership!.memberToken).toBe(token);
+    expect(await read(id, host)).toMatchObject({ people: [] });
+    expect(await read(id, token)).toMatchObject({ sharing: false });
+    expect((await PUT(request(id, token, "PUT", FIX), context(id))).status).toBe(200);
+    expect(await read(id, host)).toMatchObject({ people: [{ name: "RSVP guest" }] });
   });
 
   it("removes the dot for everyone as soon as the member stops", async () => {
