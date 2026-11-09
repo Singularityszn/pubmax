@@ -92,7 +92,6 @@
 /* A source and its read date wrap as one, so a date never starts a line. */
 .tonightAnswerSourceDate {
   display: inline-flex;
-  flex-wrap: wrap;
   align-items: center;
   column-gap: var(--space-1);
 }
