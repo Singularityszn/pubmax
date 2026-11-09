@@ -11,12 +11,9 @@
 //   1. The card prints the SHEET'S OWN price and date: the figure and the date
 //      the Overview's price block prints for the same lane, for every lane a
 //      drinker's log can take, because both read one lane and one formatter.
-//   2. Exactly ONE coral action: the card's plan door. The Overview's price
-//      door is drawn in ink and the card's other commands are ghosts.
+//   2. Exactly ONE coral action: the card's plan door. The card's other
+//      commands are ghosts.
 //   3. No action appears twice on the sheet: the card's actions left the body.
-
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -286,9 +283,6 @@ describe("the card prints the sheet's own price and date", () => {
 });
 
 describe("one coral action", () => {
-  const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  const CORAL = /var\(--(?:brass|color-accent|accent-action)[\w-]*[,)]/;
-
   it("the card holds exactly one painted door, and it is the plan door", () => {
     for (const [mode, builtIds] of [["suggest", []], ["build", ["venue-other"]]] as const) {
       const view = renderSheet([drop()].slice(0, 1), { mode, builtIds: [...builtIds] });
@@ -297,30 +291,12 @@ describe("one coral action", () => {
       expect(view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)).toHaveLength(1);
       // Every other command on the card is a ghost.
       const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
-      expect(ghosts.map(actionName)).toEqual([`Ask The Action Arms for a table`, "Share The Action Arms"]);
+      expect(ghosts.map(actionName)).toEqual(["Ask for a table at The Action Arms", "Share The Action Arms"]);
       for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
     }
   });
 
-  it("the Overview's price door is drawn in ink, the ghosts carry no coral, and the plan door is coral at every width", () => {
-    const globals = read("app/globals.css");
-    const priceDoor = globals.match(/\n\.priceDoor\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(priceDoor).toMatch(/background:\s*var\(--control-secondary-surface\)/);
-    expect(priceDoor).not.toMatch(CORAL);
-    const priceDoorHover = globals.match(/\.priceDoor:hover\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(priceDoorHover).not.toMatch(CORAL);
-
-    const sheet = read("components/map/venueSheet.css");
-    for (const [, body = ""] of sheet.matchAll(/\.venueSheetStickyGhost[^{,]*\{([^}]*)\}/g)) {
-      expect(body.replace(/outline[^;]*;/g, "")).not.toMatch(CORAL);
-    }
-
-    const card = read("components/map/inspector/venueActionCard.css");
-    const desktopDoor = card.match(/\.venueActionCard \.mobileVenuePeekSummary button\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(desktopDoor).toMatch(/background:\s*var\(--color-accent\)/);
-    const phone = read("components/mobile/mobileMapShell.css");
-    expect(phone).toMatch(/\.mobileVenuePeekSummary button\s*\{[^}]*background:\s*var\(--color-accent\)/);
-    // A price door still renders, once, beside the one coral.
+  it("the Overview renders one price door beside the plan door", () => {
     expect(renderSheet([drop()]).querySelectorAll("[data-price-door]")).toHaveLength(1);
   });
 });

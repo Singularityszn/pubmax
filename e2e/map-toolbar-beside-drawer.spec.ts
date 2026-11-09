@@ -56,7 +56,7 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     await expect(menu).toHaveCount(0);
     await expect(more).toBeFocused();
     await expectSoleDesktopDrawer(page, "venue");
-    const commands = nav.getByRole("button", { name: "Open command palette", exact: true });
+    const commands = nav.getByRole("button", { name: "Open command palette ⌘K", exact: true });
     await commands.click();
     const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
     await expect(palette).toBeVisible();

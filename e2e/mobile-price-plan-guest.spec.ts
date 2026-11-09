@@ -17,7 +17,7 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
   const pub = page.getByRole("dialog", { name: venueName, exact: true });
   await expect(pub).toContainText(price!);
   await expect(pub.getByRole("link", { name: "Pint Prices", exact: true })).toBeVisible();
-  await pub.getByRole("button", { name: `Make ${venueName} Stop 1` }).click();
+  await pub.getByRole("button", { name: `Make it Stop 1: ${venueName}` }).click();
   await expect(page).toHaveURL(/\/plan$/);
 
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
@@ -100,7 +100,7 @@ test("a five-stop incomplete plan keeps its count after clearing, then accepts a
   await page.goto("/near?patch=clapham");
   await page.getByRole("button", { name: /The Coach & Horses.*View pub/ }).click();
   await page.getByRole("dialog", { name: "The Coach & Horses", exact: true })
-    .getByRole("button", { name: "Make The Coach & Horses Stop 1" }).click();
+    .getByRole("button", { name: "Make it Stop 1: The Coach & Horses" }).click();
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
   await description.fill("Five pubs in Clapham, all step-free, with listed pint prices.");
   await page.getByRole("button", { name: "Make a plan", exact: true }).click();

@@ -13,7 +13,7 @@ async function prepare(page: Page) {
 
 test.use({ serviceWorkers: "block" });
 
-for (const width of [1024, 1440]) {
+for (const width of [1280, 1440]) {
   test.describe(`command palette focus at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 } });
 
@@ -21,7 +21,7 @@ for (const width of [1024, 1440]) {
       test(`${dismissal} restores the opener after child interaction`, async ({ page }, testInfo) => {
         await prepare(page);
         await page.goto("/places");
-        const opener = page.getByRole("button", { name: "Open command palette", exact: true });
+        const opener = page.getByRole("button", { name: "Open command palette ⌘K", exact: true });
         const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
         await expect(async () => {
           await opener.click();
@@ -49,6 +49,28 @@ for (const width of [1024, 1440]) {
     }
   });
 }
+
+test("1024px keyboard palette restores focus while the button is hidden", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await prepare(page);
+  await page.goto("/places");
+  await expect(page.getByRole("button", { name: "More pages", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Open command palette ⌘K", exact: true })).toHaveCount(0);
+  const opener = page.getByRole("navigation", { name: "Site navigation" })
+    .getByRole("link", { name: "Explore", exact: true });
+  await opener.focus();
+  await opener.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+  await expect(palette).toBeVisible();
+  const search = palette.getByRole("combobox", { name: "Search commands", exact: true });
+  await expect(search).toBeFocused();
+  await search.fill("Map");
+  await page.screenshot({ path: testInfo.outputPath("04-tablet-keyboard-palette.png") });
+  await search.press("Escape");
+  await expect(palette).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await expect(page).toHaveURL(/\/places$/);
+});
 
 test("backdrop dismissal preserves an existing selected pub", async ({ page }, testInfo) => {
   test.setTimeout(90_000);

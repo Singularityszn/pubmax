@@ -170,7 +170,7 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
         className="siteNavCmdk"
         disabled={!ready}
         onClick={openCommandPalette}
-        aria-label="Open command palette"
+        aria-label="Open command palette ⌘K"
         title="Search & jump to a page (⌘K / Ctrl+K)"
       >
         <kbd className="siteNavCmdkKbd" aria-hidden="true">

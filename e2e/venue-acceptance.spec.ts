@@ -36,9 +36,9 @@ test("390px Map acceptance persists before Plan receives Stop 1", async ({ page 
   // coral `Make it Stop 1` (lib/venuePlanDoor.ts); the footer bar has none.
   const accept = portal
     .locator(".mobileVenuePeekSummary")
-    .getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+    .getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` });
   await expect(accept).toBeVisible({ timeout: 30_000 });
-  await expect(portal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(1);
+  await expect(portal.getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` })).toHaveCount(1);
 
   const [box, overflow] = await Promise.all([
     accept.boundingBox(),
@@ -108,7 +108,7 @@ for (const width of [320, 390] as const) {
 
       const door = portal
         .locator(".mobileVenuePeekSummary")
-        .getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+        .getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` });
       await expect(door).toHaveText("Make it Stop 1");
       await page.evaluate(() => document.fonts.ready);
 
@@ -197,7 +197,7 @@ test("1440px accepted arrival keeps receipt, focus, and Near provenance", async 
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible({
     timeout: 30_000,
   });
-  const accept = page.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+  const accept = page.getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` });
   await expect(accept).toBeVisible();
   await accept.focus();
   await expect(accept).toBeFocused();
@@ -231,7 +231,7 @@ test("storage denial stays on Venue and emits no acceptance events", async ({ pa
 
   await page.goto(`/map?sel=${VENUE_ID}`);
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await portal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` }).click();
+  await portal.getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` }).click();
 
   await expect(page).toHaveURL(new RegExp(`/map\\?sel=${VENUE_ID}$`));
   await expect(portal.getByRole("alert")).toHaveText(

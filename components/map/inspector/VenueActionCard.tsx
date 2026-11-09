@@ -103,7 +103,7 @@ export default function VenueActionCard({
             type="button"
             className="venueSheetStickyGhost"
             aria-haspopup="dialog"
-            aria-label={`Ask ${venue.name} for a table`}
+            aria-label={`${TABLE_REQUEST_ACTION_LABEL} at ${venue.name}`}
             onClick={askForTable}
           >
             <Users size={16} aria-hidden="true" />
