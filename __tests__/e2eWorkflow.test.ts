@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
 import { defined } from "@/__tests__/helpers/defined";
 import { browserJobCondition, browserJobName } from "@/__tests__/helpers/browserJobCondition";
@@ -79,7 +79,7 @@ appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringi
       const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-c", interpolate(step.run)], {
         cwd: directory,
         env: {
-          ...process.env,
+          NODE_ENV: "test",
           PATH: `${directory}:${process.env.PATH}`,
           COMMAND_LOG: log,
           GITHUB_OUTPUT: output,
@@ -118,7 +118,12 @@ describe("browser CI policy", () => {
     return defined(recordings.get(id));
   }
 
-  it("records only commands reached by the shell and step conditions", () => {
+  it("records only commands reached by the shell and step conditions", ({ onTestFinished }) => {
+    onTestFinished(() => { vi.unstubAllEnvs(); });
+    vi.stubEnv("NODE_OPTIONS", "--max-old-space-size=2048");
+    vi.stubEnv("PLAYWRIGHT_JSON_OUTPUT_NAME", "ambient-report.json");
+    vi.stubEnv("PW_SKIP_KEYLESS_WEBSERVER", "1");
+    vi.stubEnv("PUBMAX_CI_SKIP_BUILD_TYPECHECK", "1");
     const calls = recordBrowserJob({ steps: [
       { if: "false", run: "npx playwright install --with-deps chromium" },
       { run: `
