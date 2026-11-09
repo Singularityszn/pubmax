@@ -242,6 +242,29 @@ describe("which rows a surface may treat as a fact", () => {
     expect(authoritativeBundleRows([valid])).toEqual([valid]);
   });
 
+  it("withholds a price whose label opens on the pence an older reader cut from it", () => {
+    const truncated: UkPriceBundleRow = {
+      ...listed,
+      venueId: "venue-1embrnu",
+      name: "The Black Lion",
+      priceGbp: 3,
+      sourceUrl: "https://blacklionkilburn.co.uk/drink-menu/",
+      drinkLabel: ".2 0.5% UK ROTHAUS PILSNER",
+    };
+    const controls: UkPriceBundleRow[] = [
+      { ...truncated, priceGbp: 6.5, drinkLabel: "ROTHAUS PILSNER" },
+      { ...truncated, drinkLabel: "0.5% Lucky Saint" },
+    ];
+    expect(authoritativeBundleRows([truncated, ...controls])).toEqual(controls);
+    expect(parseUkPriceBundleRows([truncated, ...controls])).toEqual(controls);
+    expect(bundlePricesForCategory([truncated], "beer").listed).toBeNull();
+
+    const published = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
+    expect(published.filter((row) => /^\.\d/.test(row.drinkLabel ?? ""))).toEqual([]);
+    // The same reading cut its £3.80 rum and bourbon to £3, under labels that kept no pence.
+    expect(published.filter((row) => row.venueId === "venue-1embrnu" && row.priceGbp === 3)).toEqual([]);
+  });
+
   it("lists Venue 5's draught pint, not the bottles its menu prints below it", () => {
     const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
     const venue = published.filter((row) => row.sourceUrl === "https://venue5.com/drinks-menu/");

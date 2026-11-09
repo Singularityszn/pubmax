@@ -7,6 +7,7 @@ import type { SoftDrinkHarvestRow } from "../scripts/lib/softDrinksMenuHarvest.m
 import {
   classifySoftDrinkSubtypeId,
   filterSoftDrinkHarvestRows,
+  parseGkSoftDrinkLines,
   parseMbplcSoftDrinkLines,
   softDrinkRowsFromMenuPdfLinks,
   softDrinkRowsFromPageText,
@@ -27,6 +28,13 @@ describe("soft drinks menu harvest", () => {
       "Still Water",
     ]);
     expect(defined(rows[0]).priceGbp).toBe(3.25);
+  });
+
+  it("reads a one-digit pence price whole in M&B and Greene King sections", () => {
+    const mbplc = "### Soft drinks\n\n#### Lemonade\n330ml\n£3.5\n\n#### Diet Coke\n330ml\n£3.20";
+    expect(parseMbplcSoftDrinkLines(mbplc).map((row: SoftDrinkHarvestRow) => row.priceGbp)).toEqual([3.5, 3.2]);
+    const greeneKing = "### Soft drinks\n\n#### Lemonade\n£2.5\n\n#### Diet Coke\n£2.75";
+    expect(parseGkSoftDrinkLines(greeneKing).map((row: SoftDrinkHarvestRow) => row.priceGbp)).toEqual([2.5, 2.75]);
   });
 
   it("never keeps tap water as a priced product", () => {
