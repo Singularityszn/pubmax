@@ -18,9 +18,9 @@ failed its browser tests. So a merge now needs five green checks:
 | Required check | Workflow | What it is |
 | --- | --- | --- |
 | `CI check` | `ci.yml` | The summary job. It needs every other job in the workflow. |
-| `Browser tests check` | `e2e.yml` | The summary job. It needs the law pins, `Change scope` and the three layout pins. |
-| `RLS session check` | `rls-session.yml` | The summary job. It needs the RLS session job. |
-| `Security CI check` | `security-ci.yml` | The summary job. It needs all four security jobs. |
+| `Browser tests check` | `e2e.yml` | The summary job. It needs `Merge queue proof`, the law pins, `Change scope` and the three layout pins. |
+| `RLS session check` | `rls-session.yml` | The summary job. It needs `Merge queue proof` and the RLS session job. |
+| `Security CI check` | `security-ci.yml` | The summary job. It needs `Merge queue proof` and all four security jobs. |
 | `Freshness check` | `freshness.yml` | The summary job. It needs change detection and the freshness job. |
 
 A summary job runs with `if: ${{ always() }}` and fails when a job it needs
@@ -42,6 +42,22 @@ The layout pins do not run in the queue: when they run was left
 as it was (captain, 7 Nov 2026), so they still run on each pull request push
 and each `main` push. A pull request enters the queue only after its own
 `Browser tests check`, which needs the layout pins, is green.
+
+The queue moves `main` to the exact commit it tested. In
+`ci.yml`, `e2e.yml`, `rls-session.yml` and
+`security-ci.yml`, the `Merge queue proof` job runs on a push only. It looks
+for a green `merge_group` run of the same workflow for the pushed commit. When
+it finds one, jobs that ran in the queue are skipped, except `Production build`.
+The queue also runs a production build. The main push keeps `Production build`
+only to save the Next.js build cache for later pull requests. GitHub scopes
+caches to their ref. Pull requests can restore caches from their own ref and
+the base branch, but cannot restore caches from temporary merge queue refs.
+`Review scope` and the layout pins still run because the queue does not run
+them. When the proof finds no run, or the API call fails, every job runs.
+`__tests__/ciSummaryCheck.test.ts` holds which jobs run for each event.
+
+On pull requests and merge groups, `Coverage` runs after successful unit
+shards even though `Merge queue proof` is skipped.
 
 Security CI blocks merging through `Security CI check` and runs in the queue.
 See [Security CI is blocking](#security-ci-is-blocking). A retried test still fails its gate:
@@ -171,7 +187,8 @@ them installs them:
   not use a service container.
 - **Playwright Chromium** with `npx playwright install --with-deps chromium`
   in the browser and performance jobs. On macOS `--with-deps` needs no
-  system packages or `sudo`. Playwright still installs Chromium.
+  system packages or `sudo`. See
+  [Self-hosted Mac runners](#self-hosted-mac-runners) for browser cache setup.
 - **zizmor, osv-scanner, gitleaks and Semgrep** in
   [`security-ci.yml`](../.github/workflows/security-ci.yml), which owns their
   versions and checksum pins.
@@ -230,7 +247,12 @@ with no `sudo`. So a Mac job:
   start and end of every job. The default `~/.npm` and
   `~/Library/Caches/ms-playwright` would carry one job's downloads into the
   next. `actions/setup-node` still restores and saves the npm cache through
-  GitHub's cache.
+  GitHub's cache. After `npm ci`, `.github/actions/pubmax-playwright-browsers`
+  restores the browser folder with a key containing the runner OS,
+  architecture and installed Playwright version. It refuses an unset browser
+  path or one outside `RUNNER_TEMP`. On a cache hit, `Install Chromium` skips
+  the download. On a miss, it downloads Chromium and the cache action saves
+  the folder when the job succeeds.
 - **Installs Node with `actions/setup-node`** before any step that runs
   `node`. The place has no Node of its own. `Performance budget` records its
   start time with the shell for that reason.

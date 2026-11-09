@@ -70,9 +70,15 @@ function step(where: string, name: string): Step {
 function scopeCondition(condition: Step["if"], scope: string, shard = 1): boolean {
   const expression = String(condition ?? true)
     .trim()
-    .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
+    .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1")
+    .replace(/needs\.([\w-]+)/g, 'needs["$1"]');
   return Boolean(runInNewContext(`(${expression})`, {
     steps: { scope: { outputs: { scope } } },
+    // The merge queue proof runs only on a main push.
+    needs: {
+      "queue-proof": { result: "skipped", outputs: {} },
+      "unit-tests": { result: "success", outputs: {} },
+    },
     matrix: { shard },
     github: { event_name: "pull_request", ref: "refs/pull/1/merge" },
     success: () => true,
@@ -316,7 +322,8 @@ describe("what each scope runs", () => {
       for (const s of entry.steps) expect(scopeCondition(s.if, scope), `${id} / ${s.name} / ${scope}`).toBe(true);
     }
     const security = defined(workflows.find(({ file }) => file === "security-ci.yml")).parsed.jobs;
-    for (const [id, entry] of Object.entries(security)) {
+    // The merge queue proof is the one Security CI job a pull request never runs.
+    for (const [id, entry] of Object.entries(security).filter(([id]) => id !== "queue-proof")) {
       expect(scopeCondition(entry.if, scope), `${id} job / ${scope}`).toBe(true);
       for (const s of entry.steps) expect(scopeCondition(s.if, scope), `${id} / ${s.name} / ${scope}`).toBe(true);
     }

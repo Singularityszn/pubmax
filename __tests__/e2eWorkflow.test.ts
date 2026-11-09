@@ -54,7 +54,6 @@ describe("browser CI policy", () => {
 
     expect(Object.keys(workflow.on)).toContain("pull_request");
     const lawPinsJob = defined(workflow.jobs["law-pins"]);
-    expect(lawPinsJob.if).toBeUndefined();
     const [testStep, ...extraTestSteps] = playwrightSteps(lawPinsJob);
     expect(extraTestSteps).toEqual([]);
     const run = runWords(defined(testStep, "law-pins Playwright step").run);
@@ -300,6 +299,7 @@ if (args[0] === "issue" && args[1] === "list") {
     const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
     expect(Object.keys(workflow.jobs)).toEqual([
+      "queue-proof",
       "law-pins",
       "change-scope",
       ...LAYOUT_PIN_JOBS,

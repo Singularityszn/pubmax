@@ -127,6 +127,150 @@ describe("the required checks", () => {
   });
 });
 
+describe("a main push after the merge queue", () => {
+  type Event = "pull_request" | "merge_group" | "push";
+  type Proof = { result: "success" | "failure"; passed?: string };
+
+  // A proved main push keeps Review scope and the layout pins, which the queue
+  // does not run. The queue runs Production build, but main must save its cache
+  // for pull requests, which cannot restore caches from merge queue refs.
+  const MAIN_ONLY: Record<string, string[]> = {
+    "ci.yml": ["production-build", "review-scope"],
+    "e2e.yml": ["change-scope", "layout-pins-1", "layout-pins-2", "layout-pins-3"],
+    "rls-session.yml": [],
+    "security-ci.yml": [],
+  };
+  const FILES = Object.keys(MAIN_ONLY);
+  const scratch = mkdtempSync(join(tmpdir(), "pubmax-queue-proof-"));
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+
+  // GitHub starts a job only when its `if` holds. An `if` with no status
+  // function gets an implicit success(): every ancestor job succeeded.
+  function jobsThatRun(file: string, event: Event, proof: Proof, outcomes: Record<string, string> = {}): string[] {
+    const { jobs } = workflow(file);
+    const results: Record<string, { result: string; outputs: Record<string, string> }> = {};
+    const pending = Object.keys(jobs);
+    while (pending.length > 0) {
+      const index = pending.findIndex((id) => needsOf(defined(jobs[id])).every((need) => need in results));
+      expect(index, `${file}: a job waits for a job that never reports`).toBeGreaterThanOrEqual(0);
+      const id = defined(pending.splice(index, 1)[0]);
+      const job = defined(jobs[id]);
+      const needs = Object.fromEntries(needsOf(job).map((need) => [need, defined(results[need])]));
+      const ancestors = new Set(needsOf(job));
+      for (const need of ancestors) {
+        for (const upstream of needsOf(defined(jobs[need]))) ancestors.add(upstream);
+      }
+      const allSucceeded = () => [...ancestors].every((need) => defined(results[need]).result === "success");
+      const expression = String(job.if ?? "true").trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
+      const translated = expression
+        .replaceAll("needs.*.result", "Object.values(needs).map((need) => need.result)")
+        .replace(/needs\.([\w-]+)/g, 'needs["$1"]');
+      const holds = runInNewContext(`(${translated})`, {
+        github: {
+          event_name: event,
+          repository: "Singularityszn/pubmax",
+          event: { pull_request: { head: { repo: { full_name: "Singularityszn/pubmax" } } } },
+        },
+        needs,
+        always: () => true,
+        cancelled: () => false,
+        success: allSucceeded,
+        failure: () => false,
+        contains: (list: string[], value: string) => list.includes(value),
+      }, { timeout: 1000 });
+      const runs = Boolean(holds) && (/\b(always|cancelled|success|failure)\(/.test(expression) || allSucceeded());
+      if (!runs) results[id] = { result: "skipped", outputs: {} };
+      else if (id === "queue-proof") results[id] = { result: proof.result, outputs: proof.passed ? { passed: proof.passed } : {} };
+      else results[id] = { result: outcomes[id] ?? "success", outputs: id === "change-scope" ? { scope: "code", layout: "ui" } : {} };
+    }
+    return Object.keys(results).filter((id) => results[id]?.result !== "skipped").sort();
+  }
+
+  function provedJobs(file: string): string[] {
+    const { jobs } = workflow(file);
+    return Object.keys(jobs).filter((id) => needsOf(defined(jobs[id])).includes("queue-proof"));
+  }
+
+  it.each(FILES)("%s skips the queue's work on a proved commit and keeps the main-only jobs", (file) => {
+    expect(jobsThatRun(file, "push", { result: "success", passed: "true" })).toEqual(
+      ["check", "queue-proof", ...defined(MAIN_ONLY[file])].sort(),
+    );
+  });
+
+  it.each(FILES.flatMap((file) => [
+    { file, event: "push" as const, proof: { result: "success" as const, passed: "false" } },
+    { file, event: "push" as const, proof: { result: "failure" as const } },
+    { file, event: "pull_request" as const, proof: { result: "success" as const, passed: "true" } },
+    { file, event: "merge_group" as const, proof: { result: "success" as const, passed: "true" } },
+  ]))("$file runs every gated job on $event when the proof is $proof", ({ file, event, proof }) => {
+    const running = jobsThatRun(file, event, proof);
+    expect(provedJobs(file).length, file).toBeGreaterThan(0);
+    for (const id of provedJobs(file)) expect(running, id).toContain(id);
+    expect(running.includes("queue-proof"), "the proof runs only on a push").toBe(event === "push");
+    if (file === "ci.yml") expect(running).toContain("coverage");
+  });
+
+  it.each(["pull_request", "merge_group"] as const)("%s runs Coverage despite its skipped proof ancestor", (event) => {
+    const running = jobsThatRun("ci.yml", event, { result: "success" });
+    expect(running).not.toContain("queue-proof");
+    expect(running).toContain("unit-tests");
+    expect(running).toContain("coverage");
+  });
+
+  it.each(["failure", "cancelled", "skipped"])("skips Coverage when unit shards report %s", (result) => {
+    expect(jobsThatRun("ci.yml", "pull_request", { result: "success" }, { "unit-tests": result })).not.toContain("coverage");
+  });
+
+  it.each(FILES)("%s exposes read-only queue proof on pushes", (file) => {
+    const proof = defined(workflow(file).jobs["queue-proof"]);
+    expect(proof.if).toBe("github.event_name == 'push'");
+    expect(proof).toHaveProperty("permissions", { actions: "read" });
+    expect(proof.outputs).toEqual({ passed: "${{ steps.proof.outputs.passed }}" });
+  });
+
+  function prove(file: string, runs: Array<{ path: string }> | "error") {
+    const proofStep = defined(defined(workflow(file).jobs["queue-proof"]).steps?.find((step) => step.id === "proof"));
+    const dir = mkdtempSync(join(scratch, "proof-"));
+    const calls = join(dir, "calls");
+    const output = join(dir, "github-output");
+    writeFileSync(output, "");
+    writeFileSync(join(dir, "runs.json"), JSON.stringify({ workflow_runs: runs === "error" ? [] : runs }));
+    writeFileSync(
+      join(dir, "gh"),
+      `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\n[ "${runs === "error" ? 1 : 0}" = 0 ] || exit 1\ncat "${join(dir, "runs.json")}"\n`,
+    );
+    chmodSync(join(dir, "gh"), 0o755);
+    const result = spawnSync("bash", ["-e", "-c", defined(proofStep.run)], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${dir}:${process.env.PATH ?? ""}`,
+        REPO: "Singularityszn/pubmax",
+        WORKFLOW_REF: `Singularityszn/pubmax/.github/workflows/${file}@refs/heads/main`,
+        SHA: "abc123",
+        GITHUB_OUTPUT: output,
+      },
+    });
+    return { result, output: readFileSync(output, "utf8").trim(), calls: readFileSync(calls, "utf8").trim() };
+  }
+
+  describe.each(FILES)("%s queue proof", (file) => {
+    const otherPath = `.github/workflows/${file === "ci.yml" ? "e2e.yml" : "ci.yml"}`;
+    it.each<{ runs: Array<{ path: string }> | "error"; passed: string }>([
+      { runs: [{ path: otherPath }, { path: `.github/workflows/${file}` }], passed: "true" },
+      { runs: [{ path: otherPath }], passed: "false" },
+      { runs: [], passed: "false" },
+      { runs: "error", passed: "false" },
+    ])("proves a commit only by a green queue run of the same workflow: $runs", ({ runs, passed }) => {
+      const { result, output, calls } = prove(file, runs);
+      expect(result.status, result.stderr).toBe(0);
+      expect(output).toBe(`passed=${passed}`);
+      expect(calls).toBe("api repos/Singularityszn/pubmax/actions/runs?event=merge_group&status=success&head_sha=abc123&per_page=100");
+      if (runs === "error") expect(result.stdout).toContain("::warning::");
+    });
+  });
+});
+
 describe("the freshness gate", () => {
   const parsed = workflow("freshness.yml");
   const expectedCommands = [

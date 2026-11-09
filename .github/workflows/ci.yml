@@ -27,6 +27,38 @@ concurrency:
 
 
 jobs:
+  # docs/CI_RUNBOOK.md owns the merge queue proof policy and its exceptions.
+  queue-proof:
+    name: Merge queue proof
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.proof.outputs.passed }}
+    steps:
+      - name: Find a green merge queue run of this workflow for this commit
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          path="${WORKFLOW_REF#"$REPO/"}"
+          path="${path%%@*}"
+          passed=false
+          if runs="$(gh api "repos/$REPO/actions/runs?event=merge_group&status=success&head_sha=$SHA&per_page=100")" &&
+            count="$(jq --arg path "$path" '[.workflow_runs[] | select(.path == $path)] | length' <<< "$runs")"; then
+            if [ "$count" -gt 0 ]; then passed=true; fi
+          else
+            echo "::warning::Could not read the merge queue runs for $SHA, so every job runs."
+          fi
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "Merge queue proof for $path at $SHA: $passed"
+
   review-scope:
     name: Review scope
     runs-on: ubuntu-latest
@@ -59,6 +91,8 @@ jobs:
 
   lint-and-types:
     name: Lint and typecheck
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 31
     steps:
@@ -129,6 +163,8 @@ jobs:
   # typegen` writes the route types it reads. `npx tsc` is TypeScript 7.
   typecheck-ts6:
     name: Typecheck (TypeScript 6)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 16
     steps:
@@ -297,6 +333,8 @@ jobs:
   # whole-suite gate.
   unit-tests:
     name: Unit tests (${{ matrix.shard }}/3)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 22
     strategy:
@@ -419,6 +457,7 @@ jobs:
   coverage:
     name: Coverage
     needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -488,6 +527,8 @@ jobs:
   # checked as they ship. Only the gitignored venue detail files are generated.
   validate-data:
     name: Data validation
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -522,7 +563,7 @@ jobs:
   check:
     name: CI check
     if: ${{ always() }}
-    needs: [review-scope, lint-and-types, typecheck-ts6, production-build, unit-tests, coverage, validate-data]
+    needs: [queue-proof, review-scope, lint-and-types, typecheck-ts6, production-build, unit-tests, coverage, validate-data]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

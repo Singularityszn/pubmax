@@ -31,8 +31,42 @@ concurrency:
 
 
 jobs:
+  # docs/CI_RUNBOOK.md owns the merge queue proof policy and its exceptions.
+  queue-proof:
+    name: Merge queue proof
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.proof.outputs.passed }}
+    steps:
+      - name: Find a green merge queue run of this workflow for this commit
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          path="${WORKFLOW_REF#"$REPO/"}"
+          path="${path%%@*}"
+          passed=false
+          if runs="$(gh api "repos/$REPO/actions/runs?event=merge_group&status=success&head_sha=$SHA&per_page=100")" &&
+            count="$(jq --arg path "$path" '[.workflow_runs[] | select(.path == $path)] | length' <<< "$runs")"; then
+            if [ "$count" -gt 0 ]; then passed=true; fi
+          else
+            echo "::warning::Could not read the merge queue runs for $SHA, so every job runs."
+          fi
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "Merge queue proof for $path at $SHA: $passed"
+
   law-pins:
     name: Browser law pins
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     # docs/CI_RUNBOOK.md owns runner selection and queue policy.
     # These journeys passed on Linux (16 Oct 2026). The one law pin that
     # measures phone chrome geometry, e2e/mobile-map-chrome-fit.spec.ts, lost
@@ -259,6 +293,9 @@ jobs:
           npm ci
           npm run deps:install-scripts
 
+      - name: Restore Playwright's browsers
+        uses: ./.github/actions/pubmax-playwright-browsers
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
@@ -389,7 +426,7 @@ jobs:
   check:
     name: Browser tests check
     if: ${{ always() }}
-    needs: [law-pins, change-scope, layout-pins-1, layout-pins-2, layout-pins-3]
+    needs: [queue-proof, law-pins, change-scope, layout-pins-1, layout-pins-2, layout-pins-3]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -448,6 +485,9 @@ jobs:
         run: |
           npm ci
           npm run deps:install-scripts
+
+      - name: Restore Playwright's browsers
+        uses: ./.github/actions/pubmax-playwright-browsers
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -509,6 +549,9 @@ jobs:
         run: |
           npm ci
           npm run deps:install-scripts
+
+      - name: Restore Playwright's browsers
+        uses: ./.github/actions/pubmax-playwright-browsers
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

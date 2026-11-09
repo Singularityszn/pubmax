@@ -28,8 +28,42 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # docs/CI_RUNBOOK.md owns the merge queue proof policy and its exceptions.
+  queue-proof:
+    name: Merge queue proof
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.proof.outputs.passed }}
+    steps:
+      - name: Find a green merge queue run of this workflow for this commit
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          path="${WORKFLOW_REF#"$REPO/"}"
+          path="${path%%@*}"
+          passed=false
+          if runs="$(gh api "repos/$REPO/actions/runs?event=merge_group&status=success&head_sha=$SHA&per_page=100")" &&
+            count="$(jq --arg path "$path" '[.workflow_runs[] | select(.path == $path)] | length' <<< "$runs")"; then
+            if [ "$count" -gt 0 ]; then passed=true; fi
+          else
+            echo "::warning::Could not read the merge queue runs for $SHA, so every job runs."
+          fi
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "Merge queue proof for $path at $SHA: $passed"
+
   zizmor:
     name: zizmor (.github)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -71,6 +105,8 @@ jobs:
 
   osv-scanner:
     name: osv-scanner (lockfiles)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -110,6 +146,8 @@ jobs:
 
   gitleaks:
     name: gitleaks (secrets)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -179,6 +217,8 @@ jobs:
 
   semgrep:
     name: Semgrep CE (SAST)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -214,7 +254,7 @@ jobs:
   check:
     name: Security CI check
     if: ${{ always() }}
-    needs: [zizmor, osv-scanner, gitleaks, semgrep]
+    needs: [queue-proof, zizmor, osv-scanner, gitleaks, semgrep]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
