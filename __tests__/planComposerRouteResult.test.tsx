@@ -1140,7 +1140,7 @@ describe("the Plan result", () => {
     await remountComposer();
     expectDisplayedRoute(["Pub A", "Pub B"], ["venue-a", "venue-b"]);
     await openTune();
-    expectTuneDescriptionAndCount("", undefined);
+    expectTuneDescriptionAndCount("", 6);
     expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(savedSession);
     expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(savedIntake);
     expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBeNull();
