@@ -5,7 +5,7 @@ import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { publicApiError } from "@/lib/apiError";
 
-export const PAL_UNDER_18_REFUSAL =
+const PAL_UNDER_18_REFUSAL =
   "The date of birth on your account is under 18, so a Pub Pal is not open to you.";
 
 /** Read both account answers. Write gates must distinguish a failed read. */
@@ -42,7 +42,7 @@ export async function accountAdultOnFile(userId: string): Promise<boolean> {
  * Did this account tell us a date of birth under 18? An account with no stored
  * date is not refused here. A failed read throws, so a gate fails closed.
  */
-export async function accountDateOfBirthIsMinor(userId: string): Promise<boolean> {
+async function accountDateOfBirthIsMinor(userId: string): Promise<boolean> {
   const dateOfBirth = (await privateIdentityStore().read(userId))?.dateOfBirth?.trim() ?? "";
   return dateOfBirth !== "" && !isAdultDateOfBirth(dateOfBirth);
 }
