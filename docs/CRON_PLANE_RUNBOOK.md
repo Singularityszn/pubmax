@@ -43,9 +43,15 @@ in the same commit.
 | `GET /api/cron/cheap-pint-ping` | `0 16,17 * * 1-5` | Weekdays 17:00·18:00 / weekdays 16:00·17:00 | Send the one-time cheap-pint push to opted-in accounts with a grounded listed price. Two UTC runs cover both halves of the year: the route sends only in the 17:00 London hour, so the 18:00 BST and 16:00 GMT runs skip | 60s |
 | `GET /api/cron/harvest-refresh` | `0 5 * * 1` | Monday 06:00 / Monday 05:00 | Weekly first-party London harvest under `HARVEST_CRON_REQUEST_BUDGET`; the run report goes to logs only, because `npm run harvest:run` owns the durable files. Without `FIRECRAWL_API_KEY` every source is skipped | 300s |
 
-Expired Pub Pal tool turns (`pub_pal_tool_turns`) are not a Vercel job. The
-pg_cron job `pubmax-purge-pub-pal-tool-turns` (migration 0202) deletes them in
-the database every minute. Check it in `cron.job_run_details`.
+The pg_cron job `pubmax-purge-pub-pal-tool-turns` (migration 0202) deletes expired
+Pub Pal tool turns (`pub_pal_tool_turns`) in the database every minute.
+Check its runs in `cron.job_run_details`, using the `jobid` from `cron.job`.
+The Vercel purge route and its schedule are retired. Without pg_cron, no
+scheduled purge replaces them.
+
+Before rolling back 0202, restore a working purge route and its Vercel schedule,
+or provide another scheduled purge. Confirm that the replacement deletes expired
+rows. Reads reject expired turns, but they do not delete durable rows.
 
 The What's-On refresh runs **twice a day**. The morning run, `30 5 * * *`
 (06:30 BST, 05:30 GMT), is the baseline: it writes each bounded lane to

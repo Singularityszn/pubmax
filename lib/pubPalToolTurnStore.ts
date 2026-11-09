@@ -13,7 +13,7 @@ import {
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-/** Two minutes after the user's last line. pg_cron (migration 0202) deletes expired rows every minute. */
+/** Two minutes after the user's last line. See docs/CRON_PLANE_RUNBOOK.md for scheduled deletion. */
 export const PUB_PAL_TOOL_TURN_TTL_MS = PUB_PAL_CONVERSATION_IDLE_MS;
 
 const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0169";
