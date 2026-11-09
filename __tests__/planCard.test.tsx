@@ -22,7 +22,7 @@ vi.mock("@/components/media/VenueImage", () => ({
     createElement("img", { "data-testid": "plan-card-photo", src: sources[0]?.url, alt }),
 }));
 
-import { clearActivePlan, markActivePlan } from "@/lib/activePlan";
+import { ACTIVE_PLAN_KEY, markActivePlan } from "@/lib/activePlan";
 import PlanCard, { planStartInWords } from "@/components/plan/PlanCard";
 import { clearPlanMemberProjectionRead } from "@/components/plan/usePlanMemberRead";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
@@ -79,7 +79,7 @@ function respond(body: unknown, ok = true): Response {
 beforeEach(() => {
   clearPlanMemberProjectionRead(PLAN);
   clearSurfaceCache();
-  clearActivePlan();
+  localStorage.removeItem(ACTIVE_PLAN_KEY);
   planBody = memberBody();
   venueBody = { venue: { id: "v-first", imageUrl: "https://example.com/lamb.jpg", kind: "pub" } };
   venueReads.length = 0;
@@ -100,7 +100,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
-  clearActivePlan();
+  localStorage.removeItem(ACTIVE_PLAN_KEY);
   vi.restoreAllMocks();
 });
 

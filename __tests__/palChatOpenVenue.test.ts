@@ -42,7 +42,7 @@ vi.mock("@/components/plan/usePlanMemberRead", () => ({
 }));
 
 import PalChat from "@/components/pal/PalChat";
-import { clearActivePlan, writeActivePlan } from "@/lib/activePlan";
+import { ACTIVE_PLAN_KEY, writeActivePlan } from "@/lib/activePlan";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -81,7 +81,7 @@ beforeEach(async () => {
     ],
   });
   sessionAnswer.value = answer;
-  clearActivePlan();
+  localStorage.removeItem(ACTIVE_PLAN_KEY);
   planRead.mockReset().mockResolvedValue(null);
   askSession.mockReset().mockImplementation(() => Promise.resolve(sessionAnswer.value));
   container = document.createElement("div");
@@ -98,7 +98,7 @@ afterEach(async () => {
   });
   root = null;
   container.remove();
-  clearActivePlan();
+  localStorage.removeItem(ACTIVE_PLAN_KEY);
 });
 
 async function askPal(text: string): Promise<void> {

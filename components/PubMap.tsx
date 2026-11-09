@@ -396,7 +396,6 @@ import {
   VENUE_REVEAL_CINEMA_MS,
 } from "@/lib/sheetSnap";
 import type { VenueRevealRequest } from "@/lib/venueReveal";
-import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
@@ -976,10 +975,8 @@ function drawerSideLaneViewportSnapshot(): boolean {
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
 // a bare price is never a story, and demo seeds never move prices or hasStory.
 
-// Hand-built stop ids are mirrored to localStorage while a crawl is active.
-// Clean /map arrivals do NOT auto-restore from this key (that made tab links
-// look weird by dumping stale ?pubs= into the address bar). The URL is the
-// only share/restore source.
+// Older builds mirrored hand-built stop ids here. Nothing reads the key, and
+// the URL is the only share and restore source. Clear removes a leftover copy.
 const BUILT_STORAGE_KEY = "pubmax_built_ids";
 
 // crawlStopsFromPubIds, filtersForCuratedCrawl, resolveSeededCuratedCrawl,
@@ -3692,10 +3689,6 @@ export default function PubMap({
     Promise.resolve().then(() => setTonightOverlayVisible(true));
   }, [tonightStatus, tonightDismissed]);
 
-  // Refresh-safety net: mirror hand-built stops to localStorage (see
-  // components/map/pubmap/useBuiltIdsPersistence.ts).
-  useBuiltIdsPersistence(builtIds, BUILT_STORAGE_KEY);
-
   const selectVenue = useCallback(
     (
       id: string,
@@ -4653,7 +4646,7 @@ export default function PubMap({
     setBuiltIds([]);
     setRouteMapped(false);
     setActiveCrawl(null);
-    // Explicit Clear also drops the refresh-safety net.
+    // Explicit Clear also drops a copy that older builds left behind.
     if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
   }, [setActiveCrawl, setBuiltIds, setRouteMapped]);
 

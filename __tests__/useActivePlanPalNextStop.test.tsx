@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { useActivePlanPalNextStop } from "@/components/map/pubmap/useActivePlanRoute";
-import { clearActivePlan, writeActivePlan } from "@/lib/activePlan";
+import { ACTIVE_PLAN_KEY, writeActivePlan } from "@/lib/activePlan";
 import type { PlanStopDTO } from "@/lib/plan";
 import type { Venue } from "@/lib/venues";
 
@@ -56,7 +56,7 @@ describe("the map Pal's next stop", () => {
   afterEach(() => {
     act(() => root?.unmount());
     root = null;
-    clearActivePlan();
+    localStorage.removeItem(ACTIVE_PLAN_KEY);
   });
 
   async function render(builtIds: string[], routeMapped: boolean): Promise<Seen> {

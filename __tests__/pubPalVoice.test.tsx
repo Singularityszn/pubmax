@@ -98,7 +98,7 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
 }));
 
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
-import { clearActivePlan, writeActivePlan } from "@/lib/activePlan";
+import { ACTIVE_PLAN_KEY, writeActivePlan } from "@/lib/activePlan";
 
 const NIGHT_PLAN_ID = "11111111-1111-4111-8111-111111111111";
 import {
@@ -200,7 +200,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  clearActivePlan();
+  localStorage.removeItem(ACTIVE_PLAN_KEY);
   planRead.read.mockReset();
   unmount();
   container.remove();
