@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { liveLocationRequest, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { liveLocationRequest, liveShareCrewStopSeat, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 
@@ -55,6 +55,21 @@ afterEach(async () => {
 });
 
 describe("sharing a live location from the phone", () => {
+  it.each(["active", "failed"])("restores only the current account's %s Crew Stop seat", async (status) => {
+    setProviderIdentity("supabase", "crew-stop-owner-a");
+    const seat = { ...SEAT, via: "crew" as const };
+    const geo = fakeGeolocation();
+    startLiveLocationShare(seat, { geolocation: geo.geolocation, request: fakeRoute(404).request });
+    if (status === "failed") {
+      geo.fix(51.5, -0.13);
+      await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("failed"));
+    }
+    expect(liveShareCrewStopSeat()).toEqual(seat);
+    setProviderIdentity("supabase", "crew-stop-owner-b");
+    expect(liveShareCrewStopSeat()).toBeNull();
+    setProviderIdentity("supabase", null);
+  });
+
   it.each(["asking", "no-signal"])("ends a %s watch at the deadline without another fix", async (status) => {
     vi.useFakeTimers();
     const geo = fakeGeolocation();

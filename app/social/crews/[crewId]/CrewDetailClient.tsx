@@ -15,12 +15,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import ReportPerson from "@/components/social/ReportPerson";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
+import { liveShareCrewStopSeat, subscribeLiveShare } from "@/lib/planLiveLocationShare";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { trackCrewArrivedReceipts, trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -55,6 +56,7 @@ type LoadState = "loading" | "ready" | "missing" | "error";
 type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
 type Match = { id: string; handle: string; displayName?: string };
 type IdentityMessage = { identityKey: string; text: string } | null;
+const noStopSeat = () => null;
 
 function CrewArrivalControl({ arrival, busy, onMark }: {
   arrival: { open: boolean; here: boolean };
@@ -94,7 +96,7 @@ export default function CrewDetailClient({
   const scopeKey = `${crewId}:${identityKey}:${identityResolved ? "resolved" : "unresolved"}`;
   const [status, setStatus] = useState<LoadState>("loading");
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
-  const [liveLocationPlan, setLiveLocationPlan] = useState<{ scopeKey: string; planId: string } | null>(null);
+  const liveLocationSeat = useSyncExternalStore(subscribeLiveShare, liveShareCrewStopSeat, noStopSeat);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<IdentityMessage>(null);
@@ -201,7 +203,6 @@ export default function CrewDetailClient({
           return;
         }
         setCrew(result);
-        if (result.kind === "member") setLiveLocationPlan({ scopeKey, planId: result.plan.plan.id });
         setStatus("ready");
       })
       .catch((error: unknown) => {
@@ -945,9 +946,9 @@ export default function CrewDetailClient({
           </p>
         ) : null}
         {body}
-        {identityResolved && liveLocationPlan?.scopeKey === scopeKey
+        {identityResolved && liveLocationSeat
           && (status !== "ready" || loadedIdentityKey !== identityKey || crew?.kind !== "member") ? (
-          <PlanLiveLocation seat={{ planId: liveLocationPlan.planId, via: "crew" }} ownerKey={identityKey} stopOnly />
+          <PlanLiveLocation seat={liveLocationSeat} ownerKey={identityKey} stopOnly />
         ) : null}
       </main>
     </>

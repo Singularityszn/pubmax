@@ -55,15 +55,20 @@ type Session = Expiry & {
 let session: Session | null = null;
 const stopping = new Map<string, Expiry & { promise: Promise<Response> | null; ownerSignal: AbortSignal; onOwnerChange: () => void }>();
 const OFF_SNAPSHOT: LiveShareSnapshot = { planId: null, status: "off" };
-const snapshots = new Map<string, LiveShareSnapshot>();
+const snapshots = new Map<string, { view: LiveShareSnapshot; seat: LiveLocationSeat | null; ownerSignal: AbortSignal }>();
 const listeners = new Set<() => void>();
 
-function publish(planId: string, status: LiveShareStatus): void {
-  if (snapshots.get(planId)?.status === status) return;
-  snapshots.set(planId, { planId, status });
+function publish(planId: string, status: LiveShareStatus, seat?: LiveLocationSeat): void {
+  if (snapshots.get(planId)?.view.status === status) return;
+  const previous = snapshots.get(planId);
+  snapshots.set(planId, {
+    view: { planId, status },
+    seat: seat ?? previous?.seat ?? null,
+    ownerSignal: seat ? readProviderAccountSignal() : previous?.ownerSignal ?? readProviderAccountSignal(),
+  });
   if (!session && !stopping.size) {
     for (const [id, state] of snapshots) {
-      if (state.status === "busy") snapshots.delete(id);
+      if (state.view.status === "busy") snapshots.delete(id);
     }
   }
   for (const listener of listeners) listener();
@@ -75,7 +80,16 @@ export function subscribeLiveShare(listener: () => void): () => void {
 }
 
 export function liveShareSnapshot(planId: string): LiveShareSnapshot {
-  return snapshots.get(planId) ?? OFF_SNAPSHOT;
+  return snapshots.get(planId)?.view ?? OFF_SNAPSHOT;
+}
+
+export function liveShareCrewStopSeat(): LiveLocationSeat | null {
+  const ownerSignal = readProviderAccountSignal();
+  for (const snapshot of snapshots.values()) {
+    if (snapshot.ownerSignal !== ownerSignal || ownerSignal.aborted || snapshot.seat?.via !== "crew") continue;
+    if (["asking", "on", "no-signal", "failed", "stopping"].includes(snapshot.view.status)) return snapshot.seat;
+  }
+  return null;
 }
 
 function halt(current: Session): void {
@@ -234,7 +248,7 @@ export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}):
   ownerSignal.addEventListener("abort", current.onOwnerChange, { once: true });
   setExpiry(seat.planId, current, deps.endsAt ? Date.parse(deps.endsAt) : null, now());
   if (session !== current) return;
-  publish(seat.planId, "asking");
+  publish(seat.planId, "asking", seat);
   current.watchId = geolocation.watchPosition((position) => onFix(current, position), (error) => onError(current, error), WATCH_OPTIONS);
   // A phone standing still may report nothing. Ask again so the crew sees a fresh dot.
   current.heartbeat = setInterval(() => {
@@ -293,6 +307,6 @@ export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<D
     }
   });
   stop.promise = deletion;
-  if (stopping.get(seat.planId) === stop) publish(seat.planId, "stopping");
+  if (stopping.get(seat.planId) === stop) publish(seat.planId, "stopping", current?.seat ?? seat);
   return (await deletion).clone();
 }

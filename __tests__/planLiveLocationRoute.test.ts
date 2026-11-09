@@ -10,6 +10,7 @@ vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => false }));
 
 import { DELETE, GET, PUT } from "@/app/api/plans/[id]/live-location/route";
 import { planLiveLocationEndsAtMs } from "@/lib/planLiveLocation";
+import { memoryPlanLiveLocations, memoryPlanLiveLocationStops } from "@/lib/planLiveLocationMemory";
 import { __resetMemoryRsvps, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { __resetMemoryPlans, memoryPlanStore, removeMemoryPlanInviteRsvpMember } from "@/lib/planStore";
 
@@ -46,6 +47,35 @@ const context = (id: string) => ({ params: Promise.resolve({ id }) });
 const read = async (id: string, token: string) => (await GET(request(id, token), context(id))).json();
 
 describe("live location through the private plan route", () => {
+  it.each(["ending", "completed", "abandoned", "completion"] as const)("deletes positions and Stop markers immediately on %s", async (terminal) => {
+    const { id, host, guest } = await night();
+    expect((await PUT(request(id, guest, "PUT", FIX), context(id))).status).toBe(200);
+    expect((await DELETE(request(id, host, "DELETE"), context(id))).status).toBe(200);
+    expect(memoryPlanLiveLocations.get(id)?.size).toBe(1);
+    expect(memoryPlanLiveLocationStops.get(id)?.size).toBe(1);
+    expect((await memoryPlanStore.addAction(id, host, { type: "arrived", stopPosition: 0, idempotencyKey: "live-location-terminal-arrival" })).ok).toBe(true);
+    const result = terminal === "completion"
+      ? await memoryPlanStore.complete(id, host, {
+        expectedRouteRevision: 1, ending: "get_home",
+        endingSelection: { kind: "get_home", optionId: "transport:nearest-station", evidenceSnapshot: { label: "Nearest station", confidence: "unknown" } },
+      })
+      : await memoryPlanStore.update(id, host, { status: terminal });
+    expect(result.ok).toBe(true);
+    expect(memoryPlanLiveLocations.has(id)).toBe(false);
+    expect(memoryPlanLiveLocationStops.has(id)).toBe(false);
+  });
+
+  it("purges expired positions and Stop markers when another Plan accesses the memory store", async () => {
+    const { id, host, guest } = await night();
+    await PUT(request(id, guest, "PUT", FIX), context(id));
+    await DELETE(request(id, host, "DELETE"), context(id));
+    vi.setSystemTime(new Date("2026-11-08T04:00:00Z"));
+    const other = await night(new Date().toISOString());
+    expect(await read(other.id, other.host)).toMatchObject({ live: true });
+    expect(memoryPlanLiveLocations.has(id)).toBe(false);
+    expect(memoryPlanLiveLocationStops.has(id)).toBe(false);
+  });
+
   it("shows a member's dot to the crew once they turn it on, and not before", async () => {
     const { id, host, guest, guestId } = await night();
     expect(await read(id, host)).toMatchObject({ live: true, sharing: false, people: [] });

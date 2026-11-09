@@ -4,7 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
-import { liveShareSnapshot } from "@/lib/planLiveLocationShare";
+import { liveShareSnapshot, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -300,6 +300,36 @@ it.each([403, 404, "preview"] as const)("keeps account Stop after the Crew refre
   expect(geolocation.clearWatch).toHaveBeenCalledWith(7);
   expect(liveShareSnapshot("60000000-0000-4000-8000-000000000001").status).toBe("off");
   expect(button("Stop sharing")).toBeUndefined();
+});
+
+it.each([403, 404, "preview"] as const)("restores account Stop after navigation with a %s Crew read", async (result) => {
+  state.liveLocationEnabled = true;
+  setProviderIdentity("supabase", "crew-location-owner");
+  let fix!: PositionCallback;
+  const geolocation = { watchPosition: vi.fn((success: PositionCallback) => { fix = success; return 7; }), clearWatch: vi.fn(), getCurrentPosition: vi.fn() };
+  Object.defineProperty(navigator, "geolocation", { configurable: true, value: geolocation });
+  const button = (text: string) => Array.from(container.querySelectorAll("button")).find((node) => node.textContent === text);
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  await act(async () => button("Share my location tonight")!.click());
+  await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+  expect(state.sharing).toBe(true);
+  await act(async () => root.render(null));
+  state.crewReadResult = result;
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  expect(container.textContent).not.toContain("Private mate");
+  expect(button("Stop sharing")).toBeDefined();
+  await act(async () => root.render(null));
+  vi.mocked(fetch).mockResolvedValueOnce(Response.json({}, { status: 503 }));
+  await stopLiveLocationShare({ planId: "60000000-0000-4000-8000-000000000001", via: "crew" });
+  expect(liveShareSnapshot("60000000-0000-4000-8000-000000000001").status).toBe("failed");
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  expect(container.textContent).not.toContain("Private mate");
+  expect(button("Stop sharing")).toBeDefined();
+  await act(async () => button("Stop sharing")!.click());
+  expect(state.sharing).toBe(false);
+  expect(liveShareSnapshot("60000000-0000-4000-8000-000000000001").status).toBe("off");
+  expect(button("Stop sharing")).toBeUndefined();
+  expect(geolocation.watchPosition).toHaveBeenCalledTimes(1);
 });
 
 it("lets an open-crawl member recover from failure and mark Here once", async () => {

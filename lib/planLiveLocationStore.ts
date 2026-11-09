@@ -1,7 +1,7 @@
 import "server-only";
 
 import { isPlanId } from "@/lib/planId";
-import { memoryPlanLiveLocations, type StoredFix } from "@/lib/planLiveLocationMemory";
+import { clearMemoryPlanLiveLocation, memoryPlanLiveLocations, memoryPlanLiveLocationStops, purgeExpiredMemoryPlanLiveLocations, type StoredFix, type StoredStop } from "@/lib/planLiveLocationMemory";
 import {
   cleanLiveLocationFix,
   isPlanLiveLocationOpen,
@@ -23,12 +23,9 @@ export type PlanLiveLocationAuthority = { kind: "plan"; token: string } | { kind
 type Backend = {
   operate(id: string, authority: PlanLiveLocationAuthority, operation: PlanLiveLocationOperation, fix: PlanLiveLocationFix | null, startAt: number | null): Promise<PlanLiveLocationResult>;
 };
-type Stopped = { stoppedAt: number; expiresAt: number };
-
-const stopped = new Map<string, Map<string, Stopped>>();
-
 const memoryBackend: Backend = {
   async operate(id, authority, operation, fix, startAt) {
+    purgeExpiredMemoryPlanLiveLocations(Date.now());
     // The keyless store has no Open Crews.
     if (authority.kind !== "plan") return { ok: false, error: "not_found" };
     const member = await planMemberIdentityResult(id, authority.token);
@@ -41,15 +38,12 @@ const memoryBackend: Backend = {
     const live = isPlanLiveLocationOpen(state.plan.plan.startTime, state.plan.plan.status, now);
     const endsAt = planLiveLocationEndsAtMs(state.plan.plan.startTime);
     const crew = new Map(state.plan.crew.map((seat) => [seat.id, seat.name]));
+    if (!live) clearMemoryPlanLiveLocation(id);
     const rows = memoryPlanLiveLocations.get(id) ?? new Map<string, StoredFix>();
-    const stops = stopped.get(id) ?? new Map<string, Stopped>();
-    for (const [memberId, row] of rows) {
-      if (!live || row.expiresAt <= now || !crew.has(memberId)) rows.delete(memberId);
+    const stops = memoryPlanLiveLocationStops.get(id) ?? new Map<string, StoredStop>();
+    for (const memberId of rows.keys()) {
+      if (!crew.has(memberId)) rows.delete(memberId);
     }
-    for (const [memberId, stop] of stops) {
-      if (!live || stop.expiresAt <= now) stops.delete(memberId);
-    }
-    stopped.set(id, stops);
     const self = member.identity.memberId;
     if (operation === "share") {
       if (!live || endsAt === null) return { ok: false, error: "ended" };
@@ -61,7 +55,10 @@ const memoryBackend: Backend = {
       if (live && endsAt !== null) stops.set(self, { stoppedAt: now, expiresAt: endsAt });
       rows.delete(self);
     }
-    memoryPlanLiveLocations.set(id, rows);
+    if (rows.size) memoryPlanLiveLocations.set(id, rows);
+    else memoryPlanLiveLocations.delete(id);
+    if (stops.size) memoryPlanLiveLocationStops.set(id, stops);
+    else memoryPlanLiveLocationStops.delete(id);
     const people: PlanLiveLocationPerson[] = live && operation !== "stop" ? [...rows.values()]
       .filter((row) => row.memberId !== self)
       .map((row) => ({ memberId: row.memberId, name: crew.get(row.memberId)!, latitude: row.latitude, longitude: row.longitude, accuracyM: row.accuracyM, updatedAt: row.updatedAt }))
