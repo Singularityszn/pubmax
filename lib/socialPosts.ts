@@ -15,9 +15,9 @@ const SOCIAL_POST_COMMENT_POLICIES = ["open", "friends", "locked"] as const;
 
 type SocialPostKind = (typeof SOCIAL_POST_KINDS)[number];
 export type SocialPostVisibility = (typeof SOCIAL_POST_VISIBILITIES)[number];
-type SocialPostStatus = "visible" | "hidden" | "removed";
+export type SocialPostStatus = "visible" | "hidden" | "removed";
 export type SocialPostCommentPolicy = (typeof SOCIAL_POST_COMMENT_POLICIES)[number];
-type SocialPostModerationState = "pending" | "approved" | "needs_review";
+export type SocialPostModerationState = "pending" | "approved" | "needs_review";
 
 export type SocialPostPhoto = {
   mediaId: string;

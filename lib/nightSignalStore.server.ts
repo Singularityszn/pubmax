@@ -77,7 +77,7 @@ type CandidateRow = {
   observed_at: string;
   expires_at: string;
   confidence: number;
-  review_state: string;
+  review_state: NightSignalReviewState;
   verification: string;
   route_effect: string;
   corroborating_sources: unknown;
