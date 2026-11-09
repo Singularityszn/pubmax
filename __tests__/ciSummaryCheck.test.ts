@@ -147,6 +147,7 @@ describe("the required checks", () => {
   it("skips every unrelated-label job under a separate check name", () => {
     const { jobs } = workflow("e2e.yml");
     const names: Record<string, string> = {
+      "queue-proof": "Merge queue proof",
       "law-pins": "Browser law pins",
       "change-scope": "Change scope",
       "layout-pins-1": "Browser layout pins (1/3)",
@@ -188,12 +189,12 @@ describe("a main push after the merge queue", () => {
   type Event = "pull_request" | "merge_group" | "push";
   type Proof = { result: "success" | "failure"; passed?: string };
 
-  // A proved main push keeps Review scope and the layout pins, which the queue
-  // does not run. The queue runs Production build, but main must save its cache
+  // A proved main push keeps Review scope, which the queue does not run.
+  // The queue runs Production build, but main must save its cache
   // for pull requests, which cannot restore caches from merge queue refs.
   const MAIN_ONLY: Record<string, string[]> = {
     "ci.yml": ["production-build", "review-scope"],
-    "e2e.yml": ["change-scope", "layout-pins-1", "layout-pins-2", "layout-pins-3"],
+    "e2e.yml": ["change-scope"],
     "rls-session.yml": [],
     "security-ci.yml": [],
   };
@@ -221,6 +222,7 @@ describe("a main push after the merge queue", () => {
       const expression = String(job.if ?? "true").trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
       const translated = expression
         .replaceAll("needs.*.result", "Object.values(needs).map((need) => need.result)")
+        .replaceAll("github.event.pull_request.labels.*.name", "pullRequestLabels")
         .replace(/needs\.([\w-]+)/g, 'needs["$1"]');
       const holds = runInNewContext(`(${translated})`, {
         github: {
@@ -229,6 +231,7 @@ describe("a main push after the merge queue", () => {
           event: { pull_request: { head: { repo: { full_name: "Singularityszn/pubmax" } } } },
         },
         needs,
+        pullRequestLabels: [],
         always: () => true,
         cancelled: () => false,
         success: allSucceeded,

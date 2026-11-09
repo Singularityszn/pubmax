@@ -32,8 +32,8 @@ export function browserJobExpression(
   const expression = condition
     .trim()
     .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1")
-    .replaceAll("needs.change-scope", 'needs["change-scope"]')
     .replaceAll("needs.*.result", "jobResults")
+    .replace(/needs\.([\w-]+)/g, 'needs["$1"]')
     .replaceAll("github.event.pull_request.labels.*.name", "pullRequestLabels");
   return runInNewContext(`(${expression})`, {
     github: {
@@ -48,7 +48,10 @@ export function browserJobExpression(
     pullRequestLabels: event === "pull_request" ? labels : [],
     jobResults: results,
     matrix: { shard: 1 },
-    needs: { "change-scope": { result, outputs: { layout } } },
+    needs: {
+      "change-scope": { result, outputs: { layout } },
+      "queue-proof": { result: "skipped", outputs: {} },
+    },
     cancelled: () => cancelled,
     always: () => true,
     success: () => !cancelled && (results.length ? results : [result]).every((value) => value === "success"),

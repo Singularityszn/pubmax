@@ -69,8 +69,9 @@ The queue also runs a production build. The main push keeps `Production build`
 only to save the Next.js build cache for later pull requests. GitHub scopes
 caches to their ref. Pull requests can restore caches from their own ref and
 the base branch, but cannot restore caches from temporary merge queue refs.
-`Review scope` and the layout pins still run because the queue does not run
-them. When the proof finds no run, or the API call fails, every job runs.
+`Review scope` still runs because the queue does not run it. The layout pins
+run in the queue and skip every `main` push. When the proof finds no run, or
+the API call fails, the proof-gated jobs run.
 `__tests__/ciSummaryCheck.test.ts` holds which jobs run for each event.
 
 On pull requests and merge groups, `Coverage` runs after successful unit
