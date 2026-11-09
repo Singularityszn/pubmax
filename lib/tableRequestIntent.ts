@@ -16,7 +16,7 @@ const NUMBER_WORDS = [
 ];
 
 const COUNT_TOKEN = `(?:\\d+(?:[.:]\\d+)?|${NUMBER_WORDS.join("|")}|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)`;
-const COUNT_EXPRESSION = `${COUNT_TOKEN}(?:(?:\\s*[-–—/]\\s*|\\s+(?:(?:to|or|and)\\s+)?)${COUNT_TOKEN})*`;
+const COUNT_EXPRESSION = `${COUNT_TOKEN}(?:(?:\\s*[-–\\u2014/]\\s*|\\s+(?:(?:to|or|and)\\s+)?)${COUNT_TOKEN})*`;
 
 /**
  * The one crew size a table ask names, or null. A question that is not about
