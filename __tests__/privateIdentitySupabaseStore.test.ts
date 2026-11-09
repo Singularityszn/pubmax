@@ -70,6 +70,23 @@ describe("Supabase private identity updates", () => {
     });
   });
 
+  it("refuses to write an adult date of birth over a stored under-18 one", async () => {
+    state.rows = [{ ...existing }];
+
+    await expect(
+      supabasePrivateIdentityStore.updateDetails("user-1", {
+        dateOfBirth: "1990-01-01",
+      }),
+    ).resolves.toBe("under_18_locked");
+    expect(state.upserted).toBeNull();
+
+    await expect(
+      supabasePrivateIdentityStore.updateDetails("user-1", {
+        dateOfBirth: "2016-03-04",
+      }),
+    ).resolves.toMatchObject({ dateOfBirth: "2016-03-04" });
+  });
+
   it("creates the identity row for a claim-path account that has none", async () => {
     // The production deadlock: a handle claimed through the early path stores
     // no date of birth, so there is no row, and refusing the save for the row's

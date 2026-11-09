@@ -278,6 +278,44 @@ describe("/api/identity/onboarding", () => {
     });
   });
 
+  it("never lets an edit turn a stored under-18 date of birth into an adult one", async () => {
+    authState.userId = "user-young";
+    await POST(
+      request("POST", { handle: "young_owl", dateOfBirth: "2015-02-03" }),
+    );
+
+    const overturned = await PATCH(
+      request("PATCH", { dateOfBirth: "1990-01-01", fullName: "Young Owl" }),
+    );
+    expect(overturned.status).toBe(403);
+    expect(await overturned.json()).toMatchObject({
+      code: "DATE_OF_BIRTH_LOCKED",
+      error: expect.stringContaining("karan@pubmaxxing.com"),
+    });
+
+    const reread = (await (await GET(request())).json()) as {
+      dateOfBirth?: string;
+      fullName?: string;
+    };
+    expect(reread.dateOfBirth).toBe("2015-02-03");
+    expect(reread.fullName).toBeUndefined();
+    expect(
+      accountIsAdult({ dateOfBirth: reread.dateOfBirth ?? null }, Date.parse(NOW)),
+    ).toBe(false);
+
+    const corrected = await PATCH(request("PATCH", { dateOfBirth: "2016-03-04" }));
+    expect(corrected.status).toBe(200);
+    expect(await corrected.json()).toMatchObject({ dateOfBirth: "2016-03-04" });
+
+    authState.userId = "user-adult";
+    await POST(
+      request("POST", { handle: "adult_owl", dateOfBirth: "1990-01-01" }),
+    );
+    const madeYounger = await PATCH(request("PATCH", { dateOfBirth: "2015-02-03" }));
+    expect(madeYounger.status).toBe(200);
+    expect(await madeYounger.json()).toMatchObject({ dateOfBirth: "2015-02-03" });
+  });
+
   it("rejects an invalid or future date of birth edit", async () => {
     authState.userId = "user-1";
     await POST(
