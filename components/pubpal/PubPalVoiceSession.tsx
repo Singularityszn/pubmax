@@ -423,6 +423,10 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
 
   // A call never runs on a locked or hidden screen. The transcript stays, and
   // "Carry on" starts a new call when the person is back.
+  // SDK limit (@elevenlabs/react 1.20, @elevenlabs/client 1.31): a start that
+  // is still connecting cannot be cancelled. The SDK holds its own microphone
+  // and output until startup finishes, then endSession() closes them. So a lock
+  // during startup ends the call when the SDK finishes starting, not at once.
   usePageLeft(useCallback((): void => {
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
