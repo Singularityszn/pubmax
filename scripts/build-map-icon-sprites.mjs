@@ -160,10 +160,8 @@ function pack(icons) {
 // PNG: 8-bit RGBA, no interlace, no colour chunks, and filter type None on
 // every row. None is not only the cheapest to decode (the runtime inflates and
 // copies rows, components/map/canvas/iconSprite.ts decodeSpritePng), it is also
-// the SMALLEST here: measured on this atlas, light 60.4 KB with None against
-// 75.4 KB adaptive, 77.3 KB Up and 81.6 KB Paeth, and dark 68.7 KB against 87.1.
-// The anti-aliased edges defeat the predictors, the transparent runs do not
-// need them.
+// the smallest encoding measured for the original unsplit atlas. The icon
+// generation and loading contract is in docs/rules/components-map-canvas-and-pins.md.
 // ---------------------------------------------------------------------------
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n;

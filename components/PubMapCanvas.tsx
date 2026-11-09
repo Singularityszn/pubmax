@@ -1674,7 +1674,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (!webgl2.hasContext) {
         throw new Error(webgl2.status || "WebGL2 context unavailable");
       }
-      // The icon atlas decodes while the style loads (canvas/iconSprite.ts).
+      // The main icon atlas decodes while the style loads (canvas/iconSprite.ts).
       preloadMapIconSprite(themeRef.current);
       map = new maplibregl.Map({
         container,

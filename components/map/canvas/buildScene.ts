@@ -706,10 +706,8 @@ export function buildTransitLines(ctx: SceneCtx) {
 
 function registerSceneIcons(ctx: SceneCtx) {
   const { map, tokens, dark } = ctx;
-  // --- Designed marker images (landmarks, TfL marks, glasses, pills), in the
-  // live theme's colours. A setStyle wipes them, so every build registers them
-  // again: from the pre-drawn sprite when it can answer, drawn when it cannot
-  // (components/map/canvas/iconSprite.ts).
+  // setStyle wipes the images. iconSprite.ts owns per-sheet registration and
+  // the missing-image resolver supplies landmarks whose sheet is not ready.
   registerSceneIconImages(map, dark ? "dark" : "light", iconTokensFor(tokens, dark));
   markPubmaxTiming("pubmax:map-icons-ready");
 }
