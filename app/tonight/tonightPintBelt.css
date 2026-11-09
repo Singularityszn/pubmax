@@ -4,7 +4,17 @@
    mats placed. Until then (no script, a slow script, a failed chunk) the list
    is the answer at every width, so the section is never an empty box. */
 .pintBelt {
+  --pint-belt-track: var(--color-surface-panel);
+  --pint-belt-mat: var(--panel-raised);
   display: none;
+}
+
+/* On the near-black page the recessed panel and the raised card are both too
+   close to the floor, so the belt and its mats each move one step up the
+   ladder. */
+html[data-theme="dark"] .pintBelt {
+  --pint-belt-track: var(--panel-raised);
+  --pint-belt-mat: var(--panel-overlay);
 }
 
 .pintBelt[data-ready] {
@@ -40,7 +50,8 @@
   cursor: grabbing;
 }
 
-/* The belt the mats ride: one wide band on the loop's centre line. */
+/* The belt the mats ride: one wide band on the loop's centre line, filled so
+   a short loop leaves no hole between its two straights. */
 .pintBeltTrack {
   position: absolute;
   inset: 0;
@@ -48,8 +59,8 @@
 }
 
 .pintBeltTrack path {
-  fill: none;
-  stroke: var(--color-surface-panel);
+  fill: var(--pint-belt-track);
+  stroke: var(--pint-belt-track);
   stroke-width: 124px;
   stroke-linejoin: round;
 }
@@ -66,7 +77,7 @@
   box-sizing: border-box;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-pill);
-  background: var(--panel-raised);
+  background: var(--pint-belt-mat);
   box-shadow: var(--shadow-sm);
   color: var(--ink);
   text-align: center;
