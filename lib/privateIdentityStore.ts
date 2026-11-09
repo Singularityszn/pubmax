@@ -1,5 +1,6 @@
 import "server-only";
 
+import { dateOfBirthEditOverturnsMinor } from "@/lib/adultGate";
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import {
@@ -71,13 +72,25 @@ type CompleteOnboardingResult =
       error: string;
     };
 
+/**
+ * `updateDetails` refuses a date of birth that would turn a stored under-18
+ * answer into an adult one (`dateOfBirthEditOverturnsMinor`). Only support can
+ * make that change.
+ */
+export const UNDER_18_LOCKED = "under_18_locked";
+
+type UpdateDetailsResult =
+  | PrivateIdentityRecord
+  | typeof UNDER_18_LOCKED
+  | null;
+
 type PrivateIdentityStore = {
   read(userId: string, now?: number): Promise<PrivateIdentityRecord | null>;
   erase(userId: string): Promise<void>;
   updateDetails(
     userId: string,
     details: PrivateIdentityDetailsInput,
-  ): Promise<PrivateIdentityRecord | null>;
+  ): Promise<UpdateDetailsResult>;
   completeOnboarding(
     input: CompleteOnboardingInput,
   ): Promise<CompleteOnboardingResult>;
@@ -182,6 +195,12 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
     const profile = key ? await profileStore().getByUserId(key) : null;
     const previous = (key ? memoryPrivateIdentities.get(key) : null) ?? null;
     if (!profile) return null;
+    if (
+      details.dateOfBirth &&
+      dateOfBirthEditOverturnsMinor(previous?.dateOfBirth, details.dateOfBirth)
+    ) {
+      return UNDER_18_LOCKED;
+    }
     // A save CREATES the row. An account claimed through the early handle path
     // has no identity row, and refusing the save left the date of birth it was
     // typing with nowhere to go. The row still needs one, so a first save with
@@ -300,6 +319,12 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     const profile = await profileStore().getByUserId(key);
     if (!profile) return null;
     const current = await this.read(key);
+    if (
+      details.dateOfBirth &&
+      dateOfBirthEditOverturnsMinor(current?.dateOfBirth, details.dateOfBirth)
+    ) {
+      return UNDER_18_LOCKED;
+    }
     // A save CREATES the row. Verified in production: @karan claimed a handle
     // through the early path, which stores no date of birth, so there was no
     // row here and the save that would have made one was refused by its own
