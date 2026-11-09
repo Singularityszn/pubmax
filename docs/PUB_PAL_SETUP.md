@@ -290,7 +290,10 @@ Voice uses the same opening builder in its first-message override.
    Both paths also carry a **taste read** (`lib/palTaste.ts`, read by
    `lib/palTaste.server.ts`) from the verified owner's declared favourite drink
    and their own records: diary visits and ratings, pint drops (drink, pint
-   price, vibe tags) and saved pubs. Typed chat puts it after the
+   price, vibe tags) and saved pubs. The "Saved but not tried yet" wishlist
+   excludes pubs in the diary, pint drops or the "Been here" saved list.
+   This exclusion applies even when another saved list contains the pub. "Been here" adds no
+   dated visits or inferred visit patterns. Typed chat puts it after the
    memories, in the person's voice; voice gets it inside the `recall_memories`
    answer. It runs beside the signed-URL request with a 900 ms budget and a
    two-minute in-process cache, so a turn does not wait on it, and a slow or
