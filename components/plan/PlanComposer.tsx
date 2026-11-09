@@ -793,6 +793,10 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
 
 const COMPOSER_OWNERSHIP_CHANGED = "The saved planning request changed. Reload the plan before continuing.";
 
+function assertComposerOwnership(owned: boolean): void {
+  if (!owned) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
+}
+
 type ComposerDraftPair = { v1: string | null; v2: string | null };
 type ComposerRequestOwner = {
   identity: ComposerHydration["acceptedAnchor"];
@@ -991,6 +995,29 @@ function composerRouteForHandoff(envelope: ParsedPlanRouteDraft | null) {
   return envelope?.value.routeStale ? null : envelope;
 }
 
+function recoveredComposerAnchor(
+  records: Omit<Parameters<typeof recoverPlanDrafts>[0], "route">,
+  envelope: ParsedPlanRouteDraft | null,
+  resolved: ReturnType<typeof recoverPlanDrafts>,
+  acceptedAnchor: ComposerHydration["acceptedAnchor"],
+): ComposerHydration["acceptedAnchor"] {
+  const acceptedIntent = records.planningIntent
+    && Date.parse(records.planningIntent.acceptedAt) < Date.parse(envelope?.savedAt ?? "")
+    ? records.planningIntent : null;
+  const provisionalAnchor = records.plan?.draft.acceptedAnchor ?? (acceptedIntent ? {
+    venueId: acceptedIntent.acceptedVenueId,
+    source: acceptedIntent.source,
+    cityId: acceptedIntent.cityId,
+    acceptedArea: acceptedIntent.acceptedArea,
+    startsAt: acceptedIntent.startsAt,
+    expiresAt: acceptedIntent.expiresAt,
+  } : null);
+  return (resolved.datedProvisionalSuccessor || resolved.routeWins) && !resolved.acceptanceUnavailable && provisionalAnchor && acceptedAnchor
+    && provisionalAnchor.venueId === acceptedAnchor.venueId
+    && provisionalAnchor.source === acceptedAnchor.source
+    ? provisionalAnchor : acceptedAnchor;
+}
+
 function projectComposerRecovery(
   records: Omit<Parameters<typeof recoverPlanDrafts>[0], "route">,
   routeRecovery: ReturnType<typeof readComposerRouteDraft>,
@@ -1030,22 +1057,7 @@ function projectComposerRecovery(
       planningIntent: resolved.planningIntent,
       rememberedArea: resolved.routeWins ? null : readRememberedArea(),
     });
-    const acceptedIntent = records.planningIntent
-      && Date.parse(records.planningIntent.acceptedAt) < Date.parse(routeRecovery.envelope?.savedAt ?? "")
-      ? records.planningIntent : null;
-    const provisionalAnchor = records.plan?.draft.acceptedAnchor ?? (acceptedIntent ? {
-      venueId: acceptedIntent.acceptedVenueId,
-      source: acceptedIntent.source,
-      cityId: acceptedIntent.cityId,
-      acceptedArea: acceptedIntent.acceptedArea,
-      startsAt: acceptedIntent.startsAt,
-      expiresAt: acceptedIntent.expiresAt,
-    } : null);
-    if ((resolved.datedProvisionalSuccessor || resolved.routeWins) && !resolved.acceptanceUnavailable && provisionalAnchor && candidate.acceptedAnchor
-      && provisionalAnchor.venueId === candidate.acceptedAnchor.venueId
-      && provisionalAnchor.source === candidate.acceptedAnchor.source) {
-      candidate.acceptedAnchor = provisionalAnchor;
-    }
+    candidate.acceptedAnchor = recoveredComposerAnchor(records, routeRecovery.envelope, resolved, candidate.acceptedAnchor);
     handoff = candidate.active ? candidate : null;
   } catch {}
   const provisionalRequest = resolved.provisionalRequest || Boolean(seedProvisionalStop1({
@@ -3572,7 +3584,21 @@ function PlanComposerForm({
       setRouteStatus("The route is still a preview because its context changed. Refresh it before locking.");
       return false;
     }
+    if (!ownsAcceptance(requestOwner.current)) {
+      setError(COMPOSER_OWNERSHIP_CHANGED);
+      return false;
+    }
     return true;
+  }
+
+  function clearConsumedComposerDrafts(owner: ComposerRequestOwner | null): void {
+    assertComposerOwnership(ownsAcceptance(owner));
+    settleConsumedPlanningIntent(completeStops, owner);
+    clearPersistedPlanDrafts({
+      planDraft: composerAcceptanceStorage(safeSessionStorage(), owner, "session"),
+      routeDraft: composerAcceptanceStorage(safeLocalStorage(), owner, "local"),
+    });
+    if (ownsAcceptance(owner)) clearPlanIntakeDraft(composerAcceptanceStorage(safeLocalStorage(), owner, "local"));
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -3582,10 +3608,6 @@ function PlanComposerForm({
     const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
     if (signal.aborted) return;
     if (!validatePlanSubmission()) return;
-    if (!ownsAcceptance(requestOwner.current)) {
-      setError(COMPOSER_OWNERSHIP_CHANGED);
-      return;
-    }
     setSubmitting(true);
     setError("");
     try {
@@ -3607,17 +3629,17 @@ function PlanComposerForm({
       });
       const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload, signal);
       if (signal.aborted) return;
-      if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
+      assertComposerOwnership(ownsAcceptance(requestOwner.current));
       const response = await fetch("/api/plans", {
         signal,
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
         body: JSON.stringify(createPayload),
       });
-      if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
+      assertComposerOwnership(ownsAcceptance(requestOwner.current));
       const body = await response.json();
       if (signal.aborted) return;
-      if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
+      assertComposerOwnership(ownsAcceptance(requestOwner.current));
       if (!response.ok || !body?.plan?.plan?.id) {
         // Surface anchored-lock failures honestly: 422 for invalid or expired
         // proof, and 409 for replay conflict.
@@ -3663,7 +3685,7 @@ function PlanComposerForm({
         writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });
         const metadataPatch = createdPlanMetadataPatch(body.plan as PlanState, nightContext);
         if (metadataPatch) {
-          if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
+          assertComposerOwnership(ownsAcceptance(requestOwner.current));
           const metadataResponse = await fetch(`/api/plans/${planId}`, {
             signal,
             method: "PATCH",
@@ -3674,7 +3696,7 @@ function PlanComposerForm({
             body: JSON.stringify(metadataPatch),
           });
           if (signal.aborted) return;
-          if (!ownsAcceptance(requestOwner.current)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
+          assertComposerOwnership(ownsAcceptance(requestOwner.current));
           if (!metadataResponse.ok) {
             discardBody(metadataResponse);
             throw new Error("The route was created, but its details could not be saved. Try again.");
@@ -3685,13 +3707,7 @@ function PlanComposerForm({
       trackMeaningfulCoreAction("plan_saved");
       rememberPlanHostName(safeLocalStorage(), creatorName);
       const owner = requestOwner.current;
-      if (!ownsAcceptance(owner)) throw new Error(COMPOSER_OWNERSHIP_CHANGED);
-      settleConsumedPlanningIntent(completeStops, owner);
-      clearPersistedPlanDrafts({
-        planDraft: composerAcceptanceStorage(safeSessionStorage(), owner, "session"),
-        routeDraft: composerAcceptanceStorage(safeLocalStorage(), owner, "local"),
-      });
-      if (ownsAcceptance(owner)) clearPlanIntakeDraft(composerAcceptanceStorage(safeLocalStorage(), owner, "local"));
+      clearConsumedComposerDrafts(owner);
       clearPersistentPlanMutationKey("create", operationKey);
       haptic("plan-locked");
       rememberLockedReportLine(planId, generatedReportRef.current, completeStops);
