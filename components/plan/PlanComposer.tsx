@@ -379,8 +379,9 @@ function generatedRouteFeedback(input: {
   submittedContext: Partial<NightContext>;
   generatedAnchor: GeneratedPlanAnchor | null;
   suggested: DraftStop[];
+  refreshed: boolean;
 }): { reconciled: NightContext | null; conciergeNote: string; routeStatus: string } {
-  const { inferredContext, submittedContext, generatedAnchor, suggested } = input;
+  const { inferredContext, submittedContext, generatedAnchor, suggested, refreshed } = input;
   const anchorOnly = generatedAnchor?.outcome === "anchor-only";
   const reconciled = inferredContext
     ? reconcileGeneratedNightContext(
@@ -391,7 +392,7 @@ function generatedRouteFeedback(input: {
     : null;
   const routeStatus = anchorOnly
     ? `We kept ${suggested[0]!.venueName}. We could not build the ${normalizePlanStopCount(reconciled?.stopCount)}-stop route you asked for. Change the details or add pubs.`
-    : "Route refreshed. Review the preview, then lock it in when it feels right.";
+    : `${refreshed ? "Route refreshed" : "Route ready"}. Review the preview, then lock it in when it feels right.`;
   const conciergeNote = anchorOnly
     ? routeStatus
     : `${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`;
@@ -3136,7 +3137,9 @@ function PlanComposerForm({
     }
     setSorting(true);
     setError("");
-    setRouteStatus(palDraftCheckingLine(palDraft, "Refreshing the route and rechecking every stop for your updated night."));
+    setRouteStatus(palDraftCheckingLine(palDraft, routeSorted
+      ? "Refreshing the route and rechecking every stop for your updated night."
+      : "Building the route and checking every stop for your night."));
     let responseStatus: number | null = null;
     try {
       // The handoff policy owns fallback order and protects an accepted first pub.
@@ -3212,6 +3215,7 @@ function PlanComposerForm({
         submittedContext,
         generatedAnchor,
         suggested,
+        refreshed: routeSorted,
       });
       if (reconciled) {
         setNightContext(reconciled);
@@ -3845,11 +3849,13 @@ function PlanComposerForm({
         <>
           {resultMode ? (
             <>
-              {resultHeader}
-              {stopsBlock}
-              {budgetLedger}
-              {dryRoundLedger}
-              {resultFinePrint}
+              <div className="planResult__route">
+                {resultHeader}
+                {stopsBlock}
+                {budgetLedger}
+                {dryRoundLedger}
+                {resultFinePrint}
+              </div>
               {resultStrip}
               {fieldsBlock}
               {coverageBlock}

@@ -1603,8 +1603,13 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 .planComposer > .planRouteMiniMap,
 .planComposer > [data-testid="plan-route-strip-pending"],
-.planComposer > .planResult__provenance {
+.planResult__route > .planResult__provenance {
   grid-column: 1 / -1;
+}
+/* The route column. On a phone it is not a box: its children stay items of the
+   composer grid. On a wide screen it is one item, so the map sits beside it. */
+.planResult__route {
+  display: contents;
 }
 
 .planResult__top {
@@ -1670,6 +1675,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     white-space: nowrap;
   }
 }
+/* The status takes focus only so a screen reader reads it. It is not a
+   control, so it shows no focus ring. */
+.planResult__status:focus-visible,
+.planComposer__routeStatus:focus-visible {
+  outline: none;
+}
 .planResult__status {
   margin: 0;
   min-height: 1.35em;
@@ -1706,6 +1717,10 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
+}
+.planRouteMiniMap--strip .planRouteMiniMap__accuracy {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
 }
 .planRouteMiniMap--strip .planRouteMiniMap__attrib {
   right: var(--space-2);
@@ -2107,19 +2122,21 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   }
 }
 
-/* Wide screens: the route reads left to right. Heading and cards on the left,
-   the map beside them. The map takes the row the heading lands on, whatever
-   full-width notes come first. It is not sticky: a sticky grid item is held
-   by the whole composer, so it slid down over the lock fields below. */
+/* Wide screens: the route reads left to right. The route column on the left,
+   the map beside it in the same row, whatever full-width notes come first. It
+   is not sticky: a sticky grid item is held by the whole composer, so it slid
+   down over the lock fields below. */
 @media (min-width: 1024px) {
-  .planComposer[data-result="true"] > .planResult,
-  .planComposer[data-result="true"] > .planComposer__stops {
+  .planComposer[data-result="true"] > .planResult__route {
     grid-column: 1;
+    display: grid;
+    gap: inherit;
+    align-content: start;
+    min-width: 0;
   }
   .planComposer[data-result="true"] > .planRouteMiniMap,
   .planComposer[data-result="true"] > [data-testid="plan-route-strip-pending"] {
     grid-column: 2;
-    grid-row: span 2;
     align-self: start;
     margin-top: var(--space-3);
   }
