@@ -323,7 +323,7 @@ if (args[0] === "issue" && args[1] === "list") {
     }
   });
 
-  it("runs the layout-pinning browser specs on every screen-code pull request, in three named shards", () => {
+  it("runs the layout-pinning browser specs in three named shards", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
     const layoutJobs = LAYOUT_PIN_JOBS.map((id) => defined(jobs[id], id));
     layoutJobs.forEach((job, index) => {
@@ -341,7 +341,6 @@ if (args[0] === "issue" && args[1] === "list") {
     expect(extraTestSteps).toEqual([]);
     expect(testStep?.if).toBeUndefined();
     const run = runWords(defined(testStep, "layout-pins Playwright step").run);
-    expect(run).toContain(`--shard=\${{ env.LAYOUT_SHARD }}/${LAYOUT_PIN_JOBS.length}`);
     // These specs hold layout once pinned by source-text tests and the
     // clicked UK arrival notice beside the live map credit control.
     for (const spec of [

@@ -299,7 +299,7 @@ describe("runners", () => {
       const condition = defined(workflow.jobs[defined(jobId)], where).if;
       for (const result of ["success", "failure", "cancelled", "skipped"]) {
         for (const layout of ["ui", "non-ui"]) {
-          expect(browserJobCondition(condition, { fork: true, result, layout }), where).toBe(false);
+          expect(browserJobCondition(condition, { fork: true, result, layout, labels: ["layout-pins"] }), where).toBe(false);
         }
       }
     }

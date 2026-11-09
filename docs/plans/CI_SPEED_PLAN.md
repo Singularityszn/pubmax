@@ -125,7 +125,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 
 ### Lever 7. Smaller wins in Browser tests (captain decides)
 
-- Balance the three macOS layout-pin shards by duration. Playwright splits by test count, and one shard ran at least 2.5 minutes longer than another.
+- Balance the three macOS layout-pin shards by duration. Done (captain, 9 Nov 2026): see the [CI runbook](../CI_RUNBOOK.md#timeouts-and-job-shape).
 - Shorten fixed waits in browser specs: `ci-speedup` counts about 65 seconds of `waitForTimeout` across 76 spec files.
 
 ### Also found (not speed)

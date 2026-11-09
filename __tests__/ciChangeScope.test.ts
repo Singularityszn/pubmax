@@ -15,7 +15,8 @@
 // still holds a Mac place while it waits. So one Linux job,
 // "Change scope", classifies the diff, and the three layout-pin jobs are
 // skipped whole when it succeeds and says no screen code changed (captain,
-// 23 Oct 2026). Main still runs them on every push. They are named
+// 23 Oct 2026). They run in the merge queue, and on a pull request only with
+// the `layout-pins` label (captain, 9 Nov 2026). They are named
 // jobs, not a matrix, so a skipped one reports under its own name, which
 // branch protection counts as passed. If the classifier fails, they run.
 //
@@ -212,22 +213,42 @@ const SCOPE_JOB = "e2e.yml / change-scope";
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
 
 describe("what each scope runs", () => {
-  // The captain requires recovery in law pins and onboarding in layout pins.
-  // Execute the workflow commands to reject a spec omitted from its required job.
-  it.each([
-    { jobId: "law-pins", name: "Run law-pinning journeys", spec: "e2e/one-good-night-recovery.spec.ts" },
-    { jobId: "layout-pins-1", name: "Run layout-pinning journeys", spec: "e2e/native-onboarding-actions.spec.ts" },
-    { jobId: "layout-pins-1", name: "Run layout-pinning journeys", spec: "e2e/web-first-run-journey.spec.ts" },
-  ])("runs $spec in $jobId for a spec-only pull request", ({ jobId, name, spec }) => {
-    expect(scopeOf([spec])).toBe("code");
-    const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed;
-    const run = defined(defined(e2e.jobs[jobId]).steps.find((entry) => entry.name === name)?.run);
+  const e2eJobs = () => defined(workflows.find(({ file }) => file === "e2e.yml")).parsed.jobs;
+
+  /** The spec files one job's Playwright step runs, with a stand-in npx. */
+  function specsRun(jobId: string, name: string): string[] {
+    const entry = defined(e2eJobs()[jobId], jobId) as Job & { env?: Record<string, unknown> };
+    const run = defined(entry.steps.find((candidate) => candidate.name === name)?.run, `${jobId} / ${name}`);
     const log = join(mkdtempSync(join(scratch, "journey-npx-")), "npx.log");
-    const result = runStep(run.replaceAll("${{ env.LAYOUT_SHARD }}", "1"), { NPX_LOG: log });
+    const result = runStep(run.replaceAll("${{ env.LAYOUT_SHARD }}", String(entry.env?.LAYOUT_SHARD)), { NPX_LOG: log });
     expect(result.status, result.stderr).toBe(0);
     const words = readFileSync(log, "utf8").trim().split("\n");
     expect(words.slice(0, 2)).toEqual(["playwright", "test"]);
-    expect(words).toContain(spec);
+    return words.filter((word) => word.startsWith("e2e/"));
+  }
+
+  // The captain requires recovery in law pins and onboarding in layout pins.
+  // Execute the workflow commands to reject a spec omitted from its required job.
+  it.each([
+    { jobIds: ["law-pins"], name: "Run law-pinning journeys", spec: "e2e/one-good-night-recovery.spec.ts" },
+    { jobIds: LAYOUT_PIN_JOBS, name: "Run layout-pinning journeys", spec: "e2e/native-onboarding-actions.spec.ts" },
+    { jobIds: LAYOUT_PIN_JOBS, name: "Run layout-pinning journeys", spec: "e2e/web-first-run-journey.spec.ts" },
+  ])("runs $spec in $jobIds for a spec-only pull request", ({ jobIds, name, spec }) => {
+    expect(scopeOf([spec])).toBe("code");
+    expect(jobIds.flatMap((jobId) => specsRun(jobId, name))).toContain(spec);
+  });
+
+  // The layout shards split the listed specs by measured time
+  // (scripts/ci/layout-pin-shard.mjs). A spec in no shard would never run,
+  // and one in two shards would run twice.
+  it("runs every listed layout spec in exactly one shard", () => {
+    const listed = defined(
+      defined(e2eJobs()["layout-pins-1"]).steps.find((entry) => entry.name === "Run layout-pinning journeys")?.run,
+    ).match(/e2e\/\S+\.spec\.ts/g) ?? [];
+    expect(listed.length).toBeGreaterThan(0);
+    const shards = LAYOUT_PIN_JOBS.map((jobId) => specsRun(jobId, "Run layout-pinning journeys"));
+    for (const [index, shard] of shards.entries()) expect(shard.length, LAYOUT_PIN_JOBS[index]).toBeGreaterThan(0);
+    expect(shards.flat().sort()).toEqual([...listed].sort());
   });
 
   it.each([
@@ -289,20 +310,25 @@ describe("what each scope runs", () => {
   });
 
   it.each([
-    { event: "pull_request", fork: false, result: "success", layout: "ui", expected: true },
-    { event: "pull_request", fork: true, result: "success", layout: "ui", expected: false },
-    { event: "pull_request", result: "success", layout: "non-ui", expected: false },
-    { event: "pull_request", result: "failure", layout: "non-ui", expected: true },
-    { event: "pull_request", fork: true, result: "failure", layout: "non-ui", expected: false },
-    { event: "pull_request", result: "cancelled", layout: "", expected: true },
-    { event: "pull_request", result: "skipped", layout: "", expected: true },
-    { event: "pull_request", cancelled: true, expected: false },
-    { event: "push", expected: true },
-    { event: "push", result: "failure", layout: "", expected: true },
-    { event: "push", cancelled: true, expected: false },
-    // The merge queue never starts a Mac job (captain, 7 Nov 2026).
-    { event: "merge_group", expected: false },
-    { event: "merge_group", result: "failure", layout: "", expected: false },
+    // A pull request starts the Mac pins only with the layout-pins label
+    // (captain, 9 Nov 2026).
+    { event: "pull_request", fork: false, result: "success", layout: "ui", expected: false },
+    { event: "pull_request", result: "failure", layout: "", expected: false },
+    { event: "pull_request", labels: ["needs-triage"], expected: false },
+    { event: "pull_request", labels: ["layout-pins"], fork: false, result: "success", layout: "ui", expected: true },
+    { event: "pull_request", labels: ["layout-pins"], fork: true, result: "success", layout: "ui", expected: false },
+    { event: "pull_request", labels: ["layout-pins"], result: "success", layout: "non-ui", expected: false },
+    { event: "pull_request", labels: ["layout-pins"], result: "failure", layout: "non-ui", expected: true },
+    { event: "pull_request", labels: ["layout-pins"], fork: true, result: "failure", layout: "non-ui", expected: false },
+    { event: "pull_request", labels: ["layout-pins"], result: "cancelled", layout: "", expected: true },
+    { event: "pull_request", labels: ["layout-pins"], result: "skipped", layout: "", expected: true },
+    { event: "pull_request", labels: ["layout-pins"], cancelled: true, expected: false },
+    // The merge queue runs them on the commit that lands.
+    { event: "merge_group", expected: true },
+    { event: "merge_group", result: "failure", layout: "", expected: true },
+    { event: "merge_group", cancelled: true, expected: false },
+    { event: "push", expected: false },
+    { event: "push", result: "failure", layout: "", expected: false },
     { event: "schedule", expected: false },
     { event: "schedule", result: "failure", expected: false },
     { event: "workflow_dispatch", expected: false },

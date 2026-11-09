@@ -38,10 +38,18 @@ The five workflows also listen for `merge_group`. The queue tests each pull
 request on top of `main` and the pull requests ahead of it, so a change that
 is green alone but red beside another one never reaches `main`. The general change classifiers read `merge_group` as `code`, so those Linux jobs run in full.
 Freshness checks the queue diff and runs its data checks only when data changed.
-The layout pins do not run in the queue: when they run was left
-as it was (captain, 7 Nov 2026), so they still run on each pull request push
-and each `main` push. A pull request enters the queue only after its own
-`Browser tests check`, which needs the layout pins, is green.
+
+The macOS layout pins run in the merge queue, not on a pull request push and
+not on a `main` push (captain, 9 Nov 2026). This replaces the 7 Nov 2026
+choice to leave them on each pull request push and each `main` push. The pool
+has three Mac places, a pull request waited about an hour for one, and each
+push held them for about 42 minutes. In the queue they test the exact commit
+that lands, which before ran them only after it was on `main`.
+`Browser tests check` still needs them, so a layout failure ejects its queue
+entry. To run them early on a pull request, add the `layout-pins` label. The
+label starts a new run with the pins, and each later push runs them again
+while the label stays. Adding any label starts a new `Browser tests` run.
+One queue entry takes all three Mac places.
 
 The queue moves `main` to the exact commit it tested. In
 `ci.yml`, `e2e.yml`, `rls-session.yml` and
@@ -152,9 +160,10 @@ exceptions and their reasons. They run on the self-hosted `pubmax-mac` pool
 
 GitHub's free plan runs about 20 hosted Linux jobs at once. Hosted macOS
 jobs waited a long time in GitHub's queue, so the macOS jobs moved to the
-`pubmax-mac` pool (captain, 6 Nov 2026). A pull request that changes code
-takes 3 Mac jobs (the layout shards). A docs or data pull request takes none
-(see "What a pull request runs"). The performance sweep once failed to
+`pubmax-mac` pool (captain, 6 Nov 2026). A merge queue entry takes 3 Mac
+jobs (the layout shards). A pull request takes none unless it carries the
+`layout-pins` label, and then none for a change with no screen code (see
+"What a pull request runs"). The performance sweep once failed to
 measure itself on a private repository's 2 vCPU runner; that is why it is
 not on the pull-request path.
 
@@ -282,7 +291,7 @@ The other Mac jobs listen only for `schedule`, `workflow_dispatch` or
 listens for `pull_request_target`. A skipped job counts as passed in branch
 protection, so a fork pull request reports its layout pins as skipped. Read
 such a pull request's screen changes by hand, or push its branch to this
-repository to run the pins.
+repository and add the `layout-pins` label to run the pins.
 
 Browser jobs need no shared queue: one place runs one job at a time, and
 each hosted Linux job is its own machine.
@@ -334,8 +343,20 @@ finding that fits no allowlist shape goes in `.gitleaksignore`.
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `freshness.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Each summary check stops after 5 minutes, because it only reads results. Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
 Browser law pins keep `--workers=1`. [Self-hosted Mac runners](#self-hosted-mac-runners)
-defines the worker limit for Mac jobs. [What a pull request runs](#what-a-pull-request-runs)
-defines when the layout shards run.
+defines the worker limit for Mac jobs. [The required checks and the merge queue](#the-required-checks-and-the-merge-queue)
+and [What a pull request runs](#what-a-pull-request-runs) define when the
+layout shards run.
+
+The three layout shards split their specs by measured time, not by count
+(captain, 9 Nov 2026). Playwright's `--shard` cut the list into equal test
+counts, and the slow map specs sat together in the third shard: it ran 11 to
+18 minutes of tests while the other two ran 5 to 11. Each shard passes the
+whole spec list to `scripts/ci/layout-pin-shard.mjs`, which picks its share
+from `scripts/ci/layout-pin-durations.json` with the unit shards' rule (longest
+spec first, each to the lightest shard). On the measured runs each shard holds
+about 9 minutes of tests. A spec the durations list does not know weighs the
+median. Refresh the list from Playwright JSON reports with
+`npm run ci:layout-pin-durations`.
 
 The nightly full suite separates plain Chromium shards from the WebGL and
 keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
@@ -362,7 +383,7 @@ Close the issue when the nightly is green again.
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite, manual dispatches and merge queue runs never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
-Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push starts three layout-pin jobs. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
+Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. The group was set when each main push started three layout-pin jobs. Since 9 Nov 2026 a main push starts no Mac job. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
 `ci.yml` starts lint, the TypeScript 6 check, `production-build` and the
 three unit shards at once (captain, 2 Nov 2026). None of them reads what another makes: the build and
@@ -499,7 +520,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | CI / Data validation | runs | runs | runs |
 | Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
-| Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | runs for a `ui` change, skipped for `none` and for a fork |
+| Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | skipped unless the pull request has the `layout-pins` label; then runs for a `ui` change, skipped for `none` and for a fork. The merge queue always runs them. |
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
 | Browser tests / nightly failure report | not run on pull requests (schedule only) | same | same |
 | Browser tests / Browser tests check (required) | runs | runs | runs |

@@ -116,13 +116,14 @@ describe("the required checks", () => {
     if (status !== 0) expect(result.stdout).toContain("::error::Not green:");
   });
 
-  it("keeps the layout pins off the merge queue, as their own triggers were left", () => {
+  it("runs the layout pins in the merge queue, and on a pull request only with its label", () => {
     const { jobs } = workflow("e2e.yml");
     for (const id of ["layout-pins-1", "layout-pins-2", "layout-pins-3"]) {
       const condition = defined(jobs[id], id).if;
-      expect(browserJobCondition(condition, { event: "merge_group" }), id).toBe(false);
-      expect(browserJobCondition(condition, { event: "pull_request" }), id).toBe(true);
-      expect(browserJobCondition(condition, { event: "push" }), id).toBe(true);
+      expect(browserJobCondition(condition, { event: "merge_group" }), id).toBe(true);
+      expect(browserJobCondition(condition, { event: "pull_request" }), id).toBe(false);
+      expect(browserJobCondition(condition, { event: "pull_request", labels: ["layout-pins"] }), id).toBe(true);
+      expect(browserJobCondition(condition, { event: "push" }), id).toBe(false);
     }
   });
 });

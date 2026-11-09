@@ -82,9 +82,9 @@ describe("browser jobs on their runners", () => {
   // with cancel-in-progress off. A per-ref group dropped main pushes that way
   // (16 Oct 2026), so a pull request shares a group only with its own heads.
   // Browser tests is the one exception (captain, 19 Oct 2026): its main pushes
-  // share one group, so only the newest push waits for the macOS layout pins.
-  // Each push holds 3 of the free plan's 5 macOS runners, and on 19 Oct the
-  // merges of one day queued 66 of those jobs ahead of every pull request.
+  // share one group, so only the newest push waits behind the one running.
+  // It was set when each push started the macOS layout pins; since 9 Nov 2026
+  // they run only in the merge queue and on a labelled pull request.
   // A main push is never cancelled while it runs, and the schedule and a
   // dispatch still get a group of their own.
   const OWN_RUN_GROUP =
