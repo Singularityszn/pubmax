@@ -464,8 +464,11 @@ describe("optimistic Spill posting", () => {
 
     it("refuses an entry stored before the measure was kept, never posting it as a pint", async () => {
       const storage = memoryStorage();
-      const { measure: _measure, measureLabel: _label, receiptPhotoUrl: _bill, ...legacyRetry } =
+      const legacyRetry: Partial<ReturnType<typeof buildOptimisticSpillRetryPayload>> =
         buildOptimisticSpillRetryPayload(halfWithNoPhotos);
+      delete legacyRetry.measure;
+      delete legacyRetry.measureLabel;
+      delete legacyRetry.receiptPhotoUrl;
       storage.setItem(
         "pubmax:optimistic-spill-posts:v1",
         JSON.stringify([
