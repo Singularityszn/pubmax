@@ -10,6 +10,7 @@ import { browserJobCondition, browserJobName } from "@/__tests__/helpers/browser
 
 type WorkflowStep = {
   name?: string;
+  id?: string;
   if?: string;
   uses?: string;
   run?: string;
@@ -37,26 +38,111 @@ const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
 // every other project the default run covers in one job of its own.
 const FULL_SUITE_JOBS = ["full-suite", "full-suite-gl"];
 
-// A `${{ ... }}` expression is one word even though it holds spaces.
-function runWords(run: string | undefined): string[] {
-  return run?.match(/(?:\$\{\{[^}]*\}\}|\S)+/g) ?? [];
+type CommandCall = { command: string; args: string[]; env: Record<string, string> };
+
+function recordBrowserJob(job: WorkflowJob): CommandCall[] {
+  const directory = mkdtempSync(join(process.cwd(), ".browser-command-test-"));
+  const log = join(directory, "commands.jsonl");
+  const output = join(directory, "output");
+  const outputs: Record<string, { outputs: Record<string, string> }> = {};
+  const evaluate = (expression: string) => runInNewContext(
+    `(${expression.replace(/^\s*\$\{\{([\s\S]*)\}\}\s*$/, "$1")})`,
+    { env: job.env ?? {}, matrix: { shard: 1 }, github: { event_name: "merge_group" }, steps: outputs },
+    { timeout: 1000 },
+  );
+  const interpolate = (value: string) => value.replace(/\$\{\{([\s\S]*?)\}\}/g, (_, expression: string) => String(evaluate(expression)));
+  try {
+    writeFileSync(log, "");
+    for (const command of ["npx", "node", "npm"]) {
+      const path = join(directory, command);
+      writeFileSync(path, `#!${process.execPath}
+const { appendFileSync } = require("node:fs");
+const { spawnSync } = require("node:child_process");
+const args = process.argv.slice(2);
+if (${JSON.stringify(command)} === "node" && args[0] === "scripts/ci/layout-pin-shard.mjs") {
+  const result = spawnSync(${JSON.stringify(process.execPath)}, [${JSON.stringify(join(process.cwd(), "scripts/ci/layout-pin-shard.mjs"))}, ...args.slice(1)], { stdio: "inherit" });
+  process.exit(result.status ?? 1);
+}
+if (${JSON.stringify(command)} === "node" && args[0] !== "scripts/assert-playwright-gate.mjs") process.exit(1);
+const env = Object.fromEntries(["PLAYWRIGHT_JSON_OUTPUT_NAME", "NODE_OPTIONS", "PW_SKIP_KEYLESS_WEBSERVER", "PUBMAX_CI_SKIP_BUILD_TYPECHECK"].filter((key) => process.env[key] !== undefined).map((key) => [key, process.env[key]]));
+appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringify(command)}, args, env }) + "\\n");
+`);
+      chmodSync(path, 0o755);
+    }
+    for (const step of job.steps) {
+      if (step.if && !evaluate(step.if)) continue;
+      if (step.uses) {
+        writeFileSync(log, JSON.stringify({ command: "action", args: [step.uses], env: {} }) + "\n", { flag: "a" });
+      }
+      if (!step.run) continue;
+      writeFileSync(output, "");
+      const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-c", interpolate(step.run)], {
+        cwd: directory,
+        env: {
+          PATH: `${directory}:${process.env.PATH}`,
+          COMMAND_LOG: log,
+          GITHUB_OUTPUT: output,
+          ...Object.fromEntries(Object.entries(job.env ?? {}).map(([key, value]) => [key, String(value)])),
+          ...Object.fromEntries(Object.entries(step.env ?? {}).map(([key, value]) => [key, interpolate(value)])),
+        },
+        encoding: "utf8",
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
+      if (step.id) {
+        outputs[step.id] = { outputs: Object.fromEntries(readFileSync(output, "utf8").trim().split("\n").filter(Boolean).map((line) => {
+          const separator = line.indexOf("=");
+          return [line.slice(0, separator), line.slice(separator + 1)];
+        })) };
+      }
+    }
+    return readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as CommandCall);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 }
 
-function playwrightSteps(job: WorkflowJob): WorkflowStep[] {
-  return job.steps.filter((step) => step.run?.includes("npx playwright test"));
+function playwrightCalls(calls: CommandCall[]): CommandCall[] {
+  return calls.filter((call) => call.command === "npx" && call.args[0] === "playwright" && call.args[1] === "test");
 }
 
 describe("browser CI policy", () => {
   const workflowPath = join(process.cwd(), ".github", "workflows", "e2e.yml");
+  const recordings = new Map<string, CommandCall[]>();
+  function callsFor(id: string): CommandCall[] {
+    if (!recordings.has(id)) {
+      const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+      recordings.set(id, recordBrowserJob(defined(jobs[id], id)));
+    }
+    return defined(recordings.get(id));
+  }
+
+  it("records only commands reached by the shell and step conditions", () => {
+    const calls = recordBrowserJob({ steps: [
+      { if: "false", run: "npx playwright install --with-deps chromium" },
+      { run: `
+        if false; then
+          npx playwright install --with-deps chromium
+          npx playwright test e2e/missing.spec.ts --project=chromium-gl
+          node scripts/assert-playwright-gate.mjs unused.json
+        fi
+        npx playwright test e2e/smoke.spec.ts --project=chromium
+      ` },
+    ] });
+    expect(calls).toEqual([{
+      command: "npx", args: ["playwright", "test", "e2e/smoke.spec.ts", "--project=chromium"], env: {},
+    }]);
+  });
 
   it("runs a bounded law-pinning browser suite on pull requests and main", () => {
     const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
     expect(Object.keys(workflow.on)).toContain("pull_request");
     const lawPinsJob = defined(workflow.jobs["law-pins"]);
-    const [testStep, ...extraTestSteps] = playwrightSteps(lawPinsJob);
-    expect(extraTestSteps).toEqual([]);
-    const run = runWords(defined(testStep, "law-pins Playwright step").run);
+    expect(browserJobCondition(lawPinsJob.if)).toBe(true);
+    const [test, ...extraTestCalls] = playwrightCalls(callsFor("law-pins"));
+    expect(extraTestCalls).toEqual([]);
+    const run = defined(test, "law-pins Playwright call").args;
     for (const spec of [
       "e2e/smoke.spec.ts",
       "e2e/map-surface-history.spec.ts",
@@ -66,7 +152,15 @@ describe("browser CI policy", () => {
     ]) {
       expect(run).toContain(spec);
     }
-    expect(run).toContain("--project=chromium");
+    expect(run.filter((arg) => arg.startsWith("--project="))).toEqual(["--project=chromium"]);
+    expect(test?.env.PLAYWRIGHT_JSON_OUTPUT_NAME).toBe("playwright-law-pins.json");
+    const calls = callsFor("law-pins");
+    const gates = calls.filter((call) => call.command === "node");
+    expect(gates.map((gate) => gate.args)).toEqual([[
+      "scripts/assert-playwright-gate.mjs", "playwright-law-pins.json",
+      "--require-zero-skipped", "--skips-argued", "e2e/conditional-skips.allowlist.json",
+    ]]);
+    expect(calls.indexOf(defined(gates[0]))).toBeGreaterThan(calls.indexOf(defined(test)));
   });
 
   it.each([
@@ -96,22 +190,22 @@ describe("browser CI policy", () => {
     const shards = fullSuiteJob.strategy?.matrix?.shard;
     expect(shards).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(browserJobName(fullSuiteJob.name)).toBe(`Full browser suite (1/${shards?.length})`);
-    const [shardStep, ...extraShardSteps] = playwrightSteps(fullSuiteJob);
-    expect(extraShardSteps).toEqual([]);
-    const shardRun = runWords(defined(shardStep, "full-suite Playwright step").run);
+    const [shardCall, ...extraShardCalls] = playwrightCalls(callsFor("full-suite"));
+    expect(extraShardCalls).toEqual([]);
+    const shardRun = defined(shardCall, "full-suite Playwright call").args;
     expect(shardRun.filter((word) => word.startsWith("--shard="))).toEqual([
-      `--shard=\${{ matrix.shard }}/${shards?.length}`,
+      `--shard=1/${shards?.length}`,
     ]);
     // The Chromium shards build one server; only the keyless project needs two.
-    expect(shardStep?.env?.PW_SKIP_KEYLESS_WEBSERVER).toBe("1");
+    expect(shardCall?.env?.PW_SKIP_KEYLESS_WEBSERVER).toBe("1");
 
     // Between them the two jobs run every project the nightly always ran, and
     // each project once.
-    const [glStep, ...extraGlSteps] = playwrightSteps(glJob);
-    expect(extraGlSteps).toEqual([]);
-    const glRun = runWords(defined(glStep, "full-suite-gl Playwright step").run);
+    const [glCall, ...extraGlCalls] = playwrightCalls(callsFor("full-suite-gl"));
+    expect(extraGlCalls).toEqual([]);
+    const glRun = defined(glCall, "full-suite-gl Playwright call").args;
     expect(glRun.filter((word) => word.startsWith("--shard="))).toEqual([]);
-    expect(glStep?.env?.PW_SKIP_KEYLESS_WEBSERVER).toBeUndefined();
+    expect(glCall?.env?.PW_SKIP_KEYLESS_WEBSERVER).toBeUndefined();
     const projects = (run: string[]) =>
       run.filter((word) => word.startsWith("--project=")).map((word) => word.slice("--project=".length));
     expect(projects(shardRun)).toEqual(["chromium"]);
@@ -121,14 +215,11 @@ describe("browser CI policy", () => {
       "chromium-no-gl",
       "chromium-sw-gl",
     ]);
-    for (const [job, step] of [[fullSuiteJob, shardStep], [glJob, glStep]] as const) {
-      const report = defined(step?.env?.PLAYWRIGHT_JSON_OUTPUT_NAME, "JSON report name");
-      const gate = runWords(
-        job.steps.find((candidate) =>
-          runWords(candidate.run).includes("scripts/assert-playwright-gate.mjs"),
-        )?.run,
-      );
-      expect(gate[gate.indexOf("scripts/assert-playwright-gate.mjs") + 1]).toBe(report);
+    for (const [id, call] of [["full-suite", shardCall], ["full-suite-gl", glCall]] as const) {
+      const report = defined(call?.env.PLAYWRIGHT_JSON_OUTPUT_NAME, "JSON report name");
+      const gates = callsFor(id).filter((entry) => entry.command === "node");
+      expect(gates.map((gate) => gate.args)).toEqual([["scripts/assert-playwright-gate.mjs", report]]);
+      expect(callsFor(id).indexOf(defined(gates[0]))).toBeGreaterThan(callsFor(id).indexOf(defined(call)));
     }
   });
 
@@ -349,64 +440,29 @@ if (args[0] === "issue" && args[1] === "list") {
       "e2e/web-first-run-journey.spec.ts",
       "e2e/plan-route-result.spec.ts",
     ];
-    const directory = mkdtempSync(join(process.cwd(), ".layout-command-test-"));
-    try {
-      const log = join(directory, "commands.jsonl");
-      for (const command of ["npx", "node"]) {
-        const path = join(directory, command);
-        writeFileSync(path, `#!${process.execPath}
-const { appendFileSync } = require("node:fs");
-const { spawnSync } = require("node:child_process");
-const args = process.argv.slice(2);
-if (${JSON.stringify(command)} === "node" && args[0] !== "scripts/assert-playwright-gate.mjs") {
-  const result = spawnSync(${JSON.stringify(process.execPath)}, args, { stdio: "inherit" });
-  process.exit(result.status ?? 1);
-}
-appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringify(command)}, args, report: process.env.PLAYWRIGHT_JSON_OUTPUT_NAME }) + "\\n");
-`);
-        chmodSync(path, 0o755);
-      }
-      const executedSpecs: string[] = [];
-      for (const job of layoutJobs) {
-        const shard = String(job.env?.LAYOUT_SHARD);
-        const interpolate = (text: string) => text.replaceAll("${{ env.LAYOUT_SHARD }}", shard);
-        const testStep = defined(job.steps.find((step) => step.name === "Run layout-pinning journeys"));
-        const gateStep = defined(job.steps.find((step) => step.name === "Gate the layout-pinning shard"));
-        expect(testStep.if).toBeUndefined();
-        const env = {
-          ...process.env,
-          PATH: `${directory}:${process.env.PATH}`,
-          COMMAND_LOG: log,
-          ...Object.fromEntries(Object.entries(testStep.env ?? {}).map(([key, value]) => [key, interpolate(value)])),
-        };
-        writeFileSync(log, "");
-        for (const step of [testStep, gateStep]) {
-          const result = spawnSync("bash", ["-e", "-c", interpolate(defined(step.run))], { cwd: process.cwd(), env, encoding: "utf8" });
-          expect(result.status, result.stderr).toBe(0);
-        }
-        const calls = readFileSync(log, "utf8").trim().split("\n").map((line) =>
-          JSON.parse(line) as { command: string; args: string[]; report?: string });
-        expect(calls).toHaveLength(2);
-        const test = defined(calls[0]);
-        expect(test.command).toBe("npx");
-        expect(test.args.slice(0, 2)).toEqual(["playwright", "test"]);
-        const specs = test.args.filter((arg) => arg.startsWith("e2e/"));
-        expect(specs.length).toBeGreaterThan(0);
-        executedSpecs.push(...specs);
-        expect(test.args.filter((arg) => arg.startsWith("--project="))).toEqual([
-          "--project=chromium", "--project=chromium-gl", "--project=chromium-no-gl",
-        ]);
-        expect(test.args).toContain("--reporter=list,json");
-        expect(test.report).toBe(`playwright-layout-pins-${shard}.json`);
-        expect(calls[1]).toMatchObject({ command: "node", args: [
-          "scripts/assert-playwright-gate.mjs", test.report,
-          "--require-zero-skipped", "--skips-argued", "e2e/conditional-skips.allowlist.json",
-        ] });
-      }
-      for (const spec of requiredSpecs) expect(executedSpecs.filter((file) => file === spec), spec).toHaveLength(1);
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
+    const executedSpecs: string[] = [];
+    for (const id of LAYOUT_PIN_JOBS) {
+      const shard = String(defined(jobs[id]).env?.LAYOUT_SHARD);
+      const calls = callsFor(id);
+      const tests = playwrightCalls(calls);
+      expect(tests).toHaveLength(1);
+      const test = defined(tests[0]);
+      const specs = test.args.filter((arg) => arg.startsWith("e2e/"));
+      expect(specs.length).toBeGreaterThan(0);
+      executedSpecs.push(...specs);
+      expect(test.args.filter((arg) => arg.startsWith("--project="))).toEqual([
+        "--project=chromium", "--project=chromium-gl", "--project=chromium-no-gl",
+      ]);
+      expect(test.args).toContain("--reporter=list,json");
+      expect(test.env.PLAYWRIGHT_JSON_OUTPUT_NAME).toBe(`playwright-layout-pins-${shard}.json`);
+      const gates = calls.filter((call) => call.command === "node");
+      expect(gates.map((gate) => gate.args)).toEqual([[
+        "scripts/assert-playwright-gate.mjs", test.env.PLAYWRIGHT_JSON_OUTPUT_NAME,
+        "--require-zero-skipped", "--skips-argued", "e2e/conditional-skips.allowlist.json",
+      ]]);
+      expect(calls.indexOf(defined(gates[0]))).toBeGreaterThan(calls.indexOf(test));
     }
+    for (const spec of requiredSpecs) expect(executedSpecs.filter((file) => file === spec), spec).toHaveLength(1);
   });
 
   it("runs the same layout steps for every pull request branch", () => {
@@ -423,11 +479,9 @@ appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringi
 
   it("names only spec files that exist in each pull-request browser job", () => {
     // Playwright ORs its file filters, so a renamed spec would drop out silently.
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-
     for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS]) {
-      const specs = playwrightSteps(defined(jobs[jobName])).flatMap((step) =>
-        runWords(step.run).filter((word) => word.startsWith("e2e/")),
+      const specs = playwrightCalls(callsFor(jobName)).flatMap((call) =>
+        call.args.filter((arg) => arg.startsWith("e2e/")),
       );
       expect(specs.length, jobName).toBeGreaterThan(0);
       for (const spec of specs) {
@@ -436,61 +490,31 @@ appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringi
     }
   });
 
-  it("installs Chromium and its system dependencies before every Playwright run", () => {
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-
+  it("installs Chromium and chooses a port before every Playwright run", () => {
     for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
-      const steps = defined(jobs[jobName]).steps;
-      const install = steps.findIndex((step) =>
-        step.run?.split("\n").some((line) => {
-          const words = line.trim().split(/\s+/);
-          return (
-            words.slice(0, 3).join(" ") === "npx playwright install" &&
-            words.includes("--with-deps") &&
-            words.includes("chromium")
-          );
-        }),
-      );
-      const playwrightRuns = steps
-        .map((step, index) => ({ step, index }))
-        .filter(({ step }) => step.run?.includes("npx playwright test"));
-
+      const calls = callsFor(jobName);
+      const install = calls.findIndex((call) => call.command === "npx" &&
+        call.args[0] === "playwright" && call.args[1] === "install" &&
+        call.args.includes("--with-deps") && call.args.includes("chromium"));
+      const port = calls.findIndex((call) => call.command === "action" &&
+        call.args[0] === "./.github/actions/pubmax-playwright-port");
+      const tests = playwrightCalls(calls);
       expect(install, jobName).toBeGreaterThanOrEqual(0);
-      expect(playwrightRuns.length, jobName).toBeGreaterThan(0);
-      for (const { index } of playwrightRuns) {
-        expect(index, jobName).toBeGreaterThan(install);
-      }
-    }
-  });
-
-  it("chooses a runner-specific Playwright port before every Playwright run", () => {
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-
-    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
-      const steps = defined(jobs[jobName]).steps;
-      const portStep = steps.findIndex(
-        (step) => step.uses === "./.github/actions/pubmax-playwright-port",
-      );
-      const playwrightRuns = steps
-        .map((step, index) => ({ step, index }))
-        .filter(({ step }) => step.run?.includes("npx playwright test"));
-
-      expect(portStep, jobName).toBeGreaterThanOrEqual(0);
-      expect(playwrightRuns.length, jobName).toBeGreaterThan(0);
-      for (const { index } of playwrightRuns) {
-        expect(index, jobName).toBeGreaterThan(portStep);
+      expect(port, jobName).toBeGreaterThanOrEqual(0);
+      expect(tests.length, jobName).toBeGreaterThan(0);
+      for (const test of tests) {
+        expect(calls.indexOf(test), jobName).toBeGreaterThan(install);
+        expect(calls.indexOf(test), jobName).toBeGreaterThan(port);
       }
     }
   });
 
   it("gives each production browser build enough heap", () => {
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-
     for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
-      const steps = playwrightSteps(defined(jobs[jobName]));
-      expect(steps.length, jobName).toBeGreaterThan(0);
-      for (const step of steps) {
-        expect(step.env?.NODE_OPTIONS, jobName).toBe(
+      const calls = playwrightCalls(callsFor(jobName));
+      expect(calls.length, jobName).toBeGreaterThan(0);
+      for (const call of calls) {
+        expect(call.env.NODE_OPTIONS, jobName).toBe(
           "--max-old-space-size=6144",
         );
       }
@@ -503,10 +527,11 @@ appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringi
     // on a macOS runner the build's copy took over 6 minutes and pushed the
     // Playwright web server past its 10 minute start limit (captain, 2 Nov
     // 2026; docs/CI_RUNBOOK.md, "Build cache and type check").
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
     for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, ...FULL_SUITE_JOBS]) {
-      for (const step of playwrightSteps(defined(jobs[jobName]))) {
-        expect(step.env?.PUBMAX_CI_SKIP_BUILD_TYPECHECK, jobName).toBe("1");
+      const calls = playwrightCalls(callsFor(jobName));
+      expect(calls.length, jobName).toBeGreaterThan(0);
+      for (const call of calls) {
+        expect(call.env.PUBMAX_CI_SKIP_BUILD_TYPECHECK, jobName).toBe("1");
       }
     }
   });

@@ -7,7 +7,7 @@ import { runInNewContext } from "node:vm";
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-import { browserJobCondition, browserJobName } from "@/__tests__/helpers/browserJobCondition";
+import { browserJobCondition, browserJobExpression, browserJobName } from "@/__tests__/helpers/browserJobCondition";
 import { defined } from "@/__tests__/helpers/defined";
 import {
   ReleaseRefusal,
@@ -46,6 +46,29 @@ const NOT_PULL_REQUEST_JOBS: Record<string, string[]> = {
   "freshness.yml": [],
 };
 
+describe("GitHub job status conditions", () => {
+  it.each(["failure", "cancelled", "skipped"])("requires an explicit status check after %s", (result) => {
+    const context = { results: ["success", result] };
+    expect(browserJobCondition(undefined, context)).toBe(false);
+    expect(browserJobCondition("${{ true }}", context)).toBe(false);
+    expect(browserJobCondition("${{ 'always()' != '' }}", context)).toBe(false);
+    expect(browserJobCondition("${{ always() }}", context)).toBe(true);
+    expect(browserJobCondition("${{ !cancelled() }}", context)).toBe(true);
+    expect(browserJobCondition("${{ success() }}", context)).toBe(false);
+    expect(browserJobCondition("${{ failure() }}", context)).toBe(result === "failure");
+    expect(browserJobExpression("${{ true }}", context)).toBe(true);
+    expect(browserJobName("${{ true && 'check' || 'other' }}", context)).toBe("check");
+  });
+
+  it("runs ordinary conditions after success and respects workflow cancellation", () => {
+    expect(browserJobCondition(undefined, { results: ["success", "success"] })).toBe(true);
+    expect(browserJobCondition("false")).toBe(false);
+    expect(browserJobCondition("true", { cancelled: true })).toBe(false);
+    expect(browserJobCondition("!cancelled()", { cancelled: true })).toBe(false);
+    expect(browserJobCondition("always()", { cancelled: true })).toBe(true);
+  });
+});
+
 describe("the required checks", () => {
   it.each(REQUIRED_CHECKS)("$file names $name and runs in the merge queue", ({ file, job, name }) => {
     const parsed = workflow(file);
@@ -68,7 +91,10 @@ describe("the required checks", () => {
     // A skipped summary counts as passed, so it must run even when a job it
     // needs failed or was cancelled.
     for (const result of ["success", "failure", "cancelled", "skipped"]) {
-      expect(browserJobCondition(summary.if, { result, cancelled: result === "cancelled" }), file).toBe(true);
+      for (const dependency of needsOf(summary)) {
+        const results = needsOf(summary).map((id) => id === dependency ? result : "success");
+        expect(browserJobCondition(summary.if, { results, cancelled: result === "cancelled" }), `${file}: ${dependency}=${result}`).toBe(true);
+      }
     }
     const expected = Object.keys(jobs)
       .filter((id) => id !== "check" && !defined(NOT_PULL_REQUEST_JOBS[file]).includes(id))

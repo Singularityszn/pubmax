@@ -51,6 +51,8 @@ export function browserJobExpression(
     needs: { "change-scope": { result, outputs: { layout } } },
     cancelled: () => cancelled,
     always: () => true,
+    success: () => !cancelled && (results.length ? results : [result]).every((value) => value === "success"),
+    failure: () => (results.length ? results : [result]).includes("failure"),
     format: (template: string, value: unknown) => template.replace("{0}", String(value)),
     contains: (list: unknown, item: string) =>
       Array.isArray(list) && list.some((entry) => String(entry).toLowerCase() === item.toLowerCase()),
@@ -58,7 +60,12 @@ export function browserJobExpression(
 }
 
 export function browserJobCondition(condition: string | undefined, context: BrowserContext = {}): boolean {
-  return Boolean(browserJobExpression(condition ?? "true", context));
+  const expression = condition ?? "true";
+  const hasStatusFunction = /\b(always|success|failure|cancelled)\s*\(/.test(
+    expression.replace(/'(?:[^']|'')*'/g, "''"),
+  );
+  if (!hasStatusFunction && !browserJobExpression("success()", context)) return false;
+  return Boolean(browserJobExpression(expression, context));
 }
 
 export function browserJobName(name: string | undefined, context: BrowserContext = {}): string {
