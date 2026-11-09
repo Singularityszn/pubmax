@@ -10,6 +10,7 @@ import { liveShareSnapshot, stopLiveLocationShare } from "@/lib/planLiveLocation
   .IS_REACT_ACT_ENVIRONMENT = true;
 
 const CREW_ID = "50000000-0000-4000-8000-000000000001";
+const OTHER_CREW_ID = "50000000-0000-4000-8000-000000000002";
 const REQUEST_ID = "80000000-0000-4000-8000-000000000001";
 
 const responseBody = vi.hoisted(() => ({
@@ -91,7 +92,7 @@ vi.mock("@/lib/authedFetch", () => ({
   authedFetch: vi.fn((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)),
   authedActionFetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    if (url === `/api/social/crews/${CREW_ID}`) {
+    if (url === `/api/social/crews/${CREW_ID}` || url === `/api/social/crews/${OTHER_CREW_ID}`) {
       state.crewReadCount += 1;
       if (typeof state.crewReadResult === "number") return Response.json({}, { status: state.crewReadResult });
       if (state.crewReadResult === "preview") return Response.json({
@@ -104,7 +105,7 @@ vi.mock("@/lib/authedFetch", () => ({
       }
       return Response.json({
         kind: "member",
-        crewId: CREW_ID,
+        crewId: url.split("/").at(-1),
         title: "Open Friday",
         visibility: state.visibility,
         arrival: state.arrival,
@@ -130,7 +131,7 @@ vi.mock("@/lib/authedFetch", () => ({
         ],
         plan: {
           plan: {
-            id: "60000000-0000-4000-8000-000000000001",
+            id: url.endsWith(OTHER_CREW_ID) ? "60000000-0000-4000-8000-000000000002" : "60000000-0000-4000-8000-000000000001",
             title: "Open Friday",
             startTime: "2026-08-24T18:30:00.000Z",
             createdAt: "2026-08-22T18:30:00.000Z",
@@ -244,7 +245,7 @@ beforeEach(() => {
         if (init?.method === "PUT") state.sharing = true;
         if (state.crewReadResult !== null && init?.method !== "DELETE") return Response.json({}, { status: 403 });
         return Response.json({
-          visibility: "member", live: true, sharing: state.sharing,
+          visibility: "member", live: true, sharing: state.sharing && String(input).includes("60000000-0000-4000-8000-000000000001"),
           endsAt: new Date(Date.now() + 60_000).toISOString(),
           people: init?.method === "DELETE" ? [] : [{ memberId: "mate", name: "Private mate", latitude: 51.5, longitude: -0.13, accuracyM: 10, updatedAt: new Date().toISOString() }],
         });
@@ -274,6 +275,28 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+it("keeps the active Crew Stop when another Crew member panel loads", async () => {
+  state.liveLocationEnabled = true;
+  setProviderIdentity("supabase", "crew-location-owner");
+  let fix!: PositionCallback;
+  const geolocation = { watchPosition: vi.fn((success: PositionCallback) => { fix = success; return 7; }), clearWatch: vi.fn(), getCurrentPosition: vi.fn() };
+  Object.defineProperty(navigator, "geolocation", { configurable: true, value: geolocation });
+  const buttons = (text: string) => Array.from(container.querySelectorAll("button")).filter((node) => node.textContent === text);
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  await act(async () => buttons("Share my location tonight")[0].click());
+  await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+  expect(buttons("Stop sharing")).toHaveLength(1);
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: OTHER_CREW_ID, invitationId: null })));
+  expect(buttons("Share my location tonight")).toHaveLength(1);
+  expect(buttons("Stop sharing")).toHaveLength(1);
+  await act(async () => buttons("Stop sharing")[0].click());
+  expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === "DELETE").map(([url]) => String(url)))
+    .toEqual(["/api/plans/60000000-0000-4000-8000-000000000001/live-location?via=crew"]);
+  expect(state.sharing).toBe(false);
+  expect(geolocation.clearWatch).toHaveBeenCalledWith(7);
+  expect(geolocation.watchPosition).toHaveBeenCalledTimes(1);
 });
 
 it.each([403, 404, "preview"] as const)("keeps account Stop after the Crew refresh returns %s", async (result) => {

@@ -22,7 +22,7 @@ import "./planLiveLocation.css";
 
 const POLL_MS = 15_000;
 const READ_DEADLINE_MS = 8_000;
-const OFF_SNAPSHOT = { planId: null, status: "off" as const };
+const OFF_SNAPSHOT = { planId: null, status: "off" as const, stopUnconfirmed: false };
 
 const STATUS_LINE: Partial<Record<LiveShareStatus, string>> = {
   busy: "You are already sharing with another night. Stop that one first.",
@@ -137,6 +137,7 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
   }
 
   const paused = (view.sharing || status === "failed" || status === "stopping") && !watching;
+  const canResume = paused && !share.stopUnconfirmed;
   const until = view.endsAt ? clock(view.endsAt) : null;
   return (
     <section className="liveLocation" aria-label="Share where you are" aria-busy={stopping}>
@@ -144,7 +145,10 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
       {!view.live ? <p className="liveLocation__muted">You can share your location with your crew on the night.</p> : (
         <>
           {watching || paused ? (
-            <p>{paused ? "Your crew may still see where you were last. Resume to keep your dot live, or stop sharing." : `You're sharing your live location with your crew until ${until}.`}</p>
+            <p>{paused ? canResume
+              ? "Your crew may still see where you were last. Resume to keep your dot live, or stop sharing."
+              : "Your crew may still see where you were last. Stop sharing must finish before you can share again."
+              : `You're sharing your live location with your crew until ${until}.`}</p>
           ) : (
             <p className="liveLocation__muted">Your crew sees your exact spot as a live dot on their map while this app is open. Only people in this night can see it. We keep only your latest spot, and sharing switches off by itself at {until}.</p>
           )}
@@ -152,7 +156,7 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
           <div className="liveLocation__actions">
             {watching || paused ? (
               <>
-                {paused ? <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat, { endsAt: view.endsAt })}>Resume sharing</Button> : null}
+                {canResume ? <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat, { endsAt: view.endsAt })}>Resume sharing</Button> : null}
                 <Button variant={paused ? "ghost" : "secondary"} disabled={stopping} onClick={() => void stop()}>{stopping ? "Stopping" : "Stop sharing"}</Button>
               </>
             ) : status !== "ended" && status !== "unsupported" ? (

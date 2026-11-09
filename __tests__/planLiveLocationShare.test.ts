@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { liveLocationRequest, liveShareCrewStopSeat, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
+import { getAccessToken } from "@/lib/authClient";
 
-vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => "crew-account-token" }));
+vi.mock("@/lib/authClient", () => ({ getAccessToken: vi.fn(async () => "crew-account-token") }));
 
 const SEAT = { planId: "11111111-1111-4111-8111-111111111111", via: "plan" as const };
 
@@ -50,6 +51,7 @@ function fakeRoute(status = 200) {
 
 beforeEach(() => {
   vi.stubGlobal("document", { visibilityState: "visible" });
+  vi.mocked(getAccessToken).mockReset().mockResolvedValue("crew-account-token");
 });
 
 afterEach(async () => {
@@ -59,6 +61,55 @@ afterEach(async () => {
 });
 
 describe("sharing a live location from the phone", () => {
+  it.each(["initial", "moved", "queued", "heartbeat"])("drops a %s fix when hidden during authentication", async (kind) => {
+    vi.useFakeTimers();
+    let now = 1_000_000;
+    const geo = fakeGeolocation();
+    const fetcher = vi.fn(async (_input: unknown, _init?: RequestInit) => new Response("{}"));
+    vi.stubGlobal("fetch", fetcher);
+    startLiveLocationShare({ ...SEAT, via: "crew" }, { geolocation: geo.geolocation, now: () => now });
+    let finishUpload!: (response: Response) => void;
+    if (kind !== "initial") {
+      if (kind === "queued") fetcher.mockImplementationOnce(() => new Promise<Response>((resolve) => { finishUpload = resolve; }));
+      geo.fix(51.5, -0.13);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      now += 60_000;
+    }
+    let finishToken!: (token: string) => void;
+    let tokenRequested!: () => void;
+    const waitingForToken = new Promise<void>((resolve) => { tokenRequested = resolve; });
+    vi.mocked(getAccessToken).mockImplementationOnce(() => {
+      tokenRequested();
+      return new Promise<string>((resolve) => { finishToken = resolve; });
+    });
+    if (kind === "heartbeat") {
+      geo.spy.getCurrentPosition.mockImplementationOnce((success: PositionCallback) => {
+        success({ coords: { latitude: 51.6, longitude: -0.13, accuracy: 10 } } as GeolocationPosition);
+      });
+      await vi.advanceTimersByTimeAsync(60_000);
+    } else {
+      geo.fix(51.6, -0.13);
+      if (kind === "queued") finishUpload(new Response("{}"));
+    }
+    await waitingForToken;
+    vi.stubGlobal("document", { visibilityState: "hidden" });
+    finishToken("crew-account-token");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetcher).toHaveBeenCalledTimes(kind === "initial" ? 0 : 1);
+    expect(geo.spy.clearWatch).not.toHaveBeenCalled();
+    vi.stubGlobal("document", { visibilityState: "visible" });
+    now += 60_000;
+    geo.fix(51.7, -0.13);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetcher).toHaveBeenCalledTimes(kind === "initial" ? 1 : 2);
+    const init = fetcher.mock.calls.at(-1)![1] as RequestInit;
+    expect(JSON.parse(String(init.body))).toEqual({
+      latitude: 51.7, longitude: -0.13, accuracyM: 10,
+      ...(kind === "initial" ? { startAt: 1_000_000 } : {}),
+    });
+  });
+
   it.each(["active", "failed"])("restores only the current account's %s Crew Stop seat", async (status) => {
     setProviderIdentity("supabase", "crew-stop-owner-a");
     const seat = { ...SEAT, via: "crew" as const };
@@ -152,7 +203,7 @@ describe("sharing a live location from the phone", () => {
     expect(geo.spy.watchPosition).not.toHaveBeenCalled();
     startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request, now: () => 1_000_000 });
     expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
-    expect(liveShareSnapshot(SEAT.planId)).toEqual({ planId: SEAT.planId, status: "asking" });
+    expect(liveShareSnapshot(SEAT.planId)).toEqual({ planId: SEAT.planId, status: "asking", stopUnconfirmed: false });
     const sent = route.next();
     geo.fix(51.5138, -0.1318);
     await sent;
@@ -632,6 +683,19 @@ describe("sharing a live location from the phone", () => {
 });
 
 describe("live location request transport", () => {
+  it.each(["plan", "crew"] as const)("blocks hidden %s uploads while allowing reads and Stop", async (via) => {
+    const fetcher = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("document", { visibilityState: "hidden" });
+    const seat = { ...SEAT, via };
+    await expect(liveLocationRequest(seat, "PUT", { latitude: 51.5, longitude: -0.13, accuracyM: 10 }))
+      .rejects.toThrow("Location upload skipped while hidden");
+    expect(fetcher).not.toHaveBeenCalled();
+    await liveLocationRequest(seat, "GET");
+    await liveLocationRequest(seat, "DELETE");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it.each(["GET", "PUT", "DELETE"] as const)("sends private %s requests with the Plan capability or Crew account", async (method) => {
     const fetcher = vi.fn(async () => new Response("{}"));
     vi.stubGlobal("fetch", fetcher);

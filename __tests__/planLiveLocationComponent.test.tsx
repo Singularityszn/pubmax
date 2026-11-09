@@ -82,6 +82,36 @@ async function click(label: string) {
 }
 
 describe("live location consent at the account boundary", () => {
+  it.each(["503", "offline"])("withholds Resume until an unconfirmed Stop succeeds after %s", async (failure) => {
+    await mountPlan();
+    await click("Share my location tonight");
+    await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    let finishStop!: () => void;
+    let failStop = true;
+    fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => {
+      if (init?.method === "DELETE") {
+        if (failStop) {
+          await new Promise<void>((resolve) => { finishStop = resolve; });
+          if (failure === "offline") throw new Error("offline");
+          return Response.json({}, { status: 503 });
+        }
+        sharing = false;
+      }
+      return Response.json(view());
+    });
+    await click("Stop sharing");
+    expect(container.textContent).not.toContain("Resume");
+    await act(async () => finishStop());
+    expect(container.textContent).not.toContain("Resume");
+    expect(container.textContent).toContain("Stop sharing");
+    expect(watch).toHaveBeenCalledTimes(1);
+    failStop = false;
+    await click("Stop sharing");
+    expect(sharing).toBe(false);
+    await click("Share my location tonight");
+    expect(watch).toHaveBeenCalledTimes(2);
+  });
+
   it("offers a fresh-tap retry after the first upload fails", async () => {
     await mountPlan();
     fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => init?.method === "PUT"

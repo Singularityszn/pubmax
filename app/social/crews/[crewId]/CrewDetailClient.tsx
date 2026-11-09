@@ -947,7 +947,7 @@ export default function CrewDetailClient({
         ) : null}
         {body}
         {identityResolved && liveLocationSeat
-          && (status !== "ready" || loadedIdentityKey !== identityKey || crew?.kind !== "member") ? (
+          && (status !== "ready" || loadedIdentityKey !== identityKey || crew?.kind !== "member" || crew.plan.plan.id !== liveLocationSeat.planId) ? (
           <PlanLiveLocation seat={liveLocationSeat} ownerKey={identityKey} stopOnly />
         ) : null}
       </main>

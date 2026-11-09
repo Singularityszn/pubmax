@@ -13,7 +13,7 @@ import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 export type LiveLocationSeat = { planId: string; via: "plan" | "crew"; memberToken?: string };
 /** asking: waiting on the browser. no-signal: the last fix stays up for the crew. */
 export type LiveShareStatus = "off" | "busy" | "stopping" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
-export type LiveShareSnapshot = { planId: string | null; status: LiveShareStatus };
+export type LiveShareSnapshot = { planId: string | null; status: LiveShareStatus; stopUnconfirmed: boolean };
 
 type Request = (seat: LiveLocationSeat, method: "GET" | "PUT" | "DELETE", body?: PlanLiveLocationFix & { startAt?: number }, signal?: AbortSignal) => Promise<Response>;
 type Deps = { geolocation?: Geolocation | null; request?: Request; now?: () => number; endsAt?: string | null };
@@ -22,6 +22,7 @@ type Expiry = { endsAt: number | null; expiry: ReturnType<typeof setTimeout> | n
 const PERMISSION_DENIED = 1;
 const MOVED_KM = 0.015;
 const WATCH_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 15_000, timeout: 30_000 };
+const HIDDEN_UPLOAD = new Error("Location upload skipped while hidden");
 
 /** The private route. A Plan seat rides its HttpOnly cookie; an Open Crew seat rides the account. */
 export const liveLocationRequest: Request = (seat, method, body, signal) => {
@@ -31,10 +32,14 @@ export const liveLocationRequest: Request = (seat, method, body, signal) => {
     headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   };
-  if (seat.via === "crew") return authedFetch(`${base}?via=crew`, init, { requiresIdentity: true });
+  const beforeSend = method === "PUT" ? () => {
+    if (document.visibilityState !== "visible") throw HIDDEN_UPLOAD;
+  } : undefined;
+  if (seat.via === "crew") return authedFetch(`${base}?via=crew`, init, { requiresIdentity: true, beforeSend });
   return authedFetch(base, init, {
     requiresIdentity: false,
     bearerCapability: seat.memberToken || PLAN_HTTP_ONLY_SESSION,
+    beforeSend,
   });
 };
 
@@ -55,15 +60,16 @@ type Session = Expiry & {
 
 let session: Session | null = null;
 const stopping = new Map<string, Expiry & { promise: Promise<Response> | null; ownerSignal: AbortSignal; onOwnerChange: () => void }>();
-const OFF_SNAPSHOT: LiveShareSnapshot = { planId: null, status: "off" };
+const OFF_SNAPSHOT: LiveShareSnapshot = { planId: null, status: "off", stopUnconfirmed: false };
 const snapshots = new Map<string, { view: LiveShareSnapshot; seat: LiveLocationSeat | null; ownerSignal: AbortSignal }>();
 const listeners = new Set<() => void>();
 
 function publish(planId: string, status: LiveShareStatus, seat?: LiveLocationSeat): void {
-  if (snapshots.get(planId)?.view.status === status) return;
   const previous = snapshots.get(planId);
+  const stopUnconfirmed = stopping.has(planId);
+  if (previous?.view.status === status && previous.view.stopUnconfirmed === stopUnconfirmed) return;
   snapshots.set(planId, {
-    view: { planId, status },
+    view: { planId, status, stopUnconfirmed },
     seat: seat ?? previous?.seat ?? null,
     ownerSignal: seat ? readProviderAccountSignal() : previous?.ownerSignal ?? readProviderAccountSignal(),
   });
@@ -174,7 +180,11 @@ async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
     } else {
       publish(current.seat.planId, "no-signal");
     }
-  } catch {
+  } catch (error) {
+    if (error === HIDDEN_UPLOAD) {
+      current.pending = null;
+      return;
+    }
     if (session === current) {
       const failedStart = current.startAt !== null;
       if (failedStart) halt(current);
