@@ -226,10 +226,10 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      // The GL-specific specs need launch flags (SwiftShader / --disable-webgl)
-      // that only make sense in their own projects below; the default box is
-      // WebGL-agnostic (smoke.spec asserts canvas-OR-fallback), so running them
-      // here would false-fail. Screenshots are design-QA artifacts, excluded too.
+      // The GL specs listed below need their dedicated projects' launch flags
+      // (SwiftShader or --disable-webgl). This project supplies neither flag,
+      // so running those specs here would false-fail. Screenshots are
+      // design-QA artifacts, excluded too.
       testIgnore: [
         // The production smoke suite drives a deployed site, never this
         // build. playwright.prod-smoke.config.ts owns it.
@@ -246,7 +246,7 @@ export default defineConfig({
         "**/map-gestures.spec.ts",
         "**/map-short-walk-framing.spec.ts",
         "**/map-deep-link-pin.spec.ts",
-        // Every WebGL journey belongs to chromium-gl. Keeping these out of the
+        // These WebGL journeys run in chromium-gl. Keeping these out of the
         // plain Chromium project avoids running the same spec without SwiftShader
         // (and without its blocked service worker) before the GL project runs it.
         "**/map-console-health.spec.ts",
