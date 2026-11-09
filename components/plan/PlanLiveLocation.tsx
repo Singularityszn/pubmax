@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
@@ -57,6 +57,7 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const activeRead = useRef<AbortController | null>(null);
   const getSnapshot = useCallback(() => liveShareSnapshot(seat.planId), [seat.planId]);
   const share = useSyncExternalStore(subscribeLiveShare, getSnapshot, () => OFF_SNAPSHOT);
   const status: LiveShareStatus = share.planId === seat.planId ? share.status : "off";
@@ -66,15 +67,18 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
   const { planId, via, memberToken } = seat;
 
   const read = useCallback(async (signal?: AbortSignal) => {
+    if (signal?.aborted) return;
     const ownerSignal = readProviderAccountSignal();
+    activeRead.current?.abort();
     const request = new AbortController();
+    activeRead.current = request;
     const abort = () => request.abort();
     signal?.addEventListener("abort", abort, { once: true });
     const deadline = window.setTimeout(abort, READ_DEADLINE_MS);
     try {
       const response = await liveLocationRequest({ planId, via, memberToken }, "GET", undefined, request.signal);
       const next = response.ok ? parsePlanLiveLocationView(await response.json()) : null;
-      if (signal?.aborted || ownerSignal.aborted) return;
+      if (activeRead.current !== request || request.signal.aborted || signal?.aborted || ownerSignal.aborted) return;
       if (response.status === 404) {
         // Not a seat that may see the crew, so there is nothing to offer.
         forgetLiveLocationNight(planId);
@@ -90,7 +94,7 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
       if (next.live && next.endsAt) rememberLiveLocationNight({ planId, via, endsAt: next.endsAt });
       else forgetLiveLocationNight(planId);
     } catch {
-      if (!signal?.aborted && !ownerSignal.aborted) setProblem("We couldn't check who's sharing. Try again.");
+      if (activeRead.current === request && !signal?.aborted && !ownerSignal.aborted) setProblem("We couldn't check who's sharing. Try again.");
     } finally {
       window.clearTimeout(deadline);
       signal?.removeEventListener("abort", abort);
@@ -106,6 +110,8 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       controller.abort();
+      activeRead.current?.abort();
+      activeRead.current = null;
       window.clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
     };

@@ -24,16 +24,19 @@ function useCrewPositions(night: LiveLocationNight): PlanLiveLocationPerson[] {
   useEffect(() => {
     const controller = new AbortController();
     const ownerSignal = readProviderAccountSignal();
+    let activeRead: AbortController | null = null;
     const read = async () => {
       if (document.visibilityState === "hidden" || controller.signal.aborted || ownerSignal.aborted) return;
+      activeRead?.abort();
       const request = new AbortController();
+      activeRead = request;
       const abort = () => request.abort();
       controller.signal.addEventListener("abort", abort, { once: true });
       const deadline = window.setTimeout(abort, READ_DEADLINE_MS);
       try {
         const response = await liveLocationRequest(night, "GET", undefined, request.signal);
         const view = response.ok ? parsePlanLiveLocationView(await response.json()) : null;
-        if (controller.signal.aborted || ownerSignal.aborted) return;
+        if (activeRead !== request || request.signal.aborted || controller.signal.aborted || ownerSignal.aborted) return;
         if (view) reconcileLiveLocationShare(night.planId, view);
         if (response.status === 404 || (view && !view.live)) {
           forgetLiveLocationNight(night.planId);
@@ -42,7 +45,7 @@ function useCrewPositions(night: LiveLocationNight): PlanLiveLocationPerson[] {
         // An unreadable answer clears the dots rather than leave stale ones up.
         setPeople(view?.people ?? []);
       } catch {
-        if (!controller.signal.aborted && !ownerSignal.aborted) setPeople([]);
+        if (activeRead === request && !controller.signal.aborted && !ownerSignal.aborted) setPeople([]);
       } finally {
         window.clearTimeout(deadline);
         controller.signal.removeEventListener("abort", abort);

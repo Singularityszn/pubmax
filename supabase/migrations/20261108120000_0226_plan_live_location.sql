@@ -176,14 +176,18 @@ begin
         and (p_start_at is null or p_start_at <= stopped_at)) then
       return jsonb_build_object('ok', false, 'error', 'stopped');
     end if;
-    if p_start_at is not null then
-      delete from public.plan_live_location_stops where plan_id = p_plan_id and member_id = v_member;
-    end if;
     insert into public.plan_live_locations (plan_id, member_id, latitude, longitude, accuracy_m, updated_at, expires_at)
-    values (p_plan_id, v_member, p_latitude, p_longitude, p_accuracy_m, v_now, v_end)
+    select p_plan_id, v_member, p_latitude, p_longitude, p_accuracy_m, v_now, v_end
+    where v_plan.social_owner_account_id is null
+      or public._social_crew_relationship_between_accounts(p_social_account_id, v_plan.social_owner_account_id)
+        in ('self', 'mutual', 'not_mutual')
     on conflict (plan_id, member_id) do update set
       latitude = excluded.latitude, longitude = excluded.longitude, accuracy_m = excluded.accuracy_m,
       updated_at = excluded.updated_at, expires_at = excluded.expires_at;
+    if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
+    if p_start_at is not null then
+      delete from public.plan_live_location_stops where plan_id = p_plan_id and member_id = v_member;
+    end if;
   elsif p_operation = 'stop' then
     if v_live then
       insert into public.plan_live_location_stops (plan_id, member_id, stopped_at, expires_at)
@@ -219,7 +223,11 @@ begin
         where crew.plan_id = p_plan_id and member.plan_member_id = seat.id
           and member.state = 'active' and account.ownership_state = 'active'
           and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id) is distinct from 'blocked')
-      end);
+      end)
+  having v_plan.social_owner_account_id is null
+    or public._social_crew_relationship_between_accounts(p_social_account_id, v_plan.social_owner_account_id)
+      in ('self', 'mutual', 'not_mutual');
+  if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
 
   return jsonb_build_object('ok', true, 'view', jsonb_build_object(
     'visibility', 'member', 'live', v_live,

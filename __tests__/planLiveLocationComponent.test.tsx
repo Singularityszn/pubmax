@@ -332,6 +332,38 @@ describe("live location consent at the account boundary", () => {
     expect(canvas.textContent).not.toContain("Private mate");
   });
 
+  it.each(["plan", "map"])("ignores superseded %s reads and errors after a newer empty result", async (surface) => {
+    const canvas = document.createElement("div");
+    const map = {
+      on: vi.fn(), off: vi.fn(), project: () => ({ x: 50, y: 50 }),
+      getContainer: () => ({ getBoundingClientRect: () => ({ width: 400, height: 400 }) }),
+      getCanvasContainer: () => canvas,
+    } as unknown as LiveMap;
+    const target = surface === "map" ? canvas : container;
+    const person = { memberId: "mate", name: "Private mate", latitude: 51.5, longitude: -0.13, accuracyM: 10, updatedAt: new Date().toISOString() };
+    const pending: { resolve: (response: Response) => void; reject: (error: Error) => void; signal?: AbortSignal | null }[] = [];
+    fetcher.mockImplementation((_input: unknown, init?: RequestInit) => new Promise<Response>((resolve, reject) => {
+      pending.push({ resolve, reject, signal: init?.signal });
+    }));
+    if (surface === "map") {
+      rememberLiveLocationNight({ ...SEAT, endsAt: view().endsAt });
+      await act(async () => root.render(createElement(MapLiveOverlays, { map, sunChaserOn: false, venues: [] })));
+    } else await mountPlan();
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    expect(pending).toHaveLength(2);
+    expect(pending[0].signal?.aborted).toBe(true);
+    await act(async () => pending[1].resolve(Response.json(view())));
+    await act(async () => pending[0].resolve(Response.json({ ...view(), sharing: true, people: [person] })));
+    expect(target.textContent).not.toContain("Private mate");
+    if (surface === "plan") expect(target.textContent).not.toContain("Resume sharing");
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    await act(async () => pending[3].resolve(Response.json({ ...view(), people: [person] })));
+    await act(async () => pending[2].reject(new Error("offline")));
+    expect(target.textContent).toContain("Private mate");
+    expect(target.textContent).not.toContain("We couldn't check who's sharing");
+  });
+
   it("keeps map polling at 15 seconds through unrelated parent renders", async () => {
     const canvas = document.createElement("div");
     const map = {

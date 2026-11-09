@@ -391,6 +391,56 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     });
   });
 
+  it.each([
+    ["read", OWNER_USER, MATE_USER], ["share", OWNER_USER, MATE_USER],
+    ["read", MATE_USER, OWNER_USER], ["share", MATE_USER, OWNER_USER],
+  ])("refuses %s after a concurrent block by %s and preserves Stop", async (operation, blocker, blocked) => {
+    call("stop", null, { plan: CREW_PLAN, account: MATE_ACCOUNT });
+    const startAt = tapTime();
+    const writer = spawn(db().psql, [...db().databaseArgs, "-q", "-t", "-A"], { stdio: ["pipe", "pipe", "pipe"] });
+    let stderr = "";
+    writer.stderr.on("data", (chunk) => { stderr += String(chunk); });
+    const finished = new Promise<void>((resolve, reject) => {
+      writer.once("error", reject);
+      writer.once("exit", (code) => code === 0 ? resolve() : reject(new Error(stderr)));
+    });
+    const ready = new Promise<void>((resolve, reject) => {
+      let output = "";
+      writer.stdout.on("data", (chunk) => {
+        output += String(chunk);
+        if (output.includes("PLAN_LOCKED")) resolve();
+      });
+      writer.once("error", reject);
+      writer.once("exit", () => reject(new Error(`Writer exited before release: ${stderr}`)));
+    });
+    writer.stdin.write(`begin;
+      select 1 from public.plans where id='${CREW_PLAN}' for update;
+      \\echo PLAN_LOCKED
+    `);
+    let response: Promise<string> | undefined;
+    try {
+      await ready;
+      response = db().sqlAsync(asServiceRole(`set application_name='live-location-block-reader';
+        select public.plan_live_location('${CREW_PLAN}', null, '${MATE_ACCOUNT}', '${operation}', 51.5, -0.13, 12, '${startAt}')::text`));
+      await vi.waitFor(async () => {
+        expect(await db().sqlAsync(`select count(*) from pg_stat_activity
+          where application_name='live-location-block-reader' and wait_event_type='Lock'`)).toBe("1");
+      });
+      writer.stdin.end(`select public.set_social_block('${blocker}', '${blocked}', true);
+        select public.plan_live_location('${CREW_PLAN}', null, '${OWNER_ACCOUNT}', 'share', 52, -0.13, 12);
+        commit;\n`);
+      await finished;
+      expect(JSON.parse(await response)).toEqual({ ok: false, error: "not_found" });
+      expect(db().sql(`select latitude from public.plan_live_locations where member_id='${OWNER_SEAT}'`)).toBe("52");
+      expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${MATE_SEAT}'`)).toBe("0");
+      expect(db().sql(`select count(*) from public.plan_live_location_stops where member_id='${MATE_SEAT}'`)).toBe("1");
+    } finally {
+      if (!writer.stdin.writableEnded) writer.stdin.end("rollback;\n");
+      await finished;
+      await response;
+    }
+  });
+
   it.each(["read", "share", "stop"])("checks the committed owner after a concurrent transfer during %s", async (operation) => {
     call("share", null, { plan: CREW_PLAN, account: OWNER_ACCOUNT });
     db().sql(asServiceRole(`select public.set_social_block('${MATE_USER}', '${OWNER_USER}', true)`));

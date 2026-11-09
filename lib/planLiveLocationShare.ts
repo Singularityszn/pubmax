@@ -3,7 +3,7 @@
 // asked for location only inside startLiveLocationShare, which runs on the
 // person's own tap. Nothing here keeps a history: each fix replaces the last.
 
-import { authedFetch } from "@/lib/authedFetch";
+import { authedFetch, compositeActionSignal } from "@/lib/authedFetch";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { haversineKm } from "@/lib/haversine";
 import { forgetLiveLocationNight } from "@/lib/liveLocationNight";
@@ -23,6 +23,7 @@ const PERMISSION_DENIED = 1;
 const MOVED_KM = 0.015;
 const WATCH_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 15_000, timeout: 30_000 };
 const HIDDEN_UPLOAD = new Error("Location upload skipped while hidden");
+const STOP_DEADLINE_MS = 8_000;
 
 /** The private route. A Plan seat rides its HttpOnly cookie; an Open Crew seat rides the account. */
 export const liveLocationRequest: Request = (seat, method, body, signal) => {
@@ -256,9 +257,9 @@ export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}):
       publish(seat.planId, "off");
     },
     geolocation,
-    request: (target, method, body) => {
+    request: (target, method, body, signal = ownerSignal) => {
       if (ownerSignal.aborted) return Promise.reject(ownerSignal.reason);
-      return request(target, method, body, ownerSignal);
+      return request(target, method, body, signal);
     },
     now,
     watchId: null, heartbeat: null, sent: null, pending: null, inFlight: null, startAt: now(), endsAt: null, expiry: null,
@@ -305,9 +306,22 @@ export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<D
   ownerSignal.addEventListener("abort", stop.onOwnerChange, { once: true });
   setExpiry(seat.planId, stop, endsAt);
   const deletion = Promise.resolve().then(async () => {
+    const controller = new AbortController();
+    const signal = compositeActionSignal([ownerSignal, controller.signal]);
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
       if (ownerSignal.aborted) throw ownerSignal.reason;
-      const response = await request(current?.seat ?? seat, "DELETE", undefined, ownerSignal);
+      const timeout = new Promise<never>((_resolve, reject) => {
+        deadline = setTimeout(() => {
+          const error = new DOMException("Location Stop timed out.", "TimeoutError");
+          controller.abort(error);
+          reject(error);
+        }, STOP_DEADLINE_MS);
+      });
+      const response = await Promise.race([
+        request(current?.seat ?? seat, "DELETE", undefined, signal),
+        timeout,
+      ]);
       if (stopping.get(seat.planId) === stop) {
         if (response.ok) {
           if (stop.expiry !== null) clearTimeout(stop.expiry);
@@ -323,6 +337,8 @@ export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<D
         publish(seat.planId, "failed");
       }
       throw error;
+    } finally {
+      clearTimeout(deadline);
     }
   });
   stop.promise = deletion;

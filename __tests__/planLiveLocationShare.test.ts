@@ -559,6 +559,32 @@ describe("sharing a live location from the phone", () => {
     setProviderIdentity("supabase", null);
   });
 
+  it.each(["credentials", "network"])("permits another Stop after stalled %s time out", async (stage) => {
+    vi.useFakeTimers();
+    const seat = { ...SEAT, via: "crew" as const };
+    const geo = fakeGeolocation();
+    const fetcher = vi.fn(async (_input: unknown, _init?: RequestInit) => new Response("{}"));
+    vi.stubGlobal("fetch", fetcher);
+    startLiveLocationShare(seat, { geolocation: geo.geolocation });
+    if (stage === "credentials") {
+      vi.mocked(getAccessToken).mockImplementationOnce(() => new Promise(() => {}));
+    } else {
+      fetcher.mockImplementationOnce(() => new Promise(() => {}));
+    }
+    const stopped = stopLiveLocationShare(seat).catch((error: unknown) => error);
+    const duplicate = stopLiveLocationShare(seat).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(await stopped).toBeInstanceOf(Error);
+    expect(await duplicate).toBeInstanceOf(Error);
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    expect(liveShareSnapshot(seat.planId)).toMatchObject({ status: "failed", stopUnconfirmed: true });
+    startLiveLocationShare(seat, { geolocation: geo.geolocation });
+    expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
+    expect((await stopLiveLocationShare(seat)).ok).toBe(true);
+    expect(liveShareSnapshot(seat.planId)).toMatchObject({ status: "off", stopUnconfirmed: false });
+    if (stage === "network") expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
+  });
+
   it("stops the watch and deletes the position when the person stops", async () => {
     const geo = fakeGeolocation();
     const route = fakeRoute();
