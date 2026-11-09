@@ -140,6 +140,9 @@ describe("optimistic Spill posting", () => {
       vibeTags: [],
       pintPhotoUrl: null,
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "pint" as const,
+      measureLabel: "",
       createdAt: "2026-07-07T21:00:00.000Z",
     });
     const stored: StoredOptimisticSpill[] = [{ clientRequestId: "client-1", drop: draft, retry }];
@@ -176,6 +179,9 @@ describe("optimistic Spill posting", () => {
       vibeTags: ["proper"],
       pintPhotoUrl: "blob:http://localhost/pint",
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "pint" as const,
+      measureLabel: "",
       createdAt: "2026-07-07T21:00:00.000Z",
     };
     const draft = buildOptimisticSpillDrop(input);
@@ -196,6 +202,9 @@ describe("optimistic Spill posting", () => {
           vibeTags: ["proper"],
           pintPhotoUrl: "blob:http://localhost/pint",
           venuePhotoUrl: null,
+          receiptPhotoUrl: null,
+          measure: "pint",
+          measureLabel: "",
         },
       },
     ]);
@@ -214,6 +223,9 @@ describe("optimistic Spill posting", () => {
       vibeTags: ["proper", "riverside"],
       pintPhotoUrl: "blob:http://localhost/pint",
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "pint" as const,
+      measureLabel: "",
       createdAt: "2026-07-07T21:00:00.000Z",
     });
 
@@ -243,6 +255,9 @@ describe("optimistic Spill posting", () => {
       vibeTags: [],
       pintPhotoUrl: "blob:http://localhost/pint",
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "pint" as const,
+      measureLabel: "",
       createdAt: "2026-07-07T21:00:00.000Z",
     };
     const memory = new Map<string, string>();

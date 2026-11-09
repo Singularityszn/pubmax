@@ -30,6 +30,7 @@ import {
 import { sightingPlacement, type SightingDTO } from "@/lib/feedSightings";
 import {
   OPTIMISTIC_SPILL_EVENT,
+  RETRY_DETAILS_GONE,
   buildOptimisticSpillRetryFormData,
   emitOptimisticSpillChange,
   failOptimisticSpill,
@@ -680,7 +681,7 @@ export default function FeedPageClient({
         failOptimisticSpill(
           stored,
           clientRequestId,
-          "Retry details are no longer available. Open the map and post it again.",
+          RETRY_DETAILS_GONE,
         ),
       );
       return;

@@ -1,3 +1,4 @@
+import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import type { PintDropDTO } from "@/lib/feed";
 import type { Visibility } from "@/lib/spill";
 import type { LastPintDecisionKind } from "@/lib/tfl";
@@ -37,6 +38,13 @@ export type OptimisticSpillInput = {
   withHandles?: string[];
 };
 
+/** A retry posts exactly what the drinker submitted, so it needs these too. */
+export type OptimisticSpillRetryInput = OptimisticSpillInput & {
+  receiptPhotoUrl: string | null;
+  measure: DrinkMeasure;
+  measureLabel: string;
+};
+
 export type OptimisticSpillRetryPayload = {
   venueId: string;
   venueName?: string;
@@ -49,6 +57,9 @@ export type OptimisticSpillRetryPayload = {
   vibeTags: string[];
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  receiptPhotoUrl: string | null;
+  measure: DrinkMeasure;
+  measureLabel: string;
   /**
    * True when a photo was attached but its local preview could not be kept:
    * a `blob:` URL is never written to storage (it dies with the document), so
@@ -121,7 +132,7 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
 }
 
 export function buildOptimisticSpillRetryPayload(
-  input: OptimisticSpillInput,
+  input: OptimisticSpillRetryInput,
 ): OptimisticSpillRetryPayload {
   return {
     venueId: input.venueId,
@@ -135,6 +146,9 @@ export function buildOptimisticSpillRetryPayload(
     vibeTags: input.vibeTags,
     pintPhotoUrl: input.pintPhotoUrl,
     venuePhotoUrl: input.venuePhotoUrl,
+    receiptPhotoUrl: input.receiptPhotoUrl,
+    measure: input.measure,
+    measureLabel: input.measureLabel,
     ...(input.leaveByIso ? { leaveByIso: input.leaveByIso } : {}),
     ...(input.lastTrainDecision ? { lastTrainDecision: input.lastTrainDecision } : {}),
     ...(input.withHandles && input.withHandles.length > 0 ? { withHandles: [...input.withHandles] } : {}),
@@ -209,6 +223,8 @@ export function markOptimisticSpillRetrying(
 
 const PHOTO_PREVIEW_GONE =
   "Photo preview is no longer available. Open the composer and attach it again.";
+export const RETRY_DETAILS_GONE =
+  "Retry details are no longer available. Open the map and post it again.";
 
 async function resolveBlobPreview(url: string): Promise<Blob> {
   const response = await fetch(url);
@@ -221,7 +237,7 @@ async function resolveBlobPreview(url: string): Promise<Blob> {
 
 async function appendRetryPhoto(
   body: FormData,
-  field: "pint_photo" | "venue_photo",
+  field: "pint_photo" | "venue_photo" | "receipt_photo",
   url: string | null,
   resolvePhotoPreview: ResolvePhotoPreview,
 ) {
@@ -238,10 +254,16 @@ export async function buildOptimisticSpillRetryFormData(
 ): Promise<FormData> {
   // A photo the drinker attached is never silently dropped from a retry.
   if (payload.photoNotKept) throw new Error(PHOTO_PREVIEW_GONE);
+  // The server reads a missing measure as a pint, so an entry stored before
+  // the measure was kept cannot be retried honestly.
+  const measure = statedDrinkMeasure(payload.measure);
+  if (!measure) throw new Error(RETRY_DETAILS_GONE);
   const body = new FormData();
   body.set("venueId", payload.venueId);
   body.set("handle", payload.handle);
   body.set("drink", payload.drink);
+  body.set("measure", measure);
+  body.set("measureLabel", measure === "other" ? (payload.measureLabel ?? "") : "");
   body.set("priceGbp", payload.priceGbp);
   body.set("passedDownNote", payload.passedDownNote);
   body.set("era", payload.era);
@@ -251,6 +273,7 @@ export async function buildOptimisticSpillRetryFormData(
   if (payload.lastTrainDecision) body.set("lastTrainDecision", payload.lastTrainDecision);
   await appendRetryPhoto(body, "pint_photo", payload.pintPhotoUrl, resolvePhotoPreview);
   await appendRetryPhoto(body, "venue_photo", payload.venuePhotoUrl, resolvePhotoPreview);
+  await appendRetryPhoto(body, "receipt_photo", payload.receiptPhotoUrl, resolvePhotoPreview);
   return body;
 }
 
@@ -305,6 +328,10 @@ function withoutBlobPreviews(entry: StoredOptimisticSpill): StoredOptimisticSpil
   }
   if (isBlobUrl(retry.venuePhotoUrl)) {
     retry.venuePhotoUrl = null;
+    retry.photoNotKept = true;
+  }
+  if (isBlobUrl(retry.receiptPhotoUrl)) {
+    retry.receiptPhotoUrl = null;
     retry.photoNotKept = true;
   }
   return { ...entry, drop, retry };

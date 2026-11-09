@@ -666,6 +666,9 @@ export function usePintDrops(
       vibeTags,
       pintPhotoUrl: pintPhoto?.previewUrl ?? null,
       venuePhotoUrl: venuePhoto?.previewUrl ?? null,
+      // The retry sends the bill and the measure too, never a default pint.
+      receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
+      ...measureFieldsOf(dropForm),
       createdAt: new Date().toISOString(),
       ...(trainFields ?? {}),
       // The retry payload keeps them only when there are some.
