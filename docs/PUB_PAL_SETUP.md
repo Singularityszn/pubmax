@@ -386,6 +386,30 @@ On the first tap, the browser asks for microphone access before the server
 issues a metered voice grant. A denied request keeps the writing door open and
 can be retried. Repeated taps while voice starts use the same attempt.
 
+### Voice interruptions
+
+A connected call ends when you lock the screen, hide the browser tab, leave the
+page, or put the native app in the background. If the page stays open, it keeps
+the transcript and offers **Carry on** when you return. This button starts a new
+call. Returning does not restart the microphone automatically.
+
+The first microphone permission prompt does not cancel startup while the native
+app remains in the foreground. A hidden page or native background transition
+cancels the startup attempt while microphone permission is pending. If permission
+then arrives, the app stops the returned stream without requesting a voice grant.
+
+The pinned ElevenLabs SDK cannot cancel startup once its connection is in
+progress. Its microphone and audio output can remain active until startup
+finishes. The app then closes the late session.
+This limit also applies if you lock the screen during SDK startup.
+
+`components/pubpal/usePageLeft.ts` detects document hiding, `pagehide`, and native
+`pause`. It ignores native foreground inactivity, which can include permission
+prompts. `__tests__/pubPalVoice.test.tsx` covers these transitions with doubles.
+These checks do not establish physical-device acceptance.
+
+### Voice grants
+
 `GET /api/pub-pal/voice-token` answers one boolean about this deployment's own
 configuration and reads no account, which is the whole reason the Pal can
 explain itself before the tap. Issuing a voice token follows the

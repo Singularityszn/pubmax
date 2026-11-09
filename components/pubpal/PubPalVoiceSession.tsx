@@ -37,6 +37,7 @@ import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVo
 import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
 import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
+import { usePageLeft } from "@/components/pubpal/usePageLeft";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -152,6 +153,7 @@ async function releaseVoiceSession(conversationId: string | null): Promise<void>
     const response = await authedActionFetch("/api/pub-pal/voice-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      keepalive: true,
       body: JSON.stringify({ action: "release", ...(conversationId ? { conversationId } : {}) }),
     }, { requiresIdentity: true });
     discardBody(response);
@@ -215,6 +217,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
+  const [endedOutOfSight, setEndedOutOfSight] = useState(false);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -418,6 +421,14 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     if (attempt) void stop(attempt);
   }, [stop]);
 
+  // See docs/PUB_PAL_SETUP.md#voice-interruptions for the SDK startup limit.
+  usePageLeft(useCallback((): void => {
+    const attempt = activeAttemptRef.current;
+    if (!attempt || !ownsAttempt(attempt)) return;
+    if (attempt.connectedAt !== null) setEndedOutOfSight(true);
+    void stop(attempt, "background");
+  }, [ownsAttempt, stop]));
+
   const start = async () => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
@@ -439,6 +450,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       voiceEndReason: null,
     };
     activeAttemptRef.current = attempt;
+    setEndedOutOfSight(false);
     setError(null);
     setUsingFallbackVoice(false);
     setStartupStopped(false);
@@ -487,6 +499,8 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
+          // The SDK holds a screen wake lock from start until the session ends.
+          useWakeLock: true,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onMessage: ({ role, message, event_id }) => {
@@ -771,7 +785,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             aria-busy={isStarting}
             onClick={() => { void start(); }}
           >
-            <Mic size={16} /> {isStarting ? "Starting" : "Start voice chat"}
+            <Mic size={16} /> {isStarting ? "Starting" : endedOutOfSight ? "Carry on" : "Start voice chat"}
           </button>
         )}
         {voiceConnecting && (

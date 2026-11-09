@@ -280,7 +280,7 @@ person controls its name, appearance, voice, personality, relationship style,
 visibility, approved memories, and mute/delete state.
 
 - Typed conversation always remains available.
-- Voice is user-initiated push-to-talk, never always-listening.
+- Voice starts only when the person requests it. The [voice interruption guide](PUB_PAL_SETUP.md#voice-interruptions) owns interruption and recovery behaviour.
 - The browser receives only a short-lived ElevenLabs conversation grant issued by
   an authenticated server endpoint.
 - Provider configuration disables audio saving. ElevenLabs does not offer zero
