@@ -25,7 +25,7 @@ export type PubComparisonEvidence = {
   serving: string | null;
   pricePence: number;
   sourceClass: "listed";
-  sourceKind: "directory" | "site-harvest" | "drink-price-update";
+  sourceKind: "directory" | "site-harvest" | "drink-price-update" | "listing-site";
   sourceUrl: string | null;
   publisher: string | null;
   date: string | null;

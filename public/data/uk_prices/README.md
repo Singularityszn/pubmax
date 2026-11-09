@@ -53,12 +53,13 @@ observation day, a published row with no source URL, an estimate with no
 basis and sample behind it, a `drinkLabel` over 80 characters, or a
 `drinkSubtype` outside the closed vocabulary for its category.
 
-## The three lanes
+## The four lanes
 
 | lane | standing | produced by |
 | --- | --- | --- |
 | `site-harvest` | `listed` | `npm run harvest:uk-prices` (document) and `npm run harvest:uk-prices-rendered` (browser) |
 | `drink-price-update` | `listed` | the reviewed publish in `public/data/drink_price_updates` |
+| `listing-site` | `listed` | `npm run build:guinndex-prices` into `data/uk_prices/guinndex.json`: a Guinness pint per matched pub from the Guinndex UK, dated by the day Guinndex recorded it. A row older than a curated venue's own price on record is dropped. |
 | `estimate` | `estimate` | `lib/priceEstimate.ts` over `public/data/price_estimates/baselines.json` |
 
 ## The rules that keep it honest

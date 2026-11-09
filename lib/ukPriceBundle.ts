@@ -54,6 +54,9 @@ export const UK_PRICE_BUNDLE_LANES = [
   "site-harvest",
   // The reviewed drink-price publish, public/data/drink_price_updates.
   "drink-price-update",
+  // A third party's price index read under its own registry exception
+  // (lib/harvest/sourceRegistry.ts, kind `price-listing`). Listed, never confirmed.
+  "listing-site",
   // Modelled here from lib/priceEstimate.ts. Never published by anybody.
   "estimate",
 ] as const;

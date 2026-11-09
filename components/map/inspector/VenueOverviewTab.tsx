@@ -63,6 +63,7 @@ import {
 } from "@/lib/firstDropNudge";
 import type { VenueDropReadStatus } from "@/components/map/usePintDrops";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
+import ListedPriceLine from "./ListedPriceLine";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import OverviewFold from "./OverviewFold";
@@ -632,17 +633,7 @@ function VenuePriceSummary({
         {/* The pill says the figure and how far to trust it in ONE mark, and
             the words are the standing module's own. */}
         <TrustPill decision={priceStanding} area={bandArea} />
-        <small className={chromeRevealClass}>
-          {formatFreshness(lane.listed.observedAt)} ·{" "}
-          <a
-            className="priceSourceLink"
-            href={lane.listed.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            source
-          </a>
-        </small>
+        <ListedPriceLine listed={lane.listed} className={chromeRevealClass} />
         {door}
       </div>
     );

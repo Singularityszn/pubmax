@@ -82,6 +82,7 @@
     "fetch:wikidata-notable-pubs": "node scripts/fetch_wikidata_notable_pubs.mjs",
     "prepare:maplibre-worker": "node scripts/copy_maplibre_worker.mjs && node scripts/copy_elevenlabs_worklets.mjs",
     "build:heritage-listings": "node scripts/build_heritage_listings.mjs",
+    "build:guinndex-prices": "tsx scripts/build_guinndex_prices.mjs",
     "pubpal:agent": "node scripts/pubpal/create-elevenlabs-agent.mjs",
     "pubpal:design-voices": "node scripts/pubpal/design-pal-voices.mjs",
     "pubpal:prove-text-tool": "node scripts/pubpal/prove-pal-text-tool.mjs",
