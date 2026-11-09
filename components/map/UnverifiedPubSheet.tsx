@@ -140,6 +140,19 @@ function sheetTag(hasCommunityPrice: boolean, hasListedPrice: boolean, readStatu
   return readStatus === "degraded" ? "Prices unread" : "Checking community prices";
 }
 
+function sheetReadStatus(
+  communityStatus: VenuePriceReadStatus,
+  listed: { id: string; status: VenuePriceReadStatus } | null,
+  pubId: string,
+  experienceLens: MapExperienceLens,
+  drinkLensCategory: DrinkCategory | null,
+): VenuePriceReadStatus {
+  if (experienceLens !== "all" || drinkLensCategory) return communityStatus;
+  const listedStatus = listed?.id === pubId ? listed.status : "loading";
+  if (communityStatus === "degraded" || listedStatus === "degraded") return "degraded";
+  return communityStatus === "ready" ? listedStatus : communityStatus;
+}
+
 /**
  * The listed pint this sheet shows: only in the plain beer view, never over a
  * drinker's own report, and only while the one standing decider still calls
@@ -209,11 +222,7 @@ export default function UnverifiedPubSheet({
     osmFacts,
   }, places?.id === pub.id ? places.record : null);
   const communityStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
-  const listedStatus = listed?.id === pub.id ? listed.status : "loading";
-  const needsListedRead = experienceLens === "all" && !drinkLensCategory;
-  const readStatus = !needsListedRead ? communityStatus
-    : communityStatus === "degraded" || listedStatus === "degraded" ? "degraded"
-    : communityStatus === "ready" ? listedStatus : communityStatus;
+  const readStatus = sheetReadStatus(communityStatus, listed, pub.id, experienceLens, drinkLensCategory);
   const pricesKnown = readStatus === "ready";
   const readFailed = readStatus === "degraded";
   const rows = communityPrices.byVenueId.get(pub.id);
