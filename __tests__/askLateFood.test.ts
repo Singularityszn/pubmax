@@ -103,6 +103,7 @@ describe("clean late-food questions through Ask", () => {
     "Food in Soho at 01:00",
     "Food in Soho after ten pm",
     "Food in Soho tonight and tomorrow at 1am",
+    "Food late in Soho tonight and tomorrow",
     "Food in Soho tonight tonight at 1am",
     "Food in Soho tonight at 01:00 and 02:00",
     "Food in Soho at midnight and 01:00 on 2026-10-26",
@@ -411,6 +412,48 @@ describe("late tonight wording", () => {
       }
     },
   );
+
+  it.each(["1am", "What about 1am?", "Tonight at 1am", "01:00 please"])(
+    "replaces the earlier time wording with a clock: %s", async (query) => {
+      for (const history of [[FIRST], [FIRST, "What about after midnight?"]]) {
+        for (const response of await bothPaths(query, history)) {
+          expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+          expect(response.proposals).toEqual([]);
+          expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+        }
+      }
+    },
+  );
+
+  it.each(["2026-10-23", "on 2026-10-23 please"])(
+    "asks for a clear time after a date-only correction: %s", async (query) => {
+      for (const history of [[FIRST], [FIRST, "What about after midnight?"]]) {
+        for (const response of await bothPaths(query, history)) {
+          expect(response.cards).toEqual([]);
+          expect(response.proposals).toEqual([]);
+          expect(response.sources).toEqual([]);
+          expect(response.answer).toContain("Which night and time");
+        }
+        for (const response of await bothPaths("1am", [...history, query])) {
+          expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+        }
+      }
+    },
+  );
+
+  it.each([
+    "Food in Soho tonight and tomorrow at 1am",
+    "Food in Soho tonight and today at 1am",
+    "Food late in Soho tonight and tomorrow",
+    "Food late in Soho tonight and today",
+  ])("preserves unresolved nights after an after-midnight reply: %s", async (previous) => {
+    for (const response of await bothPaths("after midnight", [previous])) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect(response.sources).toEqual([]);
+      expect(response.answer).toContain("Which night and time");
+    }
+  });
 
   it("answers both turns honestly on a night with no recorded late service", async () => {
     for (const [query, history, time] of [[FIRST, [], "23:00"], ["What about after midnight?", [FIRST], "01:00"]] as const) {
