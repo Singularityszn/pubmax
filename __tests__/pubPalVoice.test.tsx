@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, Fragment, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -69,6 +69,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: navigation.push }),
+  usePathname: () => "/pal",
 }));
 
 vi.mock("@/components/pubpal/palVoiceSounds", () => ({
@@ -97,7 +98,8 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
   trackEvent: analytics.trackEvent,
 }));
 
-import PubPalVoice from "@/components/pubpal/PubPalVoice";
+import PubPalVoiceGate from "@/components/pubpal/PubPalVoice";
+import PalVoiceHost from "@/components/pubpal/PalVoiceHost";
 import { ACTIVE_PLAN_KEY, writeActivePlan } from "@/lib/activePlan";
 
 const NIGHT_PLAN_ID = "11111111-1111-4111-8111-111111111111";
@@ -112,6 +114,11 @@ import {
 } from "@/lib/pubPalVoiceSession";
 import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
+
+// The /pal gate draws a slot and the shell's host draws the call into it.
+function PubPalVoice(props: ComponentProps<typeof PubPalVoiceGate>) {
+  return createElement(Fragment, null, createElement(PubPalVoiceGate, props), createElement(PalVoiceHost));
+}
 
 let container: HTMLDivElement;
 let root: Root | null;

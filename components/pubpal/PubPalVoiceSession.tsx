@@ -10,8 +10,9 @@
 // before first paint, for a control the reader may never reach and the
 // deployment may not even offer.
 //
-// The tri-state is unchanged and stays in PubPalVoice.tsx. This module is only
-// ever reached through the `available` branch.
+// The tri-state is unchanged and stays in PubPalVoice.tsx. PalVoiceHost mounts
+// this module from the root shell, so one call carries across /pal and /map:
+// it draws into the /pal panel's slot there and as a voice bar on /map.
 
 import type { Route } from "next";
 import {
@@ -29,10 +30,12 @@ import {
   useConversationMode,
   useConversationStatus,
 } from "@elevenlabs/react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mic, MicOff, Send } from "lucide-react";
 
+import PalVoiceBar, { useOnMapRef, usePalVoiceEngaged } from "@/components/pubpal/PalVoiceBar";
 import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVoiceMeter";
 import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
@@ -43,7 +46,6 @@ import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PalAnimationState, PubPalAppearance } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
@@ -76,6 +78,8 @@ import {
   type PalVoiceLine,
 } from "@/lib/palVoiceTranscript";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
+import { setPalVoiceReady, type PalVoicePanelProps } from "@/lib/palVoiceHost";
+import { releaseVoiceSession, syncVoiceToolTurn } from "@/lib/pubPalVoiceServer";
 import { useAuth } from "@/components/auth/authContext";
 import { isPlanActiveNow, readOwnedActivePlan } from "@/lib/activePlan";
 import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
@@ -123,43 +127,10 @@ function palWrittenAskHref(value: string): Route {
   return `/pal/chat?${new URLSearchParams({ ask: value }).toString()}`;
 }
 
-async function syncVoiceToolTurn(input: {
-  conversationId: string;
-  threadTurn?: { role: "user"; content: string };
-}): Promise<void> {
-  try {
-    const response = await authedActionFetch("/api/pub-pal/tool-turn", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        conversationId: input.conversationId,
-        cityId: DEFAULT_CITY_ID,
-        ...(input.threadTurn ? { threadTurn: input.threadTurn } : {}),
-      }),
-    }, { requiresIdentity: true });
-    discardBody(response);
-  } catch {
-    // Best effort: fencing still runs on the tool query alone when sync fails.
-  }
-}
-
-/**
- * Tells the server a session ended. It names the conversation and nothing
- * else: the allowance is settled from the provider's own record of the call,
- * never from a figure the browser measures.
- */
-async function releaseVoiceSession(conversationId: string | null): Promise<void> {
-  try {
-    const response = await authedActionFetch("/api/pub-pal/voice-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      keepalive: true,
-      body: JSON.stringify({ action: "release", ...(conversationId ? { conversationId } : {}) }),
-    }, { requiresIdentity: true });
-    discardBody(response);
-  } catch {
-    // Best effort: a failed release must not block ending the local session.
-  }
+function palVoiceMeterMode(connecting: boolean, live: boolean, speaking: boolean): PalVoiceMeterMode {
+  if (connecting) return "connecting";
+  if (!live) return "idle";
+  return speaking ? "speaking" : "listening";
 }
 
 const silentVolume = (): number => 0;
@@ -170,7 +141,9 @@ type VoiceTranscript = {
   setLines: Dispatch<SetStateAction<PalVoiceLine[]>>;
 };
 
-function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal, appearance, genome, onMemoryChange }: {
+function VoiceControls({ panel, onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal, appearance, genome, onMemoryChange }: {
+  /** The /pal panel's slot. With none, the call draws as the voice bar. */
+  panel: HTMLElement | null;
   onStateChange?: (state: PalAnimationState) => void;
   resetPendingSession: (error: string | null) => void;
   text: string;
@@ -186,6 +159,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
 }) {
   const { getCurrentUserId } = useAuth();
   const router = useRouter();
+  const onMapRef = useOnMapRef();
   const {
     startSession,
     endSession,
@@ -239,8 +213,8 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     setMapPending(false);
   }, []);
 
-  // The person asked for the map in their own words. Leaving /pal ends the
-  // voice session through the unmount below, so the allowance is released.
+  // The person asked for the map in their own words. The call lives in the
+  // shell (PalVoiceHost), so it carries on as the voice bar on /map.
   const openMap = useCallback((href: string = PAL_VOICE_MAP_HREF, label = "Opening the map"): void => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
     setMapLabel(label);
@@ -249,11 +223,17 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     if (liveRef.current) playPalVoiceSound("map");
     mapTimerRef.current = window.setTimeout(() => {
       mapTimerRef.current = null;
+      setMapPending(false);
       router.push(href as Route);
     }, PAL_VOICE_MAP_DELAY_MS);
   }, [router]);
   const openMapRef = useRef(openMap);
   const showMap = useCallback((): boolean => {
+    // Already on the map: the call is in view, so nothing more opens.
+    if (onMapRef.current) {
+      stayHere();
+      return true;
+    }
     if (recommendationCards.some((card) => card.venueId)) {
       const map = resultsRef.current?.querySelector<HTMLElement>(".palChatMap");
       if (map) {
@@ -265,7 +245,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     }
     openMap();
     return false;
-  }, [recommendationCards, stayHere, openMap]);
+  }, [onMapRef, recommendationCards, stayHere, openMap]);
   const showMapRef = useRef(showMap);
   useEffect(() => {
     openMapRef.current = openMap;
@@ -701,11 +681,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   };
 
   const live = status === "connected";
-  const meterMode: PalVoiceMeterMode = voiceConnecting
-    ? "connecting"
-    : live
-      ? isSpeaking ? "speaking" : "listening"
-      : "idle";
+  const meterMode = palVoiceMeterMode(voiceConnecting, live, isSpeaking);
   const faceState: PalAnimationState = voiceConnecting
     ? "noticing"
     : live
@@ -719,7 +695,18 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     return () => signal.attach(null);
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
-  return (
+  usePalVoiceEngaged([voiceConnecting, live, endedOutOfSight, error !== null]);
+
+  if (!panel) {
+    return (
+      <PalVoiceBar palName={palName} appearance={appearance} genome={genome} lines={lines}
+        error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
+        onEnd={stopCurrentAttempt} onCarryOn={() => { void start(); }}
+        onClose={() => { setEndedOutOfSight(false); setError(null); }} />
+    );
+  }
+
+  return createPortal(
     <div className="palVoice" data-mode={meterMode}>
       <div className="palVoiceHead">
         {appearance ? <PalVoiceFace appearance={appearance} signal={signal} state={faceState} genome={genome} /> : null}
@@ -825,26 +812,21 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       <p className="palVoicePrivacy">
         No audio or transcript becomes a memory. The Pal can suggest facts, and you approve each one.
       </p>
-    </div>
+    </div>,
+    panel,
   );
 }
 
 /** The writing draft outlives a provider whose pending startup was cancelled. */
 export default function PubPalVoiceSession({
+  panel,
   onStateChange,
   palName = "Pal",
   signal,
   appearance,
   genome,
   onMemoryChange,
-}: {
-  onStateChange?: (state: PalAnimationState) => void;
-  palName?: string;
-  signal?: PalVoiceSignal;
-  appearance?: PubPalAppearance;
-  genome?: PalGenome;
-  onMemoryChange?: () => void;
-}) {
+}: PalVoicePanelProps & { panel: HTMLElement | null }) {
   const [sdkGeneration, setSdkGeneration] = useState(0);
   // The transcript outlives an SDK reset and a session that ended, so the
   // person can read back what was said. It lives in this tab only.
@@ -856,9 +838,14 @@ export default function PubPalVoiceSession({
     setSdkGeneration((generation) => generation + 1);
     if (nextError) onStateChange?.("error");
   }, [onStateChange]);
+  useEffect(() => {
+    setPalVoiceReady(true);
+    return () => setPalVoiceReady(false);
+  }, []);
   return (
     <ConversationProvider key={sdkGeneration}>
       <VoiceControls
+        panel={panel}
         onStateChange={onStateChange}
         resetPendingSession={resetPendingSession}
         text={text}
