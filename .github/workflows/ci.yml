@@ -27,12 +27,7 @@ concurrency:
 
 
 jobs:
-  # MERGE QUEUE PROOF (docs/CI_RUNBOOK.md, "The required checks and the merge
-  # queue"). The queue moves main to the exact commit it tested. A main push
-  # whose commit already passed this workflow in the queue skips each job that
-  # ran there, and still runs each job that only a main push runs. An API error
-  # reads "not proved", so every job runs. Every copy of this job is identical
-  # (__tests__/ciSummaryCheck.test.ts).
+  # docs/CI_RUNBOOK.md owns the merge queue proof policy and its exceptions.
   queue-proof:
     name: Merge queue proof
     if: github.event_name == 'push'

@@ -1,6 +1,6 @@
 # CI speed plan
 
-Status: LEVERS 1 TO 4 SHIPPING, CAPTAIN DECIDES THE REST. Lever 1 ships in the pull request that adds this plan. On 2 Nov 2026 the captain approved levers 2, 3 and 4 (three unit shards), and they ship in the same pull request. Levers 5 to 7 wait for the captain.
+Status: LEVERS 1 TO 4 SHIPPING, CAPTAIN DECIDES THE REST. Lever 1 ships in the pull request that adds this plan. On 2 Nov 2026 the captain approved levers 2, 3 and 4 (three unit shards), and they ship in the same pull request. Levers 5, 6 and the remaining browser changes wait for the captain.
 
 Rule: [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH](../rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path). Skills: `ci-speedup`, `ci-score` and `ci-secure`, user-level skills installed in `~/.agents/skills` (provenance in the git history of [`.agents/skills/SOURCES.md`](../../.agents/skills/SOURCES.md)).
 
@@ -65,7 +65,7 @@ The twelve techniques that appear in the most playbooks, and where this reposito
 | Run only the affected apps | 5 of 10 | Done in our own way: each job reads the change scope (docs, data or code). |
 | Cancel superseded runs | 5 of 10 | Done on every pull request workflow. Main pushes of `Browser tests` share one group. |
 | Set job timeouts | 5 of 10 | Done on every job. |
-| Cache large downloads | 4 of 10 | Partly: Chromium downloads in 11 to 18 seconds per browser job (lever 7). |
+| Cache large downloads | 4 of 10 | See the [Mac cache policy](../CI_RUNBOOK.md#self-hosted-mac-runners). |
 
 `ci-score` gives this repository 75 out of 100. Its two failed checks are decisions, not defects: no `paths` filter (a filtered workflow leaves a required check waiting for ever, so each job reads the change scope instead), and `fetch-depth: 0` on Review scope (it diffs the whole branch).
 
@@ -81,7 +81,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 | 4. Balance the unit shards | 2.5 to 3 off the unit chain | Approved 2 Nov 2026 as three shards, ships in this pull request |
 | 5. Cache ESLint's work | up to about 2 | Captain decides |
 | 6. Spread Dependabot over the day | up to 5 of queue, only in a burst | Captain decides |
-| 7. Smaller wins in Browser tests | 0.2 to 2.5 per browser job | Captain decides |
+| 7. Smaller wins in Browser tests | 0.2 to 2.5 per browser job | Remaining changes need approval |
 
 ### Lever 1. Restore the Next.js build cache (ships in this pull request)
 
@@ -126,7 +126,6 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 ### Lever 7. Smaller wins in Browser tests (captain decides)
 
 - Balance the three macOS layout-pin shards by duration. Playwright splits by test count, and one shard ran at least 2.5 minutes longer than another.
-- Cache the Playwright Chromium download (11 to 18 seconds per job).
 - Shorten fixed waits in browser specs: `ci-speedup` counts about 65 seconds of `waitForTimeout` across 76 spec files.
 
 ### Also found (not speed)
