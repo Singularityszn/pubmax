@@ -45,7 +45,11 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     return Response.json([{ id: "stop-1", venue_id: "venue-1", venue_name: "The Ship" }]);
   }
   if (url.pathname === "/rest/v1/round_spends") {
-    if (method === "GET") return Response.json(rows);
+    if (method === "GET") {
+      const id = url.searchParams.get("id")?.replace(/^eq\./, "");
+      const selected = id ? rows.filter((row) => row.id === id) : rows;
+      return Response.json(selected);
+    }
     if (method !== "POST") throw new Error("Unexpected spend method");
     insertAttempts += 1;
     const row = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -61,37 +65,41 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     return new Response(null, { status: 201 });
   }
   if (url.pathname.startsWith("/storage/v1/object/")) {
-    if (method === "DELETE") {
-      const { prefixes } = JSON.parse(String(init?.body)) as { prefixes: string[] };
-      for (const key of prefixes) {
-        objects.delete(key);
-        storedBytes.delete(key);
-        deleted.push(key);
-      }
-      return Response.json([]);
-    }
-    if (method === "GET") {
-      if (failedDownloads) return new Response(null, { status: 503 });
-      const bytes = storedBytes.get(url.pathname.split("/").slice(5).join("/"));
-      return bytes ? new Response(new Uint8Array(bytes), { headers: { "content-type": "image/jpeg" } }) : new Response(null, { status: 404 });
-    }
-    if (method !== "POST") throw new Error("Unexpected storage method");
-    const body = init?.body;
-    const image = body instanceof FormData
-      ? [...body.values()].find((value): value is File => value instanceof File)
-      : null;
-    let bytes = image
-      ? Buffer.from(await image.arrayBuffer())
-      : Buffer.from(Buffer.from(body as Uint8Array).toString("utf8"), "utf8");
-    if (corruptWrites) bytes = Buffer.from(bytes.toString("utf8"), "utf8");
-    storedBytes.set(url.pathname.split("/").slice(5).join("/"), bytes);
-    uploads.push(url.pathname);
-    objects.add(url.pathname.split("/").slice(5).join("/"));
-    await uploadBarrier?.();
-    return Response.json({ Key: url.pathname });
+    return fixtureStorageFetch(url, method, init);
   }
   throw new Error(`Unexpected fixture path: ${url.pathname}`);
 };
+
+async function fixtureStorageFetch(url: URL, method: string, init?: RequestInit): Promise<Response> {
+  if (method === "DELETE") {
+    const { prefixes } = JSON.parse(String(init?.body)) as { prefixes: string[] };
+    for (const key of prefixes) {
+      objects.delete(key);
+      storedBytes.delete(key);
+      deleted.push(key);
+    }
+    return Response.json([]);
+  }
+  if (method === "GET") {
+    if (failedDownloads) return new Response(null, { status: 503 });
+    const bytes = storedBytes.get(url.pathname.split("/").slice(5).join("/"));
+    return bytes ? new Response(new Uint8Array(bytes), { headers: { "content-type": "image/jpeg" } }) : new Response(null, { status: 404 });
+  }
+  if (method !== "POST") throw new Error("Unexpected storage method");
+  const body = init?.body;
+  const image = body instanceof FormData
+    ? [...body.values()].find((value): value is File => value instanceof File)
+    : null;
+  let bytes = image
+    ? Buffer.from(await image.arrayBuffer())
+    : Buffer.from(Buffer.from(body as Uint8Array).toString("utf8"), "utf8");
+  if (corruptWrites) bytes = Buffer.from(bytes.toString("utf8"), "utf8");
+  storedBytes.set(url.pathname.split("/").slice(5).join("/"), bytes);
+  uploads.push(url.pathname);
+  objects.add(url.pathname.split("/").slice(5).join("/"));
+  await uploadBarrier?.();
+  return Response.json({ Key: url.pathname });
+}
 
 beforeEach(() => {
   rows = [];
@@ -139,13 +147,16 @@ it("retains the uploaded bill key on a Supabase spend and its replay", async () 
   const saved = await store.recordSpend(CODE, spend());
   expect(saved.ok).toBe(true);
   if (!saved.ok) throw new Error("Spend was not saved");
-  const key = `venue-1/${saved.state.spends[0]?.id}/receipt.jpg`;
+  expect(uploads).toHaveLength(1);
+  const key = uploads[0]!.split("/").slice(5).join("/");
+  expect(key).toMatch(new RegExp(`^venue-1/${saved.state.spends[0]?.id}/receipt-[0-9a-f-]+\\.jpg$`));
   expect(rows[0]?.receipt_photo_key).toBe(key);
   expect(saved.state.spends[0]?.receiptPhotoKey).toBe(key);
-  expect(uploads).toHaveLength(1);
+  expect(await store.getSpendById(String(saved.state.spends[0]?.id))).toMatchObject({ receiptPhotoKey: key });
+  expect(await store.getSpendById("00000000-0000-4000-8000-000000000000")).toBeNull();
   expect(objects).toEqual(new Set([key]));
+  expect(storedBytes.get(key)).toBeInstanceOf(Buffer);
   expect(deleted).toEqual([]);
-  expect(uploads[0]).toMatch(new RegExp(`/venue-1/${saved.state.spends[0]?.id}/receipt\\.jpg$`));
   const replay = await store.recordSpend(CODE, spend());
   expect(replay).toMatchObject({ ok: true, created: false, state: { spends: [{ receiptPhotoKey: key }] } });
   expect(insertAttempts).toBe(1);

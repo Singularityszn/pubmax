@@ -192,5 +192,7 @@ export function measureFromServingSize(value: unknown): DrinkMeasure | null {
 /** The composer's own label above the measure chips. */
 export const MEASURE_FIELD_LABEL = "What measure?";
 
+export const MEASURE_OTHER_SUGGESTIONS = ["Schooner", "third", "carafe"] as const;
+
 /** What the `other` measure's free field asks for. */
-export const MEASURE_OTHER_PLACEHOLDER = "Schooner, third, carafe";
+export const MEASURE_OTHER_PLACEHOLDER = MEASURE_OTHER_SUGGESTIONS.join(", ");

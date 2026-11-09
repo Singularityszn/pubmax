@@ -24,6 +24,7 @@ import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { reconcilePriceTrustForObservation } from "@/lib/priceTrustImpact.server";
 
 export type OneTapPintDropInput = Readonly<{
+  id?: string;
   venueId: string;
   handle: string;
   drinkCategory: DrinkCategory;
@@ -60,7 +61,7 @@ async function listRecentForDedupe(
 }
 
 export type OneTapPintDropOutcome =
-  | { ok: true; drop: PintDrop }
+  | { ok: true; drop: PintDrop; created: boolean }
   | { ok: false; kind: "invalid_photo"; message: string }
   | { ok: false; kind: "storage"; message: string };
 
@@ -141,7 +142,7 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
       ? cleanDrinkMeasureLabel(input.measureLabel)
       : "";
   return {
-    id: randomUUID(),
+    id: input.id ?? randomUUID(),
     venueId: input.venueId,
     handle,
     drink: submitCategoryLabel(input.drinkCategory),
@@ -206,6 +207,7 @@ export async function revertOneTapCommunityPricePairing(
 export async function writeOneTapPintDrop(
   input: OneTapPintDropInput,
   photos: PintDropPhotos = { pint: null, venue: null, receipt: null },
+  existingDrop?: PintDrop | null,
 ): Promise<OneTapPintDropOutcome> {
   // Pint Drops feed pint-only surfaces (pin colour, cheapest-pint buckets,
   // the Confirmed standing, the Pint Index). A non-beer price paired in here
@@ -230,18 +232,20 @@ export async function writeOneTapPintDrop(
     // pub's sheet does not list the same pint three times. A read we could not
     // run writes the drop rather than refusing it: losing a drinker's price to
     // protect against a duplicate is the worse of the two failures.
-    const recent = await listRecentForDedupe(store, input.venueId);
-    const duplicate = recent
+    const recent = existingDrop === undefined ? await listRecentForDedupe(store, input.venueId) : null;
+    const duplicate = existingDrop === undefined && recent
       ? duplicateOneTapDrop(recent, built, Date.parse(built.createdAt))
-      : null;
+      : existingDrop;
     if (duplicate) {
       log("info", "one_tap_pint_drop.duplicate_tap", { venueId: input.venueId });
-      return { ok: true, drop: duplicate };
+      return { ok: true, drop: duplicate, created: false };
     }
-    const drop = await store.create(built, photos);
-    signalPintDropLanded();
-    void ensureProfileForHandle(handle);
-    return { ok: true, drop };
+    const { created, ...drop } = await store.create(built, photos);
+    if (created) {
+      signalPintDropLanded();
+      void ensureProfileForHandle(handle);
+    }
+    return { ok: true, drop, created };
   } catch (err) {
     // The CLASS, not the sentence: an unreadable image is refused with words
     // of its own, and asking about the words sent it down the storage branch

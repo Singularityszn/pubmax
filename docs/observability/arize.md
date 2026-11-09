@@ -44,6 +44,7 @@ environment reads and nothing else.
 | `ask/model-loop` (default), `api/ask` | `lib/ask/modelLoop.ts` tool loop. See [provider setup](../PUB_PAL_SETUP.md#typed-chat-on-claude) | one AGENT span, one LLM span per round (input: the messages added since the previous round), one TOOL span per tool call |
 | `api/pub-pal/chat` | `lib/palClaudeChat.server.ts`, or keyless `lib/ask/runAsk.ts` with `skipModel: true` | Claude: one AGENT span, one LLM span per round, one TOOL span per tool. Keyless: TOOL spans only. ElevenLabs hosted inference has no LLM span here |
 | `api/heritage` | `lib/heritage.ts` narrations | one LLM span |
+| `api/board-reads`, `api/bill-checks` | `lib/openRouterVision.server.ts`, shared by Board Reader and bill checks | one LLM span with model, token counts and fixed errors, without photos or model answers |
 | `search-gateway` | `lib/searchProvider.server.ts` AI SDK `generateText` via the gateway | AI SDK spans (`gen_ai.agent.name = search-gateway`) |
 | `moderation/avatar` | `lib/profileAvatarModeration.ts` both adapters | one LLM span per moderation call |
 | `moderation/social-post` | `lib/socialPostModeration.ts` | one LLM span |

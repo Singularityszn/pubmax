@@ -37,7 +37,7 @@ import {
 import { isDrinkCategory } from "@/lib/drinks";
 import { normalizeHandle } from "@/lib/profiles";
 import { log } from "@/lib/log";
-import { deletePhotos, isMissingReceiptColumnError, PhotoRefusalError, uploadPhoto } from "@/lib/pintDropsStore";
+import { deletePhotos, isMissingReceiptColumnError, PhotoRefusalError, preparePhoto, uploadPreparedPhoto } from "@/lib/pintDropsStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 
 // How many times to retry a code collision before giving up. A 6-char code over a
@@ -66,7 +66,7 @@ type CloseResult =
   | { ok: false; error: RoundWriteError };
 
 type RecordSpendResult =
-  | { ok: true; state: RoundState; created: boolean }
+  | { ok: true; state: RoundState; created: boolean; receipt?: File }
   | { ok: false; error: RoundWriteError };
 
 type TransitionSpendPromotionsResult =
@@ -84,6 +84,7 @@ type ReconcilePromotionKeysResult =
 export type RoundsStore = {
   create(input: { title?: unknown; createdByHandle?: unknown }): Promise<CreateResult>;
   getByCode(code: string): Promise<RoundState | null>;
+  getSpendById(id: string): Promise<RoundSpendDTO | null>;
   join(code: string, handle: string): Promise<JoinResult>;
   addStop(
     code: string,
@@ -132,18 +133,19 @@ async function uploadRoundReceipt(
   venueId: string,
   spendId: string,
   receipt?: File | null,
-): Promise<string | undefined> {
-  if (!receipt) return undefined;
+): Promise<{ receiptPhotoKey?: string; receipt?: File }> {
+  if (!receipt) return {};
+  const bytes = await preparePhoto("receipt", venueId, spendId, receipt);
+  const prepared = new File([new Uint8Array(bytes)], "bill.jpg", { type: "image/jpeg" });
   try {
-    return await uploadPhoto("receipt", venueId, spendId, receipt);
+    return { receiptPhotoKey: await uploadPreparedPhoto("receipt", venueId, spendId, bytes), receipt: prepared };
   } catch (error) {
-    if (error instanceof PhotoRefusalError) throw error;
     log("warn", "rounds.receipt_upload_failed", {
       venueId,
       spendId,
       error: error instanceof Error ? error.message : String(error),
     });
-    return undefined;
+    return { receipt: prepared };
   }
 }
 
@@ -289,6 +291,12 @@ const supabaseRoundsStore: RoundsStore = {
     }
   },
 
+  async getSpendById(id) {
+    const { data, error } = await admin().from(SPENDS).select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? spendFromRow(data as Record<string, unknown>) : null;
+  },
+
   async join(code, handle) {
     const h = normalizeHandle(handle);
     if (!h) return { ok: false, error: "invalid" };
@@ -364,7 +372,8 @@ const supabaseRoundsStore: RoundsStore = {
         return { ok: true, state, created: false };
       }
       const id = crypto.randomUUID();
-      let receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+      const uploaded = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+      let { receiptPhotoKey } = uploaded;
       // Storage can finish after closure. This read avoids an unnecessary insert.
       // Migration 0221 must be applied to guard closure between this read and insert.
       const { data: current, error: currentError } = await admin()
@@ -418,7 +427,7 @@ const supabaseRoundsStore: RoundsStore = {
       }
       const next = await this.getByCode(code);
       return next
-        ? { ok: true, state: next, created: !error }
+        ? { ok: true, state: next, created: !error, ...(!error && uploaded.receipt ? { receipt: uploaded.receipt } : {}) }
         : { ok: false, error: "error" };
     } catch (err) {
       if (err instanceof PhotoRefusalError) return { ok: false, error: "invalid" };
@@ -637,6 +646,14 @@ export const memoryRoundsStore: RoundsStore = {
     return round ? stateFrom(round) : null;
   },
 
+  async getSpendById(id) {
+    for (const round of memoryRounds.values()) {
+      const spend = stateFrom(round).spends.find((row) => row.id === id);
+      if (spend) return spend;
+    }
+    return null;
+  },
+
   async join(code, handle) {
     const h = normalizeHandle(handle);
     if (!h) return { ok: false, error: "invalid" };
@@ -691,9 +708,10 @@ export const memoryRoundsStore: RoundsStore = {
     }
     const id = crypto.randomUUID();
     let receiptPhotoKey: string | undefined;
+    let receipt: File | undefined;
     if (!round.spends.some((spend) => spend.clientRef === clean.clientRef)) {
       try {
-        receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+        ({ receiptPhotoKey, receipt } = await uploadRoundReceipt(clean.venueId, id, input.receipt));
       } catch (error) {
         if (error instanceof PhotoRefusalError) return { ok: false, error: "invalid" };
         throw error;
@@ -737,7 +755,7 @@ export const memoryRoundsStore: RoundsStore = {
         return { ok: false, error: "forbidden" };
       }
     }
-    return { ok: true, state: stateFrom(round), created };
+    return { ok: true, state: stateFrom(round), created, ...(created && receipt ? { receipt } : {}) };
   },
 
   async claimSpendPromotionOwner(code, clientRef, actor) {

@@ -31,10 +31,9 @@ function nonPintMeasureName(drop: DropWithPhotos): string {
 }
 
 /**
- * The drop's own dated line when its price was typed with NO BILL (captain
- * decision 9, 1 Nov 2026): "Logged by @handle, not checked · 1 Nov". Null on
- * every other drop. The day is London's, printed the way the trust pill prints
- * one, so two surfaces never date one report two ways.
+ * The dated line for evidence identified by `isUncheckedPrice`:
+ * "Logged by @handle, not checked · 1 Nov". Null on every other drop.
+ * The date uses London's time zone and the trust pill's date format.
  */
 function uncheckedDropLine(drop: DropWithPhotos): { label: string; day: string } | null {
   if (drop.priceGbp === null || !isUncheckedPrice(drop)) return null;

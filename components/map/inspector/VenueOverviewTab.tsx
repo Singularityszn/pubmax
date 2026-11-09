@@ -353,7 +353,7 @@ function PriceDoorRow(props: Parameters<typeof PriceDoor>[0]) {
  * one colour. `priceStanding` is deliberately not consulted for any of the
  * three, because a drinker's log is not a published price.
  *
- * AN UNCHECKED LOG (a typed price with no bill, captain decision 9) prints in
+ * An unchecked log (as defined by lib/pintDropReceipt.ts) prints in
  * the same block, visibly weaker and in words rather than a colour: the
  * drinker is named as "Logged by @handle, not checked", the figure sits on the
  * NEUTRAL plaque, and the line says what it is waiting for. Colour means the

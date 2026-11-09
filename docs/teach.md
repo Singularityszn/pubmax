@@ -263,7 +263,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 |---|---|
 | `app/api/pint-drops/route.ts` | The **single** Pint Drop write/read/moderation path: multipart+JSON, validation, rate-limit gate, moderator auth, production-503 gate |
 | `lib/pintDrops.ts` | Storage-agnostic core: `validatePintDrop`, `isLimited`, `REPORT_HIDE_THRESHOLD`, the process-memory store |
-| `lib/pintDropsStore.ts` | The `PintDropStore` interface + two implementations; photo upload, DTOs, deterministic keys + orphan cleanup, the atomic `report_pint_drop` RPC |
+| `lib/pintDropsStore.ts` | The `PintDropStore` interface + two implementations; photo upload, DTOs, upload cleanup, the atomic `report_pint_drop` RPC |
 | `lib/supabase.ts` | `getSupabaseAdmin` (service-role, server-only), config checks, `checkRateLimitDurable` (fail-open), and a re-export of `hashIp` |
 | `lib/rateLimitHash.ts` | The one definition of `hashIp` (salted), a pure leaf so a route needing only a limiter key traces no Supabase client |
 | `lib/heritage.ts` / `app/api/heritage/route.ts` | The Landlord: fact retrieval, provenance labelling, honest fallback, LLM bounds + phantom-fact rejection |
@@ -272,7 +272,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 
 ### How it works
 
-**Pint Drop write flow.** `parseBody` handles multipart or JSON. `validatePintDrop` (`pintDrops.ts:69`) is the **trust boundary** — re-checks/coerces every field server-side and derives `provenance` (client never sets it). Then `isLimited` keyed on `handle + hashed-IP`, then `store().create`. In Supabase, **photos upload before the insert** to deterministic keys; if the insert fails, `deletePhotos` removes exactly those keys — no orphans.
+**Pint Drop write flow.** `parseBody` handles multipart or JSON. `validatePintDrop` (`pintDrops.ts:69`) is the **trust boundary** — re-checks/coerces every field server-side and derives `provenance` (client never sets it). Then `isLimited` keyed on `handle + hashed-IP`, then `store().create`. The [shared storage rule](rules/lib-images-uploads-and-photo-walls.md#storage-takes-a-blob-and-a-write-proves-itself) owns photo writes and cleanup.
 
 **Moderation.** Reports are unauthenticated. One report **never hides content** — a drop leaves public reads only at `REPORT_HIDE_THRESHOLD = 2`, and the increment-stamp-hide happens in **one atomic RPC** (`report_pint_drop`, 0004) so concurrent reports can't lose a count. Hidden drops surface in `/admin` for restore / keep-hidden.
 

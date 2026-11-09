@@ -281,6 +281,7 @@ export type CommunityPriceStore = {
     id: string,
     hidden: boolean,
     note?: string,
+    expected?: { submittedAt: number; priceGbp: number; roundSource?: RoundPriceSource },
   ): Promise<ModerationStateResult>;
   /**
    * The moderation queue: reported and/or hidden observations of either shape,
@@ -314,7 +315,7 @@ export type ModerationStateResult =
   | {
       status: "ok";
       changed: boolean;
-      kind: ModerationObservationKind;
+      kind?: ModerationObservationKind;
     }
   | {
       status: "not-found" | "unavailable";
@@ -1198,9 +1199,14 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return true;
   },
 
-  async moderateWithState(id, hidden, note) {
+  async moderateWithState(id, hidden, note, expected) {
     const row = findMemoryRow(id);
     if (!row) return { status: "not-found", changed: false };
+    if (expected !== undefined &&
+      (!("drinkCategory" in row) || row.submittedAt !== expected.submittedAt || row.priceGbp !== expected.priceGbp ||
+        (expected.roundSource ? !sameRoundPriceSource(row.roundSource, expected.roundSource) : row.roundSource !== null))) {
+      return { status: "ok", changed: false };
+    }
     const changed = row.hidden !== hidden;
     row.hidden = hidden;
     row.moderatedAt = nextModerationStamp();
@@ -1856,7 +1862,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async moderateWithState(id, hidden, note) {
+  async moderateWithState(id, hidden, note, expected) {
     if (!id) return { status: "not-found", changed: false };
     return guard<ModerationStateResult>({
       context: "moderate-with-state",
@@ -1865,7 +1871,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
       onError: () => ({ status: "unavailable", changed: false }),
       run: async () => {
         const cleaned = cleanReason(note);
-        const query = admin()
+        let query = admin()
           .from("community_prices")
           .update({
             hidden_at: hidden ? new Date().toISOString() : null,
@@ -1874,6 +1880,13 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           })
           .eq("id", id)
           .select("id, drink_category");
+        if (expected !== undefined) {
+          query = query.eq("submitted_at", new Date(expected.submittedAt).toISOString())
+            .eq("price_pennies", Math.round(expected.priceGbp * 100));
+          query = expected.roundSource
+            ? query.eq("round_spend_id", expected.roundSource.spendId).eq("round_line_index", expected.roundSource.lineIndex)
+            : query.is("round_spend_id", null).is("round_line_index", null);
+        }
         const { data, error } = hidden
           ? await query.is("hidden_at", null)
           : await query.not("hidden_at", "is", null);
@@ -1887,12 +1900,20 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         }
         const { data: existing, error: lookupError } = await admin()
           .from("community_prices")
-          .select("id, drink_category")
+          .select("id, drink_category, submitted_at, price_pennies, round_spend_id, round_line_index")
           .eq("id", id)
           .limit(1);
         if (lookupError) throw new Error(lookupError.message);
         if (!Array.isArray(existing) || existing.length === 0) {
           return { status: "not-found", changed: false };
+        }
+        const row = existing[0];
+        if (!row) return { status: "not-found", changed: false };
+        if (expected && (Date.parse(row.submitted_at ?? "") !== expected.submittedAt ||
+          row.price_pennies !== Math.round(expected.priceGbp * 100) ||
+          (row.round_spend_id ?? null) !== (expected.roundSource?.spendId ?? null) ||
+          (row.round_line_index ?? null) !== (expected.roundSource?.lineIndex ?? null))) {
+          return { status: "ok", changed: false };
         }
         return {
           status: "ok",
@@ -2295,9 +2316,10 @@ export function moderateCommunityPriceWithState(
   id: string,
   hidden: boolean,
   note?: string,
+  expected?: { submittedAt: number; priceGbp: number; roundSource?: RoundPriceSource },
 ): Promise<ModerationStateResult> {
   return droppingCategoryIndexMemo(() =>
-    communityPriceStore().moderateWithState(id, hidden, note),
+    communityPriceStore().moderateWithState(id, hidden, note, expected),
   );
 }
 

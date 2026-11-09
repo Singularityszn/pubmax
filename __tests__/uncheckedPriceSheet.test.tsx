@@ -21,7 +21,12 @@ vi.mock("@/lib/authedFetch", () => ({
 
 import { SpillReceiptStep } from "@/components/map/composer/SpillReceiptStep";
 import PintDropsList from "@/components/map/inspector/PintDropsList";
-import { dropReceiptText, type DropWithPhotos } from "@/components/map/usePintDrops";
+import {
+  dropReceiptText,
+  dropReceiptWait,
+  type DropWithPhotos,
+} from "@/components/map/usePintDrops";
+import { BILL_READING_RECEIPT_LINE } from "@/lib/billCheck";
 import {
   RECEIPT_OPTIONAL_LINE,
   RECEIPT_REQUIRED_LINE,
@@ -103,11 +108,15 @@ describe("the pub's own drop list", () => {
 
 describe("the composer's receipt after a typed price lands", () => {
   it("says once why the pin is quiet, unless the pass has something stronger to say", () => {
-    expect(dropReceiptText(false, { status: "awaiting_second_drinker" }, "4.50", true)).toBe(
+    expect(dropReceiptText(false, { status: "awaiting_second_drinker" }, "4.50", "unchecked")).toBe(
       `Cheers. Your Pint Drop is live. ${UNCHECKED_RECEIPT_LINE}`,
     );
-    // A billed price keeps its old receipt exactly.
-    expect(dropReceiptText(false, { status: "awaiting_second_drinker" }, "4.50", false)).toBe(
+    // A price sent with its bill says the bill is being read (captain 5 Nov 2026).
+    expect(dropReceiptText(false, { status: "awaiting_second_drinker" }, "4.50", "bill")).toBe(
+      `Cheers. Your Pint Drop is live. ${BILL_READING_RECEIPT_LINE}`,
+    );
+    // Nothing waiting keeps the old receipt exactly.
+    expect(dropReceiptText(false, { status: "awaiting_second_drinker" }, "4.50", null)).toBe(
       "Cheers. Your Pint Drop is live.",
     );
     // Two typed prices that agree: the mint's own sentence wins.
@@ -123,10 +132,19 @@ describe("the composer's receipt after a typed price lands", () => {
         dropIds: ["a", "b"],
       },
       "4.50",
-      true,
+      "unchecked",
     );
     expect(confirmed).toContain("Confirmed.");
     expect(confirmed).not.toContain(UNCHECKED_RECEIPT_LINE);
+  });
+});
+
+describe("what the composer's receipt waits on", () => {
+  it("reads a bill being read from the answer, and a typed price from the drop", () => {
+    expect(dropReceiptWait({ drop: { priceEvidence: "unchecked" }, billCheck: "reading" })).toBe("bill");
+    expect(dropReceiptWait({ drop: { priceEvidence: "unchecked" } })).toBe("unchecked");
+    expect(dropReceiptWait({ drop: { priceEvidence: "receipt" } })).toBeNull();
+    expect(dropReceiptWait({ drop: {} })).toBeNull();
   });
 });
 

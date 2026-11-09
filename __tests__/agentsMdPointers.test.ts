@@ -177,6 +177,8 @@ const NOT_REPO_PATHS = new Set([
   ".mobileTabBarClearance",
   // An OSM tag VALUE, not a path.
   "24/7",
+  // A drink serving label, not a path.
+  "1/2-pint",
   // Accept header value named in the /onboarding entry, not a path.
   "text/html,...",
   // Receipt copy the product prints, not a file.

@@ -7,7 +7,7 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import sharp from "sharp";
 
 import { COMMUNITY_PRICE_MAX_AGE_MS, isWithinMaxAge } from "@/lib/communityPrice";
@@ -53,6 +53,8 @@ import {
   cleanVibeTags,
   cleanVisibility,
   dropMatchesCityScope,
+  findPintDropsByIds,
+  grantPintDropReceipt,
   hasPricedDropToday as hasPricedDropTodayMemory,
   hasCurrentPricedPintDrop,
   keepHiddenPintDrop,
@@ -170,7 +172,7 @@ export type PintDropStore = {
     drop: PintDrop,
     photos: PintDropPhotos,
     options?: PintDropCreateOptions,
-  ): Promise<PintDropDTO>;
+  ): Promise<PintDropDTO & { created: boolean }>;
   /**
    * Public read: visible drops + demo seeds, newest-first, capped at
    * MAX_PUBLIC_DROPS, with per-drop VISIBILITY applied server-side (issue #29).
@@ -219,6 +221,17 @@ export type PintDropStore = {
   listLegacyForVenue(venueId: string): Promise<PintDropDTO[]>;
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
   listForReview(status: PintDropReviewStatus): Promise<ModeratorDrop[]>;
+  /**
+   * The moderator shape of the named drops, photos resolved, for a queue that
+   * names drops by id (the bill check's mismatches). Unknown ids are left out.
+   */
+  listForModerationByIds(ids: readonly string[]): Promise<ModeratorDrop[]>;
+  /**
+   * The bill check found this drop's price on its bill (captain 5 Nov 2026):
+   * move its evidence from `unchecked` to `receipt`. Only a priced drop that
+   * is still `unchecked` moves. True means this call WROTE.
+   */
+  grantBillMatch(id: string): Promise<boolean>;
   /**
    * Public report: every server-derived identity records metadata. Only distinct
    * verified accounts advance the atomic auto-hide threshold; anonymous IP
@@ -819,6 +832,13 @@ async function attributedAuthorVenueIds(
   return [...new Set(published.map((drop) => drop.venueId))].sort();
 }
 
+function sameCreatedDrop(existing: PintDrop, input: PintDrop): boolean {
+  return existing.id === input.id && existing.venueId === input.venueId &&
+    existing.authorityKey === input.authorityKey &&
+    normalizeViewerHandle(existing.handle) === normalizeViewerHandle(input.handle) &&
+    existing.priceGbp === input.priceGbp;
+}
+
 export const memoryPintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const covered = new Set<string>();
@@ -832,25 +852,30 @@ export const memoryPintDropStore: PintDropStore = {
     return covered;
   },
   async create(input, photos, options) {
-    // The evidence is EARNED here, from what arrived, exactly as the Supabase
-    // backend earns it: a priced drop with no bill is `unchecked`, whatever the
-    // caller's object said (lib/pintDropReceipt.ts, captain decision 9).
-    const drop = withEarnedEvidence(input, photos);
+    // The evidence is STAMPED here exactly as the Supabase backend stamps it:
+    // a priced drop is `unchecked`, whatever the caller's object said, until
+    // the bill check reads its bill (lib/pintDropReceipt.ts).
+    const drop = withEarnedEvidence(input);
     // The same hard guard the Supabase backend gets from
     // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
     // pre-check and this create sit either side of an await, so two in-flight
     // requests can both read "no price yet" here exactly as they could against
     // Postgres. Asked against the drop's OWN day, so the row and the rule agree.
-    if (
+    const capped =
       dailyCapDay(drop, options) !== null &&
-      (await hasPricedDropTodayAcrossIds(drop.venueId, drop.handle, new Date(drop.createdAt)))
-    ) {
-      throw new PintDropDailyCapError();
+      (await hasPricedDropTodayAcrossIds(drop.venueId, drop.handle, new Date(drop.createdAt)));
+    const existing = findPintDropsByIds([drop.id]).get(drop.id);
+    if (existing) {
+      if (!sameCreatedDrop(existing, drop)) throw new Error("Pint Drop id already exists.");
+      return { ...toDTO(existing), created: false };
     }
-    // Photos are not stored: there is no Storage without Supabase. Only the
-    // FACT that a bill arrived is kept, as the drop's evidence above.
+    if (capped) throw new PintDropDailyCapError();
+    // Photos are not stored: there is no Storage without Supabase. The bill
+    // itself is read by the route's background bill check, from the bytes
+    // that arrived.
+    void photos;
     addPintDrop(drop);
-    return toDTO(drop);
+    return { ...toDTO(drop), created: true };
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
     const venueRows = venueId
@@ -899,6 +924,16 @@ export const memoryPintDropStore: PintDropStore = {
     return rows
       .slice(0, MAX_PUBLIC_DROPS)
       .map((d) => toModeratorDTO(withVerifiedReportCount(d)));
+  },
+  async listForModerationByIds(ids) {
+    const found = findPintDropsByIds(ids);
+    return ids.flatMap((id) => {
+      const hit = found.get(id);
+      return hit ? [toModeratorDTO(withVerifiedReportCount(hit))] : [];
+    });
+  },
+  async grantBillMatch(id) {
+    return grantPintDropReceipt(id);
   },
   async listConfirmationCandidates(venueId) {
     return newestFirstCapped(
@@ -1079,15 +1114,16 @@ export function isPintDropDailyCapError(error: unknown): error is PintDropDailyC
 }
 
 /**
- * The drop as a create path stores it: its evidence EARNED from what arrived
+ * The drop as a create path stores it: its evidence stamped by the rule
  * (lib/pintDropReceipt.ts `priceEvidenceFor`), never carried in. Both backends
- * ask this, so a caller's object, a client body or a seed cannot claim a bill
- * that was not sent, and a priced drop with no bill is `unchecked` everywhere.
+ * ask this, so a caller's object, a client body or a seed cannot claim a bill.
+ * Every priced drop lands `unchecked`, bill or not: a photo attached is not a
+ * bill read, and only the bill check's match earns `receipt` (`grantBillMatch`).
  */
-function withEarnedEvidence(drop: PintDrop, photos: PintDropPhotos): PintDrop {
+function withEarnedEvidence(drop: PintDrop): PintDrop {
   const { priceEvidence: _claimed, ...rest } = drop;
   void _claimed;
-  const earned = priceEvidenceFor(drop.priceGbp, Boolean(photos.receipt));
+  const earned = priceEvidenceFor(drop.priceGbp);
   return earned ? { ...rest, priceEvidence: earned } : rest;
 }
 
@@ -1179,11 +1215,9 @@ function isUnknownMeasureCheckError(
 /**
  * Additive-rollout guard for the receipt column (migration 0153).
  *
- * The RULE is the write door's (lib/pintDropReceipt.ts) and it reads no column,
- * so a deploy that lands before the captain applies 0153 still refuses a price
- * with no bill. What it must not do is refuse the price because it cannot store
- * the key: the drop is saved without it, and a photo is lost where a price
- * would have been.
+ * lib/pintDropReceipt.ts owns the write rule independently of this column.
+ * A missing receipt key column must not prevent the drop from saving.
+ * The separate price-evidence guard still applies.
  */
 export function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -1195,10 +1229,10 @@ export function isMissingReceiptColumnError(error: { code?: string; message?: st
 /**
  * Additive-rollout guard for the evidence column (migration 0218).
  *
- * A BILLED price retries without the column, because an absent evidence reads
- * exactly as a billed row always has. An UNCHECKED price is refused instead
- * (`UncheckedPriceNotStorableError`): stored without its word it would read as
- * billed and mark the pin, which is the measure guard's reasoning about a half.
+ * Every new priced drop starts unchecked under lib/pintDropReceipt.ts.
+ * Without this column, it would read as legacy receipt evidence and mark the
+ * pin. Creation therefore throws UncheckedPriceNotStorableError even with an
+ * attached bill. An unpriced drop can retry without the column.
  */
 function isMissingPriceEvidenceColumnError(
   error: { code?: string; message?: string } | null,
@@ -1254,13 +1288,15 @@ export const supabasePintDropStore: PintDropStore = {
     return covered;
   },
   async create(input, photos, options) {
-    // The evidence is EARNED from what arrived (lib/pintDropReceipt.ts). It
-    // follows the REQUEST, not the upload: a bill Storage failed to keep below
-    // was still sent, and the rule beside that branch is that our outage may
-    // not cost the drinker anything, including the standing they earned.
-    const drop = withEarnedEvidence(input, photos);
+    // The evidence is STAMPED by the rule (lib/pintDropReceipt.ts): every
+    // priced drop lands `unchecked`. The bill check reads the bytes that
+    // arrived, not the upload, so a bill Storage failed to keep below can
+    // still earn `receipt`: our outage may not cost the drinker the standing
+    // their bill shows.
+    const drop = withEarnedEvidence(input);
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
+    const creation: { existing?: PersistableDrop } = {};
     try {
       // Photos upload BEFORE the insert — a bad file throws before anything
       // persists; a failed insert leaves exact keys to clean up.
@@ -1304,6 +1340,16 @@ export const supabasePintDropStore: PintDropStore = {
       const insert = async (candidate: typeof row) => {
         const { error: insertError } = await admin().from(TABLE).insert(candidate);
         if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
+        if (insertError?.code === "23505") {
+          const { data, error: readError } = await admin().from(TABLE).select("*").eq("id", drop.id).maybeSingle();
+          if (!readError && data) {
+            const stored = fromRow(data);
+            if (sameCreatedDrop(stored, drop)) {
+              creation.existing = stored;
+              return null;
+            }
+          }
+        }
         return insertError;
       };
       // First attempt includes vibe_tags + Last Train columns. Once migrations
@@ -1375,8 +1421,6 @@ export const supabasePintDropStore: PintDropStore = {
       }
       if (error && isMissingPriceEvidenceColumnError(error)) {
         if (persistable.priceEvidence === "unchecked") {
-          // The one retry this rung refuses. Without its word an unchecked
-          // price reads as billed and would mark the pin (decision 9 reversed).
           throw new UncheckedPriceNotStorableError();
         }
         console.warn(
@@ -1479,7 +1523,12 @@ export const supabasePintDropStore: PintDropStore = {
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
     }
-    return toDTOWithPhotos(persistable);
+    const existing = creation.existing;
+    if (existing) {
+      await deletePhotos(uploaded);
+      return { ...await toDTOWithPhotos(existing), created: false };
+    }
+    return { ...await toDTOWithPhotos(persistable), created: true };
   },
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
@@ -1638,6 +1687,43 @@ export const supabasePintDropStore: PintDropStore = {
     const { data, error } = await reviewQuery();
     if (error) throw new Error(error.message);
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
+  },
+
+  async listForModerationByIds(ids) {
+    if (ids.length === 0) return [];
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("*")
+      .in("id", [...ids])
+      .limit(MAX_PUBLIC_DROPS);
+    if (error) throw new Error(error.message);
+    const byId = new Map((data ?? []).map((row) => [String(row.id), fromRow(row)]));
+    return toModeratorDTOsWithBatchedPhotos(
+      ids.flatMap((id) => {
+        const hit = byId.get(id);
+        return hit ? [hit] : [];
+      }),
+    );
+  },
+
+  /**
+   * One guarded update changes only a priced drop still `unchecked`.
+   * A repeated grant writes nothing. A cluster without 0218 has no column
+   * to change and answers false. This update does not change moderation status.
+   */
+  async grantBillMatch(id) {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .update({ price_evidence: "receipt" })
+      .eq("id", id)
+      .eq("price_evidence", "unchecked")
+      .not("price_gbp", "is", null)
+      .select("id");
+    if (error) {
+      if (isMissingPriceEvidenceColumnError(error)) return false;
+      throw new Error(error.message);
+    }
+    return (data ?? []).length > 0;
   },
 
   /** The venue's publicly readable priced drops, newest-first. The window,
@@ -1827,14 +1913,6 @@ async function normalizeImage(input: Uint8Array): Promise<Buffer> {
 }
 
 /**
- * Validate + normalize + upload one photo (pint or venue) to Storage. Returns
- * the object key to stash on the drop. Keys are deterministic
- * (`${venueId}/${dropId}/${slot}.${ext}`) so a failed insert has an exact key
- * to clean up — no orphan hunt. Throws a user-safe Error on an invalid file
- * (trust boundary — the client is untrusted, so type/size are checked here, not
- * just in the browser).
- */
-/**
  * A refusal ABOUT THE FILE, as against a failure about US.
  *
  * The two used to be one `Error`, told apart by the route only by the fact that
@@ -1856,13 +1934,13 @@ export class PhotoRefusalError extends Error {}
 export const UNREADABLE_PHOTO_REFUSAL =
   "That photo could not be read. Choose a different image.";
 
-export async function uploadPhoto(
+export async function preparePhoto(
   slot: "pint" | "venue" | "receipt",
   venueId: string,
   dropId: string,
   file: File,
   maxBytes = MAX_PHOTO_BYTES,
-): Promise<string> {
+): Promise<Buffer> {
   const invalid = validatePhoto(file.type, file.size, maxBytes);
   if (invalid) throw new PhotoRefusalError(invalid);
 
@@ -1922,7 +2000,26 @@ export async function uploadPhoto(
     throw new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
   }
 
-  const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
+  return processed;
+}
+
+export async function uploadPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  file: File,
+  maxBytes = MAX_PHOTO_BYTES,
+): Promise<string> {
+  return uploadPreparedPhoto(slot, venueId, dropId, await preparePhoto(slot, venueId, dropId, file, maxBytes));
+}
+
+export async function uploadPreparedPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  processed: Buffer,
+): Promise<string> {
+  const key = `${venueId}/${dropId}/${slot}-${randomUUID()}.${NORMALIZED_EXT}`;
 
   const error = await uploadUploadedImageObject(key, processed, NORMALIZED_CONTENT_TYPE, { upsert: false });
   if (error) {

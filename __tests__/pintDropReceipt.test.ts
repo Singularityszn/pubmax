@@ -63,11 +63,13 @@ describe("what stands behind a price", () => {
     expect(cleanPriceEvidence(null)).toBeUndefined();
   });
 
-  it("is earned from whether a bill arrived, and only by a price", () => {
-    expect(priceEvidenceFor(4.5, true)).toBe("receipt");
-    expect(priceEvidenceFor(4.5, false)).toBe("unchecked");
-    expect(priceEvidenceFor(null, true)).toBeUndefined();
-    expect(priceEvidenceFor(Number.NaN, false)).toBeUndefined();
+  // Captain 5 Nov 2026: a photo attached is not a bill read. Every priced
+  // write lands unchecked, and only a bill check that matched earns receipt
+  // (lib/billCheck.ts, pinned in __tests__/billCheck.test.ts).
+  it("lands every price unchecked, bill or not, and carries nothing on a drop with no price", () => {
+    expect(priceEvidenceFor(4.5)).toBe("unchecked");
+    expect(priceEvidenceFor(null)).toBeUndefined();
+    expect(priceEvidenceFor(Number.NaN)).toBeUndefined();
   });
 
   it("calls only the explicit word unchecked; a row written before 0218 is not", () => {

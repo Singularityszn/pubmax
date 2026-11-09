@@ -141,3 +141,10 @@ delete process.env.SEARCH_GATEWAY_MAX_CALLS;
 // key-present path only inside Vercel builds. Key-present behaviour is proven
 // with an explicit apiKey / vi.stubEnv.
 delete process.env.ORS_API_KEY;
+
+// Same trap for the OpenRouter lane (Ask, heritage, the board reader and the
+// bill check): with OPENROUTER_API_KEY in a developer's shell, a route that
+// reads a bill after its answer calls Next's `after()` outside a request scope,
+// and keyless tests take the keyed path. Keyed behaviour is proven with an
+// explicit env argument or vi.stubEnv.
+delete process.env.OPENROUTER_API_KEY;

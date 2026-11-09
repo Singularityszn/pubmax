@@ -45,8 +45,8 @@ The `x-admin-token` header remains available for scripts.
 
 | Var | Purpose |
 |---|---|
-| `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
-| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask) when `ANTHROPIC_API_KEY` is unset. Pal typed chat and voice do not use OpenRouter. |
+| `OPENROUTER_API_KEY` | Enables heritage narration, Board Reader and [background bill checks](rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price). Without it, `/api/heritage` returns the grounded, structured-only fallback. |
+| `OPENROUTER_MODEL` | Model for heritage narration and the shared Board Reader and bill check vision client. See `.env.example` for the model setting. The optional OpenRouter tool loop on `POST /api/ask` also uses it when `ANTHROPIC_API_KEY` is unset. Pal typed chat and voice do not use OpenRouter. |
 
 ### Optional user chat on Claude
 

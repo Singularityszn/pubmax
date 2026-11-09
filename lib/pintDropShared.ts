@@ -127,10 +127,9 @@ export type PintDrop = {
   measureLabel?: string;
   priceGbp: number | null;
   /**
-   * What stands behind the figure (lib/pintDropReceipt.ts, migration 0218):
-   * `receipt` when the write came with a photo of the bill, `unchecked` when
-   * it was typed without one (captain decision 9, 1 Nov 2026). Stamped by the
-   * store's create path from what arrived, never from a client field. Absent
+   * Server-owned price evidence. lib/pintDropReceipt.ts owns its meanings
+   * and initial value. Only the bill check grants receipt evidence.
+   * Migration 0218 stores the value, never a client claim. Absent
    * on an unpriced drop and on every row written before 0218, which read as
    * they always have. Public: the browser's own trust lanes read it.
    */
