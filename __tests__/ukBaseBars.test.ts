@@ -22,6 +22,8 @@ const UK_BASE_DIR = path.join(ROOT, "public", "data", "uk_base");
 // The floors are the shipped counts rounded down, not targets. A refresh may
 // add pubs; a refresh that LOSES a thousand of them is a broken pull.
 const MIN_SEED_PUBS = 38_000;
+// The seed less the pubs OSM maps twice, which ship as one pin.
+const MIN_SHIPPED_PUBS = 37_900;
 const MIN_SEED_BARS = 7_000;
 // One cell is one viewport-triggered fetch, so this mirrors the builder's own
 // ceiling (scripts/build_uk_base_shards.mjs). It comes down, never up.
@@ -65,7 +67,7 @@ describe("UK base shards", () => {
       pubs?: number;
       bars?: number;
     };
-    expect(generatedFrom.pubs).toBeGreaterThanOrEqual(MIN_SEED_PUBS);
+    expect(generatedFrom.pubs).toBeGreaterThanOrEqual(MIN_SHIPPED_PUBS);
     expect(generatedFrom.bars).toBeGreaterThanOrEqual(MIN_SEED_BARS);
     expect(generatedFrom.count).toBe(shipped);
   });

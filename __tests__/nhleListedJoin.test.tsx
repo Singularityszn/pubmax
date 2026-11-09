@@ -27,6 +27,7 @@ import {
 } from "@/scripts/build_heritage_listings.mjs";
 import {
   baseRowOwners,
+  baseRowRefs,
   baseVenueIdFor,
   LONDON_BOX,
   londonBaseVenues,
@@ -81,6 +82,19 @@ describe("the London base pubs the join reads", () => {
       { ownedBy },
     );
     expect(venues.map((venue) => venue.id)).toEqual(["venue-uk-w2"]);
+  });
+
+  it("leaves out a seed pub the base layer does not draw, so a merged OSM twin gets no listing", () => {
+    const drawn = baseRowRefs([{ pubs: [["n1", "The Swan", "", 51.5, -0.1, ""]] }, { pubs: "not rows" }]);
+    expect([...drawn]).toEqual(["n1"]);
+    const venues = londonBaseVenues(
+      [
+        { osmId: "node/1", amenity: "pub", name: "The Swan", lat: 51.5, lng: -0.1 },
+        { osmId: "way/2", amenity: "pub", name: "The Swan", lat: 51.50005, lng: -0.1 },
+      ],
+      { drawn },
+    );
+    expect(venues.map((venue) => venue.id)).toEqual(["venue-uk-n1"]);
   });
 
   it("never lists a building under a base pin the map hides behind a curated pin it also lists", () => {
@@ -139,20 +153,18 @@ describe("the London base pubs the join reads", () => {
     expect(listings["venue-george"]?.listEntry).toBe(1000001);
   });
 
-  it("puts each listed building under one venue, bar the pairs still waiting on a merge", () => {
+  it("puts each listed building under one venue", () => {
     const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
     const byEntry = new Map<number, string[]>();
     for (const [id, listing] of Object.entries(pack.listings) as Array<[string, { listEntry: number }]>) {
       byEntry.set(listing.listEntry, [...(byEntry.get(listing.listEntry) ?? []), id]);
     }
     const doubled = Object.fromEntries([...byEntry].filter(([, ids]) => ids.length > 1));
-    // Group C of Singularityszn/pubmax#2218: OpenStreetMap maps each of these
-    // pubs twice, as a node and a way. Each needs a merge decision, not a
-    // looser match.
-    expect(doubled).toEqual({
-      1085864: ["venue-uk-n316951209", "venue-uk-w1499736517"],
-      1204809: ["venue-uk-n213434643", "venue-uk-w1414645898"],
-    });
+    // Group C of Singularityszn/pubmax#2218 was the last: OpenStreetMap maps
+    // each pub twice, as a node and a way, and the base layer now ships the node.
+    expect(doubled).toEqual({});
+    expect(pack.listings["venue-uk-n316951209"]?.listEntry).toBe(1085864);
+    expect(pack.listings["venue-uk-n213434643"]?.listEntry).toBe(1204809);
   });
 
   it("lists each White Bear under its own pub, now the Kennington prices sit in Kennington", () => {

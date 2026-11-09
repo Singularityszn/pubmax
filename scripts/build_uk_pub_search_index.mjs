@@ -7,6 +7,8 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { mergeOsmTwins } from "./lib/ukBaseOsmTwins.mjs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const SOURCE = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
@@ -45,9 +47,12 @@ async function main() {
       Math.round(lng * 1e5) / 1e5,
     ]);
   }
-  if (rows.length < 10_000) {
+  // A pub OSM maps twice is one hit under the node the map draws.
+  const { rows: mergedRows } = mergeOsmTwins(rows);
+  const hits = mergedRows.map((row) => row.slice(0, 5));
+  if (hits.length < 10_000) {
     throw new Error(
-      `UK pub search index only found ${rows.length} named pubs (expected ~38k)`,
+      `UK pub search index only found ${hits.length} named pubs (expected ~38k)`,
     );
   }
   const body = `${JSON.stringify({
@@ -56,9 +61,9 @@ async function main() {
     attribution: "https://www.openstreetmap.org/copyright",
     generatedFrom: "data/osm/uk/uk_osm_pubs.json",
     fetchedAt: raw.fetchedAt ?? null,
-    count: rows.length,
+    count: hits.length,
     // [osmRef, name, address, lat, lng]
-    pubs: rows,
+    pubs: hits,
   })}\n`;
   const bytes = Buffer.byteLength(body);
   if (bytes > OUTPUT_BUDGET_BYTES) {
@@ -72,7 +77,7 @@ async function main() {
   await writeFile(temporaryPath, body);
   await rename(temporaryPath, OUTPUT);
   console.log(
-    `UK pub search → ${rows.length} pubs, ${(bytes / 1024 / 1024).toFixed(2)} MB`,
+    `UK pub search → ${hits.length} pubs, ${(bytes / 1024 / 1024).toFixed(2)} MB`,
   );
 }
 

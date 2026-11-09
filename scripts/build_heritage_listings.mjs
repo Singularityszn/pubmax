@@ -21,7 +21,8 @@
 //      keyed by the `venue-uk-<osmRef>` id its base-layer sheet opens under
 //      (scripts/lib/heritageBaseVenues.mjs), so a listed pub off the curated
 //      map is not left blank. "Owns" is the published uk_base shards' owner
-//      column, the same answer the map uses to hide a base pin.
+//      column, the same answer the map uses to hide a base pin. A seed pub
+//      the shards do not draw (a node-and-way twin's way) is left out.
 //   3c. For a curated venue its own name found nothing for, try the OSM name
 //      of each base pub it owns, keyed under the curated id.
 //   4. Write public/data/heritage_listings.json — ONLY matched pubs, keyed by
@@ -56,7 +57,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { openDataSourceUrl } from "../lib/harvest/sourcePolicy.ts";
-import { baseRowOwners, LONDON_BOX, londonBaseVenues, ownedBaseVenues } from "./lib/heritageBaseVenues.mjs";
+import {
+  baseRowOwners,
+  baseRowRefs,
+  LONDON_BOX,
+  londonBaseVenues,
+  ownedBaseVenues,
+} from "./lib/heritageBaseVenues.mjs";
 import {
   bestMatch,
   buildFactText,
@@ -365,11 +372,10 @@ async function main() {
   // under the curated id alone. An owner this join does not match keeps its
   // base pub, so no listing is lost to an owner the pack never keys.
   const curatedIds = new Set(curated.map((venue) => venue.id));
-  const ownedBy = new Map(
-    [...baseRowOwners(await londonBaseShards())].filter(([, owner]) => curatedIds.has(owner)),
-  );
+  const shards = await londonBaseShards();
+  const ownedBy = new Map([...baseRowOwners(shards)].filter(([, owner]) => curatedIds.has(owner)));
   const seedPubs = (await loadJson(UK_SEED_PATH)).pubs;
-  const base = londonBaseVenues(seedPubs, { ownedBy });
+  const base = londonBaseVenues(seedPubs, { ownedBy, drawn: baseRowRefs(shards) });
   const ownedBase = ownedBaseVenues(seedPubs, { ownedBy });
   const venues = [...curated, ...base];
   process.stderr.write(

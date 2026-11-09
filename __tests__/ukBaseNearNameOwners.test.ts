@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { NEAR_NAME_OWNER_RADIUS_M, nearNameOwnerIndex } from "@/lib/outerLondonOwnership.mjs";
+import { mergeOsmTwins } from "@/scripts/lib/ukBaseOsmTwins.mjs";
 
 const ROOT = process.cwd();
 const readJson = (relative: string) => JSON.parse(readFileSync(path.join(ROOT, relative), "utf8"));
@@ -79,5 +80,69 @@ describe("a base pub whose curated twin spells its name another way", () => {
       }
     }
     expect(owners).toEqual(pairs);
+  });
+});
+
+describe("a pub OpenStreetMap maps twice, as a node and its building's way", () => {
+  it("publishes inherited addresses in five-column national search records", () => {
+    const { pubs } = readJson("data/generated/uk_pub_search.json") as { pubs: unknown[][] };
+    expect(pubs.every((row) => row.length === 5)).toBe(true);
+    expect(pubs).toContainEqual([
+      "n3898524863", "Golden Lion", "54, Bedhampton Road, Havant, PO9 3EY", 50.85486, -0.99828,
+    ]);
+    expect(pubs).toContainEqual([
+      "n16574759", "The Langley Tavern", "Lepe Road, Southampton, SO45 1XR", 50.80743, -1.36811,
+    ]);
+    expect(pubs).toContainEqual([
+      "n2458210719", "The Brendon Arms", "Vicarage Road, Bude, EX23 8SD", 50.8267, -4.54785,
+    ]);
+    expect(pubs.some((row) => row[0] === "w1007388063")).toBe(false);
+  });
+
+  it("ships the node alone, with the way's address and owner where the node has none", () => {
+    const far = ["n3", "The Swan", "", 51.5 + 200 * METRE, -0.1, ""];
+    const otherName = ["w4", "The Crown", "", 51.5, -0.1, ""];
+    const twoNodes = [
+      ["n5", "The Bell", "", 51.6, -0.1, ""],
+      ["n6", "The Bell", "", 51.6, -0.1, ""],
+    ];
+    const { rows, twins } = mergeOsmTwins([
+      ["n1", "The Swan", "", 51.5, -0.1, ""],
+      ["w2", "the swan", "High Street", 51.5 + 30 * METRE, -0.1, "venue-x"],
+      far,
+      otherName,
+      ...twoNodes,
+    ]);
+    expect(rows).toEqual([["n1", "The Swan", "High Street", 51.5, -0.1, "venue-x"], far, otherName, ...twoNodes]);
+    expect([...twins]).toEqual([["w2", "n1"]]);
+  });
+
+  it("is one pub only within 50 m", () => {
+    const node = ["n1", "The Swan", "", 51.5, -0.1, ""];
+    expect(mergeOsmTwins([node, ["w2", "The Swan", "", 51.5 + 49 * METRE, -0.1, ""]]).twins.size).toBe(1);
+    expect(mergeOsmTwins([node, ["w2", "The Swan", "", 51.5 + 51 * METRE, -0.1, ""]]).twins.size).toBe(0);
+  });
+
+  it("gives the committed shards one pin for each pair #2218 found mapped twice", () => {
+    // Group C of Singularityszn/pubmax#2218: the node is kept, the way is not.
+    const pairs = { n316951209: "w1499736517", n213434643: "w1414645898" };
+    const manifest = readJson("public/data/uk_base/manifest.json") as {
+      urlPrefix?: string;
+      shards: { id: string }[];
+    };
+    const refs = new Set<string>();
+    for (const shard of manifest.shards) {
+      const pack = readJson(path.join("public", manifest.urlPrefix ?? "data/uk_base", `${shard.id}.json`)) as {
+        pubs?: unknown[][];
+      };
+      for (const row of pack.pubs ?? []) refs.add(String(row[0]));
+    }
+    for (const [node, way] of Object.entries(pairs)) {
+      expect(refs.has(node)).toBe(true);
+      expect(refs.has(way)).toBe(false);
+    }
+    const aliases = readJson("public/data/uk_base_venue_id_aliases.json").aliases;
+    expect(aliases["venue-uk-w1499736517"]).toBe("venue-uk-n316951209");
+    expect(aliases["venue-uk-w1414645898"]).toBe("venue-uk-n213434643");
   });
 });

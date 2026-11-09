@@ -3,7 +3,7 @@
 exports[`derived city Night Areas > birmingham > pins the area list the base layer supports 1`] = `
 [
   "birmingham-city-centre Birmingham city centre 1.6 87",
-  "birmingham-vauxhall Vauxhall 1.7 27",
+  "birmingham-vauxhall Vauxhall 1.7 26",
   "birmingham-moseley Moseley 1.8 25",
   "birmingham-hockley-port Hockley Port 1.4 17",
   "birmingham-harborne Harborne 1.6 16",
@@ -39,9 +39,9 @@ exports[`derived city Night Areas > leeds > pins the area list the base layer su
 exports[`derived city Night Areas > manchester > pins the area list the base layer supports 1`] = `
 [
   "manchester-city-centre Manchester city centre 1.8 110",
-  "manchester-shaw-heath Shaw Heath 1.8 27",
   "manchester-werneth Werneth 1.8 27",
   "manchester-portwood Portwood 1.7 25",
+  "manchester-shaw-heath Shaw Heath 1.8 24",
   "manchester-chorlton-on-medlock Chorlton-on-Medlock 1.7 17",
   "manchester-heaton-norris Heaton Norris 1.8 11",
 ]
