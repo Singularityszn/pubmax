@@ -76,6 +76,20 @@ describe("buildPalTaste", () => {
     });
   });
 
+  it("never offers a Been here pub as saved but not tried", () => {
+    const taste = buildPalTaste({
+      diary: [diary("crown", "2026-10-02")],
+      drops: [],
+      saved: [
+        { venueId: "ship", venueName: "The Ship", listType: "Been here" },
+        { venueId: "anchor", venueName: "The Anchor", listType: "Want to Visit" },
+        { venueId: "ship", venueName: "The Ship", listType: "Historic" },
+      ],
+      placeOf,
+    });
+    expect(taste?.wishlist).toEqual(["The Anchor"]);
+  });
+
   it("uses only pint prices and needs two of them for a usual pint", () => {
     const one = buildPalTaste({ diary: [], drops: [drop("crown", "2026-10-02", { pintPriceGbp: 5 })], saved: [], placeOf });
     expect(one?.usualPintGbp).toBeNull();
