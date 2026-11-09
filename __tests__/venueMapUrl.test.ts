@@ -11,7 +11,7 @@ describe("table request map handoff", () => {
 
   it("keeps the city's map path", () => {
     const id = "venue-mcr-1lwo5lo";
-    expect(venueTableRequestUrl(id, 12)).toBe(`${venueMapUrl(id)}&table=12`);
+    expect(venueTableRequestUrl(id, 12)).toBe("/map/manchester?sel=venue-mcr-1lwo5lo&table=12");
   });
 
   it("consumes only the table parameter once for the named venue", () => {
