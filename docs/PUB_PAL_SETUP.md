@@ -388,9 +388,10 @@ can be retried. Repeated taps while voice starts use the same attempt.
 
 `GET /api/pub-pal/voice-token` answers one boolean about this deployment's own
 configuration and reads no account, which is the whole reason the Pal can
-explain itself before the tap. `POST` still needs a signed-in caller and prepays
-a three-minute grant (`lib/palVoiceMetering.ts`). The server settles that grant
-from the call length ElevenLabs records, never from a duration the browser
+explain itself before the tap. Issuing a voice token follows the
+[account age requirements](../README.md#pub-pal-age-requirements) before quota or provider allocation.
+An accepted request prepays a three-minute grant (`lib/palVoiceMetering.ts`).
+The server settles that grant from the call length ElevenLabs records, never from a duration the browser
 sends. When the browser releases a session, the server asks ElevenLabs for up
 to five seconds until it reports the call ended. If the call is still running
 then, the grant stays charged at three minutes until the same account next

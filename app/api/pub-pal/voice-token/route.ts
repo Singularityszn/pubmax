@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { palUnder18Refusal } from "@/lib/adultOnFile.server";
 import { callerUserId } from "@/lib/authServer";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
@@ -235,6 +236,8 @@ async function handleRelease(
 }
 
 async function handleIssueToken(userId: string): Promise<Response> {
+  const under18 = await palUnder18Refusal(userId);
+  if (under18) return under18;
   const palResult = await getPubPalResult(userId);
   if (!palResult.ok) {
     return publicApiError("Pub Pal is temporarily unavailable.", "PUB_PAL_STORE_UNAVAILABLE", 503, {

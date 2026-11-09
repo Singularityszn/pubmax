@@ -18,6 +18,8 @@ const voiceState = vi.hoisted(() => ({
   memories: [] as import("@/lib/pubPal").PubPalMemory[],
   palLookupFails: false,
   palPresent: true,
+  dateOfBirth: null as string | null,
+  identityThrows: false,
   rpc: vi.fn(),
   userId: "11111111-1111-4111-8111-111111111111",
   pal: {
@@ -56,6 +58,15 @@ vi.mock("@/lib/pubPalStore", () => ({
   getPubPalResult: async () => voiceState.palLookupFails
     ? { ok: false as const, error: "error" as const }
     : { ok: true as const, value: voiceState.palPresent ? voiceState.pal : null },
+}));
+
+vi.mock("@/lib/privateIdentityStore", () => ({
+  privateIdentityStore: () => ({
+    read: async () => {
+      if (voiceState.identityThrows) throw new Error("identity store down");
+      return voiceState.dateOfBirth ? { dateOfBirth: voiceState.dateOfBirth } : null;
+    },
+  }),
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -133,6 +144,8 @@ describe("Pub Pal voice token route", () => {
     voiceState.events.length = 0;
     voiceState.palLookupFails = false;
     voiceState.palPresent = true;
+    voiceState.dateOfBirth = null;
+    voiceState.identityThrows = false;
     voiceState.pal.muted = false;
     voiceState.pal.hidden = false;
     voiceState.rpc.mockReset();
@@ -237,6 +250,33 @@ describe("Pub Pal voice token route", () => {
     expect(await response.json()).toMatchObject({ code: "PUB_PAL_REQUIRED" });
     expect(voiceState.rpc).not.toHaveBeenCalled();
     expect(providerFetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses a stored under-18 date of birth before quota or provider allocation", async () => {
+    const fourteen = new Date();
+    fourteen.setUTCFullYear(fourteen.getUTCFullYear() - 14);
+    voiceState.dateOfBirth = fourteen.toISOString().slice(0, 10);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "PUB_PAL_UNDER_18" });
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the date of birth cannot be read", async () => {
+    voiceState.identityThrows = true;
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(503);
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("refuses a muted Pal before quota or provider allocation", async () => {

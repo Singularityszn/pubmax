@@ -50,6 +50,9 @@ const harness = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/authServer", () => ({ callerUserId: async () => harness.userId }));
+vi.mock("@/lib/privateIdentityStore", () => ({
+  privateIdentityStore: () => ({ read: async () => null }),
+}));
 vi.mock("@/lib/pubPalStore", () => ({
   getPubPalResult: async () => ({
     ok: true as const,
