@@ -7,6 +7,7 @@ import {
   requestNightModeEndingHandoff,
   subscribeNightModeEndingHandoff,
 } from "@/lib/nightModeHandoff";
+import { PLANNED_NIGHT_STATUSES } from "@/lib/plan";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -180,6 +181,17 @@ describe("Night Mode ending handoff", () => {
         plan: { ...plan.plan, status: "completed" as const },
       }),
     ).toBe(false);
+  });
+
+  it.each([...PLANNED_NIGHT_STATUSES, undefined])("recovers an ending only from a live Plan status: %s", (status) => {
+    const plan = {
+      plan: { id: PLAN_ID, title: "Test crawl", startTime: "2026-08-30T20:00:00.000Z", createdAt: "2026-08-30T18:00:00.000Z", status },
+      stops: [{ venueId: "venue-1", venueName: "Last Arms", position: 0 }],
+      crew: [],
+      actions: [{ id: "final-arrival", type: "arrived" as const, stopPosition: 0, ending: null, createdAt: "2026-08-30T22:00:00.000Z" }],
+    };
+    expect(requestNightModeEndingFromPlan(plan)).toBe(status !== "completed" && status !== "abandoned");
+    consumeNightModeEndingHandoff(PLAN_ID);
   });
 
   it("does not recover an ending when every Crawl Stop was skipped", () => {
