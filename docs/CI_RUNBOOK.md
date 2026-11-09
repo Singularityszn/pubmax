@@ -47,11 +47,14 @@ The queue moves `main` to the exact commit it tested, so a `main` push does
 not run that work again. In `ci.yml`, `e2e.yml`, `rls-session.yml` and
 `security-ci.yml`, the `Merge queue proof` job runs on a push only. It looks
 for a green `merge_group` run of the same workflow for the pushed commit. When
-it finds one, each job that ran in the queue is skipped. A job that the queue
-does not run still runs: `Review scope`, `Production build` (it saves the
-build cache) and the layout pins. When the proof finds no run, or the API
-call fails, every job runs. `__tests__/ciSummaryCheck.test.ts` holds which
-jobs run for each event.
+it finds one, jobs that ran in the queue are skipped, except `Production build`.
+The queue also runs a production build. The main push keeps `Production build`
+only to save the Next.js build cache for later pull requests. GitHub scopes
+caches to their ref. Pull requests can restore caches from their own ref and
+the base branch, but cannot restore caches from temporary merge queue refs.
+`Review scope` and the layout pins still run because the queue does not run
+them. When the proof finds no run, or the API call fails, every job runs.
+`__tests__/ciSummaryCheck.test.ts` holds which jobs run for each event.
 
 Security CI blocks merging through `Security CI check` and runs in the queue.
 See [Security CI is blocking](#security-ci-is-blocking). A retried test still fails its gate:

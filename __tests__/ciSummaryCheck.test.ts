@@ -131,9 +131,9 @@ describe("a main push after the merge queue", () => {
   type Event = "pull_request" | "merge_group" | "push";
   type Proof = { result: "success" | "failure"; passed?: string };
 
-  // The jobs that run on a main push even when the queue already passed the
-  // commit, because the queue does not run them: the review-scope check of
-  // the pushed range, the Next build cache save, and the layout pins.
+  // A proved main push keeps Review scope and the layout pins, which the queue
+  // does not run. The queue runs Production build, but main must save its cache
+  // for pull requests, which cannot restore caches from merge queue refs.
   const MAIN_ONLY: Record<string, string[]> = {
     "ci.yml": ["production-build", "review-scope"],
     "e2e.yml": ["change-scope", "layout-pins-1", "layout-pins-2", "layout-pins-3"],
@@ -145,8 +145,8 @@ describe("a main push after the merge queue", () => {
   afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
   // GitHub starts a job only when its `if` holds. An `if` with no status
-  // function gets an implicit success(): every needed job succeeded.
-  function jobsThatRun(file: string, event: Event, proof: Proof): string[] {
+  // function gets an implicit success(): every ancestor job succeeded.
+  function jobsThatRun(file: string, event: Event, proof: Proof, outcomes: Record<string, string> = {}): string[] {
     const { jobs } = workflow(file);
     const results: Record<string, { result: string; outputs: Record<string, string> }> = {};
     const pending = Object.keys(jobs);
@@ -156,7 +156,11 @@ describe("a main push after the merge queue", () => {
       const id = defined(pending.splice(index, 1)[0]);
       const job = defined(jobs[id]);
       const needs = Object.fromEntries(needsOf(job).map((need) => [need, defined(results[need])]));
-      const allSucceeded = () => Object.values(needs).every((need) => need.result === "success");
+      const ancestors = new Set(needsOf(job));
+      for (const need of ancestors) {
+        for (const upstream of needsOf(defined(jobs[need]))) ancestors.add(upstream);
+      }
+      const allSucceeded = () => [...ancestors].every((need) => defined(results[need]).result === "success");
       const expression = String(job.if ?? "true").trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
       const translated = expression
         .replaceAll("needs.*.result", "Object.values(needs).map((need) => need.result)")
@@ -177,7 +181,7 @@ describe("a main push after the merge queue", () => {
       const runs = Boolean(holds) && (/\b(always|cancelled|success|failure)\(/.test(expression) || allSucceeded());
       if (!runs) results[id] = { result: "skipped", outputs: {} };
       else if (id === "queue-proof") results[id] = { result: proof.result, outputs: proof.passed ? { passed: proof.passed } : {} };
-      else results[id] = { result: "success", outputs: id === "change-scope" ? { scope: "code", layout: "ui" } : {} };
+      else results[id] = { result: outcomes[id] ?? "success", outputs: id === "change-scope" ? { scope: "code", layout: "ui" } : {} };
     }
     return Object.keys(results).filter((id) => results[id]?.result !== "skipped").sort();
   }
@@ -204,6 +208,17 @@ describe("a main push after the merge queue", () => {
     for (const id of provedJobs(file)) expect(running, id).toContain(id);
     expect(running.includes("queue-proof"), "the proof runs only on a push").toBe(event === "push");
     if (file === "ci.yml") expect(running).toContain("coverage");
+  });
+
+  it.each(["pull_request", "merge_group"] as const)("%s runs Coverage despite its skipped proof ancestor", (event) => {
+    const running = jobsThatRun("ci.yml", event, { result: "success" });
+    expect(running).not.toContain("queue-proof");
+    expect(running).toContain("unit-tests");
+    expect(running).toContain("coverage");
+  });
+
+  it.each(["failure", "cancelled", "skipped"])("skips Coverage when unit shards report %s", (result) => {
+    expect(jobsThatRun("ci.yml", "pull_request", { result: "success" }, { "unit-tests": result })).not.toContain("coverage");
   });
 
   it.each(FILES)("%s carries the same proof job", (file) => {
