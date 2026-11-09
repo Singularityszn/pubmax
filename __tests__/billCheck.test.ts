@@ -186,6 +186,36 @@ describe("judgeBill", () => {
   });
 
   it.each([
+    ["Half", "half"], ["Third", "third"], ["Schooner", "schooner"],
+    ["Small", "small"], ["Halves", "half"], ["Carafe", "carafe"],
+    ["Bottle", "bottle"], ["Can", "can"], ["Single", "single"],
+    ["Double", "double"], ["Pint", "pint"],
+  ])("keeps the leading serving in %s Lager explicit in every input", (serving, label) => {
+    const name = `${serving} Lager`;
+    const lines = read([[name, 3.5]]);
+    const plain = read([["Lager", 3.5]]);
+    const different = label === "pint" ? "half" : "pint";
+    expect(judgeBill(lines, 3.5, "Beer", different).result).toBe("mismatch");
+    expect(judgeBill(lines, 3.5, "Lager", different).result).toBe("mismatch");
+    expect(judgeBill(plain, 3.5, name, different).result).toBe("mismatch");
+    expect(judgeBill(lines, 3.5, name, different).result).toBe("mismatch");
+    expect(judgeBill(lines, 3.5, "Beer", "other", label).result).toBe("match");
+    expect(judgeBill(plain, 3.5, name, "other", label).result).toBe("match");
+    expect(judgeBill(lines, 3.5, name, "other", label).result).toBe("match");
+    expect(judgeBill(read([[`Lager ${different}`, 3.5]]), 3.5, "Lager", "other", name).result).toBe("mismatch");
+    expect(judgeBill(lines, 3.5, "Lager", "other", name).result).toBe("match");
+  });
+
+  it.each(["Small Beer", "Half Moon IPA", "Third Wheel Bitter", "Other Half Green Diamond"])(
+    "preserves the protected product name %s", (product) => {
+      for (const name of [product, `${product} pint`, `Pint ${product}`]) {
+        expect(judgeBill(read([[name, 5.2]]), 5.2, product, "pint").result).toBe("match");
+        expect(judgeBill(read([[product, 5.2]]), 5.2, name, "pint").result).toBe("match");
+      }
+    },
+  );
+
+  it.each([
     "Beer battered fish", "Fish in beer batter", "Steak and ale pie",
     "Guinness pie", "Guinness burger", "Guinness fish", "Guinness chips",
     "Guinness battered", "Guinness sandwich", "Guinness cake",
@@ -486,7 +516,7 @@ describe("judgeBill", () => {
     expect(judgeBill(read([[product, 5.2]]), 5.2, served, measure).result).toBe("match");
     expect(judgeBill(read([[served, 5.2]]), 5.2, product, different).result).toBe("mismatch");
     expect(judgeBill(read([[product, 5.2]]), 5.2, served, different).result).toBe("mismatch");
-    expect(judgeBill(read([[served, 5.2]]), 5.2, served, different).result).toBe("match");
+    expect(judgeBill(read([[served, 5.2]]), 5.2, served, different).result).toBe("mismatch");
     expect(judgeBill(read([[served, 5.2]]), 5.2, `${different} ${product}`).result).toBe("mismatch");
     expect(judgeBill(read([[served, 5.2]]), 5.2, `${product} ${measure}`, measure).result).toBe("match");
     expect(judgeBill(read([[`${product} ${measure}`, 5.2]]), 5.2, served, measure).result).toBe("match");

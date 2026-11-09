@@ -27,7 +27,7 @@
 // line name loses every run of four or more digits. A fully redacted name uses
 // the privacy-safe marker `Item` and keeps its price.
 
-import { DRINK_MEASURES, MEASURE_OTHER_SUGGESTIONS, NON_PINT_MEASURE_PATTERNS, measureNamedInDrinkText, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { DRINK_MEASURES, MEASURE_OTHER_SUGGESTIONS, NON_PINT_MEASURE_PATTERNS, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { drinkCategoryFromText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import { brandsForCategory, normalizeDrinkHaystack } from "@/lib/drinkBrands";
 import { submitCategoryLabel } from "@/lib/communityPrice";
@@ -136,30 +136,20 @@ function billBrandCategory(name: string): DrinkCategory | null {
       }))) ?? null;
 }
 
-function billItem(name: string, counterpart = ""): { name: string; categoryText: string; measure?: string } {
+function billItem(name: string): { name: string; categoryText: string; measure?: string } {
   const text = name.trim().toLowerCase();
   const found = [...text.matchAll(BILL_SERVING_PATTERN)].find((match) => {
     if (!/^[a-z]+$/.test(match[0])) return true;
     const following = text.slice(match.index + match[0].length).trim();
     if (!following || /^of\b/.test(following)) return true;
-    if (match.index === 0 && /^(single|double|half|pint)$/.test(match[0]) &&
-      /^(single|double|half|pint)\b/.test(following)) return true;
+    if (match.index === 0) {
+      return !/^(?:single malt|single hop pale ale|double ipa|double chocolate stout|half moon|half baked pale ale|bottle rocket|bottle conditioned ale|pint sized pale ale|small beer|third wheel)\b/.test(text);
+    }
     const brandCategory = billBrandCategory(following);
     const category = drinkCategoryFromText(following) ?? brandCategory ?? null;
     const startsWithDrink = drinkKeywordSpans(following).some((span) => span.start === 0) ||
       brandCategory !== null;
-    if (!startsWithDrink) {
-      if (match.index !== 0 || /^(?:single malt|double ipa|half moon|bottle rocket)\b/.test(text)) return false;
-      const otherServing = [...counterpart.matchAll(BILL_SERVING_PATTERN)].find((other) =>
-        other.index === 0 && other[0] !== match[0]);
-      const otherProduct = otherServing ? counterpart.slice(otherServing[0].length) : counterpart;
-      const product = billProductName(following);
-      if (product !== billProductName(counterpart) && product !== billProductName(otherProduct)) return false;
-      return true;
-    }
-    if (brandCategory === null && NON_PINT_MEASURE_PATTERNS.some(({ word }) => word === match[0])) {
-      return measureNamedInDrinkText(`${match[0]} ${following.match(/[a-z0-9]+/)?.[0] ?? ""}`) !== null;
-    }
+    if (!startsWithDrink) return false;
     return match[0] === "single" || match[0] === "double"
       ? category === "gin" || category === "vodka" || category === "rum" || category === "whisky" || category === "shot"
       : category !== null;
@@ -247,16 +237,16 @@ export function judgeBill(
   if (!submitted.name) return { result: "unreadable", lines: [] };
   const bareCategory = bareCategoryOf(submitted.name);
   const named = read.lines.map((line) => {
-    const item = billItem(line.name, bareCategory ? "" : submitted.name);
-    return { line, item, submitted: bareCategory ? submitted : billItem(drink, item.name) };
-  }).filter(({ item, submitted: candidate }) => lineNamesDrink(item, candidate, bareCategory));
+    const item = billItem(line.name);
+    return { line, item };
+  }).filter(({ item }) => lineNamesDrink(item, submitted, bareCategory));
   if (named.length === 0) return { result: "unreadable", lines: [] };
   const target = pence(submittedPriceGbp);
-  const matching = named.filter(({ line, item, submitted: candidate }) => {
-    if (submittedMeasure && candidate.measure && submittedMeasure !== candidate.measure) return false;
-    const expectedMeasure = submittedMeasure ?? candidate.measure;
+  const matching = named.filter(({ line, item }) => {
+    if (submittedMeasure && submitted.measure && submittedMeasure !== submitted.measure) return false;
+    const expectedMeasure = submittedMeasure ?? submitted.measure;
     if (expectedMeasure === "568ml" &&
-      (!billNamesPint(item) || !billNamesPint(candidate))) return false;
+      (!billNamesPint(item) || !billNamesPint(submitted))) return false;
     const statedMeasure = item.measure;
     return pence(line.priceGbp) === target &&
       (!expectedMeasure || !statedMeasure || statedMeasure === expectedMeasure);
