@@ -381,3 +381,45 @@ describe("clean late-food clarification context", () => {
     }
   });
 });
+
+describe("late tonight wording", () => {
+  const FIRST = "Where can I get food late in Soho tonight?";
+  const MONDAY_NOW = Date.parse("2026-11-09T18:00:00.000Z");
+
+  async function bothPaths(query: string, history: string[], now = OCTOBER_REVIEW_NOW) {
+    vi.setSystemTime(new Date(now));
+    const turns = history.map((content) => ({ role: "user" as const, content }));
+    const typed = await runAsk({ query, turns, now, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await voiceAsk(query, turns);
+    return [typed, { ...voice, answer: voice.answerHint }];
+  }
+
+  it("reads late tonight as 23:00 instead of asking for the night and time", async () => {
+    for (const response of await bothPaths(FIRST, [])) {
+      expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+      expect(response.answer).toContain("23:00 tonight");
+      expect(response.answer).not.toContain("Which night and time");
+    }
+  });
+
+  it.each(["What about after midnight?", "How about after midnight", "and after midnight?"])(
+    "keeps the food question on a follow-up: %s", async (query) => {
+      for (const response of await bothPaths(query, [FIRST])) {
+        expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+        expect(response.answer).toContain("01:00 tonight");
+        expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+      }
+    },
+  );
+
+  it("answers both turns honestly on a night with no recorded late service", async () => {
+    for (const [query, history, time] of [[FIRST, [], "23:00"], ["What about after midnight?", [FIRST], "01:00"]] as const) {
+      for (const response of await bothPaths(query, [...history], MONDAY_NOW)) {
+        expect(response.cards).toEqual([]);
+        expect(response.proposals).toEqual([]);
+        expect(response.answer).toContain(`${time} tonight`);
+        expect(response.answer).toMatch(/no current record of food service/i);
+      }
+    }
+  });
+});
