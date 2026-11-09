@@ -283,10 +283,10 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   failed drain. The posts cron still inspects the backlog and emits its findings
   on that path, so a growing pending queue is never silent. A store failure is
   the separate **503 `UNAVAILABLE`** answer, with the cause logged.
-  In deployed production, each missing-key skip also logs an error event:
+  Each missing-key skip logs one warning event, not an error:
   `social_posts.moderation_unconfigured` or
-  `social_interactions.moderation_unconfigured`. These events qualify for
-  webhook delivery under the [alert policy](rules/lib-observability.md#an-alert-leaves-the-process-through-one-webhook-and-unset-is-silent).
+  `social_interactions.moderation_unconfigured`. The posts cron's backlog
+  findings still alert under the [alert policy](rules/lib-observability.md#an-alert-leaves-the-process-through-one-webhook-and-unset-is-silent).
   Pending content stays held.
   Configure the provider key and alert destination before release. Inspect the
   backlog, then use the authenticated drain and terminal-requeue actions.
