@@ -1,12 +1,10 @@
 // THE LOCAL NO-MISTAKES GATE IS CHANGE-SCOPED; THE FULL SUITE RUNS ONCE, IN CI.
 //
-// Owner decision, 16 October 2026: the local pipeline ran the whole unit suite
-// through `npm run coverage` (about 40 minutes on an 8 GB MacBook Air) and
-// GitHub CI then ran it again. `scripts/verify-changed.mjs` now plans the local
-// run from the diff against the merge-base with origin/main, and falls back to
-// the full `npm run verify` when the change touches a shared foundation.
-// These cases pin that plan: what escalates to the full suite, what is linted,
-// typechecked and tested, and that CI still runs every unit test on every PR.
+// `scripts/verify-changed.mjs` plans the local run from the diff against the
+// merge-base with origin/main. It runs the full `npm run verify` only when
+// PUBMAX_VERIFY_FULL=1 is set or no merge-base exists. These cases pin that
+// plan: what is linted, typechecked and tested, and that CI still runs every
+// unit test on every PR.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,9 +14,7 @@ import { parse } from "yaml";
 
 import { POSTGRES_BACKED_SUITES } from "../scripts/rls/postgresSuites.mjs";
 import {
-  FULL_SUITE_FAN_IN,
   checkSteps,
-  fullSuiteReason,
   importGraph,
   planChecks,
   type ChangedFile,
@@ -30,11 +26,6 @@ const ROOT = process.cwd();
 
 const modified = (...paths: string[]): ChangedFile[] => paths.map((path) => ({ path, status: "M" }));
 
-/** A graph in which `target` is imported directly by `count` distinct modules. */
-function fanIn(target: string, count: number): Map<string, Set<string>> {
-  return new Map([[target, new Set(Array.from({ length: count }, (_, i) => `app/r${i}/page.tsx`))]]);
-}
-
 function plan(changed: ChangedFile[], options: Partial<Parameters<typeof planChecks>[0]> = {}) {
   return planChecks({
     changed,
@@ -45,47 +36,42 @@ function plan(changed: ChangedFile[], options: Partial<Parameters<typeof planChe
   });
 }
 
-describe("the full-suite escalation", () => {
+describe("the whole suite runs locally only on request", () => {
   it.each([
     "package.json",
-    "package-lock.json",
     "vitest.config.mts",
-    "vitest.setup.ts",
     "tsconfig.json",
-    "tsconfig.build.json",
     "eslint.config.mjs",
-    "next.config.mjs",
     "__tests__/helpers/defined.ts",
     "scripts/verify-changed.mjs",
     "scripts/run-with-restored-bundled-data.mjs",
-  ])("runs the whole merge bar when %s changes", (path) => {
-    expect(fullSuiteReason(modified(path), new Map())).toContain(path);
+  ])("keeps a change to %s scoped and leaves the whole suite to CI", (path) => {
+    const scoped = plan(modified(path));
+    expect(scoped.full).toBeNull();
+    expect(checkSteps(scoped).map((step) => step.label)).not.toContain("full merge bar");
   });
 
-  it(`runs the whole merge bar for a module more than ${FULL_SUITE_FAN_IN} modules import`, () => {
+  it("tests what relates to a module that many modules import, instead of the whole suite", () => {
     const hub = "lib/supabase.ts";
-    expect(fullSuiteReason(modified(hub), fanIn(hub, FULL_SUITE_FAN_IN + 1))).toContain(hub);
-    expect(fullSuiteReason(modified(hub), fanIn(hub, FULL_SUITE_FAN_IN))).toBeNull();
+    const importers = new Map([[hub, new Set(Array.from({ length: 500 }, (_, i) => `app/r${i}/page.tsx`))]]);
+    const scoped = plan(modified(hub), { importers });
+    expect(scoped.full).toBeNull();
+    expect(scoped.tests).toEqual([hub]);
   });
 
-  it("runs the whole merge bar when a source module is deleted, because nothing resolves to it", () => {
-    expect(fullSuiteReason([{ path: "lib/oldThing.ts", status: "D" }], new Map())).toContain(
-      "lib/oldThing.ts",
-    );
-    // A deleted doc or test file is imported by nothing.
-    expect(fullSuiteReason([{ path: "docs/old.md", status: "D" }], new Map())).toBeNull();
-    expect(fullSuiteReason([{ path: "__tests__/old.test.ts", status: "D" }], new Map())).toBeNull();
+  it("typechecks and tests the modules that still import a deleted source module", () => {
+    const importers = new Map([
+      ["lib/oldThing.ts", new Set(["components/Thing.tsx", "__tests__/oldThing.test.ts", "scripts/thing.mjs"])],
+    ]);
+    const scoped = plan([{ path: "lib/oldThing.ts", status: "D" }], { importers });
+    expect(scoped.full).toBeNull();
+    expect(scoped.typecheck).toEqual(["__tests__/oldThing.test.ts", "components/Thing.tsx"]);
+    expect(scoped.tests).toEqual(["__tests__/oldThing.test.ts", "components/Thing.tsx", "scripts/thing.mjs"]);
   });
 
-  it("can be forced with PUBMAX_VERIFY_FULL=1", () => {
-    expect(fullSuiteReason(modified("lib/x.ts"), new Map(), { PUBMAX_VERIFY_FULL: "1" })).toContain(
-      "PUBMAX_VERIFY_FULL",
-    );
-  });
-
-  it("plans npm run verify and nothing else on escalation", () => {
-    const full = plan(modified("package.json"));
-    expect(full.full).not.toBeNull();
+  it("runs npm run verify and nothing else when PUBMAX_VERIFY_FULL=1 is set", () => {
+    const full = plan(modified("lib/x.ts"), { env: { PUBMAX_VERIFY_FULL: "1" } });
+    expect(full.full).toContain("PUBMAX_VERIFY_FULL");
     expect(checkSteps(full).map((step) => [step.command, ...step.args].join(" "))).toEqual([
       "npm run verify",
     ]);
