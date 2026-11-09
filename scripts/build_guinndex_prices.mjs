@@ -9,14 +9,18 @@
 // with the `guinndex-uk` row (lib/harvest/sourceRegistry.ts), so robots.txt's
 // `/spoons` rules bind in code and no URL here names a host. The row's delay
 // sets the pace, one session, redirects refused. A 403, a 429 or a page that
-// is not JSON stops the run, and nothing is written. A pub page is read only
-// when the county list already places the pub at one PubMaxx venue.
+// is not JSON stops the run without replacing the price pack. Earlier cache
+// writes remain. A pub page is read only when the county list already places
+// the pub at one PubMaxx venue.
 //
 // FACTS ONLY. The cache keeps price evidence and matching keys for rebuilding
 // in data-harvest/guinndex, which is never committed. The committed file,
 // data/uk_prices/guinndex.json, holds the price, the day, the drink, the
 // measure, the Guinndex page and the PubMaxx venue it matched. Guinndex's
 // names, addresses and points stay in the cache. Other fields are discarded.
+//
+// A missing or empty county/pub cache fails before output is written. A
+// rebuild with no publishable rows also fails and leaves the price pack intact.
 //
 // A PRICE THE PAGE DOES NOT DATE IS SKIPPED (lib/harvest/guinndex.ts). A pub
 // that matches no PubMaxx pub, or matches two, is counted and left out.
