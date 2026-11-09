@@ -136,14 +136,20 @@ function billBrandCategory(name: string): DrinkCategory | null {
       }))) ?? null;
 }
 
+function billServingText(text: string): string {
+  return text.replace(/[()[\],:\-\u2013\u2014]/g, " ")
+    .replace(/(?<!\d)\/|\/(?!\d)/g, " ");
+}
+
 function billItem(name: string): { name: string; categoryText: string; measure?: string } {
-  const text = name.trim().toLowerCase();
+  const originalText = name.trim().toLowerCase();
+  const text = billServingText(originalText);
   const found = [...text.matchAll(BILL_SERVING_PATTERN)].find((match) => {
     if (!/^[a-z]+$/.test(match[0])) return true;
     const following = text.slice(match.index + match[0].length).trim();
     if (!following || /^of\b/.test(following)) return true;
-    if (match.index === 0) {
-      return !/^(?:single malt|single hop pale ale|double ipa|double chocolate stout|half moon|half baked pale ale|bottle rocket|bottle conditioned ale|pint sized pale ale|small beer|third wheel)\b/.test(text);
+    if (!text.slice(0, match.index).trim()) {
+      return !/^(?:single malt|single hop pale ale|double ipa|double chocolate stout|half moon|half baked pale ale|bottle rocket|bottle conditioned ale|pint sized pale ale|small beer|third wheel)\b/.test(text.trim());
     }
     const brandCategory = billBrandCategory(following);
     const category = drinkCategoryFromText(following) ?? brandCategory ?? null;
@@ -172,7 +178,7 @@ function billItem(name: string): { name: string; categoryText: string; measure?:
     : raw?.startsWith("bottl") ? "bottle"
     : raw?.startsWith("can") ? "can"
     : raw;
-  const product = found ? text.slice(0, found.index) + " " + text.slice(found.index + found[0].length) : text;
+  const product = found ? originalText.slice(0, found.index) + " " + originalText.slice(found.index + found[0].length) : originalText;
   return {
     name: billProductName(product),
     categoryText: product.trim().replace(/^of\s+/, "").replace(/\s+/g, " "),
@@ -207,7 +213,8 @@ function lineNamesDrink(
   candidate: { name: string },
   bareCategory: DrinkCategory | null,
 ): boolean {
-  const text = item.categoryText.replace(/\s*(?:\((?:cask|keg|on tap|guest)\)|\[(?:cask|keg|on tap|guest)\]|[-\u2013\u2014]\s*(?:cask|keg|on tap|guest))$/, "");
+  const text = billServingText(item.categoryText.replace(/\s*(?:\((?:cask|keg|on tap|guest)\)|\[(?:cask|keg|on tap|guest)\]|[-\u2013\u2014]\s*(?:cask|keg|on tap|guest))$/, ""))
+    .trim().replace(/\s+/g, " ");
   const drinkWords = drinkKeywordSpans(text);
   if (BILL_FOOD_CONTEXT.test(text) && !drinkWords.some((span) => span.end === text.length)) return false;
   if (!bareCategory) return item.name === candidate.name;
@@ -221,7 +228,7 @@ function billNamesPint(item: { name: string; categoryText: string; measure?: str
   const servingText = item.measure !== "bottle" && item.name.startsWith("bottle ")
     ? item.categoryText.replace(/\bbottle\b/i, "")
     : item.categoryText;
-  return isComparablePintServing({ cheapestPint: servingText });
+  return isComparablePintServing({ cheapestPint: billServingText(servingText) });
 }
 
 export function judgeBill(

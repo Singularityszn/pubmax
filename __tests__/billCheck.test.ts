@@ -262,6 +262,37 @@ describe("judgeBill", () => {
     expect(judgeBill(read([["Chips", 5.2]]), 5.2, "Guinness").result).toBe("unreadable");
   });
 
+  it.each([
+    ["(", ")"], ["[", "]"], [",", ","], ["-", "-"],
+    ["/", "/"], [":", ":"], ["\u2013", "\u2013"], ["\u2014", "\u2014"],
+  ])("recognises servings bounded by %s and %s in every input", (open, close) => {
+    for (const [serving, label, different] of [
+      ["pint", "pint", "half"], ["Half", "half", "pint"],
+      ["schooner", "schooner", "pint"], ["1/3 pint", "third", "half"],
+      ["0.33l", "330ml", "half"],
+    ]) {
+      const wrapped = `${open}${serving}${close}`;
+      const plain = read([["Lager", 3.5]]);
+      for (const name of [`Lager ${wrapped}`, `${wrapped} Lager`]) {
+        const lines = read([[name, 3.5]]);
+        expect(judgeBill(lines, 3.5, "Beer", "other", different).result).toBe("mismatch");
+        expect(judgeBill(lines, 3.5, "Lager", "other", different).result).toBe("mismatch");
+        expect(judgeBill(plain, 3.5, name, "other", different).result).toBe("mismatch");
+        expect(judgeBill(lines, 3.5, "Beer", "other", label).result).toBe("match");
+        expect(judgeBill(lines, 3.5, "Lager", "other", label).result).toBe("match");
+        expect(judgeBill(plain, 3.5, name, "other", label).result).toBe("match");
+      }
+      expect(judgeBill(read([[`Lager ${different}`, 3.5]]), 3.5, "Lager", "other", wrapped).result).toBe("mismatch");
+      expect(judgeBill(read([[`Lager ${label}`, 3.5]]), 3.5, "Lager", "other", wrapped).result).toBe("match");
+    }
+    expect(judgeBill(read([[`Guinness ${open}pint${close}`, 3.5]]), 3.5, "Beer", "half").result).toBe("mismatch");
+    expect(judgeBill(read([[`${open}Half${close} Lager`, 3.5]]), 3.5, "Beer", "pint").result).toBe("mismatch");
+    for (const product of ["Small Beer Lager", "Double IPA", "Single Malt Whisky"]) {
+      const name = `${open}${product}${close}`;
+      expect(judgeBill(read([[name, 5.2]]), 5.2, product, "pint").result).toBe("match");
+    }
+  });
+
   it("uses a serving only when the bill states it", () => {
     expect(judgeBill(read([["Guinness half pint", 5.2]]), 5.2, "Guinness", "pint").result).toBe("mismatch");
     expect(judgeBill(read([["Pint Guinness", 5.2]]), 5.2, "Guinness", "half").result).toBe("mismatch");
