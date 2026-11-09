@@ -85,6 +85,31 @@ afterEach(async () => {
 });
 
 describe("comparison request lifecycle", () => {
+  it("selects a pub through comparison-scoped search", async () => {
+    await reply(latest(), catalogue("Guinness"));
+    vi.useFakeTimers();
+    try {
+      const input = container.querySelector<HTMLInputElement>("#comparison-pub-search")!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Crown Sutton");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => { await vi.advanceTimersByTimeAsync(250); });
+      const search = latest();
+      const url = new URL(search.url, "https://pubmaxxing.com");
+      expect(url.pathname).toBe("/api/venue-search");
+      expect(url.searchParams.get("scope")).toBe("pub-comparison");
+      expect(url.searchParams.get("q")).toBe("Crown Sutton");
+      await reply(search, { status: "ready", venues: [{ id: "venue-c", name: "The Crown", area: "Sutton" }] });
+      await click("Add The Crown, Sutton");
+      expect(container.querySelector('ul[aria-label="Selected pubs"]')?.textContent).toContain("The Crown, Sutton");
+      expect(new URL(latest().url, "https://pubmaxxing.com").searchParams.get("venues"))
+        .toBe("venue-a,venue-b,venue-c");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([200, 503])("keeps the newer catalogue after an obsolete status %s response", async (status) => {
     const obsolete = latest();
     expect(obsolete.url).toContain("venue-a%2Cvenue-b");

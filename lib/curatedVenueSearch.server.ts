@@ -16,6 +16,8 @@ import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset.server";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
+import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 
 /** The shortest query worth matching. One letter matches half of London. */
 export const CURATED_VENUE_SEARCH_MIN_QUERY = 2;
@@ -45,6 +47,7 @@ function matchTier(hay: string, query: string): number | null {
 export async function searchCuratedVenues(
   rawQuery: string,
   limit: number,
+  scope: "all" | "pub-comparison" = "all",
 ): Promise<CuratedVenueHit[]> {
   const query = normaliseUkPlaceQuery(rawQuery);
   if (query.length < CURATED_VENUE_SEARCH_MIN_QUERY || limit <= 0) return [];
@@ -53,6 +56,8 @@ export async function searchCuratedVenues(
   const words = query.split(" ").filter(Boolean);
   const scored: { tier: number; hit: CuratedVenueHit }[] = [];
   for (const [id, venue] of index) {
+    if (scope === "pub-comparison" && (venue.retired || !isPublicRankablePub(venue)
+      || cityIdFromVenueId(id) !== null || isNationalBaseVenueId(id))) continue;
     const name = typeof venue.name === "string" ? venue.name : "";
     const names = venueSearchNames({ id, name, sourceName: venue.sourceName });
     const tiers = names

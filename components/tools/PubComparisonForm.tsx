@@ -6,8 +6,6 @@ import { useAuth } from "@/components/auth/authContext";
 import { readComparisonDraft, saveComparisonDraft } from "@/lib/pubComparisonDraft";
 import { trackEvent } from "@/lib/analytics";
 import { categoryLabel } from "@/lib/drinks";
-import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
-import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   comparisonDrinkKey, PUB_COMPARISON_MAX_LINES, PUB_COMPARISON_MAX_QUANTITY, PUB_COMPARISON_MAX_VENUES,
@@ -78,13 +76,12 @@ function ComparisonSession({ owner }: { owner: string | null }) {
     if (trimmed.length < 2) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      void fetch(`/api/venue-search?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal })
+      void fetch(`/api/venue-search?q=${encodeURIComponent(trimmed)}&scope=pub-comparison`, { signal: controller.signal })
         .then(async (response) => {
           const body = await response.json();
           if (!response.ok) throw new Error(errorMessageFrom(body, "Could not search pubs."));
           const hits: SearchHit[] = Array.isArray(body.venues) ? body.venues.filter((hit: SearchHit) =>
-            typeof hit.id === "string" && typeof hit.name === "string" && typeof hit.area === "string"
-            && cityIdFromVenueId(hit.id) === null && !isNationalBaseVenueId(hit.id) && !isNonPublicVenueName(hit.name)) : [];
+            typeof hit.id === "string" && typeof hit.name === "string" && typeof hit.area === "string") : [];
           if (!controller.signal.aborted) setSearch({ query: trimmed, hits, message: "" });
         }).catch(() => {
           if (!controller.signal.aborted) setSearch({ query: trimmed, hits: [], message: offlineOrMessage("Could not search pubs. Try another search.") });
