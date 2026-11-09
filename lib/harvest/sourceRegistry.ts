@@ -526,7 +526,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     crawlDelaySeconds: 5,
     disallowedPaths: ["/spoons", "/api/spoons"],
     notes:
-      "Read by scripts/build_guinndex_prices.mjs into data/uk_prices/guinndex.json: one county list per county from /api/county/{name}, then /api/pub/{slug} for each priced pub the list places at a PubMaxx venue, the registry delay between requests, one session, a User-Agent naming PubMaxx, and redirects refused. County and pub responses are trimmed before caching in data-harvest/guinndex. Without --collect, the same command rebuilds from that cache. A 403, a 429 or a challenge page stops the run and writes nothing. A price without a dated record on the pub's own page is skipped, never dated by guess. scripts/build_uk_price_bundle.mjs carries the matched rows into the bundle as `listing-site` rows.",
+      "Read by scripts/build_guinndex_prices.mjs into data/uk_prices/guinndex.json: one county list per county from /api/county/{name}, then /api/pub/{slug} for each priced pub the list places at a PubMaxx venue, the registry delay between requests, one session, a User-Agent naming PubMaxx, and redirects refused. County and pub responses are trimmed before caching in data-harvest/guinndex. Without --collect, the same command rebuilds from that cache. A 403, a 429 or a challenge page stops the run before data/uk_prices/guinndex.json is written, so the committed pack stays unchanged. Cache entries already read stay in the cache. A price without a dated record on the pub's own page is skipped, never dated by guess. scripts/build_uk_price_bundle.mjs carries the matched rows into the bundle as `listing-site` rows.",
   },
 ];
 
