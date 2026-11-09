@@ -4213,6 +4213,12 @@ it.each(["fresh", "expired", "malformed"] as const)("announces held-pub Release 
   expect(document.activeElement?.id).toBe("plan-route-status");
   expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
   expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+  const releasedRoute = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  expect(releasedRoute.planAnchor ?? null).toBeNull();
+  expect(releasedRoute.groundingProof).toBeNull();
+  expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!)).toMatchObject({
+    anchorVenueId: null, anchorSource: null, outcome: "unanchored", groundingProof: null,
+  });
   expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
     .toEqual(["Pub A", "Pub B", "Pub C"]);
   await editInput("#plan-name", "Captain");

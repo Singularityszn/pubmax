@@ -3192,7 +3192,7 @@ function PlanComposerForm({
     const owner = requestOwner.current;
     const ownsRequest = ownsAcceptance(owner);
     const currentIntent = readPlanningIntent({ storage: session, cleanupInvalid: false });
-    const ownsRoute = canPersist && routeSorted && planAnchor?.venueId === heldVenueId;
+    const ownsRoute = canPersist && routeSorted && stops[0]?.venueId === heldVenueId;
     pendingDraftSave.current = ownsRequest;
     if (owner && ownsRequest && ownsRoute && createOperationKey && groundingProof) {
       const plan = readPlanDraftEnvelope(session);
