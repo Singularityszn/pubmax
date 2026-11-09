@@ -102,10 +102,10 @@ begin
     return jsonb_build_object('ok', false, 'error', 'invalid');
   end if;
 
-  select * into v_plan from public.plans where id = p_plan_id for share;
-  if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
+  select * into v_plan from public.plans
+  where id = p_plan_id and social_owner_account_id is null for share;
 
-  if v_plan.social_owner_account_id is null then
+  if found then
     if p_token_hash is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
     select id into v_host from public.plan_crew_members
     where plan_id = p_plan_id and membership_revoked_at is null order by joined_at, id limit 1;
@@ -120,10 +120,14 @@ begin
     join public.social_crew_members member on member.crew_id = crew.id
     join public.plan_crew_members seat on seat.id = member.plan_member_id
     join public.private_social_accounts account on account.id = member.social_account_id
+    join public.private_social_accounts owner_account on owner_account.id = crew.owner_account_id
     where crew.plan_id = p_plan_id and member.social_account_id = p_social_account_id
       and member.state = 'active' and seat.membership_revoked_at is null
       and account.ownership_state = 'active'
+      and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id) is distinct from 'blocked'
     for share of member, seat;
+    select * into v_plan from public.plans where id = p_plan_id for share;
+    if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   end if;
   if v_member is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
 
@@ -162,8 +166,10 @@ begin
         select 1 from public.social_crews crew
         join public.social_crew_members member on member.crew_id = crew.id
         join public.private_social_accounts account on account.id = member.social_account_id
+        join public.private_social_accounts owner_account on owner_account.id = crew.owner_account_id
         where crew.plan_id = p_plan_id and member.plan_member_id = seat.id
-          and member.state = 'active' and account.ownership_state = 'active')
+          and member.state = 'active' and account.ownership_state = 'active'
+          and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id) is distinct from 'blocked')
       end);
 
   return jsonb_build_object('ok', true, 'view', jsonb_build_object(
