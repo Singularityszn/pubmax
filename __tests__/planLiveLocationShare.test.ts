@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { liveShareSnapshot, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { liveLocationRequest, liveShareSnapshot, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
+import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
+
+vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => "crew-account-token" }));
 
 const SEAT = { planId: "11111111-1111-4111-8111-111111111111", via: "plan" as const };
 
@@ -48,6 +51,7 @@ function fakeRoute(status = 200) {
 afterEach(async () => {
   await stopLiveLocationShare(SEAT, { request: async () => new Response("{}") });
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("sharing a live location from the phone", () => {
@@ -55,13 +59,13 @@ describe("sharing a live location from the phone", () => {
     const geo = fakeGeolocation();
     const route = fakeRoute();
     expect(geo.spy.watchPosition).not.toHaveBeenCalled();
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request });
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request, now: () => 1_000_000 });
     expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
     expect(liveShareSnapshot(SEAT.planId)).toEqual({ planId: SEAT.planId, status: "asking" });
     const sent = route.next();
     geo.fix(51.5138, -0.1318);
     await sent;
-    expect(route.calls).toEqual([{ method: "PUT", body: { latitude: 51.5138, longitude: -0.1318, accuracyM: 10, start: true } }]);
+    expect(route.calls).toEqual([{ method: "PUT", body: { latitude: 51.5138, longitude: -0.1318, accuracyM: 10, startAt: 1_000_000 } }]);
     await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("on"));
   });
 
@@ -235,13 +239,13 @@ describe("sharing a live location from the phone", () => {
       bodies.push(body);
       throw new Error("response lost");
     });
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request });
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request, now: () => 1_000_000 });
     geo.fix(51.5, -0.13);
     await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("no-signal"));
     geo.fix(51.6, -0.13);
     await vi.waitFor(() => expect(bodies).toHaveLength(2));
     expect(bodies).toEqual([
-      { latitude: 51.5, longitude: -0.13, accuracyM: 10, start: true },
+      { latitude: 51.5, longitude: -0.13, accuracyM: 10, startAt: 1_000_000 },
       { latitude: 51.6, longitude: -0.13, accuracyM: 10 },
     ]);
   });
@@ -268,10 +272,60 @@ describe("sharing a live location from the phone", () => {
     geo.fix(51.6, -0.13);
     expect(request).toHaveBeenCalledTimes(2);
     stoppedElsewhere = false;
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request });
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request, now: () => now });
     geo.fix(51.6, -0.13);
     await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("on"));
-    expect(route.calls.at(-1)?.body).toEqual({ latitude: 51.6, longitude: -0.13, accuracyM: 10, start: true });
+    expect(route.calls.at(-1)?.body).toEqual({ latitude: 51.6, longitude: -0.13, accuracyM: 10, startAt: now });
+  });
+
+  it("keeps the tap time while GPS waits and switches off when that tap preceded Stop", async () => {
+    const geo = fakeGeolocation();
+    let now = 1_000_000;
+    const request = vi.fn(async (_seat: unknown, method: string, body?: { startAt?: number }) => {
+      if (method === "PUT") {
+        expect(body?.startAt).toBe(1_000_000);
+        return Response.json({ code: "PLAN_LIVE_LOCATION_STOPPED" }, { status: 409 });
+      }
+      return new Response("{}");
+    });
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request, now: () => now });
+    now += 2_000;
+    geo.fix(51.5, -0.13);
+    await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("off"));
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+  });
+
+  it.each(["success", "refusal", "abort"])("retires the old account's Stop before its late %s", async (result) => {
+    setProviderIdentity("supabase", "stopping-owner-a");
+    let finish!: (value: Response) => void;
+    let reject!: (reason: Error) => void;
+    const request = vi.fn(() => new Promise<Response>((resolve, refuse) => { finish = resolve; reject = refuse; }));
+    const stopped = stopLiveLocationShare(SEAT, { request }).catch(() => undefined);
+    await Promise.resolve();
+    setProviderIdentity("supabase", "stopping-owner-b");
+    const geo = fakeGeolocation();
+    const route = fakeRoute();
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request });
+    expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
+    geo.fix(51.5, -0.13);
+    await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("on"));
+    if (result === "abort") reject(new Error("aborted"));
+    else finish(new Response("{}", { status: result === "success" ? 200 : 503 }));
+    await stopped;
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("on");
+    await stopLiveLocationShare(SEAT);
+    setProviderIdentity("supabase", null);
+  });
+
+  it("retires an unconfirmed Stop when its account changes", async () => {
+    setProviderIdentity("supabase", "failed-stop-owner-a");
+    await stopLiveLocationShare(SEAT, { request: async () => new Response("{}", { status: 503 }) });
+    setProviderIdentity("supabase", "failed-stop-owner-b");
+    const geo = fakeGeolocation();
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: fakeRoute().request });
+    expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
+    await stopLiveLocationShare(SEAT);
+    setProviderIdentity("supabase", null);
   });
 
   it("stops the watch and deletes the position when the person stops", async () => {
@@ -372,5 +426,25 @@ describe("sharing a live location from the phone", () => {
   it("says when the phone has no location service", () => {
     startLiveLocationShare(SEAT, { geolocation: null, request: fakeRoute().request });
     expect(liveShareSnapshot(SEAT.planId).status).toBe("unsupported");
+  });
+});
+
+describe("live location request transport", () => {
+  it.each(["GET", "PUT", "DELETE"] as const)("sends private %s requests with the Plan capability or Crew account", async (method) => {
+    const fetcher = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", fetcher);
+    const body = method === "PUT" ? { latitude: 51.5, longitude: -0.13, accuracyM: 10 } : undefined;
+    for (const [seat, token, query] of [
+      [SEAT, PLAN_HTTP_ONLY_SESSION, ""],
+      [{ ...SEAT, memberToken: "member-capability" }, "member-capability", ""],
+      [{ ...SEAT, via: "crew" as const }, "crew-account-token", "?via=crew"],
+    ] as const) {
+      await liveLocationRequest(seat, method, body);
+      const [url, init] = fetcher.mock.calls.at(-1)! as unknown as [string, RequestInit];
+      expect(url).toBe(`/api/plans/${SEAT.planId}/live-location${query}`);
+      expect(init).toMatchObject({ method, cache: "no-store", credentials: "same-origin" });
+      expect(new Headers(init.headers).get("authorization")).toBe(`Bearer ${token}`);
+      expect(init.body).toBe(body ? JSON.stringify(body) : undefined);
+    }
   });
 });

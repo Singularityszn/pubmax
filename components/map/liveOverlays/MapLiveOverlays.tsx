@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 import type { SunChaserMap } from "@/components/map/sunChaser/SunChaserLayer";
 import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
@@ -17,7 +17,7 @@ const CrewLiveLocationLayer = dynamic(() => import("@/components/map/liveOverlay
 export default function MapLiveOverlays({ map, sunChaserOn, venues }: { map: SunChaserMap | null; sunChaserOn: boolean; venues: readonly Venue[] }) {
   const snapshot = useSyncExternalStore(subscribeLiveLocationNight, liveLocationNightSnapshot, () => "");
   const owner = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
-  const night = readLiveLocationNight(snapshot);
+  const night = useMemo(() => readLiveLocationNight(snapshot), [snapshot]);
   return (
     <>
       {sunChaserOn ? <SunChaserLayer map={map} venues={venues} /> : null}

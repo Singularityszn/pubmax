@@ -20,15 +20,16 @@ export type PlanLiveLocationResult = { ok: true; view: PlanLiveLocationView } | 
 export type PlanLiveLocationAuthority = { kind: "plan"; token: string } | { kind: "crew"; accountId: string };
 
 type Backend = {
-  operate(id: string, authority: PlanLiveLocationAuthority, operation: PlanLiveLocationOperation, fix: PlanLiveLocationFix | null, start: boolean): Promise<PlanLiveLocationResult>;
+  operate(id: string, authority: PlanLiveLocationAuthority, operation: PlanLiveLocationOperation, fix: PlanLiveLocationFix | null, startAt: number | null): Promise<PlanLiveLocationResult>;
 };
 type StoredFix = PlanLiveLocationFix & { memberId: string; updatedAt: string; expiresAt: number };
+type Stopped = { stoppedAt: number; expiresAt: number };
 
 const memory = new Map<string, Map<string, StoredFix>>();
-const stopped = new Map<string, Map<string, number>>();
+const stopped = new Map<string, Map<string, Stopped>>();
 
 const memoryBackend: Backend = {
-  async operate(id, authority, operation, fix, start) {
+  async operate(id, authority, operation, fix, startAt) {
     // The keyless store has no Open Crews.
     if (authority.kind !== "plan") return { ok: false, error: "not_found" };
     const member = await planMemberIdentityResult(id, authority.token);
@@ -42,22 +43,23 @@ const memoryBackend: Backend = {
     const endsAt = planLiveLocationEndsAtMs(state.plan.plan.startTime);
     const crew = new Map(state.plan.crew.map((seat) => [seat.id, seat.name]));
     const rows = memory.get(id) ?? new Map<string, StoredFix>();
-    const stops = stopped.get(id) ?? new Map<string, number>();
+    const stops = stopped.get(id) ?? new Map<string, Stopped>();
     for (const [memberId, row] of rows) {
       if (!live || row.expiresAt <= now || !crew.has(memberId)) rows.delete(memberId);
     }
-    for (const [memberId, expiresAt] of stops) {
-      if (!live || expiresAt <= now || !crew.has(memberId)) stops.delete(memberId);
+    for (const [memberId, stop] of stops) {
+      if (!live || stop.expiresAt <= now) stops.delete(memberId);
     }
     stopped.set(id, stops);
     const self = member.identity.memberId;
     if (operation === "share") {
       if (!live || endsAt === null) return { ok: false, error: "ended" };
-      if (start) stops.delete(self);
-      else if (stops.has(self)) return { ok: false, error: "stopped" };
+      const stop = stops.get(self);
+      if (stop && (startAt === null || startAt <= stop.stoppedAt)) return { ok: false, error: "stopped" };
+      if (startAt !== null) stops.delete(self);
       rows.set(self, { ...fix!, memberId: self, updatedAt: new Date(now).toISOString(), expiresAt: endsAt });
     } else if (operation === "stop") {
-      if (live && endsAt !== null) stops.set(self, endsAt);
+      if (live && endsAt !== null) stops.set(self, { stoppedAt: now, expiresAt: endsAt });
       rows.delete(self);
     }
     memory.set(id, rows);
@@ -73,7 +75,7 @@ const memoryBackend: Backend = {
 };
 
 const databaseBackend: Backend = {
-  async operate(id, authority, operation, fix, start) {
+  async operate(id, authority, operation, fix, startAt) {
     const { data, error } = await requireSupabaseAdmin().rpc("plan_live_location", {
       p_plan_id: id,
       p_token_hash: authority.kind === "plan" ? hashPlanMemberToken(authority.token) : null,
@@ -82,7 +84,7 @@ const databaseBackend: Backend = {
       p_latitude: fix?.latitude ?? null,
       p_longitude: fix?.longitude ?? null,
       p_accuracy_m: fix?.accuracyM ?? null,
-      p_start: start,
+      p_start_at: startAt === null ? null : new Date(startAt).toISOString(),
     });
     if (error || !data || typeof data !== "object" || Array.isArray(data)) return { ok: false, error: "unavailable" };
     const result = data as unknown as PlanLiveLocationResult;
@@ -97,16 +99,17 @@ export async function operatePlanLiveLocation(
   id: string,
   authority: PlanLiveLocationAuthority | null,
   operation: PlanLiveLocationOperation,
-  input: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown; start?: unknown } = {},
+  input: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown; startAt?: unknown } = {},
 ): Promise<PlanLiveLocationResult> {
   if (!isPlanId(id) || !authority) return { ok: false, error: "not_found" };
   if (authority.kind === "plan" && !authority.token.trim()) return { ok: false, error: "not_found" };
   const fix = operation === "share" ? cleanLiveLocationFix(input) : null;
   if (operation === "share" && !fix) return { ok: false, error: "invalid" };
-  if (operation === "share" && input.start !== undefined && typeof input.start !== "boolean") return { ok: false, error: "invalid" };
+  if (operation === "share" && input.startAt !== undefined
+    && (typeof input.startAt !== "number" || !Number.isSafeInteger(input.startAt) || input.startAt <= 0 || input.startAt > Date.now())) return { ok: false, error: "invalid" };
   try {
     const clean: PlanLiveLocationAuthority = authority.kind === "plan" ? { kind: "plan", token: authority.token.trim() } : authority;
-    return await selectStore(memoryBackend, databaseBackend).operate(id, clean, operation, fix, input.start === true);
+    return await selectStore(memoryBackend, databaseBackend).operate(id, clean, operation, fix, typeof input.startAt === "number" ? input.startAt : null);
   } catch {
     return { ok: false, error: "unavailable" };
   }

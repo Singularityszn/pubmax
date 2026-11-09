@@ -35,12 +35,15 @@ function db(): PostgresSession { if (!session) throw new Error("The test databas
 
 type View = { ok: true; view: { live: boolean; endsAt: string | null; sharing: boolean; people: { memberId: string; name: string; latitude: number }[] } };
 
-function call(operation: string, hash: string | null, options: { plan?: string; account?: string | null; lat?: number; start?: boolean } = {}) {
+function call(operation: string, hash: string | null, options: { plan?: string; account?: string | null; lat?: number; startAt?: string } = {}) {
   const token = hash ? `'${hash}'` : "null";
   const account = options.account ? `'${options.account}'` : "null";
   const lat = options.lat ?? 51.5138;
-  return JSON.parse(db().sql(asServiceRole(`select public.plan_live_location('${options.plan ?? PLAN}', ${token}, ${account}, '${operation}', ${lat}, -0.1318, 12, ${options.start ?? false})::text`)));
+  const startAt = options.startAt ? `'${options.startAt}'::timestamptz` : "null";
+  return JSON.parse(db().sql(asServiceRole(`select public.plan_live_location('${options.plan ?? PLAN}', ${token}, ${account}, '${operation}', ${lat}, -0.1318, 12, ${startAt})::text`)));
 }
+
+const tapTime = () => db().sql("select clock_timestamp()::text");
 
 function seed(start = "now() + interval '3 hours'") {
   db().sql(`delete from public.plan_live_locations;
@@ -122,15 +125,49 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     ["crew", CREW_PLAN, null, MATE_ACCOUNT],
   ])("revokes every client of the same %s seat until a new explicit start", (_name, plan, hash, account) => {
     const options = { plan: plan!, account };
-    expect(call("share", hash, { ...options, start: true })).toMatchObject({ ok: true });
-    expect(call("share", hash, { ...options, start: true })).toMatchObject({ ok: true });
+    expect(call("share", hash, { ...options, startAt: tapTime() })).toMatchObject({ ok: true });
+    expect(call("share", hash, { ...options, startAt: tapTime() })).toMatchObject({ ok: true });
     expect(call("stop", hash, options)).toMatchObject({ ok: true, view: { sharing: false } });
     expect(call("share", hash, options)).toEqual({ ok: false, error: "stopped" });
     expect(db().sql(`select count(*) from public.plan_live_locations where plan_id='${plan}'`)).toBe("0");
     expect(call("read", hash, options)).toMatchObject({ ok: true, view: { sharing: false } });
-    expect(call("share", hash, { ...options, start: true })).toMatchObject({ ok: true, view: { sharing: true } });
+    expect(call("share", hash, { ...options, startAt: tapTime() })).toMatchObject({ ok: true, view: { sharing: true } });
     expect(call("share", hash, options)).toMatchObject({ ok: true, view: { sharing: true } });
     expect(db().sql(`select count(*) from public.plan_live_location_stops where plan_id='${plan}'`)).toBe("0");
+  });
+
+  it.each([
+    ["Plan", PLAN, GUEST_HASH, null],
+    ["crew", CREW_PLAN, null, MATE_ACCOUNT],
+  ])("refuses the %s client's delayed first fix when its tap preceded Stop", (_name, plan, hash, account) => {
+    const options = { plan: plan!, account };
+    const startAt = tapTime();
+    call("stop", hash, options);
+    expect(call("share", hash, { ...options, startAt })).toEqual({ ok: false, error: "stopped" });
+    expect(db().sql(`select count(*) from public.plan_live_locations where plan_id='${plan}'`)).toBe("0");
+    expect(call("read", hash, options)).toMatchObject({ ok: true, view: { sharing: false, people: [] } });
+    expect(call("share", hash, { ...options, startAt: tapTime() })).toMatchObject({ ok: true, view: { sharing: true } });
+  });
+
+  it.each(["left", "removed"])("keeps Stop when a Crew member is %s and rejoins the same night", (state) => {
+    const options = { plan: CREW_PLAN, account: MATE_ACCOUNT };
+    const startAt = tapTime();
+    call("stop", null, options);
+    db().sql(`update public.social_crew_members set state='${state}', ended_at=now() where id='${MATE_MEMBER}'`);
+    expect(call("read", null, { plan: CREW_PLAN, account: OWNER_ACCOUNT })).toMatchObject({ ok: true, view: { people: [] } });
+    expect(db().sql(`select public._activate_social_crew_member('${CREW}','${MATE_ACCOUNT}')`)).toBe(MATE_MEMBER);
+    expect(call("share", null, options)).toEqual({ ok: false, error: "stopped" });
+    expect(call("share", null, { ...options, startAt })).toEqual({ ok: false, error: "stopped" });
+    expect(call("share", null, { ...options, startAt: tapTime() })).toMatchObject({ ok: true, view: { sharing: true } });
+  });
+
+  it("keeps Stop through Plan seat revocation and restoration", () => {
+    call("stop", GUEST_HASH);
+    db().sql(`update public.plan_crew_members set membership_revoked_at=now() where id='${GUEST}'`);
+    call("read", HOST_HASH);
+    db().sql(`update public.plan_crew_members set membership_revoked_at=null where id='${GUEST}'`);
+    expect(call("share", GUEST_HASH)).toEqual({ ok: false, error: "stopped" });
+    expect(call("share", GUEST_HASH, { startAt: tapTime() })).toMatchObject({ ok: true, view: { sharing: true } });
   });
 
   it("expires stopped markers with the night and removes them when it ends", () => {
@@ -269,7 +306,7 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     db().applyFile(join(process.cwd(), "supabase/migrations/rollback/20261108120000_0226_plan_live_location_rollback.sql"));
     expect(db().sql("select to_regclass('public.plan_live_locations') is null")).toBe("t");
     expect(db().sql("select to_regclass('public.plan_live_location_stops') is null")).toBe("t");
-    expect(db().sql("select to_regprocedure('public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,boolean)') is null")).toBe("t");
+    expect(db().sql("select to_regprocedure('public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,timestamptz)') is null")).toBe("t");
     db().applyFile(join(process.cwd(), "supabase/migrations/20261108120000_0226_plan_live_location.sql"));
     expect(db().sql("select to_regclass('public.plan_live_locations') is not null")).toBe("t");
   });

@@ -192,4 +192,22 @@ describe("live location consent at the account boundary", () => {
     await act(async () => finish(Response.json({}, { status: 404 })));
     expect(canvas.textContent).not.toContain("Private mate");
   });
+
+  it("keeps map polling at 15 seconds through unrelated parent renders", async () => {
+    const canvas = document.createElement("div");
+    const map = {
+      on: vi.fn(), off: vi.fn(),
+      getCanvasContainer: () => canvas,
+    } as unknown as LiveMap;
+    rememberLiveLocationNight({ ...SEAT, endsAt: view().endsAt });
+    const render = () => root.render(createElement(MapLiveOverlays, { map, sunChaserOn: false, venues: [] }));
+    await act(async () => { render(); await vi.advanceTimersByTimeAsync(0); });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await act(async () => render());
+    await act(async () => render());
+    await act(async () => vi.advanceTimersByTimeAsync(14_999));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
 });

@@ -35,6 +35,7 @@ grant all on public.plan_live_locations to service_role;
 create table public.plan_live_location_stops (
   plan_id uuid not null references public.plans(id) on delete cascade,
   member_id uuid not null references public.plan_crew_members(id) on delete cascade,
+  stopped_at timestamptz not null,
   expires_at timestamptz not null,
   primary key (plan_id, member_id)
 );
@@ -53,10 +54,8 @@ begin
     delete from public.plan_live_location_stops where plan_id = new.id;
   elsif tg_table_name = 'plan_crew_members' then
     delete from public.plan_live_locations where member_id = new.id;
-    delete from public.plan_live_location_stops where member_id = new.id;
   else
     delete from public.plan_live_locations where member_id = new.plan_member_id;
-    delete from public.plan_live_location_stops where member_id = new.plan_member_id;
   end if;
   return new;
 end;
@@ -96,7 +95,7 @@ create function public.plan_live_location(
   p_latitude double precision default null,
   p_longitude double precision default null,
   p_accuracy_m integer default null,
-  p_start boolean default false
+  p_start_at timestamptz default null
 ) returns jsonb
 language plpgsql security invoker set search_path = '' as $$
 declare
@@ -150,6 +149,10 @@ begin
   if v_member is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
 
   v_now := clock_timestamp();
+  if p_operation = 'share' and p_start_at is not null
+    and (not isfinite(p_start_at) or p_start_at <= 'epoch'::timestamptz or p_start_at > v_now) then
+    return jsonb_build_object('ok', false, 'error', 'invalid');
+  end if;
   v_end := public.plan_live_location_ends_at(v_plan.start_time);
   v_live := v_plan.status not in ('ending', 'completed', 'abandoned')
     and v_now >= v_plan.start_time - interval '3 hours' and v_now < v_end;
@@ -161,10 +164,13 @@ begin
 
   if p_operation = 'share' then
     if not v_live then return jsonb_build_object('ok', false, 'error', 'ended'); end if;
-    if p_start is true then
-      delete from public.plan_live_location_stops where plan_id = p_plan_id and member_id = v_member;
-    elsif exists (select 1 from public.plan_live_location_stops where plan_id = p_plan_id and member_id = v_member) then
+    if exists (select 1 from public.plan_live_location_stops
+      where plan_id = p_plan_id and member_id = v_member
+        and (p_start_at is null or p_start_at <= stopped_at)) then
       return jsonb_build_object('ok', false, 'error', 'stopped');
+    end if;
+    if p_start_at is not null then
+      delete from public.plan_live_location_stops where plan_id = p_plan_id and member_id = v_member;
     end if;
     insert into public.plan_live_locations (plan_id, member_id, latitude, longitude, accuracy_m, updated_at, expires_at)
     values (p_plan_id, v_member, p_latitude, p_longitude, p_accuracy_m, v_now, v_end)
@@ -173,9 +179,9 @@ begin
       updated_at = excluded.updated_at, expires_at = excluded.expires_at;
   elsif p_operation = 'stop' then
     if v_live then
-      insert into public.plan_live_location_stops (plan_id, member_id, expires_at)
-      values (p_plan_id, v_member, v_end)
-      on conflict (plan_id, member_id) do update set expires_at = excluded.expires_at;
+      insert into public.plan_live_location_stops (plan_id, member_id, stopped_at, expires_at)
+      values (p_plan_id, v_member, v_now, v_end)
+      on conflict (plan_id, member_id) do update set stopped_at = excluded.stopped_at, expires_at = excluded.expires_at;
     end if;
     delete from public.plan_live_locations where plan_id = p_plan_id and member_id = v_member;
   end if;
@@ -209,8 +215,8 @@ begin
     'sharing', v_sharing, 'people', case when v_live then v_people else '[]'::jsonb end));
 end;
 $$;
-revoke all on function public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,boolean) from public, anon, authenticated;
-grant execute on function public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,boolean) to service_role;
+revoke all on function public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,timestamptz) from public, anon, authenticated;
+grant execute on function public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,timestamptz) to service_role;
 
 commit;
 

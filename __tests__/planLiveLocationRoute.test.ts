@@ -14,6 +14,7 @@ import { __resetMemoryPlans, memoryPlanStore, removeMemoryPlanInviteRsvpMember }
 
 const NOW = new Date("2026-11-07T20:00:00.000Z");
 const FIX = { latitude: 51.5138, longitude: -0.1318, accuracyM: 14.6 };
+const GUEST_JOIN = { collaborationAuthorized: true, userId: "live-guest-account", idempotencyKey: "live-location-guest-rejoin" };
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -26,7 +27,7 @@ async function night(startTime = NOW.toISOString()) {
   const created = await memoryPlanStore.create({ title: "Our night", startTime, creatorName: "Host", stops: [{ venueId: "a", venueName: "Pub a", position: 0 }] });
   if (!created.ok) throw new Error("Could not create the test plan.");
   const id = created.plan.plan.id;
-  const joined = await memoryPlanStore.join(id, "Guest", { collaborationAuthorized: true, userId: "live-guest-account" });
+  const joined = await memoryPlanStore.join(id, "Guest", GUEST_JOIN);
   if (!joined.ok) throw new Error("Could not join the test plan.");
   const guestId = joined.plan.crew.find((member) => member.name === "Guest")!.id;
   return { id, host: created.memberToken, guest: joined.memberToken, guestId };
@@ -92,19 +93,67 @@ describe("live location through the private plan route", () => {
 
   it("revokes another client's uploads until an explicit new start", async () => {
     const { id, host, guest } = await night();
-    expect((await PUT(request(id, guest, "PUT", { ...FIX, start: true }), context(id))).status).toBe(200);
-    expect((await PUT(request(id, guest, "PUT", { ...FIX, start: true }), context(id))).status).toBe(200);
+    expect((await PUT(request(id, guest, "PUT", { ...FIX, startAt: Date.now() }), context(id))).status).toBe(200);
+    expect((await PUT(request(id, guest, "PUT", { ...FIX, startAt: Date.now() }), context(id))).status).toBe(200);
     expect((await DELETE(request(id, guest, "DELETE"), context(id))).status).toBe(200);
-    for (const start of [undefined, false]) {
-      const refused = await PUT(request(id, guest, "PUT", { ...FIX, start }), context(id));
+    for (const startAt of [undefined, Date.now() - 1, Date.now()]) {
+      const refused = await PUT(request(id, guest, "PUT", { ...FIX, startAt }), context(id));
       expect(refused.status).toBe(409);
       expect(await refused.json()).toMatchObject({ code: "PLAN_LIVE_LOCATION_STOPPED", retryable: false });
       expect(await read(id, host)).toMatchObject({ people: [] });
     }
-    expect((await PUT(request(id, guest, "PUT", { ...FIX, start: "true" }), context(id))).status).toBe(400);
-    expect((await PUT(request(id, guest, "PUT", { ...FIX, start: true }), context(id))).status).toBe(200);
+    for (const startAt of ["now", null, 0, -1, Date.now() + 1, Date.now() - 0.5]) {
+      expect((await PUT(request(id, guest, "PUT", { ...FIX, startAt }), context(id))).status).toBe(400);
+    }
+    vi.setSystemTime(NOW.getTime() + 1);
+    expect((await PUT(request(id, guest, "PUT", { ...FIX, startAt: Date.now() }), context(id))).status).toBe(200);
     expect((await PUT(request(id, guest, "PUT", FIX), context(id))).status).toBe(200);
     expect(await read(id, host)).toMatchObject({ people: [{ latitude: FIX.latitude }] });
+  });
+
+  it("refuses a delayed first GPS fix authorised before another device stopped", async () => {
+    const { id, host, guest } = await night();
+    const startAt = Date.now();
+    vi.setSystemTime(startAt + 1_000);
+    await DELETE(request(id, guest, "DELETE"), context(id));
+    vi.setSystemTime(startAt + 2_000);
+    const refused = await PUT(request(id, guest, "PUT", { ...FIX, startAt }), context(id));
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({ code: "PLAN_LIVE_LOCATION_STOPPED" });
+    expect(await read(id, host)).toMatchObject({ people: [] });
+  });
+
+  it("keeps Stop through leave, an absent-member read and same-night rejoin", async () => {
+    const { id, host, guest, guestId } = await night();
+    await DELETE(request(id, guest, "DELETE"), context(id));
+    expect(removeMemoryPlanInviteRsvpMember(id, guestId)).toBe(true);
+    expect(await read(id, host)).toMatchObject({ people: [] });
+    const rejoined = await memoryPlanStore.join(id, "Guest", GUEST_JOIN);
+    if (!rejoined.ok) throw new Error("Could not rejoin the test plan.");
+    expect(rejoined.plan.crew.find((member) => member.name === "Guest")?.id).toBe(guestId);
+    expect((await PUT(request(id, rejoined.memberToken, "PUT", FIX), context(id))).status).toBe(409);
+    expect(await read(id, host)).toMatchObject({ people: [] });
+    vi.setSystemTime(NOW.getTime() + 1_000);
+    expect((await PUT(request(id, rejoined.memberToken, "PUT", { ...FIX, startAt: Date.now() }), context(id))).status).toBe(200);
+    expect(await read(id, host)).toMatchObject({ people: [{ memberId: guestId }] });
+  });
+
+  it("requires a capability for every operation and never caches or discloses denied locations", async () => {
+    const { id, host, guest } = await night();
+    await PUT(request(id, guest, "PUT", FIX), context(id));
+    for (const token of ["", "outsider"]) {
+      for (const [method, handler] of [["GET", GET], ["PUT", PUT], ["DELETE", DELETE]] as const) {
+        const response = await handler(request(id, token, method, method === "PUT" ? FIX : undefined), context(id));
+        expect(response.status).toBe(404);
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        const denied = await response.json();
+        expect(denied).toMatchObject({ code: "PLAN_LIVE_LOCATION_NOT_FOUND" });
+        expect(JSON.stringify(denied)).not.toMatch(/latitude|longitude|51\.5138|-0\.1318/);
+        expect(await read(id, host)).toMatchObject({ sharing: false, people: [{ latitude: FIX.latitude }] });
+      }
+    }
+    const response = await GET(request(id, host), context(id));
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it("switches itself off at the end of the night and refuses new fixes", async () => {

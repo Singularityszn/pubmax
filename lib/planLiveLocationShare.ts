@@ -14,7 +14,7 @@ export type LiveLocationSeat = { planId: string; via: "plan" | "crew"; memberTok
 export type LiveShareStatus = "off" | "busy" | "stopping" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
 export type LiveShareSnapshot = { planId: string | null; status: LiveShareStatus };
 
-type Request = (seat: LiveLocationSeat, method: "GET" | "PUT" | "DELETE", body?: PlanLiveLocationFix & { start?: true }, signal?: AbortSignal) => Promise<Response>;
+type Request = (seat: LiveLocationSeat, method: "GET" | "PUT" | "DELETE", body?: PlanLiveLocationFix & { startAt?: number }, signal?: AbortSignal) => Promise<Response>;
 type Deps = { geolocation?: Geolocation | null; request?: Request; now?: () => number };
 
 const PERMISSION_DENIED = 1;
@@ -47,11 +47,11 @@ type Session = {
   sent: { at: number; fix: PlanLiveLocationFix } | null;
   pending: PlanLiveLocationFix | null;
   inFlight: Promise<Response> | null;
-  start: boolean;
+  startAt: number | null;
 };
 
 let session: Session | null = null;
-const stopping = new Map<string, Promise<Response> | null>();
+const stopping = new Map<string, { promise: Promise<Response> | null; onOwnerChange: () => void }>();
 const OFF_SNAPSHOT: LiveShareSnapshot = { planId: null, status: "off" };
 const snapshots = new Map<string, LiveShareSnapshot>();
 const listeners = new Set<() => void>();
@@ -92,8 +92,8 @@ async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
     return;
   }
   try {
-    const body = current.start ? { ...fix, start: true as const } : fix;
-    current.start = false;
+    const body = current.startAt !== null ? { ...fix, startAt: current.startAt } : fix;
+    current.startAt = null;
     current.inFlight = current.request(current.seat, "PUT", body);
     const response = await current.inFlight;
     if (session !== current) return;
@@ -150,7 +150,7 @@ function onError(current: Session, error: GeolocationPositionError): void {
     return;
   }
   void stopLiveLocationShare(current.seat).then((response) => {
-    if (response.ok && liveShareSnapshot(current.seat.planId).status === "off") {
+    if (!current.ownerSignal.aborted && response.ok && liveShareSnapshot(current.seat.planId).status === "off") {
       publish(current.seat.planId, "denied");
     }
   }).catch(() => undefined);
@@ -172,6 +172,7 @@ export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}):
     return;
   }
   const request = deps.request ?? liveLocationRequest;
+  const now = deps.now ?? Date.now;
   const current: Session = {
     seat, ownerSignal,
     onOwnerChange: () => {
@@ -183,8 +184,8 @@ export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}):
       if (ownerSignal.aborted) return Promise.reject(ownerSignal.reason);
       return request(target, method, body, ownerSignal);
     },
-    now: deps.now ?? Date.now,
-    watchId: null, heartbeat: null, sent: null, pending: null, inFlight: null, start: true,
+    now,
+    watchId: null, heartbeat: null, sent: null, pending: null, inFlight: null, startAt: now(),
   };
   session = current;
   ownerSignal.addEventListener("abort", current.onOwnerChange, { once: true });
@@ -200,27 +201,44 @@ export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}):
 /** Stops the watch and deletes the position for everyone. */
 export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<Deps, "request"> = {}): Promise<Response> {
   const pending = stopping.get(seat.planId);
-  if (pending) return (await pending).clone();
+  if (pending?.promise) return (await pending.promise).clone();
   const current = session?.seat.planId === seat.planId ? session : null;
   const request = current?.request ?? deps.request ?? liveLocationRequest;
   const ownerSignal = readProviderAccountSignal();
+  if (pending) ownerSignal.removeEventListener("abort", pending.onOwnerChange);
   if (current) halt(current);
+  const stop = {
+    promise: null as Promise<Response> | null,
+    onOwnerChange: () => {
+      if (stopping.get(seat.planId) !== stop) return;
+      stopping.delete(seat.planId);
+      publish(seat.planId, "off");
+    },
+  };
+  stopping.set(seat.planId, stop);
+  ownerSignal.addEventListener("abort", stop.onOwnerChange, { once: true });
   const deletion = (async () => {
     try {
       await current?.inFlight?.catch(() => undefined);
       if (ownerSignal.aborted) throw ownerSignal.reason;
       const response = await request(current?.seat ?? seat, "DELETE", undefined, ownerSignal);
-      if (response.ok) stopping.delete(seat.planId);
-      else stopping.set(seat.planId, null);
-      publish(seat.planId, response.ok ? "off" : "failed");
+      if (stopping.get(seat.planId) === stop) {
+        if (response.ok) {
+          stopping.delete(seat.planId);
+          ownerSignal.removeEventListener("abort", stop.onOwnerChange);
+        } else stop.promise = null;
+        publish(seat.planId, response.ok ? "off" : "failed");
+      }
       return response;
     } catch (error) {
-      stopping.set(seat.planId, null);
-      publish(seat.planId, "failed");
+      if (stopping.get(seat.planId) === stop) {
+        stop.promise = null;
+        publish(seat.planId, "failed");
+      }
       throw error;
     }
   })();
-  stopping.set(seat.planId, deletion);
+  stop.promise = deletion;
   publish(seat.planId, "stopping");
   return (await deletion).clone();
 }
