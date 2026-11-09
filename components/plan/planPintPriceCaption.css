@@ -1,0 +1,8 @@
+/* Same answer as .priceSourceLink: take the caption's colour, keep the
+   underline. No 44px box here: the link sits inside a stop card, and a touch
+   on [data-stop-action] skips the card's hold-to-lift. */
+.planPintSourceLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
