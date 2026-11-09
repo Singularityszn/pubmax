@@ -111,6 +111,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Missing facts are labelled in words. A publisher name does not provide a source link.
   These captions say **Link unavailable** when a publisher is recorded.
 
+  For a named pub's drinks, listed pint cards in typed and voice chat show their own publisher and **Source read** date.
+  Missing, invalid or future dates show **Source read date unknown**.
+
   "Hi show me the map" and "OK. Show me the map" focus the existing recommendation map when available.
   Otherwise, these commands open `/map`.
   A discovery or service request beside a generic map command stays in chat.
