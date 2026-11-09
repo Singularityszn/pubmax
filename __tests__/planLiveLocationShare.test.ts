@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { liveLocationRequest, liveShareSnapshot, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { liveLocationRequest, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 
@@ -55,6 +55,78 @@ afterEach(async () => {
 });
 
 describe("sharing a live location from the phone", () => {
+  it.each(["asking", "no-signal"])("ends a %s watch at the deadline without another fix", async (status) => {
+    vi.useFakeTimers();
+    const geo = fakeGeolocation();
+    const route = fakeRoute();
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request, endsAt: new Date(Date.now() + 30_000).toISOString() });
+    if (status === "no-signal") {
+      geo.fix(51.5, -0.13);
+      await vi.advanceTimersByTimeAsync(0);
+      geo.fail(2);
+    }
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(geo.spy.clearWatch).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("ended");
+    geo.fix(51.5, -0.13);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(geo.spy.getCurrentPosition).not.toHaveBeenCalled();
+    expect(route.request).toHaveBeenCalledTimes(status === "asking" ? 0 : 1);
+    const otherSeat = { ...SEAT, planId: "other-plan" };
+    startLiveLocationShare(otherSeat, { geolocation: geo.geolocation, request: route.request });
+    expect(geo.spy.watchPosition).toHaveBeenCalledTimes(2);
+    await stopLiveLocationShare(otherSeat);
+  });
+
+  it.each(["deadline", "read"])("retires a failed Stop at night end confirmed by %s", async (confirmation) => {
+    vi.useFakeTimers();
+    const geo = fakeGeolocation();
+    const endsAt = new Date(Date.now() + 30_000).toISOString();
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: fakeRoute(503).request, endsAt });
+    await stopLiveLocationShare(SEAT);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("failed");
+    if (confirmation === "deadline") await vi.advanceTimersByTimeAsync(30_000);
+    else reconcileLiveLocationShare(SEAT.planId, { visibility: "member", live: false, endsAt, sharing: false, people: [] });
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("ended");
+    const otherSeat = { ...SEAT, planId: "other-plan" };
+    startLiveLocationShare(otherSeat, { geolocation: geo.geolocation, request: fakeRoute().request });
+    expect(geo.spy.watchPosition).toHaveBeenCalledTimes(2);
+    await stopLiveLocationShare(otherSeat);
+  });
+
+  it("ignores a Stop response that arrives after the night ended", async () => {
+    let finish!: (value: Response) => void;
+    const stopped = stopLiveLocationShare(SEAT, { request: () => new Promise<Response>((resolve) => { finish = resolve; }) });
+    await Promise.resolve();
+    reconcileLiveLocationShare(SEAT.planId, { visibility: "member", live: false, endsAt: null, sharing: false, people: [] });
+    finish(new Response("{}", { status: 503 }));
+    await stopped;
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("ended");
+    const geo = fakeGeolocation();
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: fakeRoute().request });
+    expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not revive an expired watch when its upload finishes late", async () => {
+    vi.useFakeTimers();
+    const geo = fakeGeolocation();
+    let finish!: (value: Response) => void;
+    const request = vi.fn((_seat: unknown, method: string) => method === "PUT"
+      ? new Promise<Response>((resolve) => { finish = resolve; })
+      : Promise.resolve(new Response("{}")));
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request, endsAt: new Date(Date.now() + 30_000).toISOString() });
+    geo.fix(51.5, -0.13);
+    geo.fix(51.6, -0.13);
+    await vi.advanceTimersByTimeAsync(30_000);
+    finish(new Response("{}"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("ended");
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
   it("asks the browser only when sharing starts, then sends the fix", async () => {
     const geo = fakeGeolocation();
     const route = fakeRoute();

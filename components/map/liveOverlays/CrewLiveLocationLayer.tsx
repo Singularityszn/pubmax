@@ -12,7 +12,7 @@ import { authAvatarInitials } from "@/lib/authAvatarInitials";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { forgetLiveLocationNight, type LiveLocationNight } from "@/lib/liveLocationNight";
 import { LIVE_LOCATION_STALE_MS, parsePlanLiveLocationView, type PlanLiveLocationPerson } from "@/lib/planLiveLocation";
-import { liveLocationRequest } from "@/lib/planLiveLocationShare";
+import { liveLocationRequest, reconcileLiveLocationShare } from "@/lib/planLiveLocationShare";
 
 import "./crewLiveLocation.css";
 
@@ -34,6 +34,7 @@ function useCrewPositions(night: LiveLocationNight): PlanLiveLocationPerson[] {
         const response = await liveLocationRequest(night, "GET", undefined, request.signal);
         const view = response.ok ? parsePlanLiveLocationView(await response.json()) : null;
         if (controller.signal.aborted || ownerSignal.aborted) return;
+        if (view) reconcileLiveLocationShare(night.planId, view);
         if (response.status === 404 || (view && !view.live)) {
           forgetLiveLocationNight(night.planId);
           return;

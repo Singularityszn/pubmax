@@ -10,6 +10,7 @@ import { LIVE_LOCATION_STALE_MS, parsePlanLiveLocationView, type PlanLiveLocatio
 import {
   liveLocationRequest,
   liveShareSnapshot,
+  reconcileLiveLocationShare,
   startLiveLocationShare,
   stopLiveLocationShare,
   subscribeLiveShare,
@@ -82,6 +83,7 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
         return;
       }
       if (!next) throw new Error("unreadable");
+      reconcileLiveLocationShare(planId, next);
       setView(next);
       setNow(Date.now());
       setProblem("");
@@ -111,7 +113,7 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
   async function stop() {
     setBusy(true);
     try {
-      const response = await stopLiveLocationShare({ planId, via, memberToken });
+      const response = await stopLiveLocationShare({ planId, via, memberToken }, { endsAt: view?.endsAt });
       if (response.status === 404) {
         forgetLiveLocationNight(planId);
         setView(null);
@@ -155,11 +157,11 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
           <div className="liveLocation__actions">
             {watching || paused ? (
               <>
-                {paused ? <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat)}>Resume sharing</Button> : null}
+                {paused ? <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat, { endsAt: view.endsAt })}>Resume sharing</Button> : null}
                 <Button variant={paused ? "ghost" : "secondary"} disabled={stopping} onClick={() => void stop()}>{stopping ? "Stopping" : "Stop sharing"}</Button>
               </>
             ) : status !== "ended" && status !== "unsupported" ? (
-              <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat)}>{stopping ? "Stopping" : status === "denied" ? "Try again" : "Share my location tonight"}</Button>
+              <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat, { endsAt: view.endsAt })}>{stopping ? "Stopping" : status === "denied" ? "Try again" : "Share my location tonight"}</Button>
             ) : null}
           </div>
           {view.people.length ? (

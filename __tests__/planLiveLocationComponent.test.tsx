@@ -9,7 +9,7 @@ import MapLiveOverlays from "@/components/map/liveOverlays/MapLiveOverlays";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { rememberLiveLocationNight } from "@/lib/liveLocationNight";
-import { stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { liveShareSnapshot, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => createElement("a", { href }, children),
@@ -80,6 +80,39 @@ async function click(label: string) {
 }
 
 describe("live location consent at the account boundary", () => {
+  it("keeps the known deadline after leaving the Plan without a GPS fix", async () => {
+    await mountPlan();
+    await click("Share my location tonight");
+    await act(async () => root.render(null));
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(clearWatch).toHaveBeenCalledWith(7);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("ended");
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it.each(["plan", "map"])("ends the watch when an authorised %s read closes the night", async (surface) => {
+    await mountPlan();
+    await click("Share my location tonight");
+    await act(async () => fail?.({ code: 2 } as GeolocationPositionError));
+    if (surface === "map") {
+      const map = { on: vi.fn(), off: vi.fn(), getCanvasContainer: () => container } as unknown as LiveMap;
+      await act(async () => root.render(createElement(MapLiveOverlays, { map, sunChaserOn: false, venues: [] })));
+    }
+    fetcher.mockImplementation(async () => Response.json({ ...view(), live: false, sharing: false }));
+    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+    expect(clearWatch).toHaveBeenCalledWith(7);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("ended");
+    await act(async () => root.render(null));
+    await act(async () => vi.advanceTimersByTimeAsync(120_000));
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    const otherSeat = { ...SEAT, planId: "22222222-2222-4222-8222-222222222222" };
+    fetcher.mockImplementation(async () => Response.json(view()));
+    await act(async () => root.render(createElement(PlanLiveLocation, { seat: otherSeat, ownerKey: "owner-a" })));
+    await click("Share my location tonight");
+    expect(watch).toHaveBeenCalledTimes(2);
+    await act(async () => stopLiveLocationShare(otherSeat));
+  });
+
   it("does not restore sharing after a person starts, polls, then stops", async () => {
     await mountPlan();
     await click("Share my location tonight");
