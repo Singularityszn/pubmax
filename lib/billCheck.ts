@@ -158,20 +158,18 @@ function billItem(name: string, counterpart = ""): { name: string; categoryText:
   });
   const raw = found?.[0].normalize("NFKC").replace("⁄", "/")
     .replace(/^(?:a|one)[\s-]+/, "")
-    .replace(/^two[\s-]+thirds?/, "2/3")
-    .replace(/^thirds?/, "1/3")
-    .replace(/^half/, "1/2")
+    .replace(/^(?:(two|three)[\s-]+)?(half|thirds?|quarters?)/, (_, count: string, unit: string) =>
+      `${count === "two" ? 2 : count === "three" ? 3 : 1}/${unit === "half" ? 2 : unit.startsWith("third") ? 3 : 4}`)
     .replace(/[\s-]+(?:of[\s-]+)?(?:a[\s-]+)?pint$/, "")
     .replace(/\s+/g, "");
   const volume = raw?.match(/^(\d+(?:\.\d+)?)(ml|cl|litres?|l)$/);
-  const millilitres = volume
-    ? Number((Number(volume[1]) * (volume[2] === "ml" ? 1 : volume[2] === "cl" ? 10 : 1000)).toFixed(6))
-    : undefined;
   const fraction = raw?.match(/^(\d+)\/(\d+)/);
+  const millilitres = volume
+    ? Number(volume[1]) * (volume[2] === "ml" ? 1 : volume[2] === "cl" ? 10 : 1000)
+    : fraction ? 568 * Number(fraction[1]) / Number(fraction[2])
+    : raw === "pint" ? 568 : undefined;
   const measure = millilitres !== undefined
-    ? millilitres === 568 ? "pint" : `${millilitres}ml`
-    : fraction && Number(fraction[1]) / Number(fraction[2]) === 0.5
-    ? "half"
+    ? `${Math.round(millilitres)}ml`
     : raw?.startsWith("bottl") ? "bottle"
     : raw?.startsWith("can") ? "can"
     : raw;
@@ -220,10 +218,10 @@ function lineNamesDrink(
   return identifiesDrink && drinkCategoryFromText(text) === bareCategory;
 }
 
-function billNamesPint(name: string, item: { name: string; measure?: string }): boolean {
+function billNamesPint(item: { name: string; categoryText: string; measure?: string }): boolean {
   const servingText = item.measure !== "bottle" && item.name.startsWith("bottle ")
-    ? name.replace(/\bbottle\b/i, "")
-    : name;
+    ? item.categoryText.replace(/\bbottle\b/i, "")
+    : item.categoryText;
   return isComparablePintServing({ cheapestPint: servingText });
 }
 
@@ -234,9 +232,8 @@ export function judgeBill(
   measure?: DrinkMeasure,
   measureLabel?: string,
 ): BillCheckVerdict {
-  const submittedMeasure = measure === "other" && measureLabel
-    ? billItem(measureLabel).measure ?? measureLabel
-    : measure;
+  const measureText = measure === "other" && measureLabel ? measureLabel : measure;
+  const submittedMeasure = measureText ? billItem(measureText).measure ?? measureText : undefined;
   const submitted = billItem(drink);
   if (!submitted.name) return { result: "unreadable", lines: [] };
   const bareCategory = bareCategoryOf(submitted.name);
@@ -249,8 +246,8 @@ export function judgeBill(
   const matching = named.filter(({ line, item, submitted: candidate }) => {
     if (submittedMeasure && candidate.measure && submittedMeasure !== candidate.measure) return false;
     const expectedMeasure = submittedMeasure ?? candidate.measure;
-    if (expectedMeasure === "pint" &&
-      (!billNamesPint(line.name, item) || !billNamesPint(drink, candidate))) return false;
+    if (expectedMeasure === "568ml" &&
+      (!billNamesPint(item) || !billNamesPint(candidate))) return false;
     const statedMeasure = item.measure;
     return pence(line.priceGbp) === target &&
       (!expectedMeasure || !statedMeasure || statedMeasure === expectedMeasure);
