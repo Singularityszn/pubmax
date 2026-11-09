@@ -825,15 +825,11 @@ function ownsAcceptance(owner: ComposerRequestOwner | null): boolean {
       || anchor.expiresAt !== intent.expiresAt
       || JSON.stringify(anchor.acceptedArea) !== JSON.stringify(intent.acceptedArea)) return false;
   }
-  // Shared intake joins the acceptance only once this tab holds a grounded route.
-  let tracksIntake = false;
-  try { tracksIntake = Boolean(JSON.parse(owner.local?.[PLAN_ROUTE_DRAFT_KEY] ?? "null")?.groundingProof); } catch {}
   return (["session", "local"] as const).every((scope) => {
     const expected = owner[scope];
     const stored = current[scope];
     return expected === null || stored !== null
-      && Object.entries(expected).every(([key, value]) =>
-        (key === PLAN_INTAKE_STORAGE_KEY && !tracksIntake) || stored[key] === value);
+      && Object.entries(expected).every(([key, value]) => stored[key] === value);
   });
 }
 
@@ -1037,6 +1033,12 @@ function projectComposerRecovery(
       planningIntent: resolved.planningIntent,
       rememberedArea: resolved.routeWins ? null : readRememberedArea(),
     });
+    const provisionalAnchor = records.plan?.draft.acceptedAnchor;
+    if (resolved.datedProvisionalSuccessor && !resolved.acceptanceUnavailable && provisionalAnchor && candidate.acceptedAnchor
+      && provisionalAnchor.venueId === candidate.acceptedAnchor.venueId
+      && provisionalAnchor.source === candidate.acceptedAnchor.source) {
+      candidate.acceptedAnchor = provisionalAnchor;
+    }
     handoff = candidate.active ? candidate : null;
   } catch {}
   const provisionalRequest = resolved.provisionalRequest || Boolean(seedProvisionalStop1({
@@ -2362,6 +2364,7 @@ function PlanComposerForm({
   const automaticCreatorName = useRef<string | null>(null);
   const pendingDraftSave = useRef(false);
   const requestOwner = useRef(acceptedOwner);
+  if (canPersist && requestOwner.current === null) requestOwner.current = acceptedOwner;
   const generatedRelease = useRef<ComposerGeneratedRelease | null>(null);
   const requestEditTime = useRef<number | null>(null);
   const [initialStartTime] = useState(draftFields.startTime);
@@ -4200,8 +4203,7 @@ export default function PlanComposer() {
       }, routeRecovery);
       return {
         ...recovery,
-        acceptedOwner: recovery.provisionalRequest || recovery.datedProvisionalSuccessor || recovery.handoff?.heldVenueId
-          ? { ...readComposerAcceptanceRecords(), identity: recovery.handoff?.acceptedAnchor ?? null } : null,
+        acceptedOwner: { ...readComposerAcceptanceRecords(), identity: recovery.handoff?.acceptedAnchor ?? null },
         previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery),
       };
     } catch { return null; }
