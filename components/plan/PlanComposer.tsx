@@ -902,7 +902,7 @@ function composerRouteValidationFailed(
   route: StoredRouteDraft | null,
   value: ParsedPlanRouteDraft["value"],
 ): boolean {
-  return value.routeStale && !route?.routeStale;
+  return value.routeStale && (!route?.routeStale || Boolean(route.groundingProof && !value.groundingProof));
 }
 
 function recoverLegacyComposerRoute(
@@ -914,9 +914,6 @@ function recoverLegacyComposerRoute(
   if (!value || composerRouteValidationFailed(route, value)) {
     return composerRoutePreview(route.stops, route.savedAt, route.explicitNightContext);
   }
-  if (route.groundingProof && !value.groundingProof) {
-    return { ...route, groundingProof: null, createOperationKey: null, planAnchor: null };
-  }
   return {
     ...route,
     routeStale: value.routeStale,
@@ -926,7 +923,7 @@ function recoverLegacyComposerRoute(
   };
 }
 
-function readComposerRouteDraft(): {
+function readComposerRouteDraft(bytes = readComposerDraftBytes(safeLocalStorage(), PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY)): {
   route: StoredRouteDraft | null;
   envelope: ParsedPlanRouteDraft | null;
   conflicting: boolean;
@@ -934,7 +931,7 @@ function readComposerRouteDraft(): {
   otherSavedAt: string | null;
   pair: ComposerDraftPair | null;
 } {
-  const { v1, v2, pair } = readComposerDraftBytes(safeLocalStorage(), PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY);
+  const { v1, v2, pair } = bytes;
   const route = parsePlanRouteDraft(v1);
   const { envelope, conflicting, ambiguous } = reconcilePlanRouteDrafts(v2, v1);
   const otherSavedAt = ambiguous ? parsePlanRouteDraftV2(v2)?.savedAt ?? null : null;
@@ -1033,8 +1030,16 @@ function projectComposerRecovery(
       planningIntent: resolved.planningIntent,
       rememberedArea: resolved.routeWins ? null : readRememberedArea(),
     });
-    const provisionalAnchor = records.plan?.draft.acceptedAnchor;
-    if (resolved.datedProvisionalSuccessor && !resolved.acceptanceUnavailable && provisionalAnchor && candidate.acceptedAnchor
+    const acceptedIntent = records.planningIntent;
+    const provisionalAnchor = records.plan?.draft.acceptedAnchor ?? (acceptedIntent ? {
+      venueId: acceptedIntent.acceptedVenueId,
+      source: acceptedIntent.source,
+      cityId: acceptedIntent.cityId,
+      acceptedArea: acceptedIntent.acceptedArea,
+      startsAt: acceptedIntent.startsAt,
+      expiresAt: acceptedIntent.expiresAt,
+    } : null);
+    if ((resolved.datedProvisionalSuccessor || resolved.routeWins) && !resolved.acceptanceUnavailable && provisionalAnchor && candidate.acceptedAnchor
       && provisionalAnchor.venueId === candidate.acceptedAnchor.venueId
       && provisionalAnchor.source === candidate.acceptedAnchor.source) {
       candidate.acceptedAnchor = provisionalAnchor;
@@ -4192,18 +4197,25 @@ export default function PlanComposer() {
   const recovery = useMemo(() => {
     if (!hydrated || accountGeneration > 0) return null;
     try {
-      const session = readComposerSessionDraft();
-      const routeRecovery = readComposerRouteDraft();
+      const records = readComposerAcceptanceRecords();
+      const v1 = records.session?.[PLAN_DRAFT_KEY];
+      const v2 = records.session?.[PLAN_DRAFT_V2_KEY];
+      const routeV1 = records.local?.[PLAN_ROUTE_DRAFT_KEY];
+      const routeV2 = records.local?.[PLAN_ROUTE_DRAFT_V2_KEY];
+      const routeRecovery = readComposerRouteDraft({
+        v1: routeV1 ?? null, v2: routeV2 ?? null,
+        pair: routeV1 !== undefined && routeV2 !== undefined ? { v1: routeV1, v2: routeV2 } : null,
+      });
       const recovery = projectComposerRecovery({
-        plan: session.plan,
-        legacyDraft: session.legacyDraft,
-        legacyDraftMissing: session.legacyDraftMissing,
-        intake: readPlanIntakeDraftWithMetadata(),
-        planningIntent: readPlanningIntent({ cleanupInvalid: false }),
+        plan: v1 !== undefined && v2 !== undefined ? parsePlanDraftEnvelope(v2, v1) : null,
+        legacyDraft: parsePlanDraft(v1 ?? null),
+        legacyDraftMissing: v1 === null,
+        intake: parsePlanIntakeDraftWithMetadata(records.local?.[PLAN_INTAKE_STORAGE_KEY] ?? null),
+        planningIntent: parsePlanningIntent(records.session?.[PLANNING_INTENT_STORAGE_KEY] ?? ""),
       }, routeRecovery);
       return {
         ...recovery,
-        acceptedOwner: { ...readComposerAcceptanceRecords(), identity: recovery.handoff?.acceptedAnchor ?? null },
+        acceptedOwner: { ...records, identity: recovery.handoff?.acceptedAnchor ?? null },
         previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery),
       };
     } catch { return null; }
