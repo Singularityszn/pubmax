@@ -11,7 +11,7 @@ import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 
 export type LiveLocationSeat = { planId: string; via: "plan" | "crew"; memberToken?: string };
 /** asking: waiting on the browser. no-signal: the last fix stays up for the crew. */
-export type LiveShareStatus = "off" | "stopping" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
+export type LiveShareStatus = "off" | "busy" | "stopping" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
 export type LiveShareSnapshot = { planId: string | null; status: LiveShareStatus };
 
 type Request = (seat: LiveLocationSeat, method: "GET" | "PUT" | "DELETE", body?: PlanLiveLocationFix, signal?: AbortSignal) => Promise<Response>;
@@ -37,7 +37,6 @@ export const liveLocationRequest: Request = (seat, method, body, signal) => {
 
 type Session = {
   seat: LiveLocationSeat;
-  ownerKey: string;
   ownerSignal: AbortSignal;
   onOwnerChange: () => void;
   geolocation: Geolocation;
@@ -51,13 +50,19 @@ type Session = {
 };
 
 let session: Session | null = null;
-const stopping = new Map<string, Promise<Response>>();
-let snapshot: LiveShareSnapshot = { planId: null, status: "off" };
+const stopping = new Map<string, Promise<Response> | null>();
+const OFF_SNAPSHOT: LiveShareSnapshot = { planId: null, status: "off" };
+const snapshots = new Map<string, LiveShareSnapshot>();
 const listeners = new Set<() => void>();
 
-function publish(planId: string | null, status: LiveShareStatus): void {
-  if (snapshot.planId === planId && snapshot.status === status) return;
-  snapshot = { planId, status };
+function publish(planId: string, status: LiveShareStatus): void {
+  if (snapshots.get(planId)?.status === status) return;
+  snapshots.set(planId, { planId, status });
+  if (!session && !stopping.size) {
+    for (const [id, state] of snapshots) {
+      if (state.status === "busy") snapshots.delete(id);
+    }
+  }
   for (const listener of listeners) listener();
 }
 
@@ -66,8 +71,8 @@ export function subscribeLiveShare(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-export function liveShareSnapshot(): LiveShareSnapshot {
-  return snapshot;
+export function liveShareSnapshot(planId: string): LiveShareSnapshot {
+  return snapshots.get(planId) ?? OFF_SNAPSHOT;
 }
 
 function halt(current: Session): void {
@@ -123,7 +128,7 @@ function onFix(current: Session, position: GeolocationPosition): void {
     longitude: position.coords.longitude,
     accuracyM: Number.isFinite(position.coords.accuracy) ? Math.round(position.coords.accuracy) : null,
   };
-  if (snapshot.status !== "on" && current.sent) publish(current.seat.planId, "on");
+  if (liveShareSnapshot(current.seat.planId).status !== "on" && current.sent) publish(current.seat.planId, "on");
   if (shouldSend(current, fix)) void send(current, fix);
 }
 
@@ -135,54 +140,31 @@ function onError(current: Session, error: GeolocationPositionError): void {
     publish(current.seat.planId, "no-signal");
     return;
   }
-  const shared = current.sent !== null || current.inFlight !== null;
-  if (shared) {
-    void stopLiveLocationShare(current.seat).then((response) => {
-      if (response.ok && snapshot.planId === current.seat.planId && snapshot.status === "off") {
-        publish(current.seat.planId, "denied");
-      }
-    }).catch(() => undefined);
-  } else {
-    halt(current);
-    publish(current.seat.planId, "denied");
-  }
-}
-
-function removePosition(seat: LiveLocationSeat, request: Request, current?: Session | null): Promise<Response> {
-  const pending = stopping.get(seat.planId);
-  if (pending) return pending;
-  const deletion = (async () => {
-    await current?.inFlight?.catch(() => undefined);
-    return request(seat, "DELETE");
-  })().finally(() => { stopping.delete(seat.planId); });
-  stopping.set(seat.planId, deletion);
-  return deletion;
+  void stopLiveLocationShare(current.seat).then((response) => {
+    if (response.ok && liveShareSnapshot(current.seat.planId).status === "off") {
+      publish(current.seat.planId, "denied");
+    }
+  }).catch(() => undefined);
 }
 
 /** Runs on the person's tap. This is the only place the browser is asked for location. */
-export async function startLiveLocationShare(seat: LiveLocationSeat, ownerKey: string, deps: Deps = {}): Promise<void> {
-  if (stopping.size) return;
+export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}): void {
+  if (stopping.has(seat.planId)) return;
+  if ((session && session.seat.planId !== seat.planId) || stopping.size) {
+    publish(seat.planId, "busy");
+    return;
+  }
   const geolocation = deps.geolocation !== undefined ? deps.geolocation
     : typeof navigator !== "undefined" ? navigator.geolocation ?? null : null;
-  if (session && session.seat.planId === seat.planId && session.ownerKey === ownerKey
-    && session.seat.via === seat.via && session.seat.memberToken === seat.memberToken && session.watchId !== null) return;
+  if (session) return;
   const ownerSignal = readProviderAccountSignal();
-  if (session) {
-    try {
-      const response = await stopLiveLocationShare(session.seat);
-      if (!response.ok) return;
-    } catch {
-      return;
-    }
-    if (ownerSignal.aborted || session || stopping.size) return;
-  }
   if (!geolocation) {
     publish(seat.planId, "unsupported");
     return;
   }
   const request = deps.request ?? liveLocationRequest;
   const current: Session = {
-    seat, ownerKey, ownerSignal,
+    seat, ownerSignal,
     onOwnerChange: () => {
       halt(current);
       publish(seat.planId, "off");
@@ -208,17 +190,28 @@ export async function startLiveLocationShare(seat: LiveLocationSeat, ownerKey: s
 
 /** Stops the watch and deletes the position for everyone. */
 export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<Deps, "request"> = {}): Promise<Response> {
+  const pending = stopping.get(seat.planId);
+  if (pending) return (await pending).clone();
   const current = session?.seat.planId === seat.planId ? session : null;
-  const ownsStatus = !session || current !== null;
+  const request = current?.request ?? deps.request ?? liveLocationRequest;
+  const ownerSignal = readProviderAccountSignal();
   if (current) halt(current);
-  const deletion = removePosition(current?.seat ?? seat, current?.request ?? deps.request ?? liveLocationRequest, current);
-  if (ownsStatus) publish(seat.planId, "stopping");
-  try {
-    const response = await deletion;
-    if (snapshot.planId === seat.planId && snapshot.status === "stopping") publish(seat.planId, response.ok ? "off" : "failed");
-    return response.clone();
-  } catch (error) {
-    if (snapshot.planId === seat.planId && snapshot.status === "stopping") publish(seat.planId, "failed");
-    throw error;
-  }
+  const deletion = (async () => {
+    try {
+      await current?.inFlight?.catch(() => undefined);
+      if (ownerSignal.aborted) throw ownerSignal.reason;
+      const response = await request(current?.seat ?? seat, "DELETE", undefined, ownerSignal);
+      if (response.ok) stopping.delete(seat.planId);
+      else stopping.set(seat.planId, null);
+      publish(seat.planId, response.ok ? "off" : "failed");
+      return response;
+    } catch (error) {
+      stopping.set(seat.planId, null);
+      publish(seat.planId, "failed");
+      throw error;
+    }
+  })();
+  stopping.set(seat.planId, deletion);
+  publish(seat.planId, "stopping");
+  return (await deletion).clone();
 }

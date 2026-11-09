@@ -115,6 +115,23 @@ describe("live location consent at the account boundary", () => {
     expect(watch).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the active Plan live when another panel refuses sharing", async () => {
+    const otherSeat = { ...SEAT, planId: "22222222-2222-4222-8222-222222222222" };
+    await act(async () => root.render(createElement("div", null,
+      createElement(PlanLiveLocation, { seat: SEAT, ownerKey: "owner-a" }),
+      createElement(PlanLiveLocation, { seat: otherSeat, ownerKey: "owner-a" }),
+    )));
+    await click("Share my location tonight");
+    await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    await click("Share my location tonight");
+    const panels = container.querySelectorAll("section");
+    expect(panels[0].textContent).toContain("You're sharing your live location");
+    expect(panels[0].textContent).not.toContain("Resume sharing");
+    expect(panels[1].textContent).toContain("already sharing with another night");
+    expect(watch).toHaveBeenCalledTimes(1);
+    expect(clearWatch).not.toHaveBeenCalled();
+  });
+
   it("offers Stop after permission withdrawal fails to delete the first spot", async () => {
     let failDelete = true;
     fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => {

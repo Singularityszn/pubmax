@@ -24,6 +24,7 @@ const READ_DEADLINE_MS = 8_000;
 const OFF_SNAPSHOT = { planId: null, status: "off" as const };
 
 const STATUS_LINE: Partial<Record<LiveShareStatus, string>> = {
+  busy: "You are already sharing with another night. Stop that one first.",
   asking: "Waiting for your phone to say yes.",
   "no-signal": "We've lost your signal. Your crew sees where you were last, with the time.",
   denied: "Location is blocked for this app, so nobody can see you. Allow it in your browser or phone settings, then try again.",
@@ -47,15 +48,16 @@ type Props = { seat: LiveLocationSeat; ownerKey: string };
 /** The remount boundary drops one owner's view before another can paint. */
 export default function PlanLiveLocation({ seat, ownerKey }: Props) {
   if (!ownerKey || (seat.via === "plan" && !seat.memberToken)) return null;
-  return <LiveLocationMember key={`${seat.planId}:${seat.via}:${seat.memberToken ?? ""}:${ownerKey}`} seat={seat} ownerKey={ownerKey} />;
+  return <LiveLocationMember key={`${seat.planId}:${seat.via}:${seat.memberToken ?? ""}:${ownerKey}`} seat={seat} />;
 }
 
-function LiveLocationMember({ seat, ownerKey }: Props) {
+function LiveLocationMember({ seat }: Pick<Props, "seat">) {
   const [view, setView] = useState<PlanLiveLocationView | null>(null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const share = useSyncExternalStore(subscribeLiveShare, liveShareSnapshot, () => OFF_SNAPSHOT);
+  const getSnapshot = useCallback(() => liveShareSnapshot(seat.planId), [seat.planId]);
+  const share = useSyncExternalStore(subscribeLiveShare, getSnapshot, () => OFF_SNAPSHOT);
   const status: LiveShareStatus = share.planId === seat.planId ? share.status : "off";
   const stopping = busy || status === "stopping";
   const { planId, via, memberToken } = seat;
@@ -143,11 +145,11 @@ function LiveLocationMember({ seat, ownerKey }: Props) {
           <div className="liveLocation__actions">
             {watching || paused ? (
               <>
-                {paused ? <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat, ownerKey)}>Resume sharing</Button> : null}
+                {paused ? <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat)}>Resume sharing</Button> : null}
                 <Button variant={paused ? "ghost" : "secondary"} disabled={stopping} onClick={() => void stop()}>{stopping ? "Stopping" : "Stop sharing"}</Button>
               </>
             ) : status !== "ended" && status !== "unsupported" ? (
-              <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat, ownerKey)}>{stopping ? "Stopping" : status === "denied" ? "Try again" : "Share my location tonight"}</Button>
+              <Button variant="secondary" disabled={stopping} onClick={() => void startLiveLocationShare(seat)}>{stopping ? "Stopping" : status === "denied" ? "Try again" : "Share my location tonight"}</Button>
             ) : null}
           </div>
           {view.people.length ? (
