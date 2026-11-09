@@ -345,3 +345,12 @@ export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<D
   if (stopping.get(seat.planId) === stop) publish(seat.planId, "stopping", current?.seat ?? seat);
   return (await deletion).clone();
 }
+
+export async function stopLiveLocationBeforeAccountDeparture(): Promise<void> {
+  const ownerSignal = readProviderAccountSignal();
+  const seats = [...snapshots.values()]
+    .filter((snapshot) => snapshot.ownerSignal === ownerSignal && snapshot.seat &&
+      ["asking", "on", "no-signal", "failed", "stopping"].includes(snapshot.view.status))
+    .map((snapshot) => snapshot.seat!);
+  await Promise.allSettled(seats.map((seat) => stopLiveLocationShare(seat)));
+}

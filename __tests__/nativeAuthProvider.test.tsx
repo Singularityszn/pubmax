@@ -67,8 +67,12 @@ vi.mock("@/lib/authSessionResumeClient", () => ({
 }));
 import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
-import { setProviderAuthState } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal, setProviderAuthState } from "@/lib/authProviderRevision";
 import { PLAN_HOST_NAME_KEY, readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
+import { liveShareSnapshot, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { memoryPlanStore } from "@/lib/planStore";
+import { operatePlanLiveLocation } from "@/lib/planLiveLocationStore";
+import { memoryPlanLiveLocations, memoryPlanLiveLocationStops } from "@/lib/planLiveLocationMemory";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 
 const token = ["e30", Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url"), "unsigned"].join(".");
@@ -121,6 +125,66 @@ describe("tab-local private state across account events", () => {
   const savedOrder = JSON.stringify({ version: 1, ownerId: "original", rounds: [
     { roundId: "round-a", names: ["Sam", "Priya"], current: 1 },
   ] });
+
+  it.each(["sign out", "switch account"])("revokes the old seat before credentials retire on %s", async (action) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-09T20:00:00Z"));
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    const ownerSignal = readProviderAccountSignal();
+    const created = await memoryPlanStore.create({ title: "Our night", startTime: new Date().toISOString(), creatorName: "Host", stops: [{ venueId: "a", venueName: "Pub a", position: 0 }] });
+    if (!created.ok) throw new Error("Could not create the test Plan.");
+    const id = created.plan.plan.id;
+    const memberId = created.plan.crew[0]!.id;
+    const authority = { kind: "plan" as const, token: created.memberToken };
+    const seat = { planId: id, via: "plan" as const, memberToken: created.memberToken };
+    let fix!: PositionCallback;
+    const clearWatch = vi.fn();
+    const geolocation = {
+      watchPosition: (success: PositionCallback) => { fix = success; return 7; },
+      clearWatch,
+      getCurrentPosition: vi.fn(),
+    } as unknown as Geolocation;
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/live-location")) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${created.memberToken}`);
+        expect(h.session?.user.id).toBe(original.user.id);
+        expect(ownerSignal.aborted).toBe(false);
+        const result = await operatePlanLiveLocation(id, authority, init?.method === "DELETE" ? "stop" : "share", init?.body ? JSON.parse(String(init.body)) : {});
+        return Response.json(result.ok ? result.view : result, { status: result.ok ? 200 : 503 });
+      }
+      return Response.json({ access_token: replacement.access_token, refresh_token: replacement.refresh_token });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      startLiveLocationShare(seat, { geolocation });
+      fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition);
+      await vi.waitFor(() => expect(liveShareSnapshot(id).status).toBe("on"));
+      expect(memoryPlanLiveLocations.get(id)?.has(memberId)).toBe(true);
+      if (action === "switch account") {
+        const real = await vi.importActual<typeof import("@/lib/deviceAccountSwitch")>("@/lib/deviceAccountSwitch");
+        rememberDeviceAccount(localStorage, { userId: replacement.user.id, refreshToken: replacement.refresh_token });
+        h.switchAccount.mockImplementationOnce((userId: string) => real.activateDeviceAccount(userId, {
+          ...real.browserDeviceAccountSwitchDeps(), authConfig: { url: "https://auth.example", key: "publishable-key" },
+        }));
+      }
+      await act(async () => {
+        if (action === "sign out") await actions.signOut("device");
+        else expect(await actions.switchAccount(replacement.user.id)).toEqual({ status: "switched", userId: replacement.user.id });
+      });
+      expect(ownerSignal.aborted).toBe(true);
+      expect(clearWatch).toHaveBeenCalledWith(7);
+      expect(memoryPlanLiveLocations.has(id)).toBe(false);
+      expect(memoryPlanLiveLocationStops.get(id)?.get(memberId)).toMatchObject({ stoppedAt: Date.now() });
+      expect(await operatePlanLiveLocation(id, authority, "share", { latitude: 51.6, longitude: -0.13, accuracyM: 10 })).toEqual({ ok: false, error: "stopped" });
+      expect(container.textContent).toBe(action === "sign out" ? "signed-out" : replacement.user.id);
+    } finally {
+      await stopLiveLocationShare(seat, { request: async () => new Response("{}") });
+      visibility.mockRestore();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
 
   it("clears recovered Plan inputs on provider sign-out before another account signs in", async () => {
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });

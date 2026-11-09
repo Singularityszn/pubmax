@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { liveLocationRequest, liveShareCrewStopSeat, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { liveLocationRequest, liveShareCrewStopSeat, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationBeforeAccountDeparture, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import { getAccessToken } from "@/lib/authClient";
@@ -61,6 +61,56 @@ afterEach(async () => {
 });
 
 describe("sharing a live location from the phone", () => {
+  it.each(["plan", "crew"] as const)("revokes active and failed %s sharing with the departing credentials", async (via) => {
+    for (const state of ["active", "failed-start", "failed-stop"] as const) {
+      setProviderIdentity("supabase", `departing-${via}-${state}`);
+      const seat = { ...SEAT, via };
+      const geo = fakeGeolocation();
+      const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Response("{}", { status: init?.method === "PUT" && state === "failed-start" ? 503 : 200 }));
+      vi.stubGlobal("fetch", fetcher);
+      startLiveLocationShare(seat, { geolocation: geo.geolocation });
+      geo.fix(51.5, -0.13);
+      await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe(state === "failed-start" ? "failed" : "on"));
+      if (state === "failed-stop") {
+        fetcher.mockImplementationOnce(async () => new Response("{}", { status: 503 }));
+        await stopLiveLocationShare(seat);
+        expect(liveShareSnapshot(SEAT.planId).stopUnconfirmed).toBe(true);
+      }
+      const departed = stopLiveLocationBeforeAccountDeparture();
+      expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+      await departed;
+      const init = fetcher.mock.calls.at(-1)![1]!;
+      expect(init.method).toBe("DELETE");
+      expect(new Headers(init.headers).get("authorization")).toBe(`Bearer ${via === "crew" ? "crew-account-token" : PLAN_HTTP_ONLY_SESSION}`);
+      expect(init.signal?.aborted).toBe(false);
+      expect(liveShareSnapshot(SEAT.planId)).toMatchObject({ status: "off", stopUnconfirmed: false });
+      setProviderIdentity("supabase", null);
+    }
+  });
+
+  it("permits account departure when an existing Stop stalls", async () => {
+    vi.useFakeTimers();
+    setProviderIdentity("supabase", "stalled-departing-owner");
+    const geo = fakeGeolocation();
+    const fetcher = vi.fn(() => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", fetcher);
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation });
+    const stopped = stopLiveLocationShare(SEAT).catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(0);
+    let departed = false;
+    const departure = stopLiveLocationBeforeAccountDeparture().then(() => { departed = true; });
+    await vi.advanceTimersByTimeAsync(7_999);
+    expect(departed).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await departure;
+    await stopped;
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(liveShareSnapshot(SEAT.planId)).toMatchObject({ status: "failed", stopUnconfirmed: true });
+    setProviderIdentity("supabase", null);
+    expect(liveShareSnapshot(SEAT.planId)).toMatchObject({ status: "off", stopUnconfirmed: false });
+  });
+
   it.each(["initial", "moved", "queued", "heartbeat"])("drops a %s fix when hidden during authentication", async (kind) => {
     vi.useFakeTimers();
     let now = 1_000_000;

@@ -47,6 +47,7 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
+import { stopLiveLocationBeforeAccountDeparture } from "@/lib/planLiveLocationShare";
 import { isUserSignUp } from "@/lib/userSignedUp";
 import {
   authCallbackConfirmationLabel,
@@ -1437,6 +1438,7 @@ export function AuthProvider({
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
       const departing = sessionTransitions.current.currentUserId();
+      await stopLiveLocationBeforeAccountDeparture();
       releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
       updateSession(null, "SIGNED_OUT");
       emitDeviceIdentityChanged();

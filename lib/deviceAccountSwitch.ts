@@ -32,6 +32,7 @@ import {
   rememberDeviceAccount,
 } from "@/lib/deviceAccountSessions";
 import { discardBody } from "@/lib/responseBody";
+import { stopLiveLocationBeforeAccountDeparture } from "@/lib/planLiveLocationShare";
 
 const MINT_TIMEOUT_MS = 10_000;
 
@@ -199,6 +200,7 @@ export function browserDeviceAccountSwitchDeps(): DeviceAccountSwitchDeps {
     async setSession(session) {
       const supabase = await ensureSupabaseBrowser().catch(() => null);
       if (!supabase) return { ok: false };
+      await stopLiveLocationBeforeAccountDeparture();
       const { error } = await supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
