@@ -16,6 +16,7 @@ SQL: migration labels, rollbacks, RLS policies and the permission matrix. Repo-w
 - **A deploy can run ahead of the apply.** A new column is additive. Nullability and defaults follow the column-specific rules in `docs/rules/supabase-migrations-and-rls.md`. The store guard decides per column: lose a photo, or refuse the write. A privacy choice or a price-evidence word is refused, never dropped.
 - **Prove a migration on real PostgreSQL.** Write a `__tests__/*MigrationEffective.test.ts`: the fault before, the fix after, then the rollback. `npm run test:rls` runs the permission matrix and the RLS proofs. A skipped proof is a failure.
 - **The permission matrix is one matrix.** `docs/security/PERMISSION_MATRIX.md` is the expected table. `__tests__/permissionMatrixEffective.test.ts` checks each cell at the route and at the table. Widen it. Do not start a second one.
+- **A status column has a value CHECK, and a multi-writer lifecycle moves only through a guarded RPC** that checks the from-state and the expected revision. See [state machines](../docs/rules/state-machines.md).
 - **A denied cell never leaks.** It returns the honest status, no data in the whole body and no side effect. An id that names nothing answers exactly like an id somebody else owns.
 
 ## Detail

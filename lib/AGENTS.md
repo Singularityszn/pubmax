@@ -9,6 +9,7 @@ Modules under `lib/`: the closed vocabularies, the policy leaves and the stores.
 - **Price trust is decided in one place.** `lib/pintTrust.ts`, `lib/priceTier.ts` and `lib/venues.ts` decide price lanes. A retired contributor changes a name, never a price's authority.
 - **A bill attachment does not verify a price.** See the [bill check rule](../docs/rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price).
 - **A referral confers recognition only.** Nothing in the product may branch on it. `lib/referrals.ts` owns the rule, and `__tests__/referralMarkLaw.test.ts` fences it.
+- **A flow with three or more states is one machine.** A tagged union and one pure transition in one `lib/` leaf. Effects stay in the hook or the route. See [state machines](../docs/rules/state-machines.md).
 - **Push registration is identity-free by design.** `lib/pushTokenStore.ts` stores no account or plan identity.
 
 ## Detail
