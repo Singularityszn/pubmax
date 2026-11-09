@@ -27,7 +27,7 @@
 // line name loses every run of four or more digits. A fully redacted name uses
 // the privacy-safe marker `Item` and keeps its price.
 
-import { DRINK_MEASURES, MEASURE_OTHER_SUGGESTIONS, NON_PINT_MEASURE_PATTERNS, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { DRINK_MEASURES, MEASURE_OTHER_SUGGESTIONS, NON_PINT_MEASURE_PATTERNS, measureNamedInDrinkText, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { drinkCategoryFromText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import { brandsForCategory, normalizeDrinkHaystack } from "@/lib/drinkBrands";
 import { submitCategoryLabel } from "@/lib/communityPrice";
@@ -156,6 +156,9 @@ function billItem(name: string, counterpart = ""): { name: string; categoryText:
       const product = billProductName(following);
       if (product !== billProductName(counterpart) && product !== billProductName(otherProduct)) return false;
       return true;
+    }
+    if (brandCategory === null && NON_PINT_MEASURE_PATTERNS.some(({ word }) => word === match[0])) {
+      return measureNamedInDrinkText(`${match[0]} ${following.match(/[a-z0-9]+/)?.[0] ?? ""}`) !== null;
     }
     return match[0] === "single" || match[0] === "double"
       ? category === "gin" || category === "vodka" || category === "rum" || category === "whisky" || category === "shot"

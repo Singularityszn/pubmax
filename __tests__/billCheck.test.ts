@@ -168,6 +168,23 @@ describe("judgeBill", () => {
     expect(judgeBill(read([["Pale Ale", 6.5]]), 5.5, "Beer", "pint").result).toBe("mismatch");
   });
 
+  it("preserves Small Beer Lager as a product for named and category prices", () => {
+    const product = "Small Beer Lager";
+    for (const name of [product, `${product} pint`, `Pint ${product}`]) {
+      const lines = read([[name, 5.2]]);
+      expect(judgeBill(lines, 5.2, product, "pint")).toEqual({ result: "match", lines: lines.lines });
+      expect(judgeBill(lines, 5.2, "Beer", "pint").result).toBe("match");
+      expect(judgeBill(read([[product, 5.2]]), 5.2, name, "pint").result).toBe("match");
+      expect(judgeBill(lines, 5.2, "Beer Lager", "pint").result).toBe("unreadable");
+      expect(judgeBill(lines, 5.3, product, "pint").result).toBe("mismatch");
+    }
+    const half = read([[`${product} half`, 5.2]]);
+    expect(judgeBill(half, 5.2, product, "half").result).toBe("match");
+    expect(judgeBill(half, 5.2, "Beer", "half").result).toBe("match");
+    expect(judgeBill(half, 5.2, product, "pint").result).toBe("mismatch");
+    expect(judgeBill(read([[product, 5.2]]), 5.2, `${product} half`, "half").result).toBe("match");
+  });
+
   it.each([
     "Beer battered fish", "Fish in beer batter", "Steak and ale pie",
     "Guinness pie", "Guinness burger", "Guinness fish", "Guinness chips",
