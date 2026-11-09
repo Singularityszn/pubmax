@@ -50,6 +50,7 @@ export function resolveRequestedPlanIntent(
   const source = requestedIntentSource(plan, legacyDraft, intake);
   if (source === "intake") return { ...local, ...(plan ? unavailable : { conciergeQuery: "", descriptionUnavailable: false }) };
   if (source === "plan") return recovered;
+  if (plan?.legacy && planCount === undefined) return { ...local, ...unavailable };
   const count = plan && legacyDraft && !plan.legacy
     ? legacyDraft.requestedStopCount === planCount ? planCount : undefined
     : planCount === intakeCount ? planCount : undefined;

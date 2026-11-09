@@ -844,7 +844,7 @@ function composerAcceptanceStorage(
     if (value === null) storage!.removeItem(key);
     else storage!.setItem(key, value);
     const expected = owner![scope];
-    if (expected && Object.hasOwn(expected, key)) expected[key] = value;
+    if (expected && Object.hasOwn(expected, key) && storage!.getItem(key) === value) expected[key] = value;
   }
   return {
     getItem: (key) => storage.getItem(key),
@@ -2372,6 +2372,19 @@ function PlanComposerForm({
   const pendingDraftSave = useRef(false);
   const requestOwner = useRef(acceptedOwner);
   if (canPersist && requestOwner.current === null) requestOwner.current = acceptedOwner;
+  const ownerAccountId = useRef(user?.id);
+  if (canPersist && ownerAccountId.current !== user?.id) {
+    // Sign-in keeps anonymous inputs but clears their stored copies.
+    const current = readComposerAcceptanceRecords();
+    for (const scope of ["session", "local"] as const) {
+      const expected = requestOwner.current?.[scope];
+      if (!expected) continue;
+      for (const key of Object.keys(expected)) {
+        if (key !== PLANNING_INTENT_STORAGE_KEY && current[scope]?.[key] === null) expected[key] = null;
+      }
+    }
+    ownerAccountId.current = user?.id;
+  }
   const generatedRelease = useRef<ComposerGeneratedRelease | null>(null);
   const requestEditTime = useRef<number | null>(null);
   const [initialStartTime] = useState(draftFields.startTime);

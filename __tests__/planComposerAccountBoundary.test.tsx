@@ -53,7 +53,7 @@ import {
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
 import { PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
-import { createPlanIntakeDraft, readPlanIntakeDraft, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
+import { PLAN_INTAKE_STORAGE_KEY, createPlanIntakeDraft, readPlanIntakeDraft, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
@@ -531,5 +531,22 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     await rerender();
 
     expect(queryValue()).toBe(A_REQUEST);
+  });
+
+  it("preserves a newer intake after sign-in clears the anonymous request", async () => {
+    await mountComposer();
+    await editInput(QUERY, A_REQUEST);
+    bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
+    const intake = skipRemainingPlanIntake(createPlanIntakeDraft());
+    writePlanIntakeDraft({ ...intake, answers: { ...intake.answers, groupSize: 7 } });
+    const replacement = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+
+    authFixture.user = ACCOUNT_A;
+    await rerender();
+    await editInput(QUERY, "Older anonymous edit");
+
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(replacement);
+    expect(storedRequest()).toBeNull();
+    expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
   });
 });
