@@ -706,9 +706,9 @@ export default function PalExperience() {
       setSaving(false);
       controlSavingRef.current = null;
       setControlSaving(false);
-      setReady(!user);
+      setReady(!ownerId);
     });
-    if (!user) return () => controller.abort();
+    if (!ownerId) return () => controller.abort();
 
     void authedActionFetch("/api/pub-pal", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
@@ -729,7 +729,7 @@ export default function PalExperience() {
           });
           setPrivacy((current) => ({ ...current, proposeMemories: next.proposalPreferences?.memories === true, visible: !next.hidden, muted: next.muted }));
           setMode("home");
-          const storedPrivacy = readStored(`${PRIVACY_KEY}:${user.id}`);
+          const storedPrivacy = readStored(`${PRIVACY_KEY}:${ownerId}`);
           if (storedPrivacy) {
             try {
               const parsed = JSON.parse(storedPrivacy) as { proposeMemories?: unknown };
@@ -763,7 +763,7 @@ export default function PalExperience() {
         setReady(true);
       });
     return () => controller.abort();
-  }, [user, getCurrentUserId]);
+  }, [user?.id, getCurrentUserId]);
 
   // Creating the Pal swaps the whole screen. The page kept the scroll position
   // the person had reached at the foot of setup, so it landed on "You stay in
