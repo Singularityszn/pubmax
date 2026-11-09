@@ -87,20 +87,19 @@ function userTurns(recentTurns: unknown): string[] {
   }).slice(0, 6).flatMap((turn) => turn.role === "user" ? [turn.content] : []);
 }
 
-/**
- * Read one area, one time and one optional date, then decide. A question with
- * an area but no single clear time asks for the time. A timed question with no
- * area asks for the area.
- */
-export function parseLateFoodQuestion(query: string, now: number, recentTurns?: unknown): LateFoodQuestion | null {
-  const [wording = "", ...additionalRequirements] = stripTrailingPunctuation(foodWording(query))
-    .split(/[.!?;\n]+/).map((sentence) => sentence.trim()).filter(Boolean);
-  if (!FOOD_RE.test(wording) || !Number.isFinite(now)) return null;
+function readArea(wording: string): { area: string | null; rest: string } | null {
   const areas = [...wording.matchAll(CONTEXT_AREA)];
   if (areas.length > 1 || (areas.length === 1 && !recognisedArea(areas[0]![1]!.trim()))) return null;
-  let rest = wording.replace(CONTEXT_AREA, " ");
-  const dates = [...rest.matchAll(CONTEXT_DATE)];
-  rest = rest.replace(CONTEXT_DATE, " ");
+  return { area: areas[0]?.[1]?.trim() ?? null, rest: wording.replace(CONTEXT_AREA, " ") };
+}
+
+function readOptionalDate(wording: string) {
+  const dates = [...wording.matchAll(CONTEXT_DATE)];
+  return { dates, date: dates.length === 1 ? dates[0]![1] : undefined, rest: wording.replace(CONTEXT_DATE, " ") };
+}
+
+function readTime(wording: string, dates: RegExpMatchArray[], date: string | undefined) {
+  let rest = wording;
   const clocks = [...rest.matchAll(CLOCK)];
   rest = rest.replace(CLOCK, " ");
   const nights = [...rest.matchAll(CONTEXT_NIGHT)];
@@ -109,8 +108,25 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
   rest = rest.replace(VAGUE_TIME, " ");
   const vagueDays = [...rest.matchAll(VAGUE_DAY)];
   rest = rest.replace(VAGUE_DAY, " ");
-  const dietary = [...rest.matchAll(DIETARY)].map((match) => match[0].toLowerCase().replace(" ", "-"));
-  rest = rest.replace(DIETARY, " ");
+  const minutes = clocks.length === 1 ? requestedMinutes(clocks[0]!) : null;
+  const clearTime = dates.length <= 1 && clocks.length <= 1 && nights.length <= 1 && vague.length === 0 && vagueDays.length === 0
+    && (clocks.length > 0 || nights.length > 0)
+    && !(dates.length && nights.some((night) => /^tonight$/i.test(night[0])))
+    && !(clocks.length && nights.some((night) => !/^tonight$/i.test(night[0])))
+    && !(clocks.length && minutes === null)
+    && !(date && !parseLondonInput(wallTimeInput(date, minutes ?? 0)));
+  return {
+    rest,
+    minutes,
+    clearTime,
+    hasNight: nights.length > 0,
+    hasTimeWording: dates.length + clocks.length + nights.length + vague.length + vagueDays.length > 0,
+  };
+}
+
+function readFoodRequirements(wording: string, additionalRequirements: string[]) {
+  const dietary = [...wording.matchAll(DIETARY)].map((match) => match[0].toLowerCase().replace(" ", "-"));
+  let rest = wording.replace(DIETARY, " ");
   const foodWords = [...rest.matchAll(new RegExp(FOOD_RE.source, "gi"))].map((match) => match[0].toLowerCase());
   const categories = [...new Set(foodWords.filter((word) => !/^(?:food|eat|eating|meals?|kitchens?)$/.test(word))
     .map((word) => CATEGORIES.find(([pattern]) => pattern.test(word))?.[1] ?? word))];
@@ -120,30 +136,38 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
     .replace(/\b(?:where|what|which|can|could|would|do|does|i|we|you|me|us|my|our|want|like|need|find|get|have|recommend|suggest|show|tell|help|is|are|there|any|some|something|somewhere|anywhere|places?|options?|open|available|a|an|the|to|for|with|that|please|serving|and|or)\b/gi, " ")
     .trim();
   if (rest) additionalRequirements.unshift(rest);
+  return { dietary, category: category ?? null };
+}
 
-  const minutes = clocks.length === 1 ? requestedMinutes(clocks[0]!) : null;
-  const date = dates.length === 1 ? dates[0]![1] : undefined;
-  const clearTime = dates.length <= 1 && clocks.length <= 1 && nights.length <= 1 && vague.length === 0 && vagueDays.length === 0
-    && (clocks.length > 0 || nights.length > 0)
-    && !(dates.length && nights.some((night) => /^tonight$/i.test(night[0])))
-    && !(clocks.length && nights.some((night) => !/^tonight$/i.test(night[0])))
-    && !(clocks.length && minutes === null)
-    && !(date && !parseLondonInput(wallTimeInput(date, minutes ?? 0)));
-  const area = areas[0]?.[1]?.trim() ?? null;
+/**
+ * Read one area, one time and one optional date, then decide. A question with
+ * an area but no single clear time asks for the time. A timed question with no
+ * area asks for the area.
+ */
+export function parseLateFoodQuestion(query: string, now: number, recentTurns?: unknown): LateFoodQuestion | null {
+  const [wording = "", ...additionalRequirements] = stripTrailingPunctuation(foodWording(query))
+    .split(/[.!?;\n]+/).map((sentence) => sentence.trim()).filter(Boolean);
+  if (!FOOD_RE.test(wording) || !Number.isFinite(now)) return null;
+  const areaFields = readArea(wording);
+  if (!areaFields) return null;
+  const { area } = areaFields;
+  const { dates, date, rest } = readOptionalDate(areaFields.rest);
+  const time = readTime(rest, dates, date);
+  const requirements = readFoodRequirements(time.rest, additionalRequirements);
+  if (!requirements) return null;
   if (area === null) {
-    if (!clearTime || minutes === null) return null;
+    if (!time.clearTime || time.minutes === null) return null;
     const turns = userTurns(recentTurns);
     const inheritedArea = extractArea(foodWording(refineRoutedAskQuery(query, turns.at(-1), turns)));
     if (inheritedArea && recognisedArea(inheritedArea)) return null;
-  } else if (!clearTime && dates.length + clocks.length + nights.length + vague.length + vagueDays.length === 0) {
+  } else if (!time.clearTime && !time.hasTimeWording) {
     return null;
   }
-  const day = clearTime ? requestedDay(date, nights.length > 0, minutes, now) : null;
+  const day = time.clearTime ? requestedDay(date, time.hasNight, time.minutes, now) : null;
   return {
     area,
-    at: day !== null && minutes !== null ? londonInstant(day, minutes) : null,
-    dietary,
-    category: category ?? null,
+    at: day !== null && time.minutes !== null ? londonInstant(day, time.minutes) : null,
+    ...requirements,
     additionalRequirements,
   };
 }
