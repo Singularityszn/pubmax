@@ -148,7 +148,11 @@ function boundaries(source: string): Boundary[] {
     .map(([boundary]) => boundary);
 }
 
-const RUNTIME_TESTED_ROUTES = new Set(["app/api/plans/[id]/beacon", "app/api/plans/[id]/presentation"]);
+const RUNTIME_TESTED_ROUTES = new Set([
+  "app/api/plans/[id]/beacon",
+  "app/api/plans/[id]/presentation",
+  "app/api/social/crews/[crewId]/arrival",
+]);
 
 const mutationHandlers = routeFiles(API_ROOT)
   .flatMap((file) => mutationHandlersFromSource(readFileSync(file, "utf8"), file))

@@ -2027,6 +2027,7 @@ describe("Social Crew: open crawl arrival", () => {
     truth(`update public.social_crews set visibility='open' where id='${crew.id}';
       update public.plans set start_time=now() where id='${CREW_PLAN_ID}';`);
     const status = () => truth(`select status from public.plan_crew_members where plan_id='${CREW_PLAN_ID}' and social_account_id='${BOB_ACCOUNT}'`);
+    const initialStatus = status();
     for (const bearer of [undefined, BEARER_DAVE, BEARER_CAROL]) {
       const denied = await defined(handlers.crewArrival)(
         crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer, body: { here: true } }),
@@ -2034,7 +2035,7 @@ describe("Social Crew: open crawl arrival", () => {
       );
       expect(denied.status).toBeGreaterThanOrEqual(400);
       expectNoDisclosure(await readJson(denied));
-      expect(status()).toBe("in");
+      expect(status()).toBe(initialStatus);
     }
     for (let attempt = 0; attempt < 2; attempt++) {
       const response = await defined(handlers.crewArrival)(
@@ -2054,12 +2055,13 @@ describe("Social Crew: open crawl arrival", () => {
     expect(undo.status).toBe(422);
     expect(status()).toBe("here");
     truth(`update public.social_crews set visibility='private' where id='${crew.id}';`);
+    const privateStatus = status();
     const denied = await defined(handlers.crewArrival)(
       crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: true } }),
       context({ crewId: crew.id }),
     );
     expect(denied.status).toBe(404);
-    expect(status()).toBe("here");
+    expect(status()).toBe(privateStatus);
   });
 });
 
@@ -2078,13 +2080,14 @@ describe("Social Crew: the removed member", () => {
     ).toBe("removed");
 
     truth(`update public.social_crews set visibility='open' where id='${crew.id}';`);
+    const statusBeforeArrival = truth(`select status from public.plan_crew_members where plan_id='${CREW_PLAN_ID}' and social_account_id='${BOB_ACCOUNT}'`);
     const arrival = await defined(handlers.crewArrival)(
       crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: true } }),
       context({ crewId: crew.id }),
     );
     expect(arrival.status).toBe(404);
     expectNoDisclosure(await readJson(arrival));
-    expect(truth(`select status from public.plan_crew_members where plan_id='${CREW_PLAN_ID}' and social_account_id='${BOB_ACCOUNT}'`)).toBe("in");
+    expect(truth(`select status from public.plan_crew_members where plan_id='${CREW_PLAN_ID}' and social_account_id='${BOB_ACCOUNT}'`)).toBe(statusBeforeArrival);
     truth(`update public.social_crews set visibility='private' where id='${crew.id}';`);
 
     const read = await defined(handlers.readCrew)(

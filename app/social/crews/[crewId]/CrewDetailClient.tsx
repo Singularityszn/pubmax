@@ -116,7 +116,7 @@ export default function CrewDetailClient({
   const queueRefreshAuthorityRevision = useRef<number | null>(null);
   const canRefreshArrival = identityResolved && loadedIdentityKey === identityKey
     && crew?.kind === "member" && crew.visibility === "open" && Boolean(crew.arrival);
-  const arrivalRefreshAt = crew?.kind === "member" ? crew.arrival?.refreshAt : null;
+  const arrival = crew?.kind === "member" ? crew.arrival : undefined;
 
   useEffect(() => {
     if (!canRefreshArrival) return;
@@ -126,15 +126,15 @@ export default function CrewDetailClient({
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", resume);
-    const timer = typeof arrivalRefreshAt === "number"
-      ? setTimeout(refresh, Math.min(2_147_483_647, Math.max(0, arrivalRefreshAt - Date.now())))
+    const timer = typeof arrival?.refreshAt === "number"
+      ? setTimeout(refresh, Math.min(2_147_483_647, Math.max(1_000, arrival.refreshAt - Date.now())))
       : undefined;
     return () => {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", resume);
       clearTimeout(timer);
     };
-  }, [arrivalRefreshAt, canRefreshArrival, scopeKey]);
+  }, [arrival, canRefreshArrival, scopeKey]);
 
   useEffect(() => {
     if (previousScopeKey.current === scopeKey) return;

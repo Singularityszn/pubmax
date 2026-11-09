@@ -285,6 +285,26 @@ it("refreshes the arrival control at the server's opening and closing boundaries
   expect(button()?.disabled).toBe(true);
 });
 
+it.each([false, true])("rechecks an unchanged arrival boundary when open=%s", async (open) => {
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+  const boundary = Date.parse("2026-08-23T23:00:00Z");
+  vi.setSystemTime(boundary - 1_000);
+  state.arrival = { open, here: false, refreshAt: boundary };
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = () => container.querySelector<HTMLButtonElement>('button[aria-pressed]');
+  expect(button()?.disabled).toBe(!open);
+  const readsBeforeBoundary = state.crewReadCount;
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+  expect(state.crewReadCount).toBe(readsBeforeBoundary + 1);
+  expect(button()?.disabled).toBe(!open);
+
+  state.arrival = { open: !open, here: false, refreshAt: null };
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+  expect(state.crewReadCount).toBe(readsBeforeBoundary + 2);
+  expect(button()?.disabled).toBe(open);
+});
+
 it.each(["focus", "visibilitychange"])("refreshes arrival availability on %s", async (event) => {
   vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
   state.arrival = { open: false, here: false, refreshAt: null };
