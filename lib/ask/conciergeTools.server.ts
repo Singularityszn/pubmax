@@ -536,6 +536,7 @@ export async function toolVenueDrinks(
     provenance: PEOPLE_LOGGED,
   }));
 
+  const listedProvenance: AskSource = { kind: "directory", label: listedPriceReceipt(venue, now) };
   if (includeListedPint && venue.cheapestPrice != null) {
     cards.push({
       key: `${venue.id}:listed`,
@@ -544,7 +545,7 @@ export async function toolVenueDrinks(
       place: venue.area,
       note: "Current recorded pint on the listed index.",
       price: venue.cheapestPrice,
-      provenance: DIRECTORY,
+      provenance: listedProvenance,
     });
   }
 
@@ -576,7 +577,7 @@ export async function toolVenueDrinks(
     },
     provenance: [
       ...(rows.length > 0 ? [PEOPLE_LOGGED] : []),
-      ...(includeListedPint && venue.cheapestPrice != null ? [DIRECTORY] : []),
+      ...(includeListedPint && venue.cheapestPrice != null ? [listedProvenance] : []),
       ...askCardSources(menu.cards),
     ],
     cards,

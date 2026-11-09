@@ -478,6 +478,16 @@ describe("venue_drinks", () => {
   });
 
   it.each([
+    [{ priceObservedAt: "2026-07-03" }, "Pub menu. Source read 3 July 2026."],
+    [{ priceSource: undefined, priceObservedAt: undefined }, "Publisher not recorded. Source read date unknown."],
+    [{ priceObservedAt: "2026-08-16" }, "Pub menu. Source read date unknown."],
+  ])("dates the listed pint card from its own row: %o", async (evidence, label) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5, ...evidence })];
+    const result = await runAskTool("venue_drinks", { venueName: "The Lamb" }, ctx({ query: "Drink prices at The Lamb" }));
+    expect(result.cards.find((card) => card.key === "v1:listed")?.provenance).toEqual({ kind: "directory", label });
+  });
+
+  it.each([
     "Wine prices at The Lamb", "Prices for wine at The Lamb", "Wine costs at The Lamb", "Costs of wine at The Lamb",
     "Wine prices at The Lamb this evening?", "Wine prices now at The Lamb?", "Wine later prices at The Lamb?",
   ])("routes raw provider-selected pint pricing to recorded wine for %s", async (query) => {
@@ -636,7 +646,7 @@ describe("venue_drinks", () => {
     expect(result.cards[0]?.note).toContain("two people agree on this figure");
     expect(result.cards[0]?.note).not.toContain("map");
     expect(result.cards[1]?.note).toContain("stays on this pub's page");
-    expect(result.cards[2]?.provenance?.label).toBe("On record");
+    expect(result.cards[2]?.provenance?.label).toBe("Pub menu. Source read 1 January 2026.");
   });
 
   it("resolves a routed short pub name but never a borough", async () => {
@@ -676,7 +686,7 @@ describe("venue_drinks", () => {
     expect(result.degraded).toBe(true);
     expect(result.answerHint).toContain("couldn't read what people have logged");
     expect(result.cards.map((card) => card.price)).toEqual([5]);
-    expect(result.cards[0]?.provenance?.label).toBe("On record");
+    expect(result.cards[0]?.provenance?.label).toBe("Pub menu. Source read 1 January 2026.");
   });
 });
 
