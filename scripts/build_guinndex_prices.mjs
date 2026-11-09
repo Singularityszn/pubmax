@@ -377,7 +377,7 @@ async function main() {
       collectReport = await collect({ cacheDir, counties, gapMs, grid, log });
     } catch (error) {
       if (error instanceof StopRun) {
-        log(`guinndex: ${error.message}. Nothing was written.`);
+        log(`guinndex: ${error.message}. The price pack was not replaced. Earlier cache entries remain.`);
         process.exitCode = 2;
         return;
       }
