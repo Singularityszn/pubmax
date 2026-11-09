@@ -3,6 +3,8 @@ import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 // The voice panel on /pal, driven through the REAL ElevenLabs SDK against a
 // stand-in for the provider's socket. The stand-in speaks the provider's own
@@ -263,13 +265,20 @@ for (const width of [390, 1440]) {
   });
 }
 
-for (const [width, theme] of [[390, "light"], [1280, "dark"]] as const) {
-  test(`${width}px ${theme}: the voice panel prints the conversation and "show me the map" opens /map`, async ({ page }) => {
+for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"]] as const) {
+  test(`${width}px ${theme}: "show me the map" opens /map and the same voice call carries on there`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await storeThemeChoice(page, theme);
     await page.emulateMedia({ colorScheme: theme });
     await mkdir(SHOTS, { recursive: true });
+    let releases = 0;
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/pub-pal/voice-token" && request.postDataJSON()?.action === "release") releases += 1;
+    });
     const socket = await openLiveVoice(page);
+    let socketClosed = false;
+    socket.onClose(() => { socketClosed = true; });
 
     // On a phone the panel carries its own live head; on a desktop the big
     // portrait stays in view beside the panel, so the small one is hidden.
@@ -278,7 +287,7 @@ for (const [width, theme] of [[390, "light"], [1280, "dark"]] as const) {
     // photograph stands in for it. Either is a head that moves.
     const LIVE_HEAD = /^(?:live|mesh)$/;
     const face = page.locator(".palVoiceFace");
-    if (width === 390) {
+    if (width <= 900) {
       await expect(face).toBeVisible();
       await expect(face).toHaveAttribute("data-head-3d", LIVE_HEAD);
     } else {
@@ -322,8 +331,44 @@ for (const [width, theme] of [[390, "light"], [1280, "dark"]] as const) {
     await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-3-opening-map.png` });
     await page.screenshot({ path: `${SHOTS}/${width}-4-page.png`, fullPage: width === 390 });
     await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
+
+    // The call lives in the shell, so the move to /map keeps the same socket.
+    const bar = page.getByRole("region", { name: "Voice chat with Ripley" });
+    await expect(bar).toBeVisible();
+    say(socket, "Here's Soho on the map.");
+    await expect(bar).toContainText("Here's Soho on the map.");
+    await expect(bar.getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+    expect(socketClosed).toBe(false);
+    expect(releases).toBe(0);
+    await page.screenshot({ path: `${SHOTS}/${width}-${theme}-5-map-voice-bar.png` });
+
+    await bar.getByRole("button", { name: "End", exact: true }).click();
+    await expect(bar).toBeHidden();
+    await expect.poll(() => socketClosed).toBe(true);
+    await expect.poll(() => releases).toBe(1);
   });
 }
+
+test("a cold /map loads no ElevenLabs code, even with the shell extras released", async ({ page }) => {
+  // Only the SDK's socket handshake carries this event name.
+  const scripts: Promise<{ url: string; sdk: boolean }>[] = [];
+  page.on("response", (response) => {
+    if (response.request().resourceType() !== "script") return;
+    scripts.push(response.text()
+      .then((body) => ({ url: response.url(), sdk: body.includes("conversation_initiation_client_data") }))
+      .catch(() => ({ url: response.url(), sdk: false })));
+  });
+  await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal: null, adultOnFile: true } }));
+  await installAuthDoubles(page);
+  await page.addInitScript(() => localStorage.setItem("pubmax:e2e-defer-shell:v1", "now"));
+  await seedSignedIn(page, "A");
+  await page.goto("/map");
+  await expectMapLoadingFrameReleased(page);
+  await page.waitForLoadState("load");
+  const loaded = await Promise.all(scripts);
+  expect(loaded.length).toBeGreaterThan(0);
+  expect(loaded.filter((script) => script.sdk).map((script) => script.url)).toEqual([]);
+});
 
 test("Stay here keeps the person on the Pal, and the Pal's own words never open the map", async ({ page }) => {
   test.setTimeout(90_000);
