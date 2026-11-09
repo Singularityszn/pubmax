@@ -132,6 +132,9 @@ export function ContributionGateDialog({
   onAsserted,
   returnTo,
 }: ContributionGateDialogProps): React.JSX.Element {
+  const claimHref = returnTo
+    ? `${HANDLE_CLAIM_NEXT}?returnTo=${encodeURIComponent(returnTo)}` as Route
+    : HANDLE_CLAIM_NEXT;
   // A blocking dialog owes a keyboard way out. This one had a close button and
   // nothing else, so a reader who reached it with the keyboard had to tab to
   // the end of the dialog to leave.
@@ -164,7 +167,7 @@ export function ContributionGateDialog({
               first. Email sign-in works even when Google, Apple and
               Microsoft are unavailable.
             </p>
-            <SignInButton next={returnTo} />
+            <SignInButton next={returnTo ? claimHref : undefined} />
           </>
         ) : mode === "adult_check_required" ? (
           <>
@@ -194,7 +197,7 @@ export function ContributionGateDialog({
             </p>
             <Link
               className="contributionGatePrimary"
-              href={returnTo ? `${HANDLE_CLAIM_NEXT}?returnTo=${encodeURIComponent(returnTo)}` as Route : HANDLE_CLAIM_NEXT}
+              href={claimHref}
               onClick={onClose}
             >
               Choose a handle

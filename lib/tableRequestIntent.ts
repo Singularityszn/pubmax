@@ -6,6 +6,7 @@
 // sheet's action card decides, behind its sign-in gate.
 
 import type { Route } from "next";
+import { parseCityId } from "@/lib/cities";
 import { parseTableRequestPartySize } from "@/lib/tableRequests";
 
 const NUMBER_WORDS = [
@@ -13,6 +14,12 @@ const NUMBER_WORDS = [
   "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
   "seventeen", "eighteen", "nineteen", "twenty",
 ];
+
+const COUNT_TOKEN = `(?:\\d+(?:\\.\\d+)?|${NUMBER_WORDS.join("|")}|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)`;
+const COMPOUND_COUNT = new RegExp(
+  `\\b${COUNT_TOKEN}(?:\\s*[-–—/]\\s*|\\s+(?:(?:to|or|and)\\s+)?)${COUNT_TOKEN}\\b`,
+  "i",
+);
 
 /**
  * The one crew size a table ask names, or null. A question that is not about
@@ -22,6 +29,7 @@ const NUMBER_WORDS = [
  */
 export function tableRequestPartySizeInText(text: string): number | null {
   if (!/\b(?:table|book(?:ing)?|reserv(?:e|ation))\b/i.test(text)) return null;
+  if (COMPOUND_COUNT.test(text)) return null;
   const sizes = new Set<number | null>();
   // A number followed by a time tail ("for 20:00", "for 8 pm") is a time,
   // never a crew.
@@ -58,11 +66,12 @@ export function consumeTableRequestIntent(
 }
 
 export function safeTableRequestReturnTo(raw: string | null | undefined): Route | null {
-  if (!raw?.startsWith("/map?") || raw.includes("#") || raw.includes("\\")) return null;
-  const params = new URLSearchParams(raw.slice("/map?".length));
+  const address = /^(\/map(?:\/([a-z]+))?)\?([^#\\]*)$/.exec(raw ?? "");
+  if (!address || (address[2] && !parseCityId(address[2]))) return null;
+  const params = new URLSearchParams(address[3]);
   const venueId = params.get("sel");
   if (!venueId || !/^[\w:-]{1,200}$/.test(venueId)) return null;
   if ([...params.keys()].length !== 2 || !params.has("table")) return null;
   const intent = consumeTableRequestIntent(params.toString(), venueId, true);
-  return intent?.partySize ? (`/map?${params.toString()}` as Route) : null;
+  return intent?.partySize ? (`${address[1]}?${params.toString()}` as Route) : null;
 }

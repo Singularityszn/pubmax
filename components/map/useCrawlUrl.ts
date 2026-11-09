@@ -25,7 +25,6 @@ export const CRAWL_URL_DEBOUNCE_MS = 300;
 const OWNED_PASSTHROUGH_PARAMS = [
   "log",
   "contribute",
-  "table",
   "plan",
   "sel",
   "accept",
@@ -51,6 +50,10 @@ export function mergeCrawlUrlSearch(
     if (key === "area" && (params.has("q") || params.has("sel"))) continue;
     const value = live.get(key);
     if (value !== null && !params.has(key)) params.set(key, value);
+  }
+  const table = live.get("table");
+  if (table !== null && params.get("sel") && params.get("sel") === live.get("sel")) {
+    params.set("table", table);
   }
   const crawl = live.get("crawl");
   if (preserveCrawlParam && crawl !== null && !params.has("crawl")) {

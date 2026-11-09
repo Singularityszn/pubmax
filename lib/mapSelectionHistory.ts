@@ -24,7 +24,7 @@ export type PubmaxSelectionHistory = {
 // acceptance arrival and are stripped when we build a clean Map entry.
 // Everything else (pubs, mode, plan, log, style, band, …) is owned passthrough
 // and is preserved on every rewrite.
-const SELECTION_PARAMS = ["sel", "accept", "src", "at"] as const;
+const SELECTION_PARAMS = ["sel", "accept", "src", "at", "table"] as const;
 const ACCEPTANCE_PARAMS = ["accept", "src"] as const;
 
 /**
@@ -132,6 +132,7 @@ export function browseSelectionUrl(
 ): string {
   const params = normalizeSearch(search);
   for (const key of ACCEPTANCE_PARAMS) params.delete(key);
+  params.delete("table");
   params.set("sel", venueId);
   if (hint) params.set(SELECTION_HINT_PARAM, hint);
   else params.delete(SELECTION_HINT_PARAM);

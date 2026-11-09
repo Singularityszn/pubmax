@@ -211,13 +211,17 @@ describe("table request arrival", () => {
     expect(href && new URL(href).searchParams.get("returnTo")).toBe(`/map?sel=${VENUE_ID}&table=8`);
   });
 
-  it("gives email sign-in the full return address", async () => {
+  it.each(["/map", "/map/manchester"])("keeps the table ask through email sign-in from %s", async (path) => {
     tableAuth.configured = true;
-    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
-    await show();
+    const id = path === "/map" ? VENUE_ID : "venue-mcr-1lwo5lo";
+    const returnTo = `${path}?sel=${id}&table=8`;
+    window.history.replaceState(null, "", returnTo);
+    await show(venue({ id }));
     await input('input[type="email"]', "reader@example.test");
     await submit();
-    expect(emailSignIn).toHaveBeenCalledWith("reader@example.test", `/map?sel=${VENUE_ID}&table=8`);
+    expect(emailSignIn).toHaveBeenCalledWith(
+      "reader@example.test", `/u/you?returnTo=${encodeURIComponent(returnTo)}`,
+    );
   });
 
   it("resumes the held ask when sign-in and handle resolve without navigation", async () => {
