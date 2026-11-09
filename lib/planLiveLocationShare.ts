@@ -11,7 +11,7 @@ import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 
 export type LiveLocationSeat = { planId: string; via: "plan" | "crew"; memberToken?: string };
 /** asking: waiting on the browser. no-signal: the last fix stays up for the crew. */
-export type LiveShareStatus = "off" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
+export type LiveShareStatus = "off" | "stopping" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
 export type LiveShareSnapshot = { planId: string | null; status: LiveShareStatus };
 
 type Request = (seat: LiveLocationSeat, method: "GET" | "PUT" | "DELETE", body?: PlanLiveLocationFix, signal?: AbortSignal) => Promise<Response>;
@@ -51,6 +51,7 @@ type Session = {
 };
 
 let session: Session | null = null;
+const stopping = new Map<string, Promise<Response>>();
 let snapshot: LiveShareSnapshot = { planId: null, status: "off" };
 const listeners = new Set<() => void>();
 
@@ -136,17 +137,24 @@ function onError(current: Session, error: GeolocationPositionError): void {
   }
   const shared = current.sent !== null || current.inFlight !== null;
   halt(current);
+  if (shared) void removePosition(current.seat, current.request, current).catch(() => undefined);
   publish(current.seat.planId, "denied");
-  if (shared) void removePosition(current).catch(() => undefined);
 }
 
-async function removePosition(current: Session): Promise<Response> {
-  await current.inFlight?.catch(() => undefined);
-  return current.request(current.seat, "DELETE");
+function removePosition(seat: LiveLocationSeat, request: Request, current?: Session | null): Promise<Response> {
+  const pending = stopping.get(seat.planId);
+  if (pending) return pending;
+  const deletion = (async () => {
+    await current?.inFlight?.catch(() => undefined);
+    return request(seat, "DELETE");
+  })().finally(() => { stopping.delete(seat.planId); });
+  stopping.set(seat.planId, deletion);
+  return deletion;
 }
 
 /** Runs on the person's tap. This is the only place the browser is asked for location. */
 export function startLiveLocationShare(seat: LiveLocationSeat, ownerKey: string, deps: Deps = {}): void {
+  if (stopping.has(seat.planId)) return;
   const geolocation = deps.geolocation !== undefined ? deps.geolocation
     : typeof navigator !== "undefined" ? navigator.geolocation ?? null : null;
   if (session && session.seat.planId === seat.planId && session.ownerKey === ownerKey
@@ -187,7 +195,11 @@ export function startLiveLocationShare(seat: LiveLocationSeat, ownerKey: string,
 export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<Deps, "request"> = {}): Promise<Response> {
   const current = session?.seat.planId === seat.planId ? session : null;
   if (current) halt(current);
-  publish(seat.planId, "off");
-  if (current) return removePosition(current);
-  return (deps.request ?? liveLocationRequest)(seat, "DELETE");
+  const deletion = removePosition(current?.seat ?? seat, current?.request ?? deps.request ?? liveLocationRequest, current);
+  publish(seat.planId, "stopping");
+  try {
+    return (await deletion).clone();
+  } finally {
+    if (snapshot.planId === seat.planId && snapshot.status === "stopping") publish(seat.planId, "off");
+  }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
@@ -42,14 +42,6 @@ function lastSeen(updatedAt: string, now: number): string | null {
   return `last seen ${Math.max(1, Math.round(age / 60_000))} min ago`;
 }
 
-async function grantedAlready(): Promise<boolean> {
-  try {
-    return (await navigator.permissions?.query({ name: "geolocation" }))?.state === "granted";
-  } catch {
-    return false;
-  }
-}
-
 type Props = { seat: LiveLocationSeat; ownerKey: string };
 
 /** The remount boundary drops one owner's view before another can paint. */
@@ -63,10 +55,9 @@ function LiveLocationMember({ seat, ownerKey }: Props) {
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const resumed = useRef(false);
-  const resume = useRef<AbortController | null>(null);
   const share = useSyncExternalStore(subscribeLiveShare, liveShareSnapshot, () => OFF_SNAPSHOT);
   const status: LiveShareStatus = share.planId === seat.planId ? share.status : "off";
+  const stopping = busy || status === "stopping";
   const { planId, via, memberToken } = seat;
 
   const read = useCallback(async (signal?: AbortSignal) => {
@@ -113,27 +104,7 @@ function LiveLocationMember({ seat, ownerKey }: Props) {
     };
   }, [read]);
 
-  // A reload keeps the crew's last view of you. Pick the watch back up only
-  // when the phone already allows it; otherwise the person decides.
-  useEffect(() => {
-    if (!view || resumed.current) return;
-    resumed.current = true;
-    const controller = new AbortController();
-    const ownerSignal = readProviderAccountSignal();
-    resume.current = controller;
-    if (view.sharing && status === "off") {
-      void grantedAlready().then((granted) => {
-        if (granted && !controller.signal.aborted && !ownerSignal.aborted) {
-          startLiveLocationShare({ planId, via, memberToken }, ownerKey);
-        }
-      });
-    }
-    return () => controller.abort();
-  }, [view, status, planId, via, memberToken, ownerKey]);
-
   async function stop() {
-    resumed.current = true;
-    resume.current?.abort();
     setBusy(true);
     try {
       const response = await stopLiveLocationShare({ planId, via, memberToken });
@@ -159,7 +130,7 @@ function LiveLocationMember({ seat, ownerKey }: Props) {
   const paused = view.sharing && !watching;
   const until = view.endsAt ? clock(view.endsAt) : null;
   return (
-    <section className="liveLocation" aria-label="Share where you are" aria-busy={busy}>
+    <section className="liveLocation" aria-label="Share where you are" aria-busy={stopping}>
       <h3>Share where you are</h3>
       {!view.live ? <p className="liveLocation__muted">You can share your location with your crew on the night.</p> : (
         <>
@@ -172,11 +143,11 @@ function LiveLocationMember({ seat, ownerKey }: Props) {
           <div className="liveLocation__actions">
             {watching || view.sharing ? (
               <>
-                {paused ? <Button variant="secondary" disabled={busy} onClick={() => startLiveLocationShare(seat, ownerKey)}>Resume sharing</Button> : null}
-                <Button variant={paused ? "ghost" : "secondary"} disabled={busy} onClick={() => void stop()}>{busy ? "Stopping" : "Stop sharing"}</Button>
+                {paused ? <Button variant="secondary" disabled={stopping} onClick={() => startLiveLocationShare(seat, ownerKey)}>Resume sharing</Button> : null}
+                <Button variant={paused ? "ghost" : "secondary"} disabled={stopping} onClick={() => void stop()}>{stopping ? "Stopping" : "Stop sharing"}</Button>
               </>
             ) : status !== "ended" && status !== "unsupported" ? (
-              <Button variant="secondary" disabled={busy} onClick={() => startLiveLocationShare(seat, ownerKey)}>{status === "denied" || status === "failed" ? "Try again" : "Share my location tonight"}</Button>
+              <Button variant="secondary" disabled={stopping} onClick={() => startLiveLocationShare(seat, ownerKey)}>{stopping ? "Stopping" : status === "denied" || status === "failed" ? "Try again" : "Share my location tonight"}</Button>
             ) : null}
           </div>
           {view.people.length ? (

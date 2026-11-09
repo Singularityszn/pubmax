@@ -143,10 +143,14 @@ describe("sharing a live location from the phone", () => {
     const committed: string[] = [];
     let deleted!: () => void;
     const deletion = new Promise<void>((resolve) => { deleted = resolve; });
+    let finishDelete!: () => void;
     const request = vi.fn(async (_seat: unknown, method: string) => {
       if (method === "PUT") await new Promise<Response>((resolve) => { finish = resolve; });
+      if (method === "DELETE") {
+        deleted();
+        await new Promise<void>((resolve) => { finishDelete = resolve; });
+      }
       committed.push(method);
-      if (method === "DELETE") deleted();
       return new Response("{}");
     });
     startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request });
@@ -156,12 +160,42 @@ describe("sharing a live location from the phone", () => {
     if (reason === "denied") geo.fail(1);
     expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
     expect(committed).toEqual([]);
+    const other = fakeGeolocation();
+    startLiveLocationShare({ ...SEAT, via: "crew" }, "other-owner", { geolocation: other.geolocation, request });
+    expect(other.spy.watchPosition).not.toHaveBeenCalled();
     finish(new Response("{}"));
-    await stopped;
     await deletion;
+    startLiveLocationShare(SEAT, "owner", { geolocation: other.geolocation, request });
+    expect(other.spy.watchPosition).not.toHaveBeenCalled();
     geo.fix(51.7, -0.13);
+    expect(committed).toEqual(["PUT"]);
+    const stopping = stopLiveLocationShare(SEAT, { request });
+    finishDelete();
+    await stopped;
+    await stopping;
     expect(committed).toEqual(["PUT", "DELETE"]);
-    expect(liveShareSnapshot().status).toBe(reason === "stop" ? "off" : "denied");
+    expect(liveShareSnapshot().status).toBe("off");
+    startLiveLocationShare(SEAT, "owner", { geolocation: other.geolocation, request: fakeRoute().request });
+    expect(other.spy.watchPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks starts and shares one deletion while a paused share stops", async () => {
+    const geo = fakeGeolocation();
+    let finish!: (response: Response) => void;
+    const request = vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    const first = stopLiveLocationShare(SEAT, { request });
+    const second = stopLiveLocationShare(SEAT, { request });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request });
+    expect(geo.spy.watchPosition).not.toHaveBeenCalled();
+    expect(liveShareSnapshot().status).toBe("stopping");
+    await Promise.resolve();
+    expect(request).toHaveBeenCalledTimes(1);
+    finish(Response.json({ sharing: false }));
+    const responses = await Promise.all([first, second]);
+    expect(await responses[0].json()).toEqual({ sharing: false });
+    expect(await responses[1].json()).toEqual({ sharing: false });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: fakeRoute().request });
+    expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
   });
 
   it("stops the watch on an account change even after leaving the Plan", () => {

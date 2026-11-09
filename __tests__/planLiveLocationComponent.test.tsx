@@ -31,7 +31,6 @@ let sharing: boolean;
 let watch: ReturnType<typeof vi.fn>;
 let clearWatch: ReturnType<typeof vi.fn>;
 let fix: PositionCallback;
-let permission: Promise<{ state: string }>;
 let fetcher: ReturnType<typeof vi.fn>;
 
 function view() {
@@ -42,12 +41,11 @@ beforeEach(() => {
   vi.useFakeTimers();
   setProviderIdentity("supabase", "component-owner-a");
   sharing = false;
-  permission = Promise.resolve({ state: "granted" });
   watch = vi.fn((success: PositionCallback) => { fix = success; return 7; });
   clearWatch = vi.fn();
   vi.stubGlobal("navigator", {
     geolocation: { watchPosition: watch, clearWatch, getCurrentPosition: vi.fn() },
-    permissions: { query: () => permission },
+    permissions: { query: vi.fn(async () => ({ state: "granted" })) },
   });
   fetcher = vi.fn(async (_input: unknown, init?: RequestInit) => {
     if (init?.method === "PUT") sharing = true;
@@ -93,25 +91,26 @@ describe("live location consent at the account boundary", () => {
     expect(fetcher.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
   });
 
-  it.each(["stop", "account", "unmount"])("cancels pending restoration on %s", async (action) => {
+  it.each(["stop", "account", "unmount"])("does not start a stored share on %s", async (action) => {
     sharing = true;
-    let grant!: (value: { state: string }) => void;
-    permission = new Promise((resolve) => { grant = resolve; });
     await mountPlan();
+    expect(watch).not.toHaveBeenCalled();
     if (action === "stop") await click("Stop sharing");
     if (action === "account") {
-      sharing = false;
       await act(async () => setProviderIdentity("supabase", "component-owner-b"));
       await mountPlan("owner-b");
+      expect(container.textContent).toContain("Resume sharing");
     }
     if (action === "unmount") await act(async () => root.render(null));
-    await act(async () => grant({ state: "granted" }));
     expect(watch).not.toHaveBeenCalled();
   });
 
-  it("restores an existing share on the first read with granted permission", async () => {
+  it("keeps a stored share paused until the person taps Resume", async () => {
     sharing = true;
     await mountPlan();
+    expect(watch).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Stop sharing");
+    await click("Resume sharing");
     expect(watch).toHaveBeenCalledTimes(1);
   });
 
