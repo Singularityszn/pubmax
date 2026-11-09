@@ -13,21 +13,22 @@ import { hashPlanMemberToken, planMemberIdentityResult, planStateResult } from "
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-export type PlanLiveLocationFailure = "not_found" | "invalid" | "ended" | "unavailable";
+export type PlanLiveLocationFailure = "not_found" | "invalid" | "ended" | "stopped" | "unavailable";
 export type PlanLiveLocationOperation = "read" | "share" | "stop";
 export type PlanLiveLocationResult = { ok: true; view: PlanLiveLocationView } | { ok: false; error: PlanLiveLocationFailure };
 /** A classic Plan seat proves itself with its capability. An Open Crew seat proves itself with its verified account. */
 export type PlanLiveLocationAuthority = { kind: "plan"; token: string } | { kind: "crew"; accountId: string };
 
 type Backend = {
-  operate(id: string, authority: PlanLiveLocationAuthority, operation: PlanLiveLocationOperation, fix: PlanLiveLocationFix | null): Promise<PlanLiveLocationResult>;
+  operate(id: string, authority: PlanLiveLocationAuthority, operation: PlanLiveLocationOperation, fix: PlanLiveLocationFix | null, start: boolean): Promise<PlanLiveLocationResult>;
 };
 type StoredFix = PlanLiveLocationFix & { memberId: string; updatedAt: string; expiresAt: number };
 
 const memory = new Map<string, Map<string, StoredFix>>();
+const stopped = new Map<string, Map<string, number>>();
 
 const memoryBackend: Backend = {
-  async operate(id, authority, operation, fix) {
+  async operate(id, authority, operation, fix, start) {
     // The keyless store has no Open Crews.
     if (authority.kind !== "plan") return { ok: false, error: "not_found" };
     const member = await planMemberIdentityResult(id, authority.token);
@@ -41,14 +42,22 @@ const memoryBackend: Backend = {
     const endsAt = planLiveLocationEndsAtMs(state.plan.plan.startTime);
     const crew = new Map(state.plan.crew.map((seat) => [seat.id, seat.name]));
     const rows = memory.get(id) ?? new Map<string, StoredFix>();
+    const stops = stopped.get(id) ?? new Map<string, number>();
     for (const [memberId, row] of rows) {
       if (!live || row.expiresAt <= now || !crew.has(memberId)) rows.delete(memberId);
     }
+    for (const [memberId, expiresAt] of stops) {
+      if (!live || expiresAt <= now || !crew.has(memberId)) stops.delete(memberId);
+    }
+    stopped.set(id, stops);
     const self = member.identity.memberId;
     if (operation === "share") {
       if (!live || endsAt === null) return { ok: false, error: "ended" };
+      if (start) stops.delete(self);
+      else if (stops.has(self)) return { ok: false, error: "stopped" };
       rows.set(self, { ...fix!, memberId: self, updatedAt: new Date(now).toISOString(), expiresAt: endsAt });
     } else if (operation === "stop") {
+      if (live && endsAt !== null) stops.set(self, endsAt);
       rows.delete(self);
     }
     memory.set(id, rows);
@@ -64,7 +73,7 @@ const memoryBackend: Backend = {
 };
 
 const databaseBackend: Backend = {
-  async operate(id, authority, operation, fix) {
+  async operate(id, authority, operation, fix, start) {
     const { data, error } = await requireSupabaseAdmin().rpc("plan_live_location", {
       p_plan_id: id,
       p_token_hash: authority.kind === "plan" ? hashPlanMemberToken(authority.token) : null,
@@ -73,11 +82,12 @@ const databaseBackend: Backend = {
       p_latitude: fix?.latitude ?? null,
       p_longitude: fix?.longitude ?? null,
       p_accuracy_m: fix?.accuracyM ?? null,
+      p_start: start,
     });
     if (error || !data || typeof data !== "object" || Array.isArray(data)) return { ok: false, error: "unavailable" };
     const result = data as unknown as PlanLiveLocationResult;
     if (result.ok === true && result.view?.visibility === "member") return result;
-    if (result.ok === false && ["not_found", "invalid", "ended"].includes(result.error)) return result;
+    if (result.ok === false && ["not_found", "invalid", "ended", "stopped"].includes(result.error)) return result;
     return { ok: false, error: "unavailable" };
   },
 };
@@ -87,15 +97,16 @@ export async function operatePlanLiveLocation(
   id: string,
   authority: PlanLiveLocationAuthority | null,
   operation: PlanLiveLocationOperation,
-  input: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown } = {},
+  input: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown; start?: unknown } = {},
 ): Promise<PlanLiveLocationResult> {
   if (!isPlanId(id) || !authority) return { ok: false, error: "not_found" };
   if (authority.kind === "plan" && !authority.token.trim()) return { ok: false, error: "not_found" };
   const fix = operation === "share" ? cleanLiveLocationFix(input) : null;
   if (operation === "share" && !fix) return { ok: false, error: "invalid" };
+  if (operation === "share" && input.start !== undefined && typeof input.start !== "boolean") return { ok: false, error: "invalid" };
   try {
     const clean: PlanLiveLocationAuthority = authority.kind === "plan" ? { kind: "plan", token: authority.token.trim() } : authority;
-    return await selectStore(memoryBackend, databaseBackend).operate(id, clean, operation, fix);
+    return await selectStore(memoryBackend, databaseBackend).operate(id, clean, operation, fix, input.start === true);
   } catch {
     return { ok: false, error: "unavailable" };
   }

@@ -32,16 +32,31 @@ alter table public.plan_live_locations enable row level security;
 revoke all on public.plan_live_locations from public, anon, authenticated;
 grant all on public.plan_live_locations to service_role;
 
+create table public.plan_live_location_stops (
+  plan_id uuid not null references public.plans(id) on delete cascade,
+  member_id uuid not null references public.plan_crew_members(id) on delete cascade,
+  expires_at timestamptz not null,
+  primary key (plan_id, member_id)
+);
+create index plan_live_location_stops_member_idx on public.plan_live_location_stops(member_id);
+create index plan_live_location_stops_expires_idx on public.plan_live_location_stops(expires_at);
+alter table public.plan_live_location_stops enable row level security;
+revoke all on public.plan_live_location_stops from public, anon, authenticated;
+grant all on public.plan_live_location_stops to service_role;
+
 -- A seat that ends, or a night that ends or moves, takes its positions with it.
 create function public.forget_plan_live_locations() returns trigger
 language plpgsql security invoker set search_path = '' as $$
 begin
   if tg_table_name = 'plans' then
     delete from public.plan_live_locations where plan_id = new.id;
+    delete from public.plan_live_location_stops where plan_id = new.id;
   elsif tg_table_name = 'plan_crew_members' then
     delete from public.plan_live_locations where member_id = new.id;
+    delete from public.plan_live_location_stops where member_id = new.id;
   else
     delete from public.plan_live_locations where member_id = new.plan_member_id;
+    delete from public.plan_live_location_stops where member_id = new.plan_member_id;
   end if;
   return new;
 end;
@@ -80,14 +95,15 @@ create function public.plan_live_location(
   p_operation text,
   p_latitude double precision default null,
   p_longitude double precision default null,
-  p_accuracy_m integer default null
+  p_accuracy_m integer default null,
+  p_start boolean default false
 ) returns jsonb
 language plpgsql security invoker set search_path = '' as $$
 declare
   v_plan public.plans%rowtype;
   v_member uuid;
   v_host uuid;
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
   v_end timestamptz;
   v_live boolean;
   v_sharing boolean;
@@ -112,9 +128,11 @@ begin
     select id into v_member from public.plan_crew_members
     where plan_id = p_plan_id and token_hash = p_token_hash and membership_revoked_at is null
       and (can_collaborate or id = v_host)
-    for share;
+    for no key update;
   else
     if p_social_account_id is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
+    perform 1 from public.social_crews where plan_id = p_plan_id for share;
+    if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
     select seat.id into v_member
     from public.social_crews crew
     join public.social_crew_members member on member.crew_id = crew.id
@@ -125,27 +143,40 @@ begin
       and member.state = 'active' and seat.membership_revoked_at is null
       and account.ownership_state = 'active'
       and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id) is distinct from 'blocked'
-    for share of member, seat;
+    for share of member for no key update of seat;
     select * into v_plan from public.plans where id = p_plan_id for share;
     if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   end if;
   if v_member is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
 
+  v_now := clock_timestamp();
   v_end := public.plan_live_location_ends_at(v_plan.start_time);
   v_live := v_plan.status not in ('ending', 'completed', 'abandoned')
     and v_now >= v_plan.start_time - interval '3 hours' and v_now < v_end;
 
   delete from public.plan_live_locations
   where plan_id = p_plan_id and (not v_live or expires_at <= v_now);
+  delete from public.plan_live_location_stops
+  where plan_id = p_plan_id and (not v_live or expires_at <= v_now);
 
   if p_operation = 'share' then
     if not v_live then return jsonb_build_object('ok', false, 'error', 'ended'); end if;
+    if p_start is true then
+      delete from public.plan_live_location_stops where plan_id = p_plan_id and member_id = v_member;
+    elsif exists (select 1 from public.plan_live_location_stops where plan_id = p_plan_id and member_id = v_member) then
+      return jsonb_build_object('ok', false, 'error', 'stopped');
+    end if;
     insert into public.plan_live_locations (plan_id, member_id, latitude, longitude, accuracy_m, updated_at, expires_at)
     values (p_plan_id, v_member, p_latitude, p_longitude, p_accuracy_m, v_now, v_end)
     on conflict (plan_id, member_id) do update set
       latitude = excluded.latitude, longitude = excluded.longitude, accuracy_m = excluded.accuracy_m,
       updated_at = excluded.updated_at, expires_at = excluded.expires_at;
   elsif p_operation = 'stop' then
+    if v_live then
+      insert into public.plan_live_location_stops (plan_id, member_id, expires_at)
+      values (p_plan_id, v_member, v_end)
+      on conflict (plan_id, member_id) do update set expires_at = excluded.expires_at;
+    end if;
     delete from public.plan_live_locations where plan_id = p_plan_id and member_id = v_member;
   end if;
 
@@ -178,8 +209,8 @@ begin
     'sharing', v_sharing, 'people', case when v_live then v_people else '[]'::jsonb end));
 end;
 $$;
-revoke all on function public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer) from public, anon, authenticated;
-grant execute on function public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer) to service_role;
+revoke all on function public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,boolean) from public, anon, authenticated;
+grant execute on function public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,boolean) to service_role;
 
 commit;
 
@@ -200,7 +231,8 @@ begin
   perform cron.schedule(
     'pubmax-purge-plan-live-locations',
     '* * * * *',
-    $job$delete from public.plan_live_locations where expires_at <= now()$job$
+    $job$delete from public.plan_live_locations where expires_at <= now();
+      delete from public.plan_live_location_stops where expires_at <= now()$job$
   );
 end
 $migration$;

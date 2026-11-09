@@ -89,7 +89,6 @@ describe("live location consent at the account boundary", () => {
     expect(watch).toHaveBeenCalledTimes(1);
     expect(clearWatch).toHaveBeenCalledWith(7);
     expect(sharing).toBe(false);
-    expect(fetcher.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
   });
 
   it.each(["stop", "account", "unmount"])("does not start a stored share on %s", async (action) => {
@@ -113,6 +112,23 @@ describe("live location consent at the account boundary", () => {
     expect(container.textContent).toContain("Stop sharing");
     await click("Resume sharing");
     expect(watch).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears a stored sharing view after another client stops", async () => {
+    await mountPlan();
+    await click("Share my location tonight");
+    await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+    sharing = false;
+    fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => init?.method === "PUT"
+      ? Response.json({ code: "PLAN_LIVE_LOCATION_STOPPED" }, { status: 409 })
+      : Response.json(view()));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => fix({ coords: { latitude: 51.6, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    expect(clearWatch).toHaveBeenCalledWith(7);
+    expect(container.textContent).toContain("Share my location tonight");
+    expect(container.textContent).not.toContain("Resume sharing");
+    expect(container.textContent).not.toContain("Stop sharing");
   });
 
   it("keeps the active Plan live when another panel refuses sharing", async () => {

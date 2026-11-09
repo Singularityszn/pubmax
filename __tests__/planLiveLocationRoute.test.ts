@@ -90,6 +90,23 @@ describe("live location through the private plan route", () => {
     expect(await read(id, host)).toMatchObject({ people: [] });
   });
 
+  it("revokes another client's uploads until an explicit new start", async () => {
+    const { id, host, guest } = await night();
+    expect((await PUT(request(id, guest, "PUT", { ...FIX, start: true }), context(id))).status).toBe(200);
+    expect((await PUT(request(id, guest, "PUT", { ...FIX, start: true }), context(id))).status).toBe(200);
+    expect((await DELETE(request(id, guest, "DELETE"), context(id))).status).toBe(200);
+    for (const start of [undefined, false]) {
+      const refused = await PUT(request(id, guest, "PUT", { ...FIX, start }), context(id));
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toMatchObject({ code: "PLAN_LIVE_LOCATION_STOPPED", retryable: false });
+      expect(await read(id, host)).toMatchObject({ people: [] });
+    }
+    expect((await PUT(request(id, guest, "PUT", { ...FIX, start: "true" }), context(id))).status).toBe(400);
+    expect((await PUT(request(id, guest, "PUT", { ...FIX, start: true }), context(id))).status).toBe(200);
+    expect((await PUT(request(id, guest, "PUT", FIX), context(id))).status).toBe(200);
+    expect(await read(id, host)).toMatchObject({ people: [{ latitude: FIX.latitude }] });
+  });
+
   it("switches itself off at the end of the night and refuses new fixes", async () => {
     const { id, host, guest } = await night();
     await PUT(request(id, guest, "PUT", FIX), context(id));

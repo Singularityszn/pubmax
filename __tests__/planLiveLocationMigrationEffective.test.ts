@@ -4,7 +4,8 @@
 // reaches the table or the function.
 
 import { join } from "node:path";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { spawn } from "node:child_process";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { asBrowserRole, asServiceRole, postgresSkipReason, startMigratedPostgres, type PostgresSession } from "./helpers/postgres";
 
 const skipReason = postgresSkipReason();
@@ -34,15 +35,18 @@ function db(): PostgresSession { if (!session) throw new Error("The test databas
 
 type View = { ok: true; view: { live: boolean; endsAt: string | null; sharing: boolean; people: { memberId: string; name: string; latitude: number }[] } };
 
-function call(operation: string, hash: string | null, options: { plan?: string; account?: string | null; lat?: number } = {}) {
+function call(operation: string, hash: string | null, options: { plan?: string; account?: string | null; lat?: number; start?: boolean } = {}) {
   const token = hash ? `'${hash}'` : "null";
   const account = options.account ? `'${options.account}'` : "null";
   const lat = options.lat ?? 51.5138;
-  return JSON.parse(db().sql(asServiceRole(`select public.plan_live_location('${options.plan ?? PLAN}', ${token}, ${account}, '${operation}', ${lat}, -0.1318, 12)::text`)));
+  return JSON.parse(db().sql(asServiceRole(`select public.plan_live_location('${options.plan ?? PLAN}', ${token}, ${account}, '${operation}', ${lat}, -0.1318, 12, ${options.start ?? false})::text`)));
 }
 
 function seed(start = "now() + interval '3 hours'") {
   db().sql(`delete from public.plan_live_locations;
+    delete from public.plan_live_location_stops;
+    update public.social_crews set owner_account_id='${OWNER_ACCOUNT}' where id='${CREW}';
+    update public.plans set social_owner_account_id='${OWNER_ACCOUNT}' where id='${CREW_PLAN}';
     update public.plans set start_time=${start}, status='active' where id in ('${PLAN}','${OTHER_PLAN}','${CREW_PLAN}');
     update public.plan_crew_members set membership_revoked_at=null;
     update public.social_crew_members set state='active', ended_at=null;
@@ -114,6 +118,34 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
   });
 
   it.each([
+    ["Plan", PLAN, GUEST_HASH, null],
+    ["crew", CREW_PLAN, null, MATE_ACCOUNT],
+  ])("revokes every client of the same %s seat until a new explicit start", (_name, plan, hash, account) => {
+    const options = { plan: plan!, account };
+    expect(call("share", hash, { ...options, start: true })).toMatchObject({ ok: true });
+    expect(call("share", hash, { ...options, start: true })).toMatchObject({ ok: true });
+    expect(call("stop", hash, options)).toMatchObject({ ok: true, view: { sharing: false } });
+    expect(call("share", hash, options)).toEqual({ ok: false, error: "stopped" });
+    expect(db().sql(`select count(*) from public.plan_live_locations where plan_id='${plan}'`)).toBe("0");
+    expect(call("read", hash, options)).toMatchObject({ ok: true, view: { sharing: false } });
+    expect(call("share", hash, { ...options, start: true })).toMatchObject({ ok: true, view: { sharing: true } });
+    expect(call("share", hash, options)).toMatchObject({ ok: true, view: { sharing: true } });
+    expect(db().sql(`select count(*) from public.plan_live_location_stops where plan_id='${plan}'`)).toBe("0");
+  });
+
+  it("expires stopped markers with the night and removes them when it ends", () => {
+    call("stop", GUEST_HASH);
+    expect(db().sql(`select expires_at=public.plan_live_location_ends_at(start_time)
+      from public.plan_live_location_stops join public.plans on plans.id=plan_id`)).toBe("t");
+    db().sql(`update public.plan_live_location_stops set expires_at=now()-interval '1 second'`);
+    call("read", HOST_HASH);
+    expect(db().sql(`select count(*) from public.plan_live_location_stops`)).toBe("0");
+    call("stop", GUEST_HASH);
+    db().sql(`update public.plans set status='completed' where id='${PLAN}'`);
+    expect(db().sql(`select count(*) from public.plan_live_location_stops`)).toBe("0");
+  });
+
+  it.each([
     ["an evening start ends with the Plan", "2026-11-07T20:00:00Z", "2026-11-08T04:00:00Z"],
     ["a late start ends at 06:00 in winter", "2026-11-08T01:00:00Z", "2026-11-08T06:00:00Z"],
     ["an 08:00 winter start ends at the intervening 06:00", "2026-11-08T08:00:00Z", "2026-11-08T06:00:00Z"],
@@ -178,11 +210,56 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${MATE_SEAT}'`)).toBe("1");
   });
 
+  it.each(["read", "share", "stop"])("checks the committed owner after a concurrent transfer during %s", async (operation) => {
+    call("share", null, { plan: CREW_PLAN, account: OWNER_ACCOUNT });
+    db().sql(asServiceRole(`select public.set_social_block('${MATE_USER}', '${OWNER_USER}', true)`));
+    const writer = spawn(db().psql, [...db().databaseArgs, "-q", "-t", "-A"], { stdio: ["pipe", "pipe", "pipe"] });
+    let stderr = "";
+    writer.stderr.on("data", (chunk) => { stderr += String(chunk); });
+    const finished = new Promise<void>((resolve, reject) => {
+      writer.once("error", reject);
+      writer.once("exit", (code) => code === 0 ? resolve() : reject(new Error(stderr)));
+    });
+    const ready = new Promise<void>((resolve, reject) => {
+      let output = "";
+      writer.stdout.on("data", (chunk) => {
+        output += String(chunk);
+        if (output.includes("OWNER_CHANGED")) resolve();
+      });
+      writer.once("error", reject);
+      writer.once("exit", () => reject(new Error(`Transfer exited before release: ${stderr}`)));
+    });
+    writer.stdin.write(`begin;
+      select 1 from public.social_crews where id='${CREW}' for update;
+      update public.social_crews set owner_account_id='${MATE_ACCOUNT}' where id='${CREW}';
+      update public.plans set social_owner_account_id='${MATE_ACCOUNT}' where id='${CREW_PLAN}';
+      \\echo OWNER_CHANGED
+    `);
+    let response: Promise<string> | undefined;
+    try {
+      await ready;
+      response = db().sqlAsync(asServiceRole(`set application_name='live-location-transfer-reader';
+        select public.plan_live_location('${CREW_PLAN}', null, '${OWNER_ACCOUNT}', '${operation}', 51.5, -0.13, 12)::text`));
+      await vi.waitFor(async () => {
+        expect(await db().sqlAsync(`select count(*) from pg_stat_activity
+          where application_name='live-location-transfer-reader' and wait_event_type='Lock'`)).toBe("1");
+      });
+      writer.stdin.end("commit;\n");
+      await finished;
+      expect(JSON.parse(await response)).toEqual({ ok: false, error: "not_found" });
+    } finally {
+      if (!writer.stdin.writableEnded) writer.stdin.end("rollback;\n");
+      await finished;
+      await response;
+    }
+  });
+
   it("refuses an impossible fix and every browser role", () => {
     expect(call("share", GUEST_HASH, { lat: 91 })).toEqual({ ok: false, error: "invalid" });
     expect(call("teleport", GUEST_HASH)).toEqual({ ok: false, error: "invalid" });
     for (const role of ["anon", "authenticated"] as const) {
       expect(db().expectRefusal(asBrowserRole(role, null, "select * from public.plan_live_locations"))).toMatch(/permission denied/);
+      expect(db().expectRefusal(asBrowserRole(role, null, "select * from public.plan_live_location_stops"))).toMatch(/permission denied/);
       expect(db().expectRefusal(asBrowserRole(role, null, `select public.plan_live_location('${PLAN}','${HOST_HASH}',null,'read')`))).toMatch(/permission denied/);
     }
   });
@@ -191,7 +268,8 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     call("share", GUEST_HASH);
     db().applyFile(join(process.cwd(), "supabase/migrations/rollback/20261108120000_0226_plan_live_location_rollback.sql"));
     expect(db().sql("select to_regclass('public.plan_live_locations') is null")).toBe("t");
-    expect(db().sql("select to_regprocedure('public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer)') is null")).toBe("t");
+    expect(db().sql("select to_regclass('public.plan_live_location_stops') is null")).toBe("t");
+    expect(db().sql("select to_regprocedure('public.plan_live_location(uuid,text,uuid,text,double precision,double precision,integer,boolean)') is null")).toBe("t");
     db().applyFile(join(process.cwd(), "supabase/migrations/20261108120000_0226_plan_live_location.sql"));
     expect(db().sql("select to_regclass('public.plan_live_locations') is not null")).toBe("t");
   });

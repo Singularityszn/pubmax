@@ -104,7 +104,7 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
       window.clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [read]);
+  }, [read, status]);
 
   async function stop() {
     setBusy(true);

@@ -14,7 +14,7 @@ export type LiveLocationSeat = { planId: string; via: "plan" | "crew"; memberTok
 export type LiveShareStatus = "off" | "busy" | "stopping" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
 export type LiveShareSnapshot = { planId: string | null; status: LiveShareStatus };
 
-type Request = (seat: LiveLocationSeat, method: "GET" | "PUT" | "DELETE", body?: PlanLiveLocationFix, signal?: AbortSignal) => Promise<Response>;
+type Request = (seat: LiveLocationSeat, method: "GET" | "PUT" | "DELETE", body?: PlanLiveLocationFix & { start?: true }, signal?: AbortSignal) => Promise<Response>;
 type Deps = { geolocation?: Geolocation | null; request?: Request; now?: () => number };
 
 const PERMISSION_DENIED = 1;
@@ -47,6 +47,7 @@ type Session = {
   sent: { at: number; fix: PlanLiveLocationFix } | null;
   pending: PlanLiveLocationFix | null;
   inFlight: Promise<Response> | null;
+  start: boolean;
 };
 
 let session: Session | null = null;
@@ -91,15 +92,23 @@ async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
     return;
   }
   try {
-    current.inFlight = current.request(current.seat, "PUT", fix);
+    const body = current.start ? { ...fix, start: true as const } : fix;
+    current.start = false;
+    current.inFlight = current.request(current.seat, "PUT", body);
     const response = await current.inFlight;
     if (session !== current) return;
     if (response.ok) {
       current.sent = { at: current.now(), fix };
       publish(current.seat.planId, "on");
-    } else if (response.status === 409 || response.status === 404) {
+    } else if (response.status === 409) {
+      const error: unknown = await response.json().catch(() => null);
+      if (session !== current) return;
       halt(current);
-      publish(current.seat.planId, response.status === 409 ? "ended" : "failed");
+      publish(current.seat.planId, error && typeof error === "object" && "code" in error
+        && error.code === "PLAN_LIVE_LOCATION_STOPPED" ? "off" : "ended");
+    } else if (response.status === 404) {
+      halt(current);
+      publish(current.seat.planId, "failed");
     } else {
       publish(current.seat.planId, "no-signal");
     }
@@ -175,7 +184,7 @@ export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}):
       return request(target, method, body, ownerSignal);
     },
     now: deps.now ?? Date.now,
-    watchId: null, heartbeat: null, sent: null, pending: null, inFlight: null,
+    watchId: null, heartbeat: null, sent: null, pending: null, inFlight: null, start: true,
   };
   session = current;
   ownerSignal.addEventListener("abort", current.onOwnerChange, { once: true });

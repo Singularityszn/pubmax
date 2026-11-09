@@ -61,7 +61,7 @@ describe("sharing a live location from the phone", () => {
     const sent = route.next();
     geo.fix(51.5138, -0.1318);
     await sent;
-    expect(route.calls).toEqual([{ method: "PUT", body: { latitude: 51.5138, longitude: -0.1318, accuracyM: 10 } }]);
+    expect(route.calls).toEqual([{ method: "PUT", body: { latitude: 51.5138, longitude: -0.1318, accuracyM: 10, start: true } }]);
     await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("on"));
   });
 
@@ -224,6 +224,54 @@ describe("sharing a live location from the phone", () => {
     geo.fix(51.501, -0.13);
     await moved;
     expect(route.calls).toHaveLength(2);
+    expect(route.calls[1].body).toEqual({ latitude: 51.501, longitude: -0.13, accuracyM: 10 });
+  });
+
+  it("does not repeat consent after an upload loses its response", async () => {
+    const geo = fakeGeolocation();
+    const bodies: unknown[] = [];
+    const request = vi.fn(async (_seat: unknown, method: string, body?: unknown) => {
+      if (method !== "PUT") return new Response("{}");
+      bodies.push(body);
+      throw new Error("response lost");
+    });
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request });
+    geo.fix(51.5, -0.13);
+    await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("no-signal"));
+    geo.fix(51.6, -0.13);
+    await vi.waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies).toEqual([
+      { latitude: 51.5, longitude: -0.13, accuracyM: 10, start: true },
+      { latitude: 51.6, longitude: -0.13, accuracyM: 10 },
+    ]);
+  });
+
+  it("turns off after another client stops and needs a new tap to restart", async () => {
+    const geo = fakeGeolocation();
+    const route = fakeRoute();
+    let stoppedElsewhere = false;
+    const request = vi.fn(async (seat: unknown, method: string, body?: unknown) => {
+      if (method === "PUT" && stoppedElsewhere) {
+        return Response.json({ code: "PLAN_LIVE_LOCATION_STOPPED" }, { status: 409 });
+      }
+      return route.request(seat, method, body);
+    });
+    let now = 1_000_000;
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request, now: () => now });
+    geo.fix(51.5, -0.13);
+    await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("on"));
+    stoppedElsewhere = true;
+    now += 60_000;
+    geo.fix(51.5, -0.13);
+    await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("off"));
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    geo.fix(51.6, -0.13);
+    expect(request).toHaveBeenCalledTimes(2);
+    stoppedElsewhere = false;
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request });
+    geo.fix(51.6, -0.13);
+    await vi.waitFor(() => expect(liveShareSnapshot(SEAT.planId).status).toBe("on"));
+    expect(route.calls.at(-1)?.body).toEqual({ latitude: 51.6, longitude: -0.13, accuracyM: 10, start: true });
   });
 
   it("stops the watch and deletes the position when the person stops", async () => {

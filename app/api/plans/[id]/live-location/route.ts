@@ -19,10 +19,11 @@ type Context = { params: Promise<{ id: string }> };
 const PRIVATE = { "Cache-Control": "private, no-store" };
 
 function refusal(error: PlanLiveLocationFailure): Response {
-  const status = error === "not_found" ? 404 : error === "invalid" ? 400 : error === "ended" ? 409 : 503;
+  const status = error === "not_found" ? 404 : error === "invalid" ? 400 : error === "ended" || error === "stopped" ? 409 : 503;
   const message = error === "not_found" ? "That night is not available."
     : error === "invalid" ? "That location could not be read."
       : error === "ended" ? "Location sharing has ended for this night."
+        : error === "stopped" ? "Location sharing is off. Tap Share to start again."
         : "Live locations could not be read. Try again.";
   return publicApiError(message, `PLAN_LIVE_LOCATION_${error.toUpperCase()}`, status, { retryable: status >= 500, headers: PRIVATE });
 }
