@@ -32,9 +32,10 @@ export const liveLocationRequest: Request = (seat, method, body, signal) => {
     body: body ? JSON.stringify(body) : undefined,
   };
   if (seat.via === "crew") return authedFetch(`${base}?via=crew`, init, { requiresIdentity: true });
-  const headers = new Headers(init.headers);
-  headers.set("authorization", `Bearer ${seat.memberToken || PLAN_HTTP_ONLY_SESSION}`);
-  return fetch(base, { ...init, headers });
+  return authedFetch(base, init, {
+    requiresIdentity: false,
+    bearerCapability: seat.memberToken || PLAN_HTTP_ONLY_SESSION,
+  });
 };
 
 type Session = Expiry & {
@@ -139,17 +140,21 @@ export function reconcileLiveLocationShare(planId: string, view: PlanLiveLocatio
 }
 
 async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
+  if (document.visibilityState !== "visible") {
+    current.pending = null;
+    return;
+  }
   if (current.inFlight) {
     current.pending = fix;
     return;
   }
   try {
     const body = current.startAt !== null ? { ...fix, startAt: current.startAt } : fix;
-    current.startAt = null;
     current.inFlight = current.request(current.seat, "PUT", body);
     const response = await current.inFlight;
     if (session !== current) return;
     if (response.ok) {
+      current.startAt = null;
       const view = parsePlanLiveLocationView(await response.json().catch(() => null));
       if (session !== current) return;
       if (view) reconcileLiveLocationShare(current.seat.planId, view);
@@ -163,14 +168,18 @@ async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
         halt(current);
         publish(current.seat.planId, "off");
       } else endLiveLocationShare(current.seat.planId);
-    } else if (response.status === 404) {
+    } else if (response.status === 404 || current.startAt !== null) {
       halt(current);
       publish(current.seat.planId, "failed");
     } else {
       publish(current.seat.planId, "no-signal");
     }
   } catch {
-    if (session === current) publish(current.seat.planId, "no-signal");
+    if (session === current) {
+      const failedStart = current.startAt !== null;
+      if (failedStart) halt(current);
+      publish(current.seat.planId, failedStart ? "failed" : "no-signal");
+    }
   } finally {
     current.inFlight = null;
   }
@@ -252,7 +261,7 @@ export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}):
   current.watchId = geolocation.watchPosition((position) => onFix(current, position), (error) => onError(current, error), WATCH_OPTIONS);
   // A phone standing still may report nothing. Ask again so the crew sees a fresh dot.
   current.heartbeat = setInterval(() => {
-    if (session !== current || (current.sent && current.now() - current.sent.at < LIVE_LOCATION_HEARTBEAT_MS)) return;
+    if (session !== current || document.visibilityState !== "visible" || (current.sent && current.now() - current.sent.at < LIVE_LOCATION_HEARTBEAT_MS)) return;
     geolocation.getCurrentPosition((position) => onFix(current, position), (error) => onError(current, error), WATCH_OPTIONS);
   }, LIVE_LOCATION_HEARTBEAT_MS);
 }

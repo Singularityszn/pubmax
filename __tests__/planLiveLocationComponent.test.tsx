@@ -40,6 +40,7 @@ function view() {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
   setProviderIdentity("supabase", "component-owner-a");
   sharing = false;
   watch = vi.fn((success: PositionCallback, error?: PositionErrorCallback | null) => { fix = success; fail = error; return 7; });
@@ -66,6 +67,7 @@ afterEach(async () => {
   localStorage.clear();
   container.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -80,6 +82,31 @@ async function click(label: string) {
 }
 
 describe("live location consent at the account boundary", () => {
+  it("offers a fresh-tap retry after the first upload fails", async () => {
+    await mountPlan();
+    fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => init?.method === "PUT"
+      ? Response.json({}, { status: 503 })
+      : Response.json(view()));
+    await click("Share my location tonight");
+    const firstTap = Date.now();
+    await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    expect(clearWatch).toHaveBeenCalledWith(7);
+    expect(container.textContent).toContain("Resume sharing");
+    await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => {
+      if (init?.method === "PUT") sharing = true;
+      return Response.json(view());
+    });
+    await click("Resume sharing");
+    await act(async () => fix({ coords: { latitude: 51.6, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    const uploads = fetcher.mock.calls.filter(([, init]) => init?.method === "PUT");
+    expect(uploads).toHaveLength(2);
+    expect(JSON.parse(uploads[0][1].body).startAt).toBe(firstTap);
+    expect(JSON.parse(uploads[1][1].body).startAt).toBe(firstTap + 1_000);
+    expect(sharing).toBe(true);
+    expect(container.textContent).toContain("Stop sharing");
+  });
+
   it("keeps the known deadline after leaving the Plan without a GPS fix", async () => {
     await mountPlan();
     await click("Share my location tonight");

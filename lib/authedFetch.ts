@@ -257,7 +257,7 @@ function readTokenBefore(deadline: number, signal?: AbortSignal): Promise<string
 export async function authedFetch(
   input: RequestInfo | URL,
   init: RequestInit,
-  options: AuthFetchOptions,
+  options: AuthFetchOptions & Readonly<{ bearerCapability?: string }>,
 ): Promise<Response> {
   const callerSignal = callerActionSignals(input, init.signal ?? undefined)[0];
   const signal = options.requiresIdentity
@@ -269,7 +269,8 @@ export async function authedFetch(
   const headers = new Headers(init.headers);
   if (!options.requiresIdentity) {
     headers.delete("authorization");
-    return fetch(input, { ...init, headers });
+    if (options.bearerCapability) headers.set("authorization", `Bearer ${options.bearerCapability}`);
+    return fetch(input, { ...init, headers, signal });
   }
   try {
     const token = await readTokenWithSignal(signal);
