@@ -116,9 +116,14 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Map Ask and typed chat without ElevenLabs also read recorded late-food service for simple questions such as "Food in Soho tonight at 1am".
   The lookup accepts one recognised area and one clear time phrase, optionally with one ISO date.
   "Food after midnight near Soho" or "Food in Soho tonight" asks for a night and time when the area has records.
+  Vague, repeated or conflicting times and dates also ask for a clearer night and time.
+  A timed question asks for an area when the current conversation cannot supply one.
+  Reply with an area, clock time or ISO date, such as "Soho", "1am" or "2026-11-07".
+  Replies replace only the fields they name. A clock reply keeps unresolved day choices, so the answer still asks which night.
   Filters cover one category (pizza, kebab, cafe or restaurant) and recorded vegan, vegetarian or gluten-free labels.
-  Unsupported cuisines, extra sentences, multiple times and named places after "at" keep the existing Ask handling.
-  Those answers do not establish food-service coverage.
+  Unknown qualifiers, including "Chinese", and extra sentences stay part of a recognised request.
+  If the record cannot confirm the whole request, the answer explains the missing evidence and returns no cards.
+  Questions outside this parser keep the existing Ask handling, which does not establish food-service coverage.
   Late-food results show the source and recorded date, or explain that no current record qualifies.
   Check the service hours for your requested date before you leave. Recorded hours do not confirm live availability.
 
