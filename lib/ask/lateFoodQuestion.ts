@@ -218,7 +218,7 @@ function correctFoodQuery(previous: string, rawFragment: string): string {
   // "After midnight" after a question about tonight moves the time, not the night.
   const laterTonight = has(AFTER_MIDNIGHT) && !has(TONIGHT) && [...request.matchAll(TONIGHT)].length > 0;
   if (has(CLOCK) || has(AFTER_MIDNIGHT)) query = query.replace(CLOCK, " ").replace(AFTER_MIDNIGHT, " ").replace(LATE, " ").replace(VAGUE_TIME, " ");
-  if (has(CONTEXT_NIGHT) && !laterTonight) query = query.replace(CONTEXT_DATE, " ").replace(CONTEXT_NIGHT, " ");
+  if (has(CONTEXT_NIGHT) && !laterTonight) query = query.replace(CONTEXT_DATE, " ").replace(TONIGHT, " ");
   if (has(CONTEXT_DATE)) query = query.replace(CONTEXT_DATE, " ").replace(/\btonight\b/gi, " ");
   if ((has(CONTEXT_NIGHT) && !laterTonight) || has(CONTEXT_DATE)) query = query.replace(VAGUE_DAY, " ");
   return [`${stripTrailingPunctuation(query)} ${area} ${fragment}`, ...additionalRequirements]

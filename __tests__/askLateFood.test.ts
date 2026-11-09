@@ -426,6 +426,17 @@ describe("late tonight wording", () => {
     },
   );
 
+  it.each(["tonight", "What about tonight?", "How about tonight?"])(
+    "preserves after-midnight service in a night-only reply: %s", async (query) => {
+      for (const response of await bothPaths(query, ["Food after midnight near Soho"])) {
+        expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+        expect(response.proposals).toEqual([]);
+        expect(response.answer).toContain("01:00 tonight");
+        expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+      }
+    },
+  );
+
   it.each(["1am", "What about 1am?", "Tonight at 1am", "01:00 please"])(
     "replaces the earlier time wording with a clock: %s", async (query) => {
       for (const history of [[FIRST], [FIRST, "What about after midnight?"]]) {
