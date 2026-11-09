@@ -57,13 +57,13 @@ const META_PATH = join(ROOT, "lib", "mapOpeningSnapshot.json");
  * Picture pixels per world pixel. Measured on the first capture (WebP, the
  * quality that fits): 2x was 152 KB light and 201 KB dark at the lowest
  * quality tried, because the dark style draws every building outline at this
- * zoom. 1.25x fits both under the ceiling at a quality that keeps labels clean;
- * it is soft on a 3x phone for the seconds it shows, and the engine's own
- * frame replaces it.
+ * zoom. 1x is soft on a 3x phone for the seconds it shows, and the engine's
+ * own frame replaces it. 1.25x cost the dark picture 116 KB, and every 180 KB
+ * on a cold throttled phone delays the pins by about a second.
  */
-const PIXEL_RATIO = 1.25;
+const PIXEL_RATIO = 1;
 /** The ceiling each picture is encoded under. It is on the wire before the pins are. */
-const MAX_BYTES = 120 * 1024;
+const MAX_BYTES = 88 * 1024;
 const QUALITIES = [72, 66, 60, 54, 48, 42, 38];
 /** A page that loads the app's global CSS and little else. */
 const TOKEN_PAGE = "/privacy";

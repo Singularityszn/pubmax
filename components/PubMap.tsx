@@ -1,5 +1,6 @@
 "use client";
 
+import { warmMapEngine } from "@/lib/mapEngineWarm";
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
 import { venueToPricedPoint } from "@/lib/nearMeAnswer";
@@ -1376,6 +1377,7 @@ export default function PubMap({
   const searchParams = useSearchParams();
   useEffect(() => {
     markPubmaxTiming("pubmax:map-chunk-ready");
+    warmMapEngine();
   }, []);
   // Deep-link /map/<city> (and CitySwitcher arrivals) stick as the Map/Drop
   // preference so the next tab tap does not bounce back to London.

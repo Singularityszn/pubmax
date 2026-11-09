@@ -6,7 +6,6 @@ import {
   type DrinkCategory,
 } from "@/lib/categoryColors";
 import {
-  MAP_ICON_SPECS,
   iconId,
   rasterize,
   type IconSpec,
@@ -15,20 +14,7 @@ import {
 
 export type BasemapProvider = "openfreemap" | "carto";
 
-// OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
-// data (free for commercial use, unlike CARTO's basemaps), and OpenMapTiles
-// schema: a `building` source-layer with `render_height` for our 3-D extrusion.
-// "liberty" is a rich, colourful consumer-map look (land-use tints, POI labels,
-// road hierarchy); "dark" matches our candle-lit night mode.
-export const MAP_STYLES = {
-  dark: "https://tiles.openfreemap.org/styles/dark",
-  // Positron, not Liberty: Liberty is the full-colour OSM look (yellow POIs,
-  // pastel landuse) and read as a different product next to the bar-mat dark
-  // theme (owner audit). Positron is the muted paper-grey sibling on the same
-  // openmaptiles source, so buildScene's building/3-D layers keep working.
-  // A fully brand-tinted custom style JSON remains the follow-up.
-  light: "https://tiles.openfreemap.org/styles/positron",
-} as const;
+export { MAP_STYLES } from "@/lib/mapBasemapStyles";
 
 // If OpenFreeMap (community-run) is slow or down, fall back to CARTO's keyless
 // vector styles — same OpenMapTiles-ish `building` source-layer so 3-D buildings
@@ -476,13 +462,4 @@ export function addDrawnMapIcon(
   const id = iconId(spec.ns, spec.key);
   if (map.hasImage(id)) map.removeImage(id);
   map.addImage(id, rasterize(spec, tokens, MAP_ICON_PIXEL_RATIO), mapIconImageOptions(spec));
-}
-
-// Draw every designed marker image (landmark pictograms, TfL symbols, glasses,
-// pills) in the browser, re-tinted from the live theme tokens. This is the
-// FALLBACK. The scene registers the pre-drawn sprite first
-// (components/map/canvas/iconSprite.ts), and draws only when that sprite has not
-// arrived, has failed, or was drawn in other colours than the live theme's.
-export function registerMapIcons(map: maplibregl.Map, tokens: IconTokens) {
-  for (const spec of MAP_ICON_SPECS) addDrawnMapIcon(map, spec, tokens);
 }

@@ -26,7 +26,8 @@ const MARK_PX = 40;
 // drawn by `npm run build:map-icon-sprites`): the same pictogram the map wears,
 // in the theme's own colours, so no second drawing of a landmark exists.
 function PassportLandmark({ landmark }: { landmark: PalPassportLandmark }) {
-  const icon = (sprite.icons as Record<string, { x: number; y: number; width: number; height: number }>)[`lm:${landmark}`];
+  const sheet = sprite.sheets.landmarks;
+  const icon = (sheet.icons as Record<string, { x: number; y: number; width: number; height: number }>)[`lm:${landmark}`];
   if (!icon) return null;
   const unit = MARK_PX / icon.width;
   return (
@@ -35,9 +36,9 @@ function PassportLandmark({ landmark }: { landmark: PalPassportLandmark }) {
       aria-hidden="true"
       style={
         {
-          "--mark-light": `url(${sprite.themes.light.url})`,
-          "--mark-dark": `url(${sprite.themes.dark.url})`,
-          backgroundSize: `${sprite.width * unit}px ${sprite.height * unit}px`,
+          "--mark-light": `url(${sheet.themes.light.url})`,
+          "--mark-dark": `url(${sheet.themes.dark.url})`,
+          backgroundSize: `${sheet.width * unit}px ${sheet.height * unit}px`,
           backgroundPosition: `${-icon.x * unit}px ${-icon.y * unit}px`,
         } as React.CSSProperties
       }
