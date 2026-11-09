@@ -126,7 +126,7 @@ begin
     where plan_id = p_plan_id and membership_revoked_at is null order by joined_at, id limit 1;
     select id into v_member from public.plan_crew_members
     where plan_id = p_plan_id and token_hash = p_token_hash and membership_revoked_at is null
-      and (can_collaborate or id = v_host)
+      and (p_operation = 'stop' or can_collaborate or id = v_host)
     for no key update;
   else
     if p_social_account_id is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
@@ -136,14 +136,20 @@ begin
     from public.social_crews crew
     join public.social_crew_members member on member.crew_id = crew.id
     join public.plan_crew_members seat on seat.id = member.plan_member_id
-    join public.private_social_accounts account on account.id = member.social_account_id
-    join public.private_social_accounts owner_account on owner_account.id = crew.owner_account_id
-      and owner_account.ownership_state = 'active'
     where crew.plan_id = p_plan_id and member.social_account_id = p_social_account_id
       and member.state = 'active' and seat.membership_revoked_at is null
-      and account.ownership_state = 'active'
-      and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id) is distinct from 'blocked'
     for share of member for no key update of seat;
+    if p_operation <> 'stop' and not exists (
+      select 1 from public.social_crews crew
+      join public.private_social_accounts account on account.id = p_social_account_id
+        and account.ownership_state = 'active'
+      join public.private_social_accounts owner_account on owner_account.id = crew.owner_account_id
+        and owner_account.ownership_state = 'active'
+      where crew.plan_id = p_plan_id
+        and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id) is distinct from 'blocked'
+    ) then
+      return jsonb_build_object('ok', false, 'error', 'not_found');
+    end if;
     select * into v_plan from public.plans where id = p_plan_id for share;
     if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   end if;
@@ -185,6 +191,10 @@ begin
       on conflict (plan_id, member_id) do update set stopped_at = excluded.stopped_at, expires_at = excluded.expires_at;
     end if;
     delete from public.plan_live_locations where plan_id = p_plan_id and member_id = v_member;
+    return jsonb_build_object('ok', true, 'view', jsonb_build_object(
+      'visibility', 'member', 'live', v_live,
+      'endsAt', case when v_live then v_end else null end,
+      'sharing', false, 'people', '[]'::jsonb));
   end if;
 
   v_sharing := exists (select 1 from public.plan_live_locations where plan_id = p_plan_id and member_id = v_member);

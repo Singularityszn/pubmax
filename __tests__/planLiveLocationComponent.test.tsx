@@ -231,13 +231,27 @@ describe("live location consent at the account boundary", () => {
     expect(watch).toHaveBeenCalledTimes(1);
   });
 
-  it("clears Stop controls after a terminal membership refusal", async () => {
+  it("keeps Stop controls after an unconfirmed 404 and permits a retry", async () => {
     await mountPlan();
     await click("Share my location tonight");
+    await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
     fetcher.mockResolvedValue(Response.json({}, { status: 404 }));
     await click("Stop sharing");
     expect(clearWatch).toHaveBeenCalledWith(7);
-    expect(container.querySelector("section")).toBeNull();
+    expect(sharing).toBe(true);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("failed");
+    expect(container.textContent).toContain("Your last spot may still show");
+    fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => {
+      if (init?.method === "DELETE") {
+        sharing = false;
+        return Response.json(view());
+      }
+      return Response.json({}, { status: 404 });
+    });
+    await click("Stop sharing");
+    expect(sharing).toBe(false);
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("off");
+    expect(container.textContent).not.toContain("Stop sharing");
   });
 
   it("removes the old account's map dots before the next read finishes", async () => {

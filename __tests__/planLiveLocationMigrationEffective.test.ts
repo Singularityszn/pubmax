@@ -121,6 +121,16 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     expect(db().sql(`select count(*) from public.plan_live_locations`)).toBe("0");
   });
 
+  it("lets a classic seat stop itself without permission to read the crew", () => {
+    call("share", HOST_HASH);
+    expect(call("read", NAME_ONLY_HASH)).toEqual({ ok: false, error: "not_found" });
+    expect(call("stop", NAME_ONLY_HASH)).toMatchObject({ ok: true, view: { sharing: false, people: [] } });
+    expect(db().sql(`select count(*) from public.plan_live_location_stops where member_id='${NAME_ONLY}'`)).toBe("1");
+    expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${HOST}'`)).toBe("1");
+    expect(call("read", NAME_ONLY_HASH)).toEqual({ ok: false, error: "not_found" });
+    expect(call("share", NAME_ONLY_HASH)).toEqual({ ok: false, error: "not_found" });
+  });
+
   it.each([
     ["Plan", PLAN, GUEST_HASH, null],
     ["crew", CREW_PLAN, null, MATE_ACCOUNT],
@@ -228,7 +238,7 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     expect(call("read", null, { plan: CREW_PLAN, account: MATE_ACCOUNT })).toEqual({ ok: false, error: "not_found" });
   });
 
-  it.each(["read", "share", "stop"])("refuses %s when the Crew owner is suspended", (operation) => {
+  it.each(["read", "share"])("refuses %s when the Crew owner is suspended", (operation) => {
     expect(call("share", null, { plan: CREW_PLAN, account: MATE_ACCOUNT }))
       .toMatchObject({ ok: true, view: { sharing: true } });
     db().sql(`update public.private_social_accounts set ownership_state='suspended' where id='${OWNER_ACCOUNT}'`);
@@ -249,7 +259,7 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
       .toMatchObject({ ok: true, view: { sharing: true, people: [expect.objectContaining({ memberId: OWNER_SEAT, latitude: 51.5138 })] } });
     db().sql(asServiceRole(`select public.set_social_block('${blocker}', '${blocked}', true)`));
 
-    for (const operation of ["read", "share", "stop"]) {
+    for (const operation of ["read", "share"]) {
       expect(call(operation, null, { plan: CREW_PLAN, account: MATE_ACCOUNT }))
         .toEqual({ ok: false, error: "not_found" });
       expect(call(operation, null, { plan: CREW_PLAN, account: OWNER_ACCOUNT }))
@@ -257,6 +267,37 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     }
     expect(db().sql(`select state from public.social_crew_members where id='${MATE_MEMBER}'`)).toBe("active");
     expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${MATE_SEAT}'`)).toBe("1");
+  });
+
+  it.each(["owner block", "member block", "owner suspension"])("honours Stop during %s without disclosing other people", (restriction) => {
+    const options = { plan: CREW_PLAN, account: MATE_ACCOUNT };
+    const ownerOptions = { plan: CREW_PLAN, account: OWNER_ACCOUNT };
+    expect(call("share", null, ownerOptions)).toMatchObject({ ok: true, view: { sharing: true } });
+    const startAt = tapTime();
+    expect(call("share", null, { ...options, startAt })).toMatchObject({ ok: true, view: { sharing: true } });
+    const blocker = restriction === "member block" ? MATE_USER : OWNER_USER;
+    const blocked = restriction === "member block" ? OWNER_USER : MATE_USER;
+    if (restriction === "owner suspension") {
+      db().sql(`update public.private_social_accounts set ownership_state='suspended' where id='${OWNER_ACCOUNT}'`);
+    } else {
+      db().sql(asServiceRole(`select public.set_social_block('${blocker}', '${blocked}', true)`));
+    }
+    expect(call("read", null, options)).toEqual({ ok: false, error: "not_found" });
+    expect(call("stop", null, options)).toMatchObject({ ok: true, view: { sharing: false, people: [] } });
+    expect(db().sql(`select count(*) from public.plan_live_location_stops where member_id='${MATE_SEAT}'`)).toBe("1");
+    expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${MATE_SEAT}'`)).toBe("0");
+    expect(db().sql(`select count(*) from public.plan_live_locations where member_id='${OWNER_SEAT}'`)).toBe("1");
+    expect(call("read", null, options)).toEqual({ ok: false, error: "not_found" });
+    if (restriction === "owner suspension") {
+      db().sql(`update public.private_social_accounts set ownership_state='active' where id='${OWNER_ACCOUNT}'`);
+    } else {
+      db().sql(asServiceRole(`select public.set_social_block('${blocker}', '${blocked}', false)`));
+    }
+    expect(call("read", null, ownerOptions)).toMatchObject({ ok: true, view: { people: [] } });
+    expect(call("share", null, options)).toEqual({ ok: false, error: "stopped" });
+    expect(call("share", null, { ...options, startAt })).toEqual({ ok: false, error: "stopped" });
+    expect(call("share", null, { ...options, startAt: tapTime() })).toMatchObject({ ok: true, view: { sharing: true } });
+    expect(call("read", null, ownerOptions)).toMatchObject({ ok: true, view: { people: [expect.objectContaining({ memberId: MATE_SEAT })] } });
   });
 
   it.each(["read", "share", "stop"])("checks the committed owner after a concurrent transfer during %s", async (operation) => {
@@ -295,7 +336,9 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
       });
       writer.stdin.end("commit;\n");
       await finished;
-      expect(JSON.parse(await response)).toEqual({ ok: false, error: "not_found" });
+      expect(JSON.parse(await response)).toEqual(operation === "stop"
+        ? { ok: true, view: { visibility: "member", live: true, endsAt: expect.any(String), sharing: false, people: [] } }
+        : { ok: false, error: "not_found" });
     } finally {
       if (!writer.stdin.writableEnded) writer.stdin.end("rollback;\n");
       await finished;

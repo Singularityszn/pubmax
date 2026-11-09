@@ -276,7 +276,7 @@ describe("sharing a live location from the phone", () => {
     await stopLiveLocationShare(otherSeat);
   });
 
-  it.each(["active", "paused", "failed"])("retires a %s Stop barrier after membership is lost", async (state) => {
+  it.each(["active", "paused", "failed"])("keeps a %s Stop unconfirmed after a 404 until the server acknowledges deletion", async (state) => {
     const geo = fakeGeolocation();
     const other = fakeGeolocation();
     const otherSeat = { ...SEAT, planId: "other-plan" };
@@ -284,8 +284,13 @@ describe("sharing a live location from the phone", () => {
     if (state === "active") startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request });
     if (state === "failed") await stopLiveLocationShare(SEAT, { request: fakeRoute(503).request });
     expect((await stopLiveLocationShare(SEAT, { request })).status).toBe(404);
-    expect(liveShareSnapshot(SEAT.planId).status).toBe("off");
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("failed");
     if (state === "active") expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    startLiveLocationShare(otherSeat, { geolocation: other.geolocation, request: fakeRoute().request });
+    startLiveLocationShare(SEAT, { geolocation: other.geolocation, request: fakeRoute().request });
+    expect(other.spy.watchPosition).not.toHaveBeenCalled();
+    await stopLiveLocationShare(SEAT, { request: fakeRoute().request });
+    expect(liveShareSnapshot(SEAT.planId).status).toBe("off");
     startLiveLocationShare(otherSeat, { geolocation: other.geolocation, request: fakeRoute().request });
     expect(other.spy.watchPosition).toHaveBeenCalledTimes(1);
     await stopLiveLocationShare(otherSeat);

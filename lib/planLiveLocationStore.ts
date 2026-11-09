@@ -34,7 +34,7 @@ const memoryBackend: Backend = {
     if (authority.kind !== "plan") return { ok: false, error: "not_found" };
     const member = await planMemberIdentityResult(id, authority.token);
     if (!member.ok) return { ok: false, error: "unavailable" };
-    if (!member.identity?.collaborationAuthorized) return { ok: false, error: "not_found" };
+    if (!member.identity || (operation !== "stop" && !member.identity.collaborationAuthorized)) return { ok: false, error: "not_found" };
     const state = await planStateResult(id);
     if (!state.ok) return { ok: false, error: "unavailable" };
     if (!state.plan) return { ok: false, error: "not_found" };
@@ -63,7 +63,7 @@ const memoryBackend: Backend = {
       rows.delete(self);
     }
     memory.set(id, rows);
-    const people: PlanLiveLocationPerson[] = live ? [...rows.values()]
+    const people: PlanLiveLocationPerson[] = live && operation !== "stop" ? [...rows.values()]
       .filter((row) => row.memberId !== self)
       .map((row) => ({ memberId: row.memberId, name: crew.get(row.memberId)!, latitude: row.latitude, longitude: row.longitude, accuracyM: row.accuracyM, updatedAt: row.updatedAt }))
       : [];

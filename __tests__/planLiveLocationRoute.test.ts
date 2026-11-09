@@ -85,10 +85,25 @@ describe("live location through the private plan route", () => {
 
   it("removes the dot for everyone as soon as the member stops", async () => {
     const { id, host, guest } = await night();
+    await PUT(request(id, host, "PUT", FIX), context(id));
     await PUT(request(id, guest, "PUT", FIX), context(id));
     const stopped = await DELETE(request(id, guest, "DELETE"), context(id));
-    expect(await stopped.json()).toMatchObject({ sharing: false });
-    expect(await read(id, host)).toMatchObject({ people: [] });
+    expect(await stopped.json()).toMatchObject({ sharing: false, people: [] });
+    expect(await read(id, host)).toMatchObject({ sharing: true, people: [] });
+  });
+
+  it("lets a seat stop itself without permission to read other people's positions", async () => {
+    const { id, host } = await night();
+    const named = await memoryPlanStore.join(id, "Name only");
+    if (!named.ok) throw new Error("Could not create a name-only guest.");
+    await PUT(request(id, host, "PUT", FIX), context(id));
+    expect((await GET(request(id, named.memberToken), context(id))).status).toBe(404);
+    const stopped = await DELETE(request(id, named.memberToken, "DELETE"), context(id));
+    expect(stopped.status).toBe(200);
+    expect(await stopped.json()).toMatchObject({ sharing: false, people: [] });
+    expect((await GET(request(id, named.memberToken), context(id))).status).toBe(404);
+    expect((await PUT(request(id, named.memberToken, "PUT", FIX), context(id))).status).toBe(404);
+    expect(await read(id, host)).toMatchObject({ sharing: true, people: [] });
   });
 
   it("revokes another client's uploads until an explicit new start", async () => {

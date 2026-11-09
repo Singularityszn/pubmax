@@ -114,12 +114,6 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
     setBusy(true);
     try {
       const response = await stopLiveLocationShare({ planId, via, memberToken }, { endsAt: view?.endsAt });
-      if (response.status === 404) {
-        forgetLiveLocationNight(planId);
-        setView(null);
-        setProblem("");
-        return;
-      }
       if (!response.ok) throw new Error("not stopped");
       setView(parsePlanLiveLocationView(await response.json()) ?? view);
       setProblem("");
