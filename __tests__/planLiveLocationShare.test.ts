@@ -61,6 +61,29 @@ afterEach(async () => {
 });
 
 describe("sharing a live location from the phone", () => {
+  it("registers a recovered seat even while another Plan owns the watch", async () => {
+    setProviderIdentity("supabase", "recovered-owner");
+    const geo = fakeGeolocation();
+    const other = fakeGeolocation();
+    const route = fakeRoute();
+    const seat = { planId: "other-plan", via: "crew" as const };
+    const fetcher = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", fetcher);
+    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request });
+    startLiveLocationShare(seat, { geolocation: other.geolocation });
+    expect(liveShareSnapshot(seat.planId).status).toBe("busy");
+    reconcileLiveLocationShare(seat, { visibility: "member", live: true, sharing: true, endsAt: null, people: [] });
+    expect(liveShareCrewStopSeat()).toEqual(seat);
+    await stopLiveLocationBeforeAccountDeparture();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]).toEqual([
+      "/api/plans/other-plan/live-location?via=crew", expect.objectContaining({ method: "DELETE" }),
+    ]);
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    expect(other.spy.watchPosition).not.toHaveBeenCalled();
+    setProviderIdentity("supabase", null);
+  });
+
   it.each(["plan", "crew"] as const)("revokes active and failed %s sharing with the departing credentials", async (via) => {
     for (const state of ["active", "failed-start", "failed-stop"] as const) {
       setProviderIdentity("supabase", `departing-${via}-${state}`);
@@ -208,7 +231,7 @@ describe("sharing a live location from the phone", () => {
     await stopLiveLocationShare(SEAT);
     expect(liveShareSnapshot(SEAT.planId).status).toBe("failed");
     if (confirmation === "deadline") await vi.advanceTimersByTimeAsync(30_000);
-    else reconcileLiveLocationShare(SEAT.planId, { visibility: "member", live: false, endsAt, sharing: false, people: [] });
+    else reconcileLiveLocationShare(SEAT, { visibility: "member", live: false, endsAt, sharing: false, people: [] });
     expect(liveShareSnapshot(SEAT.planId).status).toBe("ended");
     const otherSeat = { ...SEAT, planId: "other-plan" };
     startLiveLocationShare(otherSeat, { geolocation: geo.geolocation, request: fakeRoute().request });
@@ -220,7 +243,7 @@ describe("sharing a live location from the phone", () => {
     let finish!: (value: Response) => void;
     const stopped = stopLiveLocationShare(SEAT, { request: () => new Promise<Response>((resolve) => { finish = resolve; }) });
     await Promise.resolve();
-    reconcileLiveLocationShare(SEAT.planId, { visibility: "member", live: false, endsAt: null, sharing: false, people: [] });
+    reconcileLiveLocationShare(SEAT, { visibility: "member", live: false, endsAt: null, sharing: false, people: [] });
     finish(new Response("{}", { status: 503 }));
     await stopped;
     expect(liveShareSnapshot(SEAT.planId).status).toBe("ended");

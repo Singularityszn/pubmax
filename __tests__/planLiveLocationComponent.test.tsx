@@ -9,7 +9,7 @@ import MapLiveOverlays from "@/components/map/liveOverlays/MapLiveOverlays";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { rememberLiveLocationNight } from "@/lib/liveLocationNight";
-import { liveShareSnapshot, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { liveShareCrewStopSeat, liveShareSnapshot, stopLiveLocationBeforeAccountDeparture, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => createElement("a", { href }, children),
@@ -82,6 +82,27 @@ async function click(label: string) {
 }
 
 describe("live location consent at the account boundary", () => {
+  it.each(["plan", "map"])("registers a recovered %s share for departure without resuming", async (surface) => {
+    sharing = true;
+    const seat = { ...SEAT, via: "crew" as const };
+    if (surface === "plan") {
+      await act(async () => root.render(createElement(PlanLiveLocation, { seat, ownerKey: "owner-a" })));
+      expect(container.textContent).toContain("Resume sharing");
+      expect(container.textContent).toContain("Stop sharing");
+    } else {
+      rememberLiveLocationNight({ planId: seat.planId, via: seat.via, endsAt: view().endsAt });
+      const map = { on: vi.fn(), off: vi.fn(), getCanvasContainer: () => container } as unknown as LiveMap;
+      await act(async () => root.render(createElement(MapLiveOverlays, { map, sunChaserOn: false, venues: [] })));
+    }
+    expect(liveShareCrewStopSeat()).toMatchObject({ planId: seat.planId, via: "crew" });
+    await act(async () => stopLiveLocationBeforeAccountDeparture());
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "DELETE")).toHaveLength(1);
+    expect(sharing).toBe(false);
+    expect(watch).not.toHaveBeenCalled();
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+  });
+
   it.each(["503", "offline"])("withholds Resume until an unconfirmed Stop succeeds after %s", async (failure) => {
     await mountPlan();
     await click("Share my location tonight");

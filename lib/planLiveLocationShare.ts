@@ -12,7 +12,7 @@ import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 
 export type LiveLocationSeat = { planId: string; via: "plan" | "crew"; memberToken?: string };
 /** asking: waiting on the browser. no-signal: the last fix stays up for the crew. */
-export type LiveShareStatus = "off" | "busy" | "stopping" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
+export type LiveShareStatus = "off" | "paused" | "busy" | "stopping" | "asking" | "on" | "no-signal" | "denied" | "unsupported" | "ended" | "failed";
 export type LiveShareSnapshot = { planId: string | null; status: LiveShareStatus; stopUnconfirmed: boolean };
 
 type Request = (seat: LiveLocationSeat, method: "GET" | "PUT" | "DELETE", body?: PlanLiveLocationFix & { startAt?: number }, signal?: AbortSignal) => Promise<Response>;
@@ -68,7 +68,8 @@ const listeners = new Set<() => void>();
 function publish(planId: string, status: LiveShareStatus, seat?: LiveLocationSeat): void {
   const previous = snapshots.get(planId);
   const stopUnconfirmed = stopping.has(planId);
-  if (previous?.view.status === status && previous.view.stopUnconfirmed === stopUnconfirmed) return;
+  if (previous?.view.status === status && previous.view.stopUnconfirmed === stopUnconfirmed &&
+    (!seat || previous.ownerSignal === readProviderAccountSignal())) return;
   snapshots.set(planId, {
     view: { planId, status, stopUnconfirmed },
     seat: seat ?? previous?.seat ?? null,
@@ -95,7 +96,7 @@ export function liveShareCrewStopSeat(): LiveLocationSeat | null {
   const ownerSignal = readProviderAccountSignal();
   for (const snapshot of snapshots.values()) {
     if (snapshot.ownerSignal !== ownerSignal || ownerSignal.aborted || snapshot.seat?.via !== "crew") continue;
-    if (["asking", "on", "no-signal", "failed", "stopping"].includes(snapshot.view.status)) return snapshot.seat;
+    if (["paused", "asking", "on", "no-signal", "failed", "stopping"].includes(snapshot.view.status)) return snapshot.seat;
   }
   return null;
 }
@@ -122,7 +123,7 @@ function endLiveLocationShare(planId: string): void {
     stopping.delete(planId);
   }
   if (typeof window !== "undefined") forgetLiveLocationNight(planId);
-  if (current || stop) publish(planId, "ended");
+  if (current || stop || liveShareSnapshot(planId).status === "paused") publish(planId, "ended");
 }
 
 function setExpiry(planId: string, target: Expiry, endsAt: number | null, now = Date.now()): void {
@@ -137,13 +138,24 @@ function setExpiry(planId: string, target: Expiry, endsAt: number | null, now = 
   target.expiry = setTimeout(() => endLiveLocationShare(planId), endsAt - now);
 }
 
-export function reconcileLiveLocationShare(planId: string, view: PlanLiveLocationView): void {
+export function reconcileLiveLocationShare(seat: LiveLocationSeat, view: PlanLiveLocationView): void {
+  const { planId } = seat;
   if (!view.live) {
     endLiveLocationShare(planId);
     return;
   }
   const target = session?.seat.planId === planId ? session : stopping.get(planId);
   if (target) setExpiry(planId, target, view.endsAt === null ? null : Date.parse(view.endsAt));
+  else if (view.sharing) {
+    const previous = snapshots.get(planId);
+    const ownerSignal = readProviderAccountSignal();
+    if (previous?.ownerSignal === ownerSignal && previous.seat &&
+      ["paused", "failed"].includes(previous.view.status)) return;
+    publish(planId, "paused", seat);
+    ownerSignal.addEventListener("abort", () => {
+      if (snapshots.get(planId)?.ownerSignal === ownerSignal) publish(planId, "off");
+    }, { once: true });
+  } else if (liveShareSnapshot(planId).status === "paused") publish(planId, "off");
 }
 
 async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
@@ -164,7 +176,7 @@ async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
       current.startAt = null;
       const view = parsePlanLiveLocationView(await response.json().catch(() => null));
       if (session !== current) return;
-      if (view) reconcileLiveLocationShare(current.seat.planId, view);
+      if (view) reconcileLiveLocationShare(current.seat, view);
       if (session !== current) return;
       current.sent = { at: current.now(), fix };
       publish(current.seat.planId, "on");
@@ -350,7 +362,7 @@ export async function stopLiveLocationBeforeAccountDeparture(): Promise<void> {
   const ownerSignal = readProviderAccountSignal();
   const seats = [...snapshots.values()]
     .filter((snapshot) => snapshot.ownerSignal === ownerSignal && snapshot.seat &&
-      ["asking", "on", "no-signal", "failed", "stopping"].includes(snapshot.view.status))
+      ["paused", "asking", "on", "no-signal", "failed", "stopping"].includes(snapshot.view.status))
     .map((snapshot) => snapshot.seat!);
   await Promise.allSettled(seats.map((seat) => stopLiveLocationShare(seat)));
 }

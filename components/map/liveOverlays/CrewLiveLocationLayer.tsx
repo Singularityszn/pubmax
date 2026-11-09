@@ -37,7 +37,7 @@ function useCrewPositions(night: LiveLocationNight): PlanLiveLocationPerson[] {
         const response = await liveLocationRequest(night, "GET", undefined, request.signal);
         const view = response.ok ? parsePlanLiveLocationView(await response.json()) : null;
         if (activeRead !== request || request.signal.aborted || controller.signal.aborted || ownerSignal.aborted) return;
-        if (view) reconcileLiveLocationShare(night.planId, view);
+        if (view) reconcileLiveLocationShare(night, view);
         if (response.status === 404 || (view && !view.live)) {
           forgetLiveLocationNight(night.planId);
           return;

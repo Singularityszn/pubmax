@@ -63,7 +63,7 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
   const status: LiveShareStatus = share.planId === seat.planId ? share.status : "off";
   const stopping = busy || status === "stopping";
   const watching = status === "asking" || status === "on" || status === "no-signal";
-  const canStop = watching || status === "failed" || status === "stopping";
+  const canStop = watching || status === "paused" || status === "failed" || status === "stopping";
   const { planId, via, memberToken } = seat;
 
   const read = useCallback(async (signal?: AbortSignal) => {
@@ -87,7 +87,7 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
         return;
       }
       if (!next) throw new Error("unreadable");
-      reconcileLiveLocationShare(planId, next);
+      reconcileLiveLocationShare({ planId, via, memberToken }, next);
       setView(next);
       setNow(Date.now());
       setProblem("");
@@ -142,7 +142,7 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
     ) : null;
   }
 
-  const paused = (view.sharing || status === "failed" || status === "stopping") && !watching;
+  const paused = (view.sharing || status === "paused" || status === "failed" || status === "stopping") && !watching;
   const canResume = paused && !share.stopUnconfirmed;
   const until = view.endsAt ? clock(view.endsAt) : null;
   return (

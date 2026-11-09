@@ -69,7 +69,7 @@ import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner }
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
 import { readProviderAccountSignal, setProviderAuthState } from "@/lib/authProviderRevision";
 import { PLAN_HOST_NAME_KEY, readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
-import { liveShareSnapshot, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { liveLocationRequest, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 import { memoryPlanStore } from "@/lib/planStore";
 import { operatePlanLiveLocation } from "@/lib/planLiveLocationStore";
 import { memoryPlanLiveLocations, memoryPlanLiveLocationStops } from "@/lib/planLiveLocationMemory";
@@ -126,7 +126,10 @@ describe("tab-local private state across account events", () => {
     { roundId: "round-a", names: ["Sam", "Priya"], current: 1 },
   ] });
 
-  it.each(["sign out", "switch account"])("revokes the old seat before credentials retire on %s", async (action) => {
+  it.each([
+    ["sign out", "active"], ["switch account", "active"],
+    ["sign out", "reloaded"], ["switch account", "reloaded"],
+  ])("revokes the old seat before %s retires credentials with a %s share", async (action, state) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-09T20:00:00Z"));
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
@@ -139,8 +142,9 @@ describe("tab-local private state across account events", () => {
     const seat = { planId: id, via: "plan" as const, memberToken: created.memberToken };
     let fix!: PositionCallback;
     const clearWatch = vi.fn();
+    const watchPosition = vi.fn((success: PositionCallback) => { fix = success; return 7; });
     const geolocation = {
-      watchPosition: (success: PositionCallback) => { fix = success; return 7; },
+      watchPosition,
       clearWatch,
       getCurrentPosition: vi.fn(),
     } as unknown as Geolocation;
@@ -150,16 +154,22 @@ describe("tab-local private state across account events", () => {
         expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${created.memberToken}`);
         expect(h.session?.user.id).toBe(original.user.id);
         expect(ownerSignal.aborted).toBe(false);
-        const result = await operatePlanLiveLocation(id, authority, init?.method === "DELETE" ? "stop" : "share", init?.body ? JSON.parse(String(init.body)) : {});
+        const result = await operatePlanLiveLocation(id, authority, init?.method === "DELETE" ? "stop" : init?.method === "GET" ? "read" : "share", init?.body ? JSON.parse(String(init.body)) : {});
         return Response.json(result.ok ? result.view : result, { status: result.ok ? 200 : 503 });
       }
       return Response.json({ access_token: replacement.access_token, refresh_token: replacement.refresh_token });
     });
     vi.stubGlobal("fetch", fetcher);
     try {
-      startLiveLocationShare(seat, { geolocation });
-      fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition);
-      await vi.waitFor(() => expect(liveShareSnapshot(id).status).toBe("on"));
+      if (state === "reloaded") {
+        expect((await operatePlanLiveLocation(id, authority, "share", { latitude: 51.5, longitude: -0.13, accuracyM: 10 })).ok).toBe(true);
+        expect(liveShareSnapshot(id).status).toBe("off");
+        reconcileLiveLocationShare(seat, await (await liveLocationRequest(seat, "GET")).json());
+      } else {
+        startLiveLocationShare(seat, { geolocation });
+        fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition);
+        await vi.waitFor(() => expect(liveShareSnapshot(id).status).toBe("on"));
+      }
       expect(memoryPlanLiveLocations.get(id)?.has(memberId)).toBe(true);
       if (action === "switch account") {
         const real = await vi.importActual<typeof import("@/lib/deviceAccountSwitch")>("@/lib/deviceAccountSwitch");
@@ -173,7 +183,11 @@ describe("tab-local private state across account events", () => {
         else expect(await actions.switchAccount(replacement.user.id)).toEqual({ status: "switched", userId: replacement.user.id });
       });
       expect(ownerSignal.aborted).toBe(true);
-      expect(clearWatch).toHaveBeenCalledWith(7);
+      if (state === "reloaded") {
+        expect(watchPosition).not.toHaveBeenCalled();
+        expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
+        expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+      } else expect(clearWatch).toHaveBeenCalledWith(7);
       expect(memoryPlanLiveLocations.has(id)).toBe(false);
       expect(memoryPlanLiveLocationStops.get(id)?.get(memberId)).toMatchObject({ stoppedAt: Date.now() });
       expect(await operatePlanLiveLocation(id, authority, "share", { latitude: 51.6, longitude: -0.13, accuracyM: 10 })).toEqual({ ok: false, error: "stopped" });
