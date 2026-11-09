@@ -57,8 +57,8 @@ describe("buildPalTaste", () => {
         drop("dog", "2026-10-09", { drink: "Camden Hells", pintPriceGbp: 5.9 }),
       ],
       saved: [
-        { venueId: "anchor", venueName: "The Anchor" },
-        { venueId: "crown", venueName: "The Crown" },
+        { venueId: "anchor", venueName: "The Anchor", listType: "Want to Visit" },
+        { venueId: "crown", venueName: "The Crown", listType: "Want to Visit" },
       ],
       placeOf,
     });
@@ -157,7 +157,7 @@ describe("palTastePreamble", () => {
       drop("crown", "2026-10-02", { pintPriceGbp: 5.5, vibeTags: ["quiet pint"] }),
       drop("dog", "2026-10-09", { pintPriceGbp: 6 }),
     ],
-    saved: [{ venueId: "anchor", venueName: "The Anchor" }],
+    saved: [{ venueId: "anchor", venueName: "The Anchor", listType: "Want to Visit" }],
     placeOf,
   });
 
