@@ -126,6 +126,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Map Ask and keyless typed chat also read recorded late-food service for simple questions such as "Food in Soho tonight at 1am".
   The lookup accepts one recognised area and one clear time phrase, optionally with one ISO date.
   "Food after midnight near Soho" or "Food in Soho tonight" asks for a night and time when the area has records.
+  "Food late in Soho tonight" checks 23:00 tonight, and "after midnight" tonight checks 01:00. The answer names the time it checked.
+  A reply such as "What about after midnight?" keeps the food question and moves only the time.
   Vague, repeated or conflicting times and dates also ask for a clearer night and time.
   A timed question asks for an area when the current conversation cannot supply one.
   Reply with an area, clock time or ISO date, such as "Soho", "1am" or "2026-11-07".
