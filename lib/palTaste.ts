@@ -15,6 +15,7 @@
 //
 // Pure leaf: no I/O, no Date.now(). The server reader is lib/palTaste.server.ts.
 
+import { BEEN_HERE_LIST } from "@/lib/beenHere";
 import { CONCIERGE_MOODS, type ConciergeMood } from "@/lib/concierge/rank";
 import { cleanText } from "@/lib/textClean";
 
@@ -36,7 +37,7 @@ export type PalTasteDropInput = {
   day: string;
 };
 
-type PalTasteSavedInput = { venueId: string; venueName: string };
+type PalTasteSavedInput = { venueId: string; venueName: string; listType: string };
 
 /** What the venue index knows about a pub: its reader name and its patch. */
 export type PalTastePlace = { name: string; patch: string | null };
@@ -192,7 +193,9 @@ function dropSignals(drops: readonly PalTasteDropInput[]) {
   };
 }
 
-function wishlistOf(input: PalTasteInput, visited: ReadonlySet<string>, nameOf: NameOf): string[] {
+function wishlistOf(input: PalTasteInput, logged: ReadonlySet<string>, nameOf: NameOf): string[] {
+  const visited = new Set(logged);
+  for (const save of input.saved) if (save.listType === BEEN_HERE_LIST) visited.add(save.venueId);
   const wishlist: string[] = [];
   for (const save of input.saved) {
     if (wishlist.length >= MAX_LIST) break;

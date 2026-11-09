@@ -57,8 +57,8 @@ describe("buildPalTaste", () => {
         drop("dog", "2026-10-09", { drink: "Camden Hells", pintPriceGbp: 5.9 }),
       ],
       saved: [
-        { venueId: "anchor", venueName: "The Anchor" },
-        { venueId: "crown", venueName: "The Crown" },
+        { venueId: "anchor", venueName: "The Anchor", listType: "Want to Visit" },
+        { venueId: "crown", venueName: "The Crown", listType: "Want to Visit" },
       ],
       placeOf,
     });
@@ -74,6 +74,20 @@ describe("buildPalTaste", () => {
       vibes: ["quiet pint", "old local"],
       wishlist: ["The Anchor"],
     });
+  });
+
+  it("never offers a Been here pub as saved but not tried", () => {
+    const taste = buildPalTaste({
+      diary: [diary("crown", "2026-10-02")],
+      drops: [],
+      saved: [
+        { venueId: "ship", venueName: "The Ship", listType: "Been here" },
+        { venueId: "anchor", venueName: "The Anchor", listType: "Want to Visit" },
+        { venueId: "ship", venueName: "The Ship", listType: "Historic" },
+      ],
+      placeOf,
+    });
+    expect(taste?.wishlist).toEqual(["The Anchor"]);
   });
 
   it("uses only pint prices and needs two of them for a usual pint", () => {
@@ -143,7 +157,7 @@ describe("palTastePreamble", () => {
       drop("crown", "2026-10-02", { pintPriceGbp: 5.5, vibeTags: ["quiet pint"] }),
       drop("dog", "2026-10-09", { pintPriceGbp: 6 }),
     ],
-    saved: [{ venueId: "anchor", venueName: "The Anchor" }],
+    saved: [{ venueId: "anchor", venueName: "The Anchor", listType: "Want to Visit" }],
     placeOf,
   });
 

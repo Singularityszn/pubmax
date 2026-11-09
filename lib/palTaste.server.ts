@@ -87,7 +87,7 @@ async function readTaste(ownerId: string): Promise<PalTaste | null> {
       vibeTags: drop.vibeTags ?? [],
       day: londonDayKey(drop.createdAt),
     })),
-    saved: saved.map((save) => ({ venueId: save.venueId, venueName: save.venueName })),
+    saved: saved.map((save) => ({ venueId: save.venueId, venueName: save.venueName, listType: save.listType })),
     placeOf,
   });
 }
