@@ -556,7 +556,7 @@ describe("POST /api/pub-pal/chat", () => {
 
   it.each([
     { query: "01:00", previous: "Food after midnight near Soho", clarification: "Which night and time" },
-    { query: "Tonight", previous: "Food after midnight near Soho", clarification: "Which night and time" },
+    { query: "Tonight", previous: "Food after midnight near Soho", clarification: null },
     { query: "Food in Soho tonight", previous: "", clarification: "Which night and time" },
     { query: "Food in Soho tonight at 1am. Find Chinese close to the tube.", previous: "", clarification: "Chinese" },
     { query: "Food tonight at 1am", previous: "", clarification: "Which area" },
