@@ -28,7 +28,7 @@ test("a reused plain map adopts the saved walking route without reloading", asyn
   await expect(page).toHaveURL(/\/plan$/);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
   await describeFirstSubmit(page).click();
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await expect(page.getByText("Route ready. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Route handoff tester");
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   await page.getByLabel("First pint").fill(`${tomorrow}T18:00`);
