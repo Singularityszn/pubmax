@@ -9,6 +9,9 @@ plan or vote merely by calculating an order.
 
 For pubs with the same name, add the borough, locality or address to the search.
 For example, use `Crown Greenwich`.
+Comparison suggestions apply the catalogue's eligibility rules before the result limit.
+They exclude retired venues, non-pub kinds, names that indicate restricted access,
+and venues outside the curated London catalogue.
 
 ## Read contract
 
@@ -65,9 +68,12 @@ Private polls use the existing authenticated conversation endpoint. The user
 loads their conversations, selects one, reviews the options and explicitly sends.
 Account changes cancel private requests and discard their results.
 
-Retries reuse the same message ID. The UI does not promise deduplication when
-the server cannot establish the underlying migration. Unconfirmed sends ask the
-user to inspect the conversation before retrying.
+Retries reuse the same message ID for each conversation while the current
+comparison remains displayed, including after a failed attempt in another conversation.
+Changing the comparison inputs or account discards these retry IDs.
+The UI does not promise deduplication when the server cannot establish the
+underlying migration. Unconfirmed sends ask the user to inspect the conversation
+before retrying.
 
 ## Publication and measurement
 
