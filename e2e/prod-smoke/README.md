@@ -30,7 +30,8 @@ before the run ends, and `afterAll` undoes it again when a journey fails partway
 - **Saves toggle.** The suite taps the same list chip again to remove the save. It
   reads the list from `/api/saved-pubs` before it saves and after every tap, so a
   save left by a run that crashed is removed before the next run saves again.
-- **Pub Pal turns** expire through the `purge-pub-pal-turns` cron.
+- **Pub Pal turns.** The [cron runbook](../../docs/CRON_PLANE_RUNBOOK.md#what-runs-when)
+  owns their scheduled deletion.
 - **The Pal stays.** The first run creates the smoke account's Pal through the
   setup a new user meets. Every later run finds it and goes straight to the
   message box.
