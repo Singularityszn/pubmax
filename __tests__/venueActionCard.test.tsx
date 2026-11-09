@@ -11,8 +11,8 @@
 //   1. The card prints the SHEET'S OWN price and date: the figure and the date
 //      the Overview's price block prints for the same lane, for every lane a
 //      drinker's log can take, because both read one lane and one formatter.
-//   2. Exactly ONE coral action: the card's plan door. The Overview's price
-//      door is drawn in ink and the card's other commands are ghosts.
+//   2. Exactly ONE coral action: the card's plan door. The card's other
+//      commands are ghosts.
 //   3. No action appears twice on the sheet: the card's actions left the body.
 
 import { createElement } from "react";
