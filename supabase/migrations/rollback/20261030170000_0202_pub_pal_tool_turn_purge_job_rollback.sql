@@ -1,10 +1,8 @@
 -- Rollback for 0202: unschedule the database purge of Pub Pal tool turns.
 --
--- COST: the purge then rests on the Vercel cron route alone. If its
--- vercel.json entry was already removed, put it back FIRST, or expired turn
--- rows (the user's own lines) stay in the table until something deletes them.
--- Every read already refuses an expired row, so nothing is shown, but the
--- retention promise in 0169 is broken until the route runs again.
+-- COST: expired turn rows remain unless a replacement purge is active.
+-- Before this rollback, follow the recovery instructions in
+-- docs/CRON_PLANE_RUNBOOK.md.
 --
 -- The pg_cron extension stays installed: another job may use it, and dropping
 -- an extension is not this migration's to decide.
