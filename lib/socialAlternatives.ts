@@ -62,7 +62,8 @@ export function buildSocialAlternatives(
     ...updates.filter((update) => update.lane === "publisher" && update.source.licence.trim()).map((update) => ({
       ...update, publisher: update.source.label, sourceUrl: update.source.url,
     })),
-    ...authoritativeBundleRows(bundleRows).filter((row) => row.standing === "listed" && row.lane !== "estimate").map((row) => ({
+    // A third party's price index is not a menu, so the listing-site lane stays out.
+    ...authoritativeBundleRows(bundleRows).filter((row) => row.standing === "listed" && row.lane !== "estimate" && row.lane !== "listing-site").map((row) => ({
       venueKey: row.venueId, drinkName: row.drinkLabel ?? "", servingSize: row.servingSize,
       priceGbp: row.priceGbp, observedAt: row.observedAt, publisher: row.publisher ?? "", sourceUrl: row.sourceUrl,
     })),
