@@ -91,11 +91,11 @@ Settings:
 | Require branches to be up to date | off. The merge queue tests the up-to-date result. |
 | Merge queue | on |
 | Merge method | squash |
-| Build concurrency | 2 queue entries can run at once. |
+| Build concurrency | 1 queue entry at a time. Each entry runs the three layout shards, which fill the three Mac places (captain, 9 Nov 2026). |
 | Group size | at least 1, at most 5 |
 | Wait for a minimum group size | 5 minutes |
 | Grouping strategy | all entries must pass (`ALLGREEN`) |
-| Status check timeout | 60 minutes |
+| Status check timeout | 120 minutes. An entry can wait for the Mac places while the nightly full suite holds them (captain, 9 Nov 2026). |
 
 Create it with `gh`:
 
@@ -127,11 +127,11 @@ gh api --method POST repos/Singularityszn/pubmax/rulesets --input - <<'JSON'
       "parameters": {
         "merge_method": "SQUASH",
         "grouping_strategy": "ALLGREEN",
-        "max_entries_to_build": 2,
+        "max_entries_to_build": 1,
         "min_entries_to_merge": 1,
         "max_entries_to_merge": 5,
         "min_entries_to_merge_wait_minutes": 5,
-        "check_response_timeout_minutes": 60
+        "check_response_timeout_minutes": 120
       }
     }
   ]
