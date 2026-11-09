@@ -66,6 +66,23 @@ describe("removeSupabaseProjectLeftovers", () => {
     expect(removals.map((args) => args.slice(0, 2).join(" "))).toEqual(["rm -f", "volume rm", "network rm"]);
   });
 
+  it("preserves another project's resources when its id contains the selected id", async () => {
+    const otherProject = `${PROJECT}-other`;
+    const docker = fakeDocker({
+      containers: [`supabase_db_${PROJECT}`, `supabase_db_${otherProject}`, `unrelated_${PROJECT}`],
+      volumes: [`supabase_db_${PROJECT}`, `supabase_db_${otherProject}`, `unrelated_${PROJECT}`],
+      networks: [`supabase_network_${PROJECT}`, `supabase_network_${otherProject}`, `unrelated_${PROJECT}`],
+    });
+
+    await expect(removeSupabaseProjectLeftovers(PROJECT, docker.run)).resolves.toEqual([]);
+
+    expect(docker.state).toEqual({
+      containers: [`supabase_db_${otherProject}`, `unrelated_${PROJECT}`],
+      volumes: [`supabase_db_${otherProject}`, `unrelated_${PROJECT}`],
+      networks: [`supabase_network_${otherProject}`, `unrelated_${PROJECT}`],
+    });
+  });
+
   it("removes nothing when supabase stop already left the project clean", async () => {
     const docker = fakeDocker({ containers: ["supabase_db_someone-else"], volumes: [], networks: ["bridge"] });
 

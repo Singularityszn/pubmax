@@ -12,7 +12,8 @@ export async function removeSupabaseProjectLeftovers(projectId, run) {
   if (!PROJECT_ID.test(projectId)) throw new Error("Refusing to clean an unrecognised Supabase project id.");
   const names = async ({ list, format }) =>
     (await run("docker", [...list, "--filter", `name=${projectId}`, "--format", format]))
-      .split("\n").map((name) => name.trim()).filter(Boolean);
+      .split("\n").map((name) => name.trim())
+      .filter((name) => name.startsWith("supabase_") && name.endsWith(`_${projectId}`));
   for (const resource of RESOURCES) {
     const found = await names(resource);
     if (!found.length) continue;
