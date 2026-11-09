@@ -3237,6 +3237,7 @@ function PlanComposerForm({
       clearUnnamedHeldStop(first.key, 0);
       return;
     }
+    if (canPersist && routeSorted && first?.venueId === heldVenueId && ownsAcceptance(requestOwner.current)) setRouteStale(false);
     dropAcceptance();
     setRouteStatus(releasedAcceptanceStatus({
       venueName: acceptedVenueName,
