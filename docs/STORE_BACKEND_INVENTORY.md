@@ -11,9 +11,9 @@ The beacon and presentation route tests exercise their HTTP handlers.
 ## Backend selection
 
 The [canonical inventory](#canonical-inventory) lists the current stores.
-`STORE_INVENTORY` in `__tests__/storeInventory.test.ts` records their backend
-selectors and classifications. These tests check the inventory against
-the source rather than relying on a copied count.
+`__tests__/storeBackendInventory.test.ts` checks its store names and inline
+backend references against the source. Classifications describe the backend
+selection in each store.
 
 `lib/storeBackend.ts` owns the narrow backend seam. `createDualBackendStore`
 only curries `selectStore(memory, supabase)` into a zero-argument getter. It
@@ -63,6 +63,7 @@ silently stale.
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
 | notificationsStore | factory-ready | Notification rows with shared backend selection. |
 | occupancyStore | factory-eligible, policy-heavy | Time window, retake, reporting, and moderation policy. |
+| openCrawlArrivalStore | not dual-backend | Supabase Plan-seat reads and mark-Here writes for open crawls. |
 | operatorFactsStore | factory-ready | What a moderator's acceptance of an operator proposal publishes: one fact per proposal, withdrawn by a later decline, read by the venue sheet and Tonight. |
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
@@ -89,7 +90,7 @@ silently stale.
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
 | savedPubsStore | legacy-exception | Inline Supabase configuration branch keyed by existing profile rows; needs its own selector refactor. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
-| socialCrewStore | not dual-backend | Supabase-only RPC store. |
+| socialCrewStore | not dual-backend | Supabase-only Crew RPCs and open-crawl arrival operations. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
 | socialPostConsentStore | not dual-backend | Supabase-only RPC store. |
 | socialPostExtraPhotoStore | factory-eligible, policy-heavy | Photos 2 to 4: owner and first-photo checks, per-photo moderation. |
@@ -121,7 +122,7 @@ The following stores intentionally stay outside the factory-ready path:
   `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
-- **not dual-backend:** `importNotesStore`, `socialCrewStore`,
+- **not dual-backend:** `importNotesStore`, `openCrawlArrivalStore`, `socialCrewStore`,
   `socialPostConsentStore`, `socialSafetyModerationStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,

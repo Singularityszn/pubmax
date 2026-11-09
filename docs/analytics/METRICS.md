@@ -249,6 +249,7 @@ Count events with `guestsArrived = 4+`.
 - `crew_arrived` counts guests currently marked "Here" on a private hosted plan page
   or by active open-crawl members on their crew page.
   The host is the first seat by join order and is never a guest.
+  Open-crawl writes exclude inactive members from the guest count.
 - Each qualifying band counts once for the plan's scheduled London date.
   Count one band. Never add the bands together.
   A later status change does not remove a delivered event.
@@ -259,9 +260,8 @@ The receipt window starts at London midnight on the plan's scheduled date.
 `crewArrivedEventToken` in `lib/verifiedAnalytics.server.ts` defines its expiry.
 Status writes can report arrivals throughout this window, beyond the scheduled evening.
 Outside this window, private Plan status writes still succeed but carry no arrival receipts.
-Open-crawl arrival writes open at London midnight on the scheduled date and
-close 12 hours after the start. They refuse writes outside this shorter window.
-The private Plan page's relationship-based access rule is unchanged.
+Open-crawl writes use the shorter window in the
+[arrival API contract](../WRITE_SURFACE_CERTIFICATION.md#appapisocialcrewscrewidarrival-route-89).
 
 | Measure | Numerator | Denominator | Limits |
 |---|---|---|---|

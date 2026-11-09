@@ -1,26 +1,26 @@
 # Mutating API surface certification
 
-The Plan beacon and presentation entries declare the handler inventory.
-Their route tests and `__tests__/planNightStorePermissions.test.ts` exercise the permission contracts.
+The Plan beacon, presentation and open-crawl arrival entries declare the handler inventory.
+The Plan route tests and `__tests__/planNightStorePermissions.test.ts` exercise beacon and presentation permissions.
+`__tests__/permissionMatrixEffective.test.ts` exercises open-crawl arrival permissions.
 Source names and syntax do not establish their runtime protection.
 
 
 Wave 0 treats every exported `POST`, `PUT`, `PATCH`, or `DELETE` handler as a
 reviewed surface—even when a POST is semantically read-only. The regression test
 `__tests__/writeSurfaceCertification.test.ts` scans the complete `app/api` tree.
-Adding a mutating route or removing its authority/abuse boundary fails
-CI until this certification is deliberately updated.
+The test checks authority and abuse boundaries, with runtime-tested routes
+excluded from source-token checks.
 
-> **Inventory: 178 mutating handlers across 143 route files.** Each exported
+> Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
-> inventory. Both counts are merge-conflict coordination points.
+> inventory. TypeScript syntax-tree discovery in the test owns the handler counts.
 
 ## Certified mutation handlers
 
-This list is matched exactly against TypeScript syntax-tree discovery. Handler
-bodies are checked separately, including only local helpers each body calls.
-Protection in a sibling method cannot certify another method.
+The list below records the reviewed handlers. Source-token checks include only
+local helpers each handler calls. Protection in a sibling method cannot certify another method.
 
 <!-- mutation-handler-inventory:start -->
 - `DELETE app/api/[[...unmatched]]`
@@ -517,14 +517,16 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 
 #### `app/api/social/crews/[crewId]/arrival` (route 89)
 
-`POST` accepts only `{ here: true }`. A verified actor must be an active
+`POST` accepts only `{ here: true }`. Other bodies, including `{ here: false }`, return 422.
+A verified actor must be an active
 member of the named open crew. The server derives the Plan and seat from that
 membership and updates only the seat bound to that account. It reads authority
 again before minting the existing arrival receipts. Private and friends crews
 return 404. No Plan capability or account ID is returned. Arrival opens at London
 midnight on the scheduled date and closes 12 hours after the start.
-Marking Here is idempotent without a receipt key; analytics
-deduplicates each signed band per Plan and scheduled London date.
+Marking Here is idempotent without a receipt key. The endpoint cannot undo an arrival.
+The [arrival metric](analytics/METRICS.md#33-the-host-loop-and-hosted-night-arrivals)
+owns receipt counting and deduplication rules.
 
 ### `app/api/cheap-pint-ping` - weekday push preference
 

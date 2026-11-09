@@ -236,6 +236,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Choose **Ask to join** to request a place. The host accepts or declines the request.
   Crews that are not open and failed reads show a plain PUBMAXX image instead.
 
+  On the night, accepted open-crawl members can choose **I'm here** on the crew page.
+  The control marks your own place **Here** and does not undo an arrival.
+  See the [arrival API contract](docs/WRITE_SURFACE_CERTIFICATION.md#appapisocialcrewscrewidarrival-route-89) for the arrival window.
+
   If the signed-out London feed is empty, its [public next actions](docs/design/LAUNCH_SCREENS.md#social-action-order) appear before the body sign-in offer.
 
   On phones, posts appear before crews and other supporting tools. Desktop keeps those tools beside the feed. The Posts view links to **Messages**, **Your Pub Pal**, **Plan a crawl**, and **Save a Moment**. **Post** opens a composer with visibility guidance and a character count.
