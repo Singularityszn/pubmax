@@ -138,6 +138,7 @@ begin
     join public.plan_crew_members seat on seat.id = member.plan_member_id
     join public.private_social_accounts account on account.id = member.social_account_id
     join public.private_social_accounts owner_account on owner_account.id = crew.owner_account_id
+      and owner_account.ownership_state = 'active'
     where crew.plan_id = p_plan_id and member.social_account_id = p_social_account_id
       and member.state = 'active' and seat.membership_revoked_at is null
       and account.ownership_state = 'active'
@@ -204,6 +205,7 @@ begin
         join public.social_crew_members member on member.crew_id = crew.id
         join public.private_social_accounts account on account.id = member.social_account_id
         join public.private_social_accounts owner_account on owner_account.id = crew.owner_account_id
+          and owner_account.ownership_state = 'active'
         where crew.plan_id = p_plan_id and member.plan_member_id = seat.id
           and member.state = 'active' and account.ownership_state = 'active'
           and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id) is distinct from 'blocked')

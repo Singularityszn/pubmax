@@ -172,6 +172,41 @@ describe("live location consent at the account boundary", () => {
     expect(clearWatch).toHaveBeenCalledWith(7);
   });
 
+  it.each(["asking", "on", "no-signal", "failed"])("keeps Stop available after remounting a %s share during a read failure", async (status) => {
+    await mountPlan();
+    await click("Share my location tonight");
+    if (status !== "asking") {
+      await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    }
+    if (status === "no-signal") await act(async () => fail?.({ code: 2 } as GeolocationPositionError));
+    if (status === "failed") {
+      fetcher.mockResolvedValue(Response.json({}, { status: 503 }));
+      await click("Stop sharing");
+    }
+    await act(async () => root.render(null));
+    fetcher.mockImplementation(async (_input: unknown, init?: RequestInit) => {
+      if (init?.method !== "DELETE") return Response.json({}, { status: 503 });
+      sharing = false;
+      return Response.json(view());
+    });
+    await mountPlan();
+    expect(container.textContent).toContain("We couldn't check who's sharing");
+    await click("Stop sharing");
+    expect(clearWatch).toHaveBeenCalledWith(7);
+    expect(sharing).toBe(false);
+    expect(container.textContent).not.toContain("Stop sharing");
+    expect(watch).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears Stop controls after a terminal membership refusal", async () => {
+    await mountPlan();
+    await click("Share my location tonight");
+    fetcher.mockResolvedValue(Response.json({}, { status: 404 }));
+    await click("Stop sharing");
+    expect(clearWatch).toHaveBeenCalledWith(7);
+    expect(container.querySelector("section")).toBeNull();
+  });
+
   it("removes the old account's map dots before the next read finishes", async () => {
     const canvas = document.createElement("div");
     container.append(canvas);

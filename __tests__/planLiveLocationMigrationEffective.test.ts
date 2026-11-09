@@ -53,6 +53,7 @@ function seed(start = "now() + interval '3 hours'") {
     update public.plans set start_time=${start}, status='active' where id in ('${PLAN}','${OTHER_PLAN}','${CREW_PLAN}');
     update public.plan_crew_members set membership_revoked_at=null;
     update public.social_crew_members set state='active', ended_at=null;
+    update public.private_social_accounts set ownership_state='active' where id='${OWNER_ACCOUNT}';
     select public.set_social_block('${OWNER_USER}', '${MATE_USER}', false);
     select public.set_social_block('${MATE_USER}', '${OWNER_USER}', false);`);
 }
@@ -225,6 +226,17 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     db().sql(`update public.social_crew_members set state='left', ended_at=now() where id='${MATE_MEMBER}'`);
     expect(db().sql(`select count(*) from public.plan_live_locations`)).toBe("0");
     expect(call("read", null, { plan: CREW_PLAN, account: MATE_ACCOUNT })).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it.each(["read", "share", "stop"])("refuses %s when the Crew owner is suspended", (operation) => {
+    expect(call("share", null, { plan: CREW_PLAN, account: MATE_ACCOUNT }))
+      .toMatchObject({ ok: true, view: { sharing: true } });
+    db().sql(`update public.private_social_accounts set ownership_state='suspended' where id='${OWNER_ACCOUNT}'`);
+
+    expect(call(operation, null, { plan: CREW_PLAN, account: MATE_ACCOUNT, lat: 52 }))
+      .toEqual({ ok: false, error: "not_found" });
+    expect(db().sql(`select latitude from public.plan_live_locations where member_id='${MATE_SEAT}'`)).toBe("51.5138");
+    expect(db().sql("select count(*) from public.plan_live_location_stops")).toBe("0");
   });
 
   it.each([

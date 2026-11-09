@@ -60,6 +60,8 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
   const share = useSyncExternalStore(subscribeLiveShare, getSnapshot, () => OFF_SNAPSHOT);
   const status: LiveShareStatus = share.planId === seat.planId ? share.status : "off";
   const stopping = busy || status === "stopping";
+  const watching = status === "asking" || status === "on" || status === "no-signal";
+  const canStop = watching || status === "failed" || status === "stopping";
   const { planId, via, memberToken } = seat;
 
   const read = useCallback(async (signal?: AbortSignal) => {
@@ -110,8 +112,15 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
     setBusy(true);
     try {
       const response = await stopLiveLocationShare({ planId, via, memberToken });
+      if (response.status === 404) {
+        forgetLiveLocationNight(planId);
+        setView(null);
+        setProblem("");
+        return;
+      }
       if (!response.ok) throw new Error("not stopped");
       setView(parsePlanLiveLocationView(await response.json()) ?? view);
+      setProblem("");
     } catch {
       setProblem("We couldn't stop sharing. Try again.");
     } finally {
@@ -120,15 +129,16 @@ function LiveLocationMember({ seat }: Pick<Props, "seat">) {
   }
 
   if (!view) {
-    return problem ? (
-      <section className="liveLocation" aria-label="Share where you are">
-        <p role="alert">{problem}</p>
-        <Button variant="secondary" onClick={() => void read()}>Try again</Button>
+    return problem || canStop ? (
+      <section className="liveLocation" aria-label="Share where you are" aria-busy={stopping}>
+        {problem ? <p role="alert">{problem}</p> : null}
+        {STATUS_LINE[status] ? <p role="status">{STATUS_LINE[status]}</p> : null}
+        {canStop ? <Button variant="secondary" disabled={stopping} onClick={() => void stop()}>{stopping ? "Stopping" : "Stop sharing"}</Button> : null}
+        {problem ? <Button variant="secondary" onClick={() => void read()}>Try again</Button> : null}
       </section>
     ) : null;
   }
 
-  const watching = status === "asking" || status === "on" || status === "no-signal";
   const paused = (view.sharing || status === "failed" || status === "stopping") && !watching;
   const until = view.endsAt ? clock(view.endsAt) : null;
   return (

@@ -223,11 +223,11 @@ export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<D
       if (ownerSignal.aborted) throw ownerSignal.reason;
       const response = await request(current?.seat ?? seat, "DELETE", undefined, ownerSignal);
       if (stopping.get(seat.planId) === stop) {
-        if (response.ok) {
+        if (response.ok || response.status === 404) {
           stopping.delete(seat.planId);
           ownerSignal.removeEventListener("abort", stop.onOwnerChange);
         } else stop.promise = null;
-        publish(seat.planId, response.ok ? "off" : "failed");
+        publish(seat.planId, response.ok || response.status === 404 ? "off" : "failed");
       }
       return response;
     } catch (error) {
