@@ -120,8 +120,10 @@ describe("clean-main CI release gate", () => {
     // lint makes, and waiting put the two end to end on the slowest chain.
     expect(needs["production-build"]).toEqual([]);
     expect(needs.coverage).toEqual(["unit-tests"]);
-    expect(needs["validate-data"]).toEqual([]);
-    expect(needs["typecheck-ts6"]).toEqual([]);
+    // The merge queue proof runs only on a main push, so on a pull request
+    // these jobs still start at once.
+    expect(needs["validate-data"]).toEqual(["queue-proof"]);
+    expect(needs["typecheck-ts6"]).toEqual(["queue-proof"]);
   });
 
   it("validates every bundled dataset in its own job", () => {
@@ -239,7 +241,7 @@ describe("clean-main CI release gate", () => {
   it("starts the unit shards at once and in parallel", () => {
     // The shards build their own slim data and read nothing lint or the
     // production build make, so waiting on them only lengthens the path.
-    expect(parseJobNeeds(workflow)["unit-tests"]).toEqual([]);
+    expect(parseJobNeeds(workflow)["unit-tests"]).toEqual(["queue-proof"]);
     expect(ciJobs()["unit-tests"]?.strategy?.["max-parallel"]).toBeUndefined();
   });
 

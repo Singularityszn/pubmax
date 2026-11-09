@@ -25,8 +25,47 @@ concurrency:
 
 
 jobs:
+  # MERGE QUEUE PROOF (docs/CI_RUNBOOK.md, "The required checks and the merge
+  # queue"). The queue moves main to the exact commit it tested. A main push
+  # whose commit already passed this workflow in the queue skips each job that
+  # ran there, and still runs each job that only a main push runs. An API error
+  # reads "not proved", so every job runs. Every copy of this job is identical
+  # (__tests__/ciSummaryCheck.test.ts).
+  queue-proof:
+    name: Merge queue proof
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.proof.outputs.passed }}
+    steps:
+      - name: Find a green merge queue run of this workflow for this commit
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          path="${WORKFLOW_REF#"$REPO/"}"
+          path="${path%%@*}"
+          passed=false
+          if runs="$(gh api "repos/$REPO/actions/runs?event=merge_group&status=success&head_sha=$SHA&per_page=100")" &&
+            count="$(jq --arg path "$path" '[.workflow_runs[] | select(.path == $path)] | length' <<< "$runs")"; then
+            if [ "$count" -gt 0 ]; then passed=true; fi
+          else
+            echo "::warning::Could not read the merge queue runs for $SHA, so every job runs."
+          fi
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "Merge queue proof for $path at $SHA: $passed"
+
   rls-session:
     name: Effective RLS (Postgres 16 + PostgREST 14)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -128,7 +167,7 @@ jobs:
   check:
     name: RLS session check
     if: ${{ always() }}
-    needs: [rls-session]
+    needs: [queue-proof, rls-session]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

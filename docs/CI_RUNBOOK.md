@@ -43,6 +43,16 @@ as it was (captain, 7 Nov 2026), so they still run on each pull request push
 and each `main` push. A pull request enters the queue only after its own
 `Browser tests check`, which needs the layout pins, is green.
 
+The queue moves `main` to the exact commit it tested, so a `main` push does
+not run that work again. In `ci.yml`, `e2e.yml`, `rls-session.yml` and
+`security-ci.yml`, the `Merge queue proof` job runs on a push only. It looks
+for a green `merge_group` run of the same workflow for the pushed commit. When
+it finds one, each job that ran in the queue is skipped. A job that the queue
+does not run still runs: `Review scope`, `Production build` (it saves the
+build cache) and the layout pins. When the proof finds no run, or the API
+call fails, every job runs. `__tests__/ciSummaryCheck.test.ts` holds which
+jobs run for each event.
+
 Security CI blocks merging through `Security CI check` and runs in the queue.
 See [Security CI is blocking](#security-ci-is-blocking). A retried test still fails its gate:
 `scripts/assert-playwright-gate.mjs` counts a pass on retry as a failure, so
@@ -171,7 +181,10 @@ them installs them:
   not use a service container.
 - **Playwright Chromium** with `npx playwright install --with-deps chromium`
   in the browser and performance jobs. On macOS `--with-deps` needs no
-  system packages or `sudo`. Playwright still installs Chromium.
+  system packages or `sudo`. Playwright still installs Chromium. A Mac job
+  first restores the browsers from GitHub's cache through
+  `.github/actions/pubmax-playwright-browsers`, keyed on the installed
+  Playwright version, so the install finds Chromium and skips the download.
 - **zizmor, osv-scanner, gitleaks and Semgrep** in
   [`security-ci.yml`](../.github/workflows/security-ci.yml), which owns their
   versions and checksum pins.
@@ -230,7 +243,9 @@ with no `sudo`. So a Mac job:
   start and end of every job. The default `~/.npm` and
   `~/Library/Caches/ms-playwright` would carry one job's downloads into the
   next. `actions/setup-node` still restores and saves the npm cache through
-  GitHub's cache.
+  GitHub's cache, and `.github/actions/pubmax-playwright-browsers` does the
+  same for the browser folder. It refuses a browser path outside
+  `RUNNER_TEMP`.
 - **Installs Node with `actions/setup-node`** before any step that runs
   `node`. The place has no Node of its own. `Performance budget` records its
   start time with the shell for that reason.
