@@ -1,27 +1,15 @@
 // Re-collect the bundled London pint prices from their own source and apply the
 // fresh figures IN PLACE.
 //
-// WHY THIS EXISTS, and why it is not `npm run export:data`.
+// The bundle contains rows and fields absent from the CSV. Re-exporting the
+// CSV cannot preserve those layers, so this lane updates held rows in place.
+// Collection and publication instructions: data/README.md#re-collecting-the-prices.
 //
-// The freshness registry names the pint dataset's refresh workflow as
-// `export:data -> canonicalize:venues -> build:slim`. Run as named, that
-// workflow cannot refresh anything and actively regresses the bundle:
-//
-//   * export:data re-exports data/pint_prices_app_dataset.csv, the SAME
-//     committed July extract. It re-reads no page, so it produces no newer
-//     observation. Stamping a fresh collection date onto its output would be
-//     inventing a re-collection nobody performed.
-//   * The committed artifact is LAYERED. Rows from the outer-London OSM merge,
-//     the Wikipedia list, the outer-London gazetteer seed and the chain
-//     gazetteer seed were added AFTER the export, and the CSV does not carry
-//     them. A measured run of the named workflow took the bundle from 3,761
-//     rows to 2,719: a silent loss of 1,240 committed product rows.
-//
-// So the collection half is here, and it is additive by construction: it only
-// ever rewrites the PRICE of a row that already exists, and it can neither add
-// a row nor remove one. Identity fields, venue ids, boroughs, coordinates and
-// every layer are untouched, so nothing downstream that stores an app price id
-// is disturbed.
+// A ROW IS READ AGAINST ITS OWN LISTING PAGE. The venue canonicalizer rewrites
+// a merged row's name, address and point to another listing's, and leaves
+// `pub_url` alone. So a held row is matched by the listing its `pub_url` (or
+// `constructed_pub_url`) names, never by its display name, and a row with no
+// pint-prices listing is not this lane's to re-read.
 //
 // EVERY ROW CARRIES THE DAY IT WAS READ. A row the source still states takes
 // this run's instant in `scraped_at_values`, whether or not its figure moved,
@@ -32,10 +20,6 @@
 // The registry stamp stays owned by scripts/export_app_dataset_json.py
 // (--collected-at, with --stamp-only for this lane), so one writer keeps the
 // single source of truth.
-//
-// The source is pint-prices.com, the same publisher the committed extract came
-// from (data/README.md), and this reads only the pages the original extract
-// read: 32 borough pages plus the pub pages the sitemap lists.
 //
 // NOTHING IS FETCHED WITHOUT PERMISSION, AND PERMISSION IS NOT A COMMENT.
 // pint-prices.com is a price AGGREGATOR, not the pubs' own publisher, so it is
@@ -50,17 +34,25 @@
 //
 // A READ WE COULD NOT RUN WRITES NOTHING. If the source answers with fewer
 // observations than MIN_OBSERVATION_FLOOR, or covers less than
-// MIN_COVERAGE_RATIO of the priced rows we hold, the run refuses and exits
-// non-zero rather than publish a thin re-collection as a full one.
+// MIN_COVERAGE_RATIO of held priced rows with a pint-prices listing URL,
+// the run refuses and exits non-zero rather than publish a thin read as a full one.
+//
+// A CAPTURE IS REPLAYED, NOT FETCHED. `--capture <dir>` reads the pages an
+// earlier collection saved (see `readCapture`) instead of the network, so the
+// policy row is not asked: nothing is fetched. Its rows are dated by the
+// capture's own last request.
 //
 // Usage:
 //   node scripts/refresh_pint_price_observations.mjs --report-only
 //   node scripts/refresh_pint_price_observations.mjs
+//   node scripts/refresh_pint_price_observations.mjs --capture <dir> \
+//     --attach-matched-listings --unmatched-report <path>
 
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import {
@@ -68,6 +60,13 @@ import {
   harvestSource,
   isHarvestableOperatorUrl,
 } from "../lib/harvest/sourcePolicy.ts";
+import {
+  attachMatchedListings,
+  listingFromPubUrl,
+  normaliseKey,
+  rowListing,
+  rowObservationKey,
+} from "./lib/pintPricesListings.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -85,6 +84,8 @@ const WRITABLE_CSV_COLUMNS = new Set(["price_gbp", "price_text", "scraped_at_val
 /** The sourceRegistry row this lane needs before it may send one request. */
 export const PINT_PRICES_SOURCE_ID = "pint-prices-com";
 const SITEMAP_PATH = "/static/sitemap.xml";
+// The origin a capture replay reads its sitemap from: the host it was read on.
+const PINT_PRICES_ORIGIN = "https://www.pint-prices.com";
 // OUR name, our URL and our contact, the same harvest identity the other
 // harvest CLIs send. The old string named the source's own site, which told it
 // the bot was theirs.
@@ -101,9 +102,6 @@ const DEFAULT_REQUEST_DELAY_MS = 1_000;
 const MIN_OBSERVATION_FLOOR = 2000;
 const MIN_COVERAGE_RATIO = 0.85;
 
-function normaliseKey(...parts) {
-  return parts.map((part) => String(part ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")).join("::");
-}
 
 function cleanText(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
@@ -197,7 +195,7 @@ async function readSitemapUrls(fetchText, origin) {
  * empty page now; their pubs are still read through the pub-page lane below,
  * so an empty borough page is counted rather than treated as a failure.
  */
-function readBoroughObservations(html, observations) {
+function readBoroughObservations(html, observations, listings) {
   const match = /var\s+pubsData\s*=\s*(\{[\s\S]*?\});\s*\n/.exec(html);
   if (!match) return 0;
   let data;
@@ -212,6 +210,7 @@ function readBoroughObservations(html, observations) {
       const price = priceToFloat(pint?.[1]);
       if (price === null) continue;
       record(observations, pub?.name, pub?.address, pint?.[0], price);
+      recordListing(listings, { ...pub, url: null }, pint?.[0], price);
       count += 1;
     }
   }
@@ -223,7 +222,7 @@ function readBoroughObservations(html, observations) {
  * leaderboard of three-cell rows. Parsed with the same shape the original
  * Python extractor reads, so both lanes agree on what a row is.
  */
-function readPubPageObservations(html, observations) {
+function readPubPageObservations(html, observations, listings, pageUrl) {
   const detailStart = html.indexOf("detail-box");
   const boardStart = html.indexOf('class="leaderboard"');
   if (detailStart < 0 || boardStart < 0) return 0;
@@ -239,7 +238,13 @@ function readPubPageObservations(html, observations) {
   // later `class="row"` elsewhere on the page out of the price rows.
   const boardEnd = html.indexOf("</section>", boardStart);
   const board = html.slice(boardStart, boardEnd < 0 ? html.length : boardEnd);
-
+  const page = listingFromPubUrl(pageUrl);
+  const listing = {
+    ...(page ?? { name, address }),
+    latitude: /var lat = "([^"]+)"/.exec(html)?.[1],
+    longitude: /var lon = "([^"]+)"/.exec(html)?.[1],
+    url: pageUrl,
+  };
   let count = 0;
   for (const chunk of board.split(/<div[^>]*class="[^"]*\brow\b/)) {
     if (/^[^>]*\bheader\b/.test(chunk)) continue;
@@ -250,6 +255,12 @@ function readPubPageObservations(html, observations) {
     const price = priceToFloat(cells[2]);
     if (price === null) continue;
     record(observations, name, address, cells[1], price);
+    // The page's own URL names the listing a held row points at, and the
+    // heading can spell it differently, so the price is filed under both.
+    if (page && normaliseKey(page.name, page.address) !== normaliseKey(name, address)) {
+      record(observations, page.name, page.address, cells[1], price);
+    }
+    recordListing(listings, listing, cells[1], price);
     count += 1;
   }
   return count;
@@ -284,6 +295,31 @@ function record(observations, name, address, pint, price) {
   else observations.set(key, new Set([price]));
 }
 
+/** A listing with its own point and page, for the rows no held row states. */
+function recordListing(listings, pub, pint, price) {
+  const name = cleanText(pub?.name);
+  const address = cleanText(pub?.address);
+  const pintName = cleanText(pint);
+  if (!name || !address || !pintName) return;
+  const key = normaliseKey(name, address);
+  let listing = listings.get(key);
+  if (!listing) {
+    listing = {
+      name,
+      address,
+      latitude: Number(pub?.latitude),
+      longitude: Number(pub?.longitude),
+      url: pub?.url ?? null,
+      pints: new Map(),
+    };
+    listings.set(key, listing);
+  }
+  const pintKey = normaliseKey(pintName);
+  const held = listing.pints.get(pintKey);
+  if (held) held.prices.add(price);
+  else listing.pints.set(pintKey, { pint: pintName, prices: new Set([price]) });
+}
+
 export async function collect({
   source: candidate = harvestSource(PINT_PRICES_SOURCE_ID),
   fetchImpl = fetch,
@@ -294,24 +330,57 @@ export async function collect({
   const source = permittedPintPricesSource(candidate);
   const delayMs = source.crawlDelaySeconds ? source.crawlDelaySeconds * 1000 : DEFAULT_REQUEST_DELAY_MS;
   const fetchText = createSourceReader(source, { fetchImpl, robots });
-  const { boroughs, pubs } = await readSitemapUrls(fetchText, new URL(source.url).origin);
+  return readPintPricesPages(fetchText, new URL(source.url).origin, () => sleepImpl(delayMs));
+}
+
+/**
+ * Pages read on an earlier, permitted collection, replayed from disk. Nothing
+ * is fetched. `dir` holds `fetch_log.jsonl` (one `{url, status, at}` per
+ * request) and `raw/<first 16 hex of sha1(url)>.html.gz`. Only a page the log
+ * records as answered 200 is read, and `collectedAt` is the last request's
+ * instant. Re-observed and attached rows share that capture timestamp.
+ */
+export async function readCapture(dir) {
+  const log = new Map();
+  for (const line of (await readFile(path.join(dir, "fetch_log.jsonl"), "utf8")).split("\n")) {
+    if (!line.trim()) continue;
+    const entry = JSON.parse(line);
+    log.set(entry.url, entry);
+  }
+  const instants = [...log.values()].map((entry) => Date.parse(entry.at)).filter(Number.isFinite);
+  if (instants.length === 0) throw new Error(`${dir}/fetch_log.jsonl records no request`);
+  return {
+    collectedAt: new Date(Math.max(...instants)).toISOString().replace(/\.\d{3}Z$/, "+00:00"),
+    async fetchText(url) {
+      if (log.get(url)?.status !== 200) throw new Error(`${url} is not an answered page in ${dir}`);
+      const name = `${createHash("sha1").update(url).digest("hex").slice(0, 16)}.html.gz`;
+      return gunzipSync(await readFile(path.join(dir, "raw", name))).toString("utf8");
+    },
+  };
+}
+
+/** Read every borough and pub page the source's sitemap lists. */
+export async function readPintPricesPages(fetchText, origin, pause = async () => {}) {
+  const { boroughs, pubs } = await readSitemapUrls(fetchText, origin);
   const observations = new Map();
+  const listings = new Map();
   let boroughPagesWithData = 0;
 
   for (const url of boroughs) {
-    await sleepImpl(delayMs);
-    const rows = readBoroughObservations(await fetchText(url), observations);
+    await pause();
+    const rows = readBoroughObservations(await fetchText(url), observations, listings);
     if (rows > 0) boroughPagesWithData += 1;
   }
   let pubPagesWithData = 0;
   for (const url of pubs) {
-    await sleepImpl(delayMs);
-    const rows = readPubPageObservations(await fetchText(url), observations);
+    await pause();
+    const rows = readPubPageObservations(await fetchText(url), observations, listings, url);
     if (rows > 0) pubPagesWithData += 1;
   }
 
   return {
     observations,
+    listings,
     boroughPages: boroughs.length,
     boroughPagesWithData,
     pubPages: pubs.length,
@@ -320,8 +389,12 @@ export async function collect({
 }
 
 /** Decide the fresh figure for one held row, or null when nothing was read. */
-function freshPriceFor(observations, row) {
-  const observed = observations.get(normaliseKey(row.pub_name, row.address, row.pint_name));
+export function freshPriceFor(observations, row) {
+  // A row is read against the listing page its price came from, never its
+  // display name: the canonicalizer rewrites a merged row's name and address
+  // to another listing's, and that listing's price is not this row's.
+  const key = rowObservationKey(row);
+  const observed = key ? observations.get(key) : undefined;
   if (!observed) return null;
   const held = Number(row.price_gbp);
   // A pub listing the same pint at several prices keeps the figure it already
@@ -411,20 +484,33 @@ function assertOnlyPriceColumnsMoved(before, after, header) {
   }
 }
 
+function argValue(name) {
+  const index = process.argv.indexOf(name);
+  return index < 0 ? null : (process.argv[index + 1] ?? null);
+}
+
 async function main() {
+  const captureDir = argValue("--capture");
   // Refuse before reading anything, local files included, when no policy row
-  // permits this source.
-  permittedPintPricesSource();
+  // permits this source. A capture replay fetches nothing.
+  if (!captureDir) permittedPintPricesSource();
   const reportOnly = process.argv.includes("--report-only");
-  const collectedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "+00:00");
+  const attach = process.argv.includes("--attach-matched-listings");
+  const unmatchedPath = argValue("--unmatched-report");
+
+  const capture = captureDir ? await readCapture(path.resolve(captureDir)) : null;
+  const collectedAt = capture?.collectedAt ?? new Date().toISOString().replace(/\.\d{3}Z$/, "+00:00");
 
   const rows = JSON.parse(await readFile(DATASET_JSON, "utf8"));
   if (!Array.isArray(rows)) throw new Error(`Expected an array in ${DATASET_JSON}`);
+  // Only a row read from a pint-prices listing is this lane's to re-read.
   const pricedRows = rows.filter(
-    (row) => typeof row.price_gbp === "number" && Number.isFinite(row.price_gbp),
+    (row) => typeof row.price_gbp === "number" && Number.isFinite(row.price_gbp) && rowListing(row),
   );
 
-  const collected = await collect();
+  const collected = capture
+    ? await readPintPricesPages(capture.fetchText, PINT_PRICES_ORIGIN)
+    : await collect();
   const { observations } = collected;
 
   console.log(
@@ -464,6 +550,20 @@ async function main() {
     );
   }
 
+  const { added, unmatched } = attach
+    ? attachMatchedListings(rows, collected.listings, collectedAt)
+    : { added: [], unmatched: [] };
+  if (attach) {
+    const reasons = Object.entries(Object.groupBy(unmatched, (row) => row.reason))
+      .map(([reason, list]) => `${reason} ${list.length}`)
+      .join(", ");
+    console.log(`Attached ${added.length} new pint row(s) to held venues; unmatched: ${reasons || "none"}`);
+    if (unmatchedPath) {
+      await writeFile(unmatchedPath, unmatched.map((row) => JSON.stringify(row)).join("\n") + "\n", "utf8");
+      console.log(`Wrote ${unmatched.length} unmatched row(s) to ${unmatchedPath}`);
+    }
+  }
+
   if (reportOnly) {
     console.log("--report-only: nothing written");
     return;
@@ -476,25 +576,27 @@ async function main() {
     row.price_text = priceText(row.price_gbp);
     row.scraped_at_values = collectedAt;
   }
-  await writeFile(DATASET_JSON, JSON.stringify(rows), "utf8");
+  await writeFile(DATASET_JSON, JSON.stringify([...rows, ...added]), "utf8");
 
   // The CSV is the export's input, so it takes the same figures: leaving it
   // behind would make the next `npm run export:data` revert this collection.
-  // Each record is read against the source by its OWN pub, address and pint,
-  // never by the bundle's app price id: the CSV's ids were reassigned by a
-  // later build and no longer name the same rows the bundle's ids name.
+  // Each record is read against the source by its OWN listing and pint, never
+  // by the bundle's app price id: the CSV's ids were reassigned by a later
+  // build and no longer name the same rows the bundle's ids name.
   const csv = await readFile(DATASET_CSV, "utf8");
   const records = splitCsvRecords(csv);
   const header = splitCsvLine(records[0]);
-  const nameIndex = header.indexOf("pub_name");
-  const addressIndex = header.indexOf("address");
+  const pubUrlIndex = header.indexOf("pub_url");
+  const constructedUrlIndex = header.indexOf("constructed_pub_url");
   const pintIndex = header.indexOf("pint_name");
   const priceIndex = header.indexOf("price_gbp");
   const textIndex = header.indexOf("price_text");
   const scrapedIndex = header.indexOf("scraped_at_values");
-  if ([nameIndex, addressIndex, pintIndex, priceIndex, textIndex, scrapedIndex].some((index) => index < 0)) {
+  if (
+    [pubUrlIndex, constructedUrlIndex, pintIndex, priceIndex, textIndex, scrapedIndex].some((index) => index < 0)
+  ) {
     throw new Error(
-      `${DATASET_CSV} is missing pub_name/address/pint_name/price_gbp/price_text/scraped_at_values`,
+      `${DATASET_CSV} is missing pub_url/constructed_pub_url/pint_name/price_gbp/price_text/scraped_at_values`,
     );
   }
   let csvChanged = 0;
@@ -507,8 +609,8 @@ async function main() {
     const cells = splitCsvLine(record);
     const fresh = Number.isFinite(Number.parseFloat(cells[priceIndex]))
       ? freshPriceFor(observations, {
-          pub_name: cells[nameIndex],
-          address: cells[addressIndex],
+          pub_url: cells[pubUrlIndex],
+          constructed_pub_url: cells[constructedUrlIndex],
           pint_name: cells[pintIndex],
           price_gbp: cells[priceIndex],
         })

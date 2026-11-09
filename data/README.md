@@ -4,15 +4,10 @@ Source: https://www.pint-prices.com/
 
 First full extract: `2026-07-03T23:10:47+00:00`
 
-Last price re-collection: `2026-10-02T11:48:33+00:00`
-
-The machine-readable collection stamp lives in `data/freshness_registry.json`
-(the `pint_prices` entry), anchored at noon UTC on the collection's UTC day
-(`2026-10-02T12:00:00Z`). `lib/dataFreshness.ts` `PINT_DATASET_OBSERVED_AT` is
-derived from it at build time (a drift test pins them together); the export
-pipeline rewrites it via `scripts/export_app_dataset_json.py --collected-at
-<ISO>`. Both timestamps above are documentation of the raw reads, not
-independently-authored sources.
+The current collection stamp lives in `data/freshness_registry.json`
+(the `pint_prices` entry), anchored at noon UTC on the collection's UTC day.
+`lib/dataFreshness.ts` derives `PINT_DATASET_OBSERVED_AT` from this stamp at build time.
+The export pipeline writes it via `scripts/export_app_dataset_json.py --collected-at <ISO>`.
 
 That stamp is the day the DATASET was last collected. It is not the date a pub
 shows. Every row carries its own `scraped_at_values`, the instant that row was
@@ -29,32 +24,50 @@ the day it was read, and a row that records no read (the outer-London gazetteer
 seed, for one) claims no listing and prints no collection day. A shared stamp is
 never applied to an unread row.
 
+Tests that need fresh bundled prices use `PINT_DATASET_TEST_NOW` from
+`__tests__/helpers/pintDatasetClock.ts`. This clock follows both the registry stamp and the latest row read.
+
 ## Re-collecting the prices
 
-`node scripts/refresh_pint_price_observations.mjs` re-reads the same 32 borough
-pages and 932 pub pages the first extract read. It REFUSES before any request
+`node scripts/refresh_pint_price_observations.mjs` reads the borough and pub pages
+listed in the source's sitemap. It refuses before any network request
 until `lib/harvest/sourceRegistry.ts` holds an allowed `pint-prices-com` row with a
 `nonFirstPartyException`, because pint-prices.com is an aggregator rather than a
-pub's own site; that row is the captain's call. With the row in place, every
+pub's own site. That row is the captain's call. With the row in place, every
 page is asked of robots.txt live and must stay on the row's own host. For every row the source still
 states, it writes the figure the source states and stamps the row's
 `scraped_at_values` with the run's instant, whether or not the figure moved. It
-can neither add a row nor remove one, so the layered artifact below keeps every
-row it holds. The CSV is read against the source by each record's own pub,
-address and pint, never by the bundle's `app_price_id`: a later build reassigned
-the CSV's ids, so they no longer name the records the bundle's ids name. Then
-stamp the registry:
+never removes a row, so the layered artifact below keeps every row it holds.
+Each row and CSV record is read against the listing page in its own `pub_url`
+(or `constructed_pub_url`), never by its display name or the bundle's
+`app_price_id`. The venue canonicalizer rewrites a merged row's name and address
+to another listing's, and a later build reassigned the CSV's ids.
+
+`--capture <dir>` replays saved pages without network requests or a source-policy check.
+It dates re-observed and attached rows by the capture's last logged request.
+The [`readCapture` comment](../scripts/refresh_pint_price_observations.mjs) defines the capture file format.
+
+`--attach-matched-listings` adds a priced row for a pint no held row states,
+only where the canonicalizer's same-pub rule puts its listing on exactly one
+venue the dataset already holds. It never adds a venue.
+Listings need coordinates within the London boundary, and a venue that already prices the pint keeps its row.
+New rows enter only the bundled JSON, not the CSV.
+With `--unmatched-report <path>`, the command writes rejected pints and their reasons to that file.
+`--report-only` leaves the datasets unchanged but still writes a requested unmatched report.
+The coverage check counts only held priced rows with a Pint Prices listing URL.
+The script defines minimum observation and coverage limits.
+Then stamp the registry with the collection instant reported by the command:
 
     python3 scripts/export_app_dataset_json.py --collected-at <ISO> --stamp-only
 
-The registry names `export:data -> canonicalize:venues -> build:slim` as the
-refresh workflow, and that workflow re-collects nothing: `export:data` re-exports
-this same CSV. It is also NOT a safe way to regenerate the bundle on its own,
+The registry's `refreshWorkflow` names the remaining publication steps.
+`npm run export:data` re-exports this same CSV and collects no prices.
+It is not a safe way to regenerate the bundle on its own,
 because `public/data/pint_prices_app_dataset.json` is LAYERED - the outer-London
 OSM merge, the Wikipedia London list and the two gazetteer seeds add rows the CSV
-does not carry. A plain re-export publishes 2,719 rows over the 3,761 committed
-ones, so the export now refuses that loss unless `--allow-row-loss` says it is
-intended. The amenity cells stamped from each pub's own website are layered too:
+does not carry. Optional matched price rows are also absent from the CSV.
+The export refuses a row loss unless `--allow-row-loss` says it is intended.
+The amenity cells stamped from each pub's own website are layered too:
 the CSV does not carry them and the row-loss guard cannot see them, so after a
 re-export run `npm run harvest:pub-website-amenities -- --restamp`. It stamps
 `data/amenities/london_pub_website_evidence.json` back onto the dataset with no

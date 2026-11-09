@@ -8,10 +8,14 @@ import { buildLastOrdersPacks } from "@/scripts/build_last_orders_pack.mjs";
 import { venueFromDetailArtifact } from "@/lib/venueDetailIndex";
 import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
+import { priceRowReadDay } from "@/lib/priceReadDay.mjs";
+import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
+import { DAY_MS } from "@/lib/dayMs";
 
 describe("selected serving evidence in the published price packs", () => {
   it("keeps the first equal-price row in the actual generated detail artifact", () => {
-    const id = "venue-1bckkxz";
+    // Two pint-prices listings of one pub state the same cheapest pint.
+    const id = "venue-1dydno";
     const manifest = JSON.parse(readFileSync("data/generated/venue_detail_index.json", "utf8")) as { venues: Record<string, { offset: number; length: number }> };
     const entry = manifest.venues[id]!;
     const bytes = readFileSync("data/generated/venue_details.jsonl").subarray(entry.offset, entry.offset + entry.length);
@@ -24,7 +28,21 @@ describe("selected serving evidence in the published price packs", () => {
     const detail = venueFromDetailArtifact(artifact, id);
     expect(detail?.prices[0]).toMatchObject({ pint_name: tied[0].pint_name, pub_url: tied[0].pub_url, scraped_at_values: tied[0].scraped_at_values });
     expect(legacyCheapestPriceEvidence(live, minimum)).toMatchObject({ priceSource: "Pint Prices" });
-    expect(buildSlimPriceEvidence(live, minimum).priceObservedAt).toBe("2026-10-02");
+    expect(buildSlimPriceEvidence(live, minimum).priceObservedAt).toBe(priceRowReadDay(tied[0]));
+  });
+
+  it("keeps the first minimum row's publisher and date when a tied row is newer", () => {
+    const firstRead = new Date(PINT_DATASET_TEST_NOW - DAY_MS).toISOString();
+    const laterRead = new Date(PINT_DATASET_TEST_NOW).toISOString();
+    const rows = [
+      { price_gbp: 5, pint_name: "Lager", pub_url: "https://first.example/menu", scraped_at_values: firstRead },
+      { price_gbp: 5, pint_name: "Stout", pub_url: "https://later.example/menu", scraped_at_values: laterRead },
+    ];
+    expect(priceRowReadDay(rows[0])).not.toBe(priceRowReadDay(rows[1]));
+    expect(buildSlimPriceEvidence(rows, 5)).toEqual({ priceSource: "first.example", priceObservedAt: priceRowReadDay(rows[0]) });
+    expect(legacyCheapestPriceEvidence(rows, 5)).toMatchObject({
+      cheapestPint: "Lager", priceSource: "first.example", priceObservedAt: firstRead,
+    });
   });
   it.each([
     ["Half-pint lager", "half"],

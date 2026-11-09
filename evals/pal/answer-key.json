@@ -41,8 +41,8 @@
     },
     "cheapest-near-lamb": {
       "minCards": 1,
-      "topVenueId": "venue-1rzudoh",
-      "topPrice": 7.1,
+      "topVenueId": "venue-19mn6ss",
+      "topPrice": 5.5,
       "expectedTools": [
         "cheapest_pint_near"
       ]

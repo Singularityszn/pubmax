@@ -76,7 +76,7 @@ import * as routeEvidenceServer from "@/lib/planRouteEvidence.server";
 import * as routeEvidence from "@/lib/planRouteEvidence";
 import * as planGeneration from "@/lib/planGeneration.server";
 import * as planGrounding from "@/lib/planGrounding.server";
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
 import * as supabase from "@/lib/supabase";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { PlanIntakeHandoff } from "@/lib/planIntake";
@@ -102,7 +102,7 @@ export {
   walkRouteStoreMock,
 };
 
-export const PLAN_GENERATION_TEST_NOW = PINT_DATASET_OBSERVED_AT.getTime() + 1_000;
+export const PLAN_GENERATION_TEST_NOW = PINT_DATASET_TEST_NOW;
 
 /** Whether any request so far charged a paid-spend lane. Plan generation must not. */
 export function chargedPaidLane(): boolean {

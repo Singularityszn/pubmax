@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase", () => ({ clientIp: () => "203.0.113.44", hashIp: (ip: 
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { createPalChatSession } from "@/lib/palChatClient";
 import { AnswerCard } from "@/components/pal/PalChat";
+import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -37,7 +38,7 @@ it("renders app_price_002044's drink, stated serving, publisher and source-read 
     expect(host.textContent).toContain("Paulaner · Serving not recorded");
     expect(host.textContent).not.toContain("Drink not recorded");
     expect(host.textContent).toContain("Pint Prices");
-    expect(host.textContent).toContain("Source read 2 October 2026");
+    expect(host.textContent).toContain(`Source read ${bundledReadDay("app_price_002044").words}`);
     expect(onOpen).not.toHaveBeenCalled();
   } finally {
     await act(async () => root.unmount());

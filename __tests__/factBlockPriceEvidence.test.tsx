@@ -51,7 +51,7 @@ describe("fact prices keep their own evidence and population", () => {
     expect(bbar.cheapestPint).toBe("BOTTLED BEER");
     expect(listedDrinkCoverage([bbar], [])).toMatchObject({ total: 1, pricedPubs: 0, counts: { beer: 0 } });
     const stats = pintFactStats(pubs, "London", "london");
-    expect(stats.pubCount).toBe(934);
+    expect(stats.pubCount).toBe(937);
     expect(stats.totalPubCount).toBe(2180);
     expect(stats.undatedCount).toBe(63);
     expect(stats.minPubName).toBe("J.J. Moon's");

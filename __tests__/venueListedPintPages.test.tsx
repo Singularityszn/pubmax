@@ -29,6 +29,7 @@ import InvitePage, { generateMetadata as inviteMetadata } from "@/app/invite/[to
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import * as venueDetails from "@/lib/venueDetailIndex";
 import { venueListedPint } from "@/lib/venueListedPint";
+import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 describe("pint receipts on venue pages", () => {
   it("carries Small Beer's bundled listing into the cached Ledger document", async () => {
@@ -72,8 +73,9 @@ describe("pint receipts on venue pages", () => {
     expect(root.querySelector("h1")?.textContent).toBe("Prospect of Whitby");
     expect(root.textContent).toContain("£5.00");
     expect(root.textContent).toContain("Prospect Ale");
-    expect(root.textContent).toContain("Listed by Pint Prices, collected 2 October 2026.");
-    expect(root.querySelector('time[datetime="2026-10-02"]')).not.toBeNull();
+    const read = bundledReadDay("app_price_002417");
+    expect(root.textContent).toContain(`Listed by Pint Prices, collected ${read.words}.`);
+    expect(root.querySelector(`time[datetime="${read.iso}"]`)).not.toBeNull();
     expect(root.querySelector('a[href="https://www.pint-prices.com/pub/57%20Wapping%20Wall,%20E1W%203SH/Prospect%20of%20Whitby"]')).not.toBeNull();
   });
 
@@ -144,7 +146,7 @@ describe("pint receipts on venue pages", () => {
     expect(root.textContent).toContain(venueName);
     if (price) {
       expect(root.textContent).toContain(`${price} per pint`);
-      expect(root.textContent).toContain("Listed by Pint Prices, collected 2 October 2026.");
+      expect(root.textContent).toContain(`Listed by Pint Prices, collected ${bundledReadDay("app_price_002417").words}.`);
       expect(metadata.description).toContain(`${price} per pint`);
     } else {
       expect(root.textContent).not.toContain("£25.00");

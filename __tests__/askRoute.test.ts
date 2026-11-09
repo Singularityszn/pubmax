@@ -32,6 +32,7 @@ import { runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
 import { resetJourneyCache } from "@/lib/citymcp/client";
 import { PAL_WEB_GROUNDING } from "@/lib/palChat";
+import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", offlineFetch);
@@ -265,7 +266,7 @@ describe("POST /api/ask", () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     const card = body.cards.find((item: { venueId: string }) => item.venueId === "venue-e1srzr");
-    expect(card).toMatchObject({ price: 6.25, provenance: { kind: "directory", label: "Pint Prices. Source read 2 October 2026." } });
+    expect(card).toMatchObject({ price: 6.25, provenance: { kind: "directory", label: `Pint Prices. Source read ${bundledReadDay("app_price_000239").words}.` } });
   });
 
   it("asks for a listed pub instead of arbitrary cards for an unanchored pint comparison", async () => {
