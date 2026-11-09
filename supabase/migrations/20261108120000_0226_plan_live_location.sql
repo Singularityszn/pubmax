@@ -60,13 +60,13 @@ for each row when (new.state <> 'active')
 execute function public.forget_plan_live_locations();
 
 -- The Plan's end (start + 8 hours) or the first 06:00 London time after the
--- start, whichever comes first. lib/planLiveLocation.ts mirrors it.
+-- window opens, whichever comes first. lib/planLiveLocation.ts mirrors it.
 create function public.plan_live_location_ends_at(p_start timestamptz) returns timestamptz
 language sql stable set search_path = '' as $$
   select least(
     p_start + interval '8 hours',
-    (date_trunc('day', p_start at time zone 'Europe/London')
-      + case when (p_start at time zone 'Europe/London')::time < time '06:00'
+    (date_trunc('day', (p_start - interval '3 hours') at time zone 'Europe/London')
+      + case when ((p_start - interval '3 hours') at time zone 'Europe/London')::time < time '06:00'
         then interval '6 hours' else interval '30 hours' end) at time zone 'Europe/London'
   );
 $$;

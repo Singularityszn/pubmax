@@ -114,6 +114,8 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
   it.each([
     ["an evening start ends with the Plan", "2026-11-07T20:00:00Z", "2026-11-08T04:00:00Z"],
     ["a late start ends at 06:00 in winter", "2026-11-08T01:00:00Z", "2026-11-08T06:00:00Z"],
+    ["an 08:00 winter start ends at the intervening 06:00", "2026-11-08T08:00:00Z", "2026-11-08T06:00:00Z"],
+    ["a window opening at 06:00 ends with the Plan", "2026-11-08T09:00:00Z", "2026-11-08T17:00:00Z"],
     ["a late start ends at 06:00 in summer time", "2026-07-11T00:30:00Z", "2026-07-11T05:00:00Z"],
     ["a daytime start ends with the Plan", "2026-07-11T12:00:00Z", "2026-07-11T20:00:00Z"],
   ])("%s", (_name, start, end) => {

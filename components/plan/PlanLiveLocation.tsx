@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { forgetLiveLocationNight, rememberLiveLocationNight } from "@/lib/liveLocationNight";
 import { LIVE_LOCATION_STALE_MS, parsePlanLiveLocationView, type PlanLiveLocationView } from "@/lib/planLiveLocation";
 import {
@@ -54,20 +55,22 @@ type Props = { seat: LiveLocationSeat; ownerKey: string };
 /** The remount boundary drops one owner's view before another can paint. */
 export default function PlanLiveLocation({ seat, ownerKey }: Props) {
   if (!ownerKey || (seat.via === "plan" && !seat.memberToken)) return null;
-  return <LiveLocationMember key={`${seat.planId}:${seat.via}:${seat.memberToken ?? ""}:${ownerKey}`} seat={seat} />;
+  return <LiveLocationMember key={`${seat.planId}:${seat.via}:${seat.memberToken ?? ""}:${ownerKey}`} seat={seat} ownerKey={ownerKey} />;
 }
 
-function LiveLocationMember({ seat }: { seat: LiveLocationSeat }) {
+function LiveLocationMember({ seat, ownerKey }: Props) {
   const [view, setView] = useState<PlanLiveLocationView | null>(null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const resumed = useRef(false);
+  const resume = useRef<AbortController | null>(null);
   const share = useSyncExternalStore(subscribeLiveShare, liveShareSnapshot, () => OFF_SNAPSHOT);
   const status: LiveShareStatus = share.planId === seat.planId ? share.status : "off";
   const { planId, via, memberToken } = seat;
 
   const read = useCallback(async (signal?: AbortSignal) => {
+    const ownerSignal = readProviderAccountSignal();
     const request = new AbortController();
     const abort = () => request.abort();
     signal?.addEventListener("abort", abort, { once: true });
@@ -75,7 +78,7 @@ function LiveLocationMember({ seat }: { seat: LiveLocationSeat }) {
     try {
       const response = await liveLocationRequest({ planId, via, memberToken }, "GET", undefined, request.signal);
       const next = response.ok ? parsePlanLiveLocationView(await response.json()) : null;
-      if (signal?.aborted) return;
+      if (signal?.aborted || ownerSignal.aborted) return;
       if (response.status === 404) {
         // Not a seat that may see the crew, so there is nothing to offer.
         forgetLiveLocationNight(planId);
@@ -90,7 +93,7 @@ function LiveLocationMember({ seat }: { seat: LiveLocationSeat }) {
       if (next.live && next.endsAt) rememberLiveLocationNight({ planId, via, endsAt: next.endsAt });
       else forgetLiveLocationNight(planId);
     } catch {
-      if (!signal?.aborted) setProblem("We couldn't check who's sharing. Try again.");
+      if (!signal?.aborted && !ownerSignal.aborted) setProblem("We couldn't check who's sharing. Try again.");
     } finally {
       window.clearTimeout(deadline);
       signal?.removeEventListener("abort", abort);
@@ -113,12 +116,24 @@ function LiveLocationMember({ seat }: { seat: LiveLocationSeat }) {
   // A reload keeps the crew's last view of you. Pick the watch back up only
   // when the phone already allows it; otherwise the person decides.
   useEffect(() => {
-    if (!view?.sharing || status !== "off" || resumed.current) return;
+    if (!view || resumed.current) return;
     resumed.current = true;
-    void grantedAlready().then((granted) => { if (granted) startLiveLocationShare({ planId, via, memberToken }); });
-  }, [view?.sharing, status, planId, via, memberToken]);
+    const controller = new AbortController();
+    const ownerSignal = readProviderAccountSignal();
+    resume.current = controller;
+    if (view.sharing && status === "off") {
+      void grantedAlready().then((granted) => {
+        if (granted && !controller.signal.aborted && !ownerSignal.aborted) {
+          startLiveLocationShare({ planId, via, memberToken }, ownerKey);
+        }
+      });
+    }
+    return () => controller.abort();
+  }, [view, status, planId, via, memberToken, ownerKey]);
 
   async function stop() {
+    resumed.current = true;
+    resume.current?.abort();
     setBusy(true);
     try {
       const response = await stopLiveLocationShare({ planId, via, memberToken });
@@ -157,11 +172,11 @@ function LiveLocationMember({ seat }: { seat: LiveLocationSeat }) {
           <div className="liveLocation__actions">
             {watching || view.sharing ? (
               <>
-                {paused ? <Button variant="secondary" disabled={busy} onClick={() => startLiveLocationShare(seat)}>Resume sharing</Button> : null}
+                {paused ? <Button variant="secondary" disabled={busy} onClick={() => startLiveLocationShare(seat, ownerKey)}>Resume sharing</Button> : null}
                 <Button variant={paused ? "ghost" : "secondary"} disabled={busy} onClick={() => void stop()}>{busy ? "Stopping" : "Stop sharing"}</Button>
               </>
             ) : status !== "ended" && status !== "unsupported" ? (
-              <Button variant="secondary" onClick={() => startLiveLocationShare(seat)}>{status === "denied" || status === "failed" ? "Try again" : "Share my location tonight"}</Button>
+              <Button variant="secondary" disabled={busy} onClick={() => startLiveLocationShare(seat, ownerKey)}>{status === "denied" || status === "failed" ? "Try again" : "Share my location tonight"}</Button>
             ) : null}
           </div>
           {view.people.length ? (

@@ -4,6 +4,7 @@
 // person's own tap. Nothing here keeps a history: each fix replaces the last.
 
 import { authedFetch } from "@/lib/authedFetch";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { haversineKm } from "@/lib/haversine";
 import { LIVE_LOCATION_HEARTBEAT_MS, LIVE_LOCATION_SEND_MS, type PlanLiveLocationFix } from "@/lib/planLiveLocation";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
@@ -36,6 +37,9 @@ export const liveLocationRequest: Request = (seat, method, body, signal) => {
 
 type Session = {
   seat: LiveLocationSeat;
+  ownerKey: string;
+  ownerSignal: AbortSignal;
+  onOwnerChange: () => void;
   geolocation: Geolocation;
   request: Request;
   now: () => number;
@@ -43,7 +47,7 @@ type Session = {
   heartbeat: ReturnType<typeof setInterval> | null;
   sent: { at: number; fix: PlanLiveLocationFix } | null;
   pending: PlanLiveLocationFix | null;
-  sending: boolean;
+  inFlight: Promise<Response> | null;
 };
 
 let session: Session | null = null;
@@ -66,21 +70,23 @@ export function liveShareSnapshot(): LiveShareSnapshot {
 }
 
 function halt(current: Session): void {
+  current.ownerSignal.removeEventListener("abort", current.onOwnerChange);
   if (current.watchId !== null) current.geolocation.clearWatch(current.watchId);
   if (current.heartbeat !== null) clearInterval(current.heartbeat);
   current.watchId = null;
   current.heartbeat = null;
+  current.pending = null;
   if (session === current) session = null;
 }
 
 async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
-  if (current.sending) {
+  if (current.inFlight) {
     current.pending = fix;
     return;
   }
-  current.sending = true;
   try {
-    const response = await current.request(current.seat, "PUT", fix);
+    current.inFlight = current.request(current.seat, "PUT", fix);
+    const response = await current.inFlight;
     if (session !== current) return;
     if (response.ok) {
       current.sent = { at: current.now(), fix };
@@ -94,7 +100,7 @@ async function send(current: Session, fix: PlanLiveLocationFix): Promise<void> {
   } catch {
     if (session === current) publish(current.seat.planId, "no-signal");
   } finally {
-    current.sending = false;
+    current.inFlight = null;
   }
   const next = current.pending;
   current.pending = null;
@@ -128,27 +134,46 @@ function onError(current: Session, error: GeolocationPositionError): void {
     publish(current.seat.planId, "no-signal");
     return;
   }
-  const shared = current.sent !== null;
+  const shared = current.sent !== null || current.inFlight !== null;
   halt(current);
   publish(current.seat.planId, "denied");
-  if (shared) void current.request(current.seat, "DELETE").catch(() => undefined);
+  if (shared) void removePosition(current).catch(() => undefined);
+}
+
+async function removePosition(current: Session): Promise<Response> {
+  await current.inFlight?.catch(() => undefined);
+  return current.request(current.seat, "DELETE");
 }
 
 /** Runs on the person's tap. This is the only place the browser is asked for location. */
-export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}): void {
+export function startLiveLocationShare(seat: LiveLocationSeat, ownerKey: string, deps: Deps = {}): void {
   const geolocation = deps.geolocation !== undefined ? deps.geolocation
     : typeof navigator !== "undefined" ? navigator.geolocation ?? null : null;
-  if (session && session.seat.planId === seat.planId && session.watchId !== null) return;
+  if (session && session.seat.planId === seat.planId && session.ownerKey === ownerKey
+    && session.seat.via === seat.via && session.seat.memberToken === seat.memberToken && session.watchId !== null) return;
   if (session) halt(session);
   if (!geolocation) {
     publish(seat.planId, "unsupported");
     return;
   }
+  const ownerSignal = readProviderAccountSignal();
+  const request = deps.request ?? liveLocationRequest;
   const current: Session = {
-    seat, geolocation, request: deps.request ?? liveLocationRequest, now: deps.now ?? Date.now,
-    watchId: null, heartbeat: null, sent: null, pending: null, sending: false,
+    seat, ownerKey, ownerSignal,
+    onOwnerChange: () => {
+      halt(current);
+      publish(seat.planId, "off");
+    },
+    geolocation,
+    request: (target, method, body) => {
+      if (ownerSignal.aborted) return Promise.reject(ownerSignal.reason);
+      return request(target, method, body, ownerSignal);
+    },
+    now: deps.now ?? Date.now,
+    watchId: null, heartbeat: null, sent: null, pending: null, inFlight: null,
   };
   session = current;
+  ownerSignal.addEventListener("abort", current.onOwnerChange, { once: true });
   publish(seat.planId, "asking");
   current.watchId = geolocation.watchPosition((position) => onFix(current, position), (error) => onError(current, error), WATCH_OPTIONS);
   // A phone standing still may report nothing. Ask again so the crew sees a fresh dot.
@@ -160,7 +185,9 @@ export function startLiveLocationShare(seat: LiveLocationSeat, deps: Deps = {}):
 
 /** Stops the watch and deletes the position for everyone. */
 export async function stopLiveLocationShare(seat: LiveLocationSeat, deps: Pick<Deps, "request"> = {}): Promise<Response> {
-  if (session && session.seat.planId === seat.planId) halt(session);
+  const current = session?.seat.planId === seat.planId ? session : null;
+  if (current) halt(current);
   publish(seat.planId, "off");
+  if (current) return removePosition(current);
   return (deps.request ?? liveLocationRequest)(seat, "DELETE");
 }

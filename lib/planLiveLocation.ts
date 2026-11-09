@@ -51,14 +51,14 @@ function londonParts(ms: number): { year: number; month: number; day: number; ho
 }
 
 /**
- * The Plan's end, or the first 06:00 London time after the start, whichever is
+ * The Plan's end, or the first 06:00 London time after the window opens, whichever is
  * first. The database owns the rule (0226 `plan_live_location_ends_at`); this
  * mirror serves the keyless store.
  */
 export function planLiveLocationEndsAtMs(startTime: string): number | null {
   const start = Date.parse(startTime);
   if (!Number.isFinite(start)) return null;
-  const local = londonParts(start);
+  const local = londonParts(start - ACTIVE_PLAN_PRE_MS);
   const dayOffset = local.hour < SIX_AM_HOUR ? 0 : 1;
   const sixWall = Date.UTC(local.year, local.month - 1, local.day + dayOffset, SIX_AM_HOUR);
   const sixAm = sixWall - londonParts(sixWall).offsetMs;

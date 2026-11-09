@@ -1,0 +1,138 @@
+// @vitest-environment jsdom
+
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import type { Map as LiveMap } from "maplibre-gl";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import MapLiveOverlays from "@/components/map/liveOverlays/MapLiveOverlays";
+import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
+import { rememberLiveLocationNight } from "@/lib/liveLocationNight";
+import { stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+
+vi.mock("next/link", () => ({
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => createElement("a", { href }, children),
+}));
+vi.mock("next/dynamic", async () => {
+  const { default: Layer } = await import("@/components/map/liveOverlays/CrewLiveLocationLayer");
+  return { default: () => Layer };
+});
+vi.mock("@/components/ui/button", () => ({
+  Button: ({ variant: _variant, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => createElement("button", props),
+}));
+
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const SEAT = { planId: "11111111-1111-4111-8111-111111111111", via: "plan" as const, memberToken: "seat-a" };
+let root: Root;
+let container: HTMLDivElement;
+let sharing: boolean;
+let watch: ReturnType<typeof vi.fn>;
+let clearWatch: ReturnType<typeof vi.fn>;
+let fix: PositionCallback;
+let permission: Promise<{ state: string }>;
+let fetcher: ReturnType<typeof vi.fn>;
+
+function view() {
+  return { visibility: "member", live: true, sharing, endsAt: new Date(Date.now() + 60_000).toISOString(), people: [] };
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  setProviderIdentity("supabase", "component-owner-a");
+  sharing = false;
+  permission = Promise.resolve({ state: "granted" });
+  watch = vi.fn((success: PositionCallback) => { fix = success; return 7; });
+  clearWatch = vi.fn();
+  vi.stubGlobal("navigator", {
+    geolocation: { watchPosition: watch, clearWatch, getCurrentPosition: vi.fn() },
+    permissions: { query: () => permission },
+  });
+  fetcher = vi.fn(async (_input: unknown, init?: RequestInit) => {
+    if (init?.method === "PUT") sharing = true;
+    if (init?.method === "DELETE") sharing = false;
+    return Response.json(view());
+  });
+  vi.stubGlobal("fetch", fetcher);
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  await stopLiveLocationShare(SEAT, { request: async () => Response.json({}) });
+  setProviderIdentity("supabase", null);
+  localStorage.clear();
+  container.remove();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+async function mountPlan(ownerKey = "owner-a") {
+  await act(async () => root.render(createElement(PlanLiveLocation, { seat: SEAT, ownerKey })));
+}
+
+async function click(label: string) {
+  const button = Array.from(container.querySelectorAll("button")).find((node) => node.textContent === label);
+  if (!button) throw new Error(`Missing button: ${label}`);
+  await act(async () => button.click());
+}
+
+describe("live location consent at the account boundary", () => {
+  it("does not restore sharing after a person starts, polls, then stops", async () => {
+    await mountPlan();
+    await click("Share my location tonight");
+    await act(async () => fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition));
+    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+    await click("Stop sharing");
+    expect(watch).toHaveBeenCalledTimes(1);
+    expect(clearWatch).toHaveBeenCalledWith(7);
+    expect(sharing).toBe(false);
+    expect(fetcher.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+  });
+
+  it.each(["stop", "account", "unmount"])("cancels pending restoration on %s", async (action) => {
+    sharing = true;
+    let grant!: (value: { state: string }) => void;
+    permission = new Promise((resolve) => { grant = resolve; });
+    await mountPlan();
+    if (action === "stop") await click("Stop sharing");
+    if (action === "account") {
+      sharing = false;
+      await act(async () => setProviderIdentity("supabase", "component-owner-b"));
+      await mountPlan("owner-b");
+    }
+    if (action === "unmount") await act(async () => root.render(null));
+    await act(async () => grant({ state: "granted" }));
+    expect(watch).not.toHaveBeenCalled();
+  });
+
+  it("restores an existing share on the first read with granted permission", async () => {
+    sharing = true;
+    await mountPlan();
+    expect(watch).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes the old account's map dots before the next read finishes", async () => {
+    const canvas = document.createElement("div");
+    container.append(canvas);
+    const map = {
+      on: vi.fn(), off: vi.fn(), project: () => ({ x: 50, y: 50 }),
+      getContainer: () => ({ getBoundingClientRect: () => ({ width: 400, height: 400 }) }),
+      getCanvasContainer: () => canvas,
+    } as unknown as LiveMap;
+    const person = { memberId: "mate", name: "Private mate", latitude: 51.5, longitude: -0.13, accuracyM: 10, updatedAt: new Date().toISOString() };
+    fetcher.mockResolvedValue(Response.json({ ...view(), people: [person] }));
+    rememberLiveLocationNight({ ...SEAT, endsAt: view().endsAt });
+    await act(async () => root.render(createElement(MapLiveOverlays, { map, sunChaserOn: false, venues: [] })));
+    expect(canvas.textContent).toContain("Private mate");
+    let finish!: (value: Response) => void;
+    fetcher.mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    await act(async () => setProviderIdentity("supabase", "component-owner-b"));
+    expect(canvas.textContent).not.toContain("Private mate");
+    await act(async () => finish(Response.json({}, { status: 404 })));
+    expect(canvas.textContent).not.toContain("Private mate");
+  });
+});

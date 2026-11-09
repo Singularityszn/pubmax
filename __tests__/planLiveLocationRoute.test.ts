@@ -108,6 +108,16 @@ describe("live location through the private plan route", () => {
     expect((await PUT(request(id, guest, "PUT", FIX), context(id))).status).toBe(409);
   });
 
+  it("closes an 08:00 winter Plan at the intervening 06:00", async () => {
+    vi.setSystemTime(new Date("2026-11-08T05:00:00Z"));
+    const { id, host, guest } = await night("2026-11-08T08:00:00Z");
+    expect((await PUT(request(id, guest, "PUT", FIX), context(id))).status).toBe(200);
+    expect(await read(id, host)).toMatchObject({ live: true, endsAt: "2026-11-08T06:00:00.000Z", people: [{ latitude: FIX.latitude }] });
+    vi.setSystemTime(new Date("2026-11-08T06:00:00Z"));
+    expect(await read(id, host)).toMatchObject({ live: false, people: [] });
+    expect((await PUT(request(id, guest, "PUT", FIX), context(id))).status).toBe(409);
+  });
+
   it("rejects a fix that is not on Earth without moving the old one", async () => {
     const { id, host, guest } = await night();
     await PUT(request(id, guest, "PUT", FIX), context(id));
@@ -129,6 +139,8 @@ describe("the night's end", () => {
   it.each([
     ["2026-11-07T20:00:00Z", "2026-11-08T04:00:00.000Z"],
     ["2026-11-08T01:00:00Z", "2026-11-08T06:00:00.000Z"],
+    ["2026-11-08T08:00:00Z", "2026-11-08T06:00:00.000Z"],
+    ["2026-11-08T09:00:00Z", "2026-11-08T17:00:00.000Z"],
     ["2026-07-11T00:30:00Z", "2026-07-11T05:00:00.000Z"],
     ["2026-07-11T12:00:00Z", "2026-07-11T20:00:00.000Z"],
     ["2026-03-29T00:30:00Z", "2026-03-29T05:00:00.000Z"],

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useSyncExternalStore } from "react";
 
 import type { SunChaserMap } from "@/components/map/sunChaser/SunChaserLayer";
+import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { liveLocationNightSnapshot, readLiveLocationNight, subscribeLiveLocationNight } from "@/lib/liveLocationNight";
 import type { Venue } from "@/lib/venues";
 
@@ -15,11 +16,12 @@ const CrewLiveLocationLayer = dynamic(() => import("@/components/map/liveOverlay
 /** Map layers that follow live state. Each one draws nothing and loads nothing until it is needed. */
 export default function MapLiveOverlays({ map, sunChaserOn, venues }: { map: SunChaserMap | null; sunChaserOn: boolean; venues: readonly Venue[] }) {
   const snapshot = useSyncExternalStore(subscribeLiveLocationNight, liveLocationNightSnapshot, () => "");
+  const owner = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
   const night = readLiveLocationNight(snapshot);
   return (
     <>
       {sunChaserOn ? <SunChaserLayer map={map} venues={venues} /> : null}
-      {night && map ? <CrewLiveLocationLayer key={`${night.planId}:${night.via}`} map={map} night={night} /> : null}
+      {night && map ? <CrewLiveLocationLayer key={`${owner}:${night.planId}:${night.via}`} map={map} night={night} /> : null}
     </>
   );
 }

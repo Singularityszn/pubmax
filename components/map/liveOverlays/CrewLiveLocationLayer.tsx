@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import type * as maplibregl from "maplibre-gl";
 
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { forgetLiveLocationNight, type LiveLocationNight } from "@/lib/liveLocationNight";
 import { LIVE_LOCATION_STALE_MS, parsePlanLiveLocationView, type PlanLiveLocationPerson } from "@/lib/planLiveLocation";
 import { liveLocationRequest } from "@/lib/planLiveLocationShare";
@@ -22,8 +23,9 @@ function useCrewPositions(night: LiveLocationNight): PlanLiveLocationPerson[] {
   const [people, setPeople] = useState<PlanLiveLocationPerson[]>([]);
   useEffect(() => {
     const controller = new AbortController();
+    const ownerSignal = readProviderAccountSignal();
     const read = async () => {
-      if (document.visibilityState === "hidden") return;
+      if (document.visibilityState === "hidden" || controller.signal.aborted || ownerSignal.aborted) return;
       const request = new AbortController();
       const abort = () => request.abort();
       controller.signal.addEventListener("abort", abort, { once: true });
@@ -31,7 +33,7 @@ function useCrewPositions(night: LiveLocationNight): PlanLiveLocationPerson[] {
       try {
         const response = await liveLocationRequest(night, "GET", undefined, request.signal);
         const view = response.ok ? parsePlanLiveLocationView(await response.json()) : null;
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || ownerSignal.aborted) return;
         if (response.status === 404 || (view && !view.live)) {
           forgetLiveLocationNight(night.planId);
           return;
@@ -39,7 +41,7 @@ function useCrewPositions(night: LiveLocationNight): PlanLiveLocationPerson[] {
         // An unreadable answer clears the dots rather than leave stale ones up.
         setPeople(view?.people ?? []);
       } catch {
-        if (!controller.signal.aborted) setPeople([]);
+        if (!controller.signal.aborted && !ownerSignal.aborted) setPeople([]);
       } finally {
         window.clearTimeout(deadline);
         controller.signal.removeEventListener("abort", abort);

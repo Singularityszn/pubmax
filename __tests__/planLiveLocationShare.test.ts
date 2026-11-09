@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { liveShareSnapshot, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 const SEAT = { planId: "11111111-1111-4111-8111-111111111111", via: "plan" as const };
 
@@ -54,7 +55,7 @@ describe("sharing a live location from the phone", () => {
     const geo = fakeGeolocation();
     const route = fakeRoute();
     expect(geo.spy.watchPosition).not.toHaveBeenCalled();
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: route.request });
     expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
     expect(liveShareSnapshot()).toEqual({ planId: SEAT.planId, status: "asking" });
     const sent = route.next();
@@ -67,7 +68,7 @@ describe("sharing a live location from the phone", () => {
   it("handles a refused permission calmly and sends nothing", () => {
     const geo = fakeGeolocation();
     const route = fakeRoute();
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: route.request });
     geo.fail(1);
     expect(liveShareSnapshot()).toEqual({ planId: SEAT.planId, status: "denied" });
     expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
@@ -77,7 +78,7 @@ describe("sharing a live location from the phone", () => {
   it("removes the dot when permission is withdrawn mid-night", async () => {
     const geo = fakeGeolocation();
     const route = fakeRoute();
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: route.request });
     let seen = route.next();
     geo.fix(51.5, -0.13);
     await seen;
@@ -91,7 +92,7 @@ describe("sharing a live location from the phone", () => {
 
   it("keeps watching through a lost signal", () => {
     const geo = fakeGeolocation();
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: fakeRoute().request });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: fakeRoute().request });
     geo.fail(3);
     expect(liveShareSnapshot().status).toBe("no-signal");
     expect(geo.spy.clearWatch).not.toHaveBeenCalled();
@@ -101,7 +102,7 @@ describe("sharing a live location from the phone", () => {
     let now = 1_000_000;
     const geo = fakeGeolocation();
     const route = fakeRoute();
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request, now: () => now });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: route.request, now: () => now });
     const first = route.next();
     geo.fix(51.5, -0.13);
     await first;
@@ -118,7 +119,7 @@ describe("sharing a live location from the phone", () => {
   it("stops the watch and deletes the position when the person stops", async () => {
     const geo = fakeGeolocation();
     const route = fakeRoute();
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: route.request });
     await stopLiveLocationShare(SEAT, { request: route.request });
     expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
     expect(route.calls).toEqual([{ method: "DELETE", body: undefined }]);
@@ -128,7 +129,7 @@ describe("sharing a live location from the phone", () => {
   it("switches off when the server says the night is over", async () => {
     const geo = fakeGeolocation();
     const route = fakeRoute(409);
-    startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request: route.request });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: route.request });
     const sent = route.next();
     geo.fix(51.5, -0.13);
     await sent;
@@ -136,8 +137,48 @@ describe("sharing a live location from the phone", () => {
     expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
   });
 
+  it.each(["stop", "denied"])("deletes after the first pending PUT on %s", async (reason) => {
+    const geo = fakeGeolocation();
+    let finish!: (response: Response) => void;
+    const committed: string[] = [];
+    let deleted!: () => void;
+    const deletion = new Promise<void>((resolve) => { deleted = resolve; });
+    const request = vi.fn(async (_seat: unknown, method: string) => {
+      if (method === "PUT") await new Promise<Response>((resolve) => { finish = resolve; });
+      committed.push(method);
+      if (method === "DELETE") deleted();
+      return new Response("{}");
+    });
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request });
+    geo.fix(51.5, -0.13);
+    geo.fix(51.6, -0.13);
+    const stopped = reason === "stop" ? stopLiveLocationShare(SEAT, { request }) : undefined;
+    if (reason === "denied") geo.fail(1);
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    expect(committed).toEqual([]);
+    finish(new Response("{}"));
+    await stopped;
+    await deletion;
+    geo.fix(51.7, -0.13);
+    expect(committed).toEqual(["PUT", "DELETE"]);
+    expect(liveShareSnapshot().status).toBe(reason === "stop" ? "off" : "denied");
+  });
+
+  it("stops the watch on an account change even after leaving the Plan", () => {
+    const geo = fakeGeolocation();
+    const route = fakeRoute();
+    setProviderIdentity("supabase", "live-owner-a");
+    startLiveLocationShare(SEAT, "owner", { geolocation: geo.geolocation, request: route.request });
+    setProviderIdentity("supabase", "live-owner-b");
+    expect(geo.spy.clearWatch).toHaveBeenCalledWith(7);
+    geo.fix(51.5, -0.13);
+    expect(route.request).not.toHaveBeenCalled();
+    expect(liveShareSnapshot().status).toBe("off");
+    setProviderIdentity("supabase", null);
+  });
+
   it("says when the phone has no location service", () => {
-    startLiveLocationShare(SEAT, { geolocation: null, request: fakeRoute().request });
+    startLiveLocationShare(SEAT, "owner", { geolocation: null, request: fakeRoute().request });
     expect(liveShareSnapshot().status).toBe("unsupported");
   });
 });
