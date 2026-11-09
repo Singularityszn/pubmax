@@ -96,6 +96,15 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **No alcohol and food views** - open **Filters**, then use **Show me** to narrow the map. The no-alcohol view keeps venues known to serve without alcohol, any pub with a corroborated soft-drink or alcohol-free price, and sourced food venues. The food view includes pubs and bars with recorded food service, plus late-food and restaurant venues. A recorded absence of food service excludes a venue. Soft drinks and alcohol-free drinks are their own logged categories, held to the same corroboration and freshness rules as a pint, and they colour and label pins like any other chosen drink. A food or dish anchor never prints on a pin: it stays on the venue sheet, labelled and sourced. A view's figure always names its drink or dish, and never reaches cheapest-pint buckets or the Pint Index. A pub with nothing logged says so plainly rather than implying it was checked.
 - **Pub Pal** - typed chat starts with a greeting. Ask for four pubs in Soho to get grounded choices beside a map of those pubs. Follow with "Same area, under £6 a pint" to refine the budget. Open a result and return to continue the [current conversation](docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md). **New conversation** clears the chat without deleting approved memories.
 
+  <a id="pub-pal-age-requirements"></a>
+
+  Creating a Pal requires sign-in and confirmation that you are 18 or over.
+  If your stored date of birth says you are under 18, you cannot create a Pal or start voice.
+  An adult confirmation cannot override that date.
+  If the account date cannot be checked, both actions are temporarily unavailable.
+  Adults and accounts without a stored date keep the same setup requirements.
+  Pal setup records the adult confirmation time without storing a birth date in the Pal record.
+
   For a group table request, ask "A table for 8 near Soho on Friday".
   When Pal recognises one supported group size, known pub cards offer **Ask for a table**.
   This opens the pub's form with that size prefilled.
