@@ -119,7 +119,7 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
   rest = rest.replace(new RegExp(FOOD_RE.source, "gi"), " ")
     .replace(/\b(?:where|what|which|can|could|would|do|does|i|we|you|me|us|my|our|want|like|need|find|get|have|recommend|suggest|show|tell|help|is|are|there|any|some|something|somewhere|anywhere|places?|options?|open|available|a|an|the|to|for|with|that|please|serving|and|or)\b/gi, " ")
     .trim();
-  if (rest) return null;
+  if (rest) additionalRequirements.unshift(rest);
 
   const minutes = clocks.length === 1 ? requestedMinutes(clocks[0]!) : null;
   const date = dates.length === 1 ? dates[0]![1] : undefined;

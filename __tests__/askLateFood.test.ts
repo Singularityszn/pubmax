@@ -51,11 +51,12 @@ async function voiceAsk(query: string, turns: { role: "user" | "assistant"; cont
 
 describe("clean late-food questions through Ask", () => {
   it.each([
-    "Find Chinese close to the tube",
-    "Vegan please, close to the tube",
-    "Directions to London Bridge from The Blackfriar",
-  ])("preserves an unverified second-sentence requirement instead of returning generic pubs: %s", async (requirement) => {
-    const query = `Food in Soho tonight at 1am. ${requirement}.`;
+    ["Chinese food in Soho tonight at 1am", "Chinese"],
+    ["Chinese restaurant food in Soho tonight at 1am", "Chinese"],
+    ["Food in Soho tonight at 1am. Find Chinese close to the tube.", "Chinese close to the tube"],
+    ["Food in Soho tonight at 1am. Vegan please, close to the tube.", "Vegan please, close to the tube"],
+    ["Food in Soho tonight at 1am. Directions to London Bridge from The Blackfriar.", "Directions to London Bridge from The Blackfriar"],
+  ])("preserves an unverified food requirement instead of returning generic pubs: %s", async (query, requirement) => {
     const typed = await ask(query);
     const voice = await voiceAsk(query);
     for (const response of [typed, voice]) {
@@ -113,6 +114,7 @@ describe("clean late-food questions through Ask", () => {
     "Food at 01:00 on 2026-02-30 near Soho",
     "Food in Soho before 1am",
     "Food in Soho after 1am",
+    "Food after the pub in Soho tonight at 1am",
   ])("requests an exact night and time for a clean question: %s", async (query) => {
     const response = await ask(query);
     expect(response.cards).toEqual([]);
@@ -198,31 +200,36 @@ describe("requests outside the agreed late-food parser", () => {
     expect(response.sources).not.toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
   });
   it.each([
-    "Chinese food in Soho tonight at 1am",
-    "Chinese restaurant food in Soho tonight at 1am",
     "Directions to London Bridge from The Blackfriar. Vegan food at 01:00 on 2026-10-23 near Soho",
     "Food in Soho on Friday",
     "Late food in Soho",
     "Food in Soho at an unknown time",
     "Food at The Devonshire in Soho",
-    "Food at The Devonshire in Soho tonight at 1am",
     "Food at The Devonshire in Soho at an unknown time",
     "Food in Atlantis tonight at 1am",
     "Food near Soho and near Victoria tonight at 1am",
     "Food at 01:00 on 2026-10-23 near Soho, actually near Victoria",
-    "Find four pubs with food in Soho tonight at 23:00",
-    "Which pubs are serving food in Soho tonight at 1am",
-    "Food after the pub in Soho tonight at 1am",
-    "Food with outdoor seating in Soho tonight at 1am",
-    ...["sandwiches", "breakfast", "snacks", "lunch", "dinner", "supper", "burgers", "chips"].map((food) => `Find restaurants serving ${food} in Soho tonight at 1am`),
-    ...["Halal", "Kosher", "Dairy-free", "Nut-free", "Mustard-free"].map((food) => `${food} food in Soho tonight at 1am`),
+    ...["sandwiches", "breakfast", "snacks", "lunch", "dinner", "supper", "burgers"].map((food) => `Find restaurants serving ${food} in Soho tonight at 1am`),
     "Find cafes and restaurants in Soho tonight at 1am",
   ])("returns control to main without intercepting: %s", (query) => {
     expect(answerLateFoodQuestion({ query, cityId: "london", now: OCTOBER_REVIEW_NOW })).toBeNull();
   });
 
   it.each([
-    "Chinese food in Soho tonight at 1am",
+    "Food at The Devonshire in Soho tonight at 1am",
+    "Find four pubs with food in Soho tonight at 23:00",
+    "Which pubs are serving food in Soho tonight at 1am",
+    "Food with outdoor seating in Soho tonight at 1am",
+    "Find restaurants serving chips in Soho tonight at 1am",
+    ...["Halal", "Kosher", "Dairy-free", "Nut-free", "Mustard-free"].map((food) => `${food} food in Soho tonight at 1am`),
+  ])("does not discard unverified requirements from a timed food request: %s", (query) => {
+    const response = answerLateFoodQuestion({ query, cityId: "london", now: OCTOBER_REVIEW_NOW });
+    expect(response).toMatchObject({ ok: false, cards: [], proposals: [], provenance: [] });
+    expect(response?.answerHint).toContain(query);
+    expect(response?.answerHint).toMatch(/no current.*record/i);
+  });
+
+  it.each([
     "Find four pubs with food in Soho",
   ])("preserves ordinary pub discovery for the narrowed case: %s", async (query) => {
     const response = await ask(query, Date.parse("2026-11-07T18:00:00.000Z"));
@@ -302,9 +309,7 @@ describe("clean late-food clarification context", () => {
   });
 
   it.each([
-    "Chinese food near Victoria tonight at 1am",
     "Find restaurants serving sandwiches near Victoria tonight at 1am",
-    "Food at The Devonshire near Victoria tonight at 1am",
   ])("does not merge context from a rejected earlier question: %s", (previous) => {
     const turns = [{ role: "user" as const, content: previous }];
     expect(resolveLateFoodQuery("Soho?", turns)).toBe("Soho?");
@@ -326,9 +331,13 @@ describe("clean late-food clarification context", () => {
     expect(response.answer).toContain("Which night and time");
   });
 
-  it("retains an unverified requirement during an area correction", async () => {
+  it.each([
+    ["Food near Victoria tonight at 1am. Find Chinese close to the tube.", "Chinese close to the tube"],
+    ["Chinese food near Victoria tonight at 1am", "Chinese"],
+    ["Food at The Devonshire near Victoria tonight at 1am", "The Devonshire"],
+  ])("retains an unverified requirement during an area correction: %s", async (previous, requirement) => {
     const query = "Soho?";
-    const turns = [{ role: "user" as const, content: "Food near Victoria tonight at 1am. Find Chinese close to the tube." }];
+    const turns = [{ role: "user" as const, content: previous }];
     const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
     const voice = await voiceAsk(query, turns);
     for (const response of [typed, voice]) {
@@ -337,7 +346,7 @@ describe("clean late-food clarification context", () => {
       expect(response.sources).toEqual([]);
     }
     for (const answer of [typed.answer, voice.answerHint]) {
-      expect(answer).toContain("Chinese close to the tube");
+      expect(answer).toContain(requirement);
       expect(answer).toContain("near Soho");
       expect(answer).toContain("1am");
       expect(answer).toMatch(/no current.*record/i);
