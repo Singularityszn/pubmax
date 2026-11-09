@@ -29,6 +29,10 @@ export type StoredPlanDraft = {
   startTime: string;
   conciergeQuery: string;
   stops: Array<{ key: number; venueId: string; venueName: string }>;
+  /** Stop 1 belongs to a request that has no generated route yet. */
+  provisionalStop?: true;
+  /** The existing Session write time, retained for ordering this request in V1. */
+  provisionalSavedAt?: string;
   explicitNightContext?: Partial<NightContext>;
   requestIntake?: PlanIntakeDraft;
   entryMode?: "wizard";
@@ -124,7 +128,9 @@ function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
 }
 
 function hasDraftKeys(value: Record<string, unknown>): boolean {
-  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource" && key !== "routeReference" && key !== "explicitNightContext" && key !== "requestIntake" && key !== "entryMode");
+  const keys = Object.keys(value).filter((key) => key !== "requestedStopCount" && key !== "requestedStopCountSource"
+    && key !== "routeReference" && key !== "explicitNightContext" && key !== "requestIntake"
+    && key !== "entryMode" && key !== "provisionalStop" && key !== "provisionalSavedAt");
   return [DRAFT_KEYS, DRAFT_KEYS_WITH_ANCHOR].some((allowed) =>
     keys.length === allowed.length && keys.every((key) => (allowed as readonly string[]).includes(key)));
 }
@@ -162,6 +168,19 @@ function parseRequestOptions(value: Record<string, unknown>, now: number): Pick<
   };
 }
 
+function parseProvisionalStop(
+  value: Record<string, unknown>,
+  stops: ReadonlyArray<{ venueId: string } | null>,
+  now: number,
+): Pick<StoredPlanDraft, "provisionalStop" | "provisionalSavedAt"> | null {
+  if (value.provisionalStop === undefined) return value.provisionalSavedAt === undefined ? {} : null;
+  if (value.provisionalStop !== true || stops.length !== 1 || !stops[0]?.venueId.trim()
+    || (value.routeReference !== undefined && value.routeReference !== null)) return null;
+  const savedAt = canonicalTimestamp(value.provisionalSavedAt);
+  return savedAt && savedAt.time <= now + PLAN_DRAFT_MAX_FUTURE_SKEW_MS
+    ? { provisionalStop: true, provisionalSavedAt: savedAt.value } : null;
+}
+
 function parseStoredPlanDraft(value: unknown, exactKeys: boolean, now: number): StoredPlanDraft | null {
   if (
     !isRecord(value)
@@ -187,7 +206,9 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean, now: number): 
     return { key: index + 1, venueId, venueName };
   });
   if (stops.some((stop) => stop === null)) return null;
-  const options = parseRequestOptions(value, now);
+  const provisional = parseProvisionalStop(value, stops, now);
+  if (!provisional) return null;
+  const options = { ...parseRequestOptions(value, now), ...provisional };
   let acceptedAnchor: StoredPlanDraft["acceptedAnchor"];
   if (value.acceptedAnchor !== undefined) {
     const anchor = value.acceptedAnchor;
@@ -264,7 +285,7 @@ function parsePlanDraftV2(
     if (expiresAt.time !== savedAt.time + PLAN_DRAFT_TTL_MS || now >= expiresAt.time) return null;
     const parsedDraft = parseStoredPlanDraft(value.draft, true, now);
     const draft = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
-    if (!draft) return null;
+    if (!draft || (draft.provisionalSavedAt !== undefined && draft.provisionalSavedAt !== savedAt.value)) return null;
     return {
       storageVersion: PLAN_DRAFT_STORAGE_VERSION,
       savedAt: savedAt.value,
@@ -278,7 +299,7 @@ function parsePlanDraftV2(
   }
 }
 
-/** Prefer a valid V2 envelope; fall back to populated legacy work without assigning it an age. */
+/** Prefer a valid V2 envelope; legacy work keeps only provenance written in its own draft. */
 export function parsePlanDraftEnvelope(
   rawV2: string | null,
   rawV1: string | null,
@@ -315,6 +336,15 @@ export function readPlanDraftEnvelope(
   }
 }
 
+/** Prepare the exact draft used by both writes and their byte readback. */
+export function canonicalPlanDraftForWrite(draft: StoredPlanDraft, now: number): StoredPlanDraft | null {
+  const savedAt = new Date(now);
+  if (!Number.isFinite(savedAt.getTime())) return null;
+  const input = draft.provisionalStop ? { ...draft, provisionalSavedAt: savedAt.toISOString() } : draft;
+  const parsed = parseStoredPlanDraft(input, false, now);
+  return parsed ? withoutExpiredAcceptedAnchor(parsed, now) : null;
+}
+
 /** Explicit writes migrate forward while retaining V1 compatibility for rollback. */
 export function writePlanDraftEnvelope(
   draft: StoredPlanDraft,
@@ -323,8 +353,7 @@ export function writePlanDraftEnvelope(
   now = Date.now(),
   options: { requireV1?: boolean } = {},
 ): PlanDraftWriteResult {
-  const parsedDraft = parseStoredPlanDraft(draft, false, now);
-  const canonical = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
+  const canonical = canonicalPlanDraftForWrite(draft, now);
   const savedAt = new Date(now);
   const expiresAt = new Date(now + PLAN_DRAFT_TTL_MS);
   if (

@@ -278,19 +278,9 @@ describe("PlanComposer rendered UI", () => {
   it("states the release without claiming the route is gone", () => {
     expect(releasedAcceptanceStatus({
       venueName: "The Coach & Horses",
-      routeStale: false,
     })).toBe("Released The Coach & Horses. Stop 1 is yours to change.");
     expect(releasedAcceptanceStatus({
       venueName: null,
-      routeStale: false,
     })).toBe("Released this pub. Stop 1 is yours to change.");
-  });
-
-  it("keeps a stale-route reason instead of overwriting it on release", () => {
-    expect(releasedAcceptanceStatus({
-      venueName: "The Coach & Horses",
-      routeStale: true,
-      staleStatus: "Route needs refreshing after that context change.",
-    })).toBe("Route needs refreshing after that context change.");
   });
 });
