@@ -15,11 +15,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import ReportPerson from "@/components/social/ReportPerson";
+import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
+import { liveShareCrewStopSeat, subscribeLiveShare } from "@/lib/planLiveLocationShare";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { trackCrewArrivedReceipts, trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -54,6 +56,7 @@ type LoadState = "loading" | "ready" | "missing" | "error";
 type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
 type Match = { id: string; handle: string; displayName?: string };
 type IdentityMessage = { identityKey: string; text: string } | null;
+const noStopSeat = () => null;
 
 function CrewArrivalControl({ arrival, busy, onMark }: {
   arrival: { open: boolean; here: boolean };
@@ -93,6 +96,7 @@ export default function CrewDetailClient({
   const scopeKey = `${crewId}:${identityKey}:${identityResolved ? "resolved" : "unresolved"}`;
   const [status, setStatus] = useState<LoadState>("loading");
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
+  const liveLocationSeat = useSyncExternalStore(subscribeLiveShare, liveShareCrewStopSeat, noStopSeat);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<IdentityMessage>(null);
@@ -219,7 +223,7 @@ export default function CrewDetailClient({
       active = false;
       controller.abort();
     };
-  }, [attempt, crewId, identityKey, identityResolved]);
+  }, [attempt, crewId, identityKey, identityResolved, scopeKey]);
 
   useEffect(() => {
     if (
@@ -697,6 +701,7 @@ export default function CrewDetailClient({
         </header>
 
         <CrewPlanSection crew={crew} />
+        <PlanLiveLocation seat={{ planId: crew.plan.plan.id, via: "crew" }} ownerKey={`${crew.viewer.memberId}:${accountRevision ?? 0}`} />
 
         {crew.visibility === "open" && crew.arrival ? (
           <CrewArrivalControl arrival={crew.arrival} busy={busy} onMark={() => void markArrival()} />
@@ -941,6 +946,10 @@ export default function CrewDetailClient({
           </p>
         ) : null}
         {body}
+        {identityResolved && liveLocationSeat
+          && (status !== "ready" || loadedIdentityKey !== identityKey || crew?.kind !== "member" || crew.plan.plan.id !== liveLocationSeat.planId) ? (
+          <PlanLiveLocation seat={liveLocationSeat} ownerKey={identityKey} stopOnly />
+        ) : null}
       </main>
     </>
   );

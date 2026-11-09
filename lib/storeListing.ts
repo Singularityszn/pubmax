@@ -172,8 +172,9 @@ const STORE_LISTING_DESCRIPTION = [
   "",
   "Privacy",
   "",
-  "Full GPS precision stays on your phone. Ask for something nearby and the app sends a " +
-    "rounded point for that one request. Analytics stay off until you turn them on. There " +
+  "Your exact location is shared only with your crew while you choose to share, for one night. " +
+    "Ask for something nearby and the app sends a rounded point for that one request. " +
+    "Analytics stay off until you turn them on. There " +
     "are no adverts, and nothing is sold on. A photo is public only where you post it: a " +
     "pub wall and the feed are public by design, and a Moment stays on your phone until " +
     "you publish it.",

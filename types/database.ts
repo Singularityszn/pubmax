@@ -2492,6 +2492,87 @@ export type Database = {
           },
         ];
       };
+      plan_live_location_stops: {
+        Row: {
+          plan_id: string;
+          member_id: string;
+          stopped_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          plan_id: string;
+          member_id: string;
+          stopped_at: string;
+          expires_at: string;
+        };
+        Update: {
+          plan_id?: string;
+          member_id?: string;
+          stopped_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_live_location_stops_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "plan_crew_members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_live_location_stops_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      plan_live_locations: {
+        Row: {
+          plan_id: string;
+          member_id: string;
+          latitude: number;
+          longitude: number;
+          accuracy_m: number | null;
+          updated_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          plan_id: string;
+          member_id: string;
+          latitude: number;
+          longitude: number;
+          accuracy_m?: number | null;
+          updated_at: string;
+          expires_at: string;
+        };
+        Update: {
+          plan_id?: string;
+          member_id?: string;
+          latitude?: number;
+          longitude?: number;
+          accuracy_m?: number | null;
+          updated_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_live_locations_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "plan_crew_members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_live_locations_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       plan_member_group_pref_requests: {
         Row: {
           plan_id: string;
@@ -8344,6 +8425,25 @@ export type Database = {
           band: string;
           rank_key: number;
         }[];
+      };
+      plan_live_location: {
+        Args: {
+          p_plan_id: string | null;
+          p_token_hash: string | null;
+          p_social_account_id: string | null;
+          p_operation: string | null;
+          p_latitude?: number | null;
+          p_longitude?: number | null;
+          p_accuracy_m?: number | null;
+          p_start_at?: string | null;
+        };
+        Returns: Json;
+      };
+      plan_live_location_ends_at: {
+        Args: {
+          p_start: string | null;
+        };
+        Returns: string;
       };
       plan_presentation: {
         Args: {

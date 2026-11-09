@@ -75,6 +75,7 @@ silently stale.
 | planPresentationStore | factory-eligible, policy-heavy | Host-controlled mystery settings with private member reads and route revision checks. |
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
+| planLiveLocationStore | factory-eligible, policy-heavy | Member-only live positions with opt-in, Stop revocation, and night expiry. |
 | planStore | legacy-exception | Multiple inline Supabase configuration checks and plan policy. |
 | presenceStore | factory-ready | Presence rows with shared backend selection. |
 | priceTrustEventStore | factory-eligible, policy-heavy | Append-only trust events, reversals, and account credits. |
@@ -127,7 +128,7 @@ The following stores intentionally stay outside the factory-ready path:
   `socialPostConsentStore`, `socialSafetyModerationStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
-  `planBeaconStore`, `planPresentationStore`,
+  `planBeaconStore`, `planPresentationStore`, `planLiveLocationStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
@@ -216,6 +217,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/planCrewIdentity.ts",
     "lib/planGroupPrefsStore.ts",
     "lib/planInviteRsvpStore.ts",
+    "lib/planLiveLocationStore.ts",
     "lib/planPresentationStore.ts",
     "lib/planStore.ts",
     "lib/presenceStore.ts",

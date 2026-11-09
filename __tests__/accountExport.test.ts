@@ -415,6 +415,8 @@ describe("buildAccountExport", () => {
     expect(document.version).toBe(1);
     expect(document.exportedAt).toBe("2026-09-05T18:30:00.000Z");
     expect(document.account).toEqual({ userId: USER, handle: "night_owl", displayName: "Night Owl" });
+    // lib/planLiveLocationStore.ts holds one fix for one night and deletes it
+    // when sharing ends. This temporary Plan position has no lasting export lane.
     expect(Object.keys(document).sort()).toEqual([
       "version", "exportedAt", "account", "profile", "identity", "memories", "prices",
       "pintDrops", "visitReports", "crowdReports", "socialPosts", "wallPhotos", "coverPhotos",

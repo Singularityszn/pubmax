@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanPlanUsualDrink } from "@/lib/planUsualDrink";
+import { clearMemoryPlanLiveLocation, memoryPlanLiveLocations, memoryPlanLiveLocationStops } from "@/lib/planLiveLocationMemory";
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { CLASSIC_PLAN_INVITE_TOKEN_PATTERN } from "@/lib/planCrewInviteUrl";
@@ -875,6 +876,7 @@ export const memoryPlanStore: PlanStore = {
     }
     if (update.status && !canTransitionPlannedNight(plan.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
     if (update.status) plan.plan.status = update.status;
+    if (update.status === "ending" || update.status === "completed" || update.status === "abandoned") clearMemoryPlanLiveLocation(id);
     if (update.context) {
       plan.context = structuredClone(update.context);
       for (const stop of plan.stops) {
@@ -973,6 +975,7 @@ export const memoryPlanStore: PlanStore = {
     // completion record become visible together or not at all.
     plan.actions.push({ id: randomUUID(), type: "ending", stopPosition: null, ending: input.ending, createdAt: completedAt });
     plan.plan.status = "completed";
+    clearMemoryPlanLiveLocation(id);
     plan.ending = input.ending;
     plan.completion = completion;
     return { ok: true, plan: publicState(plan), completion: publicCompletion(completion), created: true };
@@ -1141,6 +1144,7 @@ export function removeMemoryPlanInviteRsvpMember(id: string, memberId: string): 
   if (!plan) return true;
   const memberIndex = plan.crew.findIndex((member) => member.id === memberId);
   if (memberIndex === 0) return false;
+  memoryPlanLiveLocations.get(id)?.delete(memberId);
   if (memberIndex > 0) plan.crew.splice(memberIndex, 1);
   for (const [requestKey, request] of planMemory.joinRequests) {
     if (requestKey.startsWith(`${id}:`) && request.memberId === memberId) {
@@ -1242,6 +1246,8 @@ export function planStore(): PlanStore {
 
 export function __resetMemoryPlans(): void {
   memoryPlans.clear();
+  memoryPlanLiveLocations.clear();
+  memoryPlanLiveLocationStops.clear();
   planMemory.createRequests.clear();
   planMemory.joinRequests.clear();
   planMemory.actionRequests.clear();

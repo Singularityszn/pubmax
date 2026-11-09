@@ -22,6 +22,7 @@ import { useCrawlOfflinePack } from "@/components/plan/useCrawlOfflinePack";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PlanNightPresentation, { MysteryGlanceLine, MysteryStopTitle, PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
 import PlanNightClues from "@/components/plan/PlanNightClues";
+import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
 import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
 import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
@@ -595,6 +596,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
             clues sit below the route so they never push We are here and
             Skip it under the pinned Get me home on a short phone. */}
         <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(plan)} />
+        <PlanLiveLocation seat={{ planId, via: "plan", memberToken: memberToken ?? undefined }} ownerKey={ownerKey} />
         <details className="nightCrawl__extras">
           <summary>Clues and mystery stops</summary>
           <PlanMysteryControls />

@@ -338,8 +338,8 @@ is the ordered checklist to work through, with one command per step.
    `NSPhotoLibraryAddUsageDescription` is deliberately omitted: the capture
    seam never writes to the gallery (`saveToGallery` stays at its `false`
    default in `lib/nativeCamera.ts`) — add the key only if that changes.
-   Foreground location is also declared on both platforms for existing
-   nearby-pub and walk-time actions. iOS carries
+   Foreground location is also declared on both platforms for
+   nearby-pub, walk-time and opt-in crew live location actions. iOS carries
    `NSLocationWhenInUseUsageDescription`; Android carries coarse and fine
    location together. Neither platform requests background location.
 3. **iOS push (APNs)**

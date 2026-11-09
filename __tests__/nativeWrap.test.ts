@@ -363,7 +363,7 @@ describe("Capacitor wrapped-build contract", () => {
       `${APP_NAME} uses the camera so you can photograph a price board, a pub, or your own night.`,
     );
     expect(info.NSLocationWhenInUseUsageDescription).toBe(
-      `${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.`,
+      `${APP_NAME} uses your location while the app is open to find nearby pubs, calculate walk times and, only when you turn it on for a night, show your crew where you are.`,
     );
     expect(info.NSMicrophoneUsageDescription).toBe(
       `${APP_NAME} uses your microphone only while you talk to Pub Pal or dictate a note or a plan.`,
