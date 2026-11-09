@@ -13,8 +13,15 @@ const REQUEST_ID = "80000000-0000-4000-8000-000000000001";
 const responseBody = vi.hoisted(() => ({
   discardBody: vi.fn(),
 }));
+const arrivalsTracked = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/hostLoopAnalytics", () => ({
+  trackHostLoopStep: vi.fn(),
+  trackCrewArrivedReceipts: arrivalsTracked,
+}));
 
 const state = vi.hoisted(() => ({
+  arrival: undefined as { open: boolean; here: boolean; refreshAt: number | null } | undefined,
+  arrivalFails: false,
   queue: [
     {
       requestId: "80000000-0000-4000-8000-000000000001",
@@ -86,6 +93,7 @@ vi.mock("@/lib/authedFetch", () => ({
         crewId: CREW_ID,
         title: "Open Friday",
         visibility: state.visibility,
+        arrival: state.arrival,
         phase: "planning",
         nightArea: "camden",
         startsAt: "2026-08-24T18:30:00.000Z",
@@ -153,6 +161,12 @@ vi.mock("@/lib/authedFetch", () => ({
       }
       return Response.json({ code: "accepted", replayed: false });
     }
+    if (url.endsWith("/arrival") && init?.method === "POST") {
+      if (state.arrivalFails) return Response.json({ error: "Arrival unavailable." }, { status: 503 });
+      if (JSON.parse(String(init.body)).here !== true) return Response.json({}, { status: 422 });
+      state.arrival = { open: true, here: true, refreshAt: null };
+      return Response.json({ here: true, crewArrived: [{ deliveryToken: "signed", guestsArrived: "1" }] });
+    }
     if (url === "/api/social/access") {
       return Response.json(
         state.accessStatus === 200
@@ -179,6 +193,9 @@ async function settle(): Promise<void> {
 }
 
 beforeEach(() => {
+  state.arrival = undefined;
+  state.arrivalFails = false;
+  arrivalsTracked.mockClear();
   state.queue = [
     {
       requestId: REQUEST_ID,
@@ -226,6 +243,81 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+it("lets an open-crawl member recover from failure and mark Here once", async () => {
+  state.arrival = { open: true, here: false, refreshAt: null };
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "I'm here");
+  await vi.waitFor(() => expect(button()).toBeDefined());
+  state.arrivalFails = true;
+  await act(async () => button()!.click());
+  expect(button()!.getAttribute("aria-pressed")).toBe("false");
+  expect(arrivalsTracked).not.toHaveBeenCalled();
+  state.arrivalFails = false;
+  await act(async () => button()!.click());
+  const arrived = container.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
+  expect(arrived?.disabled).toBe(true);
+  expect(arrivalsTracked).toHaveBeenCalledWith([{ deliveryToken: "signed", guestsArrived: "1" }]);
+  await act(async () => arrived!.click());
+  expect(arrivalsTracked).toHaveBeenCalledTimes(1);
+  expect(state.arrival?.here).toBe(true);
+});
+
+it("refreshes the arrival control at the server's opening and closing boundaries", async () => {
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+  const opensAt = Date.parse("2026-08-23T23:00:00Z");
+  const closesAt = Date.parse("2026-08-25T06:30:00Z");
+  vi.setSystemTime(opensAt - 1_000);
+  state.arrival = { open: false, here: false, refreshAt: opensAt };
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = () => container.querySelector<HTMLButtonElement>('button[aria-pressed]');
+  expect(button()?.disabled).toBe(true);
+
+  state.arrival = { open: true, here: false, refreshAt: closesAt };
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+  expect(button()?.disabled).toBe(false);
+
+  state.arrival = { open: false, here: false, refreshAt: null };
+  await act(async () => { await vi.advanceTimersByTimeAsync(closesAt - opensAt); });
+  expect(button()?.disabled).toBe(true);
+});
+
+it.each([false, true])("rechecks an unchanged arrival boundary when open=%s", async (open) => {
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+  const boundary = Date.parse("2026-08-23T23:00:00Z");
+  vi.setSystemTime(boundary - 1_000);
+  state.arrival = { open, here: false, refreshAt: boundary };
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = () => container.querySelector<HTMLButtonElement>('button[aria-pressed]');
+  expect(button()?.disabled).toBe(!open);
+  const readsBeforeBoundary = state.crewReadCount;
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+  expect(state.crewReadCount).toBe(readsBeforeBoundary + 1);
+  expect(button()?.disabled).toBe(!open);
+
+  state.arrival = { open: !open, here: false, refreshAt: null };
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+  expect(state.crewReadCount).toBe(readsBeforeBoundary + 2);
+  expect(button()?.disabled).toBe(open);
+});
+
+it.each(["focus", "visibilitychange"])("refreshes arrival availability on %s", async (event) => {
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  state.arrival = { open: false, here: false, refreshAt: null };
+  await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+  const button = () => container.querySelector<HTMLButtonElement>('button[aria-pressed]');
+  expect(button()?.disabled).toBe(true);
+  state.arrival = { open: true, here: false, refreshAt: null };
+  await act(async () => {
+    (event === "focus" ? window : document).dispatchEvent(new Event(event));
+  });
+  expect(button()?.disabled).toBe(false);
+  await act(async () => button()!.click());
+  expect(state.arrival?.here).toBe(true);
 });
 
 describe("host join-request queue", () => {

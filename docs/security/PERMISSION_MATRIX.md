@@ -146,6 +146,7 @@ no side effect, as above.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Raise a Crew over a Plan (`POST /api/social/crews`) | denied | denied, Plan untouched | n/a | n/a | n/a | n/a | host seat only |
 | Read a Crew (`GET /api/social/crews/[crewId]`) | denied | denied | denied | denied | allowed | denied, immediately | allowed |
+| Set own open-crawl arrival (`POST .../arrival`) | denied | denied | denied | denied | own seat during the night only | denied | own seat only, excluded from guest receipts |
 | Invite to a Crew | denied | denied | may not be invited | denied | denied | denied | allowed |
 | Spend an invitation (`PATCH .../invitations/[id]`) | denied | denied, invitation stays pending | denied | allowed, once | n/a | spent invitation is not a way back | n/a |
 | Change a Crew's visibility, remove a member | denied | denied | denied | denied | denied | denied | allowed |

@@ -404,9 +404,6 @@ export async function removeNightMoment(
   momentId: string,
 ): Promise<NightRemovalResult> {
   if (!ownerId || !momentId) return refusal("not_found");
-  // The backend is chosen through the ONE seam (lib/storeBackend.ts) rather
-  // than a twenty-fifth hand-rolled branch in this module: the inventory row
-  // for this store (`__tests__/storeInventory.test.ts`) may only ever shrink.
   return selectStore(removeMomentFromMemory, removeMomentFromDatabase)(ownerId, momentId);
 }
 

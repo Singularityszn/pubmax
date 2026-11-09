@@ -346,7 +346,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `open_crawl_opened` | A host opened a locked plan up to strangers. |
 | `crew_join_requested` | Somebody asked to join an open crawl. |
 | `crew_join_accepted` | The host let a join request in. |
-| `crew_arrived` | Guests on a private hosted plan reached an arrival band. Open crawls cannot report arrivals until [issue 2587](https://github.com/Singularityszn/pubmax/issues/2587) lands. [METRICS section 3.3](METRICS.md#33-the-host-loop-and-private-hosted-plan-arrivals) owns the counting rules and limits. |
+| `crew_arrived` | A hosted night reached a guest arrival band. [METRICS section 3.3](METRICS.md#33-the-host-loop-and-hosted-night-arrivals) owns the counting rules and limits. |
 | `out_tonight_beacon_on` | The crew-only beacon went on. |
 | `out_tonight_beacon_off` | It went off. |
 

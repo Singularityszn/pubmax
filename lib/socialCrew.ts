@@ -138,6 +138,7 @@ export type SocialCrewPageDTO = {
    * on a crew that is not open, null on an open crew that carries none.
    */
   openCrawl?: OpenCrawlDetails | null;
+  arrival?: { open: boolean; here: boolean; refreshAt: number | null };
 };
 
 export type SocialCrewReadDTO = SocialCrewPreviewDTO | SocialCrewPageDTO;
