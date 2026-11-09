@@ -29,6 +29,25 @@ const sounds = vi.hoisted(() => ({
   play: vi.fn(),
 }));
 
+const native = vi.hoisted(() => ({
+  enabled: false,
+  listeners: new Map<string, (state?: { isActive: boolean }) => void>(),
+}));
+
+vi.mock("@/lib/nativePlatform", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/nativePlatform")>()),
+  isNativeApp: () => native.enabled,
+}));
+
+vi.mock("@capacitor/app", () => ({
+  App: {
+    addListener: async (event: string, listener: (state?: { isActive: boolean }) => void) => {
+      native.listeners.set(event, listener);
+      return { remove: async () => { native.listeners.delete(event); } };
+    },
+  },
+}));
+
 vi.mock("@elevenlabs/react", () => ({
   ConversationProvider: ({ children }: { children: ReactNode }) => children,
   useConversationControls: () => ({
@@ -158,6 +177,8 @@ beforeEach(() => {
   analytics.trackEvent.mockReset();
   navigation.push.mockReset();
   sounds.play.mockReset();
+  native.enabled = false;
+  native.listeners.clear();
   requests.authedActionFetch.mockResolvedValue(new Response(null, { status: 204 }));
 
   vi.stubGlobal(
@@ -680,15 +701,20 @@ describe("Pub Pal voice controls", () => {
       return session;
     }
 
-    function hidePage(type: "visibilitychange" | "pagehide") {
+    function hidePage(type: "visibilitychange" | "pagehide" | "pause") {
       act(() => {
+        if (type === "pause") {
+          defined(native.listeners.get("pause"))();
+          return;
+        }
         visibility = "hidden";
         if (type === "pagehide") window.dispatchEvent(new Event("pagehide"));
         else document.dispatchEvent(new Event("visibilitychange"));
       });
     }
 
-    it.each(["visibilitychange", "pagehide"] as const)("ends the call and releases the grant on %s", async (type) => {
+    it.each(["visibilitychange", "pagehide", "pause"] as const)("ends the call and releases the grant on %s", async (type) => {
+      native.enabled = type === "pause";
       await goLive();
       hidePage(type);
       await settle();
@@ -703,6 +729,51 @@ describe("Pub Pal voice controls", () => {
       });
       const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
       expect(ended).toEqual([["voice_ended", { reason: "background" }]]);
+    });
+
+    it("keeps the first start through a foreground microphone permission prompt", async () => {
+      native.enabled = true;
+      const permission = deferred<{ getTracks: () => { stop: () => void }[] }>();
+      getUserMedia.mockReturnValueOnce(permission.promise);
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session" }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledOnce();
+
+      act(() => { native.listeners.get("appStateChange")?.({ isActive: false }); });
+      expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(true);
+      await act(async () => {
+        native.listeners.get("appStateChange")?.({ isActive: true });
+        permission.resolve({ getTracks: () => [{ stop: vi.fn() }] });
+      });
+      await settle();
+
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const session = defined(voice.startSession.mock.calls[0])[0] as { onConnect?: () => void };
+      await act(async () => { session.onConnect?.(); });
+      voice.status = "connected";
+      await act(async () => { root?.render(createElement(PubPalVoice)); });
+      expect(container.querySelector("button")?.textContent).toContain("End");
+      expect(voice.endSession).not.toHaveBeenCalled();
+    });
+
+    it.each(["visibilitychange", "pause"] as const)("cancels a pending microphone request on lock or background via %s", async (type) => {
+      native.enabled = true;
+      const permission = deferred<{ getTracks: () => { stop: () => void }[] }>();
+      const stopTrack = vi.fn();
+      getUserMedia.mockReturnValueOnce(permission.promise);
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledOnce();
+
+      hidePage(type);
+      await act(async () => { permission.resolve({ getTracks: () => [{ stop: stopTrack }] }); });
+      await settle();
+
+      expect(stopTrack).toHaveBeenCalledOnce();
+      expect(requests.authedActionFetch).not.toHaveBeenCalled();
+      expect(voice.startSession).not.toHaveBeenCalled();
+      expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
     });
 
     it("keeps the transcript and offers Carry on when the page returns", async () => {
