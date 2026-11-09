@@ -19,8 +19,7 @@ const PubPalMascot = dynamic(
   { ssr: false },
 );
 const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
-// Sun Chaser's maths and map layer load only once its chip is on.
-const SunChaserLayer = dynamic(() => import("@/components/map/sunChaser/SunChaserLayer"), { ssr: false });
+import MapLiveOverlays from "@/components/map/liveOverlays/MapLiveOverlays";
 import PriceBadge from "@/components/PriceBadge";
 import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import "@/components/map/venueSheet.css";
@@ -7060,7 +7059,7 @@ export default function PubMap({
         onBoundsChange={handleMapBoundsChange}
         onMapInstance={setLiveMap}
       />
-      {sunChaserOn ? <SunChaserLayer map={liveMap} venues={filteredPubVenues} /> : null}
+      <MapLiveOverlays map={liveMap} sunChaserOn={sunChaserOn} venues={filteredPubVenues} />
       </MapCanvasBoundary>
     );
   }

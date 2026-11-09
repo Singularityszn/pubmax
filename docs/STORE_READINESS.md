@@ -277,7 +277,7 @@ itself must answer before submission: see section 8, "Before either store".
 | Does the app contain references to alcohol, tobacco, or drugs? | **Yes, references to alcohol** (finding and pricing alcoholic drinks is the core function) |
 | Promotes or facilitates the purchase of alcohol? | No (we do not sell or take orders) |
 | Gambling, violence, sexual content, language | No / None |
-| Does the app share the user's location with other users? | No |
+| Does the app share the user's location with other users? | **Yes.** Only when a member turns on live location for one night, and only with the current members of that Plan or Open Crew. |
 | Users interact / share content? | **Yes.** Social, Messages, Visit Reports, community prices, venue reports, recommendations and public Moments can carry user content. Reporting, moderation, blocking, account deletion and the public support contact must work in the submitted build. |
 
 The IARC questionnaire produces its own bands per region and this pack does not
@@ -297,7 +297,7 @@ These are derived from the actual code, not aspirations. File references are inl
 
 | Data | Collected? | Linked to identity? | Used for tracking? | Purpose | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Precise location | **Yes, only when the user asks for a location feature.** Full GPS precision stays on the device. The app rounds a viewer point to three decimal places before network egress. That is about 70 to 110 metres in London and still falls within Apple and Google Play's precise-location definitions. Request handlers use it ephemerally for nearby listings, conditions, transport, and journey options. | No | No | App functionality | `lib/geo.ts` owns the one three-decimal egress seam. `/api/whats-on`, `/api/tonight-conditions`, `/api/last-train`, `/api/tfl-disruption`, and `/api/citymcp/journey` process the rounded point. TfL, CityMCP, and a user-opened Google Maps journey can receive that rounded point for the requested result. `app/privacy/page.tsx` lists each path. |
+| Precise location | **Yes, only when the user asks for a location feature.** For nearby listings, conditions, transport and journey options, the app rounds a viewer point to three decimal places before network egress. That is about 70 to 110 metres in London and still falls within Apple and Google Play's precise-location definitions. Request handlers use it ephemerally. Crew live location is the one exception: when a member turns it on for a night, the full fix goes to our server, only the latest fix is kept, the other current members of that night see it, and it is deleted when sharing stops, the Plan ends or at 06:00 London time. | Yes for crew live location (an Open Crew seat is bound to an account). No for the rounded requests. | No | App functionality | `lib/geo.ts` owns the three-decimal egress seam. `/api/whats-on`, `/api/tonight-conditions`, `/api/last-train`, `/api/tfl-disruption`, and `/api/citymcp/journey` process the rounded point. TfL, CityMCP, and a user-opened Google Maps journey can receive that rounded point for the requested result. Crew live location is `lib/planLiveLocationShare.ts`, `/api/plans/[id]/live-location` and migration 0226. `app/privacy/page.tsx` lists each path. |
 | Product interaction / usage data | **Yes, only after the user opts in.** A closed set of named UI events with allow-listed fixed-schema props, plus browser, operating system, device type, screen and viewport size, referrer, campaign parameters, and Web Vitals. | No (pseudonymous device profile only) | No | Analytics | `lib/analytics.ts`: consent-gated (default off), honours Do Not Track, forwards to PostHog EU ingest only when consent is granted; `lib/analyticsEvents.ts` owns closed property schemas with no coordinates or free text. |
 | Pseudonymous analytics id | Yes, only after opt-in | No (contains no account or contact data) | No | Analytics | `lib/analytics.ts` `anonymousAnalyticsId()`: an `anon_` UUID created only once consent is `granted`, stored in localStorage and used as PostHog's persistent device identity across page loads and sessions. |
 | Device/web push delivery material | Yes, when the user enables notifications | No (stored with no user or plan link) | No | App functionality (public night-signal and installed-web daily-brief pushes) | `lib/nativePush.ts` or explicitly-invoked `lib/webPush.ts` posts to `POST /api/push-tokens`; `lib/pushTokenStore.ts` stores it with no identity column (migrations 0039 + 0046). |
@@ -310,21 +310,21 @@ These are derived from the actual code, not aspirations. File references are inl
 - No advertising SDKs, no ad identifiers, no cross-app tracking. Nothing on this list is used to track the user across other companies' apps or sites.
 - No selling or sharing of personal data with data brokers.
 - No account required to find a pint. Identity is optional and prompted contextually, not at launch.
-- No background location access. Full-precision viewer coordinates stay on the device. Rounded coordinates are not shown to other users and are used only to answer a location request.
+- No background location access. Full-precision viewer coordinates stay on the device, except crew live location, which a member turns on for one night. Rounded coordinates are not shown to other users and are used only to answer a location request.
 
 ### Apple App Privacy label (App Store Connect > App Privacy)
 
 Declare the following. Everything else: Not Collected.
 
 - **Data Used to Track You:** None.
-- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall or Drink Wall photo, or a photo on a logged price), purpose App Functionality. User Content > Audio Data (Pub Pal voice, streamed to ElevenLabs as the conversation provider), purpose App Functionality.
-- **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics. Precise Location, purpose App Functionality, only when the user starts a location feature.
-- **Location processing:** declare Precise Location because three decimal places is about 70 to 110 metres. Mark it optional, not linked, not used for tracking, and used for App Functionality. The app processes the rounded point ephemerally. Confirm current processor retention terms in App Store Connect before submission.
+- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall or Drink Wall photo, or a photo on a logged price), purpose App Functionality. User Content > Audio Data (Pub Pal voice, streamed to ElevenLabs as the conversation provider), purpose App Functionality. Location > Precise Location (crew live location, only when a member turns it on for a night), purpose App Functionality.
+- **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics.
+- **Location processing:** declare Precise Location because three decimal places is about 70 to 110 metres, and because crew live location sends the full fix. Mark it optional, linked, not used for tracking, and used for App Functionality. Confirm current processor retention terms in App Store Connect before submission.
 
 ### Google Play Data safety form
 
 - **Does your app collect or share any of the required user data types?** Yes.
-- **Precise location:** Collected, optional, processed ephemerally, purpose App functionality, not used for tracking. Full GPS precision stays on the device; only the three-decimal point leaves it. In the Data safety flow, identify the ephemeral processing and current service-provider or user-initiated transfers exactly as the form asks.
+- **Precise location:** Collected, optional, purpose App functionality, not used for tracking. Not processed ephemerally: crew live location keeps a member's latest full fix until sharing stops, the Plan ends or 06:00 London time, and shows it to the other current members of that night. Every other location request sends only the three-decimal point. In the Data safety flow, identify the service-provider and user-initiated transfers exactly as the form asks.
 - **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.mjs`.
 - **Photos and videos:** Collected, purpose App functionality. Answer **shared: yes** for pub wall and Drink Wall photos. A wall photo is PUBLIC by design: it appears on that pub's page and on `/wall` when it is in the city grid, and the pub-wall composer offers a crosspost to the public feed. Saying "not shared publicly by default" would be a wrong answer on the form, not a cautious one. Moment drafts stay on the device and are collected only on publish.
 - **Audio > Voice or sound recordings:** Collected, not shared, optional, purpose App functionality. Do not answer "processed ephemerally" unless the live provider settings confirm no retention. See this section's Audio (voice) row for the check.
@@ -973,9 +973,9 @@ upload key stays replaceable if it is ever lost. Accept it.
 document. The short version: category Utility or Reference; **yes, references to
 alcohol** (finding and pricing alcoholic drinks is the whole app); **no** to
 promoting or facilitating the purchase of alcohol, because nothing is sold or
-ordered here; no to gambling, violence, sexual content and language; **no** to
-sharing the user's location with other users; **yes** to users interacting and
-sharing content. Do not undersell the alcohol answer, an under-rating is a
+ordered here; no to gambling, violence, sexual content and language; **yes** to
+sharing the user's location with other users, because crew live location is
+opt-in per night; **yes** to users interacting and sharing content. Do not undersell the alcohol answer, an under-rating is a
 takedown risk.
 
 **9. Target audience and content.** Set target age to **18 and over** only. Do
@@ -987,10 +987,11 @@ not tick any band under 18 and do not opt into Designed for Families.
 - Is all of the user data collected by your app encrypted in transit? **Yes.**
 - Do you provide a way for users to request that their data is deleted? **Yes.**
 - **Location > Approximate location:** not collected.
-- **Location > Precise location:** collected, not shared. Optional. Purpose: App
-  functionality. Processed ephemerally. Full GPS precision stays on the device;
-  the app rounds to three decimal places before anything leaves it, which is
-  still precise location by Play's definition.
+- **Location > Precise location:** collected. Optional. Purpose: App
+  functionality. Not processed ephemerally: crew live location keeps a
+  member's latest full fix for one night at most and shows it to the other
+  current members of that night. Every other request rounds to three decimal
+  places, which is still precise location by Play's definition.
 - **Personal info > Email address:** collected, not shared. Optional. Purpose:
   App functionality (sign-in, and the optional area-demand contact).
 - **Photos and videos > Photos:** collected AND **shared**. Purpose: App

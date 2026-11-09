@@ -1,0 +1,25 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { useSyncExternalStore } from "react";
+
+import type { SunChaserMap } from "@/components/map/sunChaser/SunChaserLayer";
+import { liveLocationNightSnapshot, readLiveLocationNight, subscribeLiveLocationNight } from "@/lib/liveLocationNight";
+import type { Venue } from "@/lib/venues";
+
+// Sun Chaser's maths and map layer load only once its chip is on.
+const SunChaserLayer = dynamic(() => import("@/components/map/sunChaser/SunChaserLayer"), { ssr: false });
+// The crew's dots load only for a reader who is in tonight's Plan or Open Crew.
+const CrewLiveLocationLayer = dynamic(() => import("@/components/map/liveOverlays/CrewLiveLocationLayer"), { ssr: false });
+
+/** Map layers that follow live state. Each one draws nothing and loads nothing until it is needed. */
+export default function MapLiveOverlays({ map, sunChaserOn, venues }: { map: SunChaserMap | null; sunChaserOn: boolean; venues: readonly Venue[] }) {
+  const snapshot = useSyncExternalStore(subscribeLiveLocationNight, liveLocationNightSnapshot, () => "");
+  const night = readLiveLocationNight(snapshot);
+  return (
+    <>
+      {sunChaserOn ? <SunChaserLayer map={map} venues={venues} /> : null}
+      {night && map ? <CrewLiveLocationLayer key={`${night.planId}:${night.via}`} map={map} night={night} /> : null}
+    </>
+  );
+}

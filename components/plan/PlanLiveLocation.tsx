@@ -1,0 +1,184 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+
+import { Button } from "@/components/ui/button";
+import { forgetLiveLocationNight, rememberLiveLocationNight } from "@/lib/liveLocationNight";
+import { LIVE_LOCATION_STALE_MS, parsePlanLiveLocationView, type PlanLiveLocationView } from "@/lib/planLiveLocation";
+import {
+  liveLocationRequest,
+  liveShareSnapshot,
+  startLiveLocationShare,
+  stopLiveLocationShare,
+  subscribeLiveShare,
+  type LiveLocationSeat,
+  type LiveShareStatus,
+} from "@/lib/planLiveLocationShare";
+
+import "./planLiveLocation.css";
+
+const POLL_MS = 15_000;
+const READ_DEADLINE_MS = 8_000;
+const OFF_SNAPSHOT = { planId: null, status: "off" as const };
+
+const STATUS_LINE: Partial<Record<LiveShareStatus, string>> = {
+  asking: "Waiting for your phone to say yes.",
+  "no-signal": "We've lost your signal. Your crew sees where you were last, with the time.",
+  denied: "Location is blocked for this app, so nobody can see you. Allow it in your browser or phone settings, then try again.",
+  unsupported: "This phone can't share its location here.",
+  ended: "Sharing has ended for this night.",
+  failed: "That didn't go through. Try again.",
+};
+
+function clock(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).format(new Date(iso));
+}
+
+function lastSeen(updatedAt: string, now: number): string | null {
+  const age = now - Date.parse(updatedAt);
+  if (age < LIVE_LOCATION_STALE_MS) return null;
+  return `last seen ${Math.max(1, Math.round(age / 60_000))} min ago`;
+}
+
+async function grantedAlready(): Promise<boolean> {
+  try {
+    return (await navigator.permissions?.query({ name: "geolocation" }))?.state === "granted";
+  } catch {
+    return false;
+  }
+}
+
+type Props = { seat: LiveLocationSeat; ownerKey: string };
+
+/** The remount boundary drops one owner's view before another can paint. */
+export default function PlanLiveLocation({ seat, ownerKey }: Props) {
+  if (!ownerKey || (seat.via === "plan" && !seat.memberToken)) return null;
+  return <LiveLocationMember key={`${seat.planId}:${seat.via}:${seat.memberToken ?? ""}:${ownerKey}`} seat={seat} />;
+}
+
+function LiveLocationMember({ seat }: { seat: LiveLocationSeat }) {
+  const [view, setView] = useState<PlanLiveLocationView | null>(null);
+  const [problem, setProblem] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const resumed = useRef(false);
+  const share = useSyncExternalStore(subscribeLiveShare, liveShareSnapshot, () => OFF_SNAPSHOT);
+  const status: LiveShareStatus = share.planId === seat.planId ? share.status : "off";
+  const { planId, via, memberToken } = seat;
+
+  const read = useCallback(async (signal?: AbortSignal) => {
+    const request = new AbortController();
+    const abort = () => request.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    const deadline = window.setTimeout(abort, READ_DEADLINE_MS);
+    try {
+      const response = await liveLocationRequest({ planId, via, memberToken }, "GET", undefined, request.signal);
+      const next = response.ok ? parsePlanLiveLocationView(await response.json()) : null;
+      if (signal?.aborted) return;
+      if (response.status === 404) {
+        // Not a seat that may see the crew, so there is nothing to offer.
+        forgetLiveLocationNight(planId);
+        setView(null);
+        setProblem("");
+        return;
+      }
+      if (!next) throw new Error("unreadable");
+      setView(next);
+      setNow(Date.now());
+      setProblem("");
+      if (next.live && next.endsAt) rememberLiveLocationNight({ planId, via, endsAt: next.endsAt });
+      else forgetLiveLocationNight(planId);
+    } catch {
+      if (!signal?.aborted) setProblem("We couldn't check who's sharing. Try again.");
+    } finally {
+      window.clearTimeout(deadline);
+      signal?.removeEventListener("abort", abort);
+    }
+  }, [planId, via, memberToken]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    queueMicrotask(() => { if (!controller.signal.aborted) void read(controller.signal); });
+    const poll = window.setInterval(() => { if (document.visibilityState !== "hidden") void read(controller.signal); }, POLL_MS);
+    const onVisible = () => { if (document.visibilityState === "visible") void read(controller.signal); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [read]);
+
+  // A reload keeps the crew's last view of you. Pick the watch back up only
+  // when the phone already allows it; otherwise the person decides.
+  useEffect(() => {
+    if (!view?.sharing || status !== "off" || resumed.current) return;
+    resumed.current = true;
+    void grantedAlready().then((granted) => { if (granted) startLiveLocationShare({ planId, via, memberToken }); });
+  }, [view?.sharing, status, planId, via, memberToken]);
+
+  async function stop() {
+    setBusy(true);
+    try {
+      const response = await stopLiveLocationShare({ planId, via, memberToken });
+      if (!response.ok) throw new Error("not stopped");
+      setView(parsePlanLiveLocationView(await response.json()) ?? view);
+    } catch {
+      setProblem("We couldn't stop sharing. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!view) {
+    return problem ? (
+      <section className="liveLocation" aria-label="Share where you are">
+        <p role="alert">{problem}</p>
+        <Button variant="secondary" onClick={() => void read()}>Try again</Button>
+      </section>
+    ) : null;
+  }
+
+  const watching = status === "asking" || status === "on" || status === "no-signal";
+  const paused = view.sharing && !watching;
+  const until = view.endsAt ? clock(view.endsAt) : null;
+  return (
+    <section className="liveLocation" aria-label="Share where you are" aria-busy={busy}>
+      <h3>Share where you are</h3>
+      {!view.live ? <p className="liveLocation__muted">You can share your location with your crew on the night.</p> : (
+        <>
+          {watching || view.sharing ? (
+            <p>{paused ? "Your crew still sees where you were last. Resume to keep your dot live, or stop sharing." : `You're sharing your live location with your crew until ${until}.`}</p>
+          ) : (
+            <p className="liveLocation__muted">Your crew sees your exact spot as a live dot on their map while this app is open. Only people in this night can see it. We keep only your latest spot, and sharing switches off by itself at {until}.</p>
+          )}
+          {STATUS_LINE[status] ? <p role="status">{STATUS_LINE[status]}</p> : null}
+          <div className="liveLocation__actions">
+            {watching || view.sharing ? (
+              <>
+                {paused ? <Button variant="secondary" disabled={busy} onClick={() => startLiveLocationShare(seat)}>Resume sharing</Button> : null}
+                <Button variant={paused ? "ghost" : "secondary"} disabled={busy} onClick={() => void stop()}>{busy ? "Stopping" : "Stop sharing"}</Button>
+              </>
+            ) : status !== "ended" && status !== "unsupported" ? (
+              <Button variant="secondary" onClick={() => startLiveLocationShare(seat)}>{status === "denied" || status === "failed" ? "Try again" : "Share my location tonight"}</Button>
+            ) : null}
+          </div>
+          {view.people.length ? (
+            <>
+              <p className="liveLocation__muted">Sharing now</p>
+              <ul className="liveLocation__people">
+                {view.people.map((person) => {
+                  const seen = lastSeen(person.updatedAt, now);
+                  return <li key={person.memberId}>{person.name}{seen ? <span className="liveLocation__muted">, {seen}</span> : null}</li>;
+                })}
+              </ul>
+              <Link className="liveLocation__link" href="/map" prefetch={false}>See your crew on the map</Link>
+            </>
+          ) : <p className="liveLocation__muted">Nobody else is sharing yet.</p>}
+        </>
+      )}
+      {problem ? <p role="alert">{problem}</p> : null}
+    </section>
+  );
+}

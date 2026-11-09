@@ -74,6 +74,8 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 vi.mock("@/lib/responseBody", () => responseBody);
 
+// Live location reads its own private route; this suite owns only the crew read and the invite lot.
+vi.mock("@/components/plan/PlanLiveLocation", () => ({ default: () => null }));
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
 }));

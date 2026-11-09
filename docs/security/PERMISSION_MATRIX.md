@@ -90,10 +90,13 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Plan beacon and mystery reads (`GET /api/plans/[id]/beacon`, `presentation`) | denied | denied with a bare bearer | denied with a bare bearer | live collaboration-authorised member token only |
 | Plan beacon PUT/DELETE and mystery PUT | denied | denied with a bare bearer | denied with a bare bearer | host only, with current route checks |
 | Plan beacon and mystery tables or RPCs | denied | denied | denied | browser roles denied, service-mediated routes only |
+| Crew live location read (`GET /api/plans/[id]/live-location`) | denied | denied with a bare bearer | denied with a bare bearer | live collaboration-authorised member token, or `?via=crew` with the verified account of an active Open Crew seat: the other sharing members' latest fix, during the night only |
+| Crew live location PUT/DELETE | denied | denied with a bare bearer | denied with a bare bearer | the same seat, its own position only; a share outside the night is 409 |
+| Crew live location table or RPC (`plan_live_locations`, `plan_live_location`) | denied | denied | denied | browser roles denied, service-mediated route only |
 | Read A's crew Pals (`GET /api/plans/[id]/pals`, "Crew Pals") | preview only | preview only | preview only with a bare account bearer | host or guest member token: the Pals of the OTHER members whose owners set `pub_pals.crew_visible` and did not hide them, by Pal name and look only, never an account id, seat id or handle |
 | Another member's Pal at the table (`pub_pals`, including `crew_visible`) | denied | no rows | own row only | n/a |
 | Invite acceptance (`POST /api/plans/[id]/join`, a Going RSVP at `POST /api/invite/[token]/rsvp`) | invite required: a bare plan id is 403 `PLAN_INVITE_REQUIRED` | one seat per account, spent invite refused | n/a | the host's current invite token: ONE guest capability, a seat that may vote, propose, add a need and check in, never edit; a rotated token lets nobody new in |
-| Removed member | n/a | preview at the route and no rows at the table, immediately | n/a | revoked token: preview, presence refused |
+| Removed member | n/a | preview at the route and no rows at the table, immediately | n/a | revoked token: preview, presence and live location refused, and their shared position deleted |
 | Unfurler (`/api/plan-card`) | PNG from the preview only | same | same | same |
 | List Night Memories (`GET /api/night-memories`) | 401 | own only | own only | n/a |
 | A's Moments (`GET /api/night-memories/[id]/moments`) | 401 | empty list | own rows | n/a |

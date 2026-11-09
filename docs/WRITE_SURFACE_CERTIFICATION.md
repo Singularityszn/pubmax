@@ -1,8 +1,10 @@
 # Mutating API surface certification
 
-The Plan beacon, presentation and open-crawl arrival entries declare the handler inventory.
+The Plan beacon, presentation, live location and open-crawl arrival entries declare the handler inventory.
 The Plan route tests and `__tests__/planNightStorePermissions.test.ts` exercise beacon and presentation permissions.
+The live-location route and store tests exercise live-location permissions.
 `__tests__/permissionMatrixEffective.test.ts` exercises open-crawl arrival permissions.
+The merged inventory contains 181 mutating handlers across 145 route files.
 Source names and syntax do not establish their runtime protection.
 
 
@@ -37,6 +39,8 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `DELETE app/api/plans/[id]/beacon`
 - `PUT app/api/plans/[id]/beacon`
 - `PUT app/api/plans/[id]/presentation`
+- `DELETE app/api/plans/[id]/live-location`
+- `PUT app/api/plans/[id]/live-location`
 - `DELETE app/api/plans/[id]/invite-rsvp`
 - `DELETE app/api/plans/[id]/invites/[inviteId]`
 - `DELETE app/api/profiles/[handle]`

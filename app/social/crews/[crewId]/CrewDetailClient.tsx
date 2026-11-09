@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import ReportPerson from "@/components/social/ReportPerson";
+import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { trackCrewArrivedReceipts, trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -697,6 +698,7 @@ export default function CrewDetailClient({
         </header>
 
         <CrewPlanSection crew={crew} />
+        <PlanLiveLocation seat={{ planId: crew.plan.plan.id, via: "crew" }} ownerKey={`${crew.viewer.memberId}:${accountRevision ?? 0}`} />
 
         {crew.visibility === "open" && crew.arrival ? (
           <CrewArrivalControl arrival={crew.arrival} busy={busy} onMark={() => void markArrival()} />

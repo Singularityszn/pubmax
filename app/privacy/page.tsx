@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "7 November 2026";
+const LAST_UPDATED = "9 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -406,7 +406,8 @@ export default function PrivacyPage() {
         <p className="legalBody">
           &ldquo;Find my pint&rdquo; asks your browser for your location and
           ranks nearby pubs there, so those coordinates never leave your
-          device. Viewer coordinates never leave your device at full precision.
+          device. Viewer coordinates never leave your device at full precision,
+          except when you share your live location with your crew.
           Other location features work like this:
         </p>
         <ul className="legalList">
@@ -441,6 +442,22 @@ export default function PrivacyPage() {
             that pub location, not your location, to Transport for
             London&rsquo;s public StopPoint API to find nearby stops and live
             departures.
+          </li>
+          <li>
+            <strong>Sharing where you are with your crew:</strong>{" "}this is
+            off until you turn it on for one night, in a Plan or an Open Crew you
+            are part of. Your browser asks for your location when you tap to
+            share, never before. While the app is open, it sends your exact
+            position to our <code>/api/plans/[id]/live-location</code> route
+            about every 20 seconds while you move, and about once a minute while
+            you stand still. We keep only your latest position, never a trail.
+            The other current members of that night see it as a dot with your
+            name on their map. Nobody else can see it, and a person who leaves
+            or is removed sees nothing more. Sharing stops when you tap Stop
+            sharing, when the Plan ends, or at 6am London time, whichever comes
+            first. If your phone loses its signal, your crew sees where you
+            were last, with the time. The app does not send your location while
+            it is closed or in the background.
           </li>
           <li>
             <strong>Remembered areas:</strong>{" "}Tonight can turn an area choice
@@ -942,6 +959,13 @@ export default function PrivacyPage() {
             voice are stored against your account for two minutes after your
             last line, then deleted by a clean-up that runs every minute. We
             do not keep the audio.
+          </li>
+          <li>
+            <strong>Live location shared with your crew:</strong>{" "}only your
+            latest position, and only until you stop sharing, the Plan ends or
+            6am London time, whichever is first. Stopping, leaving the night or
+            the host ending the night deletes it at once. When the time runs
+            out instead, a clean-up that runs every minute deletes it.
           </li>
           <li>
             <strong>After you delete your account:</strong>{" "}the prices and
