@@ -1,9 +1,8 @@
 # UK base shards
 
-Every `amenity=pub` and every `amenity=bar` in the UK, cut into one file per
-grid cell so the map can stream the layer a viewport at a time. Rows retain any
-matched curated owner so the client can deduplicate against what is actually
-loaded.
+The map streams UK `amenity=pub` and `amenity=bar` rows one grid cell at a
+time. Published rows retain any matched curated owner so the client can
+deduplicate against what is actually loaded.
 
 Shard JSON is generated. This README is hand-written and survives rebuilds.
 `npm run build:uk-base` rebuilds the shards from `data/osm/uk/uk_osm_pubs.json`
@@ -54,6 +53,15 @@ exact name `curatedRef` needs, so it holds only within 45 m, the gate the fuzzy
 merge in `canonicalize:venues` uses (`nearNameOwnerIndex` in
 [`lib/outerLondonOwnership.mjs`](../../../lib/outerLondonOwnership.mjs)). Pin:
 `__tests__/ukBaseNearNameOwners.test.ts`.
+
+The builders merge a named pub's way or relation into the nearest node with
+the same normalised name. The node must be within 50 m.
+The node keeps its name, position, address and curated owner. It inherits the
+duplicate's address or owner only when its own value is empty.
+[`mergeOsmTwins`](../../../scripts/lib/ukBaseOsmTwins.mjs) owns this match.
+
+The shard build records the removed ID as an alias of the node's ID through the
+publication process below. Node-to-node duplicates remain separate.
 
 A refresh REMOVES a base row when OSM deletes the object, and the shard build
 is where that removal is published, so the build records the id's identity
@@ -107,6 +115,9 @@ National **pub name** search is a separate server index
 `GET /api/map-search` opens that file; the browser never downloads the
 country-wide pack. See `docs/prd/UK_MAP_COVERAGE_AND_SEARCH_PRD.md`.
 
+The national index uses the twin merge described above and omits the
+curated-owner column, keeping five-column tuples with any inherited address.
+
 That index is built from the pub pack alone. Folding the bars in would carry it
 past its own 3.25 MB ceiling, and a ceiling comes down, never up, so national
 name search for bars needs a smaller row format first. Bars already in the
@@ -124,7 +135,8 @@ generation is removed so the published tree contains exactly one pack.
   has no price by construction; it is the canvas the community prices in.
 - **Duplicate pins.** A recorded curated owner suppresses its base row only
   while that exact curated venue is drawable. Outside the loaded city, the base
-  row remains available.
+  row remains available. OSM twin rows merge during generation, as described
+  above.
 
 ## Budgets
 

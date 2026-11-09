@@ -1,6 +1,6 @@
 // The London pubs the NHLE listed-building join reads beyond the curated
-// dataset: every OpenStreetMap pub in the London box that no curated venue
-// owns, keyed by the `venue-uk-<osmRef>` id its base-layer sheet opens under
+// dataset: OpenStreetMap pubs in the London box that the published shards
+// retain and no curated venue owns, keyed by their `venue-uk-<osmRef>` ids
 // (lib/ukBasePubs.ts). A pub a curated venue owns is matched once, under the
 // curated id, so one building never carries two listings.
 //
