@@ -8,7 +8,7 @@ export default function PlanPintPriceCaption({ evidence }: { evidence: PlanPintP
       {evidence?.serving === "pint" ? "1 pint" : "Serving size not recorded"}{" · "}
       {source?.label ? (
         source.url ? (
-          <a href={source.url} target="_blank" rel="noopener noreferrer" data-stop-action>{source.label}</a>
+          <a className="priceSourceLink" href={source.url} target="_blank" rel="noopener noreferrer" data-stop-action>{source.label}</a>
         ) : <>{source.label} · Link unavailable</>
       ) : "Publisher not recorded"}{" · "}
       {source?.observedAt ? (
