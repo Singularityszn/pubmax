@@ -646,7 +646,7 @@ describe("venue_drinks", () => {
     expect(result.cards[0]?.note).toContain("two people agree on this figure");
     expect(result.cards[0]?.note).not.toContain("map");
     expect(result.cards[1]?.note).toContain("stays on this pub's page");
-    expect(result.cards[2]?.provenance?.label).toBe("On record");
+    expect(result.cards[2]?.provenance?.label).toBe("Pub menu. Source read 1 January 2026.");
   });
 
   it("resolves a routed short pub name but never a borough", async () => {
@@ -686,7 +686,7 @@ describe("venue_drinks", () => {
     expect(result.degraded).toBe(true);
     expect(result.answerHint).toContain("couldn't read what people have logged");
     expect(result.cards.map((card) => card.price)).toEqual([5]);
-    expect(result.cards[0]?.provenance?.label).toBe("On record");
+    expect(result.cards[0]?.provenance?.label).toBe("Pub menu. Source read 1 January 2026.");
   });
 });
 
