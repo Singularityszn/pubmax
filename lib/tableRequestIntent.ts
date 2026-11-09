@@ -16,10 +16,7 @@ const NUMBER_WORDS = [
 ];
 
 const COUNT_TOKEN = `(?:\\d+(?:\\.\\d+)?|${NUMBER_WORDS.join("|")}|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)`;
-const COMPOUND_COUNT = new RegExp(
-  `\\b${COUNT_TOKEN}(?:\\s*[-–—/]\\s*|\\s+(?:(?:to|or|and)\\s+)?)${COUNT_TOKEN}\\b`,
-  "i",
-);
+const COUNT_EXPRESSION = `${COUNT_TOKEN}(?:(?:\\s*[-–—/]\\s*|\\s+(?:(?:to|or|and)\\s+)?)${COUNT_TOKEN})*`;
 
 /**
  * The one crew size a table ask names, or null. A question that is not about
@@ -29,16 +26,16 @@ const COMPOUND_COUNT = new RegExp(
  */
 export function tableRequestPartySizeInText(text: string): number | null {
   if (!/\b(?:table|book(?:ing)?|reserv(?:e|ation))\b/i.test(text)) return null;
-  if (COMPOUND_COUNT.test(text)) return null;
   const sizes = new Set<number | null>();
   // A number followed by a time tail ("for 20:00", "for 8 pm") is a time,
   // never a crew.
-  for (const match of text.toLowerCase().matchAll(
-    /\b(?:for|party of|group of)\s+(\d+(?:\.\d+)?(?!\s*(?::|[ap]m\b))|[a-z-]+)\b|\b(\d+(?:\.\d+)?(?!\s*(?::|[ap]m\b))|[a-z-]+)\s+(?:of us|people|mates)\b/g,
-  )) {
-    const raw = match[1] ?? match[2]!;
+  for (const match of text.matchAll(new RegExp(
+    `\\b(?:for|party of|group of)\\s+(${COUNT_EXPRESSION})\\b|\\b(${COUNT_EXPRESSION})\\s+(?:of us|people|mates)\\b`,
+    "gi",
+  ))) {
+    if (/^\s*(?::|[ap]m\b|o['’]clock\b)/i.test(text.slice(match.index + match[0].length))) continue;
+    const raw = (match[1] ?? match[2]!).toLowerCase();
     const number = /^\d/.test(raw) ? Number(raw) : NUMBER_WORDS.indexOf(raw);
-    if (number < 0) continue;
     sizes.add(parseTableRequestPartySize(number));
   }
   return sizes.size === 1 ? [...sizes][0]! : null;
