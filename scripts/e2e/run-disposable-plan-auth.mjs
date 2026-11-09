@@ -5,6 +5,8 @@ import { createServer } from "node:net";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { removeSupabaseProjectLeftovers } from "./supabase-project-cleanup.mjs";
+
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 if (process.argv.length !== 2) throw new Error("Usage: node scripts/e2e/run-disposable-plan-auth.mjs");
 const dockerHost = process.env.DOCKER_HOST;
@@ -170,10 +172,15 @@ try {
   try { await stopProcessGroups(); groupsStopped = true; }
   catch (error) { console.error(error.message); process.exitCode = 1; }
   if (started && groupsStopped) {
+    const cleanup = (program, args) => command(program, args, { capture: true, cleanup: true });
+    try { await cleanup("supabase", ["stop", "--no-backup", "--workdir", workdir]); }
+    catch { console.error(`supabase stop failed for ${projectId}. Removing its Docker resources by name.`); }
     try {
-      await command("supabase", ["stop", "--no-backup", "--workdir", workdir], { capture: true, cleanup: true });
-      backendStopped = true;
-    } catch {
+      const remaining = await removeSupabaseProjectLeftovers(projectId, cleanup);
+      backendStopped = remaining.length === 0;
+      if (!backendStopped) console.error(`Docker still holds ${remaining.join(", ")}.`);
+    } catch (error) { console.error(error.message); }
+    if (!backendStopped) {
       console.error(`Could not remove owned project ${projectId}. Preserve ${workdir} for recovery.`);
       process.exitCode = 1;
     }
