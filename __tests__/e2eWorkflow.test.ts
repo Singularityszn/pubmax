@@ -79,6 +79,7 @@ appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringi
       const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-c", interpolate(step.run)], {
         cwd: directory,
         env: {
+          ...process.env,
           PATH: `${directory}:${process.env.PATH}`,
           COMMAND_LOG: log,
           GITHUB_OUTPUT: output,
@@ -186,7 +187,6 @@ describe("browser CI policy", () => {
     expect(Object.keys(workflow.on)).toContain("workflow_dispatch");
     expect(workflow.on.push).toEqual({ branches: ["main"] });
     const fullSuiteJob = defined(workflow.jobs["full-suite"], "full-suite job");
-    const glJob = defined(workflow.jobs["full-suite-gl"], "full-suite-gl job");
     const shards = fullSuiteJob.strategy?.matrix?.shard;
     expect(shards).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(browserJobName(fullSuiteJob.name)).toBe(`Full browser suite (1/${shards?.length})`);
