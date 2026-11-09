@@ -781,7 +781,13 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
       return url.includes("/api/plans/generate");
     });
     expect(generateCall).toBeTruthy();
-    expect(document.body.textContent).toContain("Route refreshed");
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route ready");
+    expect(document.body.textContent).not.toContain("Route refreshed");
+
+    await openTuneDetails();
+    await act(async () => { clickButton("Plan it again"); });
+    await settleComposerEffects();
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route refreshed");
   });
 
   it("auto-generates on a client navigation, where the mount render saw the old route", async () => {
@@ -794,7 +800,7 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
       return url.includes("/api/plans/generate");
     });
     expect(generateCall).toBeTruthy();
-    expect(document.body.textContent).toContain("Route refreshed");
+    expect(document.body.textContent).toContain("Route ready");
   });
 
   it("does not auto-generate for occasion chip links", async () => {
@@ -827,7 +833,7 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
       return url.includes("/api/plans/generate");
     });
     expect(generateCall).toBeTruthy();
-    expect(document.body.textContent).toContain("Route refreshed");
+    expect(document.body.textContent).toContain("Route ready");
   });
 });
 
@@ -836,7 +842,7 @@ describe("Your name is asked for once, beside Lock", () => {
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
     await mountComposer();
     await settleComposerEffects();
-    expect(document.body.textContent).toContain("Route refreshed");
+    expect(document.body.textContent).toContain("Route ready");
   }
 
   it("seats an empty Your name in the pinned Lock bar", async () => {
