@@ -71,11 +71,14 @@ function scopeCondition(condition: Step["if"], scope: string, shard = 1): boolea
   const expression = String(condition ?? true)
     .trim()
     .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1")
-    .replaceAll("needs.queue-proof", 'needs["queue-proof"]');
+    .replace(/needs\.([\w-]+)/g, 'needs["$1"]');
   return Boolean(runInNewContext(`(${expression})`, {
     steps: { scope: { outputs: { scope } } },
     // The merge queue proof runs only on a main push.
-    needs: { "queue-proof": { result: "skipped", outputs: {} } },
+    needs: {
+      "queue-proof": { result: "skipped", outputs: {} },
+      "unit-tests": { result: "success", outputs: {} },
+    },
     matrix: { shard },
     github: { event_name: "pull_request", ref: "refs/pull/1/merge" },
     success: () => true,
