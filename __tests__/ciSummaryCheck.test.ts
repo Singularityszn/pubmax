@@ -7,7 +7,7 @@ import { runInNewContext } from "node:vm";
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-import { browserJobCondition } from "@/__tests__/helpers/browserJobCondition";
+import { browserJobCondition, browserJobName } from "@/__tests__/helpers/browserJobCondition";
 import { defined } from "@/__tests__/helpers/defined";
 import {
   ReleaseRefusal,
@@ -49,13 +49,13 @@ const NOT_PULL_REQUEST_JOBS: Record<string, string[]> = {
 describe("the required checks", () => {
   it.each(REQUIRED_CHECKS)("$file names $name and runs in the merge queue", ({ file, job, name }) => {
     const parsed = workflow(file);
-    expect(defined(parsed.jobs[job], `${file} / ${job}`).name).toBe(name);
+    expect(browserJobName(defined(parsed.jobs[job], `${file} / ${job}`).name)).toBe(name);
     expect(Object.keys(parsed.on)).toEqual(expect.arrayContaining(["pull_request", "merge_group"]));
   });
 
   it("gives every required check a name no other job shares", () => {
     const names = ["ci.yml", "e2e.yml", "rls-session.yml", "security-ci.yml", "freshness.yml"].flatMap((file) =>
-      Object.values(workflow(file).jobs).map((job) => job.name),
+      Object.values(workflow(file).jobs).map((job) => browserJobName(job.name)),
     );
     for (const { name } of REQUIRED_CHECKS) {
       expect(names.filter((candidate) => candidate === name), name).toHaveLength(1);
@@ -67,7 +67,9 @@ describe("the required checks", () => {
     const summary = defined(jobs.check, `${file} / check`);
     // A skipped summary counts as passed, so it must run even when a job it
     // needs failed or was cancelled.
-    expect(summary.if).toBe("${{ always() }}");
+    for (const result of ["success", "failure", "cancelled", "skipped"]) {
+      expect(browserJobCondition(summary.if, { result, cancelled: result === "cancelled" }), file).toBe(true);
+    }
     const expected = Object.keys(jobs)
       .filter((id) => id !== "check" && !defined(NOT_PULL_REQUEST_JOBS[file]).includes(id))
       .sort();
@@ -116,6 +118,33 @@ describe("the required checks", () => {
     if (status !== 0) expect(result.stdout).toContain("::error::Not green:");
   });
 
+  it("skips every unrelated-label job under a separate check name", () => {
+    const { jobs } = workflow("e2e.yml");
+    const names: Record<string, string> = {
+      "law-pins": "Browser law pins",
+      "change-scope": "Change scope",
+      "layout-pins-1": "Browser layout pins (1/3)",
+      "layout-pins-2": "Browser layout pins (2/3)",
+      "layout-pins-3": "Browser layout pins (3/3)",
+      check: "Browser tests check",
+      "full-suite": "Full browser suite (1/8)",
+      "full-suite-gl": "Full browser suite (WebGL and keyless)",
+      "nightly-failure-issue": "Report a nightly full-suite failure",
+    };
+    expect(workflow("e2e.yml").on.pull_request).toEqual({ types: ["opened", "synchronize", "reopened", "labeled"] });
+    const context = { action: "labeled", label: "needs-triage", labels: ["layout-pins", "needs-triage"], results: ["failure"] };
+    for (const [id, job] of Object.entries(jobs)) {
+      expect(browserJobCondition(job.if, context), id).toBe(false);
+      const normal = defined(names[id], id);
+      expect(browserJobName(job.name), id).toBe(normal);
+      expect(browserJobName(job.name, context), id).toBe(`Not run for label - ${normal}`);
+      expect(browserJobName(job.name, { ...context, label: "layout-pins" }), id).toBe(normal);
+      for (const event of ["push", "merge_group", "schedule", "workflow_dispatch"] as const) {
+        expect(browserJobName(job.name, { event }), id).toBe(normal);
+      }
+    }
+  });
+
   it("runs the layout pins in the merge queue, and on a pull request only with its label", () => {
     const { jobs } = workflow("e2e.yml");
     for (const id of ["layout-pins-1", "layout-pins-2", "layout-pins-3"]) {
@@ -124,6 +153,7 @@ describe("the required checks", () => {
       expect(browserJobCondition(condition, { event: "pull_request" }), id).toBe(false);
       expect(browserJobCondition(condition, { event: "pull_request", labels: ["layout-pins"] }), id).toBe(true);
       expect(browserJobCondition(condition, { event: "push" }), id).toBe(false);
+      expect(browserJobCondition(condition, { action: "labeled", label: "layout-pins", labels: ["layout-pins"] }), id).toBe(true);
     }
   });
 });

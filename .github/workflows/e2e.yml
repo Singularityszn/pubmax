@@ -4,7 +4,7 @@ on:
   pull_request:
     # labeled lets the layout-pins label start the macOS layout pins on a
     # pull request (docs/CI_RUNBOOK.md, "The required checks and the merge
-    # queue"). Adding any label starts a new run of this workflow.
+    # queue"). Other labels skip every job without cancelling active checks.
     types: [opened, synchronize, reopened, labeled]
   # The merge queue tests the exact commit that will land on main
   # (docs/CI_RUNBOOK.md, "The required checks and the merge queue").
@@ -21,16 +21,16 @@ permissions:
   contents: read
 
 concurrency:
-  # One group per pull request: a newer head or a new label cancels that
+  # One group per pull request: a newer head or layout-pins label cancels that
   # pull request's older run. Main pushes share one group (captain, 19 Oct
   # 2026): the run in progress finishes, and only the newest push waits
   # behind it, because GitHub keeps one waiting run per group and cancels the
   # older one. The newest main commit holds every older one, so main is
   # still tested.
   # The schedule and a dispatch each get a group of their own, so GitHub
-  # never drops one while it waits.
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && 'main-push' || format('run-{0}', github.run_id) }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # never drops one while it waits. Other labels get separate, non-cancelling runs.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && 'main-push' || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'layout-pins') }}
 
 
 jobs:
@@ -67,9 +67,9 @@ jobs:
           echo "Merge queue proof for $path at $SHA: $passed"
 
   law-pins:
-    name: Browser law pins
     needs: [queue-proof]
-    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser law pins
     # docs/CI_RUNBOOK.md owns runner selection and queue policy.
     # These journeys passed on Linux (16 Oct 2026). The one law pin that
     # measures phone chrome geometry, e2e/mobile-map-chrome-fit.spec.ts, lost
@@ -182,7 +182,8 @@ jobs:
           --skips-argued e2e/conditional-skips.allowlist.json
 
   change-scope:
-    name: Change scope
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') }}
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Change scope
     # Decides once, on Linux, whether this change needs the macOS layout
     # pins. A docs-only pull request used to hold Mac runners even when
     # all its steps were skipped. The layout-pin jobs read the "layout" output
@@ -247,7 +248,7 @@ jobs:
           echo "Layout scope: $layout"
 
   layout-pins-1:
-    name: Browser layout pins (1/3)
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser layout pins (1/3)
     # The browser specs that hold layout and chrome once held by source-text
     # unit tests (the CSS and JSX regex pins removed in the test-suite prune).
     # A regex over a stylesheet no longer guards these surfaces, so the specs
@@ -263,14 +264,14 @@ jobs:
     # in depth only (docs/CI_RUNBOOK.md, "Self-hosted Mac runners").
     # They run in the merge queue, on the commit that lands, and on a pull
     # request only while it carries the `layout-pins` label (captain, 9 Nov
-    # 2026). A pull request push and a main push do not start them: the pool
-    # has three places, and pull requests waited about an hour for one. The
+    # 2026). Other label events skip every job. Unlabelled pull request pushes
+    # and main pushes do not start them. The pool has three places. The
     # layout scope above still skips them for a pull request with no screen
     # code. The nightly and a dispatch skip them: the full suite below runs
     # every one of these specs on the same commit, and the three jobs would
     # hold the pool while the full suite waits for them.
     needs: [change-scope]
-    if: ${{ !cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
@@ -406,9 +407,9 @@ jobs:
           --skips-argued e2e/conditional-skips.allowlist.json
 
   layout-pins-2:
-    name: Browser layout pins (2/3)
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser layout pins (2/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
@@ -416,9 +417,9 @@ jobs:
     steps: *layout-pin-steps
 
   layout-pins-3:
-    name: Browser layout pins (3/3)
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser layout pins (3/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
@@ -435,8 +436,8 @@ jobs:
   # the layout-pins label, a main push) passes.
   # The nightly full suite is not a pull request job, so it is not needed here.
   check:
-    name: Browser tests check
-    if: ${{ always() }}
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser tests check
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (always()) }}
     needs: [queue-proof, law-pins, change-scope, layout-pins-1, layout-pins-2, layout-pins-3]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -454,8 +455,8 @@ jobs:
           fi
 
   full-suite:
-    name: Full browser suite (${{ matrix.shard }}/8)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Full browser suite (${{ matrix.shard }}/8)
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
     runs-on: pubmax-mac
     timeout-minutes: 45
     # The hosted macOS runners gave Playwright one worker. Two shards of about
@@ -532,8 +533,8 @@ jobs:
         run: node scripts/assert-playwright-gate.mjs playwright-default-${{ matrix.shard }}.json
 
   full-suite-gl:
-    name: Full browser suite (WebGL and keyless)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Full browser suite (WebGL and keyless)
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
     runs-on: pubmax-mac
     timeout-minutes: 45
     # Every project the Chromium shards above do not run: the SwiftShader map
@@ -593,12 +594,12 @@ jobs:
         run: node scripts/assert-playwright-gate.mjs playwright-default-gl.json
 
   nightly-failure-issue:
-    name: Report a nightly full-suite failure
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Report a nightly full-suite failure
     # alert-on-failure.yml requires a webhook secret, so this job reports
     # without one. It checks out nothing and runs no repository code.
     # docs/CI_RUNBOOK.md, "Timeouts and job shape", owns the reporting policy.
     needs: [full-suite, full-suite-gl]
-    if: ${{ always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

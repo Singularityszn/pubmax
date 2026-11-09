@@ -1,12 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { defined } from "@/__tests__/helpers/defined";
-import { browserJobCondition } from "@/__tests__/helpers/browserJobCondition";
+import { browserJobCondition, browserJobName } from "@/__tests__/helpers/browserJobCondition";
 
 type WorkflowStep = {
   name?: string;
@@ -95,7 +95,7 @@ describe("browser CI policy", () => {
     const glJob = defined(workflow.jobs["full-suite-gl"], "full-suite-gl job");
     const shards = fullSuiteJob.strategy?.matrix?.shard;
     expect(shards).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(fullSuiteJob.name).toBe(`Full browser suite (\${{ matrix.shard }}/${shards?.length})`);
+    expect(browserJobName(fullSuiteJob.name)).toBe(`Full browser suite (1/${shards?.length})`);
     const [shardStep, ...extraShardSteps] = playwrightSteps(fullSuiteJob);
     expect(extraShardSteps).toEqual([]);
     const shardRun = runWords(defined(shardStep, "full-suite Playwright step").run);
@@ -196,7 +196,7 @@ describe("browser CI policy", () => {
         const success = () => needResults.every((result) => result === "success");
         const hasStatusFunction = /\b(always|success|failure|cancelled)\s*\(/.test(expression);
         const actual = (hasStatusFunction || success()) && Boolean(runInNewContext(`(${expression})`, {
-          github: { event_name: event },
+          github: { event_name: event, event: { action: "synchronize", label: { name: "" } } },
           needs: { "full-suite": { result: shards }, "full-suite-gl": { result: gl } },
           needResults,
           always: () => true,
@@ -329,54 +329,84 @@ if (args[0] === "issue" && args[1] === "list") {
     layoutJobs.forEach((job, index) => {
       // A fixed name, so a job skipped for a docs change still reports under
       // the check name branch protection waits for.
-      expect(job.name).toBe(`Browser layout pins (${index + 1}/3)`);
+      expect(browserJobName(job.name)).toBe(`Browser layout pins (${index + 1}/3)`);
       expect(job.strategy).toBeUndefined();
       expect(job.env?.LAYOUT_SHARD).toBe(index + 1);
       expect(job.needs).toEqual(["change-scope"]);
       // One step list for all three, so the shards cannot drift apart.
       expect(job.steps).toEqual(defined(layoutJobs[0]).steps);
     });
-    const layoutPinsJob = defined(layoutJobs[0]);
-    const [testStep, ...extraTestSteps] = playwrightSteps(layoutPinsJob);
-    expect(extraTestSteps).toEqual([]);
-    expect(testStep?.if).toBeUndefined();
-    const run = runWords(defined(testStep, "layout-pins Playwright step").run);
-    // These specs hold layout once pinned by source-text tests and the
-    // clicked UK arrival notice beside the live map credit control.
-    for (const spec of [
+    const requiredSpecs = [
       "e2e/desktop-map-chrome-fit.spec.ts",
       "e2e/mobile-map-chrome-fit.spec.ts",
       "e2e/mobile-map-shell-matrix.spec.ts",
       "e2e/ui-consistency-layout.spec.ts",
       "e2e/landing-uk-directory.spec.ts",
       "e2e/map-desktop-arrival-chrome.spec.ts",
-      // The venue-type chips and the map credit. Two chip changes (29 and
-      // 31 Oct 2026) merged green while this spec ran only nightly.
       "e2e/drink-chip-controls.spec.ts",
-      // The desktop toolbar, the first location prompt and the Tonight lane
-      // at 32px browser text. #2495 merged with this spec in no CI job.
       "e2e/desktop-map-large-text.spec.ts",
       "e2e/native-onboarding-actions.spec.ts",
       "e2e/web-first-run-journey.spec.ts",
-      // The Plan result as a route: enlarged stop text and the touch lift,
-      // reorder and scroll. #2500 merged with this spec in no CI job.
       "e2e/plan-route-result.spec.ts",
-    ]) {
-      expect(run).toContain(spec);
+    ];
+    const directory = mkdtempSync(join(process.cwd(), ".layout-command-test-"));
+    try {
+      const log = join(directory, "commands.jsonl");
+      for (const command of ["npx", "node"]) {
+        const path = join(directory, command);
+        writeFileSync(path, `#!${process.execPath}
+const { appendFileSync } = require("node:fs");
+const { spawnSync } = require("node:child_process");
+const args = process.argv.slice(2);
+if (${JSON.stringify(command)} === "node" && args[0] !== "scripts/assert-playwright-gate.mjs") {
+  const result = spawnSync(${JSON.stringify(process.execPath)}, args, { stdio: "inherit" });
+  process.exit(result.status ?? 1);
+}
+appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringify(command)}, args, report: process.env.PLAYWRIGHT_JSON_OUTPUT_NAME }) + "\\n");
+`);
+        chmodSync(path, 0o755);
+      }
+      const executedSpecs: string[] = [];
+      for (const job of layoutJobs) {
+        const shard = String(job.env?.LAYOUT_SHARD);
+        const interpolate = (text: string) => text.replaceAll("${{ env.LAYOUT_SHARD }}", shard);
+        const testStep = defined(job.steps.find((step) => step.name === "Run layout-pinning journeys"));
+        const gateStep = defined(job.steps.find((step) => step.name === "Gate the layout-pinning shard"));
+        expect(testStep.if).toBeUndefined();
+        const env = {
+          ...process.env,
+          PATH: `${directory}:${process.env.PATH}`,
+          COMMAND_LOG: log,
+          ...Object.fromEntries(Object.entries(testStep.env ?? {}).map(([key, value]) => [key, interpolate(value)])),
+        };
+        writeFileSync(log, "");
+        for (const step of [testStep, gateStep]) {
+          const result = spawnSync("bash", ["-e", "-c", interpolate(defined(step.run))], { cwd: process.cwd(), env, encoding: "utf8" });
+          expect(result.status, result.stderr).toBe(0);
+        }
+        const calls = readFileSync(log, "utf8").trim().split("\n").map((line) =>
+          JSON.parse(line) as { command: string; args: string[]; report?: string });
+        expect(calls).toHaveLength(2);
+        const test = defined(calls[0]);
+        expect(test.command).toBe("npx");
+        expect(test.args.slice(0, 2)).toEqual(["playwright", "test"]);
+        const specs = test.args.filter((arg) => arg.startsWith("e2e/"));
+        expect(specs.length).toBeGreaterThan(0);
+        executedSpecs.push(...specs);
+        expect(test.args.filter((arg) => arg.startsWith("--project="))).toEqual([
+          "--project=chromium", "--project=chromium-gl", "--project=chromium-no-gl",
+        ]);
+        expect(test.args).toContain("--reporter=list,json");
+        expect(test.report).toBe(`playwright-layout-pins-${shard}.json`);
+        expect(calls[1]).toMatchObject({ command: "node", args: [
+          "scripts/assert-playwright-gate.mjs", test.report,
+          "--require-zero-skipped", "--skips-argued", "e2e/conditional-skips.allowlist.json",
+        ] });
+      }
+      for (const spec of requiredSpecs) expect(executedSpecs.filter((file) => file === spec), spec).toHaveLength(1);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
     }
-    for (const project of ["chromium", "chromium-gl", "chromium-no-gl"]) {
-      expect(run).toContain(`--project=${project}`);
-    }
-
-    const gate = runWords(
-      layoutPinsJob.steps.find((step) =>
-        runWords(step.run).includes("scripts/assert-playwright-gate.mjs"),
-      )?.run,
-    );
-    expect(gate).toContain("--require-zero-skipped");
-    expect(gate[gate.indexOf("scripts/assert-playwright-gate.mjs") + 1]).toBe(
-      testStep?.env?.PLAYWRIGHT_JSON_OUTPUT_NAME,
-    );
   });
 
   it("runs the same layout steps for every pull request branch", () => {

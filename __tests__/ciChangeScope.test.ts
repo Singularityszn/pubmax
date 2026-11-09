@@ -35,7 +35,7 @@ import { parse } from "yaml";
 
 import { POSTGRES_BACKED_SUITES } from "@/scripts/rls/postgresSuites.mjs";
 import { defined } from "@/__tests__/helpers/defined";
-import { browserJobCondition } from "@/__tests__/helpers/browserJobCondition";
+import { browserJobCondition, browserJobName } from "@/__tests__/helpers/browserJobCondition";
 
 const ROOT = process.cwd();
 const CLASSIFY = "Classify the change";
@@ -242,9 +242,7 @@ describe("what each scope runs", () => {
   // (scripts/ci/layout-pin-shard.mjs). A spec in no shard would never run,
   // and one in two shards would run twice.
   it("runs every listed layout spec in exactly one shard", () => {
-    const listed = defined(
-      defined(e2eJobs()["layout-pins-1"]).steps.find((entry) => entry.name === "Run layout-pinning journeys")?.run,
-    ).match(/e2e\/\S+\.spec\.ts/g) ?? [];
+    const listed = Object.keys(JSON.parse(readFileSync(join(ROOT, "scripts/ci/layout-pin-durations.json"), "utf8")).files);
     expect(listed.length).toBeGreaterThan(0);
     const shards = LAYOUT_PIN_JOBS.map((jobId) => specsRun(jobId, "Run layout-pinning journeys"));
     for (const [index, shard] of shards.entries()) expect(shard.length, LAYOUT_PIN_JOBS[index]).toBeGreaterThan(0);
@@ -258,7 +256,7 @@ describe("what each scope runs", () => {
   ])("applies the CI_RUNBOOK pull-request step policy for $scope", ({ scope, heavy, types, named }) => {
     for (const { where, job: gated } of gatedJobs) {
       for (const shard of [1, 2, 3]) {
-        expect(scopeCondition(gated.if, scope, shard), `${where} job / ${scope} / ${shard}`).toBe(true);
+        expect(where.startsWith("e2e.yml") ? browserJobCondition(gated.if) : scopeCondition(gated.if, scope, shard), `${where} job / ${scope} / ${shard}`).toBe(true);
         const classifierIndex = gated.steps.findIndex((entry) => entry.name === CLASSIFY);
         for (const [index, entry] of gated.steps.entries()) {
           let expected = heavy;
@@ -300,7 +298,7 @@ describe("what each scope runs", () => {
       expect(layout.needs, id).toEqual(["change-scope"]);
       // A matrix job skipped whole reports under its unexpanded name.
       expect(layout.strategy, id).toBeUndefined();
-      expect(layout.name ?? "", id).not.toContain("${{");
+      expect(browserJobName(layout.name), id).toBe(`Browser layout pins (${LAYOUT_PIN_JOBS.indexOf(id) + 1}/3)`);
       for (const scope of ["code", "data", "docs"]) {
         for (const entry of layout.steps) {
           expect(scopeCondition(entry.if, scope), `${id} / ${entry.name} / ${scope}`).toBe(true);
@@ -323,6 +321,8 @@ describe("what each scope runs", () => {
     { event: "pull_request", labels: ["layout-pins"], result: "cancelled", layout: "", expected: true },
     { event: "pull_request", labels: ["layout-pins"], result: "skipped", layout: "", expected: true },
     { event: "pull_request", labels: ["layout-pins"], cancelled: true, expected: false },
+    { event: "pull_request", action: "labeled", label: "needs-triage", labels: ["layout-pins", "needs-triage"], expected: false },
+    { event: "pull_request", action: "labeled", label: "layout-pins", labels: ["layout-pins"], expected: true },
     // The merge queue runs them on the commit that lands.
     { event: "merge_group", expected: true },
     { event: "merge_group", result: "failure", layout: "", expected: true },

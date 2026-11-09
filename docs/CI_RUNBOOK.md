@@ -48,7 +48,9 @@ that lands, which before ran them only after it was on `main`.
 `Browser tests check` still needs them, so a layout failure ejects its queue
 entry. To run them early on a pull request, add the `layout-pins` label. The
 label starts a new run with the pins, and each later push runs them again
-while the label stays. Adding any label starts a new `Browser tests` run.
+while the label stays. Other label events skip every job and use separate,
+non-cancelling runs. Their check names start with `Not run for label - `, so
+they cannot replace the real browser checks.
 One queue entry takes all three Mac places.
 
 The queue moves `main` to the exact commit it tested. In

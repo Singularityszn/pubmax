@@ -27,36 +27,41 @@ const current = JSON.parse(readFileSync(OUT, "utf8"));
 const known = Object.keys(current.files);
 const measured = {};
 
-function addSuite(suite, file) {
+function addSuite(suite, file, totals) {
   const path = suite.file ?? file;
+  const key = path && known.find((spec) => spec === path || spec.endsWith(`/${path}`));
   for (const spec of suite.specs ?? []) {
     for (const test of spec.tests ?? []) {
       for (const result of test.results ?? []) {
         const ms = Number(result.duration);
-        if (path && Number.isFinite(ms) && ms >= 0) measured[path] = (measured[path] ?? 0) + ms;
+        if (key && Number.isFinite(ms) && ms >= 0) totals[key] = (totals[key] ?? 0) + ms;
       }
     }
   }
-  for (const child of suite.suites ?? []) addSuite(child, path);
+  for (const child of suite.suites ?? []) addSuite(child, path, totals);
 }
 
 for (const report of reports) {
-  for (const suite of JSON.parse(readFileSync(report, "utf8")).suites ?? []) addSuite(suite, null);
+  const totals = {};
+  for (const suite of JSON.parse(readFileSync(report, "utf8")).suites ?? []) addSuite(suite, null, totals);
+  for (const [key, ms] of Object.entries(totals)) (measured[key] ??= []).push(ms);
 }
 
 // The report names a spec relative to the Playwright testDir.
 const files = { ...current.files };
 let updated = 0;
-for (const [path, ms] of Object.entries(measured)) {
-  const key = known.find((spec) => spec === path || spec.endsWith(`/${path}`));
-  if (key === undefined) continue;
-  files[key] = Math.round(ms);
+for (const [key, observations] of Object.entries(measured)) {
+  observations.sort((a, b) => a - b);
+  const middle = Math.floor(observations.length / 2);
+  files[key] = Math.round(observations.length % 2
+    ? observations[middle]
+    : (observations[middle - 1] + observations[middle]) / 2);
   updated += 1;
 }
 
 const today = new Date().toISOString().slice(0, 10);
 const next = {
-  source: `Per-spec Playwright durations across the layout-pin projects, refreshed ${today} from ${reports.length} JSON report(s). Refresh with npm run ci:layout-pin-durations.`,
+  source: `Median per-report Playwright spec durations across the layout-pin projects, refreshed ${today} from ${reports.length} JSON report(s). Refresh with npm run ci:layout-pin-durations.`,
   unit: "milliseconds",
   files,
 };
