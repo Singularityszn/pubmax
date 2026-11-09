@@ -1030,7 +1030,9 @@ function projectComposerRecovery(
       planningIntent: resolved.planningIntent,
       rememberedArea: resolved.routeWins ? null : readRememberedArea(),
     });
-    const acceptedIntent = records.planningIntent;
+    const acceptedIntent = records.planningIntent
+      && Date.parse(records.planningIntent.acceptedAt) < Date.parse(routeRecovery.envelope?.savedAt ?? "")
+      ? records.planningIntent : null;
     const provisionalAnchor = records.plan?.draft.acceptedAnchor ?? (acceptedIntent ? {
       venueId: acceptedIntent.acceptedVenueId,
       source: acceptedIntent.source,
@@ -4194,10 +4196,10 @@ export default function PlanComposer() {
     }
     window.history.replaceState(window.history.state, "", url);
   }, [accountGeneration]);
+  const records = useMemo(() => hydrated ? readComposerAcceptanceRecords() : null, [hydrated, accountGeneration]);
   const recovery = useMemo(() => {
-    if (!hydrated || accountGeneration > 0) return null;
+    if (!records || accountGeneration > 0) return null;
     try {
-      const records = readComposerAcceptanceRecords();
       const v1 = records.session?.[PLAN_DRAFT_KEY];
       const v2 = records.session?.[PLAN_DRAFT_V2_KEY];
       const routeV1 = records.local?.[PLAN_ROUTE_DRAFT_KEY];
@@ -4215,11 +4217,12 @@ export default function PlanComposer() {
       }, routeRecovery);
       return {
         ...recovery,
-        acceptedOwner: { ...records, identity: recovery.handoff?.acceptedAnchor ?? null },
         previewToCopy: recoveredPreviewForStorage(recovery, routeRecovery),
       };
     } catch { return null; }
-  }, [hydrated, accountGeneration]);
+  }, [records, accountGeneration]);
+  const acceptedOwner = useMemo(() => records
+    ? { ...records, identity: recovery?.handoff?.acceptedAnchor ?? null } : null, [records, recovery]);
   const recoveredDraft = recovery?.recoveredDraft ?? null;
   const recoveredRouteDraft = recovery?.route.route ?? null;
   const handoff = recovery?.handoff ?? null;
@@ -4263,7 +4266,7 @@ export default function PlanComposer() {
       requestAmbiguous={recovery?.requestAmbiguous ?? false}
       preserveStoredDrafts={recovery?.preserveStoredDrafts ?? false}
       provisionalRequest={recovery?.provisionalRequest ?? false}
-      acceptedOwner={recovery?.acceptedOwner ?? null}
+      acceptedOwner={acceptedOwner}
       handoff={handoff}
       canPersist={hydrated}
       allowUrlPrefill={accountGeneration === 0}
