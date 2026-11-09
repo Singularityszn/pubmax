@@ -238,7 +238,7 @@ export default function PlanRouteMiniMap({
     ? `Route map: ${count} stops ${activeResolved.areaDescription}`
     : `Route map: ${count} stops`;
   const description = activeDrawn.source === "straight"
-    ? `Approximate stop order between ${activeResolved.names.join(", ")}. Dashed lines show stop order only.`
+    ? `Approximate stop order between ${activeResolved.names.join(", ")}.`
     : `Walking route between ${activeResolved.names.join(", ")}.`;
 
   const labelledBy = activeDrawn.source === "straight"
