@@ -44,7 +44,7 @@ A new generated route replaces the notice from its own evidence.
 
 Each successful local route save records its own `savedAt`.
 Session requests and intake envelopes can reference a route by its actual writer date and operation key.
-Recovery retains that generation only when both session copies agree and its validated stops and accepted pub match.
+A Session draft certifies that generation only when both session copies agree and its validated stops and accepted pub match.
 If the intake is newer, its reference must also match.
 A newer request without that reference replaces the older route with an unverified preview.
 A reference cannot certify a different route, an ambiguous record, expired proof or an expired accepted pub.
@@ -82,7 +82,8 @@ The composer restores those stops as one record, even when their venue IDs match
 Session drafts store no generated context or proof.
 Recovery clears the older context, walking inputs, proof, operation key, and generated anchor.
 The restored route needs refreshing before locking.
-A dated route stays preferred when the session save is not newer. An undated session draft keeps the local route.
+For non-provisional Session drafts, a dated route stays preferred when the Session save is not newer.
+An undated non-provisional Session draft keeps the local route.
 Route-save failure has its own notice, even when intake saves and the description is empty.
 Expired or invalid route proof gives the same result for a V1-only, V2 or invalid local record.
 The route stays a preview that needs a refresh. Lock stays off.
@@ -90,9 +91,21 @@ The record does not restore its accepted pub or its generated checks.
 A Map acceptance made after that route is a separate request, and Release does not change the route records.
 A Session draft whose only stop is an accepted pub without a generated route has the `provisionalStop` marker.
 That draft never counts as stop work that beats a newer generated route.
+The newer route must have a matching intake reference. Conflicting dates or references cannot establish that it supersedes the request.
 The marker ends when the draft gets a second stop or a generated route. A one-stop edit of a generated route never gets the marker.
+Local-only recovery uses a matching intent's full identity only if its acceptance predates the winning generation.
 Coverage: `__tests__/planRequestSaveFreshness.test.tsx` and `__tests__/planDraftArbitration.test.ts`.
 The [requested-intent contract](lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) owns description and count recovery, including handoff priority.
+
+The composer derives recovery and ownership from the same captured Plan, route, intake and intent records.
+`ownsAcceptance` checks those records and the full acceptance identity: venue, source, city, area, start and expiry.
+Each write or deletion checks ownership, including saves, Release, generation completion, intent consumption and Lock cleanup.
+Lock also checks ownership after each await before further writes or cleanup.
+These checks protect previews without an acceptance and forms reset after sign-out or an account switch.
+An older composer preserves replacement records. A rejected save reports a save failure.
+Generation and Lock report an ownership change and ask you to reload before continuing.
+Release clears owned acceptance data, but changes a stored route only when it belongs to the displayed generated route.
+Successful Lock consumes the owned intent and clears owned drafts only after any metadata save succeeds.
 
 Generation uses the displayed **First pint** schedule for its [default daypart](../API_CONTRACTS_THE_LOCAL.md#accepted-pub-anchor).
 Changing **Time** in Tune reconciles the displayed start with the selected time window.

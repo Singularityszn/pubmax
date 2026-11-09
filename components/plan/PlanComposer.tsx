@@ -4199,7 +4199,7 @@ export default function PlanComposer() {
     () => false,
   );
   // A departure must discard both mounted inputs and recovery candidates.
-  // Ignore storage and URL prefills for the rest of this composer's lifetime.
+  // Ignore stored inputs and URL prefills for the rest of this composer's lifetime.
   const accountGeneration = useLiveAccountGeneration();
   useLayoutEffect(() => {
     if (accountGeneration === 0) return;
@@ -4209,6 +4209,8 @@ export default function PlanComposer() {
     }
     window.history.replaceState(window.history.state, "", url);
   }, [accountGeneration]);
+  // Account resets need a fresh ownership snapshot even when hydration is unchanged.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const records = useMemo(() => hydrated ? readComposerAcceptanceRecords() : null, [hydrated, accountGeneration]);
   const recovery = useMemo(() => {
     if (!records || accountGeneration > 0) return null;
