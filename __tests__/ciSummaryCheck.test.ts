@@ -7,7 +7,7 @@ import { runInNewContext } from "node:vm";
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-import { browserJobCondition } from "@/__tests__/helpers/browserJobCondition";
+import { browserJobCondition, browserJobExpression, browserJobName } from "@/__tests__/helpers/browserJobCondition";
 import { defined } from "@/__tests__/helpers/defined";
 import {
   ReleaseRefusal,
@@ -46,16 +46,39 @@ const NOT_PULL_REQUEST_JOBS: Record<string, string[]> = {
   "freshness.yml": [],
 };
 
+describe("GitHub job status conditions", () => {
+  it.each(["failure", "cancelled", "skipped"])("requires an explicit status check after %s", (result) => {
+    const context = { results: ["success", result] };
+    expect(browserJobCondition(undefined, context)).toBe(false);
+    expect(browserJobCondition("${{ true }}", context)).toBe(false);
+    expect(browserJobCondition("${{ 'always()' != '' }}", context)).toBe(false);
+    expect(browserJobCondition("${{ always() }}", context)).toBe(true);
+    expect(browserJobCondition("${{ !cancelled() }}", context)).toBe(true);
+    expect(browserJobCondition("${{ success() }}", context)).toBe(false);
+    expect(browserJobCondition("${{ failure() }}", context)).toBe(result === "failure");
+    expect(browserJobExpression("${{ true }}", context)).toBe(true);
+    expect(browserJobName("${{ true && 'check' || 'other' }}", context)).toBe("check");
+  });
+
+  it("runs ordinary conditions after success and respects workflow cancellation", () => {
+    expect(browserJobCondition(undefined, { results: ["success", "success"] })).toBe(true);
+    expect(browserJobCondition("false")).toBe(false);
+    expect(browserJobCondition("true", { cancelled: true })).toBe(false);
+    expect(browserJobCondition("!cancelled()", { cancelled: true })).toBe(false);
+    expect(browserJobCondition("always()", { cancelled: true })).toBe(true);
+  });
+});
+
 describe("the required checks", () => {
   it.each(REQUIRED_CHECKS)("$file names $name and runs in the merge queue", ({ file, job, name }) => {
     const parsed = workflow(file);
-    expect(defined(parsed.jobs[job], `${file} / ${job}`).name).toBe(name);
+    expect(browserJobName(defined(parsed.jobs[job], `${file} / ${job}`).name)).toBe(name);
     expect(Object.keys(parsed.on)).toEqual(expect.arrayContaining(["pull_request", "merge_group"]));
   });
 
   it("gives every required check a name no other job shares", () => {
     const names = ["ci.yml", "e2e.yml", "rls-session.yml", "security-ci.yml", "freshness.yml"].flatMap((file) =>
-      Object.values(workflow(file).jobs).map((job) => job.name),
+      Object.values(workflow(file).jobs).map((job) => browserJobName(job.name)),
     );
     for (const { name } of REQUIRED_CHECKS) {
       expect(names.filter((candidate) => candidate === name), name).toHaveLength(1);
@@ -67,7 +90,12 @@ describe("the required checks", () => {
     const summary = defined(jobs.check, `${file} / check`);
     // A skipped summary counts as passed, so it must run even when a job it
     // needs failed or was cancelled.
-    expect(summary.if).toBe("${{ always() }}");
+    for (const result of ["success", "failure", "cancelled", "skipped"]) {
+      for (const dependency of needsOf(summary)) {
+        const results = needsOf(summary).map((id) => id === dependency ? result : "success");
+        expect(browserJobCondition(summary.if, { results, cancelled: result === "cancelled" }), `${file}: ${dependency}=${result}`).toBe(true);
+      }
+    }
     const expected = Object.keys(jobs)
       .filter((id) => id !== "check" && !defined(NOT_PULL_REQUEST_JOBS[file]).includes(id))
       .sort();
@@ -116,13 +144,43 @@ describe("the required checks", () => {
     if (status !== 0) expect(result.stdout).toContain("::error::Not green:");
   });
 
-  it("keeps the layout pins off the merge queue, as their own triggers were left", () => {
+  it("skips every unrelated-label job under a separate check name", () => {
+    const { jobs } = workflow("e2e.yml");
+    const names: Record<string, string> = {
+      "queue-proof": "Merge queue proof",
+      "law-pins": "Browser law pins",
+      "change-scope": "Change scope",
+      "layout-pins-1": "Browser layout pins (1/3)",
+      "layout-pins-2": "Browser layout pins (2/3)",
+      "layout-pins-3": "Browser layout pins (3/3)",
+      check: "Browser tests check",
+      "full-suite": "Full browser suite (1/8)",
+      "full-suite-gl": "Full browser suite (WebGL and keyless)",
+      "nightly-failure-issue": "Report a nightly full-suite failure",
+    };
+    expect(workflow("e2e.yml").on.pull_request).toEqual({ types: ["opened", "synchronize", "reopened", "labeled"] });
+    const context = { action: "labeled", label: "needs-triage", labels: ["layout-pins", "needs-triage"], results: ["failure"] };
+    for (const [id, job] of Object.entries(jobs)) {
+      expect(browserJobCondition(job.if, context), id).toBe(false);
+      const normal = defined(names[id], id);
+      expect(browserJobName(job.name), id).toBe(normal);
+      expect(browserJobName(job.name, context), id).toBe(`Not run for label - ${normal}`);
+      expect(browserJobName(job.name, { ...context, label: "layout-pins" }), id).toBe(normal);
+      for (const event of ["push", "merge_group", "schedule", "workflow_dispatch"] as const) {
+        expect(browserJobName(job.name, { event }), id).toBe(normal);
+      }
+    }
+  });
+
+  it("runs the layout pins in the merge queue, and on a pull request only with its label", () => {
     const { jobs } = workflow("e2e.yml");
     for (const id of ["layout-pins-1", "layout-pins-2", "layout-pins-3"]) {
       const condition = defined(jobs[id], id).if;
-      expect(browserJobCondition(condition, { event: "merge_group" }), id).toBe(false);
-      expect(browserJobCondition(condition, { event: "pull_request" }), id).toBe(true);
-      expect(browserJobCondition(condition, { event: "push" }), id).toBe(true);
+      expect(browserJobCondition(condition, { event: "merge_group" }), id).toBe(true);
+      expect(browserJobCondition(condition, { event: "pull_request" }), id).toBe(false);
+      expect(browserJobCondition(condition, { event: "pull_request", labels: ["layout-pins"] }), id).toBe(true);
+      expect(browserJobCondition(condition, { event: "push" }), id).toBe(false);
+      expect(browserJobCondition(condition, { action: "labeled", label: "layout-pins", labels: ["layout-pins"] }), id).toBe(true);
     }
   });
 });
@@ -131,12 +189,12 @@ describe("a main push after the merge queue", () => {
   type Event = "pull_request" | "merge_group" | "push";
   type Proof = { result: "success" | "failure"; passed?: string };
 
-  // A proved main push keeps Review scope and the layout pins, which the queue
-  // does not run. The queue runs Production build, but main must save its cache
+  // A proved main push keeps Review scope, which the queue does not run.
+  // The queue runs Production build, but main must save its cache
   // for pull requests, which cannot restore caches from merge queue refs.
   const MAIN_ONLY: Record<string, string[]> = {
     "ci.yml": ["production-build", "review-scope"],
-    "e2e.yml": ["change-scope", "layout-pins-1", "layout-pins-2", "layout-pins-3"],
+    "e2e.yml": ["change-scope"],
     "rls-session.yml": [],
     "security-ci.yml": [],
   };
@@ -164,6 +222,7 @@ describe("a main push after the merge queue", () => {
       const expression = String(job.if ?? "true").trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
       const translated = expression
         .replaceAll("needs.*.result", "Object.values(needs).map((need) => need.result)")
+        .replaceAll("github.event.pull_request.labels.*.name", "pullRequestLabels")
         .replace(/needs\.([\w-]+)/g, 'needs["$1"]');
       const holds = runInNewContext(`(${translated})`, {
         github: {
@@ -172,6 +231,7 @@ describe("a main push after the merge queue", () => {
           event: { pull_request: { head: { repo: { full_name: "Singularityszn/pubmax" } } } },
         },
         needs,
+        pullRequestLabels: [],
         always: () => true,
         cancelled: () => false,
         success: allSucceeded,

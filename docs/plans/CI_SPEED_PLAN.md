@@ -1,6 +1,6 @@
 # CI speed plan
 
-Status: LEVERS 1 TO 4 SHIPPING, CAPTAIN DECIDES THE REST. Lever 1 ships in the pull request that adds this plan. On 2 Nov 2026 the captain approved levers 2, 3 and 4 (three unit shards), and they ship in the same pull request. Levers 5, 6 and the remaining browser changes wait for the captain.
+Status: LEVERS 1 TO 4 SHIPPING. Lever 1 ships in the pull request that adds this plan. On 2 Nov 2026 the captain approved levers 2, 3 and 4 (three unit shards), and they ship in the same pull request. Levers 5 and 6 wait for the captain. See lever 7 for browser-work status.
 
 Rule: [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH](../rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path). Skills: `ci-speedup`, `ci-score` and `ci-secure`, user-level skills installed in `~/.agents/skills` (provenance in the git history of [`.agents/skills/SOURCES.md`](../../.agents/skills/SOURCES.md)).
 
@@ -81,7 +81,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 | 4. Balance the unit shards | 2.5 to 3 off the unit chain | Approved 2 Nov 2026 as three shards, ships in this pull request |
 | 5. Cache ESLint's work | up to about 2 | Captain decides |
 | 6. Spread Dependabot over the day | up to 5 of queue, only in a burst | Captain decides |
-| 7. Smaller wins in Browser tests | 0.2 to 2.5 per browser job | Remaining changes need approval |
+| 7. Smaller wins in Browser tests | 0.2 to 2.5 per browser job | See lever 7 below |
 
 ### Lever 1. Restore the Next.js build cache (ships in this pull request)
 
@@ -125,7 +125,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 
 ### Lever 7. Smaller wins in Browser tests (captain decides)
 
-- Balance the three macOS layout-pin shards by duration. Playwright splits by test count, and one shard ran at least 2.5 minutes longer than another.
+- Balance the three macOS layout-pin shards by duration. Done (captain, 9 Nov 2026): see the [CI runbook](../CI_RUNBOOK.md#timeouts-and-job-shape).
 - Shorten fixed waits in browser specs: `ci-speedup` counts about 65 seconds of `waitForTimeout` across 76 spec files.
 
 ### Also found (not speed)

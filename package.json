@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "typecheck": "next typegen && node node_modules/@typescript/native/lib/tsc.js --noEmit",
     "ci:shard-durations": "node scripts/ci/update-vitest-shard-durations.mjs",
+    "ci:layout-pin-durations": "node scripts/ci/update-layout-pin-durations.mjs",
     "db:types": "node scripts/db/generate-database-types.mjs",
     "db:types:check": "node scripts/db/generate-database-types.mjs --check",
     "test": "node scripts/check_node_modules_fresh.mjs && vitest run",

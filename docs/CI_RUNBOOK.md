@@ -23,8 +23,10 @@ failed its browser tests. So a merge now needs five green checks:
 | `Security CI check` | `security-ci.yml` | The summary job. It needs `Merge queue proof` and all four security jobs. |
 | `Freshness check` | `freshness.yml` | The summary job. It needs change detection and the freshness job. |
 
-A summary job runs with `if: ${{ always() }}` and fails when a job it needs
-failed or was cancelled. A job that its own `if` skipped passes, for example
+A summary job uses `always()` to report even when a job it needs failed or
+was cancelled. The browser workflow excludes unrelated label events, as
+described below. A summary fails when a job it needs failed or was cancelled.
+A job that its own `if` skipped passes, for example
 `Review scope` in the merge queue or a layout pin for a change with no screen
 code. The ruleset names only these checks, so a job can be added, split or
 resharded with no settings change. A new pull-request job must be added to its
@@ -38,10 +40,26 @@ The five workflows also listen for `merge_group`. The queue tests each pull
 request on top of `main` and the pull requests ahead of it, so a change that
 is green alone but red beside another one never reaches `main`. The general change classifiers read `merge_group` as `code`, so those Linux jobs run in full.
 Freshness checks the queue diff and runs its data checks only when data changed.
-The layout pins do not run in the queue: when they run was left
-as it was (captain, 7 Nov 2026), so they still run on each pull request push
-and each `main` push. A pull request enters the queue only after its own
-`Browser tests check`, which needs the layout pins, is green.
+
+The macOS layout pins run in the merge queue. Ordinary pull request pushes
+and `main` pushes skip them (captain, 9 Nov 2026). This replaces the 7 Nov 2026
+choice to leave them on each pull request push and each `main` push. The queue
+settings assume three Mac places. A pull request waited about an hour for one,
+and each push used about 42 Mac minutes. In the queue they test the exact commit
+that lands, which before ran them only after it was on `main`.
+`Browser tests check` still needs them, so a layout failure ejects its queue
+entry. To request an early run, add the `layout-pins` label to a pull request
+from this repository. The label cancels the older browser run and starts a
+new one. Each later push runs the pins again while the label stays.
+On labelled pull requests, the pins skip changes with no screen code unless
+classification fails.
+See [What a pull request runs](#what-a-pull-request-runs) for the classifier.
+Other label events skip every job and use separate,
+non-cancelling runs. Their check names start with `Not run for label - `, so
+they cannot replace the real browser checks.
+Each queue entry starts three layout jobs. With three available Mac places,
+the jobs can run together. See [Self-hosted Mac runners](#self-hosted-mac-runners)
+for runner setup.
 
 The queue moves `main` to the exact commit it tested. In
 `ci.yml`, `e2e.yml`, `rls-session.yml` and
@@ -52,8 +70,9 @@ The queue also runs a production build. The main push keeps `Production build`
 only to save the Next.js build cache for later pull requests. GitHub scopes
 caches to their ref. Pull requests can restore caches from their own ref and
 the base branch, but cannot restore caches from temporary merge queue refs.
-`Review scope` and the layout pins still run because the queue does not run
-them. When the proof finds no run, or the API call fails, every job runs.
+`Review scope` still runs because the queue does not run it. The layout pins
+run in the queue and skip every `main` push. When the proof finds no run, or
+the API call fails, the proof-gated jobs run.
 `__tests__/ciSummaryCheck.test.ts` holds which jobs run for each event.
 
 On pull requests and merge groups, `Coverage` runs after successful unit
@@ -83,11 +102,11 @@ Settings:
 | Require branches to be up to date | off. The merge queue tests the up-to-date result. |
 | Merge queue | on |
 | Merge method | squash |
-| Build concurrency | 2 queue entries can run at once. |
+| Build concurrency | 1 queue entry at a time. See the layout-job capacity above (captain, 9 Nov 2026). |
 | Group size | at least 1, at most 5 |
 | Wait for a minimum group size | 5 minutes |
 | Grouping strategy | all entries must pass (`ALLGREEN`) |
-| Status check timeout | 60 minutes |
+| Status check timeout | 120 minutes. An entry can wait for the Mac places while the nightly full suite holds them (captain, 9 Nov 2026). |
 
 Create it with `gh`:
 
@@ -119,11 +138,11 @@ gh api --method POST repos/Singularityszn/pubmax/rulesets --input - <<'JSON'
       "parameters": {
         "merge_method": "SQUASH",
         "grouping_strategy": "ALLGREEN",
-        "max_entries_to_build": 2,
+        "max_entries_to_build": 1,
         "min_entries_to_merge": 1,
         "max_entries_to_merge": 5,
         "min_entries_to_merge_wait_minutes": 5,
-        "check_response_timeout_minutes": 60
+        "check_response_timeout_minutes": 120
       }
     }
   ]
@@ -152,9 +171,9 @@ exceptions and their reasons. They run on the self-hosted `pubmax-mac` pool
 
 GitHub's free plan runs about 20 hosted Linux jobs at once. Hosted macOS
 jobs waited a long time in GitHub's queue, so the macOS jobs moved to the
-`pubmax-mac` pool (captain, 6 Nov 2026). A pull request that changes code
-takes 3 Mac jobs (the layout shards). A docs or data pull request takes none
-(see "What a pull request runs"). The performance sweep once failed to
+`pubmax-mac` pool (captain, 6 Nov 2026). See
+[The required checks and the merge queue](#the-required-checks-and-the-merge-queue)
+for layout-job scheduling and capacity. The performance sweep once failed to
 measure itself on a private repository's 2 vCPU runner; that is why it is
 not on the pull-request path.
 
@@ -282,7 +301,7 @@ The other Mac jobs listen only for `schedule`, `workflow_dispatch` or
 listens for `pull_request_target`. A skipped job counts as passed in branch
 protection, so a fork pull request reports its layout pins as skipped. Read
 such a pull request's screen changes by hand, or push its branch to this
-repository to run the pins.
+repository and add the `layout-pins` label to run the pins.
 
 Browser jobs need no shared queue: one place runs one job at a time, and
 each hosted Linux job is its own machine.
@@ -334,8 +353,26 @@ finding that fits no allowlist shape goes in `.gitleaksignore`.
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `freshness.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Each summary check stops after 5 minutes, because it only reads results. Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
 Browser law pins keep `--workers=1`. [Self-hosted Mac runners](#self-hosted-mac-runners)
-defines the worker limit for Mac jobs. [What a pull request runs](#what-a-pull-request-runs)
-defines when the layout shards run.
+defines the worker limit for Mac jobs. [The required checks and the merge queue](#the-required-checks-and-the-merge-queue)
+and [What a pull request runs](#what-a-pull-request-runs) define when the
+layout shards run.
+
+The three layout shards split their specs by measured time, not by count
+(captain, 9 Nov 2026). Playwright's `--shard` cut the list into equal test
+counts, and the slow map specs sat together in the third shard: it ran 11 to
+18 minutes of tests while the other two ran 5 to 11. Each shard passes the
+whole spec list to `scripts/ci/layout-pin-shard.mjs`, which picks its share
+from `scripts/ci/layout-pin-durations.json` with the unit shards' rule (longest
+spec first, each to the lightest shard). The recorded weights assign about
+9 minutes of tests to each shard. A spec the durations list does not know
+weighs the median.
+
+Refresh the weights from one-worker macOS Playwright JSON reports:
+`npm run ci:layout-pin-durations -- <report.json> [more reports...]`.
+The updater sums each spec's result durations within each report, then takes
+the median of those report totals. A partial rerun therefore does not add
+another run's cost to a spec's weight. Only existing entries are updated.
+Specs absent from every supplied report keep their previous weights.
 
 The nightly full suite separates plain Chromium shards from the WebGL and
 keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
@@ -362,7 +399,7 @@ Close the issue when the nightly is green again.
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite, manual dispatches and merge queue runs never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
-Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push starts three layout-pin jobs. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
+Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. The group was set when each main push started three layout-pin jobs. Since 9 Nov 2026 a main push starts no Mac job. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
 `ci.yml` starts lint, the TypeScript 6 check, `production-build` and the
 three unit shards at once (captain, 2 Nov 2026). None of them reads what another makes: the build and
@@ -470,7 +507,7 @@ The diff runs with `--no-renames`, so a file moved counts under both its old and
 
 The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/3)`, and a required `Unit tests (1/3)` would then wait for ever. These heavy jobs therefore skip individual steps. Since 7 Nov 2026 the ruleset requires only the summary checks, which accept a skipped job, so this limit no longer binds, but these heavy jobs retain their step gates. The freshness job skips whole when no data changed. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
 
-The macOS layout pins also skip whole to avoid holding a runner (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner. Before the Mac pool migration, three layout shards per pull request filled the hosted macOS queue. Docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. In `e2e.yml` one Linux job, `Change scope`, runs the classifiers. `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. When `Change scope` succeeds and `Classify the layout change` outputs `none`, GitHub skips all three jobs without starting a Mac job. If `Change scope` fails, the layout jobs run for events eligible under [Self-hosted Mac runners](#self-hosted-mac-runners). This preserves layout checks when classification fails, because a skipped job passes its summary. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
+The macOS layout pins also skip whole to avoid holding a runner (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner. Before the Mac pool migration, three layout shards per pull request filled the hosted macOS queue. Docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. In `e2e.yml` one Linux job, `Change scope`, runs the classifiers. `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. When `Change scope` succeeds and `Classify the layout change` outputs `none`, GitHub skips all three jobs without starting a Mac job. If `Change scope` fails, the layout jobs run for events eligible under [The required checks and the merge queue](#the-required-checks-and-the-merge-queue). This preserves layout checks when classification fails, because a skipped job passes its summary. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
 
 The layout scope uses a denylist (captain, 23 Oct 2026). A pull request reads `none` only when every changed file belongs to these categories:
 
@@ -499,7 +536,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | CI / Data validation | runs | runs | runs |
 | Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
-| Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | runs for a `ui` change, skipped for `none` and for a fork |
+| Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | follows the [layout-job schedule](#the-required-checks-and-the-merge-queue) and layout scope above |
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
 | Browser tests / nightly failure report | not run on pull requests (schedule only) | same | same |
 | Browser tests / Browser tests check (required) | runs | runs | runs |
@@ -510,6 +547,8 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | Freshness release gate / change detection | runs | runs | runs |
 | Freshness release gate / data checks | runs only if a Markdown file under `data/` or `public/data/` changed | runs | runs only if a file under `data/` or `public/data/` changed |
 | Freshness release gate / Freshness check (required) | runs | runs | runs |
+
+For unrelated label events, the [browser workflow exception](#the-required-checks-and-the-merge-queue) overrides the Browser tests rows in this table.
 
 The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A unit test that reads data without naming the file waits until the merge queue, which runs the full unit suite. For docs-only or data-only changes, browser pins follow the table above. The [browser job schedule](#timeouts-and-job-shape) controls browser coverage.
 
