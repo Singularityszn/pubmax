@@ -27,6 +27,10 @@ import {
   walkRouteStoreMock,
 } from "./helpers/planGenerateRoute";
 import { STALE_AFTER_DAYS } from "@/lib/priceConfidence";
+import { DAY_MS } from "@/lib/dayMs";
+import { priceRowReadDay } from "@/lib/priceReadDay.mjs";
+import { groupVenuePrices } from "@/lib/venues";
+import dataset from "@/public/data/pint_prices_app_dataset.json";
 import type { LngLat } from "@/lib/walkRoute";
 
 // POST /api/plans/generate: drink rates, pint ceilings, structured limits and
@@ -325,30 +329,39 @@ describe("POST /api/plans/generate", () => {
     expect(result).toHaveProperty("prepared");
   });
 
-  it("excludes stale canonical evidence from standalone pint-cap candidates", async () => {
-    // Past the stale band, the bundled figures under the cap can no longer
-    // hold a ceiling. The clock is derived, so a re-collection keeps it stale.
-    const now = PLAN_GENERATION_TEST_NOW + (STALE_AFTER_DAYS + 1) * 24 * 60 * 60 * 1000;
-    const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
-    const london = await actual.loadConciergeVenues("london");
-    const londonEvidence = await planPriceEvidenceForVenues(london, now);
-    const staleUnderCap = new Set(london.filter((venue) => {
-      const evidence = londonEvidence.get(venue.id);
-      return evidence !== undefined && evidence.pence !== null && evidence.pence <= 500
-        && !priceEvidenceUsableForCeiling(evidence);
+  it.each([
+    { query: "3 pubs in Clapham, maximum £5 per pint" },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["maximum £5 per pint"] } },
+  ])("excludes stale canonical evidence from standalone pint-cap candidates: %j", async (input) => {
+    const now = PLAN_GENERATION_TEST_NOW + (STALE_AFTER_DAYS + 1) * DAY_MS;
+    const staleUnderCap = new Set(groupVenuePrices(dataset).filter((venue) => {
+      return venue.cheapestPrice !== null && venue.cheapestPrice <= 5 && venue.prices.length > 0
+        && venue.prices.every((row) => {
+          const day = priceRowReadDay(row);
+          return day !== null && now - Date.parse(`${day}T12:00:00Z`) > STALE_AFTER_DAYS * DAY_MS;
+        });
     }).map((venue) => venue.id));
     expect(staleUnderCap.size).toBeGreaterThan(0);
 
+    const fresh = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in fresh)) throw new Error("Expected fresh preparation before route selection");
+    expect(fresh.prepared.candidates.some(({ venue }) => staleUnderCap.has(venue.id))).toBe(true);
+
     const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, maximum £5 per pint" }),
+      method: "POST", body: JSON.stringify(input),
     }), now);
     if (!("prepared" in result)) throw new Error("Expected preparation before route selection");
     expect(result.prepared.context.budgetLimitPence).toBeNull();
     expect(result.prepared.candidates.filter(({ venue }) => staleUnderCap.has(venue.id))).toEqual([]);
     const evidence = await planPriceEvidenceForVenues(result.prepared.candidates.map(({ venue }) => venue), result.prepared.requestNow);
     for (const candidate of result.prepared.candidates) {
-      expect(priceEvidenceUsableForCeiling(evidence.get(candidate.venue.id)!)).toBe(true);
-      expect(evidence.get(candidate.venue.id)!.pence).toBeLessThanOrEqual(500);
+      const price = evidence.get(candidate.venue.id)!;
+      expect(price.source).not.toBeNull();
+      expect(now - Date.parse(price.source!.observedAt)).toBeLessThanOrEqual(STALE_AFTER_DAYS * DAY_MS);
+      expect(price.pence).toBeGreaterThan(0);
+      expect(price.pence).toBeLessThanOrEqual(500);
     }
   });
 
