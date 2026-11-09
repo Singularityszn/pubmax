@@ -5,8 +5,8 @@
 --
 -- One row per sharing member per Plan: the latest fix and when it expires. No
 -- history is kept. Sharing opens three hours before the start and ends at the
--- Plan's end (start + 8 hours, or an ending) or at 06:00 London time after the
--- start, whichever comes first.
+-- Plan's end (start + 8 hours, or an ending) or at the first 06:00 London time
+-- after the window opens, whichever comes first.
 --
 -- Browser roles hold no table or function privileges. The API spends either a
 -- Plan member capability (a classic Plan) or a verified Social account that

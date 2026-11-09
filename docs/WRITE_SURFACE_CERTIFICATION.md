@@ -4,7 +4,6 @@ The Plan beacon, presentation, live location and open-crawl arrival entries decl
 The Plan route tests and `__tests__/planNightStorePermissions.test.ts` exercise beacon and presentation permissions.
 The live-location route and store tests exercise live-location permissions.
 `__tests__/permissionMatrixEffective.test.ts` exercises open-crawl arrival permissions.
-The merged inventory contains 181 mutating handlers across 145 route files.
 Source names and syntax do not establish their runtime protection.
 
 

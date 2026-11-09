@@ -455,7 +455,10 @@ export default function PrivacyPage() {
             name on their map. Nobody else can see it, and a person who leaves
             or is removed sees nothing more. Sharing stops when you tap Stop
             sharing, when the Plan ends, or at 6am London time, whichever comes
-            first. If your phone loses its signal, your crew sees where you
+            first. A confirmed Stop stops uploads from every tab and device
+            for that night. Only a new tap after Stop can start sharing again,
+            even if you leave and rejoin. Reloading does not resume uploads.
+            If your phone loses its signal, your crew sees where you
             were last, with the time. The app does not send your location while
             it is closed or in the background.
           </li>
@@ -963,9 +966,12 @@ export default function PrivacyPage() {
           <li>
             <strong>Live location shared with your crew:</strong>{" "}only your
             latest position, and only until you stop sharing, the Plan ends or
-            6am London time, whichever is first. Stopping, leaving the night or
-            the host ending the night deletes it at once. When the time runs
-            out instead, a clean-up that runs every minute deletes it.
+            6am London time, whichever is first. A confirmed Stop, leaving the
+            night or the host ending the night deletes it at once. When you
+            sign out or switch accounts, we try to delete it before changing
+            accounts. If Stop cannot be confirmed, your last position may
+            remain visible until the night ends. Expired positions are hidden
+            at once and deleted by the next clean-up or live location request.
           </li>
           <li>
             <strong>After you delete your account:</strong>{" "}the prices and
