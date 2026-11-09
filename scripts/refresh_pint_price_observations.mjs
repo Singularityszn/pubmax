@@ -1,38 +1,15 @@
 // Re-collect the bundled London pint prices from their own source and apply the
 // fresh figures IN PLACE.
 //
-// WHY THIS EXISTS, and why it is not `npm run export:data`.
-//
-// The freshness registry names the pint dataset's refresh workflow as
-// `export:data -> canonicalize:venues -> build:slim`. Run as named, that
-// workflow cannot refresh anything and actively regresses the bundle:
-//
-//   * export:data re-exports data/pint_prices_app_dataset.csv, the SAME
-//     committed July extract. It re-reads no page, so it produces no newer
-//     observation. Stamping a fresh collection date onto its output would be
-//     inventing a re-collection nobody performed.
-//   * The committed artifact is LAYERED. Rows from the outer-London OSM merge,
-//     the Wikipedia list, the outer-London gazetteer seed and the chain
-//     gazetteer seed were added AFTER the export, and the CSV does not carry
-//     them. A measured run of the named workflow took the bundle from 3,761
-//     rows to 2,719: a silent loss of 1,240 committed product rows.
-//
-// So the collection half is here, and it is additive by construction: it
-// rewrites the PRICE of a row that already exists and never removes one.
-// Identity fields, venue ids, boroughs, coordinates and every layer are
-// untouched, so nothing downstream that stores an app price id is disturbed.
+// The bundle contains rows and fields absent from the CSV. Re-exporting the
+// CSV cannot preserve those layers, so this lane updates held rows in place.
+// Collection and publication instructions: data/README.md#re-collecting-the-prices.
 //
 // A ROW IS READ AGAINST ITS OWN LISTING PAGE. The venue canonicalizer rewrites
 // a merged row's name, address and point to another listing's, and leaves
 // `pub_url` alone. So a held row is matched by the listing its `pub_url` (or
 // `constructed_pub_url`) names, never by its display name, and a row with no
 // pint-prices listing is not this lane's to re-read.
-//
-// ONE ADDITION, ONLY WHEN ASKED. `--attach-matched-listings` adds a priced row
-// for a pint no held row states, and only where the canonicalizer's own
-// same-pub rule puts that listing on exactly one venue we already hold. It
-// never adds a venue. Every pint it does not attach is written, with the
-// reason, to `--unmatched-report <path>`.
 //
 // EVERY ROW CARRIES THE DAY IT WAS READ. A row the source still states takes
 // this run's instant in `scraped_at_values`, whether or not its figure moved,
@@ -43,10 +20,6 @@
 // The registry stamp stays owned by scripts/export_app_dataset_json.py
 // (--collected-at, with --stamp-only for this lane), so one writer keeps the
 // single source of truth.
-//
-// The source is pint-prices.com, the same publisher the committed extract came
-// from (data/README.md), and this reads only the pages the original extract
-// read: 32 borough pages plus the pub pages the sitemap lists.
 //
 // NOTHING IS FETCHED WITHOUT PERMISSION, AND PERMISSION IS NOT A COMMENT.
 // pint-prices.com is a price AGGREGATOR, not the pubs' own publisher, so it is
@@ -61,8 +34,8 @@
 //
 // A READ WE COULD NOT RUN WRITES NOTHING. If the source answers with fewer
 // observations than MIN_OBSERVATION_FLOOR, or covers less than
-// MIN_COVERAGE_RATIO of the priced rows we hold, the run refuses and exits
-// non-zero rather than publish a thin re-collection as a full one.
+// MIN_COVERAGE_RATIO of held priced rows with a pint-prices listing URL,
+// the run refuses and exits non-zero rather than publish a thin read as a full one.
 //
 // A CAPTURE IS REPLAYED, NOT FETCHED. `--capture <dir>` reads the pages an
 // earlier collection saved (see `readCapture`) instead of the network, so the
@@ -365,7 +338,7 @@ export async function collect({
  * is fetched. `dir` holds `fetch_log.jsonl` (one `{url, status, at}` per
  * request) and `raw/<first 16 hex of sha1(url)>.html.gz`. Only a page the log
  * records as answered 200 is read, and `collectedAt` is the last request's
- * instant, so a replayed row is dated by the day its page was read.
+ * instant. Re-observed and attached rows share that capture timestamp.
  */
 export async function readCapture(dir) {
   const log = new Map();
