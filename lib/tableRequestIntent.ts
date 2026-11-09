@@ -19,10 +19,10 @@ const COUNT_TOKEN = `(?:\\d+(?:[.:]\\d+)?|${NUMBER_WORDS.join("|")}|thirty|forty
 const COUNT_EXPRESSION = `${COUNT_TOKEN}(?:(?:\\s*[-–\\u2014/]\\s*|\\s+(?:(?:to|or|and)\\s+)?)${COUNT_TOKEN})*`;
 
 /**
- * The one crew size a table ask names, or null. A question that is not about
- * a table, names no size, names two, or names one outside 6 to 20 reads as no
- * handoff, because a guessed size in a prefilled form is a wrong request sent
- * in the reader's name.
+ * The one crew size a table ask names, or null. Questions without table intent
+ * or a crew size produce no handoff. Conflicting or unsupported crew sizes also
+ * produce no handoff, because a guessed size could send a wrong request in the
+ * reader's name.
  */
 export function tableRequestPartySizeInText(text: string): number | null {
   if (!/\b(?:table|book(?:ing)?|reserv(?:e|ation))\b/i.test(text)) return null;

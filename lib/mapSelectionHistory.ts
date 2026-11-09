@@ -19,9 +19,10 @@ export type PubmaxSelectionHistory = {
 };
 
 // sel is the inspected Venue; accept=1 / src=<source> are the accepted-handoff
-// markers; at=<lat>,<lng> is sel's companion location hint for a UK base pub
-// (see SELECTION_HINT_PARAM). All four belong to a specific selection/
-// acceptance arrival and are stripped when we build a clean Map entry.
+// markers. at=<lat>,<lng> is sel's companion location hint for a UK base pub
+// (see SELECTION_HINT_PARAM). table is the selected pub's table request.
+// These parameters belong to a specific selection or acceptance arrival.
+// A clean Map entry removes them.
 // Everything else (pubs, mode, plan, log, style, band, …) is owned passthrough
 // and is preserved on every rewrite.
 const SELECTION_PARAMS = ["sel", "accept", "src", "at", "table"] as const;
