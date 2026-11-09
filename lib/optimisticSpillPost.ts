@@ -75,6 +75,7 @@ export type OptimisticSpillRetryPayload = {
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type ResolvePhotoPreview = (url: string) => Promise<Blob>;
+const liveRetries = new WeakMap<StorageLike, Map<string, OptimisticSpillRetryPayload>>();
 
 function parsePrice(value: string): number | null {
   const trimmed = value.trim();
@@ -243,7 +244,9 @@ async function appendRetryPhoto(
 ) {
   if (!url) return;
   if (!url.startsWith("blob:")) return;
-  const blob = await resolvePhotoPreview(url);
+  const blob = await resolvePhotoPreview(url).catch(() => {
+    throw new Error(PHOTO_PREVIEW_GONE);
+  });
   const extension = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
   body.set(field, blob, `${field}.${extension}`);
 }
@@ -343,7 +346,11 @@ export function readOptimisticSpills(storage: StorageLike): StoredOptimisticSpil
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed)
-      ? parsed.filter(isStoredOptimisticSpill).map(withoutBlobPreviews)
+      ? parsed.filter(isStoredOptimisticSpill).map((entry) => {
+          const stored = withoutBlobPreviews(entry);
+          const retry = liveRetries.get(storage)?.get(entry.clientRequestId);
+          return stored.retry && retry ? { ...stored, retry: { ...retry } } : stored;
+        })
       : [];
   } catch {
     return [];
@@ -354,12 +361,18 @@ export function writeOptimisticSpills(
   storage: StorageLike,
   entries: StoredOptimisticSpill[],
 ): void {
+  const retained = entries.slice(0, 10);
+  const retries = new Map<string, OptimisticSpillRetryPayload>();
+  for (const entry of retained) {
+    if (entry.retry) retries.set(entry.clientRequestId, { ...entry.retry });
+  }
+  liveRetries.set(storage, retries);
   try {
     if (entries.length === 0) {
       storage.removeItem(OPTIMISTIC_SPILL_STORAGE_KEY);
       return;
     }
-    storage.setItem(OPTIMISTIC_SPILL_STORAGE_KEY, JSON.stringify(entries.slice(0, 10).map(withoutBlobPreviews)));
+    storage.setItem(OPTIMISTIC_SPILL_STORAGE_KEY, JSON.stringify(retained.map(withoutBlobPreviews)));
   } catch {
     // Storage can be full or disabled; the in-memory submit path still proceeds.
   }

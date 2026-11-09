@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildOptimisticSpillRetryFormData,
@@ -242,7 +242,7 @@ describe("optimistic Spill posting", () => {
     expect(form.get("pint_photo")).toBeInstanceOf(Blob);
   });
 
-  it("never persists a blob: preview, and a retry refuses rather than dropping the photo", async () => {
+  it("never persists a blob: preview, and refuses the photo retry after reload", async () => {
     const input = {
       clientRequestId: "client-1",
       venueId: "venue-1",
@@ -271,7 +271,9 @@ describe("optimistic Spill posting", () => {
       upsertOptimisticSpill([], buildOptimisticSpillDrop(input), buildOptimisticSpillRetryPayload(input)),
     );
     expect([...memory.values()].join("")).not.toContain("blob:");
-    const stored = readOptimisticSpills(storage)[0]!;
+    vi.resetModules();
+    const reloaded = await import("@/lib/optimisticSpillPost");
+    const stored = reloaded.readOptimisticSpills(storage)[0]!;
     expect(stored.drop.pintPhotoUrl).toBeNull();
     expect(stored.retry).toMatchObject({ pintPhotoUrl: null, photoNotKept: true });
     await expect(buildOptimisticSpillRetryFormData(stored.retry!)).rejects.toThrow(
@@ -406,23 +408,53 @@ describe("optimistic Spill posting", () => {
       expect(form.get("measureLabel")).toBe("175ml");
     });
 
-    it("sends the bill with the retry, and refuses once its preview is gone", async () => {
-      const withBill = { ...halfWithNoPhotos, receiptPhotoUrl: "blob:http://localhost/bill" };
-      const form = await buildOptimisticSpillRetryFormData(
-        buildOptimisticSpillRetryPayload(withBill),
-        async () => new Blob(["bill"], { type: "image/jpeg" }),
-      );
-      expect(form.get("receipt_photo")).toBeInstanceOf(Blob);
-
+    it.each([
+      ["pintPhotoUrl", "pint_photo"],
+      ["venuePhotoUrl", "venue_photo"],
+      ["receiptPhotoUrl", "receipt_photo"],
+    ] as const)("keeps a live %s through storage and refuses it after release", async (slot, field) => {
+      const preview = URL.createObjectURL(new Blob(["attached evidence"], { type: "image/jpeg" }));
+      const withPhoto = { ...halfWithNoPhotos, [slot]: preview };
       const storage = memoryStorage();
-      writeOptimisticSpills(
-        storage,
-        upsertOptimisticSpill([], buildOptimisticSpillDrop(withBill), buildOptimisticSpillRetryPayload(withBill)),
-      );
-      expect([...storage.memory.values()].join("")).not.toContain("blob:");
-      await expect(
-        buildOptimisticSpillRetryFormData(readOptimisticSpills(storage)[0]!.retry!),
-      ).rejects.toThrow("Photo preview is no longer available.");
+      try {
+        writeOptimisticSpills(
+          storage,
+          upsertOptimisticSpill([], buildOptimisticSpillDrop(withPhoto), buildOptimisticSpillRetryPayload(withPhoto)),
+        );
+        writeOptimisticSpills(storage, failOptimisticSpill(readOptimisticSpills(storage), "client-1", "Offline"));
+        writeOptimisticSpills(storage, markOptimisticSpillRetrying(readOptimisticSpills(storage), "client-1"));
+        expect([...storage.memory.values()].join("")).not.toContain("blob:");
+        const form = await buildOptimisticSpillRetryFormData(readOptimisticSpills(storage)[0]!.retry!);
+        expect(form.get("measure")).toBe("half");
+        expect(form.get("priceGbp")).toBe("3.40");
+        expect(await (form.get(field) as Blob).text()).toBe("attached evidence");
+
+        URL.revokeObjectURL(preview);
+        await expect(
+          buildOptimisticSpillRetryFormData(readOptimisticSpills(storage)[0]!.retry!),
+        ).rejects.toThrow("Photo preview is no longer available.");
+      } finally {
+        URL.revokeObjectURL(preview);
+      }
+    });
+
+    it("refuses a bill retry after reload loses the live handoff", async () => {
+      const preview = URL.createObjectURL(new Blob(["bill"], { type: "image/jpeg" }));
+      const withBill = { ...halfWithNoPhotos, receiptPhotoUrl: preview };
+      const storage = memoryStorage();
+      try {
+        writeOptimisticSpills(
+          storage,
+          upsertOptimisticSpill([], buildOptimisticSpillDrop(withBill), buildOptimisticSpillRetryPayload(withBill)),
+        );
+        vi.resetModules();
+        const reloaded = await import("@/lib/optimisticSpillPost");
+        await expect(
+          reloaded.buildOptimisticSpillRetryFormData(reloaded.readOptimisticSpills(storage)[0]!.retry!),
+        ).rejects.toThrow("Photo preview is no longer available.");
+      } finally {
+        URL.revokeObjectURL(preview);
+      }
     });
 
     it("refuses an entry stored before the measure was kept, never posting it as a pint", async () => {
