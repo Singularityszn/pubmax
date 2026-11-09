@@ -161,13 +161,13 @@ function isFoodClarification(query: string): boolean {
 function correctFoodQuery(previous: string, rawFragment: string): string {
   const fragment = clarificationFields(rawFragment);
   const has = (pattern: RegExp) => [...fragment.matchAll(pattern)].length > 0;
-  let query = previous;
-  if (has(CONTEXT_AREA)) query = query.replace(CONTEXT_AREA, " ");
+  const area = has(CONTEXT_AREA) ? "" : previous.match(CONTEXT_AREA)?.[0] ?? "";
+  let query = previous.replace(CONTEXT_AREA, " ");
   if (has(CLOCK)) query = query.replace(CLOCK, " ").replace(/\bafter\s+midnight\b/gi, " ").replace(VAGUE_TIME, " ");
   if (has(CONTEXT_NIGHT)) query = query.replace(CONTEXT_DATE, " ").replace(CONTEXT_NIGHT, " ");
   if (has(CONTEXT_DATE)) query = query.replace(CONTEXT_DATE, " ").replace(/\btonight\b/gi, " ");
   if (has(CONTEXT_NIGHT) || has(CONTEXT_DATE)) query = query.replace(VAGUE_DAY, " ");
-  return `${stripTrailingPunctuation(query)} ${fragment}`.replace(/\s+/g, " ").trim();
+  return `${stripTrailingPunctuation(query)} ${area} ${fragment}`.replace(/\s+/g, " ").trim();
 }
 
 /** A reply in a later turn replaces only the fields it names. The merged question is checked once, as a whole. */

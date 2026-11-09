@@ -234,7 +234,7 @@ describe("clean late-food clarification context", () => {
     for (const query of ["2am", "at 02:00"]) {
       const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
       const voice = await voiceAsk(query, turns);
-      for (const response of [typed, voice]) {
+      for (const response of [typed, { ...voice, answer: voice.answerHint }]) {
         expect(response.cards).toEqual([]);
         expect(response.proposals).toEqual([]);
         expect(response.sources).toEqual([]);
@@ -251,7 +251,7 @@ describe("clean late-food clarification context", () => {
     const turns = history.map((content) => ({ role: "user" as const, content }));
     const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
     const voice = await voiceAsk(query, turns);
-    for (const response of [typed, voice]) {
+    for (const response of [typed, { ...voice, answer: voice.answerHint }]) {
       expect(response.cards).toEqual([]);
       expect(response.proposals).toEqual([]);
       expect(response.sources).toEqual([]);
