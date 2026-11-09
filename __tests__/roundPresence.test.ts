@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { PRESENCE_TTL_MS, type PresenceDTO } from "@/lib/presenceStore";
+import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
+import type { PresenceDTO } from "@/lib/presenceStore";
 import {
   crewHereSummary,
   currentStop,

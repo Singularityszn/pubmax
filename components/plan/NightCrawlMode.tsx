@@ -25,7 +25,7 @@ import PlanNightClues from "@/components/plan/PlanNightClues";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
 import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
-import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
+import { crewPresence, type CrewMemberDTO, type CrewPresenceChip } from "@/lib/crew";
 import type { PlanState } from "@/lib/plan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import {
@@ -76,15 +76,6 @@ import {
 import "./nightCrawl.css";
 
 const TFL_JOURNEY_PLANNER = "https://tfl.gov.uk/plan-a-journey/";
-
-// Global presence → hero "who is where" chip. Only statuses that read as a real
-// position get a chip; a plain "in" is dropped so the row stays a glance.
-const CREW_CHIP: Partial<Record<CrewPresenceStatus, { label: string; tone: "here" | "ahead" | "late" }>> = {
-  here: { label: "here", tone: "here" },
-  on_the_way: { label: "on the way", tone: "ahead" },
-  running_late: { label: "lagging", tone: "late" },
-  start_without_me: { label: "catching up", tone: "late" },
-};
 
 type NoteTone = "offline" | "rejected" | "forbidden" | "pending" | "guidance";
 
@@ -365,8 +356,8 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     stopCount: stops.length,
   });
   const crewChips = plan.crew
-    .map((member: CrewMemberDTO) => ({ member, chip: CREW_CHIP[member.status] }))
-    .filter((entry): entry is { member: CrewMemberDTO; chip: NonNullable<(typeof CREW_CHIP)[CrewPresenceStatus]> } => Boolean(entry.chip))
+    .map((member: CrewMemberDTO) => ({ member, chip: crewPresence(member.status).chip }))
+    .filter((entry): entry is { member: CrewMemberDTO; chip: CrewPresenceChip } => entry.chip !== null)
     .slice(0, 5);
 
   const runAction = async (type: NightCrawlActionType) => {

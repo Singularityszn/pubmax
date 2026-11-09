@@ -14,6 +14,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObjec
 import { useRouter } from "next/navigation";
 
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
+import { THEME_STORAGE_KEY } from "@/lib/themePreference";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
 import { commands } from "./commands";
@@ -31,7 +32,7 @@ function toggleTheme(): void {
   const next = current === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
   try {
-    localStorage.setItem("pubmax-theme", next);
+    localStorage.setItem(THEME_STORAGE_KEY, next);
   } catch {
     // Private-mode / storage-disabled: the attribute flip still applies for the
     // session; persistence is best-effort.

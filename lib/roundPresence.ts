@@ -31,7 +31,8 @@
 // you pass. The page composes the EXISTING GET /api/presence?venueId=… read with
 // the Round state it already polls; no new endpoint, no new table.
 
-import { PRESENCE_TTL_MS, type PresenceDTO } from "@/lib/presence";
+import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
+import type { PresenceDTO } from "@/lib/presence";
 import { normalizeHandle } from "@/lib/profiles";
 import type { RoundMemberDTO, RoundStopDTO } from "@/lib/rounds";
 

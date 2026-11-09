@@ -1,7 +1,7 @@
 // Wayfinder 4.2 — invite links expire at plan end (not only by TTL).
 // Plan end mirrors the Night Mode active window: startTime + ACTIVE_PLAN_POST_MS.
 
-import { ACTIVE_PLAN_POST_MS } from "@/lib/activePlan";
+import { ACTIVE_PLAN_POST_MS } from "@/lib/nightWindows";
 
 /** Scheduled end of a Planned Night, or null when startTime is unparseable. */
 export function planScheduledEndMs(startTime: string): number | null {

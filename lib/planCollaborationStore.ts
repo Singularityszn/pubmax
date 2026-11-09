@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
+import { isPlanTerminal } from "@/lib/planTerminal";
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore, reconcileMemoryPlanAccountJoin } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
@@ -477,7 +478,7 @@ const memoryStore: PlanCollaborationStore = {
     if (!planLookup.ok) return { ok: false, error: "error" };
     if (!planLookup.plan) return { ok: false, error: "not_found" };
     if (Number(planLookup.plan.plan.routeRevision ?? 1) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
-    if (["completed", "abandoned"].includes(planLookup.plan.plan.status ?? "draft")) return { ok: false, error: "invalid" };
+    if (isPlanTerminal(planLookup.plan.plan.status)) return { ok: false, error: "invalid" };
     const checked = checkProposalGrounding(planLookup.plan, input.stops, input.groundingProof, input.operationKey, (input.now ?? new Date()).getTime());
     if (!checked.ok) return checked;
     const idem = idempotencyKey(planId, identity.memberId, "proposal:create", input.idempotencyKey);
@@ -790,7 +791,7 @@ const supabaseStore: PlanCollaborationStore = {
     if (!planLookup.ok) return { ok: false, error: "error" };
     if (!planLookup.plan) return { ok: false, error: "not_found" };
     if (Number(planLookup.plan.plan.routeRevision ?? 1) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
-    if (["completed", "abandoned"].includes(planLookup.plan.plan.status ?? "draft")) return { ok: false, error: "invalid" };
+    if (isPlanTerminal(planLookup.plan.plan.status)) return { ok: false, error: "invalid" };
     const checked = checkProposalGrounding(planLookup.plan, input.stops, input.groundingProof, input.operationKey, (input.now ?? new Date()).getTime());
     if (!checked.ok) return checked;
     const admin = requireSupabaseAdmin();

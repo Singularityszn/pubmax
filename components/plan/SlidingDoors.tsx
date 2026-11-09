@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { PlanState } from "@/lib/plan";
+import { isPlanTerminal } from "@/lib/planTerminal";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { slidingDoorsOptions, type SlidingDoorsKind, type SlidingDoorsOption } from "@/lib/slidingDoors";
 import { slidingDoorsGenerationBody, slidingDoorsJson } from "@/lib/slidingDoorsClient";
@@ -57,7 +58,7 @@ function SlidingDoorsContent({ planState, memberToken, onProposalCreated }: Prop
   const revision = String(planState.plan.routeRevision ?? 1);
   const options = comparison?.revision === revision ? comparison.options : [];
   const choice = options.find((option) => option.kind === selected);
-  const ended = ["completed", "abandoned"].includes(planState.plan.status ?? "draft");
+  const ended = isPlanTerminal(planState.plan.status);
 
   useEffect(() => {
     alive.current = true;

@@ -22,9 +22,10 @@ import { requireSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { selectStore, whereVenueIdIn } from "@/lib/storeBackend";
 import { storedVenueIds } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
-import { PRESENCE_TTL_MS, type PresenceDTO, type PresenceInput } from "@/lib/presence";
+import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
+import type { PresenceDTO, PresenceInput } from "@/lib/presence";
 
-export { PRESENCE_TTL_MS, type PresenceDTO, type PresenceInput } from "@/lib/presence";
+export type { PresenceDTO, PresenceInput } from "@/lib/presence";
 
 // How many rows one presence read returns — the strip is a glance, not a list.
 const MAX_PRESENCE = 40;

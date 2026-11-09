@@ -10,6 +10,7 @@ import { warmCityMapFirstPaint, warmMapFirstPaint } from "@/lib/mapWarmup";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
+import { ONBOARDING_DISMISSED_KEY } from "@/lib/onboardingDismissal";
 import type { UkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 import type { ZonePintIndex } from "@/lib/zones";
 
@@ -54,7 +55,6 @@ if (typeof window !== "undefined") {
 // durable pattern as the pubmax-tour-v1-done first-run tour flag. When the F1
 // lock lifts, PubMap can read/write localStorage directly and this bridge can
 // be deleted.
-const ONBOARDING_DISMISSED_KEY = "pubmax_onboarding_dismissed";
 
 function restoreOnboardingDismissal(): null {
   if (typeof window === "undefined") return null;

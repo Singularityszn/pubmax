@@ -1,5 +1,6 @@
 import type { PlanState, PlanStopDTO } from "@/lib/plan";
 import { planScheduledEndMs } from "@/lib/inviteExpiry";
+import { PLAN_BEACON_TTL_MS } from "@/lib/nightWindows";
 import { cleanText } from "@/lib/textClean";
 
 export const PLAN_BEACON_SYMBOLS = [
@@ -10,7 +11,6 @@ export const PLAN_BEACON_SYMBOLS = [
 ] as const;
 export type PlanBeaconSymbol = (typeof PLAN_BEACON_SYMBOLS)[number]["id"];
 export const PLAN_BEACON_NOTE_MAX = 160;
-const PLAN_BEACON_TTL_MS = 2 * 60 * 60 * 1000;
 
 type BeaconStop = Pick<PlanStopDTO, "venueId" | "venueName" | "position">;
 export type PlanBeacon = {

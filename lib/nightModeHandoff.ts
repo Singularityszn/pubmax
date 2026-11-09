@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { nightCrawlHandoffTarget, stopDisposition } from "@/lib/nightCrawl";
 import type { PlanState } from "@/lib/plan";
+import { isPlanTerminal } from "@/lib/planTerminal";
 import type { PlanMutationFlushResult } from "@/lib/planMutationOutbox";
 
 const NIGHT_MODE_ENDING_HANDOFF_EVENT = "pubmaxx:night-mode-ending-handoff";
@@ -80,8 +81,7 @@ export function requestNightModeEndingFromFlush(
 export function requestNightModeEndingFromPlan(plan: PlanState): boolean {
   if (
     plan.ending ||
-    plan.plan.status === "completed" ||
-    plan.plan.status === "abandoned"
+    isPlanTerminal(plan.plan.status)
   ) {
     return false;
   }

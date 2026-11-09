@@ -14,6 +14,26 @@ const CREW_PRESENCE_STATUSES = [
 
 export type CrewPresenceStatus = (typeof CREW_PRESENCE_STATUSES)[number];
 
+export type CrewPresenceChip = { label: string; tone: "here" | "ahead" | "late" };
+
+/**
+ * What each status means. `arrived` counts a guest who turned up. `arriving`
+ * joins it on the Night Mode sheet. `chip` is the "who is where" chip; a plain
+ * "in" has none, so the row stays a glance.
+ */
+const CREW_PRESENCE: Record<CrewPresenceStatus, { arrived: boolean; arriving: boolean; chip: CrewPresenceChip | null }> = {
+  in: { arrived: false, arriving: false, chip: null },
+  on_the_way: { arrived: false, arriving: true, chip: { label: "on the way", tone: "ahead" } },
+  here: { arrived: true, arriving: false, chip: { label: "here", tone: "here" } },
+  running_late: { arrived: false, arriving: false, chip: { label: "lagging", tone: "late" } },
+  start_without_me: { arrived: false, arriving: false, chip: { label: "catching up", tone: "late" } },
+};
+
+/** A status this build does not know, from an older or newer server, reads as a plain "in". */
+export function crewPresence(status: CrewPresenceStatus): (typeof CREW_PRESENCE)[CrewPresenceStatus] {
+  return Object.hasOwn(CREW_PRESENCE, status) ? CREW_PRESENCE[status] : CREW_PRESENCE.in;
+}
+
 export type CrewMemberDTO = {
   id: string;
   name: string;
@@ -98,7 +118,7 @@ const CREW_ARRIVED_BAND_FLOORS: Record<CrewArrivedBand, number> = { "1": 1, "2-3
  * so a host who taps "Here" never counts as a guest who turned up.
  */
 export function guestsArrived(crew: readonly Pick<CrewMemberDTO, "status">[]): number {
-  return crew.slice(1).filter((member) => member.status === "here").length;
+  return crew.slice(1).filter((member) => crewPresence(member.status).arrived).length;
 }
 
 export function crewArrivedBandsReached(crew: readonly Pick<CrewMemberDTO, "status">[]): CrewArrivedBand[] {

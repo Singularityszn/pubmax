@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ACTIVE_PLAN_KEY,
-  ACTIVE_PLAN_POST_MS,
-  ACTIVE_PLAN_PRE_MS,
   clampStopIndex,
   cleanStopIndex,
   RECAP_GRACE_MS,
@@ -25,6 +23,7 @@ import {
   setActivePlanStopIndex,
   writeActivePlan,
 } from "@/lib/activePlan";
+import { ACTIVE_PLAN_POST_MS, ACTIVE_PLAN_PRE_MS } from "@/lib/nightWindows";
 
 const PLAN_ID = "6ab5ca40-836b-4970-9477-d1779fdd31ab";
 const OTHER_ID = "11111111-2222-4333-8444-555555555555";
