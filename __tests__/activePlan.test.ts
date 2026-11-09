@@ -6,7 +6,6 @@ import {
   ACTIVE_PLAN_PRE_MS,
   clampStopIndex,
   cleanStopIndex,
-  clearActivePlan,
   RECAP_GRACE_MS,
   dismissNightMode,
   isNightModeDismissed,
@@ -187,14 +186,6 @@ describe("storage round-trip", () => {
     const later = Date.parse(future);
     markActivePlan(OTHER_ID, future, later);
     expect(readActivePlan()?.id).toBe(OTHER_ID);
-  });
-
-  it("clearActivePlan honours onlyIfId", () => {
-    markActivePlan(PLAN_ID, START);
-    clearActivePlan(OTHER_ID);
-    expect(readActivePlan()?.id).toBe(PLAN_ID);
-    clearActivePlan(PLAN_ID);
-    expect(readActivePlan()).toBeNull();
   });
 
   it("returns null on SSR (no window)", () => {

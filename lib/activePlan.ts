@@ -250,23 +250,6 @@ export function setActivePlanPalContext(palContext: ActivePlanRef["palContext"],
   writeActivePlan({ ...current, palContext: palContext ?? null });
 }
 
-/**
- * Clear the active-plan pointer. When `onlyIfId` is set, only clears if the
- * stored pointer still names that plan (another tab may have moved on).
- */
-export function clearActivePlan(onlyIfId?: string): void {
-  if (!hasLocal()) return;
-  try {
-    const current = parseActivePlan(window.localStorage.getItem(ACTIVE_PLAN_KEY));
-    if (!current) return;
-    if (onlyIfId != null && current.id !== onlyIfId) return;
-    window.localStorage.removeItem(ACTIVE_PLAN_KEY);
-    notify(CHANGE_EVENT);
-  } catch {
-    // ignore
-  }
-}
-
 /** Subscribe to active-plan changes (same-tab writes + cross-tab storage + focus). */
 export function subscribeActivePlan(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => undefined;

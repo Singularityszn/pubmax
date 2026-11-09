@@ -21,8 +21,7 @@ type PlanMutationOutboxStatus =
   | "pending"
   | "conflict"
   | "forbidden"
-  | "rejected"
-  | "failed";
+  | "rejected";
 
 export type PlanMutationOutboxEntry = {
   version: 1;

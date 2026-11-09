@@ -88,8 +88,6 @@ describe("Social post consent and private read store", () => {
       created_at: "2026-08-05T12:00:00.000Z",
     }]);
     state.rows.set("read_social_post_outbox", []);
-    state.rows.set("read_social_post_moderation_queue", []);
-    state.rows.set("moderate_social_post", true);
 
     await store.actOnTag(viewer, "proposal-a", "approve", 4);
     await expect(store.tagInbox(viewer, { lane: "proposed", limit: 20 })).resolves.toEqual({
@@ -108,11 +106,9 @@ describe("Social post consent and private read store", () => {
       nextCursor: null,
     });
     await store.outbox(viewer, { limit: 20 });
-    await store.heldQueue(viewer, 20);
-    await store.moderateHeld(viewer, "post-a", "media-a", "approve");
 
     expect(state.calls.map((call) => call.input.p_actor ?? call.input.p_owner ?? call.input.p_viewer))
-      .toEqual(["profile-a", "profile-a", "profile-a", "profile-a", "profile-a"]);
+      .toEqual(["profile-a", "profile-a", "profile-a"]);
     expect(state.calls[0]?.input.p_expected_audience_revision).toBe(4);
     expect(state.calls[1]?.input).toMatchObject({
       p_lane: "proposed", p_before_created_at: null, p_before_id: null, p_limit: 21,
