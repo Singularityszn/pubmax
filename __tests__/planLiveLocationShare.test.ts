@@ -138,7 +138,7 @@ describe("sharing a live location from the phone", () => {
     vi.useFakeTimers();
     let now = 1_000_000;
     const geo = fakeGeolocation();
-    const fetcher = vi.fn(async (_input: unknown, _init?: RequestInit) => new Response("{}"));
+    const fetcher = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () => new Response("{}"));
     vi.stubGlobal("fetch", fetcher);
     startLiveLocationShare({ ...SEAT, via: "crew" }, { geolocation: geo.geolocation, now: () => now });
     let finishUpload!: (response: Response) => void;
@@ -318,7 +318,7 @@ describe("sharing a live location from the phone", () => {
     const geo = fakeGeolocation();
     let finish!: (response: Response) => void;
     let reject!: (reason: Error) => void;
-    const request = vi.fn((_seat: unknown, method: string, _body?: unknown) => method === "PUT"
+    const request = vi.fn<(seat: unknown, method: string, body?: unknown) => Promise<Response>>((_, method) => method === "PUT"
       ? new Promise<Response>((resolve, fail) => { finish = resolve; reject = fail; })
       : Promise.resolve(new Response("{}")));
     startLiveLocationShare(SEAT, { geolocation: geo.geolocation, request, now: () => now });
@@ -636,7 +636,7 @@ describe("sharing a live location from the phone", () => {
     vi.useFakeTimers();
     const seat = { ...SEAT, via: "crew" as const };
     const geo = fakeGeolocation();
-    const fetcher = vi.fn(async (_input: unknown, _init?: RequestInit) => new Response("{}"));
+    const fetcher = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () => new Response("{}"));
     vi.stubGlobal("fetch", fetcher);
     startLiveLocationShare(seat, { geolocation: geo.geolocation });
     if (stage === "credentials") {

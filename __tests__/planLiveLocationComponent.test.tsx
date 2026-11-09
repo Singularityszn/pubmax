@@ -19,7 +19,10 @@ vi.mock("next/dynamic", async () => {
   return { default: () => Layer };
 });
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ variant: _variant, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => createElement("button", props),
+  Button: ({ ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => {
+    delete props.variant;
+    return createElement("button", props);
+  },
 }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -244,6 +247,12 @@ describe("live location consent at the account boundary", () => {
 
   it("keeps the active Plan live when another panel refuses sharing", async () => {
     const otherSeat = { ...SEAT, planId: "22222222-2222-4222-8222-222222222222" };
+    fetcher.mockImplementation(async (input: unknown, init?: RequestInit) => {
+      if (String(input).includes(otherSeat.planId)) return Response.json({ ...view(), sharing: false });
+      if (init?.method === "PUT") sharing = true;
+      if (init?.method === "DELETE") sharing = false;
+      return Response.json(view());
+    });
     await act(async () => root.render(createElement("div", null,
       createElement(PlanLiveLocation, { seat: SEAT, ownerKey: "owner-a" }),
       createElement(PlanLiveLocation, { seat: otherSeat, ownerKey: "owner-a" }),

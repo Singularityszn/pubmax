@@ -46,6 +46,15 @@ function lastSeen(updatedAt: string, now: number): string | null {
 
 type Props = { seat: LiveLocationSeat; ownerKey: string; stopOnly?: boolean };
 
+function sharingControls(status: LiveShareStatus, busy: boolean, sharing: boolean, stopUnconfirmed: boolean) {
+  const stopping = busy || status === "stopping";
+  const watching = status === "asking" || status === "on" || status === "no-signal";
+  const canStop = watching || status === "paused" || status === "failed" || status === "stopping";
+  const paused = (sharing || status === "paused" || status === "failed" || status === "stopping") && !watching;
+  const canResume = paused && !stopUnconfirmed;
+  return { stopping, watching, canStop, paused, canResume };
+}
+
 /** The remount boundary drops one owner's view before another can paint. */
 export default function PlanLiveLocation({ seat, ownerKey, stopOnly = false }: Props) {
   if (!ownerKey || (seat.via === "plan" && !seat.memberToken)) return null;
@@ -61,9 +70,7 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
   const getSnapshot = useCallback(() => liveShareSnapshot(seat.planId), [seat.planId]);
   const share = useSyncExternalStore(subscribeLiveShare, getSnapshot, () => OFF_SNAPSHOT);
   const status: LiveShareStatus = share.planId === seat.planId ? share.status : "off";
-  const stopping = busy || status === "stopping";
-  const watching = status === "asking" || status === "on" || status === "no-signal";
-  const canStop = watching || status === "paused" || status === "failed" || status === "stopping";
+  const { stopping, watching, canStop, paused, canResume } = sharingControls(status, busy, view?.sharing ?? false, share.stopUnconfirmed);
   const { planId, via, memberToken } = seat;
 
   const read = useCallback(async (signal?: AbortSignal) => {
@@ -142,8 +149,6 @@ function LiveLocationMember({ seat, stopOnly }: Pick<Props, "seat" | "stopOnly">
     ) : null;
   }
 
-  const paused = (view.sharing || status === "paused" || status === "failed" || status === "stopping") && !watching;
-  const canResume = paused && !share.stopUnconfirmed;
   const until = view.endsAt ? clock(view.endsAt) : null;
   return (
     <section className="liveLocation" aria-label="Share where you are" aria-busy={stopping}>

@@ -53,8 +53,10 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, prefetch: _prefetch, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) =>
-    createElement("a", { href: String(href), ...props }, children),
+  default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => {
+    delete props.prefetch;
+    return createElement("a", { href: String(href), ...props }, children);
+  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -88,7 +90,8 @@ vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
 }));
 
-vi.mock("@/lib/authedFetch", () => ({
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authedFetch")>(),
   authedFetch: vi.fn((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)),
   authedActionFetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);

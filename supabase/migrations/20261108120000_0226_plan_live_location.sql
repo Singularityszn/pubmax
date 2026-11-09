@@ -179,8 +179,13 @@ begin
     insert into public.plan_live_locations (plan_id, member_id, latitude, longitude, accuracy_m, updated_at, expires_at)
     select p_plan_id, v_member, p_latitude, p_longitude, p_accuracy_m, v_now, v_end
     where v_plan.social_owner_account_id is null
-      or public._social_crew_relationship_between_accounts(p_social_account_id, v_plan.social_owner_account_id)
-        in ('self', 'mutual', 'not_mutual')
+      or exists (
+        select 1 from public.private_social_accounts account
+        join public.private_social_accounts owner_account on owner_account.id = v_plan.social_owner_account_id
+          and owner_account.ownership_state = 'active'
+        where account.id = p_social_account_id and account.ownership_state = 'active'
+          and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id)
+            in ('self', 'mutual', 'not_mutual'))
     on conflict (plan_id, member_id) do update set
       latitude = excluded.latitude, longitude = excluded.longitude, accuracy_m = excluded.accuracy_m,
       updated_at = excluded.updated_at, expires_at = excluded.expires_at;
@@ -225,8 +230,13 @@ begin
           and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id) is distinct from 'blocked')
       end)
   having v_plan.social_owner_account_id is null
-    or public._social_crew_relationship_between_accounts(p_social_account_id, v_plan.social_owner_account_id)
-      in ('self', 'mutual', 'not_mutual');
+    or exists (
+      select 1 from public.private_social_accounts account
+      join public.private_social_accounts owner_account on owner_account.id = v_plan.social_owner_account_id
+        and owner_account.ownership_state = 'active'
+      where account.id = p_social_account_id and account.ownership_state = 'active'
+        and public.social_relationship_between_profiles(account.profile_id, owner_account.profile_id)
+          in ('self', 'mutual', 'not_mutual'));
   if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
 
   return jsonb_build_object('ok', true, 'view', jsonb_build_object(
