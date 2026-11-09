@@ -51,7 +51,8 @@ that lands, which before ran them only after it was on `main`.
 entry. To request an early run, add the `layout-pins` label to a pull request
 from this repository. The label cancels the older browser run and starts a
 new one. Each later push runs the pins again while the label stays.
-The pins skip a change with no screen code, unless classification fails.
+On labelled pull requests, the pins skip changes with no screen code unless
+classification fails.
 See [What a pull request runs](#what-a-pull-request-runs) for the classifier.
 Other label events skip every job and use separate,
 non-cancelling runs. Their check names start with `Not run for label - `, so
