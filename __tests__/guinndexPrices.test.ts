@@ -2,7 +2,9 @@
 // same pub, and no fresher price on record says otherwise.
 
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 import { readGuinndexObservation } from "@/lib/harvest/guinndex";
@@ -22,6 +24,103 @@ function detail(pub: Record<string, unknown>, extra: Record<string, unknown> = {
 }
 
 const guinness = (cents: number, at: string) => ({ drink_type: "stout", drink_brand: "Guinness", price_cents: cents, created_at: at });
+
+describe("Guinndex cache-only build", () => {
+  const root = process.cwd();
+  const committedPack = readFileSync(path.join(root, "data/uk_prices/guinndex.json"));
+  const previousReport = '[{"slug":"keep-existing-report"}]\n';
+  const pub = { slug: "the-pub-london", name: "The Pub", lat: 51.5, lng: -0.1, guinness_price_cents: 650 };
+
+  function runBuilder(cwd: string) {
+    return spawnSync(process.execPath, [
+      "--import", createRequire(import.meta.url).resolve("tsx"),
+      path.join(root, "scripts/build_guinndex_prices.mjs"),
+    ], {
+      cwd,
+      encoding: "utf8",
+      env: { ...process.env, TSX_TSCONFIG_PATH: path.join(root, "tsconfig.json") },
+    });
+  }
+
+  function fixture() {
+    const cwd = mkdtempSync(path.join(root, ".guinndex-build-test-"));
+    mkdirSync(path.join(cwd, "data/uk_prices"), { recursive: true });
+    writeFileSync(path.join(cwd, "data/uk_prices/guinndex.json"), committedPack);
+    mkdirSync(path.join(cwd, "public/data"), { recursive: true });
+    writeFileSync(path.join(cwd, "public/data/venues_slim.json"), JSON.stringify({
+      rows: [{ id: "venue-the-pub", name: pub.name, lat: pub.lat, lng: pub.lng }],
+    }));
+    return cwd;
+  }
+
+  it.each(["missing", "empty", "county-only", "pub-only", "no-listed-pubs", "undated-prices"])(
+    "refuses a %s cache without changing the committed pack or report",
+    (state) => {
+      const cwd = fixture();
+      const cache = path.join(cwd, "data-harvest/guinndex");
+      try {
+        if (state !== "missing") {
+          mkdirSync(path.join(cache, "county"), { recursive: true });
+          mkdirSync(path.join(cache, "pub"), { recursive: true });
+          writeFileSync(path.join(cache, "unmatched.json"), previousReport);
+        }
+        if (["county-only", "no-listed-pubs", "undated-prices"].includes(state)) {
+          writeGuinndexCache(cache, "county", "Greater London", { pubs: state === "no-listed-pubs" ? [] : [pub] });
+        }
+        if (["pub-only", "no-listed-pubs", "undated-prices"].includes(state)) {
+          writeGuinndexCache(cache, "pub", pub.slug, detail(pub));
+        }
+
+        const result = runBuilder(cwd);
+        expect(result.error).toBeUndefined();
+        expect(result.status, result.stderr).toBe(1);
+        expect(result.stderr).toContain(
+          ["no-listed-pubs", "undated-prices"].includes(state)
+            ? "cache produced no publishable prices"
+            : "cache requires county lists and pub pages",
+        );
+        expect(readFileSync(path.join(cwd, "data/uk_prices/guinndex.json"))).toEqual(committedPack);
+        if (state === "missing") {
+          expect(() => readFileSync(path.join(cache, "unmatched.json"))).toThrow();
+        } else {
+          expect(readFileSync(path.join(cache, "unmatched.json"), "utf8")).toBe(previousReport);
+        }
+      } finally {
+        rmSync(cwd, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("rebuilds a matched, dated price from both cache inputs", () => {
+    const cwd = fixture();
+    const cache = path.join(cwd, "data-harvest/guinndex");
+    try {
+      writeGuinndexCache(cache, "county", "Greater London", { pubs: [pub] });
+      writeGuinndexCache(cache, "pub", pub.slug, detail(pub, {
+        drink_prices: [guinness(650, "2026-06-01T09:00:00Z")],
+      }));
+
+      const result = runBuilder(cwd);
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
+      const pack = JSON.parse(readFileSync(path.join(cwd, "data/uk_prices/guinndex.json"), "utf8"));
+      expect(pack.rows).toEqual([{
+        venueId: "venue-the-pub",
+        venueName: "The Pub",
+        london: true,
+        sourceUrl: "https://guinndex.co.uk/pub/the-pub-london",
+        priceGbp: 6.5,
+        observedAt: "2026-06-01T09:00:00.000Z",
+        drinkLabel: "Guinness",
+        servingSize: "Pint",
+        priceSource: "crowdsourced",
+      }]);
+      expect(JSON.parse(readFileSync(path.join(cache, "unmatched.json"), "utf8"))).toEqual([]);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("Guinndex persisted cache contract", () => {
   it("persists only approved facts in county and pub responses", () => {

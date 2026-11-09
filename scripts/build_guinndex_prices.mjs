@@ -381,7 +381,15 @@ async function main() {
     }
   }
 
-  const built = buildRows({ countyLists: cachedCountyLists(cacheDir), pubDetails: cachedPubDetails(cacheDir), grid });
+  const countyLists = cachedCountyLists(cacheDir);
+  const pubDetails = cachedPubDetails(cacheDir);
+  if (countyLists.length === 0 || pubDetails.size === 0) {
+    throw new Error("guinndex: cache requires county lists and pub pages. Run with --collect before rebuilding. No output was written.");
+  }
+  const built = buildRows({ countyLists, pubDetails, grid });
+  if (built.rows.length === 0) {
+    throw new Error("guinndex: cache produced no publishable prices. Refusing to overwrite the price pack. No output was written.");
+  }
   const pack = {
     source: "Guinndex UK, guinndex.co.uk",
     sourceId: GUINNDEX_SOURCE_ID,
@@ -391,7 +399,6 @@ async function main() {
   };
   if (collectReport) log(`collect: ${JSON.stringify(collectReport)}`);
   log(`guinndex: ${JSON.stringify(pack.counts)}`);
-  mkdirSync(cacheDir, { recursive: true });
   writeFileSync(path.join(cacheDir, "unmatched.json"), `${JSON.stringify(built.unmatchedPubs, null, 2)}\n`);
   mkdirSync(path.dirname(OUT_FILE), { recursive: true });
   writeFileSync(OUT_FILE, `${JSON.stringify(pack, null, 2)}\n`);
