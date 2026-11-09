@@ -1361,26 +1361,23 @@ commit.
 
 ### Contributor identity onboarding
 
-- **Routes / methods:** `POST` and `PATCH` on
-  `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit
-  optional private full name and sex. Date of birth is required on the signup
-  POST. Its sibling GET is read-only.
+- **Routes / methods:** `POST` on `app/api/identity/onboarding/route.ts`
+  claims an account-owned handle. `PATCH` saves private account details.
+  Date input follows `readOptionalDateOfBirth` in `lib/privateIdentity.ts`.
+  Its sibling GET is read-only.
 - **Authority:** every method derives the account from a verified Supabase JWT
   through `callerUserId`. Missing authority returns 401 before any read or
   write. Handle ownership is enforced transactionally by
   `complete_contributor_onboarding`; reserved handles are rejected by shared
   code policy.
-- **Privacy:** date of birth, optional full name and optional sex stay in the
-  private account table and are not returned by public profile routes. Date of
-  birth stays until profile deletion; full name and sex stay until edited,
-  cleared or profile deletion. No contribution eligibility is derived.
-- **The PATCH creates the row it edits.** An account that claimed its handle
-  through the early path stores no date of birth, so it has no
-  `private_account_identities` row at all, and the save was refused for that
-  row's own absence. An owner may now save private details whatever the
-  onboarding status says. Two real refusals remain, and they are two findings:
-  no profile at all is 409, and a first save carrying no date of birth is 400,
-  because the column is NOT NULL.
+- **Privacy:** private identity fields stay in the private account table and
+  are not returned by public profile routes. The [privacy notice](../app/privacy/page.tsx)
+  owns retention and use of these fields. The
+  [contribution access rules](rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s)
+  own the age decision.
+- **Save policy:** the
+  [identity policy](rules/lib-identity-accounts-and-sessions.md#everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap)
+  owns first-save requirements, date-edit refusals and concurrent-save protection.
 
 ### `app/api/identity/adult-assertion` - the recorded 18-or-over tap
 

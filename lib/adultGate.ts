@@ -69,7 +69,8 @@ export function isRecordedAdultAssertion(
  * A stored date of birth still DECIDES when there is one, in both directions:
  * an assertion may answer the age question when nobody has answered it, and it
  * may never overturn an answer the account already gave. Otherwise a person who
- * told us they were 15 could tap their way past their own answer.
+ * told us they were 15 could tap their way past their own answer. Date edits
+ * follow `dateOfBirthEditOverturnsMinor`.
  */
 export function accountIsAdult(
   evidence: AccountAdultEvidence,
@@ -78,6 +79,22 @@ export function accountIsAdult(
   const dateOfBirth = evidence.dateOfBirth?.trim() ?? "";
   if (dateOfBirth) return isAdultDateOfBirth(dateOfBirth, now);
   return isRecordedAdultAssertion(evidence.adultSelfAssertedAt);
+}
+
+/**
+ * Whether saving `next` over a stored date of birth would make an account that
+ * said it was under 18 pass this gate. Every other correction stays open, so an
+ * honest typo can still be fixed. A stored date that is not a date counts as
+ * under 18, so a bad row fails closed.
+ */
+export function dateOfBirthEditOverturnsMinor(
+  stored: string | null | undefined,
+  next: string,
+  now: number = Date.now(),
+): boolean {
+  const current = stored?.trim() ?? "";
+  if (!current) return false;
+  return !isAdultDateOfBirth(current, now) && isAdultDateOfBirth(next, now);
 }
 
 /**

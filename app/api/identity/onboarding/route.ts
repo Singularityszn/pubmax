@@ -4,9 +4,13 @@ import { callerUserId } from "@/lib/authServer";
 import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
 import { isLimited } from "@/lib/pintDrops";
 import { readOptionalDateOfBirth } from "@/lib/privateIdentity";
-import { privateIdentityStore } from "@/lib/privateIdentityStore";
+import {
+  privateIdentityStore,
+  UNDER_18_LOCKED,
+} from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { CONTACT_EMAIL } from "@/lib/siteContact";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 assertServerEnv();
@@ -154,13 +158,17 @@ export async function PATCH(request: Request): Promise<Response> {
         ...(dateOfBirth ? { dateOfBirth } : {}),
       }),
     ]);
-    // An owner may save private details whatever their onboarding status says:
-    // the save CREATES the identity row. What is left is two real refusals, and
-    // they are two findings rather than one. A signed-in account with no
-    // profile has nothing to attach details to, and a first save has to carry
-    // the date of birth the row is built around.
+    // Onboarding status does not block private detail saves. A first save
+    // needs a profile to attach to and a date for the NOT NULL column.
     if (!profile) {
       return publicApiError("Claim your handle before saving private details.", "CONFLICT", 409);
+    }
+    if (privateIdentity === UNDER_18_LOCKED) {
+      return publicApiError(
+        `Your date of birth says you're under 18, so it can't be changed to an adult one here. If it's wrong, email ${CONTACT_EMAIL} and we'll sort it.`,
+        "DATE_OF_BIRTH_LOCKED",
+        403,
+      );
     }
     if (!privateIdentity) {
       return publicApiError("Add your date of birth to save private details.", "INVALID", 400);
