@@ -36,13 +36,16 @@ in the same commit.
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
-| `GET /api/cron/purge-pub-pal-turns` | `* * * * *` | Every minute | Delete expired Pub Pal tool turns (`pub_pal_tool_turns`), which keep the user's lines for two minutes after their last line. Migration 0202 runs the same delete in the database with pg_cron; this route stays as the backstop until `cron.job_run_details` shows that job succeeding ([proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/2026-10-30-pub-pal-purge-pg-cron/README.md)) | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
 | `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry the queued price-trust events and account credits that a community-price write could not record, then acknowledge each queue revision; the price itself is already saved | 30s |
 | `GET /api/cron/purge-social-media` | `20 4 * * *` | 05:20 / 04:20 | Delete up to 50 detached Social photos and up to 50 orphaned uploads; skips while `PUBMAX_SOCIAL_FRIENDS_LAUNCH` keeps Social rolled back | 30s |
 | `GET /api/cron/step-out-nudge` | `0 16 * * 4` | Thursday 17:00 / Thursday 16:00 | Send the weekly Step Out push to opted-in subscribers who are owed one, at most one a week per subscription | 60s |
 | `GET /api/cron/cheap-pint-ping` | `0 16,17 * * 1-5` | Weekdays 17:00·18:00 / weekdays 16:00·17:00 | Send the one-time cheap-pint push to opted-in accounts with a grounded listed price. Two UTC runs cover both halves of the year: the route sends only in the 17:00 London hour, so the 18:00 BST and 16:00 GMT runs skip | 60s |
 | `GET /api/cron/harvest-refresh` | `0 5 * * 1` | Monday 06:00 / Monday 05:00 | Weekly first-party London harvest under `HARVEST_CRON_REQUEST_BUDGET`; the run report goes to logs only, because `npm run harvest:run` owns the durable files. Without `FIRECRAWL_API_KEY` every source is skipped | 300s |
+
+Expired Pub Pal tool turns (`pub_pal_tool_turns`) are not a Vercel job. The
+pg_cron job `pubmax-purge-pub-pal-tool-turns` (migration 0202) deletes them in
+the database every minute. Check it in `cron.job_run_details`.
 
 The What's-On refresh runs **twice a day**. The morning run, `30 5 * * *`
 (06:30 BST, 05:30 GMT), is the baseline: it writes each bounded lane to

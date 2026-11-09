@@ -16,16 +16,13 @@ const MIGRATION = read("supabase/migrations/20261030170000_0202_pub_pal_tool_tur
 const ROLLBACK = read(
   "supabase/migrations/rollback/20261030170000_0202_pub_pal_tool_turn_purge_job_rollback.sql",
 );
-const STORE = read("lib/pubPalToolTurnStore.ts");
 const JOB = "pubmax-purge-pub-pal-tool-turns";
 
 describe("0202 Pub Pal tool-turn purge job", () => {
-  it("deletes exactly what the store's own purge deletes, every minute", () => {
+  it("deletes every expired tool turn, every minute", () => {
     expect(MIGRATION).toContain(`'${JOB}'`);
     expect(MIGRATION).toContain("'* * * * *'");
     expect(MIGRATION).toContain("delete from public.pub_pal_tool_turns where expires_at < now()");
-    // The store's purge: the same table and the same strict comparison.
-    expect(STORE).toMatch(/\.from\("pub_pal_tool_turns"\)\s*\.delete\(\)\s*\.lt\("expires_at",/);
   });
 
   it("is a notice, never a failure, where pg_cron is not available", () => {
@@ -40,10 +37,5 @@ describe("0202 Pub Pal tool-turn purge job", () => {
     expect(ROLLBACK).toContain(`jobname = '${JOB}'`);
     expect(ROLLBACK).toContain("cron.unschedule");
     expect(ROLLBACK).not.toMatch(/drop extension/i);
-  });
-
-  it("keeps the Vercel route as the backstop until the job is confirmed", () => {
-    const vercel = JSON.parse(read("vercel.json")) as { crons: Array<{ path: string }> };
-    expect(vercel.crons.some((cron) => cron.path === "/api/cron/purge-pub-pal-turns")).toBe(true);
   });
 });
