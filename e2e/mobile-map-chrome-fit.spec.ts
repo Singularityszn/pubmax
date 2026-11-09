@@ -1109,7 +1109,7 @@ function overlaps(a: Rect, b: Rect): boolean {
   );
 }
 
-type SettlingScroller = HTMLElement & { scrollSettled?: Promise<void> };
+type SettlingScroller = HTMLElement & { scrollSettled?: boolean };
 
 // Chromium runs key and touch scrolls as compositor animations. A key pressed
 // while one still runs is lost, and a key pressed before the compositor has a
@@ -1117,10 +1117,11 @@ type SettlingScroller = HTMLElement & { scrollSettled?: Promise<void> };
 // waits for its scrollend before the next input.
 async function scrollAndSettle(scroller: Locator, scroll: () => Promise<unknown>): Promise<void> {
   await scroller.evaluate((element: SettlingScroller) => {
-    element.scrollSettled = new Promise(resolve => element.addEventListener("scrollend", () => resolve(), { once: true }));
+    element.scrollSettled = false;
+    element.addEventListener("scrollend", () => { element.scrollSettled = true; }, { once: true });
   });
   await scroll();
-  await scroller.evaluate((element: SettlingScroller) => element.scrollSettled);
+  await expect.poll(() => scroller.evaluate((element: SettlingScroller) => element.scrollSettled)).toBe(true);
 }
 
 for (const viewport of VIEWPORTS) {
