@@ -84,6 +84,21 @@ describe("a base pub whose curated twin spells its name another way", () => {
 });
 
 describe("a pub OpenStreetMap maps twice, as a node and its building's way", () => {
+  it("publishes inherited addresses in five-column national search records", () => {
+    const { pubs } = readJson("data/generated/uk_pub_search.json") as { pubs: unknown[][] };
+    expect(pubs.every((row) => row.length === 5)).toBe(true);
+    expect(pubs).toContainEqual([
+      "n3898524863", "Golden Lion", "54, Bedhampton Road, Havant, PO9 3EY", 50.85486, -0.99828,
+    ]);
+    expect(pubs).toContainEqual([
+      "n16574759", "The Langley Tavern", "Lepe Road, Southampton, SO45 1XR", 50.80743, -1.36811,
+    ]);
+    expect(pubs).toContainEqual([
+      "n2458210719", "The Brendon Arms", "Vicarage Road, Bude, EX23 8SD", 50.8267, -4.54785,
+    ]);
+    expect(pubs.some((row) => row[0] === "w1007388063")).toBe(false);
+  });
+
   it("ships the node alone, with the way's address and owner where the node has none", () => {
     const far = ["n3", "The Swan", "", 51.5 + 200 * METRE, -0.1, ""];
     const otherName = ["w4", "The Crown", "", 51.5, -0.1, ""];

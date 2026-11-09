@@ -48,8 +48,8 @@ async function main() {
     ]);
   }
   // A pub OSM maps twice is one hit under the node the map draws.
-  const { twins } = mergeOsmTwins(rows);
-  const hits = rows.filter((row) => !twins.has(row[0]));
+  const { rows: mergedRows } = mergeOsmTwins(rows);
+  const hits = mergedRows.map((row) => row.slice(0, 5));
   if (hits.length < 10_000) {
     throw new Error(
       `UK pub search index only found ${hits.length} named pubs (expected ~38k)`,
