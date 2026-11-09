@@ -1512,8 +1512,8 @@ test.describe("story and credit placement", () => {
             const press = () => page.keyboard.press(key);
             await (storyScrolls ? scrollAndSettle(storyText, press) : press());
           };
-          // A key that lands before the compositor has the scroller's new
-          // extent scrolls nowhere, so only a short scroll repeats the key.
+          // The compositor can briefly retain the scroller's previous extent.
+          // Retry the key if no scrollend arrives or the scroll stops short.
           await expect(async () => {
             await pressInStory("End");
             expect(await storyText.evaluate(element =>
