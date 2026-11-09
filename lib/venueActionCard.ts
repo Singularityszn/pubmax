@@ -43,7 +43,7 @@ export function venueActionCardPriceDate(
     case "sourced":
       return formatObservedAt(lane.sourcedPrice.observedAt, now) || null;
     case "listed":
-      return formatFreshness(lane.listed.observedAt, now) || null;
+      return formatObservedAt(lane.listed.observedAt, now) || null;
     case "provisional":
     case "aged":
     case "disputed":

@@ -137,6 +137,19 @@ describe("every source is a decision with evidence", () => {
     expect(() => openDataSourceUrl("wetherspoon-food-drink", "/")).toThrow(/no open-data source/);
   });
 
+  it("hands the Guinndex builder its own host and never a path its robots.txt disallows", () => {
+    const guinndex = harvestSource("guinndex-uk");
+    expect(guinndex?.kind).toBe("price-listing");
+    expect(guinndex?.firstParty).toBe(false);
+    expect(openDataSourceUrl("guinndex-uk", "/api/pub/trafalgar-tavern-london").href).toBe(
+      "https://guinndex.co.uk/api/pub/trafalgar-tavern-london",
+    );
+    for (const path of ["/spoons", "/spoons/map", "/api/spoons?x=1", "/API/Spoons", "/api/%73poons", "/spoonsfinder"]) {
+      expect(() => openDataSourceUrl("guinndex-uk", path), path).toThrow(/robots\.txt disallows/);
+    }
+    expect(() => openDataSourceUrl("guinndex-uk", "https://guinndex.ai/api/pub/x")).toThrow(/is not guinndex-uk/);
+  });
+
   it("keeps Context.dev on FIRST-PARTY venue-events pages only", () => {
     const pages = contextDevEventSources();
     expect(pages.some((source) => source.id === "fullers-event-finder-events")).toBe(true);

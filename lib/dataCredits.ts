@@ -191,6 +191,16 @@ export const DATA_CREDITS: readonly DataCredit[] = [
     packMarks: [],
   },
   {
+    id: "guinndex",
+    name: "Guinndex UK, guinndex.co.uk",
+    sourceUrl: "https://guinndex.co.uk/",
+    licence: null,
+    licenceNote: "No reuse licence is recorded. Prices are quoted under the Guinndex's own quoting policy.",
+    attribution: "Guinness prices from the Guinndex UK (guinndex.co.uk). Each price links to its pub's Guinndex page and states the day it was recorded.",
+    usedFor: "The Guinness price on a pub's sheet, with the day Guinndex recorded it and a link to that pub's Guinndex page. It may have changed since.",
+    packMarks: [],
+  },
+  {
     id: "greene-king-menus",
     name: "Greene King pub menus",
     sourceUrl: "https://www.greeneking.co.uk/",

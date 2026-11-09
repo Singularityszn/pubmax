@@ -41,19 +41,22 @@ export function allowedHarvestSources(kind: HarvestSourceKind): HarvestSource[] 
   return harvestSourcesOfKind(kind).filter(isHarvestSourceAllowed);
 }
 
+const BUILDER_READ_KINDS: ReadonlySet<HarvestSourceKind> = new Set(["open-data", "price-listing"]);
+
 /**
- * The URL an open-data builder may fetch: `pathAndQuery` resolved against its
- * registered row's own url, or a throw.
+ * The URL an open-data or price-listing builder may fetch: `pathAndQuery`
+ * resolved against its registered row's own url, or a throw.
  *
  * THE TABLE OWNS THE HOST. A builder names its row and the path it wants, so
  * no builder types an origin, a row the table refuses reads nothing, and a
  * path that would resolve anywhere else (`//other.host/`, another scheme) is
  * refused before it is asked. Builders pair this with `redirect: "error"`, so
- * the host they land on is the host this returned.
+ * the host they land on is the host this returned. A path under one of the
+ * row's `disallowedPaths` is refused too, so robots.txt binds in code.
  */
 export function openDataSourceUrl(id: string, pathAndQuery: string): URL {
   const source = harvestSource(id);
-  if (!source || source.kind !== "open-data") {
+  if (!source || !BUILDER_READ_KINDS.has(source.kind)) {
     throw new Error(`sourcePolicy: no open-data source "${id}"`);
   }
   if (!source.access.allowed) {
@@ -63,6 +66,17 @@ export function openDataSourceUrl(id: string, pathAndQuery: string): URL {
   const url = new URL(pathAndQuery, base);
   if (url.protocol !== "https:" || url.host !== base.host) {
     throw new Error(`sourcePolicy: ${url.href} is not ${source.id}'s ${base.origin}`);
+  }
+  let path: string;
+  try {
+    path = decodeURIComponent(url.pathname).toLowerCase();
+  } catch {
+    throw new Error(`sourcePolicy: ${url.href} has a path that does not decode`);
+  }
+  // A robots.txt rule is a prefix, so `/spoons` also covers `/spoons-map`.
+  const disallowed = (source.disallowedPaths ?? []).find((prefix) => path.startsWith(prefix.toLowerCase()));
+  if (disallowed) {
+    throw new Error(`sourcePolicy: ${source.id}'s robots.txt disallows ${disallowed}`);
   }
   return url;
 }

@@ -284,7 +284,7 @@ describe("UnverifiedPubSheet", () => {
     expect(failed).not.toContain("price logged here yet");
   });
 
-  it("shows be-the-first framing only after a confirmed empty response", () => {
+  it("waits for listed prices when only community absence is known", () => {
     const html = renderToStaticMarkup(
       createElement(UnverifiedPubSheet, {
         pub,
@@ -292,9 +292,9 @@ describe("UnverifiedPubSheet", () => {
       }),
     );
 
-    expect(html).toContain("No price yet");
-    expect(html).toContain("Nobody has logged");
-    expect(html).toContain("is here, and that is all we know.");
+    expect(html).not.toContain("No price yet");
+    expect(html).not.toContain("Nobody has logged");
+    expect(html).toContain("Checking community prices");
   });
 
   it("does not claim overlay absence on first paint", () => {

@@ -1228,7 +1228,7 @@ const PEEK_LANE_CAPTION: Record<
   anchor: "listed anchor price",
   contributor: "current recorded price",
   sourced: "sourced price on record",
-  listed: "listed by the pub",
+  listed: "published price",
   provisional: PROVISIONAL_PRICE_LINE,
   // Never reached: the split branch above answers before the table is asked,
   // because its caption names the pub's own figures. The key is here so the

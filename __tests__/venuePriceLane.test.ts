@@ -550,10 +550,10 @@ describe("the base-pub price summary", () => {
     expect(view.textContent).not.toContain("Nobody has logged");
   });
 
-  it("claims no price only after a successful empty read", () => {
+  it("waits for listed prices even after an empty community read", () => {
     const ready = renderPrice([], "ready");
-    expect(ready.textContent).toContain("No price yet");
-    expect(ready.textContent).toContain("Nobody has logged");
+    expect(ready.textContent).not.toContain("No price yet");
+    expect(ready.textContent).not.toContain("Nobody has logged");
     for (const status of ["loading", "degraded"] as const) {
       const view = renderPrice([], status);
       expect(view.textContent).not.toContain("No price yet");

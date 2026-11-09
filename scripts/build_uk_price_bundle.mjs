@@ -62,7 +62,9 @@ import {
   bundleDrinkFieldsFromPrintedName,
 } from "@/lib/bundleDrinkFields";
 import { isDemoDrinkProvenance } from "@/lib/drinks";
+import { GUINNDEX_PUBLISHER, GUINNDEX_SOURCE_ID } from "@/lib/harvest/guinndex";
 import {
+  harvestSource,
   isHarvestableDrinkUpdateUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { pageNamesAnotherBranch } from "@/lib/harvest/ukPriceCrawl";
@@ -102,6 +104,7 @@ const PUBLISHED_HARVEST_ROWS = path.join(
   ROOT,
   "data/uk_prices/site_harvest.jsonl",
 );
+const GUINNDEX_ROWS = path.join(ROOT, "data/uk_prices/guinndex.json");
 const OUT_DIR = path.join(ROOT, "public/data/uk_prices");
 
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -285,7 +288,22 @@ function collectRows(report) {
     notes.push(`drink-price-update: ${updates.length} row(s) considered`);
   }
 
-  // --- lane 3: the modelled figures, labelled as modelled ------------------
+  // --- lane 3: a third party's price index, read under its own exception ---
+  if (existsSync(GUINNDEX_ROWS)) {
+    const pack = read(GUINNDEX_ROWS);
+    const listingRows = Array.isArray(pack.rows) ? pack.rows : [];
+    addListingSiteRows(listingRows, {
+      owners,
+      servedRefs: new Set(pubs.map((pub) => pub.ref)),
+      venueAliases: existsSync(VENUE_ALIASES) ? read(VENUE_ALIASES).aliases ?? {} : {},
+      baselineDays: curatedBaselineDays(),
+      push,
+      report,
+    });
+    notes.push(`listing-site: ${listingRows.length} Guinndex row(s) considered`);
+  }
+
+  // --- lane 4: the modelled figures, labelled as modelled ------------------
   const pubCount = addEstimateRows(snapshotPubs, owners, push, report);
   notes.push(
     `estimate: ${pubCount} UK pub(s) offered to the engine, ${report.pubsWithNoBasis} with no basis`,
@@ -414,6 +432,79 @@ export function addSiteHarvestRows(
   }
 }
 
+/** The day each curated venue's own price on record was read, keyed by venue. */
+function curatedBaselineDays() {
+  const slim = existsSync(LONDON_SLIM) ? read(LONDON_SLIM) : null;
+  const days = new Map();
+  for (const row of Array.isArray(slim?.rows) ? slim.rows : []) {
+    if (typeof row?.id === "string" && typeof row.priceObservedAt === "string") {
+      days.set(row.id, row.priceObservedAt.slice(0, 10));
+    }
+  }
+  return days;
+}
+
+/**
+ * Lane three: a third party's price index, today the Guinndex UK.
+ *
+ * THE REGISTRY STILL BINDS. A row reaches the bundle only while the
+ * `guinndex-uk` row allows reading and its page sits on that row's own host.
+ * A PRICE ON RECORD THAT IS NEWER WINS. A row older than the day a curated
+ * venue's own price was read is dropped, so an index snapshot never stands
+ * over a fresher figure the sheet already states.
+ */
+export function addListingSiteRows(
+  listingRows,
+  { owners, servedRefs, venueAliases = {}, baselineDays = new Map(), push, report },
+) {
+  const source = harvestSource(GUINNDEX_SOURCE_ID);
+  const host = source ? new URL(source.url).host : null;
+  for (const row of listingRows) {
+    let url = null;
+    try {
+      url = new URL(row?.sourceUrl);
+    } catch {
+      url = null;
+    }
+    if (!source?.access.allowed || !url || url.host !== host || !isHarvestableDrinkUpdateUrl(url.href)) {
+      report.droppedRefusedHost += 1;
+      continue;
+    }
+    const baseRef =
+      typeof row.venueId === "string" && row.venueId.startsWith("venue-uk-") ? row.venueId.slice("venue-uk-".length) : null;
+    if (baseRef && servedRefs.size > 0 && !servedRefs.has(baseRef) && !owners.has(baseRef)) {
+      report.droppedUnresolvedVenue += 1;
+      continue;
+    }
+    const ownedId = (baseRef && owners.get(baseRef)) || row.venueId;
+    const venueId = venueAliases[ownedId] ?? ownedId;
+    if (typeof venueId !== "string" || venueId.length === 0) {
+      report.droppedUnresolvedVenue += 1;
+      continue;
+    }
+    const baselineDay = baselineDays.get(venueId);
+    if (baselineDay && typeof row.observedAt === "string" && baselineDay > row.observedAt.slice(0, 10)) {
+      report.droppedOlderThanOnRecord += 1;
+      continue;
+    }
+    push({
+      venueId,
+      name: typeof row.venueName === "string" ? row.venueName : null,
+      category: "beer",
+      priceGbp: row.priceGbp,
+      lane: "listing-site",
+      standing: "listed",
+      sourceUrl: url.href,
+      publisher: GUINNDEX_PUBLISHER,
+      observedAt: row.observedAt,
+      basis: null,
+      sampleSize: null,
+      ...(typeof row.servingSize === "string" ? { servingSize: row.servingSize } : {}),
+      ...bundleDrinkFieldsFromPrintedName(row.drinkLabel ?? null, "beer"),
+    });
+  }
+}
+
 /** Lane two: the reviewed drink-price publish. */
 function addDrinkPriceUpdateRows(updates, push, report) {
   for (const update of updates) {
@@ -515,6 +606,7 @@ function main() {
     droppedUnresolvedVenue: 0,
     droppedInvalidRow: 0,
     droppedCategoryContradiction: 0,
+    droppedOlderThanOnRecord: 0,
     pubsWithNoBasis: 0,
   };
   const { rows, notes, harvest } = collectRows(report);
@@ -538,7 +630,7 @@ function main() {
     },
     notes: [
       ...notes,
-      `dropped: ${report.droppedRefusedHost} on a host refused on permission, ${report.droppedOtherBranch} read off another branch's page, ${report.droppedDemoFixture} demo fixture(s), ${report.droppedUnresolvedVenue} with no resolvable venue, ${report.droppedInvalidRow} failing the row shape, ${report.droppedCategoryContradiction} evidenced category contradiction(s)`,
+      `dropped: ${report.droppedRefusedHost} on a host refused on permission, ${report.droppedOtherBranch} read off another branch's page, ${report.droppedDemoFixture} demo fixture(s), ${report.droppedUnresolvedVenue} with no resolvable venue, ${report.droppedInvalidRow} failing the row shape, ${report.droppedCategoryContradiction} evidenced category contradiction(s), ${report.droppedOlderThanOnRecord} listing(s) older than the price on record`,
     ],
   };
 

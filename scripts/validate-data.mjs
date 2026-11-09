@@ -2830,7 +2830,7 @@ function validateUkPriceBundle() {
   }
 
   const STANDINGS = new Set(["confirmed", "listed", "estimate"]);
-  const LANES = new Set(["site-harvest", "drink-price-update", "estimate"]);
+  const LANES = new Set(["site-harvest", "drink-price-update", "listing-site", "estimate"]);
   rows.forEach((row, i) => {
     const where = `rows.json[${i}]`;
     if (typeof row !== "object" || row === null) { errs.add(`${where}: not an object`); return; }

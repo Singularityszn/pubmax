@@ -1,12 +1,8 @@
 // ONE BUNDLE, EVERY PRICE WE HOLD, AND EACH ROW SAYS WHAT IT IS WORTH.
 //
-// Prices reach this tree down several lanes: a drinker's Pint Drop, a chain's
-// own published menu, a first-party harvest of a pub's own site, and a figure
-// modelled here that nobody published at all. Each lane already has an owner,
-// and each owner already decides its own thing. What did not exist was ONE
-// place a reader could ask "what do we hold about this pub, and how good is
-// it", so a coverage question could only be answered by counting four files by
-// hand.
+// public/data/uk_prices/README.md owns the lane producers and row reference.
+// Each lane owns its reading rules. The bundle lets a reader ask what we hold
+// about one pub without combining the lane files itself.
 //
 // THE BUNDLE INVENTS NOTHING. Every row is a row one of those lanes already
 // produced, carried through with its own source URL and its own observation
@@ -54,6 +50,9 @@ export const UK_PRICE_BUNDLE_LANES = [
   "site-harvest",
   // The reviewed drink-price publish, public/data/drink_price_updates.
   "drink-price-update",
+  // A third party's price index read under its own registry exception
+  // (lib/harvest/sourceRegistry.ts, kind `price-listing`). Listed, never confirmed.
+  "listing-site",
   // Modelled here from lib/priceEstimate.ts. Never published by anybody.
   "estimate",
 ] as const;
