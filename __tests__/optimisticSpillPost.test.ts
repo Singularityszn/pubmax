@@ -4,11 +4,13 @@ import {
   buildOptimisticSpillRetryFormData,
   buildOptimisticSpillRetryPayload,
   buildOptimisticSpillDrop,
+  createOptimisticSpillPhotoPreview,
   failOptimisticSpill,
   markOptimisticSpillRetrying,
   mergeOptimisticSpillDrops,
   readOptimisticSpills,
   reconcileOptimisticSpill,
+  revokeOptimisticSpillPhotoPreview,
   upsertOptimisticSpill,
   writeOptimisticSpills,
   type StoredOptimisticSpill,
@@ -211,35 +213,38 @@ describe("optimistic Spill posting", () => {
   });
 
   it("rebuilds multipart retry data from the stored payload and local blob previews", async () => {
-    const payload = buildOptimisticSpillRetryPayload({
-      clientRequestId: "client-1",
-      venueId: "venue-1",
-      handle: "karan",
-      priceGbp: "5.8",
-      drink: "Pale ale",
-      passedDownNote: "By the dartboard",
-      era: "",
-      visibility: "public",
-      vibeTags: ["proper", "riverside"],
-      pintPhotoUrl: "blob:http://localhost/pint",
-      venuePhotoUrl: null,
-      receiptPhotoUrl: null,
-      measure: "pint" as const,
-      measureLabel: "",
-      createdAt: "2026-07-07T21:00:00.000Z",
-    });
+    const preview = createOptimisticSpillPhotoPreview(new Blob(["photo"], { type: "image/png" }));
+    try {
+      const payload = buildOptimisticSpillRetryPayload({
+        clientRequestId: "client-1",
+        venueId: "venue-1",
+        handle: "karan",
+        priceGbp: "5.8",
+        drink: "Pale ale",
+        passedDownNote: "By the dartboard",
+        era: "",
+        visibility: "public",
+        vibeTags: ["proper", "riverside"],
+        pintPhotoUrl: preview,
+        venuePhotoUrl: null,
+        receiptPhotoUrl: null,
+        measure: "pint" as const,
+        measureLabel: "",
+        createdAt: "2026-07-07T21:00:00.000Z",
+      });
 
-    const form = await buildOptimisticSpillRetryFormData(payload, async (url) => {
-      expect(url).toBe("blob:http://localhost/pint");
-      return new Blob(["photo"], { type: "image/png" });
-    });
+      const form = await buildOptimisticSpillRetryFormData(payload);
 
-    expect(form.get("venueId")).toBe("venue-1");
-    expect(form.get("handle")).toBe("karan");
-    expect(form.get("priceGbp")).toBe("5.8");
-    expect(form.get("visibility")).toBe("public");
-    expect(form.getAll("vibe_tags")).toEqual(["proper", "riverside"]);
-    expect(form.get("pint_photo")).toBeInstanceOf(Blob);
+      expect(form.get("venueId")).toBe("venue-1");
+      expect(form.get("handle")).toBe("karan");
+      expect(form.get("priceGbp")).toBe("5.8");
+      expect(form.get("visibility")).toBe("public");
+      expect(form.getAll("vibe_tags")).toEqual(["proper", "riverside"]);
+      expect(form.get("pint_photo")).toBeInstanceOf(Blob);
+      expect(await (form.get("pint_photo") as Blob).text()).toBe("photo");
+    } finally {
+      revokeOptimisticSpillPhotoPreview(preview);
+    }
   });
 
   it("never persists a blob: preview, and refuses the photo retry after reload", async () => {
@@ -413,7 +418,7 @@ describe("optimistic Spill posting", () => {
       ["venuePhotoUrl", "venue_photo"],
       ["receiptPhotoUrl", "receipt_photo"],
     ] as const)("keeps a live %s through storage and refuses it after release", async (slot, field) => {
-      const preview = URL.createObjectURL(new Blob(["attached evidence"], { type: "image/jpeg" }));
+      const preview = createOptimisticSpillPhotoPreview(new Blob(["attached evidence"], { type: "image/jpeg" }));
       const withPhoto = { ...halfWithNoPhotos, [slot]: preview };
       const storage = memoryStorage();
       try {
@@ -429,17 +434,17 @@ describe("optimistic Spill posting", () => {
         expect(form.get("priceGbp")).toBe("3.40");
         expect(await (form.get(field) as Blob).text()).toBe("attached evidence");
 
-        URL.revokeObjectURL(preview);
+        revokeOptimisticSpillPhotoPreview(preview);
         await expect(
           buildOptimisticSpillRetryFormData(readOptimisticSpills(storage)[0]!.retry!),
         ).rejects.toThrow("Photo preview is no longer available.");
       } finally {
-        URL.revokeObjectURL(preview);
+        revokeOptimisticSpillPhotoPreview(preview);
       }
     });
 
     it("refuses a bill retry after reload loses the live handoff", async () => {
-      const preview = URL.createObjectURL(new Blob(["bill"], { type: "image/jpeg" }));
+      const preview = createOptimisticSpillPhotoPreview(new Blob(["bill"], { type: "image/jpeg" }));
       const withBill = { ...halfWithNoPhotos, receiptPhotoUrl: preview };
       const storage = memoryStorage();
       try {
@@ -453,7 +458,7 @@ describe("optimistic Spill posting", () => {
           reloaded.buildOptimisticSpillRetryFormData(reloaded.readOptimisticSpills(storage)[0]!.retry!),
         ).rejects.toThrow("Photo preview is no longer available.");
       } finally {
-        URL.revokeObjectURL(preview);
+        revokeOptimisticSpillPhotoPreview(preview);
       }
     });
 

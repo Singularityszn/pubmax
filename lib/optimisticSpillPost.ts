@@ -2,7 +2,6 @@ import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import type { PintDropDTO } from "@/lib/feed";
 import type { Visibility } from "@/lib/spill";
 import type { LastPintDecisionKind } from "@/lib/tfl";
-import { discardBody } from "@/lib/responseBody";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 export const OPTIMISTIC_SPILL_STORAGE_KEY = "pubmax:optimistic-spill-posts:v1";
@@ -74,8 +73,19 @@ export type OptimisticSpillRetryPayload = {
 };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-type ResolvePhotoPreview = (url: string) => Promise<Blob>;
 const liveRetries = new WeakMap<StorageLike, Map<string, OptimisticSpillRetryPayload>>();
+const livePhotoPreviews = new Map<string, Blob>();
+
+export function createOptimisticSpillPhotoPreview(photo: Blob): string {
+  const url = URL.createObjectURL(photo);
+  livePhotoPreviews.set(url, photo);
+  return url;
+}
+
+export function revokeOptimisticSpillPhotoPreview(url: string): void {
+  livePhotoPreviews.delete(url);
+  URL.revokeObjectURL(url);
+}
 
 function parsePrice(value: string): number | null {
   const trimmed = value.trim();
@@ -227,33 +237,23 @@ const PHOTO_PREVIEW_GONE =
 export const RETRY_DETAILS_GONE =
   "Retry details are no longer available. Open the map and post it again.";
 
-async function resolveBlobPreview(url: string): Promise<Blob> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    discardBody(response);
-    throw new Error(PHOTO_PREVIEW_GONE);
-  }
-  return response.blob();
-}
-
-async function appendRetryPhoto(
+function appendRetryPhoto(
   body: FormData,
   field: "pint_photo" | "venue_photo" | "receipt_photo",
   url: string | null,
-  resolvePhotoPreview: ResolvePhotoPreview,
 ) {
   if (!url) return;
   if (!url.startsWith("blob:")) return;
-  const blob = await resolvePhotoPreview(url).catch(() => {
-    throw new Error(PHOTO_PREVIEW_GONE);
-  });
+  // CSP allows blob images but not blob fetches. Keep the original bytes
+  // only while the composer still owns the preview.
+  const blob = livePhotoPreviews.get(url);
+  if (!blob) throw new Error(PHOTO_PREVIEW_GONE);
   const extension = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
   body.set(field, blob, `${field}.${extension}`);
 }
 
 export async function buildOptimisticSpillRetryFormData(
   payload: OptimisticSpillRetryPayload,
-  resolvePhotoPreview: ResolvePhotoPreview = resolveBlobPreview,
 ): Promise<FormData> {
   // A photo the drinker attached is never silently dropped from a retry.
   if (payload.photoNotKept) throw new Error(PHOTO_PREVIEW_GONE);
@@ -274,9 +274,9 @@ export async function buildOptimisticSpillRetryFormData(
   for (const tag of payload.vibeTags) body.append("vibe_tags", tag);
   if (payload.leaveByIso) body.set("leaveByIso", payload.leaveByIso);
   if (payload.lastTrainDecision) body.set("lastTrainDecision", payload.lastTrainDecision);
-  await appendRetryPhoto(body, "pint_photo", payload.pintPhotoUrl, resolvePhotoPreview);
-  await appendRetryPhoto(body, "venue_photo", payload.venuePhotoUrl, resolvePhotoPreview);
-  await appendRetryPhoto(body, "receipt_photo", payload.receiptPhotoUrl, resolvePhotoPreview);
+  appendRetryPhoto(body, "pint_photo", payload.pintPhotoUrl);
+  appendRetryPhoto(body, "venue_photo", payload.venuePhotoUrl);
+  appendRetryPhoto(body, "receipt_photo", payload.receiptPhotoUrl);
   return body;
 }
 

@@ -17,11 +17,13 @@ import type { PintDropDTO } from "@/lib/feed";
 import {
   buildOptimisticSpillDrop,
   buildOptimisticSpillRetryPayload,
+  createOptimisticSpillPhotoPreview,
   emitOptimisticSpillChange,
   failOptimisticSpill,
   newOptimisticSpillClientId,
   readOptimisticSpills,
   reconcileOptimisticSpill,
+  revokeOptimisticSpillPhotoPreview,
   shouldOptimisticallyAppearInFeed,
   upsertOptimisticSpill,
   writeOptimisticSpills,
@@ -489,7 +491,7 @@ export function usePintDrops(
 
   function revokePreview(url: string) {
     if (!livePreviewUrls.current.delete(url)) return;
-    URL.revokeObjectURL(url);
+    revokeOptimisticSpillPhotoPreview(url);
   }
 
   function pickPhoto(slot: PhotoSlotName, file: File | undefined, inputEl: HTMLInputElement | null) {
@@ -504,7 +506,7 @@ export function usePintDrops(
     }
     if (current) revokePreview(current.previewUrl);
     setDropMsg(null);
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = createOptimisticSpillPhotoPreview(file);
     livePreviewUrls.current.add(previewUrl);
     setSlot({ file, previewUrl });
   }
@@ -535,7 +537,7 @@ export function usePintDrops(
   const resetComposer = useCallback((options?: { keepPreviews?: boolean }) => {
     const release = (current: PhotoSlot | null) => {
       if (current && !options?.keepPreviews && livePreviewUrls.current.delete(current.previewUrl)) {
-        URL.revokeObjectURL(current.previewUrl);
+        revokeOptimisticSpillPhotoPreview(current.previewUrl);
       }
       return null;
     };
@@ -574,7 +576,7 @@ export function usePintDrops(
   useEffect(() => {
     const held = livePreviewUrls.current;
     return () => {
-      for (const url of held) URL.revokeObjectURL(url);
+      for (const url of held) revokeOptimisticSpillPhotoPreview(url);
       held.clear();
     };
   }, []);
