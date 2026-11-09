@@ -15,7 +15,7 @@ const NUMBER_WORDS = [
   "seventeen", "eighteen", "nineteen", "twenty",
 ];
 
-const COUNT_TOKEN = `(?:\\d+(?:\\.\\d+)?|${NUMBER_WORDS.join("|")}|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)`;
+const COUNT_TOKEN = `(?:\\d+(?:[.:]\\d+)?|${NUMBER_WORDS.join("|")}|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)`;
 const COUNT_EXPRESSION = `${COUNT_TOKEN}(?:(?:\\s*[-–—/]\\s*|\\s+(?:(?:to|or|and)\\s+)?)${COUNT_TOKEN})*`;
 
 /**
@@ -40,6 +40,7 @@ export function tableRequestPartySizeInText(text: string): number | null {
       continue;
     }
     const raw = (match[1] ?? match[2]!).toLowerCase();
+    if (/[.:]/.test(raw)) continue;
     const number = /^\d/.test(raw) ? Number(raw) : NUMBER_WORDS.indexOf(raw);
     sizes.add(parseTableRequestPartySize(number));
   }
