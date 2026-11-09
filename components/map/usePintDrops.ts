@@ -214,6 +214,10 @@ function fileOfPhoto(photo: PhotoSlot | null): File | null {
   return photo?.file ?? null;
 }
 
+function previewUrlOfPhoto(photo: PhotoSlot | null): string | null {
+  return photo?.previewUrl ?? null;
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -666,10 +670,10 @@ export function usePintDrops(
       era: dropForm.era,
       visibility,
       vibeTags,
-      pintPhotoUrl: pintPhoto?.previewUrl ?? null,
-      venuePhotoUrl: venuePhoto?.previewUrl ?? null,
+      pintPhotoUrl: previewUrlOfPhoto(pintPhoto),
+      venuePhotoUrl: previewUrlOfPhoto(venuePhoto),
       // The retry sends the bill and the measure too, never a default pint.
-      receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
+      receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
       ...measureFieldsOf(dropForm),
       createdAt: new Date().toISOString(),
       ...(trainFields ?? {}),
@@ -715,7 +719,7 @@ export function usePintDrops(
       // The bill shows on the row the moment it is posted, from the same local
       // preview the other two use, so the drinker sees their own evidence
       // before the upload lands.
-      receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
+      receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
       optimistic: optimisticDrop.optimistic,
       ...trainFields,
     };
