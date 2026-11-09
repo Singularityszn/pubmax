@@ -159,6 +159,12 @@ function servesCdnCachedDocument(pathname: string): boolean {
 // `_not-found` is a private folder name, so no route of ours can ever take it.
 const NOT_FOUND_REWRITE_PATH = "/_not-found";
 
+// On Vercel a page path ending in an encoded `\` or `/` reaches the function
+// as a file name and answers the static 500 page. No route ends that way.
+function endsWithEncodedSeparator(pathname: string): boolean {
+  return /%(?:5c|2f)$/i.test(pathname);
+}
+
 function servesUnknownMapCity(pathname: string): boolean {
   const slug = /^\/map\/([^/]+)$/.exec(pathname)?.[1];
   if (!slug || pathname === MAP_DOCUMENT_TWIN_PATH) return false;
@@ -521,7 +527,7 @@ export function securityProxy(request: NextRequest) {
     pathname === MAP_DOCUMENT_PATH &&
     mapRequestNeedsDocumentTwin(request.nextUrl.searchParams)
       ? MAP_DOCUMENT_TWIN_PATH
-      : servesUnknownMapCity(pathname)
+      : servesUnknownMapCity(pathname) || endsWithEncodedSeparator(pathname)
         ? NOT_FOUND_REWRITE_PATH
         : null;
   const rewriteUrl = rewritePath
