@@ -309,11 +309,9 @@ function isStoredOptimisticSpill(value: unknown): value is StoredOptimisticSpill
   );
 }
 
-// A LOCAL PREVIEW NEVER REACHES STORAGE. A `blob:` URL belongs to the document
-// that minted it and to the hook that revokes it, so a copy in localStorage is
-// a broken image after a reload (or after the map revokes it). Both doors strip
-// it: the write so nothing new lands, the read so an entry written before this
-// rule cannot render one.
+// Blob URLs and photo bytes stay out of localStorage because previews expire
+// on reload or release. Reads strip persisted previews before restoring retry
+// metadata from this document's in-memory payload. Display rows stay stripped.
 function isBlobUrl(value: unknown): value is string {
   return typeof value === "string" && value.startsWith("blob:");
 }
