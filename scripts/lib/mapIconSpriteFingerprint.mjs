@@ -21,7 +21,7 @@ import { join } from "node:path";
 import ts from "typescript";
 
 /** Bump when the atlas packing or the PNG encoding changes. */
-export const MAP_ICON_SPRITE_FORMAT = 1;
+export const MAP_ICON_SPRITE_FORMAT = 2;
 
 /**
  * The TypeScript the sprite is drawn from. `declarations: null` hashes the whole

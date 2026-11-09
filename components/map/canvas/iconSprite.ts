@@ -6,6 +6,7 @@ import {
   type IconSpec,
   type IconTokens,
 } from "@/lib/mapIcons";
+import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 import { discardBody } from "@/lib/responseBody";
 
 import manifest from "./mapIconSprite.json";
@@ -15,42 +16,25 @@ import {
   iconTokensFor,
   mapIconImageOptions,
   readTokens,
-  registerMapIcons,
 } from "./tokens";
-
-// THE MAP'S DESIGNED ICONS ARRIVE PRE-DRAWN, AND THE BROWSER DRAWS THEM ONLY
-// WHEN THE SPRITE CANNOT ANSWER.
-//
-// The scene used to draw all of MAP_ICON_SPECS on every style load: a canvas
-// per icon, its paths, and a getImageData read-back per icon, which is the slow
-// call on a phone. `npm run build:map-icon-sprites` now draws them once, at
-// build time, with the same draw functions and the same colour recipe, into one
-// 2x PNG per theme (public/map-icons/). Here the open fetches the one atlas its
-// theme needs, inflates it with the browser's own DecompressionStream (no
-// canvas, so no read-back and no colour management), slices it into one buffer
-// per icon and keeps those for the page's life, so a theme swap back costs a
-// copy, not a draw.
-//
-// FALLBACK, never a hole: the scene DRAWS, exactly as before, whenever the
-// atlas has not arrived yet, failed, cannot be decoded here, lacks a spec, or
-// was drawn with colours the live theme does not have (the legacy legibility
-// mode changes --ink, for one). Same ids, same pixel ratio and same nine-slice
-// either way, so no layer can tell which path filled it.
-//
-// The images are added with an explicit pixelRatio of 2, so the map's own
-// pixel ratio never selects or re-fetches them: MapLibre's `@2x` sprite URL
-// rule belongs to its style-sprite loader, which this path does not use.
 
 export type MapIconTheme = "light" | "dark";
 
 type SpriteImage = { width: number; height: number; data: Uint8Array };
 
 type SpriteState =
+  | { status: "waiting" }
   | { status: "loading" }
   | { status: "ready"; images: ReadonlyMap<string, SpriteImage> }
   | { status: "failed"; reason: string };
 
-const sprites = new Map<MapIconTheme, SpriteState>();
+type SpriteSheet = keyof typeof manifest.sheets;
+
+const sprites = new Map<`${MapIconTheme}:${SpriteSheet}`, SpriteState>();
+const SHEET_SPECS = {
+  main: MAP_ICON_SPECS.filter((spec) => spec.ns !== "lm"),
+  landmarks: MAP_ICON_SPECS.filter((spec) => spec.ns === "lm"),
+};
 
 const SPEC_BY_ID: ReadonlyMap<string, IconSpec> = new Map(
   MAP_ICON_SPECS.map((spec) => [iconId(spec.ns, spec.key), spec]),
@@ -137,43 +121,62 @@ function sliceSpriteAtlas(
   return images;
 }
 
-async function loadSprite(theme: MapIconTheme): Promise<ReadonlyMap<string, SpriteImage>> {
-  const response = await fetch(manifest.themes[theme].url);
+async function loadSprite(
+  theme: MapIconTheme,
+  sheet: SpriteSheet,
+): Promise<ReadonlyMap<string, SpriteImage>> {
+  const entry = manifest.sheets[sheet];
+  const response = await fetch(entry.themes[theme].url);
   if (!response.ok) {
     discardBody(response);
     throw new Error(`map icon sprite: HTTP ${response.status}`);
   }
   const atlas = await decodeSpritePng(new Uint8Array(await response.arrayBuffer()));
-  if (atlas.width !== manifest.width || atlas.height !== manifest.height) {
+  if (atlas.width !== entry.width || atlas.height !== entry.height) {
     throw new Error("map icon sprite: atlas does not match its manifest");
   }
-  return sliceSpriteAtlas(atlas, manifest.icons);
+  return sliceSpriteAtlas(atlas, entry.icons);
 }
 
-/**
- * Start fetching and decoding a theme's atlas. Idempotent, and safe to call
- * before the style has loaded: the map construction and the theme swap call it
- * so the atlas is decoded by the time the scene builds.
- */
-export function preloadMapIconSprite(theme: MapIconTheme): void {
-  if (sprites.has(theme)) return;
+function preloadSpriteSheet(theme: MapIconTheme, sheet: SpriteSheet): void {
+  const key = `${theme}:${sheet}` as const;
+  const state = sprites.get(key);
+  if (state && state.status !== "waiting") return;
   if (
     typeof fetch !== "function" ||
     typeof Response !== "function" ||
     typeof DecompressionStream !== "function"
   ) {
-    sprites.set(theme, { status: "failed", reason: "unsupported" });
+    sprites.set(key, { status: "failed", reason: "unsupported" });
     return;
   }
-  sprites.set(theme, { status: "loading" });
-  loadSprite(theme).then(
-    (images) => sprites.set(theme, { status: "ready", images }),
+  sprites.set(key, { status: "loading" });
+  loadSprite(theme, sheet).then(
+    (images) => sprites.set(key, { status: "ready", images }),
     (error: unknown) =>
-      sprites.set(theme, {
+      sprites.set(key, {
         status: "failed",
         reason: error instanceof Error ? error.message : String(error),
       }),
   );
+}
+
+export function preloadMapIconSprite(theme: MapIconTheme): void {
+  preloadSpriteSheet(theme, "main");
+  const key = `${theme}:landmarks` as const;
+  if (
+    typeof performance !== "undefined" &&
+    performance.getEntriesByName(PINS_VISIBLE_EVENT, "mark").length > 0
+  ) {
+    preloadSpriteSheet(theme, "landmarks");
+  } else if (typeof window !== "undefined" && !sprites.has(key)) {
+    sprites.set(key, { status: "waiting" });
+    window.addEventListener(
+      PINS_VISIBLE_EVENT,
+      () => preloadSpriteSheet(theme, "landmarks"),
+      { once: true },
+    );
+  }
 }
 
 type Rgba = readonly [number, number, number, number];
@@ -232,10 +235,11 @@ function spriteImageFor(
   live: IconTokens,
   spec: IconSpec,
 ): SpriteImage | null {
-  const state = sprites.get(theme);
+  const sheet = spec.ns === "lm" ? "landmarks" : "main";
+  const state = sprites.get(`${theme}:${sheet}`);
   if (state?.status !== "ready") return null;
   if (manifest.pixelRatio !== MAP_ICON_PIXEL_RATIO) return null;
-  if (!iconTokensMatch(manifest.themes[theme].tokens, live)) return null;
+  if (!iconTokensMatch(manifest.sheets[sheet].themes[theme].tokens, live)) return null;
   const image = state.images.get(iconId(spec.ns, spec.key));
   if (
     !image ||
@@ -247,19 +251,14 @@ function spriteImageFor(
   return image;
 }
 
-/**
- * Register every designed icon from the theme's sprite. Returns false, having
- * added nothing, when the sprite cannot answer for EVERY spec; the caller then
- * draws. All or nothing, so a style never mixes the two paths.
- */
 function registerMapIconsFromSprite(
   map: maplibregl.Map,
   theme: MapIconTheme,
   live: IconTokens,
+  specs: readonly IconSpec[],
 ): boolean {
-  preloadMapIconSprite(theme);
   const ready: Array<[IconSpec, SpriteImage]> = [];
-  for (const spec of MAP_ICON_SPECS) {
+  for (const spec of specs) {
     const image = spriteImageFor(theme, live, spec);
     if (!image) return false;
     ready.push([spec, image]);
@@ -272,25 +271,26 @@ function registerMapIconsFromSprite(
   return true;
 }
 
-/** What filled the scene's icons on its last build: the sprite, or the drawing fallback. */
 type MapIconSource = "sprite" | "drawn";
 
-/** The scene's one entry: the sprite when it can answer, the drawing otherwise. */
 export function registerSceneIconImages(
   map: maplibregl.Map,
   theme: MapIconTheme,
   live: IconTokens,
 ): MapIconSource {
-  if (registerMapIconsFromSprite(map, theme, live)) return "sprite";
-  registerMapIcons(map, live);
-  return "drawn";
+  preloadMapIconSprite(theme);
+  const mainReady = registerMapIconsFromSprite(map, theme, live, SHEET_SPECS.main);
+  if (!mainReady) {
+    for (const spec of SHEET_SPECS.main) addDrawnMapIcon(map, spec, live);
+  }
+  registerMapIconsFromSprite(map, theme, live, SHEET_SPECS.landmarks);
+  return mainReady ? "sprite" : "drawn";
 }
 
 /**
  * The missing-image resolver's answer for one of OUR ids: the real icon, from
- * the sprite or drawn, never the transparent pixel a basemap miss gets. The
- * scene registers every icon before it adds a layer, so this is a safety net
- * for an id that arrives some other way. Returns false for an id that is not
+ * the sprite or drawn, never the transparent pixel a basemap miss gets.
+ * Returns false for an id that is not
  * one of the designed icons.
  */
 export function resolveMissingMapIcon(

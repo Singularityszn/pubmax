@@ -6,7 +6,6 @@ import {
   type DrinkCategory,
 } from "@/lib/categoryColors";
 import {
-  MAP_ICON_SPECS,
   iconId,
   rasterize,
   type IconSpec,
@@ -463,13 +462,4 @@ export function addDrawnMapIcon(
   const id = iconId(spec.ns, spec.key);
   if (map.hasImage(id)) map.removeImage(id);
   map.addImage(id, rasterize(spec, tokens, MAP_ICON_PIXEL_RATIO), mapIconImageOptions(spec));
-}
-
-// Draw every designed marker image (landmark pictograms, TfL symbols, glasses,
-// pills) in the browser, re-tinted from the live theme tokens. This is the
-// FALLBACK. The scene registers the pre-drawn sprite first
-// (components/map/canvas/iconSprite.ts), and draws only when that sprite has not
-// arrived, has failed, or was drawn in other colours than the live theme's.
-export function registerMapIcons(map: maplibregl.Map, tokens: IconTokens) {
-  for (const spec of MAP_ICON_SPECS) addDrawnMapIcon(map, spec, tokens);
 }
