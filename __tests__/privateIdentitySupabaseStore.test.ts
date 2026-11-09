@@ -176,7 +176,7 @@ describe("Supabase private identity updates", () => {
         dateOfBirth: "1991-02-03",
       }),
     ).resolves.toMatchObject({ dateOfBirth: "1991-02-03" });
-    expect(state.rows[0].date_of_birth).toBe("1991-02-03");
+    expect(state.rows[0]).toMatchObject({ date_of_birth: "1991-02-03" });
   });
 
   it.each([
@@ -222,6 +222,6 @@ describe("Supabase private identity updates", () => {
     const identity = await supabasePrivateIdentityStore.read("user-1");
     expect(identity).toMatchObject({ dateOfBirth: "2015-02-03" });
     expect(accountIsAdult({ dateOfBirth: identity?.dateOfBirth })).toBe(false);
-    expect(state.rows[0].full_name).not.toBe("Stale Name");
+    expect(state.rows[0]).not.toMatchObject({ full_name: "Stale Name" });
   });
 });
