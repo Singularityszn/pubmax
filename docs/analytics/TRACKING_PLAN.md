@@ -7,6 +7,27 @@ registry grows an event this file does not name.
 
 Issue: [#1361](https://github.com/Singularityszn/pubmax/issues/1361).
 
+## Pub comparisons
+
+These events use the existing consent gate and carry no custom properties.
+They exclude venue IDs, orders, meeting points, conversation IDs and poll answers.
+
+| Event | Meaning |
+|---|---|
+| `pub_comparison_viewed` | The comparison form mounted. |
+| `pub_comparison_ready` | One submitted order returned complete comparable totals at two or more pubs. |
+| `pub_comparison_incomplete` | The answer returned fewer than two complete totals. This is not a successful price comparison. |
+| `pub_comparison_map_requested` | The person tapped a pub map link. This does not prove map arrival. |
+| `pub_comparison_share_requested` | The person requested the share sheet or clipboard. This does not prove delivery. |
+| `pub_comparison_links_copied` | The clipboard accepted the public pub links. |
+| `pub_comparison_poll_requested` | The person explicitly submitted the reviewed poll to a selected conversation. |
+| `pub_comparison_poll_sent` | The existing authenticated message endpoint acknowledged that submission. This does not prove a recipient read it. |
+
+Use existing plan creation, invitation and engagement events for later outcomes.
+Do not infer recipient engagement from a share-sheet close or a copied link.
+Search Console and Bing reports remain separate measurements. Missing access is
+unknown, not zero. Experimental AI answers are observations, not ranking positions.
+
 ## 1. How an event reaches PostHog
 
 Two reader transports, one consent gate, plus server telemetry that no reader is behind.

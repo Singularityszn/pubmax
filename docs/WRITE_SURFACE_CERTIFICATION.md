@@ -159,6 +159,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/pub-pal/tools/[toolName]`
 - `POST app/api/pub-pal/voice-token`
 - `POST app/api/pub-list-import`
+- `POST app/api/pub-comparison`
 - `POST app/api/push-tokens`
 - `DELETE app/api/push-tokens`
 - `POST app/api/step-out-nudge`
@@ -1900,3 +1901,12 @@ A row with no price, a price outside the community envelope, an unknown measure 
 Nothing lands from this answer. The page sends each row the person confirms through `POST app/api/price-submit`, one by one, with the board photo as its bill.
 Missing sign-in answers 401, a spent budget answers 429, a keyless deployment or a failed read answers 503, and a bad photo answers 400 or 413.
 `__tests__/boardReadsRoute.test.ts` exercises these responses through the real entry point.
+
+### `app/api/pub-comparison` - read-only pub order comparison
+
+POST calculates an order without creating a price report, Round, plan or poll.
+This public calculation uses hashed-address rate limiting without requiring an account.
+The [pub comparison contract](PUB_COMPARISON.md#read-contract) owns request limits,
+response caching and input restrictions. Its [price and walking rules](PUB_COMPARISON.md#price-and-walking-rules)
+own evidence eligibility and routing constraints.
+`__tests__/pubComparison.route.test.ts` covers the public HTTP boundary.

@@ -1,4 +1,4 @@
-// GET /api/venue-search?q= - name hits from the CURATED venue index.
+// GET /api/venue-search?q= - curated pub search.
 //
 // The curated counterpart to `/api/map-search`, which searches the national UK
 // base layer. Two layers, two routes, on purpose: the base layer is 38k unpriced
@@ -32,7 +32,8 @@ const RATE_WINDOW_MS = 60_000;
 const CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=300";
 
 export async function GET(request: Request): Promise<Response> {
-  const query = (new URL(request.url).searchParams.get("q") ?? "").trim().slice(0, MAX_Q);
+  const params = new URL(request.url).searchParams;
+  const query = (params.get("q") ?? "").trim().slice(0, MAX_Q);
   if (query.length < CURATED_VENUE_SEARCH_MIN_QUERY) {
     return publicApiError("Add a longer search.", "INVALID_REQUEST", 400);
   }
@@ -45,7 +46,7 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const venues = await searchCuratedVenues(query, MAX_HITS);
+    const venues = await searchCuratedVenues(query, MAX_HITS, params.get("scope") === "pub-comparison" ? "pub-comparison" : "all");
     return Response.json(
       { status: "ready", venues },
       { status: 200, headers: { "Cache-Control": CACHE_CONTROL } },
