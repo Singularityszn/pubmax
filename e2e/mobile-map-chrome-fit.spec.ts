@@ -1109,6 +1109,21 @@ function overlaps(a: Rect, b: Rect): boolean {
   );
 }
 
+type SettlingScroller = HTMLElement & { scrollSettled?: boolean };
+
+// Chromium runs key and touch scrolls as compositor animations. A key pressed
+// while one still runs is lost, and a key pressed before the compositor has a
+// just-resized scroller's new extent ends where it started. So each scroll
+// waits for its scrollend before the next input.
+async function scrollAndSettle(scroller: Locator, scroll: () => Promise<unknown>): Promise<void> {
+  await scroller.evaluate((element: SettlingScroller) => {
+    element.scrollSettled = false;
+    element.addEventListener("scrollend", () => { element.scrollSettled = true; }, { once: true });
+  });
+  await scroll();
+  await expect.poll(() => scroller.evaluate((element: SettlingScroller) => element.scrollSettled)).toBe(true);
+}
+
 for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px right-edge floating controls never overlap`, async ({
     page,
@@ -1490,11 +1505,20 @@ test.describe("story and credit placement", () => {
           expect(textViewport.scrollWidth).toBeLessThanOrEqual(textViewport.width);
           expect(textViewport.overflow).toBe("auto");
           const documentScroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
-          await storyText.focus();
-          await expect(storyText).toBeFocused();
-          await page.keyboard.press("End");
-          await expect.poll(() => storyText.evaluate(element =>
-            element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(1);
+          const storyScrolls = textViewport.scrollHeight > textViewport.height;
+          const pressInStory = async (key: "End" | "Home") => {
+            await storyText.focus();
+            await expect(storyText).toBeFocused();
+            const press = () => page.keyboard.press(key);
+            await (storyScrolls ? scrollAndSettle(storyText, press) : press());
+          };
+          // The compositor can briefly retain the scroller's previous extent.
+          // Retry the key if no scrollend arrives or the scroll stops short.
+          await expect(async () => {
+            await pressInStory("End");
+            expect(await storyText.evaluate(element =>
+              element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(1);
+          }).toPass();
           const lastLine = await storyText.locator("span").evaluate(element => {
             const range = document.createRange();
             range.selectNodeContents(element);
@@ -1507,29 +1531,31 @@ test.describe("story and credit placement", () => {
           // scrollHeight rounds to an integer, while Range keeps subpixels.
           expect(lastLine.bottom).toBeLessThanOrEqual(lastLine.viewportBottom + 1);
           expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(documentScroll);
-          await storyText.focus();
-          await page.keyboard.press("Home");
-          await expect.poll(() => storyText.evaluate(element => element.scrollTop)).toBe(0);
-          if (textViewport.scrollHeight > textViewport.height) {
+          const pressHome = async () => {
+            await expect(async () => {
+              await pressInStory("Home");
+              expect(await storyText.evaluate(element => element.scrollTop)).toBe(0);
+            }).toPass();
+          };
+          await pressHome();
+          if (storyScrolls) {
             const textBox = (await storyText.boundingBox())!;
             const session = await page.context().newCDPSession(page);
             try {
-              await session.send("Input.synthesizeScrollGesture", {
+              await scrollAndSettle(storyText, () => session.send("Input.synthesizeScrollGesture", {
                 x: textBox.x + textBox.width / 2,
                 y: textBox.y + textBox.height / 2,
                 yDistance: -160,
                 gestureSourceType: "touch",
                 speed: 300,
-              });
-              await expect.poll(() => storyText.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+              }));
+              expect(await storyText.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
               expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(documentScroll);
               await testInfo.attach("story-touch-scroll", { body: await page.screenshot(), contentType: "image/png" });
             } finally {
               await session.detach();
             }
-            await storyText.focus();
-            await page.keyboard.press("Home");
-            await expect.poll(() => storyText.evaluate(element => element.scrollTop)).toBe(0);
+            await pressHome();
           }
           for (const action of await chip.getByRole("button").all()) {
             const box = (await action.boundingBox())!;
