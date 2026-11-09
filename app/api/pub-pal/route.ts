@@ -1,4 +1,4 @@
-import { accountAdultOnFile } from "@/lib/adultOnFile.server";
+import { accountAdultOnFile, palUnder18Refusal } from "@/lib/adultOnFile.server";
 import { callerUserId } from "@/lib/authServer";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
@@ -34,6 +34,8 @@ export async function POST(request: Request): Promise<Response> {
   let body: unknown;
   try { body = await request.json(); }
   catch { return publicApiError("Malformed request body.", "INVALID_JSON", 400); }
+  const under18 = await palUnder18Refusal(id);
+  if (under18) return under18;
   const result = await createPubPalResult(id, body);
   if (result.ok) return jsonNoStore({ pal: result.value }, { status: 201 });
   return result.error === "error"
