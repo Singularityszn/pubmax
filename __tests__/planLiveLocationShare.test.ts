@@ -526,7 +526,7 @@ describe("sharing a live location from the phone", () => {
     geo.fix(51.501, -0.13);
     await moved;
     expect(route.calls).toHaveLength(2);
-    expect(route.calls[1].body).toEqual({ latitude: 51.501, longitude: -0.13, accuracyM: 10 });
+    expect(route.calls[1]!.body).toEqual({ latitude: 51.501, longitude: -0.13, accuracyM: 10 });
   });
 
   it("does not repeat consent after an upload loses its response", async () => {
@@ -655,7 +655,7 @@ describe("sharing a live location from the phone", () => {
     expect(geo.spy.watchPosition).toHaveBeenCalledTimes(1);
     expect((await stopLiveLocationShare(seat)).ok).toBe(true);
     expect(liveShareSnapshot(seat.planId)).toMatchObject({ status: "off", stopUnconfirmed: false });
-    if (stage === "network") expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    if (stage === "network") expect(fetcher.mock.calls[0]![1]?.signal?.aborted).toBe(true);
   });
 
   it("stops the watch and deletes the position when the person stops", async () => {

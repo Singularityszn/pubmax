@@ -173,7 +173,7 @@ describe("tab-local private state across account events", () => {
       expect(memoryPlanLiveLocations.get(id)?.has(memberId)).toBe(true);
       if (action === "switch account") {
         const real = await vi.importActual<typeof import("@/lib/deviceAccountSwitch")>("@/lib/deviceAccountSwitch");
-        rememberDeviceAccount(localStorage, { userId: replacement.user.id, refreshToken: replacement.refresh_token });
+        rememberDeviceAccount(localStorage, { userId: replacement.user.id, refreshToken: replacement.refresh_token }, Date.now());
         h.switchAccount.mockImplementationOnce((userId: string) => real.activateDeviceAccount(userId, {
           ...real.browserDeviceAccountSwitchDeps(), authConfig: { url: "https://auth.example", key: "publishable-key" },
         }));
