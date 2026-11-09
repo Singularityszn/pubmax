@@ -32,7 +32,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | `pal_passport_viewed` | _(none)_ |
 | `pal_lead_started` | _(none)_ |
 | `table_request_sent` | `source` and `outcome`, with allowed values owned by `TABLE_REQUEST_SOURCES` and `TABLE_REQUEST_OUTCOMES` in [`lib/analyticsEvents.ts`](../../lib/analyticsEvents.ts) |
-| `voice_ended` | `reason` (`user`, `disconnect`, `cap`, `error`) |
+| `voice_ended` | `reason` (`user`, `background`, `disconnect`, `cap`, `error`) |
 
 ## Share and errors
 

@@ -644,6 +644,105 @@ describe("Pub Pal voice controls", () => {
     expect(ended).toEqual([["voice_ended", { reason: "user" }]]);
   });
 
+  describe("when the page goes to the background", () => {
+    let visibility: DocumentVisibilityState;
+
+    beforeEach(() => {
+      visibility = "visible";
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => visibility });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(document, "visibilityState");
+    });
+
+    async function goLive() {
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch
+        .mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceHidden1" }))
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      await settle();
+      const session = defined(voice.startSession.mock.calls[0])[0] as {
+        onConnect?: () => void;
+        onDisconnect?: () => void;
+        onMessage?: (message: { role: string; message: string }) => void;
+      };
+      voice.endSession.mockImplementation(() => session.onDisconnect?.());
+      await act(async () => {
+        session.onConnect?.();
+        session.onMessage?.({ role: "agent", message: "Evening. Where are we drinking?" });
+      });
+      voice.status = "connected";
+      await act(async () => { root?.render(createElement(PubPalVoice)); });
+      await settle();
+      return session;
+    }
+
+    function hidePage(type: "visibilitychange" | "pagehide") {
+      act(() => {
+        visibility = "hidden";
+        if (type === "pagehide") window.dispatchEvent(new Event("pagehide"));
+        else document.dispatchEvent(new Event("visibilitychange"));
+      });
+    }
+
+    it.each(["visibilitychange", "pagehide"] as const)("ends the call and releases the grant on %s", async (type) => {
+      await goLive();
+      hidePage(type);
+      await settle();
+
+      expect(voice.endSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.filter(([, init]) =>
+        String((init as RequestInit | undefined)?.body ?? "").includes("release"));
+      expect(releases).toHaveLength(1);
+      expect(JSON.parse(String((defined(releases[0])[1] as RequestInit).body))).toEqual({
+        action: "release",
+        conversationId: "conv_voiceHidden1",
+      });
+      const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
+      expect(ended).toEqual([["voice_ended", { reason: "background" }]]);
+    });
+
+    it("keeps the transcript and offers Carry on when the page returns", async () => {
+      await goLive();
+      hidePage("visibilitychange");
+      voice.status = "disconnected";
+      await act(async () => { root?.render(createElement(PubPalVoice)); });
+      act(() => {
+        visibility = "visible";
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await settle();
+
+      expect(container.textContent).toContain("Evening. Where are we drinking?");
+      const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent?.includes("Carry on"));
+      expect(carryOn).toBeTruthy();
+
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/again" }));
+      await act(async () => { carryOn?.click(); });
+      await settle();
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      expect(container.textContent).toContain("Evening. Where are we drinking?");
+    });
+
+    it("does nothing when the page hides with no call", async () => {
+      await mountAvailable();
+      hidePage("visibilitychange");
+      await settle();
+      expect(voice.endSession).not.toHaveBeenCalled();
+      expect(container.textContent).not.toContain("Carry on");
+    });
+
+    it("asks the SDK to hold a screen wake lock for the call", async () => {
+      await goLive();
+      expect(defined(voice.startSession.mock.calls[0])[0]).toMatchObject({ useWakeLock: true });
+    });
+  });
+
   it("ignores stale callbacks from attempt A while attempt B owns its grant", async () => {
     vi.useFakeTimers();
     const stopTrackA = vi.fn();

@@ -461,7 +461,7 @@ export const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
  * not, because there was no fix or no crawl-ready area near it.
  */
 const PLAN_ONE_TAP_OUTCOMES = ["remembered", "located", "no-location", "out-of-range"] as const;
-export const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
+export const VOICE_END_REASONS = ["user", "background", "disconnect", "cap", "error"] as const;
 export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
 export const CONTENT_SHARE_CHANNELS = ["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"] as const;
 export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "pint", "year", "other"] as const;

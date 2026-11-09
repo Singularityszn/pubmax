@@ -403,7 +403,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `pal_passport_viewed` | A price passport with at least one stamp was opened on /pal. |
 | `pal_lead_started` | The Pal began to walk the way the reader chose to the next stop. Counted once for each chosen way. |
 | `voice_started` | A Pub Pal voice session connected. See 5.10. |
-| `voice_ended` | A connected voice session ended, and why: the reader stopped it, it disconnected, it hit the cap, or it failed. |
+| `voice_ended` | A connected voice session ended, and why: the reader stopped it, the page went out of sight, it disconnected, it hit the cap, or it failed. |
 
 ### 5.8 Identity and account
 
