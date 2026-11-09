@@ -33,7 +33,12 @@ export function tableRequestPartySizeInText(text: string): number | null {
     `\\b(?:for|party of|group of)\\s+(${COUNT_EXPRESSION})\\b|\\b(${COUNT_EXPRESSION})\\s+(?:of us|people|mates)\\b`,
     "gi",
   ))) {
-    if (/^\s*(?::|[ap]m\b|o['’]clock\b)/i.test(text.slice(match.index + match[0].length))) continue;
+    const tail = text.slice(match.index + match[0].length);
+    if (/^\s*(?::|\.\s*\d|[ap]\.?m\b|o['’]clock\b)/i.test(tail)) continue;
+    if (/^\s*(?:[+–—/\-]|(?:to|or)\b)/i.test(tail)) {
+      sizes.add(null);
+      continue;
+    }
     const raw = (match[1] ?? match[2]!).toLowerCase();
     const number = /^\d/.test(raw) ? Number(raw) : NUMBER_WORDS.indexOf(raw);
     sizes.add(parseTableRequestPartySize(number));
