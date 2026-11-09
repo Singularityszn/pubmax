@@ -119,7 +119,7 @@ function readTime(wording: string, dates: RegExpMatchArray[], date: string | und
   const tonights = nights.filter((night) => /^tonight$/i.test(night[0])).length;
   const afterMidnights = nights.length - tonights;
   const wordedTonight = clocks.length === 0 && tonights === 1 && afterMidnights <= 1;
-  const lates = wordedTonight ? [...rest.matchAll(LATE)] : [];
+  const lates = [...rest.matchAll(LATE)];
   if (wordedTonight) rest = rest.replace(LATE, " ");
   const wordedMinutes = !wordedTonight || lates.length > 1 ? null
     : afterMidnights === 1 ? AFTER_MIDNIGHT_TONIGHT_MINUTES

@@ -203,7 +203,6 @@ describe("requests outside the agreed late-food parser", () => {
   it.each([
     "Directions to London Bridge from The Blackfriar. Vegan food at 01:00 on 2026-10-23 near Soho",
     "Food in Soho on Friday",
-    "Late food in Soho",
     "Food in Soho at an unknown time",
     "Food at The Devonshire in Soho",
     "Food at The Devonshire in Soho at an unknown time",
@@ -394,6 +393,17 @@ describe("late tonight wording", () => {
     const voice = await voiceAsk(query, turns);
     return [typed, { ...voice, answer: voice.answerHint }];
   }
+
+  it.each(["Food late in Soho", "Late food in Soho"])(
+    "keeps the food topic when the night is missing: %s", async (query) => {
+      for (const response of await bothPaths(query, [])) {
+        expect(response.cards).toEqual([]);
+        expect(response.proposals).toEqual([]);
+        expect(response.sources).toEqual([]);
+        expect(response.answer).toContain("Which night and time");
+      }
+    },
+  );
 
   it("reads late tonight as 23:00 instead of asking for the night and time", async () => {
     for (const response of await bothPaths(FIRST, [])) {
