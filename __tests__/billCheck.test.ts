@@ -163,6 +163,46 @@ describe("judgeBill", () => {
     expect(judgeBill(read([[food, 5.2]]), 5.2, "Beer", "pint").result).toBe("unreadable");
   });
 
+  it.each(["(cask)", "[keg]", "- on tap", "- guest"])("checks servings independently of the descriptor %s", (descriptor) => {
+    const plain = read([["Guinness", 3.5]]);
+    for (const serving of ["half", "third", "schooner", "small", "carafe", "pint", "single", "double", "bottle", "can"]) {
+      const different = serving === "pint" ? "half" : "pint";
+      for (const name of [
+        `Guinness ${serving} ${descriptor}`,
+        `${serving} ${descriptor} Guinness`,
+        `${descriptor} Guinness ${serving}`,
+        `Guinness ${descriptor} ${serving}`,
+      ]) {
+        const lines = read([[name, 3.5]]);
+        expect(judgeBill(lines, 3.5, "Beer", different).result).toBe("mismatch");
+        expect(judgeBill(lines, 3.5, "Guinness", different).result).toBe("mismatch");
+        expect(judgeBill(plain, 3.5, name, different).result).toBe("mismatch");
+        expect(judgeBill(lines, 3.5, name, different).result).toBe("mismatch");
+        expect(judgeBill(read([[`Guinness ${different}`, 3.5]]), 3.5, "Guinness", "other", name).result).toBe("mismatch");
+        expect(judgeBill(lines, 3.5, "Beer", "other", serving)).toEqual({ result: "match", lines: lines.lines });
+        expect(judgeBill(lines, 3.5, "Guinness", "other", serving).result).toBe("match");
+        expect(judgeBill(plain, 3.5, name, "other", serving).result).toBe("match");
+        expect(judgeBill(lines, 3.5, name, "other", serving).result).toBe("match");
+        expect(judgeBill(lines, 3.5, "Guinness", "other", name).result).toBe("match");
+      }
+    }
+    for (const name of [`Guinness ${descriptor}`, `${descriptor} Guinness`]) {
+      const lines = read([[name, 3.5]]);
+      expect(judgeBill(lines, 3.5, "Beer", "pint")).toEqual({ result: "match", lines: lines.lines });
+      expect(judgeBill(lines, 3.5, "Guinness", "pint").result).toBe("match");
+      expect(judgeBill(plain, 3.5, name, "pint").result).toBe("match");
+    }
+  });
+
+  it.each(["Small Beer", "Small Beer Lager", "Double IPA", "Single Malt Whisky"])(
+    "preserves the protected product %s around descriptors", (product) => {
+      for (const name of [`${product} (cask)`, `[keg] ${product}`, `${product} - guest pint`]) {
+        expect(judgeBill(read([[name, 5.2]]), 5.2, product, "pint").result).toBe("match");
+        expect(judgeBill(read([[product, 5.2]]), 5.2, name, "pint").result).toBe("match");
+      }
+    },
+  );
+
   it("identifies a category from the start of a compound drink name", () => {
     expect(judgeBill(read([["Pale Ale", 5.5]]), 5.5, "Beer", "pint").result).toBe("match");
     expect(judgeBill(read([["Pale Ale", 6.5]]), 5.5, "Beer", "pint").result).toBe("mismatch");
