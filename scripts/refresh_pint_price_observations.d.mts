@@ -21,3 +21,16 @@ export declare function collect(options?: {
   pubPages: number;
   pubPagesWithData: number;
 }>;
+
+/** The figure the source states today for one held row, or null when nothing was read. */
+export declare function freshPriceFor(
+  observations: Map<string, Set<number>>,
+  row: {
+    pub_name?: string;
+    address?: string;
+    pub_url?: string;
+    constructed_pub_url?: string;
+    pint_name: string;
+    price_gbp: number | string;
+  },
+): number | null;

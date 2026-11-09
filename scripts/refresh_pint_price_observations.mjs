@@ -320,7 +320,7 @@ export async function collect({
 }
 
 /** Decide the fresh figure for one held row, or null when nothing was read. */
-function freshPriceFor(observations, row) {
+export function freshPriceFor(observations, row) {
   const observed = observations.get(normaliseKey(row.pub_name, row.address, row.pint_name));
   if (!observed) return null;
   const held = Number(row.price_gbp);
