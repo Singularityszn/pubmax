@@ -26,6 +26,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Your profile has a cover, personal details, statistics and section links. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.
 
+  In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
+
   If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.
 
   **Followers** and **Following** open a profile's people lists. A link under `/u/you/people/` returns to the account page. People lists ask search engines not to index them or follow their links.

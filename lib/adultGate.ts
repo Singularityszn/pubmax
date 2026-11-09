@@ -69,8 +69,8 @@ export function isRecordedAdultAssertion(
  * A stored date of birth still DECIDES when there is one, in both directions:
  * an assertion may answer the age question when nobody has answered it, and it
  * may never overturn an answer the account already gave. Otherwise a person who
- * told us they were 15 could tap their way past their own answer. An edit may
- * not overturn it either: see `dateOfBirthEditOverturnsMinor`.
+ * told us they were 15 could tap their way past their own answer. Date edits
+ * follow `dateOfBirthEditOverturnsMinor`.
  */
 export function accountIsAdult(
   evidence: AccountAdultEvidence,

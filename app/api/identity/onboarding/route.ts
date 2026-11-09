@@ -158,11 +158,8 @@ export async function PATCH(request: Request): Promise<Response> {
         ...(dateOfBirth ? { dateOfBirth } : {}),
       }),
     ]);
-    // An owner may save private details whatever their onboarding status says:
-    // the save CREATES the identity row. What is left is two real refusals, and
-    // they are two findings rather than one. A signed-in account with no
-    // profile has nothing to attach details to, and a first save has to carry
-    // the date of birth the row is built around.
+    // Onboarding status does not block private detail saves. A first save
+    // needs a profile to attach to and a date for the NOT NULL column.
     if (!profile) {
       return publicApiError("Claim your handle before saving private details.", "CONFLICT", 409);
     }
