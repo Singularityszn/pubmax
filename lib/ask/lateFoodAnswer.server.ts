@@ -13,15 +13,22 @@ function emptyFoodAnswer(answerHint: string, missingEvidence: string[]): AskTool
 }
 
 /** Read the existing operator evidence. No restaurant terminal becomes a pub. */
-export function answerLateFoodQuestion(ctx: AskToolContext): AskToolResult | null {
+export function answerLateFoodQuestion(ctx: AskToolContext, recentTurns?: unknown): AskToolResult | null {
   const now = ctx.now ?? Date.now();
-  const question = parseLateFoodQuestion(ctx.query, now);
+  const question = parseLateFoodQuestion(ctx.query, now, recentTurns);
   if (!question) return null;
   if (ctx.cityId !== "london") return emptyFoodAnswer("I have no current late-food record for this city.", ["late_food_area"]);
+  if (question.area === null) return emptyFoodAnswer("Which area do you want food in?", ["late_food_area"]);
   const area = normalizeLateFoodArea(question.area)
     ?? normalizeLateFoodArea(nightAreaForMapQuery(ctx.cityId, question.area)?.slug);
   if (!area) return emptyFoodAnswer(`I have no current late-food record for ${question.area}.`, ["late_food_area"]);
   if (!question.at) return emptyFoodAnswer("Which night and time do you want food?", ["requested_time"]);
+  if (question.additionalRequirements.length > 0) {
+    return emptyFoodAnswer(
+      `I have no current late-food record that confirms this whole request: ${ctx.query}`,
+      ["eligible_late_food_options", "additional_food_requirements"],
+    );
+  }
   const terminals = shortlistFoodHandoffs(getLateFoodForArea(area, [], { now, at: question.at })
     .filter((terminal) => question.category === null || terminal.category === question.category)
     .filter((terminal) => question.dietary.every((tag) => terminal.dietary.some((choice) => choice === tag))));

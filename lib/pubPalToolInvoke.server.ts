@@ -123,7 +123,7 @@ export async function invokePubPalAskTool(input: {
   // answer unread: nothing from it is appended, spoken or returned. A price ask
   // the tools cannot answer starts no tool at all.
   const startTool = async () => (!isIndependentAskTool(input.toolName)
-    ? answerLateFoodQuestion({ cityId, query, skipModel: true }) : null)
+    ? answerLateFoodQuestion({ cityId, query, skipModel: true }, threadTurns) : null)
     ?? runAskTool(input.toolName, args, { cityId, query, skipModel: true });
   const toolRun = priceRefusal ? null : startTool();
   // Awaited below on the unfenced path; this only keeps a fenced turn's

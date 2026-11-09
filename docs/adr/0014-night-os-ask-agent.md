@@ -75,8 +75,8 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    `search_venues`, without pub IDs, prices or plan proposals.
    The handler reads the existing [food-terminal evidence contract](../API_CONTRACTS_THE_LOCAL.md#10-get-apilate-food--crawl-ending-food-terminals).
    `lib/ask/lateFoodQuestion.ts` owns question parsing and follow-up resolution.
-   It merges field replies only from an accepted earlier user question and
-   validates each corrected question. Rejected questions retain general Ask routing.
+   It collects supported field replies from an accepted earlier user question and
+   validates the final merged question as a whole. Questions outside this parser retain general Ask routing.
    Keyless typed chat preserves late-food results, including clarification,
    before its taste-based discovery fallback.
    `invokePubPalAskTool` uses the same handler for tools other than independent

@@ -227,7 +227,7 @@ function keylessSocialReply(query: string, turns: AskTurn[]): Response | null {
 
 function isVenueDiscoveryAnswer(query: string, turns: AskTurn[], answer: Pick<AskResponseBody, "toolsUsed">): boolean {
   return !isVenueHoursQuestion(query)
-    && !parseLateFoodQuestion(resolveLateFoodQuery(query, turns), Date.now())
+    && !parseLateFoodQuestion(resolveLateFoodQuery(query, turns), Date.now(), turns)
     && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues";
 }
 
