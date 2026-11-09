@@ -23,6 +23,12 @@ export function answerLateFoodQuestion(ctx: AskToolContext, recentTurns?: unknow
     ?? normalizeLateFoodArea(nightAreaForMapQuery(ctx.cityId, question.area)?.slug);
   if (!area) return emptyFoodAnswer(`I have no current late-food record for ${question.area}.`, ["late_food_area"]);
   if (!question.at) return emptyFoodAnswer("Which night and time do you want food?", ["requested_time"]);
+  if (question.additionalRequirements.length > 0) {
+    return emptyFoodAnswer(
+      `I have no current late-food record that confirms this whole request: ${ctx.query}`,
+      ["eligible_late_food_options", "additional_food_requirements"],
+    );
+  }
   const terminals = shortlistFoodHandoffs(getLateFoodForArea(area, [], { now, at: question.at })
     .filter((terminal) => question.category === null || terminal.category === question.category)
     .filter((terminal) => question.dietary.every((tag) => terminal.dietary.some((choice) => choice === tag))));

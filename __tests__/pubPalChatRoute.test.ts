@@ -558,6 +558,7 @@ describe("POST /api/pub-pal/chat", () => {
     { query: "01:00", previous: "Food after midnight near Soho", clarification: "Which night and time" },
     { query: "Tonight", previous: "Food after midnight near Soho", clarification: "Which night and time" },
     { query: "Food in Soho tonight", previous: "", clarification: "Which night and time" },
+    { query: "Food in Soho tonight at 1am. Find Chinese close to the tube.", previous: "", clarification: "Chinese" },
     { query: "Food tonight at 1am", previous: "", clarification: "Which area" },
     { query: "1am", previous: "Food in Soho at 06:00 on 2026-10-23", clarification: null },
     { query: "2am", previous: "Food in Soho tonight and tomorrow at 1am", clarification: "Which night and time" },

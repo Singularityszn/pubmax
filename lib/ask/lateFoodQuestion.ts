@@ -13,6 +13,7 @@ export type LateFoodQuestion = {
   at: string | null;
   dietary: string[];
   category: "pizza" | "kebab" | "cafe" | "restaurant" | null;
+  additionalRequirements: string[];
 };
 
 const CLOCK = /\b(?:at\s+)?(\d{1,2})(?::(\d{2})\s*([ap]m)?|\s*([ap]m))\b/gi;
@@ -92,8 +93,9 @@ function userTurns(recentTurns: unknown): string[] {
  * area asks for the area.
  */
 export function parseLateFoodQuestion(query: string, now: number, recentTurns?: unknown): LateFoodQuestion | null {
-  const wording = stripTrailingPunctuation(foodWording(query));
-  if (!FOOD_RE.test(wording) || /[.!?;\n]/.test(wording) || !Number.isFinite(now)) return null;
+  const [wording = "", ...additionalRequirements] = stripTrailingPunctuation(foodWording(query))
+    .split(/[.!?;\n]+/).map((sentence) => sentence.trim()).filter(Boolean);
+  if (!FOOD_RE.test(wording) || !Number.isFinite(now)) return null;
   const areas = [...wording.matchAll(CONTEXT_AREA)];
   if (areas.length > 1 || (areas.length === 1 && !recognisedArea(areas[0]![1]!.trim()))) return null;
   let rest = wording.replace(CONTEXT_AREA, " ");
@@ -142,6 +144,7 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
     at: day !== null && minutes !== null ? londonInstant(day, minutes) : null,
     dietary,
     category: category ?? null,
+    additionalRequirements,
   };
 }
 
@@ -159,15 +162,17 @@ function isFoodClarification(query: string): boolean {
 }
 
 function correctFoodQuery(previous: string, rawFragment: string): string {
+  const [request = "", ...additionalRequirements] = previous.split(/[.!?;\n]+/);
   const fragment = clarificationFields(rawFragment);
   const has = (pattern: RegExp) => [...fragment.matchAll(pattern)].length > 0;
-  const area = has(CONTEXT_AREA) ? "" : previous.match(CONTEXT_AREA)?.[0] ?? "";
-  let query = previous.replace(CONTEXT_AREA, " ");
+  const area = has(CONTEXT_AREA) ? "" : request.match(CONTEXT_AREA)?.[0] ?? "";
+  let query = request.replace(CONTEXT_AREA, " ");
   if (has(CLOCK)) query = query.replace(CLOCK, " ").replace(/\bafter\s+midnight\b/gi, " ").replace(VAGUE_TIME, " ");
   if (has(CONTEXT_NIGHT)) query = query.replace(CONTEXT_DATE, " ").replace(CONTEXT_NIGHT, " ");
   if (has(CONTEXT_DATE)) query = query.replace(CONTEXT_DATE, " ").replace(/\btonight\b/gi, " ");
   if (has(CONTEXT_NIGHT) || has(CONTEXT_DATE)) query = query.replace(VAGUE_DAY, " ");
-  return `${stripTrailingPunctuation(query)} ${area} ${fragment}`.replace(/\s+/g, " ").trim();
+  return [`${stripTrailingPunctuation(query)} ${area} ${fragment}`, ...additionalRequirements]
+    .join(". ").replace(/\s+/g, " ").trim();
 }
 
 /** A reply in a later turn replaces only the fields it names. The merged question is checked once, as a whole. */

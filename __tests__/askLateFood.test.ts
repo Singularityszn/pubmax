@@ -43,10 +43,33 @@ async function voiceAsk(query: string, turns: { role: "user" | "assistant"; cont
   const { result } = await invokePubPalAskTool({
     toolName, args: { query: "Plan four pubs in Victoria" }, conversationId,
   });
-  return result;
+  return {
+    cards: result.cards, proposals: result.proposals,
+    sources: result.sources, answerHint: result.answerHint,
+  };
 }
 
 describe("clean late-food questions through Ask", () => {
+  it.each([
+    "Find Chinese close to the tube",
+    "Vegan please, close to the tube",
+    "Directions to London Bridge from The Blackfriar",
+  ])("preserves an unverified second-sentence requirement instead of returning generic pubs: %s", async (requirement) => {
+    const query = `Food in Soho tonight at 1am. ${requirement}.`;
+    const typed = await ask(query);
+    const voice = await voiceAsk(query);
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect(response.sources).toEqual([]);
+    }
+    for (const answer of [typed.answer, voice.answerHint]) {
+      expect(answer).toContain(requirement);
+      expect(answer).toContain("1am");
+      expect(answer).toMatch(/cannot confirm|no current.*record/i);
+    }
+  });
+
   it.each([
     { query: "Food at 01:00 on 2026-10-23 near Soho", now: OCTOBER_REVIEW_NOW },
     { query: "Food at 01:00 on 2026-10-30 near Soho", now: Date.parse("2026-10-29T18:00:00.000Z") },
@@ -177,10 +200,7 @@ describe("requests outside the agreed late-food parser", () => {
   it.each([
     "Chinese food in Soho tonight at 1am",
     "Chinese restaurant food in Soho tonight at 1am",
-    "Food in Soho tonight at 1am. Find Chinese close to the tube.",
-    "Food in Soho tonight at 1am. Vegan please, close to the tube",
     "Directions to London Bridge from The Blackfriar. Vegan food at 01:00 on 2026-10-23 near Soho",
-    "Food in Soho tonight at 1am. Directions to London Bridge from The Blackfriar",
     "Food in Soho on Friday",
     "Late food in Soho",
     "Food in Soho at an unknown time",
@@ -203,7 +223,6 @@ describe("requests outside the agreed late-food parser", () => {
 
   it.each([
     "Chinese food in Soho tonight at 1am",
-    "Food in Soho tonight at 1am. Find Chinese close to the tube.",
     "Find four pubs with food in Soho",
   ])("preserves ordinary pub discovery for the narrowed case: %s", async (query) => {
     const response = await ask(query, Date.parse("2026-11-07T18:00:00.000Z"));
@@ -284,7 +303,6 @@ describe("clean late-food clarification context", () => {
 
   it.each([
     "Chinese food near Victoria tonight at 1am",
-    "Food near Victoria tonight at 1am. Vegan please, close to the tube",
     "Find restaurants serving sandwiches near Victoria tonight at 1am",
     "Food at The Devonshire near Victoria tonight at 1am",
   ])("does not merge context from a rejected earlier question: %s", (previous) => {
@@ -306,6 +324,24 @@ describe("clean late-food clarification context", () => {
     });
     expect(response.cards).toEqual([]);
     expect(response.answer).toContain("Which night and time");
+  });
+
+  it("retains an unverified requirement during an area correction", async () => {
+    const query = "Soho?";
+    const turns = [{ role: "user" as const, content: "Food near Victoria tonight at 1am. Find Chinese close to the tube." }];
+    const typed = await runAsk({ query, turns, now: OCTOBER_REVIEW_NOW, cityId: "london", skipModel: true, fetchImpl: offlineFetch });
+    const voice = await voiceAsk(query, turns);
+    for (const response of [typed, voice]) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect(response.sources).toEqual([]);
+    }
+    for (const answer of [typed.answer, voice.answerHint]) {
+      expect(answer).toContain("Chinese close to the tube");
+      expect(answer).toContain("near Soho");
+      expect(answer).toContain("1am");
+      expect(answer).toMatch(/no current.*record/i);
+    }
   });
 
   it("retains supported dietary requirements during an area correction", async () => {
