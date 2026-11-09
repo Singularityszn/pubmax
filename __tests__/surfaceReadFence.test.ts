@@ -119,6 +119,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/landingEvidenceRead.ts", fetchCount: 1, reason: "the landing's near-you answer reads one venue detail per printed price (the answer and the saving line's doorstep pub) after a location grant or tap, each with its own deadline; a per-tap evidence read, never a painted reload surface" },
   { path: "lib/heritage.ts", fetchCount: 1, reason: "heritage question is a user-submitted request, not a painted reload surface" },
   { path: "lib/posthogServer.ts", fetchCount: 2, reason: "server-side PostHog capture, fire-and-forget telemetry reached through lib/heritage.ts's model-call tracing, never painted data" },
+  { path: "lib/mapEngineWarm.ts", fetchCount: 2, reason: "the map engine warm fills the HTTP cache with the MapLibre worker, basemap style and TileJSON the engine asks for itself, never painted data" },
   { path: "lib/pois.ts", fetchCount: 1, reason: "map POI pack is static viewport data with map-owned lifecycle" },
   { path: "lib/spoonsValueLane.ts", fetchCount: 1, reason: "the Spoons value map lane is fetched only when the lens is switched on, holds its own per-session cache, and never caches a read that failed so switching the lens off and on asks again" },
   { path: "lib/tflDisruption.ts", fetchCount: 1, reason: "transport provider client has its own live disruption contract" },
