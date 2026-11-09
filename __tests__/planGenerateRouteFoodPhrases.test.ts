@@ -142,7 +142,7 @@ describe("POST /api/plans/generate", () => {
     { input: { query: `3 pubs in Clapham, ${phrase}` }, code },
     ...(phrase.length <= 40 ? [{ input: { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } }, code }] : []),
   ]))("retains complete location subjects: %j", async ({ input, code }) => {
-    const now = Date.parse("2026-10-15T12:00:00Z");
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
@@ -211,7 +211,7 @@ describe("POST /api/plans/generate", () => {
       ? [{ input: { query: "3 pubs in Clapham", context: { foodNeeds: ["typed" in rest ? rest.typed ?? phrase : phrase] } }, code }]
       : []),
   ]))("preserves original location price ownership: %j", async ({ input, code }) => {
-    const now = Date.parse("2026-10-15T12:00:00Z");
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {

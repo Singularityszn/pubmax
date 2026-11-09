@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
 
 const readFileMock = vi.hoisted(() => vi.fn());
 
@@ -33,7 +33,7 @@ describe("plan price evidence cache", () => {
     readFileMock.mockImplementation(actualFs.readFile);
 
     const { planPriceEvidenceForVenues } = await import("@/lib/planRouteEvidence.server");
-    const now = PINT_DATASET_OBSERVED_AT.getTime();
+    const now = PINT_DATASET_TEST_NOW;
 
     const afterFailure = await planPriceEvidenceForVenues([ICE_WHARF], now);
     expect(afterFailure.get(ICE_WHARF.id)).toMatchObject({
@@ -54,7 +54,7 @@ describe("plan price evidence cache", () => {
     readFileMock.mockImplementation(actualFs.readFile);
 
     const { planPriceEvidenceForVenues } = await import("@/lib/planRouteEvidence.server");
-    const now = PINT_DATASET_OBSERVED_AT.getTime();
+    const now = PINT_DATASET_TEST_NOW;
 
     const results = await Promise.all([
       planPriceEvidenceForVenues([ICE_WHARF], now),

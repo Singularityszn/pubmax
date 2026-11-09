@@ -164,7 +164,7 @@ describe("POST /api/plans/generate", () => {
       { query: "3 pubs in Clapham", context: { foodNeeds: [food, "pints under£5", "pub route budget of£20"] }, total: 2000, ceiling: 500 },
     ]),
   ])("keeps price subjects separate from venue food preferences: %j", async ({ total, ceiling, ...input }) => {
-    const now = Date.parse("2026-10-15T12:00:00Z");
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
@@ -373,7 +373,7 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham, pub route budget of£15 for beers, pints under£5", context: { foodNeeds: ["pizza", "pub route budget of£20 for drinks"] }, total: 1500 },
     { query: "3 pubs in Clapham, pub route budget of£15 for beers", context: { budgetLimitPence: 1200, foodNeeds: ["pizza", "pints under£5"] }, total: 1200 },
   ])("preserves explicit route ownership before drink rates: %j", async ({ total, ...input }) => {
-    const now = Date.parse("2026-10-15T12:00:00Z");
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");

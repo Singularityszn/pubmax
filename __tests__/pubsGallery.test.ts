@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 import PubsGallery, { pubsCountLabel } from "@/components/pubs/PubsGallery";
 import { countScrapedPubsBySource, type ScrapedPub } from "@/lib/scrapedPubs";
 import { readScrapedPubsForPage } from "@/lib/scrapedPubs.server";
+import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 function gallery(pubs: ScrapedPub[]): HTMLDivElement {
   const view = document.createElement("div");
@@ -37,7 +38,8 @@ describe("pubs gallery secondary surface", () => {
     expect(card?.textContent).toContain("Serving not recorded");
     const publisher = [...view.querySelectorAll("a")].find((link) => link.textContent === "Pint Prices");
     expect(publisher?.getAttribute("href")).toBe("https://www.pint-prices.com/pub/174%20Queen%20Victoria%20St,%20Greater,%20London%20EC4V%204EG,%20UK/The%20Blackfriar");
-    expect(card?.querySelector('time[dateTime="2026-10-02"]')?.textContent).toBe("2 October 2026");
+    const read = bundledReadDay("app_price_000264");
+    expect(card?.querySelector(`time[dateTime="${read.iso}"]`)?.textContent).toBe(read.words);
     expect(view.querySelector("a a")).toBeNull();
   });
 

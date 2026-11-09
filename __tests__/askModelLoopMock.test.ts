@@ -7,6 +7,7 @@ import { runAsk, type RunAskInput } from "@/lib/ask/runAsk";
 import { offlineFetch, requestUrl } from "@/evals/pal/offlineFetch";
 import { loadPalEvalSuite } from "@/evals/pal/loadSuite";
 import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
+import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
 
 /**
  * THE LIVE ASK LOOP, DRIVEN OVER HTTP BY A MODEL THAT ANSWERS FROM FIXTURES.
@@ -74,10 +75,8 @@ beforeEach(() => {
 
 describe("runAsk against a mock OpenRouter", () => {
   it("runs a single allowlisted tool call and keeps its grounded cards", async () => {
-    // The committed Camden price observations are dated 2 October 2026.
-    const body = await ask("Cheapest pint in Camden tonight", {
-      now: Date.parse("2026-10-02T18:00:00.000Z"),
-    });
+    // A clock after the committed Camden price reads, which are never in its future.
+    const body = await ask("Cheapest pint in Camden tonight", { now: PINT_DATASET_TEST_NOW });
 
     const requests = modelRequests();
     expect(requests.map((entry) => entry.response.status)).toEqual([200, 200]);

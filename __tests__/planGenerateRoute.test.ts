@@ -26,6 +26,7 @@ import {
   verifyPlanGroundingProof,
   walkRouteStoreMock,
 } from "./helpers/planGenerateRoute";
+import { STALE_AFTER_DAYS } from "@/lib/priceConfidence";
 import type { LngLat } from "@/lib/walkRoute";
 
 // POST /api/plans/generate: drink rates, pint ceilings, structured limits and
@@ -36,7 +37,7 @@ describe("POST /api/plans/generate", () => {
 
   it.each(drinkRatePhrases(5).flatMap(drinkRateInputs))(
     "enforces every accepted drink price through preparation and selection: %j", async ({ total, ...input }) => {
-      const now = Date.parse("2026-10-15T12:00:00Z");
+      const now = PLAN_GENERATION_TEST_NOW;
       const clock = vi.spyOn(Date, "now").mockReturnValue(now);
       try {
         const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
@@ -88,7 +89,7 @@ describe("POST /api/plans/generate", () => {
 
   it.each(drinkRatePhrases(1).flatMap(drinkRateInputs))(
     "refuses impossible drink prices through selection: %j", async ({ total, ...input }) => {
-      const now = Date.parse("2026-10-15T12:00:00Z");
+      const now = PLAN_GENERATION_TEST_NOW;
       const clock = vi.spyOn(Date, "now").mockReturnValue(now);
       try {
         loadConciergeVenuesMock.mockResolvedValueOnce(await cappedTestVenues());
@@ -243,7 +244,7 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham, under£20 per person, pints under£6", foodNeeds: ["salad, pub route budget of£15", "pints under£5"], total: 1500 },
     { query: "3 pubs in Clapham, under£15 per person, pints under£5", foodNeeds: ["salad, pub route budget of£20", "pints under£6"], total: 1500 },
   ])("retains strictest structured limits on returned stops and alternatives: %j", async ({ query, foodNeeds, total }) => {
-    const now = Date.parse("2026-10-15T12:00:00Z");
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
@@ -325,12 +326,25 @@ describe("POST /api/plans/generate", () => {
   });
 
   it("excludes stale canonical evidence from standalone pint-cap candidates", async () => {
+    // Past the stale band, the bundled figures under the cap can no longer
+    // hold a ceiling. The clock is derived, so a re-collection keeps it stale.
+    const now = PLAN_GENERATION_TEST_NOW + (STALE_AFTER_DAYS + 1) * 24 * 60 * 60 * 1000;
+    const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+    const london = await actual.loadConciergeVenues("london");
+    const londonEvidence = await planPriceEvidenceForVenues(london, now);
+    const staleUnderCap = new Set(london.filter((venue) => {
+      const evidence = londonEvidence.get(venue.id);
+      return evidence !== undefined && evidence.pence !== null && evidence.pence <= 500
+        && !priceEvidenceUsableForCeiling(evidence);
+    }).map((venue) => venue.id));
+    expect(staleUnderCap.size).toBeGreaterThan(0);
+
     const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, maximum £5 per pint" }),
-    }), Date.parse("2026-10-15T12:00:00Z"));
+    }), now);
     if (!("prepared" in result)) throw new Error("Expected preparation before route selection");
     expect(result.prepared.context.budgetLimitPence).toBeNull();
-    expect(result.prepared.candidates.map(({ venue }) => venue.name)).not.toContain("Junction (Clapham)");
+    expect(result.prepared.candidates.filter(({ venue }) => staleUnderCap.has(venue.id))).toEqual([]);
     const evidence = await planPriceEvidenceForVenues(result.prepared.candidates.map(({ venue }) => venue), result.prepared.requestNow);
     for (const candidate of result.prepared.candidates) {
       expect(priceEvidenceUsableForCeiling(evidence.get(candidate.venue.id)!)).toBe(true);
@@ -342,7 +356,7 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham, maximum £5 per pint" },
     { query: "3 pubs in Clapham", context: { foodNeeds: ["maximum £5 per pint"] } },
   ])("keeps canonical pint ceilings on selected stops and alternatives: %j", async (input) => {
-    const now = Date.parse("2026-10-15T12:00:00Z");
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {

@@ -1,10 +1,17 @@
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
+import path from "node:path";
 
 import next from "next";
 
-import { PINT_DATASET_OBSERVED_AT } from "../../lib/dataFreshness";
+import { PINT_DATASET_FILE, PINT_DATASET_OBSERVED_AT } from "../../lib/dataFreshness";
+import { latestPriceRowRead } from "../../lib/priceReadDay.mjs";
 
-const now = PINT_DATASET_OBSERVED_AT.getTime() + 1_000;
+// After every bundled read: the noon stamp can precede an afternoon collection.
+const rows = JSON.parse(
+  readFileSync(path.join(process.cwd(), "public", "data", PINT_DATASET_FILE), "utf8"),
+) as { scraped_at_values?: unknown }[];
+const now = Math.max(PINT_DATASET_OBSERVED_AT.getTime(), latestPriceRowRead(rows) ?? 0) + 1_000;
 Date.now = () => now;
 
 async function start() {

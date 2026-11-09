@@ -14,6 +14,7 @@ import {
 } from "@/lib/thenVsNow";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
+import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-10-15T12:00:00.000Z");
@@ -294,7 +295,7 @@ describe("computeVenuePriceStory", () => {
     expect(markup).toContain("Pravha · pint");
     expect(markup).toContain("pint");
     expect(markup).toContain("Pint Prices");
-    expect(markup).toContain("2 October 2026");
+    expect(markup).toContain(bundledReadDay("app_price_000264").words);
     expect(markup).toContain('href="https://www.pint-prices.com/');
   });
 
