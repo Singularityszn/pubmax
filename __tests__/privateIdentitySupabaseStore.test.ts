@@ -176,7 +176,9 @@ describe("Supabase private identity updates", () => {
         dateOfBirth: "1991-02-03",
       }),
     ).resolves.toMatchObject({ dateOfBirth: "1991-02-03" });
-    expect(state.rows[0]).toMatchObject({ date_of_birth: "1991-02-03" });
+    const [row] = state.rows;
+    if (!row) throw new Error("Expected a persisted identity row");
+    expect(row).toMatchObject({ date_of_birth: "1991-02-03" });
   });
 
   it.each([
@@ -222,6 +224,8 @@ describe("Supabase private identity updates", () => {
     const identity = await supabasePrivateIdentityStore.read("user-1");
     expect(identity).toMatchObject({ dateOfBirth: "2015-02-03" });
     expect(accountIsAdult({ dateOfBirth: identity?.dateOfBirth })).toBe(false);
-    expect(state.rows[0]).not.toMatchObject({ full_name: "Stale Name" });
+    const [row] = state.rows;
+    if (!row) throw new Error("Expected a persisted identity row");
+    expect(row).not.toMatchObject({ full_name: "Stale Name" });
   });
 });
