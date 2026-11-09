@@ -394,13 +394,19 @@ describe("late tonight wording", () => {
     return [typed, { ...voice, answer: voice.answerHint }];
   }
 
-  it.each(["Food late in Soho", "Late food in Soho"])(
-    "keeps the food topic when the night is missing: %s", async (query) => {
+  it.each([
+    "Food late in Soho",
+    "Late food in Soho",
+    "Where can I get late food in Soho?",
+    "Food late night in Soho",
+    "Food late-night in Soho",
+  ])(
+    "checks 23:00 tonight when late food omits the night: %s", async (query) => {
       for (const response of await bothPaths(query, [])) {
-        expect(response.cards).toEqual([]);
+        expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
         expect(response.proposals).toEqual([]);
-        expect(response.sources).toEqual([]);
-        expect(response.answer).toContain("Which night and time");
+        expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+        expect(response.answer).toContain("I checked 23:00 tonight.");
       }
     },
   );
@@ -413,12 +419,28 @@ describe("late tonight wording", () => {
     }
   });
 
+  it.each([
+    "Food late in Soho on 2026-10-23",
+    "Food late in Soho tomorrow",
+    "Food late in Soho today",
+    "Food late in Soho at 1am",
+  ])("does not infer tonight beside another day or clock: %s", async (query) => {
+    for (const response of await bothPaths(query, [])) {
+      expect(response.cards).toEqual([]);
+      expect(response.proposals).toEqual([]);
+      expect(response.sources).toEqual([]);
+      expect(response.answer).toContain("Which night and time");
+    }
+  });
+
   it.each(["What about after midnight?", "How about after midnight"])(
     "keeps the food question on a follow-up: %s", async (query) => {
-      for (const response of await bothPaths(query, [FIRST])) {
-        expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
-        expect(response.answer).toContain("01:00 tonight");
-        expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+      for (const previous of [FIRST, "Food late in Soho"]) {
+        for (const response of await bothPaths(query, [previous])) {
+          expect(response.cards).toEqual([expect.objectContaining({ title: "Balans No.60", venueId: "", price: null })]);
+          expect(response.answer).toContain("I checked 01:00 tonight.");
+          expect(response.sources).toContainEqual(expect.objectContaining({ url: SOHO_HOURS_SOURCE }));
+        }
       }
     },
   );

@@ -24,7 +24,6 @@ const CONTEXT_DATE = /\b(?:on\s+)?(\d{4}-\d{2}-\d{2})\b/gi;
 const CONTEXT_NIGHT = /\b(?:tonight|after\s+midnight)\b/gi;
 const AFTER_MIDNIGHT = /\bafter\s+midnight\b/gi;
 const TONIGHT = /\btonight\b/gi;
-// "Late" names a time only beside "tonight" and no clock.
 const LATE = /\blate(?:[- ]night)?\b/gi;
 const LATE_TONIGHT_MINUTES = 23 * 60;
 const AFTER_MIDNIGHT_TONIGHT_MINUTES = 60;
@@ -174,7 +173,9 @@ export function parseLateFoodQuestion(query: string, now: number, recentTurns?: 
   if (!areaFields) return null;
   const { area } = areaFields;
   const { dates, date, rest } = readOptionalDate(areaFields.rest);
-  const time = readTime(rest, dates, date);
+  const implicitTonight = area !== null && dates.length === 0 && [...rest.matchAll(LATE)].length === 1
+    && ![CLOCK, CONTEXT_NIGHT, VAGUE_DAY, VAGUE_TIME].some((pattern) => [...rest.matchAll(pattern)].length > 0);
+  const time = readTime(implicitTonight ? `${rest} tonight` : rest, dates, date);
   const requirements = readFoodRequirements(time.rest, additionalRequirements);
   if (!requirements) return null;
   if (area === null) {
@@ -215,8 +216,9 @@ function correctFoodQuery(previous: string, rawFragment: string): string {
   const has = (pattern: RegExp) => [...fragment.matchAll(pattern)].length > 0;
   const area = has(CONTEXT_AREA) ? "" : request.match(CONTEXT_AREA)?.[0] ?? "";
   let query = request.replace(CONTEXT_AREA, " ");
+  if (![...request.matchAll(TONIGHT)].length && parseLateFoodQuestion(previous, Date.now())?.readAs) query += " tonight";
   // "After midnight" after a question about tonight moves the time, not the night.
-  const laterTonight = has(AFTER_MIDNIGHT) && !has(TONIGHT) && [...request.matchAll(TONIGHT)].length > 0;
+  const laterTonight = has(AFTER_MIDNIGHT) && !has(TONIGHT) && [...query.matchAll(TONIGHT)].length > 0;
   if (has(CLOCK) || has(AFTER_MIDNIGHT)) query = query.replace(CLOCK, " ").replace(AFTER_MIDNIGHT, " ").replace(LATE, " ").replace(VAGUE_TIME, " ");
   if (has(CONTEXT_NIGHT) && !laterTonight) query = query.replace(CONTEXT_DATE, " ").replace(TONIGHT, " ");
   if (has(CONTEXT_DATE)) query = query.replace(CONTEXT_DATE, " ").replace(/\btonight\b/gi, " ");
