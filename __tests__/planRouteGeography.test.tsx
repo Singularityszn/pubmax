@@ -112,8 +112,8 @@ it.each([{}, { locality: "", primaryBorough: "  " }, { locality: "Greater London
       return Response.json({}, { status: 503 });
     });
     await act(async () => root.render(createElement(PlanRouteMiniMap, { stops })));
-    expect(accessibleName()).toMatch(/^Route map: 2 stops (?:Dashed lines show stop order only\. )?(?:Walking|Approximate)/);
-    expect(accessibleName().split("Dashed lines show stop order only.").length).toBeLessThanOrEqual(2);
+    expect(accessibleName()).toMatch(/^Route map: 2 stops Dashed lines show stop order only\. Approximate/);
+    expect(accessibleName().split("Dashed lines show stop order only.").length - 1).toBe(1);
     expect(accessibleName()).not.toContain("Hackney");
     expect(accessibleName()).not.toContain("London");
   },

@@ -219,7 +219,7 @@ async function expectKeptHandoff(page: Page, layout: Layout, name: string): Prom
   await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=[^&]+&accept=1&src=near/);
   const surface = await expectSelectedVenue(page, layout, name);
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
-  const acceptStop1 = surface.getByRole("button", { name: /^Make it Stop 1(: .+)?$/ });
+  const acceptStop1 = surface.getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(acceptStop1).toHaveText("Make it Stop 1");
   await expect(page).toHaveURL(/[?&]accept=1(&|$)/);

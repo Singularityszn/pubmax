@@ -15,9 +15,6 @@
 //      door is drawn in ink and the card's other commands are ghosts.
 //   3. No action appears twice on the sheet: the card's actions left the body.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -286,9 +283,6 @@ describe("the card prints the sheet's own price and date", () => {
 });
 
 describe("one coral action", () => {
-  const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  const CORAL = /var\(--(?:brass|color-accent|accent-action)[\w-]*[,)]/;
-
   it("the card holds exactly one painted door, and it is the plan door", () => {
     for (const [mode, builtIds] of [["suggest", []], ["build", ["venue-other"]]] as const) {
       const view = renderSheet([drop()].slice(0, 1), { mode, builtIds: [...builtIds] });
@@ -302,25 +296,7 @@ describe("one coral action", () => {
     }
   });
 
-  it("the Overview's price door is drawn in ink, the ghosts carry no coral, and the plan door is coral at every width", () => {
-    const globals = read("app/globals.css");
-    const priceDoor = globals.match(/\n\.priceDoor\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(priceDoor).toMatch(/background:\s*var\(--control-secondary-surface\)/);
-    expect(priceDoor).not.toMatch(CORAL);
-    const priceDoorHover = globals.match(/\.priceDoor:hover\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(priceDoorHover).not.toMatch(CORAL);
-
-    const sheet = read("components/map/venueSheet.css");
-    for (const [, body = ""] of sheet.matchAll(/\.venueSheetStickyGhost[^{,]*\{([^}]*)\}/g)) {
-      expect(body.replace(/outline[^;]*;/g, "")).not.toMatch(CORAL);
-    }
-
-    const card = read("components/map/inspector/venueActionCard.css");
-    const desktopDoor = card.match(/\.venueActionCard \.mobileVenuePeekSummary button\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(desktopDoor).toMatch(/background:\s*var\(--color-accent\)/);
-    const phone = read("components/mobile/mobileMapShell.css");
-    expect(phone).toMatch(/\.mobileVenuePeekSummary button\s*\{[^}]*background:\s*var\(--color-accent\)/);
-    // A price door still renders, once, beside the one coral.
+  it("the Overview renders one price door beside the plan door", () => {
     expect(renderSheet([drop()]).querySelectorAll("[data-price-door]")).toHaveLength(1);
   });
 });

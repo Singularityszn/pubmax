@@ -154,7 +154,7 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   expect(actions.map((action) => action.name)).toEqual(["Ask for a table at Arnos Arms", "Share Arnos Arms"]);
   const planDoors = page
     .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
-    .getByRole("button", { name: /^Make it Stop 1(: .+)?$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });
+    .getByRole("button", { name: /^Make it Stop 1: .+$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });
   await expect(planDoors).toHaveCount(1);
   await expect(planDoors).toHaveText("Make it Stop 1");
 
