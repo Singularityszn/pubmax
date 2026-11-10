@@ -55,7 +55,7 @@
      left edge, and the arrival ask may not run past the map lane. Both read
      the stage instead. An open drawer's own rules (mapBannerStaging.css) are
      more specific and still win. */
-  .appShell:has(> .mapSplitList) .tonightLane {
+  .appShell:has(> .mapSplitList) .tonightLane:not(.tonightLane--open) {
     left: calc((100% - var(--desktop-map-surface-width)) / 2);
   }
 
