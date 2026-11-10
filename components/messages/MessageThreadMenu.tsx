@@ -72,7 +72,7 @@ export default function MessageThreadMenu({
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <MoreHorizontal size={22} aria-hidden="true" />
+        <MoreHorizontal size={20} aria-hidden="true" />
       </button>
       {open ? (
         <div
@@ -88,7 +88,7 @@ export default function MessageThreadMenu({
             className="threadMenuItem"
             onClick={() => choose(onDeleteChat)}
           >
-            <Trash2 size={18} aria-hidden="true" />
+            <Trash2 size={16} aria-hidden="true" />
             {CHAT_DELETE_LABEL}
           </button>
           {isGroup ? (
@@ -98,7 +98,7 @@ export default function MessageThreadMenu({
               className="threadMenuItem"
               onClick={() => choose(onLeaveGroup)}
             >
-              <LogOut size={18} aria-hidden="true" />
+              <LogOut size={16} aria-hidden="true" />
               {GROUP_LEAVE_LABEL}
             </button>
           ) : null}

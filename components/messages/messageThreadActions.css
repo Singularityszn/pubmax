@@ -97,7 +97,7 @@
 @media (max-width: 640px) {
   .messageConfirmOverlay {
     padding-bottom: calc(
-      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 0.75rem
+      var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 0.75rem
     );
   }
 }
@@ -162,7 +162,7 @@
   display: inline-block;
   padding: 0.45rem 0.8rem;
   border: 1px dashed var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   color: var(--muted);
   font-size: var(--text-sm);
   font-style: italic;
