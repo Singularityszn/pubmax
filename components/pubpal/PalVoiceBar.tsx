@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { usePathname } from "next/navigation";
 import { Mic, MicOff, X } from "lucide-react";
 
@@ -62,6 +62,21 @@ export default function PalVoiceBar({
   onCarryOn: () => void;
   onClose: () => void;
 }) {
+  const barRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const publish = () => {
+      document.body.style.setProperty("--pal-voice-bar-h", `${bar.getBoundingClientRect().height}px`);
+    };
+    publish();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publish);
+    observer?.observe(bar);
+    return () => {
+      observer?.disconnect();
+      document.body.style.removeProperty("--pal-voice-bar-h");
+    };
+  }, []);
   const status = starting
     ? "Starting voice"
     : live
@@ -70,7 +85,7 @@ export default function PalVoiceBar({
   const line = lines.at(-1);
   const caption = error ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
   return (
-    <section className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-live={live ? "true" : undefined}>
+    <section ref={barRef} className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-live={live ? "true" : undefined}>
       {appearance ? <PubPalAvatar appearance={appearance} name={palName} compact genome={genome} /> : null}
       <div className="palVoiceBarText">
         <p role="status">{status}</p>
