@@ -28,6 +28,7 @@ import {
   upsertOptimisticSpill,
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
+import { startPintDropSubmission, transitionPintDropSubmission } from "@/lib/pintDropSubmission";
 import { lastTrainComposeFields } from "@/lib/lastTrainBadge";
 import {
   filterMapPintDropEntries,
@@ -864,12 +865,16 @@ export function usePintDrops(
 
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
-      if (submittedAccountRevision !== readProviderAccountRevision()) return;
-      if (!response.ok) {
-        markFailed(
-          errorMessageFrom(data, "Could not save that drop."),
-          data?.status,
-        );
+      const scope = { requestId: clientRequestId, accountRevision: readProviderAccountRevision() };
+      const answered = transitionPintDropSubmission(
+        startPintDropSubmission(clientRequestId, submittedAccountRevision),
+        response.ok
+          ? { type: "succeeded", ...scope, dropId: String(data?.drop?.id ?? "") }
+          : { type: "failed", ...scope, message: errorMessageFrom(data, "Could not save that drop."), canRetry: true },
+      );
+      if (answered.phase === "posting") return;
+      if (answered.phase === "failed") {
+        markFailed(answered.message, data?.status);
         return;
       }
       trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
