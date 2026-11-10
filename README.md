@@ -181,6 +181,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Choose the number of pubs with the stop picker or name the number in your description. The [draft recovery contract](docs/rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) explains how the planner restores your request. If a save notice appears, keep the page open to retain unsaved changes. If the latest description cannot be restored, enter it again.
 
+  During **Lock it in**, stop edits, name and time fields, templates, and **Release this pub** are disabled. If the response is lost, you can retry the unchanged plan. If the planner requests a refresh, choose **Regenerate route**. Review the result before choosing **Lock it in** again.
+
   Use **Open in Plan** to continue a Pub Pal draft in the planner. The [draft handoff rules](docs/adr/0014-night-os-ask-agent.md#decision) explain how Plan handles your chosen pub, requested stop count, and incomplete routes.
 
   The [public venue checks](docs/API_CONTRACTS_THE_LOCAL.md#14-public-venue-eligibility) explain which venues the planner, hosted crawls and Pub Pal drafts exclude.

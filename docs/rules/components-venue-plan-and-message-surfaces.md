@@ -107,6 +107,18 @@ Generation and Lock report an ownership change and ask you to reload before cont
 Release clears owned acceptance data, but changes a stored route only when it belongs to the displayed generated route.
 Successful Lock consumes the owned intent and clears owned drafts only after any metadata save succeeds.
 
+Generation and Lock share one activity owner. A synchronous ref prevents another action from starting before React renders the busy state.
+During Lock, route edits, title templates and acceptance release cannot change the submitted details.
+`lib/planMutationKey.ts` fingerprints the complete `composerCreatePayload` before creation.
+The composer records each submitted key and fingerprint in memory and, when available, session storage before sending the request.
+An unchanged retry reuses that key, including after a lost response.
+A changed payload without proof gets a new persistent key.
+A changed payload with a previously submitted proof-bound key retires the proof and key without sending another create request.
+The route becomes stale because the proof cannot authorise a replacement key. An unsent proof-bound key remains available for its first submission.
+A create response of 409 or 422 also clears the displayed proof and key and marks the route stale.
+The [Crawl planner guide](../../README.md#features) owns the recovery instructions.
+Coverage: `__tests__/planMutationKey.test.ts` and `__tests__/planRequestSaveFreshness.test.tsx`.
+
 Generation uses the displayed **First pint** schedule for its [default daypart](../API_CONTRACTS_THE_LOCAL.md#accepted-pub-anchor).
 Changing **Time** in Tune reconciles the displayed start with the selected time window.
 Changing **First pint** reconciles any selected intake time window and marks an existing generated route stale.
