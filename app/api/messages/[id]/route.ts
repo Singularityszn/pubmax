@@ -564,7 +564,17 @@ async function sendPhoto(
     if (!sent) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
-    if (sent.message.id !== messageId) await storage.remove([promoted.objectKey]);
+    if (sent.message.id !== messageId) {
+      try {
+        await storage.remove([promoted.objectKey]);
+      } catch (error) {
+        log("warn", "message_photo.cleanup_failed", {
+          conversationId,
+          objectPath: promoted.objectKey,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     signalSent(conversationId, sent.membership);
     return jsonNoStore({ message: sent.message }, { status: 201 });
   } catch (error) {

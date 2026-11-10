@@ -13,6 +13,7 @@ const authState = vi.hoisted(() => ({
   current: { user: { id: "user-ken" } as { id: string } | null, handle: "ken" as string | null, accountRevision: 1 },
 }));
 const selection = vi.hoisted(() => ({ value: "first", label: "First label" }));
+const photoSelection = vi.hoisted(() => ({ file: null as File | null }));
 type ThreadRow = {
   id: string;
   conversationId: string;
@@ -57,10 +58,21 @@ vi.mock("@/lib/messagesRealtime", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
 vi.mock("@/lib/useFocusTrap", () => ({ useFocusTrap: vi.fn() }));
-vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null }));
+vi.mock("@/components/profile/ProfileImageCropper", () => ({
+  default: ({ onCropped }: { onCropped: (file: File) => void }) =>
+    createElement("button", { "data-crop": true, onClick: () => onCropped(photoSelection.file!) }, "Crop"),
+}));
 vi.mock("@/components/messages/MessageAttachmentPicker", () => ({
-  default: ({ onAttachmentKind }: { onAttachmentKind: (kind: string) => void }) =>
-    createElement("div", {}, ...["venue", "contact", "event", "poll"].map((kind) =>
+  default: ({ onAttachmentKind, onFileChange }: {
+    onAttachmentKind: (kind: string) => void;
+    onFileChange: (event: { target: { files: File[]; value: string } }) => void;
+  }) =>
+    createElement("div", {},
+      createElement("button", {
+        "data-photo": true,
+        onClick: () => onFileChange({ target: { files: [photoSelection.file!], value: "" } }),
+      }, "Photo"),
+      ...["venue", "contact", "event", "poll"].map((kind) =>
       createElement("button", { key: kind, "data-attach": kind, onClick: () => onAttachmentKind(kind) }, kind))),
 }));
 vi.mock("@/components/messages/MessageVenuePicker", () => ({
@@ -89,7 +101,7 @@ vi.mock("@/lib/authedFetch", () => ({
     fetchLog.calls.push({
       url: String(input),
       method,
-      body: typeof init?.body === "string" ? init.body : "",
+      body: init?.body instanceof FormData ? String(init.body.get("post")) : typeof init?.body === "string" ? init.body : "",
     });
     if (method === "GET") {
       if (String(input).startsWith("/api/messages?")) {
@@ -111,7 +123,7 @@ vi.mock("@/lib/authedFetch", () => ({
     if (fetchLog.holdPosts) {
       return new Promise<Response>((resolve) => fetchLog.pendingPosts.push(resolve));
     }
-    const body = JSON.parse(String(init?.body)) as { body: string };
+    const body = JSON.parse(fetchLog.calls[fetchLog.calls.length - 1]!.body) as { body: string };
     return Promise.resolve(
       Response.json(
         { message: { id: "m2", conversationId: "c1", senderHandle: "ken", body: body.body, createdAt: "2026-09-05T10:00:01Z", read: false, flagged: false } },
@@ -174,6 +186,7 @@ beforeEach(() => {
   authState.current = { user: { id: "user-ken" }, handle: "ken", accountRevision: 1 };
   selection.value = "first";
   selection.label = "First label";
+  photoSelection.file = null;
   fetchLog.calls = [];
   fetchLog.pendingPosts = [];
   fetchLog.holdPosts = false;
@@ -200,6 +213,7 @@ afterEach(async () => {
     root?.unmount();
   });
   container?.remove();
+  vi.unstubAllGlobals();
 });
 
 describe("message thread request budget", () => {
@@ -262,6 +276,45 @@ describe("message thread request budget", () => {
 // F-25 / fix task 13 - one tap is one message, and one message is one row.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("the send is latched and carries an idempotency key", () => {
+  it("reuses identical photo bytes after reselection and rotates for changed bytes or media type", async () => {
+    fetchLog.holdPosts = true;
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL() { return "blob:photo"; }
+      static revokeObjectURL() {}
+    });
+    await mount();
+
+    const variants = [
+      { bytes: [1, 2, 3], name: "first.jpg", type: "image/jpeg" },
+      { bytes: [1, 2, 3], name: "reselected.jpg", type: "image/jpeg" },
+      { bytes: [1, 2, 4], name: "reselected.jpg", type: "image/jpeg" },
+      { bytes: [1, 2, 4], name: "reselected.jpg", type: "image/png" },
+    ];
+    for (const [index, variant] of variants.entries()) {
+      const bytes = new Uint8Array(variant.bytes);
+      const file = new File([bytes], variant.name, { type: variant.type });
+      Object.defineProperty(file, "arrayBuffer", { value: async () => bytes.slice().buffer });
+      photoSelection.file = file;
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>("[data-photo]")!.click();
+      });
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>("[data-crop]")!.click();
+      });
+      await typeAndSend("same caption");
+      await act(async () => {
+        await expect.poll(() => posts().length).toBe(index + 1);
+        fetchLog.pendingPosts[index]!(Response.json({ error: "unavailable" }, { status: 503 }));
+      });
+    }
+
+    const keys = posts().map((call) => (JSON.parse(call.body) as { clientMessageId: string }).clientMessageId);
+    expect(keys[0]).toEqual(expect.any(String));
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[1]);
+    expect(keys[3]).not.toBe(keys[2]);
+  });
+
   it("posts ONCE when the control is tapped twice in a single task", async () => {
     fetchLog.holdPosts = true;
     await mount();
