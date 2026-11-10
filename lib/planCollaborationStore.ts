@@ -798,7 +798,7 @@ const supabaseStore: PlanCollaborationStore = {
     const key = input.idempotencyKey.trim();
     const constraints = await admin.from(CONSTRAINTS).select("id,priority,resolved_at").eq("plan_id", planId);
     if (constraints.error) return { ok: false, error: "error" };
-    const rows = (constraints.data ?? []) as Array<{ id: string; priority: string; resolved_at: string | null }>;
+    const rows = (constraints.data ?? []) as Array<{ id: string; priority: PlanConstraint["priority"]; resolved_at: string | null }>;
     const resolved: string[] = [];
     const unresolved = rows.filter((item) => item.priority === "required" && !resolved.includes(String(item.id))).map((item) => String(item.id));
     const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, planLookup.plan.context);
