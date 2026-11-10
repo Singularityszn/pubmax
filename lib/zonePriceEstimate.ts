@@ -119,9 +119,9 @@ export function zoneEstimateBasisNote(estimate: EstimatedPriceInput | null | und
 }
 
 /**
- * The estimate standing for every pin that holds no recorded price at all: no
- * listed price, no drinker's price and no Pint Drop of any trust. A pin with
- * any of those keeps its own reading, so an estimate can never displace one.
+ * Only pins without a recorded price in their available lanes and signals
+ * receive an estimate standing. This does not establish complete public-price
+ * absence. See docs/rules/lib-prices-trust-and-drinks.md#london-zone-estimates.
  */
 export function zoneEstimatePinStandings(
   venues: readonly Venue[],

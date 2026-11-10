@@ -32,9 +32,11 @@ on its own slow cadence and not on a drinker's visit. It is one constant,
 `LISTED_MAX_AGE_DAYS`, and moving it is a one-line decision rather than an
 archaeology exercise.
 
-## The estimate engine
+## The baseline estimate engine
 
 `lib/priceEstimate.ts` is pure and takes two inputs: a pub, and the basis table.
+The [London estimate rules](../rules/lib-prices-trust-and-drinks.md#london-zone-estimates)
+own the separate fare-zone method and its precedence over this baseline.
 
 ### What it knows about a pub
 
@@ -56,9 +58,7 @@ inferred from a name, which keeps this continuous with the extraction law in
    operator off the same menu.
 2. **`regional_baseline`.** Otherwise, the median for the pub's own region.
 
-A pub that matches neither gets nothing, and grey is a real answer. It is what
-points a drinker at the pubs whose price is still missing, which is the whole
-reason for showing the weak standings rather than hiding them.
+A pub that matches neither gets no estimate from this engine.
 
 ### The sample floor
 

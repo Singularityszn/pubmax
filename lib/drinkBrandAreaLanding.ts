@@ -30,10 +30,8 @@ export type DrinkBrandAreaLanding = {
   collectedAt: string | null;
   totalPricedVenues: number;
   /**
-   * What a pub here with no recorded price for this brand most likely charges:
-   * the middle of every recorded price in the area, dated by the newest read it
-   * rests on. Null when no price records a read, because an undated estimate
-   * cannot say when it was true.
+   * The area's separate brand estimate. The product contract in
+   * docs/specs/governed-priced-landings/PRODUCT.md owns its sample and date rules.
    */
   areaEstimate: EstimatedPriceInput | null;
   rows: [PricedLandingRow, ...PricedLandingRow[]];

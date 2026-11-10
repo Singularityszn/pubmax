@@ -67,10 +67,12 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
   15 priced pubs of any pint. A brand-by-area page
   needs 10, AND its brand's own London page must publish: that page is its
   parent crumb, so a pair without one would link a reader to a 404.
-- A brand-by-area page needs no area review. Prices move by area, not pub by
-  pub, so the page also prints the area estimate: the middle of the listed
-  prices it ranks, labelled `est.` and linked to `/how-we-estimate`. It is
-  never a row and never ranks.
+- A brand-by-area page needs no area review. Its separate area estimate follows
+  the [public estimate method](https://pubmaxxing.com/how-we-estimate).
+  `sampleSize` equals `totalPricedVenues`. The newest valid candidate
+  source-read date supplies `computedAt`. Without a valid date, the page omits
+  the estimate. The figure links to `/how-we-estimate`. It is never a ranked
+  row or a headline `From` price.
 - One pub counts once, at its own cheapest matching row.
 - Only pub venue kinds, only finite positive prices.
 - Ranked cheapest first, then pub name, then pub id. At most 20 rows printed.
@@ -131,4 +133,4 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 - A page for every borough: borough membership is broader than night-out
   intent and would multiply weak pages.
 - Publishing thin combinations to grow URL count.
-- Any figure derived rather than read from a row.
+- A derived figure used as a ranked price, headline `From` price or structured price offer.
