@@ -64,6 +64,7 @@ export function transitionSubmission(state: SubmissionState, event: SubmissionEv
    - A URL param is either the source or derived. It has one writer.
    - Every stored state value has a writer and a reader. Delete a value or a key that only one side uses.
 10. **Server stores.** The memory and Supabase backends import the same transition table. A Supabase write is compare-and-set on the from-state (`.in("state", allowedFrom)`). Zero rows means `conflict`, never success. Precedent: `nextState` and `setState` in `lib/pintDropWithTagsStore.ts`.
+    `npm run lint` enforces one owner module for lifecycle writes through `status-writer/one-writer`. [The lint rule](../../lib/statusWriterFence.mjs) owns the table registry and the checked syntax. [The ESLint configuration](../../eslint.config.mjs) also checks that each owner file exists.
 11. **Database.**
     - Every status column has a value CHECK.
     - A timestamp that follows a status has a pair CHECK. Count production violations read-only before applying the migration. Add it `NOT VALID`, then `VALIDATE`.
