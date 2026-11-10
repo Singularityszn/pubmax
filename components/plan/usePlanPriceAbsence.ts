@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { discardBody } from "@/lib/responseBody";
 
 const UNKNOWN = new Set<string>();
 
@@ -19,7 +20,10 @@ export function usePlanPriceAbsence(venueIds: readonly string[], refreshKey: num
           const [drops, prices] = await Promise.all(
             ["/api/pint-drops", "/api/price-submit"].map(async (path) => {
               const response = await fetch(`${path}?venueId=${encodeURIComponent(venueId)}`, { signal: controller.signal });
-              if (!response.ok) throw new Error("Price read unavailable");
+              if (!response.ok) {
+                discardBody(response);
+                throw new Error("Price read unavailable");
+              }
               return response.json();
             }),
           );

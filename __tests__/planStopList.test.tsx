@@ -149,6 +149,21 @@ describe("PlanStopList", () => {
     expect(host!.textContent).not.toContain("est. £4.95");
   });
 
+  it.each(["/api/pint-drops", "/api/price-submit"])("closes an unread error body from %s", async (path) => {
+    let cancelled = false;
+    const failed = new Response(new ReadableStream({
+      cancel() { cancelled = true; },
+    }), { status: 503 });
+    vi.mocked(fetch).mockImplementation(async (input) => String(input).startsWith(path)
+      ? failed : Response.json({ drops: [], prices: [] }));
+
+    await mount(unpricedStopProps);
+
+    expect(host!.textContent).not.toContain("est. £4.95");
+    expect(cancelled).toBe(true);
+    expect(failed.bodyUsed).toBe(true);
+  });
+
   it("checks public prices again when a stop returns to the plan", async () => {
     const props = await mount(unpricedStopProps);
     expect(host!.textContent).toContain("est. £4.95");
