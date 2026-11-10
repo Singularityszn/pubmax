@@ -144,8 +144,8 @@ describe.skipIf(skipReason !== null)("0230 unsend and chat delete", () => {
     const group = "99999999-0000-4000-8000-000000000003";
     const message = "aaaaaaaa-0000-4000-8000-000000000003";
     session.sql(`
-      insert into public.conversations (id, handle_a, handle_b, kind)
-        values ('${group}', 'jen', 'sam', 'group');
+      insert into public.conversations (id, kind)
+        values ('${group}', 'group');
       insert into public.conversation_members (conversation_id, handle, role)
         values ('${group}', 'ken', 'member'), ('${group}', 'jen', 'owner'), ('${group}', 'sam', 'member');
       insert into public.messages (id, conversation_id, sender_handle, body, attachment_kind, attachment_venue_id, flagged_at)
