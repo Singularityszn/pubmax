@@ -129,6 +129,9 @@ function buildBaseScratch(): string {
     join(scratchLib, "whatsOnRowShape.mjs"),
   );
   cpSync(join(ROOT, "lib", "httpUrl.mjs"), join(scratchLib, "httpUrl.mjs"));
+  for (const file of ["slimListingPrices.mjs", "comparablePint.mjs", "drinkMeasureText.mjs", "priceReadDay.mjs"]) {
+    cpSync(join(ROOT, "lib", file), join(scratchLib, file));
+  }
   cpSync(join(ROOT, "lib", "legacyOsmVenueKind.mjs"), join(scratchLib, "legacyOsmVenueKind.mjs"));
   // The UK place index is checked against the same name rule the chooser and
   // the builder share, which the script imports rather than restates.
@@ -205,6 +208,9 @@ function buildBaseScratch(): string {
   // UK base rows can name curated owners from any supported city. Mirror the
   // city slim indexes so owner validation sees the same inputs as production.
   cpSync(join(ROOT, "public", "data", "cities"), join(scratchData, "cities"), {
+    recursive: true,
+  });
+  cpSync(join(ROOT, "public", "data", "uk_prices"), join(scratchData, "uk_prices"), {
     recursive: true,
   });
   // The UK base layer ships as a directory of per-cell shards + a manifest;

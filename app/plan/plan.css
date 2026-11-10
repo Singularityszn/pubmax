@@ -2284,8 +2284,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   margin-top: var(--space-2);
 }
 
-.planCard__actions .planCard__primary,
-.planCard__actions > :nth-child(2):last-child { grid-column: 1 / -1; }
+.planCard__actions .planCard__primary { grid-column: 1 / -1; }
 
 /* "Who's in" lands on the crew block with its heading clear of the top bar. */
 .planCrew { scroll-margin-top: calc(var(--space-12) * 2); }
