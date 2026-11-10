@@ -251,6 +251,63 @@ describe("Plan Completion", () => {
     expect(await completion.json()).toEqual({ completion: null });
   });
 
+  it("an ended Plan refuses a new stop action and completion, and still replays earlier work", async () => {
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const act = (key: string, stopPosition: number) => ACTION(new Request(`http://localhost/api/plans/${id}/actions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}`, "idempotency-key": key },
+      body: JSON.stringify({ type: "arrived", stopPosition }),
+    }), ctx(id));
+    const complete = () => COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}` },
+      body: JSON.stringify({
+        expectedRouteRevision: 1,
+        ending: "get_home",
+        endingSelection: { kind: "get_home", optionId: "walk", evidenceSnapshot: { label: "Walk home", confidence: "high" } },
+      }),
+    }), ctx(id));
+
+    expect((await act("ended-arrival-0", 0)).status).toBe(201);
+    expect((await planStore().update(id, created.memberToken, { status: "abandoned" })).ok).toBe(true);
+
+    const lateArrival = await act("ended-arrival-1", 1);
+    expect(lateArrival.status).toBe(409);
+    expect(await lateArrival.json()).toMatchObject({ code: "PLAN_CLOSED", retryable: false });
+    const lateCompletion = await complete();
+    expect(lateCompletion.status).toBe(409);
+    expect(await lateCompletion.json()).toMatchObject({ code: "PLAN_CLOSED", retryable: false });
+    expect((await act("ended-arrival-0", 0)).status).toBeLessThan(300);
+
+    const plan = await GET_PLAN(new Request(`http://localhost/api/plans/${id}`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), ctx(id));
+    const state = await plan.json() as { plan: { status: string }; actions: unknown[] };
+    expect(state.plan.status).toBe("abandoned");
+    expect(state.actions).toHaveLength(1);
+  });
+
+  it("a completed Plan refuses a new stop action", async () => {
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const act = (key: string, stopPosition: number) => ACTION(new Request(`http://localhost/api/plans/${id}/actions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}`, "idempotency-key": key },
+      body: JSON.stringify({ type: "arrived", stopPosition }),
+    }), ctx(id));
+    expect((await act("completed-arrival-0", 0)).status).toBe(201);
+    const completion = await planStore().complete(id, created.memberToken, {
+      expectedRouteRevision: 1,
+      ending: "get_home",
+      endingSelection: { kind: "get_home", optionId: "walk", evidenceSnapshot: { label: "Walk home", confidence: "high" } },
+    });
+    expect(completion.ok).toBe(true);
+    const late = await act("completed-arrival-1", 1);
+    expect(late.status).toBe(409);
+    expect(await late.json()).toMatchObject({ code: "PLAN_CLOSED" });
+  });
+
   it("rejects a stale route revision without recording a partial ending action or completion", async () => {
     const created = await createPlan();
     const id = created.plan.plan.id;
