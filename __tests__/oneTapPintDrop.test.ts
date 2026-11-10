@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { submitCategoryLabel } from "@/lib/communityPrice";
 import {
   __resetCommunityPrices,
+  memoryCommunityPriceStore,
   moderateCommunityPrice,
+  reportCommunityPrice,
+  withdrawFailedPairingPrice,
   readCommunityPrices,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
@@ -18,7 +21,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
     ...actual,
-    moderateCommunityPrice: vi.fn(actual.moderateCommunityPrice),
+    withdrawFailedPairingPrice: vi.fn(actual.withdrawFailedPairingPrice),
   };
 });
 
@@ -42,11 +45,11 @@ beforeEach(async () => {
   storeFailure.error = null;
   __resetCommunityPrices();
   __resetPintDrops();
-  vi.mocked(moderateCommunityPrice).mockReset();
+  vi.mocked(withdrawFailedPairingPrice).mockReset();
   const actual = await vi.importActual<typeof import("@/lib/communityPriceStore")>(
     "@/lib/communityPriceStore",
   );
-  vi.mocked(moderateCommunityPrice).mockImplementation(actual.moderateCommunityPrice);
+  vi.mocked(withdrawFailedPairingPrice).mockImplementation(actual.withdrawFailedPairingPrice);
 });
 
 function observationOf(price: Awaited<ReturnType<typeof submitCommunityPrice>>["price"]) {
@@ -104,7 +107,7 @@ describe("writeOneTapPintDrop", () => {
     expect(outcome.drop.authorityKey).not.toContain("account-a");
   });
 
-  it("hides a community price when pairing revert runs", async () => {
+  it("removes a community price when pairing revert runs", async () => {
     const venueId = "venue-xjf3n0";
     const { price } = await submitCommunityPrice({
       venueId,
@@ -132,11 +135,49 @@ describe("writeOneTapPintDrop", () => {
     expect(await revertOneTapCommunityPricePairing({
       id: price!.id!, actor: "profile:test", submittedAt: price!.submittedAt - 60_000, priceGbp: 4.2,
     })).toBe(true);
-    expect(vi.mocked(moderateCommunityPrice)).not.toHaveBeenCalled();
     expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
   });
 
-  it("retries hide when moderate returns false once", async () => {
+  it("preserves a moderator's hide, note and report metadata", async () => {
+    const venueId = "venue-xjf3n0";
+    const { price } = await submitCommunityPrice({
+      venueId, drinkCategory: "beer", priceGbp: 4.2, actor: "profile:test",
+    });
+    await reportCommunityPrice(price!.id!, "Wrong price", "reporter");
+    await moderateCommunityPrice(price!.id!, true, "Moderator decision");
+    const before = await memoryCommunityPriceStore.listForReview();
+    expect(before).toMatchObject([{
+      hidden: true, moderatorNote: "Moderator decision", reportCount: 1, reportReason: "Wrong price",
+    }]);
+
+    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
+
+    expect(await memoryCommunityPriceStore.listForReview()).toEqual(before);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+    await submitCommunityPrice({
+      venueId, drinkCategory: "beer", priceGbp: 4.5, actor: "profile:test",
+    });
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it.each([
+    { delay: 1, priceGbp: 4.2 },
+    { delay: 0, priceGbp: 4.5 },
+  ])("preserves a later write with delay $delay and price $priceGbp", async ({ delay, priceGbp }) => {
+    const venueId = "venue-xjf3n0";
+    const input = { venueId, drinkCategory: "beer" as const, priceGbp: 4.2, actor: "profile:test" };
+    const now = Date.now();
+    const { price } = await submitCommunityPrice(input, now);
+    const later = await submitCommunityPrice({ ...input, priceGbp }, now + delay);
+    expect(later.price!.id).toBe(price!.id);
+
+    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
+
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp, submittedAt: now + delay }]);
+    expect(await memoryCommunityPriceStore.listForReview()).toEqual([]);
+  });
+
+  it("retries an unavailable withdrawal once", async () => {
     const venueId = "venue-xjf3n0";
     const { price } = await submitCommunityPrice({
       venueId,
@@ -148,16 +189,16 @@ describe("writeOneTapPintDrop", () => {
     const actual = await vi.importActual<typeof import("@/lib/communityPriceStore")>(
       "@/lib/communityPriceStore",
     );
-    vi.mocked(moderateCommunityPrice)
-      .mockResolvedValueOnce(false)
-      .mockImplementation(actual.moderateCommunityPrice);
+    vi.mocked(withdrawFailedPairingPrice)
+      .mockResolvedValueOnce({ status: "unavailable" })
+      .mockImplementation(actual.withdrawFailedPairingPrice);
 
     expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
-    expect(vi.mocked(moderateCommunityPrice)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(withdrawFailedPairingPrice)).toHaveBeenCalledTimes(2);
     expect(await readCommunityPrices(venueId)).toEqual([]);
   });
 
-  it("returns false when hide never lands", async () => {
+  it("returns false when withdrawal never lands", async () => {
     const venueId = "venue-xjf3n0";
     const { price } = await submitCommunityPrice({
       venueId,
@@ -166,10 +207,10 @@ describe("writeOneTapPintDrop", () => {
       actor: "profile:test",
       contributorHandle: "karan",
     });
-    vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
+    vi.mocked(withdrawFailedPairingPrice).mockResolvedValue({ status: "unavailable" });
 
     expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(false);
-    expect(vi.mocked(moderateCommunityPrice)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(withdrawFailedPairingPrice)).toHaveBeenCalledTimes(2);
     expect(await readCommunityPrices(venueId)).toHaveLength(1);
   });
 

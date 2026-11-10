@@ -4,8 +4,6 @@ import { randomUUID } from "node:crypto";
 
 import { submitCategoryLabel } from "@/lib/communityPrice";
 import {
-  findCommunityPriceObservation,
-  moderateCommunityPrice,
   withdrawFailedPairingPrice,
   type FailedPairingObservation,
 } from "@/lib/communityPriceStore";
@@ -26,7 +24,10 @@ import {
 import { profileStore } from "@/lib/profileStore";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
-import { reconcilePriceTrustForObservation } from "@/lib/priceTrustImpact.server";
+import {
+  reversePriceTrustForObservation,
+  syncTrustAfterPriceWrite,
+} from "@/lib/priceTrustImpact.server";
 
 export type OneTapPintDropInput = Readonly<{
   id?: string;
@@ -178,46 +179,31 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
 /** The community price observation one request wrote, as that request saw it stored. */
 export type FailedPairingPrice = FailedPairingObservation & { id: string };
 
-const FAILED_PAIRING_NOTE = "one-tap pairing failed";
-
-/**
- * Undo the community price a failed pairing wrote, and nothing else. A row a
- * later write took over is left alone. The row is hidden first so price trust
- * reverses any credit it gave, and then removed, so the same person's next
- * price at that pub is not born hidden.
- */
 export async function revertOneTapCommunityPricePairing(
   price: FailedPairingPrice | undefined,
 ): Promise<boolean> {
   if (!price) return true;
-  const found = await findCommunityPriceObservation(price.id);
-  if (found.degraded) return false;
-  const stored = found.observation;
-  if (!stored || stored.actor !== price.actor || stored.submittedAt !== price.submittedAt
-    || stored.priceGbp !== price.priceGbp) return true;
   const priceId = price.id;
-  const note = FAILED_PAIRING_NOTE;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      if (await moderateCommunityPrice(priceId, true, note)) {
-        const trust = await reconcilePriceTrustForObservation(priceId);
-        if (trust.status !== "synced") return false;
-        if (!await withdrawFailedPairingPrice(priceId, price, note)) {
-          log("warn", "one_tap_pint_drop.price_pairing_withdraw_failed", { priceId });
-        }
-        return true;
-      }
+      const withdrawn = await withdrawFailedPairingPrice(priceId, price);
+      if (withdrawn.status === "unchanged") return true;
+      if (withdrawn.status === "unavailable") continue;
+      const reversed = await reversePriceTrustForObservation(priceId);
+      const reconciled = await syncTrustAfterPriceWrite(withdrawn.venueId, withdrawn.drinkCategory);
+      return reversed.status === "synced" && reconciled.status === "synced";
     } catch (err) {
       log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
         priceId,
         attempt,
         error: err instanceof Error ? err.message : String(err),
       });
+      return false;
     }
   }
   log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
     priceId,
-    error: "hide did not land",
+    error: "withdrawal did not land",
   });
   return false;
 }

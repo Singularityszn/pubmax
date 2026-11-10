@@ -200,6 +200,11 @@ type CanonicalVenueId = (venueId: string) => string;
 
 export type FailedPairingObservation = { actor: string; submittedAt: number; priceGbp: number };
 
+export type FailedPairingWithdrawal =
+  | { status: "removed"; venueId: string; drinkCategory: DrinkCategory }
+  | { status: "unchanged" }
+  | { status: "unavailable" };
+
 export type CommunityPriceStore = {
   /**
    * Record an observation and return it as stored. NEVER throws; a durable
@@ -279,13 +284,7 @@ export type CommunityPriceStore = {
    * no delete. False = unknown id. NEVER throws.
    */
   moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
-  /**
-   * Remove one observation that a failed one-tap pairing hid. It removes the
-   * row only while it still holds that exact observation, is hidden and carries
-   * the pairing note, so a moderator's hide and any later write are never
-   * touched. True = removed. NEVER throws.
-   */
-  withdrawFailedPairing(id: string, expected: FailedPairingObservation, note: string): Promise<boolean>;
+  withdrawFailedPairing(id: string, expected: FailedPairingObservation): Promise<FailedPairingWithdrawal>;
   moderateWithState(
     id: string,
     hidden: boolean,
@@ -1208,18 +1207,18 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return true;
   },
 
-  async withdrawFailedPairing(id, expected, note) {
+  async withdrawFailedPairing(id, expected) {
     for (const [venueId, rows] of venues) {
       const index = rows.findIndex((row) => row.id === id);
       if (index < 0) continue;
       const row = rows[index]!;
       if (row.actor !== expected.actor || row.submittedAt !== expected.submittedAt || row.priceGbp !== expected.priceGbp
-        || row.roundSource !== null || !row.hidden || row.moderatorNote !== cleanReason(note)) return false;
+        || row.roundSource !== null || row.hidden) return { status: "unchanged" };
       rows.splice(index, 1);
       if (rows.length === 0) venues.delete(venueId);
-      return true;
+      return { status: "removed", venueId: row.venueId, drinkCategory: row.drinkCategory };
     }
-    return false;
+    return { status: "unchanged" };
   },
 
   async moderateWithState(id, hidden, note, expected) {
@@ -1885,13 +1884,13 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async withdrawFailedPairing(id, expected, note) {
-    if (!id) return false;
-    return guard<boolean>({
+  async withdrawFailedPairing(id, expected) {
+    if (!id) return { status: "unchanged" };
+    return guard<FailedPairingWithdrawal>({
       context: "withdraw-failed-pairing",
-      onSchemaMiss: async () => false,
+      onSchemaMiss: async () => ({ status: "unavailable" }),
       message: "failed pairing withdrawal failed",
-      onError: () => false,
+      onError: () => ({ status: "unavailable" }),
       run: async () => {
         const { data, error } = await admin()
           .from("community_prices")
@@ -1901,11 +1900,16 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           .eq("submitted_at", new Date(expected.submittedAt).toISOString())
           .eq("price_pennies", Math.round(expected.priceGbp * 100))
           .is("round_spend_id", null)
-          .not("hidden_at", "is", null)
-          .eq("moderator_note", cleanReason(note) ?? "")
-          .select("id");
+          .is("hidden_at", null)
+          .select("venue_id,drink_category");
         if (error) throw new Error(error.message);
-        return Array.isArray(data) && data.length === 1;
+        if (!Array.isArray(data)) return { status: "unavailable" };
+        if (data.length === 0) return { status: "unchanged" };
+        const row = data[0];
+        if (data.length !== 1 || typeof row.venue_id !== "string" || !isDrinkCategory(row.drink_category)) {
+          return { status: "unavailable" };
+        }
+        return { status: "removed", venueId: row.venue_id, drinkCategory: row.drink_category };
       },
     });
   },
@@ -2360,14 +2364,12 @@ export function moderateCommunityPrice(
   );
 }
 
-/** Remove an observation a failed one-tap pairing hid. See the store method. */
 export function withdrawFailedPairingPrice(
   id: string,
   expected: FailedPairingObservation,
-  note: string,
-): Promise<boolean> {
+): Promise<FailedPairingWithdrawal> {
   return droppingCategoryIndexMemo(() =>
-    communityPriceStore().withdrawFailedPairing(id, expected, note),
+    communityPriceStore().withdrawFailedPairing(id, expected),
   );
 }
 

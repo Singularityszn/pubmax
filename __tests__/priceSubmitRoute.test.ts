@@ -138,7 +138,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
     ...actual,
-    moderateCommunityPrice: vi.fn(actual.moderateCommunityPrice),
+    withdrawFailedPairingPrice: vi.fn(actual.withdrawFailedPairingPrice),
     readCommunityPrices: async (venueId: string, now?: number) =>
       readBackState.override ?? actual.readCommunityPrices(venueId, now),
     readCommunityPricesWithStatus: async (venueId: string, now?: number) =>
@@ -154,7 +154,7 @@ import { POST as moderateBillCheck } from "@/app/api/admin/bill-checks/route";
 import {
   __resetCommunityPrices,
   memoryCommunityPriceStore,
-  moderateCommunityPrice,
+  withdrawFailedPairingPrice,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
 import {
@@ -305,9 +305,9 @@ beforeEach(async () => {
     await vi.importActual<typeof import("@/lib/communityPriceStore")>(
       "@/lib/communityPriceStore",
     );
-  vi.mocked(moderateCommunityPrice).mockReset();
-  vi.mocked(moderateCommunityPrice).mockImplementation(
-    actualCommunityPriceStore.moderateCommunityPrice,
+  vi.mocked(withdrawFailedPairingPrice).mockReset();
+  vi.mocked(withdrawFailedPairingPrice).mockImplementation(
+    actualCommunityPriceStore.withdrawFailedPairingPrice,
   );
 });
 
@@ -391,7 +391,7 @@ describe("POST /api/price-submit", () => {
     expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.5 }]);
   });
 
-  it("hides the community price when the paired visit report write fails", async () => {
+  it("removes the community price when the paired visit report write fails", async () => {
     oneTapState.forcedOutcome = {
       ok: false,
       kind: "storage",
@@ -458,7 +458,7 @@ describe("POST /api/price-submit", () => {
     });
   });
 
-  it("keeps failed hidden-state trust cleanup queued and reports pairing repair required", async () => {
+  it("keeps failed withdrawal trust cleanup queued and reports pairing repair required", async () => {
     const venueId = "venue-xjf3n0";
     expect(
       (await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }))).status,
@@ -469,7 +469,7 @@ describe("POST /api/price-submit", () => {
       expect(await syncTrustAfterPriceWrite(venueId, "beer")).toEqual({
         status: "synced",
       });
-      vi.spyOn(store, "ackReconciliation").mockResolvedValue({
+      vi.spyOn(store, "ackReconciliation").mockResolvedValueOnce({
         acknowledged: false,
         failed: true,
       });
@@ -501,13 +501,38 @@ describe("POST /api/price-submit", () => {
     });
   });
 
+  it.each(["read", "write"])("reports repair required when trust reversal cannot %s", async (failure) => {
+    const venueId = "venue-xjf3n0";
+    expect((await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }))).status).toBe(201);
+    await authorizeContributor("user-second", "second_contributor");
+    const store = priceTrustEventStore();
+    oneTapState.beforeOutcome = async () => {
+      expect(await syncTrustAfterPriceWrite(venueId, "beer")).toEqual({ status: "synced" });
+      if (failure === "read") {
+        vi.spyOn(store, "liveEventsCovering").mockResolvedValueOnce({ events: [], degraded: true });
+      } else {
+        vi.spyOn(store, "recordUnlock").mockResolvedValueOnce({ event: null, created: false, failed: true });
+      }
+    };
+    oneTapState.forcedOutcome = {
+      ok: false, kind: "storage", message: "Could not save your pint drop right now.",
+    };
+
+    const response = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.3 }));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "PAIRING_REPAIR_REQUIRED", retryable: true });
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
+    expect((await store.liveEventsFor(venueId, "beer")).events).toHaveLength(1);
+  });
+
   it("never reports success when the price and Pint Drop split", async () => {
     oneTapState.forcedOutcome = {
       ok: false,
       kind: "storage",
       message: "Could not save your pint drop right now.",
     };
-    vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
+    vi.mocked(withdrawFailedPairingPrice).mockResolvedValue({ status: "unavailable" });
     const venueId = "venue-xjf3n0";
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
     expect(res.status).toBe(503);
@@ -961,7 +986,7 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       expect(scheduled()).toHaveLength(1);
       expect(scheduled()[0]).toMatchObject({ pintDropId: defined(drops[0]).id });
       expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5.5 }]);
-      expect(moderateCommunityPrice).not.toHaveBeenCalled();
+      expect(withdrawFailedPairingPrice).not.toHaveBeenCalled();
     } finally {
       createSpy.mockRestore();
       vi.useRealTimers();
@@ -1047,7 +1072,7 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       const pixels = await sharp(Buffer.from(defined(objects.get(String(stored.receipt_photo_key))))).raw().toBuffer();
       expect(defined(pixels[0]) > defined(pixels[2])).toBe(bill.name === "red.jpg");
       expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5.5 }]);
-      expect(moderateCommunityPrice).not.toHaveBeenCalled();
+      expect(withdrawFailedPairingPrice).not.toHaveBeenCalled();
     } finally {
       createSpy.mockRestore();
       adminSpy.mockRestore();
@@ -1083,7 +1108,7 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       const prices = await readCommunityPrices(body.venueId);
       expect(prices).toHaveLength(1);
       expect([5.5, 6.5]).toContain(defined(prices[0]).priceGbp);
-      expect(moderateCommunityPrice).not.toHaveBeenCalled();
+      expect(withdrawFailedPairingPrice).not.toHaveBeenCalled();
     } finally {
       createSpy.mockRestore();
       vi.useRealTimers();
