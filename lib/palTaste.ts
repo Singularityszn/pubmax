@@ -193,9 +193,24 @@ function dropSignals(drops: readonly PalTasteDropInput[]) {
   };
 }
 
-function wishlistOf(input: PalTasteInput, logged: ReadonlySet<string>, nameOf: NameOf): string[] {
-  const visited = new Set(logged);
-  for (const save of input.saved) if (save.listType === BEEN_HERE_LIST) visited.add(save.venueId);
+/**
+ * Every pub the person has been to: a diary visit, a price they logged, or a
+ * pub on their Been here list. "Somewhere new" leaves these out.
+ */
+export function palVisitedVenueIds(input: {
+  diary: readonly { venueId: string }[];
+  drops: readonly { venueId: string }[];
+  saved: readonly { venueId: string; listType: string }[];
+}): Set<string> {
+  const visited = new Set<string>();
+  for (const entry of input.diary) if (entry.venueId) visited.add(entry.venueId);
+  for (const drop of input.drops) if (drop.venueId) visited.add(drop.venueId);
+  for (const save of input.saved) if (save.listType === BEEN_HERE_LIST && save.venueId) visited.add(save.venueId);
+  return visited;
+}
+
+function wishlistOf(input: PalTasteInput, nameOf: NameOf): string[] {
+  const visited = palVisitedVenueIds(input);
   const wishlist: string[] = [];
   for (const save of input.saved) {
     if (wishlist.length >= MAX_LIST) break;
@@ -235,7 +250,7 @@ export function buildPalTaste(input: PalTasteInput): PalTaste | null {
     ...dropSignals(input.drops),
     style: styleOf(visits, pubs.size),
     favouriteNight: favouriteNightOf(weekdays, visits),
-    wishlist: wishlistOf(input, new Set(visitDays.map((visit) => visit.venueId)), nameOf),
+    wishlist: wishlistOf(input, nameOf),
   };
   const empty =
     !taste.declaredDrink && taste.visits === 0 && taste.drinks.length === 0 && taste.vibes.length === 0 && taste.wishlist.length === 0;

@@ -21,6 +21,18 @@ import {
 } from "@/lib/pubPalToolTurnStore";
 
 const fence = vi.hoisted(() => ({ forceFenced: false }));
+const visitedRead = vi.hoisted(() => ({
+  calls: [] as string[],
+  answer: { kind: "read", venueIds: new Set<string>() } as { kind: "off" } | { kind: "read"; venueIds: ReadonlySet<string> },
+}));
+
+vi.mock("@/lib/palTaste.server", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/palTaste.server")>(),
+  readPalVisitedVenues: async (ownerId: string) => {
+    visitedRead.calls.push(ownerId);
+    return visitedRead.answer;
+  },
+}));
 const store = vi.hoisted(() => ({ failAppend: false }));
 
 vi.mock("@/lib/pubPalToolTurnStore", async (importOriginal) => {
@@ -74,6 +86,62 @@ describe("pubPal webhook arg resolution", () => {
       "Plan me a 3 pub crawl in Shoreditch tonight",
     );
     expect(args.query).toBe("Plan me a 3 pub crawl in Shoreditch tonight");
+  });
+});
+
+describe("somewhere new over the Pal webhook", () => {
+  const OWNER = "11111111-1111-4111-8111-111111111111";
+  const ask = "Find four pubs in Soho";
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", offlineFetch);
+    delete process.env.TYPESAFE_API_KEY;
+    visitedRead.calls = [];
+    visitedRead.answer = { kind: "read", venueIds: new Set() };
+  });
+
+  afterEach(() => {
+    __resetPubPalToolTurnStore();
+    vi.unstubAllGlobals();
+  });
+
+  async function search(conversationId: string, args: Record<string, unknown>) {
+    await registerPubPalToolTurn(conversationId, { query: ask, turns: [], cityId: "london", ownerId: OWNER });
+    const { result } = await invokePubPalAskTool({ toolName: "search_venues", args: { query: ask, ...args }, conversationId });
+    return result as { cards: Array<{ venueId: string }>; answerHint: string };
+  }
+
+  it("leaves out every pub the bound owner has been to, and still answers the count asked for", async () => {
+    const before = await search("conv_somewherenew01", {});
+    expect(visitedRead.calls).toEqual([]);
+    const been = before.cards.map((card) => card.venueId);
+    expect(been).toHaveLength(4);
+    visitedRead.answer = { kind: "read", venueIds: new Set(been) };
+
+    const fresh = await search("conv_somewherenew02", { onlyNew: true });
+
+    expect(visitedRead.calls).toEqual([OWNER]);
+    expect(fresh.cards).toHaveLength(4);
+    expect(fresh.cards.filter((card) => been.includes(card.venueId))).toEqual([]);
+    expect(fresh.answerHint).not.toMatch(/history|where you've been/);
+  });
+
+  it("says so when the taste read is off, and leaves nothing out", async () => {
+    visitedRead.answer = { kind: "off" };
+    const fresh = await search("conv_somewherenew03", { onlyNew: true });
+    expect(fresh.cards).toHaveLength(4);
+    expect(fresh.answerHint).toContain("I'm not using your history, so some of these you may know.");
+  });
+
+  it("says it does not know where the person has been when nothing is logged", async () => {
+    const fresh = await search("conv_somewherenew04", { onlyNew: true });
+    expect(fresh.answerHint).toContain("I don't know where you've been yet.");
+  });
+
+  it("reads no history for a conversation no owner is bound to", async () => {
+    const { result } = await invokePubPalAskTool({ toolName: "search_venues", args: { query: ask, onlyNew: true }, conversationId: null });
+    expect(visitedRead.calls).toEqual([]);
+    expect((result as { answerHint: string }).answerHint).toContain("I don't know where you've been yet.");
   });
 });
 

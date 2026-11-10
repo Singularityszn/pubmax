@@ -18,7 +18,31 @@ import { isIndependentAskTool, refineVenueBudgetFollowUp, routeAskDeterministica
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
+  readPubPalToolTurnBinding,
 } from "@/lib/pubPalToolTurnStore";
+import { readPalVisitedVenues } from "@/lib/palTaste.server";
+
+const ONLY_NEW_HISTORY_OFF = "I'm not using your history, so some of these you may know.";
+const ONLY_NEW_NO_HISTORY = "I don't know where you've been yet.";
+
+/**
+ * "Somewhere new": the pubs the conversation's bound owner has been to, read
+ * on the server only when search_venues asks for it. The history never leaves
+ * the server; only the picks that remain do.
+ */
+async function onlyNewScope(
+  toolName: string,
+  args: AskToolArgs,
+  conversationId: string | null,
+): Promise<{ exclude?: ReadonlySet<string>; hint: string } | null> {
+  if (toolName !== "search_venues" || args.onlyNew !== true) return null;
+  const binding = conversationId ? await readPubPalToolTurnBinding(conversationId).catch(() => null) : null;
+  if (!binding?.ownerId) return { hint: ONLY_NEW_NO_HISTORY };
+  const visited = await readPalVisitedVenues(binding.ownerId);
+  if (visited.kind === "off") return { hint: ONLY_NEW_HISTORY_OFF };
+  if (visited.venueIds.size === 0) return { hint: ONLY_NEW_NO_HISTORY };
+  return { exclude: visited.venueIds, hint: "" };
+}
 
 function isEmptyArg(value: unknown): boolean {
   if (value === undefined || value === null) return true;
@@ -122,9 +146,10 @@ export async function invokePubPalAskTool(input: {
   // can take seconds, so they run together. A fenced turn drops the tool's
   // answer unread: nothing from it is appended, spoken or returned. A price ask
   // the tools cannot answer starts no tool at all.
+  const scope = onlyNewScope(input.toolName, input.args, input.conversationId);
   const startTool = async () => (!isIndependentAskTool(input.toolName)
     ? answerLateFoodQuestion({ cityId, query, skipModel: true }, threadTurns) : null)
-    ?? runAskTool(input.toolName, args, { cityId, query, skipModel: true });
+    ?? runAskTool(input.toolName, args, { cityId, query, skipModel: true, excludeVenueIds: (await scope)?.exclude });
   const toolRun = priceRefusal ? null : startTool();
   // Awaited below on the unfenced path; this only keeps a fenced turn's
   // discarded run from surfacing as an unhandled rejection.
@@ -172,18 +197,20 @@ export async function invokePubPalAskTool(input: {
   }
 
   const toolResult = await (toolRun ?? startTool());
+  const scopeHint = (await scope)?.hint ?? "";
+  const answerHint = [scopeHint, toolResult.answerHint].filter(Boolean).join(" ") || toolResult.answerHint;
 
   if (input.conversationId) {
     await appendPubPalToolTurn(input.conversationId, {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
-      hints: toolResult.answerHint ? [toolResult.answerHint] : [],
+      hints: answerHint ? [answerHint] : [],
       toolsUsed: [toolResult.tool],
     });
   }
 
   const spokenHint =
-    toolResult.answerHint ??
+    answerHint ??
     composeAnswer(
       toolResult.cards.length > 0 ? [`${toolResult.cards.length} sourced result(s).`] : [],
       toolResult.cards,
