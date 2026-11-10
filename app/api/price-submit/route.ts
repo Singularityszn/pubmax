@@ -375,7 +375,6 @@ export async function POST(request: Request): Promise<Response> {
   const categoryRow = (await readCommunityPrices(submission.venueId)).find(
     (row) => row.drinkCategory === price.drinkCategory,
   );
-  const record = categoryRow?.priceGbp === price.priceGbp ? categoryRow : undefined;
   return jsonNoStore(
     {
       ok: true,
@@ -388,18 +387,26 @@ export async function POST(request: Request): Promise<Response> {
       ...(confirmationOutcome ? { confirmationOutcome } : {}),
       ...(pintTrust ? { pintTrust } : {}),
       ...(billCheck ? { billCheck } : {}),
-      price:
-        record ? {
-          ...record,
-          ...(observation?.ok && !observation.created ? price : {}),
-        } : {
-          ...price,
-          corroborations: 1,
-          ...(categoryRow?.mapCandidate ? { mapCandidate: categoryRow.mapCandidate } : {}),
-        },
+      price: submittedPriceRecord(price, categoryRow, observation),
     },
     { status: 201 },
   );
+}
+
+function submittedPriceRecord(
+  price: CommunityPrice,
+  categoryRow: CommunityPrice | undefined,
+  observation: Awaited<ReturnType<typeof writeOneTapPintDrop>> | null,
+): CommunityPrice {
+  const record = categoryRow?.priceGbp === price.priceGbp ? categoryRow : undefined;
+  return record ? {
+    ...record,
+    ...(observation?.ok && !observation.created ? price : {}),
+  } : {
+    ...price,
+    corroborations: 1,
+    ...(categoryRow?.mapCandidate ? { mapCandidate: categoryRow.mapCandidate } : {}),
+  };
 }
 
 function scheduleCommunityPriceBillCheck(input: {
