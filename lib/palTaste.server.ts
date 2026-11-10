@@ -179,7 +179,7 @@ export async function readPalVisitedVenues(ownerId: string): Promise<PalVisited>
     const viewer = ownedHandle ? { handle: ownedHandle } : null;
     const [dropVenueIds, saved] = ownedHandle && viewer
       ? await Promise.all([
-          pintDropsStore().listVisibleAuthorVenueIds(ownedHandle, viewer, null),
+          pintDropsStore().listOwnVenueIds(ownedHandle),
           savedPubsStore(ownedHandle).listSaved(viewer),
         ])
       : [[], []];

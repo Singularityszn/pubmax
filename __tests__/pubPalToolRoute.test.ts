@@ -245,9 +245,9 @@ describe("somewhere new over POST /api/pub-pal/tools/search_venues", () => {
     __resetMemorySavedPubs();
   });
 
-  async function search(conversationId: string, onlyNew?: boolean, owner: string | null = OWNER) {
+  async function search(conversationId: string, onlyNew?: boolean, owner: string | null = OWNER, query = ask) {
     if (owner) await bindPubPalToolTurn(conversationId, owner, "london");
-    const response = await POST(request("search_venues", { conversation_id: conversationId, query: ask, ...(onlyNew ? { onlyNew } : {}) }), {
+    const response = await POST(request("search_venues", { conversation_id: conversationId, query, ...(onlyNew ? { onlyNew } : {}) }), {
       params: Promise.resolve({ toolName: "search_venues" }),
     });
     expect(response.status).toBe(200);
@@ -276,6 +276,19 @@ describe("somewhere new over POST /api/pub-pal/tools/search_venues", () => {
     expect(fresh.cards.map((card) => card.venueId)).not.toContain(diaryPub!.venueId);
     expect(fresh.cards.map((card) => card.venueId)).not.toContain(beenHerePub!.venueId);
     expect(fresh.answerHint).not.toMatch(/history|where you've been/);
+  });
+
+  it("keeps the owner's visits out when a pint ask is answered by the cheapest-pint tool", async () => {
+    const pintAsk = "Cheapest pint in Camden";
+    const before = await search("conv_routenew08", undefined, OWNER, pintAsk);
+    expect(before.cards.length).toBeGreaterThan(1);
+    const [visited] = before.cards;
+    await beenTo(visited!.venueId, visited!.title, "diary");
+
+    const fresh = await search("conv_routenew09", true, OWNER, pintAsk);
+
+    expect(fresh.cards.length).toBeGreaterThan(0);
+    expect(fresh.cards.map((card) => card.venueId)).not.toContain(visited!.venueId);
   });
 
   it("reads no history with the taste read off, says so, and leaves nothing out", async () => {

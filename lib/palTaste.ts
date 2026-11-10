@@ -193,9 +193,10 @@ function dropSignals(drops: readonly PalTasteDropInput[]) {
   };
 }
 
-/** "Somewhere new", "places I haven't been" or "surprise me": the ask for picks they have not tried. */
+/** "Somewhere new", "places I have not or never been or tried" or "surprise me": the ask for picks they have not tried. */
 export function asksForSomewhereNew(text: string): boolean {
-  return /\b(somewhere|someplace|places?|pubs?|bars?)\s+(new|different)\b|\bnew\s+(places?|pubs?|spots?|bars?)\b|\b(haven'?t|have not|never|not)\s+(been|tried|visited)\b|\bsurprise me\b/i.test(text);
+  const plain = text.replace(/[\u2018\u2019\u02bc]/g, "'");
+  return /\bsomewhere new\b|\b(haven'?t|have not|never)\s+(been|tried)\b|\bsurprise me\b/i.test(plain);
 }
 
 /**

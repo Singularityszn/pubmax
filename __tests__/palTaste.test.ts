@@ -105,10 +105,10 @@ describe("buildPalTaste", () => {
   });
 
   it("hears the ask for somewhere new, places not yet tried, or a surprise", () => {
-    for (const ask of ["Somewhere new in Peckham", "pubs I haven't been to near Soho", "places I've never tried", "Surprise me", "a new pub tonight"]) {
+    for (const ask of ["Somewhere new in Peckham", "pubs I haven't been to near Soho", "places I haven\u2019t tried", "places I've never tried", "Surprise me"]) {
       expect(asksForSomewhereNew(ask), ask).toBe(true);
     }
-    for (const ask of ["Find four pubs in Soho", "Cheapest pint near Camden", "What is new at The Crown"]) {
+    for (const ask of ["Find four pubs in Soho", "Cheapest pint near Camden", "What is new at The Crown", "a new pub tonight", "somewhere different"]) {
       expect(asksForSomewhereNew(ask), ask).toBe(false);
     }
   });
