@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Starts the nightly full browser suite on main at 05:00 Mac local time
-  (Europe/London). docs/CI_RUNBOOK.md, "The nightly full suite", has the
-  install steps. launchd runs a missed time after the Mac wakes, so the job
-  dispatches nothing after 07:00 UTC, when pull-request traffic starts.
+  docs/CI_RUNBOOK.md, "The nightly full suite", owns dispatch timing,
+  the missed-wake guard, and installation steps.
 -->
 <plist version="1.0">
 <dict>

@@ -633,7 +633,7 @@ product code:
 
 | Check source | What it means | Fix path |
 |---|---|---|
-| First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. Push browser checks do not include the full scheduled suite. | Read failed job logs. Keep skipped checks separate from successful checks. |
+| First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. The [CI runbook](CI_RUNBOOK.md#the-nightly-full-suite) owns full browser coverage and exclusions. | Read failed job logs. Keep skipped checks separate from successful checks. |
 | `Vercel` | The `chengdu` project's Ignored Build Step can cancel a deployment while GitHub reports success with the description `Canceled by Ignored Build Step`. Production and preview outcomes can differ. | Check each deployment's state, source, target and commit. Require `READY`, then verify the SHA and deployment ID through `/api/version`. A cancelled build proves neither compilation nor deployment. The captain approves any build-policy change. |
 | `Supabase Preview` | Supabase GitHub integration. | If it says `Remote migration versions not found in local migrations directory`, sync migration history: pull/export the missing remote migrations or repair the Supabase migration table so remote and `supabase/migrations/` agree. Do not delete local migrations to make this pass. |
 | GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | Investigate the runner or account. Do not infer a product failure or a Vercel build result. Run `npm run ci` locally for the full local gate. |

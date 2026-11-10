@@ -379,9 +379,9 @@ keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
 the shard matrix and project lists. Each Chromium shard builds one server.
 `Full browser suite (WebGL and keyless)` builds both the normal and keyless
 servers. These jobs use the worker limit defined above.
-A dispatch skips the layout-pin jobs because the full suite covers those
-specs on the same commit. [The nightly full suite](#the-nightly-full-suite)
-says when the full suite runs.
+A dispatch skips the layout-pin jobs to avoid duplicate runs on the Mac pool.
+[The nightly full suite](#the-nightly-full-suite) owns dispatch timing and
+quarantine exclusions.
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite, manual dispatches and merge queue runs never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
@@ -413,7 +413,7 @@ A launchd agent on the Mac Studio starts the nightly at 05:00 Mac local time
 `gh workflow run e2e.yml --repo Singularityszn/pubmax --ref main` with the
 Studio's `gh` login, and logs to `~/Library/Logs/pubmax-nightly-browser-suite.log`.
 launchd runs a missed time after the Mac wakes, so the agent dispatches nothing
-after 07:00 UTC. Install it, or reinstall it after a change to the file:
+at or after 07:00 UTC. Install it, or reinstall it after a change to the file:
 
 ```sh
 cp scripts/ci/com.pubmax.nightly-browser-suite.plist ~/Library/LaunchAgents/
@@ -432,13 +432,17 @@ If no open issue has that exact title, the job creates one.
 The job uses the run's own `GITHUB_TOKEN` and needs no configured secret.
 Close the issue when the nightly is green again.
 
-`e2e/full-suite-quarantine.txt` lists the known-red tests the full suite
-leaves out (`--test-list-invert`), so a new failure turns the nightly red. A
-test that fails or retries goes in the list only under a comment that links its
-tracking issue, and `npm run gate:e2e-skips` refuses a test line with no issue
-above it. Delete the lines in the same pull request that fixes the test, then
-close the issue. The law-pin and layout-pin jobs do not read the list, so a
-pull request still runs every test they name.
+`e2e/full-suite-quarantine.txt` lists the known-red tests that both full-suite
+jobs exclude with `--test-list-invert`. Each block needs a comment with a
+`Singularityszn/pubmax` tracking issue link. A blank line ends the block.
+`npm run gate:e2e-skips` rejects a test line without that link or an existing spec.
+Delete the lines in the same pull request that fixes the test, then close the issue.
+The law-pin and layout-pin jobs do not read the list. When eligible, these jobs
+still run every test they name.
+
+A failure outside the list makes the nightly red. The screenshot failure in
+[#2630](https://github.com/Singularityszn/pubmax/issues/2630) can affect a different
+test each night, so the quarantine cannot guarantee a green run.
 
 ### The freshness gate
 

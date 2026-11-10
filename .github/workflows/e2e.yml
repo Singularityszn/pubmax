@@ -266,9 +266,8 @@ jobs:
     # 2026). Other label events skip every job. Unlabelled pull request pushes
     # and main pushes do not start them. The pool has three places. The
     # layout scope above still skips them for a pull request with no screen
-    # code. The nightly and a dispatch skip them: the full suite below runs
-    # every one of these specs on the same commit, and the three jobs would
-    # hold the pool while the full suite waits for them.
+    # code. A dispatch skips them to avoid duplicate runs on the Mac pool.
+    # docs/CI_RUNBOOK.md, "The nightly full suite", owns quarantine exclusions.
     needs: [change-scope]
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
