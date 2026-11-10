@@ -1,12 +1,12 @@
 {
   "source": "Guinndex UK, guinndex.co.uk",
   "sourceId": "guinndex-uk",
-  "readAt": "2026-11-10T06:33:22.846Z",
+  "readAt": "2026-11-10T06:53:11.367Z",
   "counts": {
     "priced": 7365,
     "matched": 5582,
     "notRead": 0,
-    "published": 2551,
+    "published": 2549,
     "london": {
       "priced": 1050,
       "matched": 884,
@@ -15,6 +15,7 @@
     },
     "skipped": {
       "no-price": 0,
+      "placeholder": 2,
       "not-gbp": 0,
       "implausible-price": 0,
       "closed": 0,
@@ -4428,17 +4429,6 @@
       "drinkLabel": "Guinness",
       "servingSize": "Pint",
       "priceSource": "ai_call"
-    },
-    {
-      "venueId": "venue-uk-n13960241774",
-      "venueName": "Laurence's Bar",
-      "london": false,
-      "sourceUrl": "https://guinndex.co.uk/pub/laurences-bar-clooney-bar-londonderry",
-      "priceGbp": 5.66,
-      "observedAt": "2026-04-07T13:18:46.404Z",
-      "drinkLabel": "Guinness",
-      "servingSize": "Pint",
-      "priceSource": "placeholder"
     },
     {
       "venueId": "venue-uk-n14065742750",
@@ -13019,17 +13009,6 @@
       "drinkLabel": "Guinness",
       "servingSize": "Pint",
       "priceSource": "ai_call"
-    },
-    {
-      "venueId": "venue-uk-n881079879",
-      "venueName": "The Park Bar",
-      "london": false,
-      "sourceUrl": "https://guinndex.co.uk/pub/the-park-bar-londonderry",
-      "priceGbp": 6.25,
-      "observedAt": "2026-04-12T13:41:19.903Z",
-      "drinkLabel": "Guinness",
-      "servingSize": "Pint",
-      "priceSource": "placeholder"
     },
     {
       "venueId": "venue-uk-n8898240627",

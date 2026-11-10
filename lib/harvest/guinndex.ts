@@ -17,6 +17,7 @@ export const GUINNDEX_SERVING = "Pint";
 /** Why a priced Guinndex pub yields no row. */
 export const GUINNDEX_SKIP_REASONS = [
   "no-price",
+  "placeholder",
   "not-gbp",
   "implausible-price",
   "closed",
@@ -87,6 +88,7 @@ export function readGuinndexObservation(
   if (!pub || typeof pub.slug !== "string" || !Number.isInteger(cents) || (cents as number) <= 0) {
     return { ok: false, reason: "no-price" };
   }
+  if (pub.price_source === "placeholder") return { ok: false, reason: "placeholder" };
   if (pub.currency !== undefined && pub.currency !== null && pub.currency !== "GBP") {
     return { ok: false, reason: "not-gbp" };
   }

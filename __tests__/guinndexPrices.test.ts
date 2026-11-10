@@ -154,6 +154,7 @@ describe("Guinndex persisted cache contract", () => {
 
   it.each([
     { pub: { price_source: "ai_call", call_completed_at: "2026-06-01T09:00:00Z" }, extra: {}, expected: { ok: true, observation: { slug: "the-pub-london", priceGbp: 6.5, observedAt: "2026-06-01T09:00:00.000Z", priceSource: "ai_call" } } },
+    { pub: { price_source: "placeholder" }, extra: { price_history: [{ new_price_cents: 650, created_at: "2026-06-01T09:00:00Z" }] }, expected: { ok: false, reason: "placeholder" } },
     { pub: {}, extra: { price_history: [{ new_price_cents: 650, created_at: "2026-06-01T09:00:00Z", flag_reason: "untrusted submission" }] }, expected: { ok: false, reason: "flagged" } },
     { pub: {}, extra: { drink_prices: [guinness(700, "2026-06-01T09:00:00Z")] }, expected: { ok: false, reason: "newer-record-disagrees" } },
     { pub: { business_status: "CLOSED_PERMANENTLY" }, extra: {}, expected: { ok: false, reason: "closed" } },
@@ -171,6 +172,17 @@ describe("Guinndex persisted cache contract", () => {
 });
 
 describe("readGuinndexObservation", () => {
+  it.each([
+    { price_history: [{ new_price_cents: 650, created_at: "2026-06-01T09:00:00Z" }] },
+    { drink_prices: [guinness(650, "2026-06-01T09:00:00Z")] },
+    {},
+  ])("skips placeholder provenance before accepting any timestamp: %j", (extra) => {
+    expect(readGuinndexObservation(detail({ price_source: "placeholder" }, extra), NOW)).toEqual({
+      ok: false,
+      reason: "placeholder",
+    });
+  });
+
   it("takes the headline price dated by the newest record that states it", () => {
     const read = readGuinndexObservation(
       detail({}, { drink_prices: [guinness(650, "2026-04-22T10:35:15Z"), guinness(650, "2026-06-01T09:00:00Z")] }),
