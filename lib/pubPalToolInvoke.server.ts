@@ -20,10 +20,7 @@ import {
   readPubPalToolTurn,
   readPubPalToolTurnBinding,
 } from "@/lib/pubPalToolTurnStore";
-import { readPalVisitedVenues } from "@/lib/palTaste.server";
-
-const ONLY_NEW_HISTORY_OFF = "I'm not using your history, so some of these you may know.";
-const ONLY_NEW_NO_HISTORY = "I don't know where you've been yet.";
+import { palOnlyNewScope, type PalOnlyNewScope } from "@/lib/palTaste.server";
 
 /**
  * "Somewhere new": the pubs the conversation's bound owner has been to, read
@@ -34,14 +31,15 @@ async function onlyNewScope(
   toolName: string,
   args: AskToolArgs,
   conversationId: string | null,
-): Promise<{ exclude?: ReadonlySet<string>; hint: string } | null> {
+): Promise<PalOnlyNewScope | null> {
   if (toolName !== "search_venues" || args.onlyNew !== true) return null;
-  const binding = conversationId ? await readPubPalToolTurnBinding(conversationId).catch(() => null) : null;
-  if (!binding?.ownerId) return { hint: ONLY_NEW_NO_HISTORY };
-  const visited = await readPalVisitedVenues(binding.ownerId);
-  if (visited.kind === "off") return { hint: ONLY_NEW_HISTORY_OFF };
-  if (visited.venueIds.size === 0) return { hint: ONLY_NEW_NO_HISTORY };
-  return { exclude: visited.venueIds, hint: "" };
+  let ownerId: string | null;
+  try {
+    ownerId = conversationId ? (await readPubPalToolTurnBinding(conversationId))?.ownerId ?? null : null;
+  } catch {
+    return { hint: "I couldn't check where you've been, so some of these you may know." };
+  }
+  return palOnlyNewScope(ownerId);
 }
 
 function isEmptyArg(value: unknown): boolean {

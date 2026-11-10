@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  asksForSomewhereNew,
   buildPalTaste,
   palTasteAsk,
   palVisitedVenueIds,
@@ -101,6 +102,15 @@ describe("buildPalTaste", () => {
       ],
     });
     expect([...visited].sort()).toEqual(["crown", "lamb", "ship"]);
+  });
+
+  it("hears the ask for somewhere new, places not yet tried, or a surprise", () => {
+    for (const ask of ["Somewhere new in Peckham", "pubs I haven't been to near Soho", "places I've never tried", "Surprise me", "a new pub tonight"]) {
+      expect(asksForSomewhereNew(ask), ask).toBe(true);
+    }
+    for (const ask of ["Find four pubs in Soho", "Cheapest pint near Camden", "What is new at The Crown"]) {
+      expect(asksForSomewhereNew(ask), ask).toBe(false);
+    }
   });
 
   it("uses only pint prices and needs two of them for a usual pint", () => {

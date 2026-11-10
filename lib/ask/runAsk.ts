@@ -168,6 +168,8 @@ export type RunAskInput = {
   modelTimeoutMs?: number;
   /** Static route tag for the trace (e.g. "api/ask"). */
   traceRoute?: string;
+  /** Pubs search_venues leaves out, set by the server for "somewhere new". */
+  excludeVenueIds?: ReadonlySet<string>;
 };
 
 /**
@@ -185,6 +187,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     skipModel: true,
     ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
     ...(input.now !== undefined ? { now: input.now } : {}),
+    ...(input.excludeVenueIds ? { excludeVenueIds: input.excludeVenueIds } : {}),
   };
 
   const recordedDrinks = recordedDrinkComparison(query);

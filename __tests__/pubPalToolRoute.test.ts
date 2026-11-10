@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const limitState = vi.hoisted(() => ({ limited: false }));
 
-vi.mock("@/lib/pintDrops", () => ({
+vi.mock("@/lib/pintDrops", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/pintDrops")>(),
   isLimited: vi.fn(async () => limitState.limited),
 }));
 
@@ -40,12 +41,20 @@ vi.mock("@/lib/ask/tools", async (importOriginal) => {
 });
 
 import { POST } from "@/app/api/pub-pal/tools/[toolName]/route";
+import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { runAskTool } from "@/lib/ask/tools";
+import { __resetDiary, diaryStore } from "@/lib/diaryStore";
+import { __resetPalTasteCache } from "@/lib/palTaste.server";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { __resetPubPalStore, createPubPalResult, updatePubPalResult } from "@/lib/pubPalStore";
 import {
   __resetPubPalToolTurnStore,
+  bindPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
+import { __resetMemorySavedPubs, savedPubsStore } from "@/lib/savedPubsStore";
 
 function request(toolName: string, body: unknown, headers: Record<string, string> = {}) {
   return new Request(`http://localhost/api/pub-pal/tools/${toolName}`, {
@@ -206,5 +215,93 @@ describe("POST /api/pub-pal/tools/[toolName]", () => {
     expect(turn?.toolsUsed).toEqual(["propose_plan"]);
     expect(turn?.cards.map((card) => card.venueId)).toEqual(["london-a"]);
     expect(warn).not.toHaveBeenCalledWith("pub-pal-tool.uncorrelated", expect.anything());
+  });
+});
+
+describe("somewhere new over POST /api/pub-pal/tools/search_venues", () => {
+  const OWNER = "22222222-2222-4222-8222-222222222222";
+  const ask = "Find four pubs in Soho";
+
+  beforeEach(async () => {
+    limitState.limited = false;
+    vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "test-llm-secret");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    // These cases run the real search over the real index.
+    const actual = await vi.importActual<typeof import("@/lib/ask/tools")>("@/lib/ask/tools");
+    vi.mocked(runAskTool).mockImplementation(actual.runAskTool);
+    __seedMemoryOwnedProfile("newpubs", OWNER);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    __resetPubPalToolTurnStore();
+    __resetDiary();
+    __resetMemoryProfiles();
+    __resetPubPalStore();
+    __resetPalTasteCache();
+    __resetMemorySavedPubs();
+  });
+
+  async function search(conversationId: string, onlyNew?: boolean, owner: string | null = OWNER) {
+    if (owner) await bindPubPalToolTurn(conversationId, owner, "london");
+    const response = await POST(request("search_venues", { conversation_id: conversationId, query: ask, ...(onlyNew ? { onlyNew } : {}) }), {
+      params: Promise.resolve({ toolName: "search_venues" }),
+    });
+    expect(response.status).toBe(200);
+    return (await response.json()).result as { cards: Array<{ venueId: string; title: string }>; answerHint: string };
+  }
+
+  async function beenTo(venueId: string, title: string, via: "diary" | "been here") {
+    if (via === "diary") {
+      const created = await diaryStore().create({ ownerUserId: OWNER, venueId, venueName: title, visitedOn: "2026-10-02", rating: null, review: "", visibility: "private" });
+      expect(created.status).toBe("created");
+    } else {
+      await savedPubsStore().toggleSaved({ handle: "newpubs", venueId, listType: "Been here" });
+    }
+  }
+
+  it("leaves out the bound owner's diary and Been here pubs, and still answers the count asked for", async () => {
+    const before = await search("conv_routenew01");
+    expect(before.cards).toHaveLength(4);
+    const [diaryPub, beenHerePub] = before.cards;
+    await beenTo(diaryPub!.venueId, diaryPub!.title, "diary");
+    await beenTo(beenHerePub!.venueId, beenHerePub!.title, "been here");
+
+    const fresh = await search("conv_routenew02", true);
+
+    expect(fresh.cards).toHaveLength(4);
+    expect(fresh.cards.map((card) => card.venueId)).not.toContain(diaryPub!.venueId);
+    expect(fresh.cards.map((card) => card.venueId)).not.toContain(beenHerePub!.venueId);
+    expect(fresh.answerHint).not.toMatch(/history|where you've been/);
+  });
+
+  it("reads no history with the taste read off, says so, and leaves nothing out", async () => {
+    const before = await search("conv_routenew03");
+    await beenTo(before.cards[0]!.venueId, before.cards[0]!.title, "diary");
+    expect((await createPubPalResult(OWNER, { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Moss" })).ok).toBe(true);
+    expect((await updatePubPalResult(OWNER, { proposalPreferences: { taste: false } })).ok).toBe(true);
+    const listForOwner = vi.spyOn(diaryStore(), "listForOwner");
+
+    const fresh = await search("conv_routenew04", true);
+
+    expect(listForOwner).not.toHaveBeenCalled();
+    expect(fresh.cards.map((card) => card.venueId)).toContain(before.cards[0]!.venueId);
+    expect(fresh.answerHint).toContain("I'm not using your history, so some of these you may know.");
+  });
+
+  it("says it does not know where the person has been with no history or no bound owner", async () => {
+    expect((await search("conv_routenew05", true)).answerHint).toContain("I don't know where you've been yet.");
+    const listForOwner = vi.spyOn(diaryStore(), "listForOwner");
+    expect((await search("conv_routenew06", true, null)).answerHint).toContain("I don't know where you've been yet.");
+    expect(listForOwner).not.toHaveBeenCalled();
+  });
+
+  it("says when it could not check, instead of claiming there is no history", async () => {
+    vi.spyOn(diaryStore(), "listForOwner").mockResolvedValue({ status: "degraded", entries: [] });
+    expect((await search("conv_routenew07", true)).answerHint)
+      .toContain("I couldn't check where you've been, so some of these you may know.");
   });
 });

@@ -193,6 +193,11 @@ function dropSignals(drops: readonly PalTasteDropInput[]) {
   };
 }
 
+/** "Somewhere new", "places I haven't been" or "surprise me": the ask for picks they have not tried. */
+export function asksForSomewhereNew(text: string): boolean {
+  return /\b(somewhere|someplace|places?|pubs?|bars?)\s+(new|different)\b|\bnew\s+(places?|pubs?|spots?|bars?)\b|\b(haven'?t|have not|never|not)\s+(been|tried|visited)\b|\bsurprise me\b/i.test(text);
+}
+
 /**
  * Every pub the person has been to: a diary visit, a price they logged, or a
  * pub on their Been here list. "Somewhere new" leaves these out.

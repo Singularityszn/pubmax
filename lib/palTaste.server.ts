@@ -11,6 +11,7 @@ import { palTasteAllowed } from "@/lib/pubPal";
 import { getPubPalResult } from "@/lib/pubPalStore";
 import { savedPubsStore } from "@/lib/savedPubsStore";
 import { getVenueIndex, type VenueRef } from "@/lib/venueIndex";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 
 /**
@@ -151,22 +152,63 @@ async function readTasteWithinBudget(ownerId: string, now: number): Promise<PalT
   }
 }
 
-export type PalVisited = { kind: "off" } | { kind: "read"; venueIds: ReadonlySet<string> };
+export type PalVisited =
+  | { kind: "off" }
+  | { kind: "unavailable" }
+  | { kind: "read"; venueIds: ReadonlySet<string> };
 
 /**
- * Where the owner has been, for "somewhere new". The taste opt-out is checked
- * first, so an owner who turned it off never has their logs read. A failed
- * read is an empty set: the picks are then simply not filtered.
+ * Where the owner has been, for "somewhere new", as current venue ids. The
+ * taste opt-out is checked first, so an owner who turned it off never has
+ * their logs read. Drops are read as complete venue identities, not the
+ * capped timeline, and every stored id is resolved through the alias map, so
+ * a visit logged under a merged venue's old id still counts. A read that
+ * fails says so instead of claiming the owner has no history.
  */
 export async function readPalVisitedVenues(ownerId: string): Promise<PalVisited> {
   if (!(await tasteAllowedFor(ownerId))) return { kind: "off" };
   try {
-    const { diary, drops, saved } = await readHistory(ownerId);
-    return { kind: "read", venueIds: palVisitedVenueIds({ diary, drops, saved }) };
+    const [handle, diary, aliases] = await Promise.all([
+      profileStore().getHandleByUserId(ownerId),
+      diaryStore().listForOwner(ownerId),
+      loadVenueAliasResolver(),
+    ]);
+    if (diary.status !== "ready") return { kind: "unavailable" };
+    const profile = handle ? await profileStore().getByHandle(handle) : null;
+    const ownedHandle = profile?.userId === ownerId && !profile.tombstonedAt ? handle : null;
+    const viewer = ownedHandle ? { handle: ownedHandle } : null;
+    const [dropVenueIds, saved] = ownedHandle && viewer
+      ? await Promise.all([
+          pintDropsStore().listVisibleAuthorVenueIds(ownedHandle, viewer, null),
+          savedPubsStore(ownedHandle).listSaved(viewer),
+        ])
+      : [[], []];
+    const visited = palVisitedVenueIds({
+      diary: diary.entries,
+      drops: dropVenueIds.map((venueId) => ({ venueId })),
+      saved,
+    });
+    return { kind: "read", venueIds: new Set([...visited].map((id) => aliases.canonical(id))) };
   } catch (error) {
     console.warn("pub-pal-visited.read_failed", error instanceof Error ? error.message : String(error));
-    return { kind: "read", venueIds: new Set() };
+    return { kind: "unavailable" };
   }
+}
+
+const ONLY_NEW_HISTORY_OFF = "I'm not using your history, so some of these you may know.";
+const ONLY_NEW_NO_HISTORY = "I don't know where you've been yet.";
+const ONLY_NEW_UNAVAILABLE = "I couldn't check where you've been, so some of these you may know.";
+
+export type PalOnlyNewScope = { exclude?: ReadonlySet<string>; hint: string };
+
+/** "Somewhere new" for a known owner: the pubs to leave out, or the line that says why none are. */
+export async function palOnlyNewScope(ownerId: string | null): Promise<PalOnlyNewScope> {
+  if (!ownerId) return { hint: ONLY_NEW_NO_HISTORY };
+  const visited = await readPalVisitedVenues(ownerId);
+  if (visited.kind === "off") return { hint: ONLY_NEW_HISTORY_OFF };
+  if (visited.kind === "unavailable") return { hint: ONLY_NEW_UNAVAILABLE };
+  if (visited.venueIds.size === 0) return { hint: ONLY_NEW_NO_HISTORY };
+  return { exclude: visited.venueIds, hint: "" };
 }
 
 /** Test and eval only: forget every cached read. */

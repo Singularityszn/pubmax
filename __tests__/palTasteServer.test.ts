@@ -79,6 +79,17 @@ describe("readPalTaste", () => {
     expect(await readPalVisitedVenues("owner-empty")).toEqual({ kind: "off" });
   });
 
+  it("counts a visit logged under a merged venue's old id as the current venue", async () => {
+    const created = await diaryStore().create({ ownerUserId: "owner-alias", venueId: "venue-1s1ffqx", venueName: "The Three Colts Tavern", visitedOn: "2026-10-02", rating: null, review: "", visibility: "private" });
+    expect(created.status).toBe("created");
+    expect(await readPalVisitedVenues("owner-alias")).toEqual({ kind: "read", venueIds: new Set(["venue-1g0y58p"]) });
+  });
+
+  it("says the read is unavailable when the diary cannot be read", async () => {
+    vi.spyOn(diaryStore(), "listForOwner").mockResolvedValue({ status: "degraded", entries: [] });
+    expect(await readPalVisitedVenues("owner-down")).toEqual({ kind: "unavailable" });
+  });
+
   it("reads nothing for an owner who turned the taste read off, even past a cached read", async () => {
     await logVisit("owner-off", "2026-10-02", 5);
     expect((await pubPalStore.createPubPalResult("owner-off", { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Moss" })).ok).toBe(true);
