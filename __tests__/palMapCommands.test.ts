@@ -69,6 +69,26 @@ describe("Pal picks on the main map", () => {
     expect(readPalMapState().picks).toHaveLength(PAL_MAP_MAX_PICKS);
   });
 
+  it("focuses the pick being named without starting a new answer, and refuses a number not on the map", () => {
+    groundPalMapResult(["a", "b"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [pick("a"), pick("b")] });
+    const { sequence } = readPalMapState();
+    expect(applyPalMapCommand({ kind: "focusPick", number: 2 })).toBe(true);
+    expect(readPalMapState()).toMatchObject({ sequence, focused: 2 });
+    expect(applyPalMapCommand({ kind: "focusPick", number: 3 })).toBe(false);
+    expect(readPalMapState().focused).toBe(2);
+    expect(applyPalMapCommand({ kind: "focusPick", number: null })).toBe(true);
+    expect(readPalMapState().focused).toBeNull();
+  });
+
+  it("drops the focus when the picks change", () => {
+    groundPalMapResult(["a", "b"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [pick("a"), pick("b")] });
+    applyPalMapCommand({ kind: "focusPick", number: 2 });
+    groundPalMapResult(["a"]);
+    expect(readPalMapState().focused).toBeNull();
+  });
+
   it("clears the picks and the grounded set when the call is over", () => {
     groundPalMapResult(["a"]);
     applyPalMapCommand({ kind: "showPicks", picks: [pick("a")] });

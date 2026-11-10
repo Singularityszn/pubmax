@@ -70,3 +70,46 @@ body:has(.palVoiceBar) .palSummon {
     bottom: 22px;
   }
 }
+/* The map pick the Pal is naming, above the call row. */
+.palVoiceBar:has(.palVoiceBarPick) {
+  flex-wrap: wrap;
+}
+.palVoiceBarPick {
+  flex: 1 0 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--state-selected-border);
+  border-radius: var(--radius);
+  background: var(--state-selected-surface);
+}
+.palVoiceBarPick p,
+.palVoiceBarPick a {
+  margin: 0;
+  min-width: 0;
+}
+.palVoiceBarPickNumber {
+  grid-row: span 2;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  font: 700 var(--text-xs) / 1 var(--font-data);
+}
+.palVoiceBarPickTitle {
+  font: 700 var(--text-sm) / 1.3 var(--font-display);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.palVoiceBarPickSource {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}

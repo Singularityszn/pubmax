@@ -54,3 +54,22 @@
   /* MapLibre rewrites marker opacity inline after camera and terrain updates. */
   opacity: 0.45 !important;
 }
+
+/* The pick the Pal is naming. Reduced motion keeps the ring and drops the pulse. */
+.palPick[data-speaking] {
+  border-color: var(--state-selected-border);
+  box-shadow: 0 0 0 3px var(--state-selected-border), var(--map-overlay-shadow-tight);
+  animation: palPickPulse 0.8s var(--ease-standard) 3;
+}
+
+@keyframes palPickPulse {
+  50% {
+    scale: 1.18;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .palPick[data-speaking] {
+    animation: none;
+  }
+}

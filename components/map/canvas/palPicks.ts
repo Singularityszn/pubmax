@@ -19,7 +19,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 /** A painted pick, in viewport coordinates a tap can use. */
 type PalPickProbePoint = { number: number; venueId: string; x: number; y: number };
 type ProbeWindow = Window & {
-  [PROBE_KEY]?: () => { sequence: number; scrim: boolean; picks: PalPickProbePoint[] };
+  [PROBE_KEY]?: () => { sequence: number; scrim: boolean; speaking: number | null; picks: PalPickProbePoint[] };
 };
 
 type PalPicksOptions = {
@@ -87,9 +87,15 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     });
   };
 
+  // The pick the Pal is naming pulses. Its pins and framing stay as they are.
+  const syncFocus = () => {
+    const { focused } = readPalMapState();
+    for (const { button, pick } of pins) button.toggleAttribute("data-speaking", pick.number === focused);
+  };
+
   const render = () => {
     const { sequence, picks } = readPalMapState();
-    if (sequence === rendered) return;
+    if (sequence === rendered) return syncFocus();
     rendered = sequence;
     nativePaints.clear();
     if (paintFrame !== null) cancelAnimationFrame(paintFrame);
@@ -146,6 +152,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
   probeWindow[PROBE_KEY] = () => ({
     sequence: painted,
     scrim: Boolean(map.getStyle() && map.getLayer(PAL_PICKS_SCRIM_LAYER)),
+    speaking: pins.find(({ button }) => button.hasAttribute("data-speaking"))?.pick.number ?? null,
     picks: painted === rendered ? pins.map(({ pick, button }) => {
       const rect = button.getBoundingClientRect();
       return { number: pick.number, venueId: pick.venueId, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };

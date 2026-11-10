@@ -47,6 +47,19 @@ function say(socket: WebSocketRoute, text: string): void {
   }
 }
 
+/** One Pal line in three audio chunks, each with the provider's character timing. */
+function sayAligned(socket: WebSocketRoute, text: string): void {
+  eventId += 1;
+  socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: eventId } }));
+  const chars = [...text];
+  const size = Math.ceil(chars.length / 3);
+  for (let start = 0; start < chars.length; start += size) {
+    const part = chars.slice(start, start + size);
+    const alignment = { chars: part, char_start_times_ms: part.map((_, index) => index * 20), char_durations_ms: part.map(() => 20) };
+    socket.send(JSON.stringify({ type: "audio", audio_event: { audio_base_64: toneChunk(), event_id: eventId, alignment } }));
+  }
+}
+
 function hear(socket: WebSocketRoute, text: string, tentative = false): void {
   eventId += 1;
   socket.send(JSON.stringify(tentative
@@ -379,7 +392,7 @@ for (const [width, theme] of [
   });
 }
 
-type PalPicksProbe = { sequence: number; scrim: boolean; picks: { number: number; venueId: string; x: number; y: number }[] };
+type PalPicksProbe = { sequence: number; scrim: boolean; speaking: number | null; picks: { number: number; venueId: string; x: number; y: number }[] };
 type CameraReading = { center: [number, number]; zoom: number; moving: boolean; settling: boolean };
 
 for (const width of [390, 1440]) {
@@ -389,7 +402,7 @@ for (const width of [390, 1440]) {
     const socket = await openLiveVoice(page);
     const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find me four pubs in Soho and show them on the map." } });
     expect(response.ok()).toBe(true);
-    const answer = await response.json() as { answer: string; cards: { venueId: string; title: string }[] };
+    const answer = await response.json() as { answer: string; cards: { venueId: string; title: string; provenance: { label: string } }[] };
     expect(answer.cards).toHaveLength(4);
     const index = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { rows: { id: string; lat: number; lng: number }[] };
     const deliver = (cards: unknown[]) => {
@@ -479,6 +492,22 @@ for (const width of [390, 1440]) {
     await expect(page.locator(".palPicksActive")).toHaveCount(0);
     deliver(answer.cards);
     await expect.poll(async () => (await picks())?.picks.length).toBe(4);
+
+    // The pick the Pal names pulses as its name plays, with its price card.
+    // The camera keeps the answer's framing, and talking over the Pal stops it.
+    const { sequence } = (await picks())!;
+    const named = answer.cards[1]!;
+    const card = page.locator(".palVoiceBarPick");
+    sayAligned(socket, `Second, ${named.title}, on the map now.`);
+    await expect.poll(async () => (await picks())?.speaking, { timeout: 5_000 }).toBe(2);
+    expect((await picks())!.sequence).toBe(sequence);
+    await expect(card).toContainText(named.title);
+    await expect(card).toContainText(named.provenance.label);
+    await page.screenshot({ path: `${SHOTS}/${width}-pal-pick-named.png` });
+    eventId += 1;
+    socket.send(JSON.stringify({ type: "interruption", interruption_event: { event_id: eventId } }));
+    await expect.poll(async () => (await picks())?.speaking).toBeNull();
+    await expect(card).toHaveCount(0);
 
     // A tap on a pick opens its venue sheet, and the call carries on.
     const [first] = (await picks())!.picks;
