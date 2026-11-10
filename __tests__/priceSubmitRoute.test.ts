@@ -404,6 +404,25 @@ describe("POST /api/price-submit", () => {
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
+  it("a failed pairing does not hide the same person's next price at that pub", async () => {
+    const venueId = "venue-xjf3n0";
+    const start = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(start);
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+    expect((await POST(post({ venueId, drinkCategory: "beer", priceGbp: 5 }))).status).toBe(503);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+
+    oneTapState.forcedOutcome = undefined;
+    clock.mockReturnValue(start + 24 * 60 * 60 * 1000);
+    expect((await POST(post({ venueId, drinkCategory: "beer", priceGbp: 5.2 }))).status).toBe(201);
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 5.2 }]);
+    expect(await memoryCommunityPriceStore.listForReview()).toEqual([]);
+  });
+
   it("reverses trust that lands before a failed Pint Drop pairing rolls its price back", async () => {
     const venueId = "venue-xjf3n0";
     expect(

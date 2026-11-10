@@ -49,6 +49,10 @@ beforeEach(async () => {
   vi.mocked(moderateCommunityPrice).mockImplementation(actual.moderateCommunityPrice);
 });
 
+function observationOf(price: Awaited<ReturnType<typeof submitCommunityPrice>>["price"]) {
+  return { id: price!.id!, actor: "profile:test", submittedAt: price!.submittedAt, priceGbp: price!.priceGbp };
+}
+
 describe("writeOneTapPintDrop", () => {
   it("creates a visible visit report for a priced pint", async () => {
     const outcome = await writeOneTapPintDrop({
@@ -112,8 +116,24 @@ describe("writeOneTapPintDrop", () => {
     expect(price?.id).toBeTruthy();
     expect(await readCommunityPrices(venueId)).toHaveLength(1);
 
-    expect(await revertOneTapCommunityPricePairing(price!.id)).toBe(true);
+    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
     expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("leaves a price alone when the stored row is no longer this request's observation", async () => {
+    const venueId = "venue-xjf3n0";
+    const { price } = await submitCommunityPrice({
+      venueId,
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor: "profile:test",
+      contributorHandle: "karan",
+    });
+    expect(await revertOneTapCommunityPricePairing({
+      id: price!.id!, actor: "profile:test", submittedAt: price!.submittedAt - 60_000, priceGbp: 4.2,
+    })).toBe(true);
+    expect(vi.mocked(moderateCommunityPrice)).not.toHaveBeenCalled();
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
   });
 
   it("retries hide when moderate returns false once", async () => {
@@ -132,7 +152,7 @@ describe("writeOneTapPintDrop", () => {
       .mockResolvedValueOnce(false)
       .mockImplementation(actual.moderateCommunityPrice);
 
-    expect(await revertOneTapCommunityPricePairing(price!.id)).toBe(true);
+    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
     expect(vi.mocked(moderateCommunityPrice)).toHaveBeenCalledTimes(2);
     expect(await readCommunityPrices(venueId)).toEqual([]);
   });
@@ -148,7 +168,7 @@ describe("writeOneTapPintDrop", () => {
     });
     vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
 
-    expect(await revertOneTapCommunityPricePairing(price!.id)).toBe(false);
+    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(false);
     expect(vi.mocked(moderateCommunityPrice)).toHaveBeenCalledTimes(2);
     expect(await readCommunityPrices(venueId)).toHaveLength(1);
   });
