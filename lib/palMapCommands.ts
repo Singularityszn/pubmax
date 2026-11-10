@@ -40,6 +40,10 @@ export function subscribePalMapState(listener: () => void): () => void {
 /** The venues the newest grounded tool result named. Only these may become picks. */
 export function groundPalMapResult(venueIds: readonly string[]): void {
   grounded = new Set(venueIds.filter(Boolean));
+  const picks = state.picks.filter((pick) => grounded.has(pick.venueId));
+  if (picks.length !== state.picks.length) {
+    publish(picks.map((pick, index) => ({ ...pick, number: index + 1 })));
+  }
 }
 
 /** Apply one command. Returns false, and changes nothing, when it is refused. */
@@ -49,7 +53,7 @@ export function applyPalMapCommand(command: PalMapCommand): boolean {
     return true;
   }
   const picks = command.picks.slice(0, PAL_MAP_MAX_PICKS);
-  if (!picks.length || picks.some((pick) => !grounded.has(pick.venueId))) return false;
+  if (picks.some((pick) => !grounded.has(pick.venueId))) return false;
   if (new Set(picks.map((pick) => pick.venueId)).size !== picks.length) return false;
   publish(picks.map((pick, index) => ({ ...pick, number: index + 1 })));
   return true;

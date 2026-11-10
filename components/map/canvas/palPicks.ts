@@ -35,10 +35,13 @@ function scrimColour(): string {
 
 export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOptions): () => void {
   let pins: { marker: maplibregl.Marker; line: SVGLineElement; dot: SVGCircleElement; button: HTMLButtonElement; pick: PalMapPick }[] = [];
-  let painted = 0;
+  let rendered = -1;
+  let painted = -1;
+  let paintFrame: number | null = null;
 
   const syncScrim = () => {
     const wanted = pins.length > 0;
+    map.getContainer().classList.toggle("palPicksActive", wanted);
     if (!map.getStyle()) return;
     if (wanted && !map.getLayer(SCRIM_LAYER)) {
       map.addLayer({
@@ -65,8 +68,10 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
 
   const render = () => {
     const { sequence, picks } = readPalMapState();
-    if (sequence === painted) return;
-    painted = sequence;
+    if (sequence === rendered) return;
+    rendered = sequence;
+    if (paintFrame !== null) cancelAnimationFrame(paintFrame);
+    performance.clearMarks("pubmax:pal-picks-painted");
     pins.forEach((pin) => pin.marker.remove());
     pins = picks.map((pick) => {
       const anchor = document.createElement("div");
@@ -97,8 +102,15 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     position();
     syncScrim();
     if (picks.length) frame(sequence, picks);
-    performance.mark("pubmax:pal-picks-painted");
-    window.dispatchEvent(new CustomEvent("pubmax:pal-picks-painted", { detail: { sequence, count: picks.length } }));
+    map.triggerRepaint();
+    paintFrame = requestAnimationFrame(() => {
+      paintFrame = requestAnimationFrame(() => {
+        paintFrame = null;
+        painted = sequence;
+        performance.mark("pubmax:pal-picks-painted");
+        window.dispatchEvent(new CustomEvent("pubmax:pal-picks-painted", { detail: { sequence, count: picks.length } }));
+      });
+    });
   };
 
   // A theme swap rebuilds the style without the scrim. The markers are DOM and stay.
@@ -113,19 +125,21 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
   probeWindow[PROBE_KEY] = () => ({
     sequence: painted,
     scrim: Boolean(map.getStyle() && map.getLayer(SCRIM_LAYER)),
-    picks: pins.map(({ pick, button }) => {
+    picks: painted === rendered ? pins.map(({ pick, button }) => {
       const rect = button.getBoundingClientRect();
       return { number: pick.number, venueId: pick.venueId, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    }),
+    }) : [],
   });
 
   return () => {
     unsubscribe();
+    if (paintFrame !== null) cancelAnimationFrame(paintFrame);
     map.off("move", position);
     map.off("resize", position);
     map.off("style.load", onStyleLoad);
     pins.forEach((pin) => pin.marker.remove());
     pins = [];
+    map.getContainer().classList.remove("palPicksActive");
     if (map.getStyle() && map.getLayer(SCRIM_LAYER)) map.removeLayer(SCRIM_LAYER);
     delete probeWindow[PROBE_KEY];
   };

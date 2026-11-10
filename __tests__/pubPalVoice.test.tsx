@@ -120,6 +120,8 @@ import {
 } from "@/lib/pubPalVoiceSession";
 import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
+import { applyPalMapCommand, groundPalMapResult, readPalMapState } from "@/lib/palMapCommands";
+import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 
 // The /pal gate draws a slot and the shell's host draws the call into it.
 function PubPalVoice({ panelVisible = true, ...props }: ComponentProps<typeof PubPalVoiceGate> & { panelVisible?: boolean }) {
@@ -1173,6 +1175,8 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+    groundPalMapResult(["venue-lamb"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
 
     await act(async () => {
       sessionA.onDisconnect?.();
@@ -1181,6 +1185,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+    expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
 
     await act(async () => {
       vi.advanceTimersByTime(1_000);
@@ -1501,6 +1506,7 @@ describe("Pub Pal voice controls", () => {
 type LiveSession = {
   onConnect?: () => void;
   onDisconnect?: (details?: unknown) => void;
+  onError?: (error: string) => void;
   onMessage?: (message: { role: string; message: string; event_id?: number }) => void;
   onAgentToolRequest?: (event: { tool_call_id: string; event_id: number; tool_name: string }) => void;
   onAgentToolResponse?: (event: { tool_call_id: string; event_id: number; tool_name: string; is_error: boolean; is_called: boolean; full_tool_result: string }) => void;
@@ -1543,14 +1549,32 @@ function transcriptLines(): string[] {
 }
 
 describe("Pub Pal voice transcript", () => {
+  it.each(["stop", "disconnect", "error", "cap"])("forgets map picks after %s while the panel stays mounted", async (ending) => {
+    if (ending === "cap") vi.useFakeTimers();
+    const session = await startLiveSession();
+    groundPalMapResult(["venue-lamb"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
+    await act(async () => {
+      if (ending === "disconnect") session.onDisconnect?.();
+      else if (ending === "error") session.onError?.("Socket failed");
+      else if (ending === "cap") {
+        vi.advanceTimersByTime(PAL_VOICE_MAX_SESSION_SECONDS * 1000);
+      } else container.querySelector<HTMLButtonElement>(".palVoiceActions button")?.click();
+    });
+    expect(readPalMapState().picks).toEqual([]);
+    expect(applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] })).toBe(false);
+  });
+
   it.each(["search_venues", "cheapest_pint_near"])("retains choices until a completed %s replaces them and rejects stale responses", async (replacementTool) => {
     const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    venuesRead.read.mockReturnValue(new Promise(() => {}));
     const session = await startLiveSession();
     const result = (id: string, eventId: number, name: string) => ({
       tool_call_id: id, event_id: eventId, tool_name: "search_venues", is_error: false, is_called: true,
       full_tool_result: JSON.stringify({ result: {
         ok: true, tool: "search_venues", answerHint: "Listed pubs.",
         cards: [{ key: id, venueId: "venue-lamb", title: name, place: "Camden", note: "", price: 5.2, provenance: { kind: "directory", label: "Source read 2 October 2026" } }],
+        data: { venues: [{ id: "venue-lamb", lat: 51.5, lng: -0.1 }] },
       } }),
     });
     await act(async () => {
@@ -1559,6 +1583,7 @@ describe("Pub Pal voice transcript", () => {
       session.onAgentToolResponse?.(result("first", 4, "The Lamb"));
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("Source read 2 October 2026");
     await act(async () => {
       session.onMessage?.({ role: "user", message: "Thanks", event_id: 5 });
@@ -1577,6 +1602,7 @@ describe("Pub Pal voice transcript", () => {
       } }) });
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    expect(readPalMapState().picks).toEqual([]);
     await act(async () => {
       session.onAgentToolRequest?.({ tool_call_id: "second", event_id: 7, tool_name: "search_venues" });
       session.onDisconnect?.();

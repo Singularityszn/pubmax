@@ -41,10 +41,25 @@ describe("Pal picks on the main map", () => {
     expect(applyPalMapCommand({ kind: "showPicks", picks: [pick("b")] })).toBe(true);
   });
 
-  it("refuses a repeated pub and an empty list", () => {
+  it("refuses a repeated pub", () => {
     groundPalMapResult(["a"]);
     expect(applyPalMapCommand({ kind: "showPicks", picks: [pick("a"), pick("a")] })).toBe(false);
-    expect(applyPalMapCommand({ kind: "showPicks", picks: [] })).toBe(false);
+  });
+
+  it("clears picks when the latest result has no plottable venues", () => {
+    groundPalMapResult(["a"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [pick("a")] });
+    expect(applyPalMapCommand({ kind: "showPicks", picks: [] })).toBe(true);
+    expect(readPalMapState().picks).toEqual([]);
+  });
+
+  it("removes retired grounding and renumbers surviving picks", () => {
+    groundPalMapResult(["a", "b"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [pick("a"), pick("b")] });
+    groundPalMapResult(["b"]);
+    expect(readPalMapState().picks).toEqual([pick("b")]);
+    groundPalMapResult([]);
+    expect(readPalMapState().picks).toEqual([]);
   });
 
   it(`shows at most ${PAL_MAP_MAX_PICKS} picks`, () => {

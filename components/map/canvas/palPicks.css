@@ -49,3 +49,7 @@
   outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
+
+.palPicksActive .donut-cluster-marker {
+  opacity: 0.45;
+}

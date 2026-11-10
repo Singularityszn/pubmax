@@ -302,7 +302,10 @@ export async function toolCheapestPintNear(
   return {
     ok: true,
     tool: "cheapest_pint_near",
-    data: { anchor, scope, rows },
+    data: { anchor, scope, rows, venues: rows.flatMap((row) => {
+      const venue = byId.get(row.id);
+      return venue ? [{ id: venue.id, lat: venue.lat, lng: venue.lng }] : [];
+    }) },
     provenance: askCardSources(cards),
     cards,
     priceEvidence: rows.map((row) => listedPintEvidence(`cheapest:${row.id}`, row.id, row.cheapestPrice)),
