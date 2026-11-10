@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  docs/CI_RUNBOOK.md, "The nightly full suite", owns dispatch timing,
+  the missed-wake guard, and installation steps.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.pubmax.nightly-browser-suite</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>exec &gt;&gt; "$HOME/Library/Logs/pubmax-nightly-browser-suite.log" 2&gt;&amp;1; echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) nightly full browser suite"; if [ "$(date -u +%H)" -ge 7 ]; then echo "too late in the day: not dispatched"; exit 0; fi; gh workflow run e2e.yml --repo Singularityszn/pubmax --ref main</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>5</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+</dict>
+</plist>

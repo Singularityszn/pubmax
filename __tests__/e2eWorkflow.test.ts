@@ -174,7 +174,6 @@ describe("browser CI policy", () => {
     { event: "pull_request", fork: true, expected: false },
     { event: "push", expected: false },
     { event: "merge_group", expected: false },
-    { event: "schedule", expected: true },
     { event: "workflow_dispatch", expected: true },
   ] as const)("applies full-suite eligibility to $event ($expected)", ({ expected, ...context }) => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
@@ -186,9 +185,9 @@ describe("browser CI policy", () => {
   it("keeps the exhaustive browser matrix on nightly and manual runs", () => {
     const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    expect(workflow.on.schedule).toEqual([
-      expect.objectContaining({ cron: expect.any(String) }),
-    ]);
+    // GitHub started the schedule hours late, in the working day. The Mac
+    // Studio's launchd timer dispatches the nightly on main instead.
+    expect(Object.keys(workflow.on)).not.toContain("schedule");
     expect(Object.keys(workflow.on)).toContain("workflow_dispatch");
     expect(workflow.on.push).toEqual({ branches: ["main"] });
     const fullSuiteJob = defined(workflow.jobs["full-suite"], "full-suite job");
@@ -226,13 +225,9 @@ describe("browser CI policy", () => {
       expect(gates.map((gate) => gate.args)).toEqual([["scripts/assert-playwright-gate.mjs", report]]);
       expect(callsFor(id).indexOf(defined(gates[0]))).toBeGreaterThan(callsFor(id).indexOf(defined(call)));
     }
-  });
-
-  it("starts the nightly in the evening, so GitHub's usual delay lands it before the working day", () => {
-    // GitHub created the 03:17 UTC schedule at 09:40 to 11:11 UTC from 29 Oct
-    // to 7 Nov 2026, and the full suite then held the Mac pool all morning.
-    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-    expect(workflow.on.schedule).toEqual([{ cron: "17 20 * * *" }]);
+    // Both jobs leave out the same known-red tests, each under its issue.
+    expect(shardRun).toContain("--test-list-invert=e2e/full-suite-quarantine.txt");
+    expect(glRun).toContain("--test-list-invert=e2e/full-suite-quarantine.txt");
   });
 
   it("uses the run token and issue permission without a checkout", () => {
@@ -261,9 +256,15 @@ describe("browser CI policy", () => {
     });
   });
 
-  it.each(["schedule", "push", "pull_request", "merge_group", "workflow_dispatch"])(
-    "reports only scheduled failures or cancellations for %s",
-    (event) => {
+  it.each([
+    { event: "workflow_dispatch", ref: "refs/heads/main", nightly: true },
+    { event: "workflow_dispatch", ref: "refs/heads/fm/branch-check", nightly: false },
+    { event: "push", ref: "refs/heads/main", nightly: false },
+    { event: "pull_request", ref: "refs/pull/1/merge", nightly: false },
+    { event: "merge_group", ref: "refs/heads/gh-readonly-queue/main/pr-1", nightly: false },
+  ])(
+    "reports failures or cancellations only for the nightly ($event on $ref)",
+    ({ event, ref, nightly }) => {
       const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
       const expression = defined(jobs["nightly-failure-issue"]?.if)
         .trim()
@@ -287,12 +288,12 @@ describe("browser CI policy", () => {
         ["skipped", "cancelled", true],
         ["skipped", "skipped", false],
       ] as const;
-      for (const [shards, gl, reportOnSchedule] of outcomes) {
+      for (const [shards, gl, reportOnNightly] of outcomes) {
         const needResults = [shards, gl];
         const success = () => needResults.every((result) => result === "success");
         const hasStatusFunction = /\b(always|success|failure|cancelled)\s*\(/.test(expression);
         const actual = (hasStatusFunction || success()) && Boolean(runInNewContext(`(${expression})`, {
-          github: { event_name: event, event: { action: "synchronize", label: { name: "" } } },
+          github: { event_name: event, ref, event: { action: "synchronize", label: { name: "" } } },
           needs: { "full-suite": { result: shards }, "full-suite-gl": { result: gl } },
           needResults,
           always: () => true,
@@ -302,7 +303,7 @@ describe("browser CI policy", () => {
           contains: (values: string[], value: string) => values.includes(value),
         }, { timeout: 1000 }));
         expect(actual, `${event}: full-suite=${shards}, full-suite-gl=${gl}`)
-          .toBe(event === "schedule" && reportOnSchedule);
+          .toBe(nightly && reportOnNightly);
       }
     },
   );
@@ -371,7 +372,7 @@ if (args[0] === "issue" && args[1] === "list") {
       const calls = readFileSync(callsPath, "utf8").trim().split("\n").map((line) => JSON.parse(line));
       const title = "Nightly full browser suite failed";
       const body = [
-        "The scheduled full browser suite did not pass.",
+        "The nightly full browser suite did not pass.",
         "",
         "- Run: https://github.example/owner/repository/actions/runs/123",
         "- Commit: 0123456789abcdef",
