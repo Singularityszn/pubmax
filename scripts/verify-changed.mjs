@@ -53,8 +53,8 @@ const EXTENSIONS = ["", ".ts", ".tsx", ".mts", ".mjs", ".js", ".cjs", "/index.ts
  * @param {(path: string) => string} readText
  * @returns {Map<string, Set<string>>}
  */
-export function importGraph(files, readText) {
-  const tracked = new Set(files);
+export function importGraph(files, readText, deletedFiles = []) {
+  const tracked = new Set([...files, ...deletedFiles]);
   const resolveSpecifier = (from, specifier) => {
     let base;
     if (specifier.startsWith("@/")) base = specifier.slice(2);
@@ -292,7 +292,7 @@ function main() {
   const readText = (path) => readFileSync(join(REPO_ROOT, path), "utf8");
   const plan = planChecks({
     changed,
-    importers: importGraph(sources, readText),
+    importers: importGraph(sources, readText, changed.filter((file) => file.status === "D").map((file) => file.path)),
     testFiles: sources.filter((path) => TEST_FILE.test(path)),
     readText,
     env: process.env,

@@ -59,14 +59,37 @@ describe("the whole suite runs locally only on request", () => {
     expect(scoped.tests).toEqual([hub]);
   });
 
-  it("typechecks and tests the modules that still import a deleted source module", () => {
-    const importers = new Map([
-      ["lib/oldThing.ts", new Set(["components/Thing.tsx", "__tests__/oldThing.test.ts", "scripts/thing.mjs"])],
-    ]);
-    const scoped = plan([{ path: "lib/oldThing.ts", status: "D" }], { importers });
+  it.each([
+    ["lib/oldThing.ts", 'import "@/lib/oldThing";'],
+    ["lib/oldThing.tsx", 'import "../lib/oldThing";'],
+    ["lib/oldThing.mts", 'import "../lib/oldThing.mjs";'],
+    ["lib/oldThing.mjs", 'const thing = import("../lib/oldThing.mjs");'],
+    ["lib/oldThing.js", 'require("../lib/oldThing.js");'],
+    ["lib/oldThing.cjs", 'vi.mock("@/lib/oldThing.cjs");'],
+    ["lib/oldThing/index.ts", 'import "../lib/oldThing";'],
+    ["lib/oldThing/index.tsx", 'import "@/lib/oldThing";'],
+    ["lib/oldThing/index.mjs", 'import "../lib/oldThing";'],
+    ["lib/oldThing/index.js", 'import "@/lib/oldThing";'],
+    ["__tests__/helpers/postgres.ts", 'import "@/__tests__/helpers/postgres";'],
+  ])("selects surviving dependants of the absent deleted module %s through %s", (target, statement) => {
+    const suite = defined(POSTGRES_BACKED_SUITES[0]);
+    const sources: Record<string, string> = {
+      "components/Thing.tsx": statement,
+      "__tests__/oldThing.test.ts": statement,
+      "scripts/thing.mjs": statement,
+      [suite]: 'import "../components/Thing";',
+    };
+    const readText = (path: string) => defined(sources[path]);
+    const importers = importGraph(Object.keys(sources), readText, [target]);
+    const scoped = plan([{ path: target, status: "D" }], {
+      importers,
+      testFiles: Object.keys(sources),
+      readText,
+    });
     expect(scoped.full).toBeNull();
     expect(scoped.typecheck).toEqual(["__tests__/oldThing.test.ts", "components/Thing.tsx"]);
     expect(scoped.tests).toEqual(["__tests__/oldThing.test.ts", "components/Thing.tsx", "scripts/thing.mjs"]);
+    expect(scoped.rls).toBe(true);
   });
 
   it("runs npm run verify and nothing else when PUBMAX_VERIFY_FULL=1 is set", () => {
