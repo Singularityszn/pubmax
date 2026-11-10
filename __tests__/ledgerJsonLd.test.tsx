@@ -37,7 +37,7 @@ describe("the Ledger's price inputs", () => {
   it("still gives an unpriced pub its zone estimate", async () => {
     const page = await LedgerPage({ params: Promise.resolve({ id: "venue-60y3sa" }) });
     expect(priceRecordBundle(page)?.estimate).toMatchObject({
-      priceGbp: 5.7, basis: "zone_median", zone: 2, sampleSize: 290,
+      priceGbp: 5.75, basis: "zone_median", zone: 2, sampleSize: 301,
     });
   });
 });

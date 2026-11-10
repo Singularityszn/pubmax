@@ -16,9 +16,9 @@ import * as ukPriceBundle from "@/lib/ukPriceBundle.server";
 
 const now = Date.parse(dataset.now);
 const index = loadPalEvalVenueIndex();
-const zoneOne = { priceGbp: 6.2, zone: 1, sampleSize: 351 };
-const zoneTwo = { priceGbp: 5.7, zone: 2, sampleSize: 290 };
-const zoneThree = { priceGbp: 5.35, zone: 3, sampleSize: 125 };
+const zoneOne = { priceGbp: 6.25, zone: 1, sampleSize: 360 };
+const zoneTwo = { priceGbp: 5.75, zone: 2, sampleSize: 301 };
+const zoneThree = { priceGbp: 5.4, zone: 3, sampleSize: 142 };
 const recordedZoneMedians: Record<string, typeof zoneOne> = {
   "venue-60y3sa": zoneTwo,
   "venue-10paqy": zoneThree,
@@ -123,19 +123,19 @@ describe("Pal fail-closed price eval", () => {
       });
       expect(result.data).toMatchObject({
         curatedPrice: null,
-        zoneEstimate: estimates ? { estimateGbp: 5.7, zone: 2, sampleSize: 290 } : null,
+        zoneEstimate: estimates ? { estimateGbp: 5.75, zone: 2, sampleSize: 301 } : null,
       });
       expect(result.degraded).toBe(false);
       const body = await ask("How much is a pint at The Coronet?");
       expect(body.toolsUsed).toContain("venue_prices");
       expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.price).toBeNull();
       if (estimates) {
-        expect(body.answer).toContain("Estimate £5.70");
+        expect(body.answer).toContain("Estimate £5.75");
       } else {
-        expect(body.answer).not.toContain("£5.70");
+        expect(body.answer).not.toContain("£5.75");
         expect(body.answer).toContain("no listed figure");
         expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.note).not.toContain("No recorded pint.");
-        expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.note).not.toContain("£5.70");
+        expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.note).not.toContain("£5.75");
         expect(result.priceEvidence).toEqual([]);
       }
     },

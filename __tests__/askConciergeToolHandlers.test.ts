@@ -867,7 +867,7 @@ describe("venue_prices read availability", () => {
     const result = await runAskTool("venue_prices", { venueId: "unpriced-test-pub" }, ctx());
     expect(result.data).toMatchObject({
       communityDegraded: degraded,
-      zoneEstimate: degraded ? null : { estimateGbp: 5.7, zone: 2, sampleSize: 290 },
+      zoneEstimate: degraded ? null : { estimateGbp: 5.75, zone: 2, sampleSize: 301 },
     });
     if (degraded) {
       expect(result.degraded).toBe(true);
@@ -876,7 +876,7 @@ describe("venue_prices read availability", () => {
       expect(result.cards[0]?.note).toContain("couldn't read");
       expect(result.cards[0]?.note).not.toContain("No recorded pint");
     } else {
-      expect(result.answerHint).toContain("Estimate £5.70");
+      expect(result.answerHint).toContain("Estimate £5.75");
     }
   });
 
