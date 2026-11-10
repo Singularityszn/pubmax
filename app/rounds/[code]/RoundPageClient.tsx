@@ -205,6 +205,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
         setState(next);
         setStateOwnerKey(roundRequestIdentityOwnerKey(roundIdentity));
       } else if (res.status === 404) {
+        clearActiveRoundCode(code);
         setState(null);
         setStateOwnerKey(null);
       }
@@ -229,21 +230,23 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   }, [code, refetch]);
 
   const isOpen = state != null && state.round.closedAt == null;
+  const isClosed = state != null && state.round.closedAt != null;
 
   // Stickiness seam for the map composer (Loop 2): while this Round is open,
   // stamp the active Round key so Pint Drop's "My Round" chip lights up and a
-  // successful drop can append the venue as a stop. Clear on leave / close, but
-  // only when the stored value still matches THIS code (another tab may have
-  // switched Rounds).
+  // successful drop can append the venue as a stop. Clear on leave, on a
+  // confirmed close or on a 404, but only when the stored value still matches
+  // THIS code (another tab may have switched Rounds). A read that failed for
+  // any other reason proves nothing, so it keeps the key.
   useEffect(() => {
     if (!code || !isValidRoundCode(code)) return;
     if (isOpen) {
       writeActiveRoundCode(code);
       return () => clearActiveRoundCode(code);
     }
-    clearActiveRoundCode(code);
+    if (isClosed) clearActiveRoundCode(code);
     return undefined;
-  }, [code, isOpen]);
+  }, [code, isOpen, isClosed]);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -56,6 +56,7 @@ vi.mock("@/lib/roundRequest", async (importOriginal) => ({
 }));
 
 import RoundPageClient from "@/app/rounds/[code]/RoundPageClient";
+import { ACTIVE_ROUND_KEY } from "@/lib/activeRound";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import PresenceStrip from "@/components/feed/PresenceStrip";
 import { setProviderAuthState, setProviderIdentity } from "@/lib/authProviderRevision";
@@ -235,5 +236,40 @@ describe.each(["feed strip", "Round overlay"] as const)("%s account ownership", 
     requests.presence.mockImplementation(async () => presenceResponse());
     await switchAccount("account-b");
     expect(visibleCount()).toBe(1);
+  });
+});
+
+describe("the Round page's active Round key", () => {
+  async function renderRound() {
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(AuthProbe),
+        createElement(RoundPageClient, { params })));
+    });
+  }
+
+  it("keeps the key when the read fails for a reason other than 404", async () => {
+    window.localStorage.setItem(ACTIVE_ROUND_KEY, "BCDFGH");
+    requests.round.mockImplementation(async () => { throw new TypeError("Failed to fetch"); });
+    await renderRound();
+    expect(requests.round).toHaveBeenCalled();
+    expect(window.localStorage.getItem(ACTIVE_ROUND_KEY)).toBe("BCDFGH");
+  });
+
+  it("clears the key on a 404", async () => {
+    window.localStorage.setItem(ACTIVE_ROUND_KEY, "BCDFGH");
+    requests.round.mockImplementation(async () => Response.json({ error: "not found" }, { status: 404 }));
+    await renderRound();
+    expect(window.localStorage.getItem(ACTIVE_ROUND_KEY)).toBeNull();
+  });
+
+  it("clears the key when the Round is confirmed closed", async () => {
+    window.localStorage.setItem(ACTIVE_ROUND_KEY, "BCDFGH");
+    const at = new Date().toISOString();
+    requests.round.mockImplementation(async () => Response.json({
+      round: { id: "round-1", code: "BCDFGH", title: "Test Round", createdByHandle: "mate_ann", createdAt: at, closedAt: at },
+      members: [], stops: [], spends: [],
+    }));
+    await renderRound();
+    expect(window.localStorage.getItem(ACTIVE_ROUND_KEY)).toBeNull();
   });
 });
