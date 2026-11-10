@@ -254,6 +254,7 @@ import {
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
 import { BASEMAP_DRAWN_EVENT, markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
 import {
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
@@ -577,7 +578,10 @@ const PHONE_PIN_COMPOSITE_CONFIRM_FRAMES = 2;
 // fallback: sceneSettled=true cleared the hang guard, and no error ever fires.
 // MapLibre's "render" event only fires from a real frame, so its absence for
 // this long after construction is the honest "the map never drew" signal.
-const FIRST_FRAME_TIMEOUT_MS = 10_000;
+// A slow style can delay the first render. Match the shell's readiness ceiling
+// so this guard allows the full style-loading window before blaming rendering.
+// The style hang guard reports loading failures separately.
+const FIRST_FRAME_TIMEOUT_MS = MAP_CANVAS_READINESS_CEILING_MS;
 // How many venues the no-map fallback lists so the venue content stays
 // reachable without a single WebGL frame.
 const FALLBACK_VENUE_COUNT = 6;
