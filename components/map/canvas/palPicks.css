@@ -1,0 +1,56 @@
+/* The voice Pal's numbered picks on the main map (palPicks.ts). The same
+   numbered disc and stem as the Pal's inline mini map, so a pick reads as one
+   thing wherever the Pal shows it. */
+.palPickAnchor {
+  width: 0;
+  height: 0;
+  z-index: 3;
+}
+
+.palPickAnchor svg {
+  position: absolute;
+  left: -160px;
+  top: -160px;
+  width: 320px;
+  height: 320px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.palPickAnchor line {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.palPickAnchor circle {
+  fill: var(--ink);
+}
+
+.palPick {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  translate: -50% -50%;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow-tight);
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: var(--text-base);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.palPick:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.palPicksActive .donut-cluster-marker {
+  /* MapLibre rewrites marker opacity inline after camera and terrain updates. */
+  opacity: 0.45 !important;
+}

@@ -33,9 +33,8 @@ Map Ask uses OpenRouter when its key is set, or the keyless tools otherwise.
 A failed Claude request does not switch to another paid provider.
 Map Ask retains completed tool results or uses its keyless fallback. Typed chat returns its existing failure response.
 
-Nothing here changes what the Pal may SAY. Text and voice run the same
-source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
-(ADR 0006).
+Text and voice use the same source-backed tool registry.
+[ADR 0014, decision 3](adr/0014-night-os-ask-agent.md#decision) owns action confirmation, including the live voice exception for view moves.
 
 ---
 
@@ -240,6 +239,11 @@ Voice uses the same opening builder in its first-message override.
    Voice also needs `agent_tool_response_full_payload` to show the actual
    returned pub cards, their fitted map and memory-confirmation cards. The
    browser uses the tool result, never pub names or prices parsed from speech.
+   For `search_venues` and `cheapest_pint_near`, the webhook forwards `result.data`.
+   Returned pub coordinates use `venues` records with `id`, `lat` and `lng`.
+   This includes the named-pub opening-hours variant of `search_venues`, even when current hours are unknown.
+   Main-map picks use those coordinates without waiting for a separate browser venue index.
+   `lib/palVoiceToolAnswer.ts` joins the coordinates to returned cards by venue ID.
    Requests for one to six pubs pass a result count to `search_venues`.
    An upper pint-price limit filters eligible records before ranking.
    The script also sets how the agent hears a person in a pub. Turn-taking is
@@ -398,7 +402,7 @@ without starting another call. A cold `/map` loads no ElevenLabs SDK.
 A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.
-Ending a call releases its voice grant.
+Ending a call releases its voice grant and clears its main-map picks and grounding.
 
 If a background interruption leaves the session mounted, it keeps the transcript
 and offers **Carry on** when you return. On the map, **Close voice chat** dismisses

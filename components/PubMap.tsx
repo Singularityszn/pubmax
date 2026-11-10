@@ -1824,6 +1824,7 @@ export default function PubMap({
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus(cityId);
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
+  const [nearbyRequestToken, setNearbyRequestToken] = useState(0);
   const [pendingNearMeRequest, setPendingNearMeRequest] =
     useState<PendingNearMeRequest | null>(null);
   const [nearbyLoadedPoint, setNearbyLoadedPoint] = useState<{
@@ -1838,7 +1839,7 @@ export default function PubMap({
     builtIds,
     setBuiltIds,
     routeMapped,
-    setRouteMapped,
+    setRouteMapped, mapRoute, routeRequestToken,
     planningOpen,
     setPlanningOpen,
     plannedNightArea,
@@ -3954,7 +3955,7 @@ export default function PubMap({
       }
       setMode("build");
       setBuiltIds(ids);
-      setRouteMapped(true);
+      mapRoute();
       setActiveCrawl(null);
       showLoadedRoute(first);
     };
@@ -4019,7 +4020,7 @@ export default function PubMap({
     setActiveCrawl,
     setBuiltIds,
     setMode,
-    setRouteMapped,
+    mapRoute,
     showLoadedRoute,
     logPickerLocation,
     userLocation,
@@ -4443,7 +4444,7 @@ export default function PubMap({
         selectVenue(match.id);
       } else if (move === "fit-many") {
         // Frame the whole matched set so none stay hidden off-screen.
-        setSearchFitToken((token) => token + 1);
+        setSearchRecoveryToken((token) => token + 1);
       }
     }, 320);
     return () => window.clearTimeout(handle);
@@ -4619,17 +4620,17 @@ export default function PubMap({
     // six-stop crawl and the pill read "6-stop plan" over one picked pub
     // (verify-preview-4, J04); the built route is only read in build mode.
     setMode("build");
-    setRouteMapped(true);
+    mapRoute();
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, [builtIds, setActiveCrawl, setBuiltIds, setMode, setRouteMapped, venueById]);
+  }, [builtIds, setActiveCrawl, setBuiltIds, setMode, mapRoute, venueById]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
   const reverseRoute = useCallback(() => {
     setBuiltIds((current) => [...current].reverse());
-    setRouteMapped(true);
+    mapRoute();
     setActiveCrawl(null);
-  }, [setActiveCrawl, setBuiltIds, setRouteMapped]);
+  }, [setActiveCrawl, setBuiltIds, mapRoute]);
 
   const clearBuilt = useCallback(() => {
     setBuiltIds([]);
@@ -4660,7 +4661,7 @@ export default function PubMap({
     (crawl: CuratedCrawl) => {
       setMode("build");
       setBuiltIds(crawl.venueIds);
-      setRouteMapped(true);
+      mapRoute();
       setFilters((current) => filtersForCuratedCrawl(current, crawl));
       setAltStyle(crawl.altStyle ?? "pint"); // "kind of night" label for copy
       setActiveCrawl(crawl); // its blurb shows under the route title until mutated
@@ -4674,7 +4675,7 @@ export default function PubMap({
       setBuiltIds,
       setFilters,
       setMode,
-      setRouteMapped,
+      mapRoute,
       showLoadedRoute,
     ],
   );
@@ -4690,7 +4691,7 @@ export default function PubMap({
     dismissOnboarding,
     setMode,
     setBuiltIds,
-    setRouteMapped,
+    mapRoute,
     setActiveCrawl,
     setPlanningOpen: (open) => {
       if (open) openPlanning();
@@ -4804,6 +4805,7 @@ export default function PubMap({
             lng: position.coords.longitude,
           };
           setUserLocation(location);
+          if (mode !== "resume") setNearbyRequestToken((token) => token + 1);
           latchMapReaderLocationWatch();
           invalidatePrivateCamera();
           setPendingNearMeRequest({ kind: "map", location, mode });
@@ -4834,10 +4836,10 @@ export default function PubMap({
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
     trackEvent("route_opened", { surface: "map" });
-    setRouteMapped(true);
+    mapRoute();
     dismissOnboarding();
     if (isMobileViewport()) exitPlanning();
-  }, [route.length, exitPlanning, dismissOnboarding, setRouteMapped]);
+  }, [route.length, exitPlanning, dismissOnboarding, mapRoute]);
 
   const hideMappedRoute = useCallback(() => {
     setRouteMapped(false);
@@ -6958,6 +6960,7 @@ export default function PubMap({
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
+        routeRequestToken={routeRequestToken}
         crewPals={routeIsActivePlan ? crewPals : undefined}
         palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}
@@ -7001,6 +7004,7 @@ export default function PubMap({
         searchRecoveryToken={searchRecoveryToken}
         queryVenues={queryVenues}
         userLocation={userLocation}
+        nearbyRequestToken={nearbyRequestToken}
         nearMePending={nearbyLoading}
         readerPosition={readerPosition}
         poisPath={city.poisPath}

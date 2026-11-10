@@ -7,7 +7,7 @@ Rendered surfaces: the MapLibre canvas, the sheets and chrome, and the launch pr
 - **Build a launch screen from the launch tokens and the four primitives.** `docs/DESIGN_SYSTEM.md` owns them, and tests fence template patterns. Pick a variant. Do not restyle a primitive in place.
 - **Coral is spent twice.** A selection reads in ink. Monospace is for figures. A fill colour and a text colour are two tokens.
 - **Do not grow the hotspot files.** `components/PubMap.tsx`, `components/PubMapCanvas.tsx` and `app/globals.css` are the most-fixed files in the repo. Extract from them. Map tests read some of their source, so move a fence with the code it guards.
-- **A camera move has an owner.** Nothing moves the camera but the reader. There is one compass.
+- **A camera move has an owner.** There is one compass.
 - **A pin's figure is the price.** Colour may only hint. An aging price looks aging, never fresh. A cluster reads "from" its cheapest price.
 - **The map's first paint is a contract.** Pins arrive during the arrival flight, never before the basemap. Nothing on `/map` waits for ever for a map that never mounts.
 - **No surface is a dead end.** A way in needs a way out, and the way out is one pattern.

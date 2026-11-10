@@ -32,14 +32,16 @@ export const GESTURE_CAMERA_HOLD_MS = 2_000;
 /**
  * Camera intents no reader asked for. `route` and `query` fire off a changed
  * venue or route array; `arrival` is the map's own opening turn
- * (lib/mapArrivalBearing.ts). All three can land in the middle of somebody
- * reading the map, and a reader who has already taken hold of the camera has
- * said what attitude they want.
+ * (lib/mapArrivalBearing.ts); `pal` frames a voice answer that lands seconds
+ * after the ask (lib/palMapCommands.ts). All of them can land in the middle of
+ * somebody reading the map, and a reader who has already taken hold of the
+ * camera has said what attitude they want.
  */
 export const REACTIVE_CAMERA_INTENTS: readonly CameraIntentKind[] = [
   "arrival",
   "route",
   "query",
+  "pal",
 ];
 
 export type GestureCameraState = {

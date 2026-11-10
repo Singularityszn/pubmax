@@ -23,6 +23,7 @@ export function useMapFocusPoint(
     cinematic(
       { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
       cameraIntentForFocusSource(focusPoint.source),
+      focusPoint.source === "opening-location" ? "automatic" : "user",
     );
   }, [mapReady, focusPoint, focusKeyRef, cinematic]);
 }

@@ -103,7 +103,8 @@ async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskTo
     : `Opening hours for ${venue.name} are not known from a current record.`;
   return {
     ...empty,
-    data: { venueId: venue.id, hours: evidence?.lines ?? null },
+    data: { venueId: venue.id, hours: evidence?.lines ?? null,
+      venues: [{ id: venue.id, lat: venue.lat, lng: venue.lng }] },
     cards: [{ key: `hours:${venue.id}`, venueId: venue.id, title: venue.name, place: venue.area,
       price: null, note: answer, ...(evidence ? { provenance: evidence.source } : {}) }],
     provenance: evidence ? [evidence.source] : [],
