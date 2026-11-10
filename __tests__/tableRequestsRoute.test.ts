@@ -9,6 +9,7 @@
 // are the real process-memory backends.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EmailMessage, EmailProvider } from "@/lib/emailProvider";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -27,8 +28,10 @@ const state = vi.hoisted(() => ({
   dateOfBirth: new Map<string, string>(),
   asserted: new Map<string, string>(),
   addresses: new Map<string, string>(),
+  addressUnavailable: false,
   sendResult: "sent" as "sent" | "skipped" | "error",
-  sent: [] as Array<Record<string, unknown>>,
+  send: null as EmailProvider["send"] | null,
+  sent: [] as EmailMessage[],
 }));
 
 vi.mock("@/lib/authServer", () => ({
@@ -88,13 +91,17 @@ vi.mock("@/lib/venueIndex", () => ({
 }));
 
 vi.mock("@/lib/operatorAccountAddress.server", () => ({
-  operatorAccountAddress: async (accountId: string) => state.addresses.get(accountId) ?? null,
+  operatorAccountAddress: async (accountId: string) => {
+    if (state.addressUnavailable) throw new Error("Auth unavailable");
+    return state.addresses.get(accountId) ?? null;
+  },
 }));
 
 vi.mock("@/lib/emailProvider", () => ({
   selectEmailProvider: () => ({
-    send: async (messages: Array<Record<string, unknown>>) => {
+    send: async (messages: readonly EmailMessage[]) => {
       state.sent.push(...messages);
+      if (state.send) return state.send(messages);
       return messages.map((message) => ({ to: message.to, status: state.sendResult }));
     },
   }),
@@ -167,6 +174,8 @@ beforeEach(() => {
   state.dateOfBirth.clear();
   state.asserted.clear();
   state.addresses.clear();
+  state.addressUnavailable = false;
+  state.send = null;
   state.sent.length = 0;
   state.sendResult = "sent";
   adultWithHandle(ALICE, "alice");
@@ -294,6 +303,128 @@ describe("POST /api/table-requests: the two ways out", () => {
 
     expect((await POST(post(request({ requestKey: "another-key-0123456789ab", partySize: 9 })))).status).toBe(201);
     expect(state.sent).toHaveLength(2);
+  });
+
+  it.each(["before", "after"])("preserves a shared request when a retry fails %s its successful stamp", async (order) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    type Results = Awaited<ReturnType<EmailProvider["send"]>>;
+    const originalSend = Promise.withResolvers<Results>();
+    const retrySend = Promise.withResolvers<Results>();
+    const originalStarted = Promise.withResolvers<void>();
+    const retryStarted = Promise.withResolvers<void>();
+    let calls = 0;
+    state.send = () => {
+      calls += 1;
+      if (calls === 1) {
+        originalStarted.resolve();
+        return originalSend.promise;
+      }
+      retryStarted.resolve();
+      return retrySend.promise;
+    };
+    const payload = request({ requestKey: "overlapping-key-0123456789" });
+    const original = POST(post(payload));
+    await originalStarted.promise;
+    const retry = POST(post(payload));
+    await retryStarted.promise;
+
+    if (order === "before") {
+      retrySend.resolve([{ to: OPERATOR_ADDRESS, status: "error" }]);
+      expect((await retry).status).toBe(503);
+      originalSend.resolve([{ to: OPERATOR_ADDRESS, status: "sent" }]);
+      expect((await original).status).toBe(201);
+    } else {
+      originalSend.resolve([{ to: OPERATOR_ADDRESS, status: "sent" }]);
+      expect((await original).status).toBe(201);
+      retrySend.resolve([{ to: OPERATOR_ADDRESS, status: "error" }]);
+      expect((await retry).status).toBe(503);
+    }
+
+    expect(await (await retry).json()).toMatchObject({ retryable: true });
+    expect(state.sent.map((message) => message.idempotencyKey)).toEqual([
+      state.sent[0]!.idempotencyKey,
+      state.sent[0]!.idempotencyKey,
+    ]);
+    const stored = await memoryTableRequestsStore.listEmailedForVenue("venue-crown");
+    expect(stored.requests).toHaveLength(1);
+    expect(stored.requests[0]).toMatchObject({ delivery: "emailed" });
+    expect((await POST(post(payload))).status).toBe(201);
+    expect(calls).toBe(2);
+  });
+
+  it.each(["operators", "address"])("replays success when the current %s lookup fails", async (lookup) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "completed-key-0123456789" });
+    expect((await POST(post(payload))).status).toBe(201);
+    const operators = lookup === "operators"
+      ? vi.spyOn(memoryVenueOperatorStore, "verifiedOperatorAccountIds").mockRejectedValue(new Error("store unavailable"))
+      : null;
+    state.addressUnavailable = lookup === "address";
+    try {
+      const response = await POST(post(payload));
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({ outcome: "sent" });
+      expect(state.sent).toHaveLength(1);
+    } finally {
+      operators?.mockRestore();
+    }
+  });
+
+  it.each(["error", "skipped", "throw"] as const)("retries a %s send with its original row and email key", async (failure) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "uncertain-key-0123456789" });
+    state.sendResult = failure === "throw" ? "error" : failure;
+    if (failure === "throw") state.send = async () => { throw new Error("connection lost"); };
+    const failed = await POST(post(payload));
+    expect(failed.status).toBe(503);
+    expect(await failed.json()).toMatchObject({ retryable: true });
+    expect((await memoryTableRequestsStore.listEmailedForVenue("venue-crown")).requests).toEqual([]);
+    state.sendResult = "sent";
+    state.send = null;
+    expect((await POST(post(payload))).status).toBe(201);
+    expect(state.sent[1]!.idempotencyKey).toBe(state.sent[0]!.idempotencyKey);
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+  });
+
+  it("keeps a failed replay read retryable instead of offering manual contact", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "unreadable-key-0123456789" });
+    expect((await POST(post(payload))).status).toBe(201);
+    const attempt = vi.spyOn(memoryTableRequestsStore, "findForRequester")
+      .mockRejectedValue(new Error("store unavailable"));
+    try {
+      const response = await POST(post(payload));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ retryable: true });
+      expect(state.sent).toHaveLength(1);
+    } finally {
+      attempt.mockRestore();
+    }
+  });
+
+  it.each(["operators", "address"])("keeps an uncertain attempt retryable when its %s disappears", async (lookup) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "pending-key-0123456789" });
+    state.sendResult = "error";
+    expect((await POST(post(payload))).status).toBe(503);
+    if (lookup === "operators") __resetVenueOperators();
+    else state.addresses.clear();
+    const response = await POST(post(payload));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ retryable: true });
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+  });
+
+  it("does not replay another account's success for the same key", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "account-key-0123456789" });
+    expect((await POST(post(payload))).status).toBe(201);
+    state.caller = STRANGER;
+    expect((await POST(post(payload))).status).toBe(201);
+    expect(state.sent).toHaveLength(2);
+    expect(state.sent[1]!.idempotencyKey).not.toBe(state.sent[0]!.idempotencyKey);
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+    expect((await memoryTableRequestsStore.listForRequester(STRANGER)).requests).toHaveLength(1);
   });
 
   it("puts a phone contact in the body and sets no Reply-To", async () => {

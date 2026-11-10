@@ -5,9 +5,8 @@
 // a pub's verified operator, so the operator panel can list them. The one
 // writer is app/api/table-requests/route.ts, through
 // lib/tableRequestDelivery.server.ts. A request is stored `pending` BEFORE the
-// email goes, marked `emailed` once the email was sent, and DISCARDED when it
-// was not, because a request PUBMAXX told the person it did not send must not
-// sit in a pub's list as if it had. Only `emailed` rows are ever listed.
+// email goes and marked `emailed` once the email was sent. Only `emailed`
+// rows are ever listed.
 //
 // A row holds the requester's name and the contact they chose for the pub to
 // reply to, so browser roles hold no grant at all (0219), and the operator
@@ -16,10 +15,8 @@
 // It is never a booking and never a payment, and nothing that ranks, colours,
 // bands or orders a venue may import it (__tests__/tableRequestFence.test.ts).
 //
-// Reads are fail-soft. A HARD durable write failure THROWS, and the delivery
-// treats that as "not sent" so the person is handed the pub's own address
-// instead. A missing table in production is refused on the write path
-// (onMissingDurableWrite).
+// A HARD durable write failure THROWS. A missing table in production is
+// refused on the write path (onMissingDurableWrite).
 
 import "server-only";
 
@@ -54,6 +51,7 @@ const MAX_OWNER_ROWS = 200;
 type TableRequestsRead = { status: "ready" | "degraded"; requests: TableRequest[] };
 
 export type TableRequestsStore = {
+  findForRequester(id: string, requesterUserId: string): Promise<TableRequest | null>;
   /** Keep a request as `pending` before its email goes. THROWS on a hard failure. */
   /** Store a request. Given an `id` that is already stored, it changes nothing and returns it. */
   create(fields: TableRequestFields, now?: number, id?: string): Promise<TableRequest>;
@@ -75,6 +73,11 @@ function byNewest(left: TableRequest, right: TableRequest): number {
 const byId = new Map<string, TableRequest>();
 
 export const memoryTableRequestsStore: TableRequestsStore = {
+  async findForRequester(id, requesterUserId) {
+    const request = byId.get(id);
+    return request?.requesterUserId === requesterUserId ? { ...request } : null;
+  },
+
   async create(fields, now = Date.now(), id = randomUUID()) {
     const held = byId.get(id);
     if (held) return { ...held };
@@ -199,6 +202,26 @@ function toRow(request: TableRequest) {
 }
 
 export const supabaseTableRequestsStore: TableRequestsStore = {
+  async findForRequester(id, requesterUserId) {
+    return guard({
+      context: "find-requester",
+      onSchemaMiss: () => onMissingDurableWrite({
+        storeTag: STORE_TAG,
+        migrationHint: MIGRATION_HINT,
+        fallback: () => memoryTableRequestsStore.findForRequester(id, requesterUserId),
+      }),
+      run: async () => {
+        const { data, error } = await admin().from(TABLE).select("*")
+          .eq("id", id).eq("requester_user_id", requesterUserId).maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) return null;
+        const request = fromRow(data as Record<string, unknown>);
+        if (!request) throw new Error("table request could not be read");
+        return request;
+      },
+    });
+  },
+
   async create(fields, now = Date.now(), id = randomUUID()) {
     return guard({
       context: "create",
@@ -221,9 +244,7 @@ export const supabaseTableRequestsStore: TableRequestsStore = {
         if (!error) return request;
         // The primary key is the table's only unique key: a retry of a stored request.
         if (error.code !== "23505") throw new Error(error.message);
-        const held = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
-        if (held.error) throw new Error(held.error.message);
-        const stored = held.data ? fromRow(held.data as Record<string, unknown>) : null;
+        const stored = await supabaseTableRequestsStore.findForRequester(id, fields.requesterUserId);
         if (!stored) throw new Error("table request vanished during a retry");
         return stored;
       },

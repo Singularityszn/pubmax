@@ -166,6 +166,11 @@ export async function POST(request: Request): Promise<Response> {
     outcome: delivery.outcome,
     ...(delivery.outcome === "not_sent" ? { reason: delivery.reason } : {}),
   });
+  if (delivery.outcome === "retryable") {
+    return publicApiError("We could not confirm delivery. Try again.", "DELIVERY_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
   return delivery.outcome === "sent"
     ? jsonNoStore({ outcome: "sent" }, { status: 201 })
     : jsonNoStore({ outcome: "not_sent" }, { status: 200 });

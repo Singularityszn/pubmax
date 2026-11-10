@@ -17,8 +17,7 @@
 //   1. The pub has a verified operator, and an email to that operator was
 //      SENT: the request is stored for the operator panel and the person reads
 //      "Sent to the pub".
-//   2. Anything else (no operator, no email on file, no email keys, a send
-//      that failed): PUBMAXX sent nothing, and the sheet hands the person a
+//   2. PUBMAXX sent nothing, and the sheet hands the person a
 //      prefilled email to the pub's own published address, or its phone, and
 //      says plainly that PUBMAXX did not send it.
 
@@ -89,8 +88,7 @@ export type OperatorTableRequest = {
  * What the account export carries for a request the account sent: its own
  * name, crew, day, time, note and the contact it gave, and where the request
  * got to. A stored request is `pending` until its email goes and `emailed`
- * once it went; one that was not sent was discarded and is not stored, so it
- * is not here either. Nothing about the operator it went to.
+ * once it went. Nothing about the operator it went to.
  */
 export type TableRequestOwnerFields = {
   id: string;

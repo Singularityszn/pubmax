@@ -8,11 +8,7 @@ import { createHash } from "crypto";
 // (lib/venueOperatorsStore.ts) with an email address on their account, the
 // request is stored `pending` for the operator panel, emailed to that operator
 // through the one email seam (lib/emailProvider.ts), and stamped `emailed` once
-// a message was SENT. Every other answer is `not_sent`: no verified operator,
-// no address on file, a keyless deployment (the seam answers `skipped`), a
-// send that failed, or a store that could not keep the request. A request that
-// was stored and then not sent is discarded, so an operator never lists a
-// request the person was told PUBMAXX did not send.
+// a message was SENT.
 //
 // NO ADDRESS LEAVES. The operator's address is read here and handed to the
 // email seam alone; the answer names an outcome and nothing else. The person's
@@ -29,11 +25,11 @@ import { venueOperatorsStore } from "@/lib/venueOperatorsStore";
 type TableRequestNotSentReason =
   | "no_operator"
   | "no_operator_address"
-  | "store_unavailable"
   | "email_not_sent";
 
 export type TableRequestDeliveryOutcome =
   | { outcome: "sent" }
+  | { outcome: "retryable" }
   | { outcome: "not_sent"; reason: TableRequestNotSentReason };
 
 export type TableRequestDeliveryDeps = {
@@ -79,10 +75,6 @@ async function discardQuietly(store: TableRequestsStore, id: string): Promise<vo
   }
 }
 
-/**
- * Deliver one validated request to the pub's verified operator, or report that
- * PUBMAXX did not send it. Never throws.
- */
 /** One stable UUID per account and retry key. */
 function tableRequestIdForKey(requesterUserId: string, requestKey: string): string {
   const hex = createHash("sha256").update(`table-request:${requesterUserId}:${requestKey}`).digest("hex");
@@ -97,27 +89,41 @@ export async function deliverTableRequest(
   now: number = Date.now(),
   requestKey: string | null = null,
 ): Promise<TableRequestDeliveryOutcome> {
-  const { operators, addresses } = await operatorAddresses(fields.venueId, deps);
-  if (operators === 0) return { outcome: "not_sent", reason: "no_operator" };
-  if (addresses.length === 0) return { outcome: "not_sent", reason: "no_operator_address" };
-
-  const store = deps.store();
-  let requestId: string;
-  let alreadyEmailed = false;
+  const keyedId = requestKey ? tableRequestIdForKey(fields.requesterUserId, requestKey) : undefined;
+  let store: TableRequestsStore;
+  let pendingRetry = false;
   try {
-    // A retry carries its first key, so it lands on the same row and the same
-    // email idempotency keys, and the operator is asked once.
-    const stored = await store.create(fields, now, requestKey ? tableRequestIdForKey(fields.requesterUserId, requestKey) : undefined);
-    requestId = stored.id;
-    alreadyEmailed = stored.delivery === "emailed";
+    store = deps.store();
+    if (keyedId) {
+      const stored = await store.findForRequester(keyedId, fields.requesterUserId);
+      if (stored?.delivery === "emailed") return { outcome: "sent" };
+      pendingRetry = stored !== null;
+    }
   } catch (err) {
     log("error", "table_request.store_failed", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return { outcome: "not_sent", reason: "store_unavailable" };
+    return { outcome: "retryable" };
   }
 
-  if (alreadyEmailed) return { outcome: "sent" };
+  const { operators, addresses } = await operatorAddresses(fields.venueId, deps);
+  if (pendingRetry && (operators === 0 || addresses.length === 0)) return { outcome: "retryable" };
+  if (operators === 0) return { outcome: "not_sent", reason: "no_operator" };
+  if (addresses.length === 0) return { outcome: "not_sent", reason: "no_operator_address" };
+
+  let requestId: string;
+  try {
+    // A retry carries its first key, so it lands on the same row and the same
+    // email idempotency keys, and the operator is asked once.
+    const stored = await store.create(fields, now, keyedId);
+    requestId = stored.id;
+    if (stored.delivery === "emailed") return { outcome: "sent" };
+  } catch (err) {
+    log("error", "table_request.store_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { outcome: "retryable" };
+  }
 
   const message = tableRequestOperatorEmail(venueName, fields);
   const results = await deps
@@ -135,6 +141,7 @@ export async function deliverTableRequest(
     .catch(() => []);
 
   if (!results.some((result) => result.status === "sent")) {
+    if (keyedId) return { outcome: "retryable" };
     await discardQuietly(store, requestId);
     return { outcome: "not_sent", reason: "email_not_sent" };
   }
