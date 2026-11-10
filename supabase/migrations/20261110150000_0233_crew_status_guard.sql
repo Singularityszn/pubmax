@@ -38,6 +38,7 @@ begin
     for update;
     if not found then return 'forbidden'; end if;
   else
+    perform 1 from public.social_crews where plan_id = p_plan_id for share;
     select seat.id into v_seat_id
     from public.plan_crew_members seat
     join public.social_crews crew on crew.plan_id = seat.plan_id

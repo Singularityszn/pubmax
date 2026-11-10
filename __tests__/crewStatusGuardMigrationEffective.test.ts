@@ -2,6 +2,7 @@
 // status. It refuses an ended seat, a member who left the crew and a Plan that
 // ended, and no browser role can call it.
 
+import { spawn } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -77,6 +78,41 @@ describe.skipIf(skipReason !== null)("0233 set_crew_status", () => {
     expect(seat(MATE_SEAT)).toBe("here");
   });
 
+  it.each(["in", "on_the_way", "here", "running_late", "start_without_me"])("holds the crew lock until %s commits", async (status) => {
+    const writer = spawn(db().psql, [...db().databaseArgs, "-q", "-t", "-A"], { stdio: ["pipe", "pipe", "pipe"] });
+    let output = "";
+    let stderr = "";
+    writer.stderr.on("data", (chunk) => { stderr += String(chunk); });
+    const finished = new Promise<void>((resolve, reject) => {
+      writer.once("error", reject);
+      writer.once("exit", (code) => code === 0 ? resolve() : reject(new Error(stderr)));
+    });
+    const ready = new Promise<void>((resolve, reject) => {
+      writer.stdout.on("data", (chunk) => {
+        output += String(chunk);
+        if (output.includes("STATUS_WRITTEN")) resolve();
+      });
+      writer.once("error", reject);
+      writer.once("exit", () => reject(new Error(`Writer exited before release: ${stderr}`)));
+    });
+    writer.stdin.write(`begin;
+      set local role service_role;
+      select public.set_crew_status('${CREW_PLAN}','${status}',null,'${MATE_SEAT}','${MATE}');
+      \\echo STATUS_WRITTEN
+    `);
+    try {
+      await ready;
+      expect(output.trim().split(/\s+/)).toContain("ok");
+      expect(db().expectRefusal(asServiceRole(`select id from public.social_crews where id='${CREW}' for update nowait`)))
+        .toMatch(/could not obtain lock/);
+    } finally {
+      writer.stdin.end("commit;\n");
+      await finished;
+    }
+    expect(seat(MATE_SEAT)).toBe(status);
+    expect(db().sql(asServiceRole(`select id from public.social_crews where id='${CREW}' for update nowait`))).toBe(CREW);
+  });
+
   it.each(["completed", "abandoned"])("refuses Here once the Plan is %s and writes nothing", (status) => {
     db().sql(`update public.plans set status='${status}' where id in ('${PLAN}','${CREW_PLAN}')`);
     expect(byToken(GUEST_HASH)).toBe("closed");
@@ -90,10 +126,10 @@ describe.skipIf(skipReason !== null)("0233 set_crew_status", () => {
     expect(byToken(GUEST_HASH, "on_the_way")).toBe("ok");
   });
 
-  it("refuses an ended seat, a member who left, another member's seat and a token on a crew Plan", () => {
+  it.each(["left", "removed"])("refuses an ended seat, a %s member, another member's seat and a token on a crew Plan", (state) => {
     db().sql(`update public.plan_crew_members set membership_revoked_at=now() where id='${GUEST}'`);
     expect(byToken(GUEST_HASH)).toBe("forbidden");
-    db().sql(`update public.social_crew_members set state='left', ended_at=now() where social_account_id='${MATE}'`);
+    db().sql(`update public.social_crew_members set state='${state}', ended_at=now() where social_account_id='${MATE}'`);
     expect(bySeat(MATE_SEAT, MATE)).toBe("not_found");
     expect(bySeat(OWNER_SEAT, MATE)).toBe("not_found");
     expect(byToken("f".repeat(64), "here", CREW_PLAN)).toBe("not_found");
