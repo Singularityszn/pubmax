@@ -420,6 +420,9 @@ not remove this guard. The app's own permission probe bypasses the guard.
 
 If you start again, the app waits until the previous SDK startup reports
 connected or disconnected. The startup timeout also limits this wait.
+If an attempt claims its token but stops before the SDK starts, the app marks
+that startup as finished. Later attempts do not wait for an SDK status change
+from that attempt.
 A new SDK startup becomes the current token. The SDK can still finish an old
 connection. The app then closes the late session.
 
