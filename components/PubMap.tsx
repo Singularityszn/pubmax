@@ -986,9 +986,6 @@ const BUILT_STORAGE_KEY = "pubmax_built_ids";
 // useLandmarkJourney and useLogIntent now live in
 // components/map/pubmap/useLandmarkJourney.ts and .../useLogIntent.ts.
 
-// §4.5 curated-crawl onboarding: dismissal is per-session so a reload during the
-// same visit doesn't re-nag, but a fresh session gets the offer again. sessionStorage
-// (not localStorage) keeps it a gentle, per-visit prompt.
 const TONIGHT_OVERLAY_DISMISSED_KEY = "pubmaxx.tonightOverlay.dismissed";
 const EMPTY_ROUTE: Venue[] = [];
 /** No crawl held: the three fields RoutePanel reads travel together or not at all. */
