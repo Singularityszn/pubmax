@@ -22,11 +22,10 @@ function spokenText(chars: readonly string[]): string {
 
 export type PalPickCue = { number: number; delayMs: number };
 
-/** Tracks one Pal reply at a time. Each pick is named once per reply. */
 export function createPalPickSpeech() {
   let eventId: number | null = null;
   let spoken = "";
-  let named = new Set<number>();
+  const processed = new Set<number>();
 
   return {
     /** The picks whose names begin inside this chunk, and when, after the chunk starts. */
@@ -34,29 +33,35 @@ export function createPalPickSpeech() {
       if (event_id !== eventId) {
         eventId = event_id;
         spoken = "";
-        named = new Set();
+        processed.clear();
       }
       const offset = spoken.length;
       spoken += spokenText(alignment.chars);
-      const cues: PalPickCue[] = [];
+      const matches: { number: number; start: number; end: number }[] = [];
       for (const pick of picks) {
-        if (named.has(pick.number)) continue;
         const pattern = namePattern(pick.name);
         if (!pattern) continue;
         for (const match of spoken.matchAll(pattern)) {
-          // A name that began in the chunk before is being heard now.
           const start = match.index + match[0].indexOf(match[1]!);
-          named.add(pick.number);
-          cues.push({ number: pick.number, delayMs: start < offset ? 0 : Math.max(0, alignment.char_start_times_ms[start - offset] ?? 0) });
-          break;
+          matches.push({ number: pick.number, start, end: start + match[1]!.length });
         }
+      }
+      const references: typeof matches = [];
+      for (const match of matches.sort((a, b) => (b.end - b.start) - (a.end - a.start))) {
+        if (!references.some((other) => match.start < other.end && other.start < match.end)) references.push(match);
+      }
+      const cues: PalPickCue[] = [];
+      for (const { number, start } of references) {
+        if (processed.has(start)) continue;
+        processed.add(start);
+        cues.push({ number, delayMs: start < offset ? 0 : Math.max(0, alignment.char_start_times_ms[start - offset] ?? 0) });
       }
       return cues.sort((a, b) => a.delayMs - b.delayMs);
     },
     reset(): void {
       eventId = null;
       spoken = "";
-      named = new Set();
+      processed.clear();
     },
   };
 }

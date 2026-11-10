@@ -89,6 +89,19 @@ describe("Pal picks on the main map", () => {
     expect(readPalMapState().focused).toBeNull();
   });
 
+  it("announces each repeated spoken cue without reframing the picks", () => {
+    groundPalMapResult(["a"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [pick("a")] });
+    const { sequence } = readPalMapState();
+    const focused: (number | null)[] = [];
+    const unsubscribe = subscribePalMapState(() => focused.push(readPalMapState().focused));
+    applyPalMapCommand({ kind: "focusPick", number: 1 });
+    applyPalMapCommand({ kind: "focusPick", number: 1 });
+    unsubscribe();
+    expect(focused).toEqual([1, 1]);
+    expect(readPalMapState().sequence).toBe(sequence);
+  });
+
   it("clears the picks and the grounded set when the call is over", () => {
     groundPalMapResult(["a"]);
     applyPalMapCommand({ kind: "showPicks", picks: [pick("a")] });

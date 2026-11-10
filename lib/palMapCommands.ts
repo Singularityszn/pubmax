@@ -61,7 +61,7 @@ export function applyPalMapCommand(command: PalMapCommand): boolean {
   }
   if (command.kind === "focusPick") {
     if (command.number !== null && !state.picks.some((pick) => pick.number === command.number)) return false;
-    if (command.number !== state.focused) notify({ ...state, focused: command.number });
+    if (command.number !== null || command.number !== state.focused) notify({ ...state, focused: command.number });
     return true;
   }
   const picks = command.picks.slice(0, PAL_MAP_MAX_PICKS);

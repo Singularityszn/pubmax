@@ -90,7 +90,14 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
   // The pick the Pal is naming pulses. Its pins and framing stay as they are.
   const syncFocus = () => {
     const { focused } = readPalMapState();
-    for (const { button, pick } of pins) button.toggleAttribute("data-speaking", pick.number === focused);
+    for (const { button, pick } of pins) {
+      button.toggleAttribute("data-speaking", pick.number === focused);
+      if (pick.number === focused) {
+        button.style.animation = "none";
+        void button.offsetWidth;
+        button.style.animation = "";
+      }
+    }
   };
 
   const render = () => {
@@ -128,6 +135,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
       const marker = new maplibregl.Marker({ element: anchor, anchor: "center" }).setLngLat([pick.lng, pick.lat]).addTo(map);
       return { marker, line, dot, button, pick };
     });
+    syncFocus();
     position();
     syncScrim();
     frame(sequence, picks);

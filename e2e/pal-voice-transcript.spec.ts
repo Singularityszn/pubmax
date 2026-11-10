@@ -504,6 +504,13 @@ for (const width of [390, 1440]) {
     await expect(card).toContainText(named.title);
     await expect(card).toContainText(named.provenance.label);
     await page.screenshot({ path: `${SHOTS}/${width}-pal-pick-named.png` });
+    const namedMarker = page.getByRole("button", { name: `2. ${named.title}`, exact: true });
+    await namedMarker.evaluate((button) => button.getAnimations().forEach((animation) => animation.finish()));
+    sayAligned(socket, `Again, ${named.title}.`);
+    await expect.poll(() => namedMarker.evaluate((button) =>
+      button.getAnimations().some((animation) => animation.playState === "running"),
+    )).toBe(true);
+    expect((await picks())!.sequence).toBe(sequence);
     eventId += 1;
     socket.send(JSON.stringify({ type: "interruption", interruption_event: { event_id: eventId } }));
     await expect.poll(async () => (await picks())?.speaking).toBeNull();

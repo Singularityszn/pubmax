@@ -68,6 +68,40 @@ it("reports native paint completion for every pick instead of delayed animation 
   expect(performance.getEntriesByName("pubmax:pal-picks-painted").at(-1)?.startTime).toBe(240);
 });
 
+it("applies retained speaking focus on first installation and reinstallation", () => {
+  vi.stubGlobal("requestAnimationFrame", () => 1);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const container = document.createElement("div");
+  const layers = new Map<string, { id: string }>();
+  const map = {
+    getContainer: () => container,
+    getStyle: () => ({ layers: [...layers.values()] }),
+    getLayer: (id: string) => layers.get(id),
+    addLayer: (layer: { id: string }) => layers.set(layer.id, layer),
+    removeLayer: (id: string) => layers.delete(id),
+    project: () => ({ x: 100, y: 100 }),
+    on: () => {}, off: () => {}, triggerRepaint: () => {},
+  } as unknown as MapLibreMap;
+  groundPalMapResult(["pub-1", "pub-2"]);
+  applyPalMapCommand({ kind: "showPicks", picks: [
+    { venueId: "pub-1", name: "The Pub", lat: 51.5, lng: -0.1, number: 1 },
+    { venueId: "pub-2", name: "Another Pub", lat: 51.51, lng: -0.11, number: 2 },
+  ] });
+  applyPalMapCommand({ kind: "focusPick", number: 2 });
+  const frame = vi.fn();
+  dispose = installPalPicks(map, { frame, open: () => {} });
+  expect([...document.querySelectorAll(".palPick[data-speaking]")].map((button) => button.textContent)).toEqual(["2"]);
+  dispose();
+  dispose = installPalPicks(map, { frame, open: () => {} });
+  expect([...document.querySelectorAll(".palPick[data-speaking]")].map((button) => button.textContent)).toEqual(["2"]);
+  frame.mockClear();
+  applyPalMapCommand({ kind: "focusPick", number: 1 });
+  expect([...document.querySelectorAll(".palPick[data-speaking]")].map((button) => button.textContent)).toEqual(["1"]);
+  applyPalMapCommand({ kind: "focusPick", number: null });
+  expect(document.querySelectorAll(".palPick[data-speaking]")).toHaveLength(0);
+  expect(frame).not.toHaveBeenCalled();
+});
+
 it.each([390, 768, 1440].flatMap((width) =>
   ["left", "right", "top", "bottom"].map((edge) => ({ width, edge })),
 ))("keeps separated 44 px picks visible at the $edge edge at $width px", ({ width, edge }) => {
