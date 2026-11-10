@@ -37,6 +37,7 @@ import {
   readStoredPollOptions,
   type MessagePollView,
 } from "@/lib/messagePoll";
+import { MESSAGE_UNSENT_LINE } from "@/lib/messageRemovals";
 import {
   cleanAttachedBody,
   cleanBody,
@@ -91,13 +92,30 @@ type GroupOpenOutcome =
   | { status: "unavailable" };
 
 /**
- * What leaving a group answered.
- *
- * `floor` is the group falling below `GROUP_MIN_MEMBERS`: the last three people
- * in a group are a DM with extra steps, so leaving is refused there rather than
- * silently leaving one person talking to a wall.
+ * What leaving a group answered. There is no floor: a small group is not a
+ * trap, so the last few may leave like anybody else. A second leave by the
+ * same person answers `left` again.
  */
-type GroupLeaveOutcome = "left" | "floor" | "not-member" | "unavailable";
+type GroupLeaveOutcome = "left" | "not-member" | "unavailable";
+
+/**
+ * What unsending one message answered (lib/messageRemovals.ts). `not-found`
+ * covers an unknown id, an outsider and somebody else's message alike, so the
+ * refusal says nothing about which it was. `photoObjectKey` names the bytes
+ * the caller must now delete; it is null when there are none to delete, which
+ * includes a reported photo kept for the moderator.
+ */
+type UnsendOutcome =
+  | {
+      status: "unsent";
+      membership: ConversationMembership;
+      photoObjectKey: string | null;
+    }
+  | { status: "not-found" }
+  | { status: "unavailable" };
+
+/** What deleting a chat for one person answered. */
+type ChatDeleteOutcome = "deleted" | "not-member" | "unavailable";
 
 /**
  * `clientMessageId` is the id the SENDER minted for this attempt, before the
@@ -168,6 +186,23 @@ export type MessagesStore = {
     conversationId: string,
     handle: string,
   ): Promise<GroupLeaveOutcome>;
+  /** Unsend ONE message, for everybody. Only its sender, while still in the
+   *  conversation, may do it. The row stays as a tombstone that reads as
+   *  `unsent`; its words, attachment and poll answers go, unless it was
+   *  reported, when the content stays for the moderator and no reader is ever
+   *  shown it again. A second unsend answers `unsent` again. */
+  unsendMessage(
+    conversationId: string,
+    messageId: string,
+    handle: string,
+  ): Promise<UnsendOutcome>;
+  /** Delete a whole conversation from ONE member's inbox. Everybody else
+   *  keeps it. A message sent later brings it back for this member, holding
+   *  only what was said after the delete. */
+  deleteConversationForViewer(
+    conversationId: string,
+    handle: string,
+  ): Promise<ChatDeleteOutcome>;
   /** Append a message. `sender` must be a participant of the conversation and
    *  the message must carry SOMETHING: a body that survives cleaning, an
    *  attachment, or both. Returns the stored row TOGETHER WITH the pair, or
@@ -248,6 +283,7 @@ const CONVERSATIONS = "conversations";
 const CONVERSATION_MEMBERS = "conversation_members";
 const MESSAGES = "messages";
 const POLL_VOTES = "message_poll_votes";
+const CONVERSATION_DELETIONS = "conversation_deletions";
 const memoryFallbackWarnings = new Set<string>();
 
 // ONE column list behind every message read, so a lane that forgot the
@@ -281,8 +317,36 @@ const MESSAGE_COLUMNS_WIDE = `${MESSAGE_COLUMNS_BASE}, ${WIDE_ATTACHMENT_COLUMNS
  */
 let wideAttachmentColumns = true;
 
+/**
+ * The same latch for migration 0227's `unsent_at`. Before the apply no row can
+ * be unsent, so a read without the column is still the whole truth; only the
+ * unsend itself is refused until the column is there.
+ */
+let unsentColumn = true;
+
 function messageColumns(): string {
-  return wideAttachmentColumns ? MESSAGE_COLUMNS_WIDE : MESSAGE_COLUMNS_BASE;
+  const columns = wideAttachmentColumns ? MESSAGE_COLUMNS_WIDE : MESSAGE_COLUMNS_BASE;
+  return unsentColumn ? `${columns}, unsent_at` : columns;
+}
+
+function isMissingUnsentColumn(
+  error: { code?: string; message?: string } | null | undefined,
+): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  if (code !== "42703" && code !== "PGRST204") return false;
+  return (error.message ?? "").toLowerCase().includes("unsent_at");
+}
+
+/** Latch whichever additive message column a read just missed. */
+function dropMissingMessageColumn(
+  error: { code?: string; message?: string } | null | undefined,
+): boolean {
+  if (dropToBaseAttachmentColumns(error)) return true;
+  if (!unsentColumn || !isMissingUnsentColumn(error)) return false;
+  unsentColumn = false;
+  console.warn("[messages] unsent_at missing - nothing can be unsent yet (apply migration 0227)");
+  return true;
 }
 
 function isMissingWideAttachmentColumn(
@@ -309,6 +373,7 @@ function dropToBaseAttachmentColumns(
 
 const isMissingGroupSchema = missingTables(CONVERSATION_MEMBERS);
 const isMissingPollSchema = missingTables(POLL_VOTES);
+const isMissingDeletionSchema = missingTables(CONVERSATION_DELETIONS);
 
 /** The columns a conversation row is read through, everywhere. */
 const CONVERSATION_COLUMNS = "id, handle_a, handle_b, last_message_at, kind, title";
@@ -347,9 +412,43 @@ function dropToBaseConversationColumns(
  * the noun for what it carried, because a blank row reads as a message that did
  * not arrive.
  */
-function previewBody(body: string, kind: unknown): string {
+function previewBody(row: Record<string, unknown>): string {
+  if (row.unsent_at != null) return MESSAGE_UNSENT_LINE;
+  const body = String(row.body ?? "");
   if (body) return body;
+  const kind = row.attachment_kind;
   return isMessageAttachmentKind(kind) ? messageAttachmentPreview(kind) : "";
+}
+
+/**
+ * A Postgres timestamp to the microsecond, so a stored `created_at` and a
+ * delete mark compare exactly. `Date.parse` stops at the millisecond, and a
+ * message 400 microseconds after a delete must not read as before it.
+ */
+function stampMicros(stamp: string): number {
+  const fraction = /\.(\d+)/.exec(stamp)?.[1] ?? "";
+  const millis = Date.parse(stamp.replace(/\.\d+/, ""));
+  if (!Number.isFinite(millis)) return Number.NaN;
+  return millis * 1000 + Number(`${fraction}000000`.slice(0, 6));
+}
+
+/**
+ * True when `createdAt` is after a delete mark, or there is no mark. A stamp
+ * that will not parse is shown: hiding it could hide a message nobody deleted.
+ */
+function afterDeleteMark(createdAt: unknown, mark: string | undefined): boolean {
+  if (!mark) return true;
+  const at = stampMicros(String(createdAt ?? ""));
+  const cut = stampMicros(mark);
+  if (!Number.isFinite(at) || !Number.isFinite(cut)) return true;
+  return at > cut;
+}
+
+/** The later of now and the newest message, as the delete mark to store. */
+function deleteMarkFor(newestCreatedAt: string | null): string {
+  const now = new Date().toISOString();
+  if (!newestCreatedAt) return now;
+  return stampMicros(newestCreatedAt) > stampMicros(now) ? newestCreatedAt : now;
 }
 
 /**
@@ -568,6 +667,8 @@ function isDuplicateClientMessageId(
 const READY_EMPTY_INBOX: InboxRead = { conversations: [], status: "ready" };
 
 type InboxUnread = { byConversation: Map<string, number>; degraded: boolean };
+/** Each conversation this viewer deleted, and the mark it was deleted at. */
+type InboxDeletions = { byConversation: Map<string, string>; degraded: boolean };
 type InboxRecent = {
   lastByConversation: Map<string, Record<string, unknown>>;
   windowFull: boolean;
@@ -590,13 +691,17 @@ type InboxRecent = {
  * A scan that could not run at all reports `degraded` and counts nothing, so no
  * caller can read a failed count as an empty one.
  */
-async function readInboxUnread(ids: readonly string[], me: string): Promise<InboxUnread> {
+async function readInboxUnread(
+  ids: readonly string[],
+  me: string,
+  deletionsRead: Promise<InboxDeletions>,
+): Promise<InboxUnread> {
   const byConversation = new Map<string, number>();
   let rows: Array<Record<string, unknown>>;
   try {
     const { data, error } = await admin()
       .from(MESSAGES)
-      .select("conversation_id")
+      .select("conversation_id, created_at")
       .in("conversation_id", ids)
       .neq("sender_handle", me)
       .is("read_at", null)
@@ -611,8 +716,12 @@ async function readInboxUnread(ids: readonly string[], me: string): Promise<Inbo
     );
     return { byConversation, degraded: true };
   }
+  // A message from before this viewer deleted the chat is not waiting for
+  // them: they put it away.
+  const deletions = (await deletionsRead).byConversation;
   for (const row of rows) {
     const id = String(row.conversation_id);
+    if (!afterDeleteMark(row.created_at, deletions.get(id))) continue;
     byConversation.set(id, (byConversation.get(id) ?? 0) + 1);
   }
   if (rows.length < INBOX_UNREAD_SCAN_CAP) return { byConversation, degraded: false };
@@ -625,12 +734,14 @@ async function readInboxUnread(ids: readonly string[], me: string): Promise<Inbo
   await Promise.all(
     unfinished.map(async (id) => {
       try {
-        const { count, error } = await admin()
+        const mark = deletions.get(id);
+        const query = admin()
           .from(MESSAGES)
           .select("id", { count: "exact", head: true })
           .eq("conversation_id", id)
           .neq("sender_handle", me)
           .is("read_at", null);
+        const { count, error } = await (mark ? query.gt("created_at", mark) : query);
         if (error) throw new Error(error.message);
         if (typeof count === "number") byConversation.set(id, count);
         else byConversation.delete(id);
@@ -648,20 +759,55 @@ async function readInboxUnread(ids: readonly string[], me: string): Promise<Inbo
   return { byConversation, degraded };
 }
 
+/** What an inbox row needs of its last message, through the unsent latch. */
+function inboxLastColumns(): string {
+  const columns = "conversation_id, sender_handle, body, attachment_kind, created_at";
+  return unsentColumn ? `${columns}, unsent_at` : columns;
+}
+
+/** Every chat this viewer deleted, among the inbox's conversations. */
+async function readInboxDeletions(ids: readonly string[], me: string): Promise<InboxDeletions> {
+  const byConversation = new Map<string, string>();
+  try {
+    const { data, error } = await admin()
+      .from(CONVERSATION_DELETIONS)
+      .select("conversation_id, deleted_at")
+      .eq("handle", me)
+      .in("conversation_id", [...ids]);
+    if (error) throw new Error(error.message);
+    for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+      const id = String(row.conversation_id ?? "");
+      if (id && row.deleted_at) byConversation.set(id, String(row.deleted_at));
+    }
+    return { byConversation, degraded: false };
+  } catch (err) {
+    // Before the apply nobody has deleted a chat, which is a whole answer.
+    if (isMissingDeletionSchema(err)) return { byConversation, degraded: false };
+    console.error(
+      "[messages] inbox deletions read failed:",
+      err instanceof Error ? err.message : err,
+    );
+    return { byConversation, degraded: true };
+  }
+}
+
 /** The newest-first window that holds each conversation's last message. */
 async function readInboxRecent(ids: readonly string[]): Promise<InboxRecent> {
   const lastByConversation = new Map<string, Record<string, unknown>>();
   const window = ids.length * INBOX_LAST_MESSAGE_WINDOW;
   let rows: Array<Record<string, unknown>>;
   try {
-    const { data, error } = await admin()
-      .from(MESSAGES)
-      .select("conversation_id, sender_handle, body, attachment_kind")
-      .in("conversation_id", ids)
-      .order("created_at", { ascending: false })
-      .limit(window);
+    const read = () =>
+      admin()
+        .from(MESSAGES)
+        .select(inboxLastColumns())
+        .in("conversation_id", ids)
+        .order("created_at", { ascending: false })
+        .limit(window);
+    const first = await read();
+    const { data, error } = dropMissingMessageColumn(first.error) ? await read() : first;
     if (error) throw new Error(error.message);
-    rows = (data ?? []) as Array<Record<string, unknown>>;
+    rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
   } catch (err) {
     console.error(
       "[messages] inbox recent window failed:",
@@ -800,13 +946,11 @@ export const supabaseMessagesStore: MessagesStore = {
       return memoryMessagesStore.leaveGroupConversation(conversationId, me);
     }
     try {
-      const membership = await loadMembership(conversationId);
-      // A direct conversation cannot be left: half of two people's record of
-      // talking to each other is not the leaver's to take away.
-      if (!membership || membership.kind !== "group" || !isMember(membership, me)) {
-        return "not-member";
-      }
-      if (membership.handles.length <= GROUP_MIN_MEMBERS) return "floor";
+      // ONE WRITE, AND IT IS ITS OWN ANSWER. Only a group has member rows, so a
+      // direct conversation (which cannot be left: half of two people's record
+      // of talking to each other is not the leaver's to take away) and an
+      // outsider both match nothing. A seat already left keeps its first
+      // `left_at` and answers `left` again.
       const { data, error } = await admin()
         .from(CONVERSATION_MEMBERS)
         .update({ left_at: new Date().toISOString() })
@@ -815,7 +959,17 @@ export const supabaseMessagesStore: MessagesStore = {
         .is("left_at", null)
         .select("handle");
       if (error) throw new Error(error.message);
-      return Array.isArray(data) && data.length > 0 ? "left" : "not-member";
+      if (Array.isArray(data) && data.length > 0) return "left";
+      const { data: seat, error: seatError } = await admin()
+        .from(CONVERSATION_MEMBERS)
+        .select("handle")
+        .eq("conversation_id", conversationId)
+        .eq("handle", me)
+        .not("left_at", "is", null)
+        .limit(1)
+        .maybeSingle();
+      if (seatError) throw new Error(seatError.message);
+      return seat ? "left" : "not-member";
     } catch (err) {
       if (isMissingMessagesSchema(err) || isMissingGroupSchema(err)) {
         warnMemoryFallback("leaveGroupConversation", err);
@@ -825,6 +979,124 @@ export const supabaseMessagesStore: MessagesStore = {
       }
       console.error(
         "[messages] leaveGroupConversation failed:",
+        err instanceof Error ? err.message : err,
+      );
+      return "unavailable";
+    }
+  },
+
+  async unsendMessage(conversationId, messageId, handle) {
+    const me = normalizeHandle(handle);
+    if (!conversationId || !messageId || !me) return UNSEND_NOT_FOUND;
+    if (isMemoryConversationId(conversationId)) {
+      return memoryMessagesStore.unsendMessage(conversationId, messageId, me);
+    }
+    // A durable message id is a uuid. Anything else names nothing, and asking
+    // Postgres would turn a typo into an outage answer.
+    const id = readClientMessageId(messageId);
+    if (!id) return UNSEND_NOT_FOUND;
+    try {
+      const membership = await loadMembership(conversationId);
+      if (!membership || !isMember(membership, me)) return UNSEND_NOT_FOUND;
+      // Before 0227 there is no column to mark it with. Refused, never faked.
+      if (!unsentColumn) return { status: "unavailable" };
+      const read = await admin()
+        .from(MESSAGES)
+        .select("id, sender_handle, attachment_kind, unsent_at")
+        .eq("conversation_id", conversationId)
+        .eq("id", id)
+        .limit(1)
+        .maybeSingle();
+      if (dropMissingMessageColumn(read.error)) return { status: "unavailable" };
+      if (read.error) throw new Error(read.error.message);
+      const row = read.data as Record<string, unknown> | null;
+      // ONLY THE SENDER, and the refusal is the one an unknown id gets.
+      if (!row || normalizeHandle(String(row.sender_handle ?? "")) !== me) {
+        return UNSEND_NOT_FOUND;
+      }
+      if (row.unsent_at != null) {
+        return { status: "unsent", membership, photoObjectKey: null };
+      }
+      const unsentAt = new Date().toISOString();
+      // The words, the attachment and the ballot go, but only while nobody has
+      // reported it: the guard is in the same statement, so a report landing
+      // a moment earlier cannot be wiped out from under the moderator.
+      const wiped = await admin()
+        .from(MESSAGES)
+        .update({ unsent_at: unsentAt, body: "", ...emptyAttachmentColumns() })
+        .eq("conversation_id", conversationId)
+        .eq("id", id)
+        .eq("sender_handle", String(row.sender_handle))
+        .is("unsent_at", null)
+        .is("flagged_at", null)
+        .select("id");
+      if (wiped.error) throw new Error(wiped.error.message);
+      if (Array.isArray(wiped.data) && wiped.data.length > 0) {
+        if (row.attachment_kind === "poll") await deletePollVotes(id);
+        return {
+          status: "unsent",
+          membership,
+          photoObjectKey:
+            row.attachment_kind === "photo" ? messagePhotoServingKey(conversationId, id) : null,
+        };
+      }
+      // Reported: the content stays for the moderator, and the mark alone
+      // takes it off every reader's screen.
+      const kept = await admin()
+        .from(MESSAGES)
+        .update({ unsent_at: unsentAt })
+        .eq("conversation_id", conversationId)
+        .eq("id", id)
+        .eq("sender_handle", String(row.sender_handle))
+        .is("unsent_at", null)
+        .select("id");
+      if (kept.error) throw new Error(kept.error.message);
+      return { status: "unsent", membership, photoObjectKey: null };
+    } catch (err) {
+      console.error(
+        "[messages] unsendMessage failed:",
+        err instanceof Error ? err.message : err,
+      );
+      return { status: "unavailable" };
+    }
+  },
+
+  async deleteConversationForViewer(conversationId, handle) {
+    const me = normalizeHandle(handle);
+    if (!conversationId || !me) return "not-member";
+    if (isMemoryConversationId(conversationId)) {
+      return memoryMessagesStore.deleteConversationForViewer(conversationId, me);
+    }
+    try {
+      const [membership, newest] = await Promise.all([
+        loadMembership(conversationId),
+        admin()
+          .from(MESSAGES)
+          .select("created_at")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      if (!membership || !isMember(membership, me)) return "not-member";
+      if (newest.error) throw new Error(newest.error.message);
+      // THE MARK IS NEVER BEFORE THE NEWEST MESSAGE, so a clock a little behind
+      // the database cannot leave the last line of a deleted chat behind.
+      const newestAt = (newest.data as { created_at?: unknown } | null)?.created_at;
+      const deletedAt = deleteMarkFor(typeof newestAt === "string" ? newestAt : null);
+      const { error } = await admin()
+        .from(CONVERSATION_DELETIONS)
+        .upsert(
+          { conversation_id: conversationId, handle: me, deleted_at: deletedAt },
+          { onConflict: "conversation_id,handle" },
+        );
+      if (error) throw new Error(error.message);
+      return "deleted";
+    } catch (err) {
+      console.error(
+        isMissingDeletionSchema(err)
+          ? "[messages] deleteConversationForViewer: conversation_deletions missing (apply migration 0227)"
+          : "[messages] deleteConversationForViewer failed:",
         err instanceof Error ? err.message : err,
       );
       return "unavailable";
@@ -862,12 +1134,12 @@ export const supabaseMessagesStore: MessagesStore = {
 
       let inserted = await insertRow();
 
-      if (isMissingWideAttachmentColumn(inserted.error)) {
-        // Migration 0156 has not landed. A message with no new-kind column in
-        // it is still a message, so the process drops to the pre-0156 read list
-        // and this write is retried; a write that NEEDED one of those columns
-        // was refused above and never reaches here.
-        dropToBaseAttachmentColumns(inserted.error);
+      // Migration 0156 or 0227 has not landed. A message with no new-kind
+      // column in it is still a message, so the process drops to the older
+      // read list and this write is retried; a write that NEEDED one of those
+      // columns was refused above and never reaches here. Each latch moves at
+      // most once, so this ends.
+      while (dropMissingMessageColumn(inserted.error)) {
         inserted = await insertRow();
       }
 
@@ -928,7 +1200,7 @@ export const supabaseMessagesStore: MessagesStore = {
         .eq("id", messageId)
         .limit(1)
         .maybeSingle();
-      if (dropToBaseAttachmentColumns(selected.error)) {
+      if (dropMissingMessageColumn(selected.error)) {
         selected = await admin()
           .from(MESSAGES)
           .select(messageColumns())
@@ -1030,15 +1302,17 @@ export const supabaseMessagesStore: MessagesStore = {
     if (rows.length === 0) return READY_EMPTY_INBOX;
 
     const ids = rows.map((row) => String(row.id));
+    const deletionsRead = readInboxDeletions(ids, me);
     // TWO reads for the whole inbox, in parallel, where there used to be ONE
     // PER CONVERSATION, each pulling up to 200 rows: the unread rows the
     // viewer has not read (bounded), and a newest-first window of recent
     // messages wide enough to hold the last message of every conversation
     // on an ordinary inbox. A conversation either window did not reach is
     // asked for on its own, so a busy thread cannot hide a quiet one.
-    const [unread, recent] = await Promise.all([
-      readInboxUnread(ids, me),
+    const [unread, recent, deletions] = await Promise.all([
+      readInboxUnread(ids, me, deletionsRead),
       readInboxRecent(ids),
+      deletionsRead,
     ]);
 
     const lastByConversation = recent.lastByConversation;
@@ -1049,7 +1323,7 @@ export const supabaseMessagesStore: MessagesStore = {
           try {
             const { data: one, error } = await admin()
               .from(MESSAGES)
-              .select("conversation_id, sender_handle, body, attachment_kind")
+              .select(inboxLastColumns())
               .eq("conversation_id", id)
               .order("created_at", { ascending: false })
               .limit(1)
@@ -1067,16 +1341,27 @@ export const supabaseMessagesStore: MessagesStore = {
       );
     }
 
-    const conversations = rows.map((row) => {
+    // A DELETED CHAT stays out of this viewer's inbox until somebody says
+    // something after the delete. Its newest message decides; a thread whose
+    // newest message we could not read falls back to the conversation's own
+    // last-message stamp.
+    const visible = rows.filter((row) => {
+      const id = String(row.id);
+      const mark = deletions.byConversation.get(id);
+      if (!mark) return true;
+      const last = lastByConversation.get(id);
+      return afterDeleteMark(last ? last.created_at : row.last_message_at, mark);
+    });
+    if (visible.length === 0 && !deletions.degraded) return READY_EMPTY_INBOX;
+
+    const conversations = visible.map((row) => {
       const id = String(row.id);
       const last = lastByConversation.get(id);
       const counted = unread.byConversation.get(id);
       return {
         id,
         ...conversationRowIdentity(row, groupMembership.get(id) ?? null, me),
-        ...(last
-          ? { lastBody: previewBody(String(last.body ?? ""), last.attachment_kind) }
-          : {}),
+        ...(last ? { lastBody: previewBody(last) } : {}),
         lastAt: String(row.last_message_at ?? new Date(0).toISOString()),
         lastFromMe: last ? normalizeHandle(String(last.sender_handle)) === me : false,
         // UNCOUNTED IS NOT ZERO. A scan that could not run leaves the field off
@@ -1087,7 +1372,8 @@ export const supabaseMessagesStore: MessagesStore = {
     });
     return {
       conversations,
-      status: unread.degraded || recent.degraded ? "degraded" : "ready",
+      status:
+        unread.degraded || recent.degraded || deletions.degraded ? "degraded" : "ready",
     };
   },
 
@@ -1108,18 +1394,22 @@ export const supabaseMessagesStore: MessagesStore = {
           .eq("conversation_id", conversationId)
           .order("created_at", { ascending: false })
           .limit(MAX_MESSAGES);
-      const [membership, firstRead] = await Promise.all([
+      const [membership, firstRead, deleteMark] = await Promise.all([
         loadMembership(conversationId),
         readRows(),
+        loadDeleteMark(conversationId, me),
       ]);
       // COURTESY CHECK: a non-participant (or unknown conversation) gets null →
       // the route turns that into a 404. Never return another thread.
       if (!membership || !isMember(membership, me)) return null;
-      const selected = dropToBaseAttachmentColumns(firstRead.error)
+      const selected = dropMissingMessageColumn(firstRead.error)
         ? await readRows()
         : firstRead;
       if (selected.error) throw new Error(selected.error.message);
-      const rows = ((selected.data ?? []) as unknown as Array<Record<string, unknown>>).reverse();
+      // What this reader deleted stays deleted for them, and only for them.
+      const rows = ((selected.data ?? []) as unknown as Array<Record<string, unknown>>)
+        .filter((row) => afterDeleteMark(row.created_at, deleteMark ?? undefined))
+        .reverse();
       // A thread with no poll in it costs no second read.
       const votesByMessage = await loadPollVotes(pollMessageIds(rows));
       const polls: PollReadContext = { viewer: me, votesByMessage };
@@ -1235,7 +1525,7 @@ export const supabaseMessagesStore: MessagesStore = {
           .limit(1)
           .maybeSingle();
       const first = await readRow();
-      const { data, error } = dropToBaseAttachmentColumns(first.error)
+      const { data, error } = dropMissingMessageColumn(first.error)
         ? await readRow()
         : first;
       if (error) throw new Error(error.message);
@@ -1254,6 +1544,62 @@ export const supabaseMessagesStore: MessagesStore = {
     }
   },
 };
+
+const UNSEND_NOT_FOUND: UnsendOutcome = { status: "not-found" };
+
+/** Every attachment column, emptied, for the columns this database has. */
+function emptyAttachmentColumns(): Record<string, null> {
+  const columns: Record<string, null> = {
+    attachment_kind: null,
+    attachment_object_key: null,
+    attachment_width: null,
+    attachment_height: null,
+    attachment_venue_id: null,
+  };
+  if (wideAttachmentColumns) {
+    for (const column of WIDE_ATTACHMENT_COLUMNS) columns[column] = null;
+  }
+  return columns;
+}
+
+/** An unsent poll's answers go with its ballot. A failure leaves only counts
+ *  nobody can read any more, so it is logged rather than undoing the unsend. */
+async function deletePollVotes(messageId: string): Promise<void> {
+  try {
+    const { error } = await admin().from(POLL_VOTES).delete().eq("message_id", messageId);
+    if (error) throw new Error(error.message);
+  } catch (err) {
+    if (isMissingPollSchema(err)) return;
+    console.error(
+      "[messages] unsent poll votes delete failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
+/**
+ * When this reader deleted this chat, or null when they never did. A read we
+ * could not run THROWS: answering "never" would put back on their screen
+ * every line they deleted.
+ */
+async function loadDeleteMark(conversationId: string, me: string): Promise<string | null> {
+  try {
+    const { data, error } = await admin()
+      .from(CONVERSATION_DELETIONS)
+      .select("deleted_at")
+      .eq("conversation_id", conversationId)
+      .eq("handle", me)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const mark = (data as { deleted_at?: unknown } | null)?.deleted_at;
+    return typeof mark === "string" && mark ? mark : null;
+  } catch (err) {
+    // Before the apply nobody has deleted a chat.
+    if (isMissingDeletionSchema(err)) return null;
+    throw err;
+  }
+}
 
 // The serving key a row is allowed to hand out, through the SAME attachment
 // projection the thread reads — so a reported photo, a text message and a
@@ -1534,7 +1880,7 @@ async function loadByClientMessageId(
       .limit(1)
       .maybeSingle();
   const first = await read();
-  const { data, error } = dropToBaseAttachmentColumns(first.error) ? await read() : first;
+  const { data, error } = dropMissingMessageColumn(first.error) ? await read() : first;
   if (error) throw new Error(error.message);
   return data ? rowToMessageDTO(data as unknown as Record<string, unknown>) : null;
 }
@@ -1543,6 +1889,20 @@ function rowToMessageDTO(
   row: Record<string, unknown>,
   polls?: PollReadContext,
 ): MessageDTO {
+  // AN UNSENT MESSAGE IS A LINE, NOT ITS CONTENT. A reported one still holds
+  // its words for the moderator, so the mark decides, never what is left.
+  if (row.unsent_at != null) {
+    return {
+      id: String(row.id),
+      conversationId: String(row.conversation_id ?? ""),
+      senderHandle: normalizeHandle(String(row.sender_handle ?? "")),
+      body: "",
+      createdAt: String(row.created_at ?? new Date(0).toISOString()),
+      read: row.read_at != null,
+      flagged: row.flagged_at != null,
+      unsent: true,
+    };
+  }
   const attachment = rowToAttachment(row, polls);
   return {
     id: String(row.id),
@@ -1568,6 +1928,8 @@ type MemoryConversation = {
   title: string | null;
   /** Group only. Live members, in join order; a leaver is spliced out. */
   members: string[];
+  /** Group only. Who left, so a second leave answers like the first. */
+  leftMembers: string[];
   lastMessageAt: string;
 };
 type MemoryMessage = {
@@ -1592,11 +1954,13 @@ type MemoryMessage = {
   pollVotes: Map<string, number>;
   /** The sender's own id for the attempt that wrote this row, when it sent one. */
   clientMessageId: string | null;
+  unsentAt: string | null;
 };
 
 const memConversations = new Map<string, MemoryConversation>();
 const memPairIndex = new Map<string, string>(); // "handleA|handleB" → conversation id
 const memMessages = new Map<string, MemoryMessage[]>(); // conversation id → messages
+const memDeletions = new Map<string, Map<string, string>>(); // conversation id → handle → mark
 let memConvSeq = 0;
 let memMsgSeq = 0;
 
@@ -1613,10 +1977,18 @@ function memMembership(conv: MemoryConversation): ConversationMembership | null 
   return pair ? membershipFromPair(pair) : null;
 }
 
+/** This reader's view of one conversation: everything after their delete. */
+function memVisibleMessages(conversationId: string, me: string): MemoryMessage[] {
+  const mark = memDeletions.get(conversationId)?.get(me);
+  return (memMessages.get(conversationId) ?? []).filter((m) =>
+    afterDeleteMark(m.createdAt, mark),
+  );
+}
+
 function memConversationDTO(conv: MemoryConversation, me: string): ConversationDTO {
   const membership = memMembership(conv);
   const others = membership ? otherMembers(membership, me) : [];
-  const list = (memMessages.get(conv.id) ?? [])
+  const list = memVisibleMessages(conv.id, me)
     .slice()
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt)); // newest-first
   const last = list[0];
@@ -1630,7 +2002,15 @@ function memConversationDTO(conv: MemoryConversation, me: string): ConversationD
           ...(conv.title ? { title: conv.title } : {}),
         }
       : {}),
-    ...(last ? { lastBody: previewBody(last.body, last.attachmentKind) } : {}),
+    ...(last
+      ? {
+          lastBody: previewBody({
+            body: last.body,
+            attachment_kind: last.attachmentKind,
+            unsent_at: last.unsentAt,
+          }),
+        }
+      : {}),
     lastAt: conv.lastMessageAt,
     lastFromMe: last ? last.senderHandle === me : false,
     unread: unreadForViewer(
@@ -1661,6 +2041,7 @@ function memMessageDTO(m: MemoryMessage, viewer = ""): MessageDTO {
       attachment_plan_id: m.attachmentPlanId,
       attachment_poll_question: m.attachmentPollQuestion,
       attachment_poll_options: m.attachmentPollOptions,
+      unsent_at: m.unsentAt,
     },
     { viewer, votesByMessage: new Map([[m.id, m.pollVotes]]) },
   );
@@ -1682,6 +2063,7 @@ export const memoryMessagesStore: MessagesStore = {
       handleB: pair.handleB,
       title: null,
       members: [],
+      leftMembers: [],
       lastMessageAt: now,
     });
     memPairIndex.set(key, id);
@@ -1718,6 +2100,7 @@ export const memoryMessagesStore: MessagesStore = {
       // The owner first, so the join order the durable path reads back is the
       // order this one keeps.
       members: [owner, ...handles.filter((handle) => handle !== owner)],
+      leftMembers: [],
       lastMessageAt: now,
     });
     memMessages.set(id, []);
@@ -1728,10 +2111,56 @@ export const memoryMessagesStore: MessagesStore = {
     const me = normalizeHandle(handle);
     if (!conversationId || !me) return "not-member";
     const conv = memConversations.get(conversationId);
-    if (!conv || conv.kind !== "group" || !conv.members.includes(me)) return "not-member";
-    if (conv.members.length <= GROUP_MIN_MEMBERS) return "floor";
+    if (!conv || conv.kind !== "group") return "not-member";
+    if (conv.leftMembers.includes(me)) return "left";
+    if (!conv.members.includes(me)) return "not-member";
     conv.members = conv.members.filter((member) => member !== me);
+    conv.leftMembers.push(me);
     return "left";
+  },
+
+  async unsendMessage(conversationId, messageId, handle) {
+    const me = normalizeHandle(handle);
+    if (!conversationId || !messageId || !me) return UNSEND_NOT_FOUND;
+    const conv = memConversations.get(conversationId);
+    const membership = conv ? memMembership(conv) : null;
+    if (!membership || !isMember(membership, me)) return UNSEND_NOT_FOUND;
+    const hit = (memMessages.get(conversationId) ?? []).find((m) => m.id === messageId);
+    if (!hit || hit.senderHandle !== me) return UNSEND_NOT_FOUND;
+    if (hit.unsentAt != null) return { status: "unsent", membership, photoObjectKey: null };
+    hit.unsentAt = new Date().toISOString();
+    // A reported message keeps its content for the moderator.
+    if (hit.flaggedAt != null) return { status: "unsent", membership, photoObjectKey: null };
+    const photoObjectKey =
+      hit.attachmentKind === "photo" ? messagePhotoServingKey(conversationId, hit.id) : null;
+    hit.body = "";
+    hit.attachmentKind = null;
+    hit.attachmentObjectKey = null;
+    hit.attachmentWidth = null;
+    hit.attachmentHeight = null;
+    hit.attachmentVenueId = null;
+    hit.attachmentContactHandle = null;
+    hit.attachmentPlanId = null;
+    hit.attachmentPollQuestion = null;
+    hit.attachmentPollOptions = null;
+    hit.pollVotes.clear();
+    return { status: "unsent", membership, photoObjectKey };
+  },
+
+  async deleteConversationForViewer(conversationId, handle) {
+    const me = normalizeHandle(handle);
+    if (!conversationId || !me) return "not-member";
+    const conv = memConversations.get(conversationId);
+    const membership = conv ? memMembership(conv) : null;
+    if (!membership || !isMember(membership, me)) return "not-member";
+    const newest = (memMessages.get(conversationId) ?? []).reduce<string | null>(
+      (latest, m) => (latest === null || m.createdAt > latest ? m.createdAt : latest),
+      null,
+    );
+    const marks = memDeletions.get(conversationId) ?? new Map<string, string>();
+    marks.set(me, deleteMarkFor(newest));
+    memDeletions.set(conversationId, marks);
+    return "deleted";
   },
 
   async send(conversationId, sender, body, attachment, options) {
@@ -1780,6 +2209,7 @@ export const memoryMessagesStore: MessagesStore = {
       attachmentPollOptions: attachment?.kind === "poll" ? [...attachment.options] : null,
       pollVotes: new Map<string, number>(),
       clientMessageId,
+      unsentAt: null,
     };
     const list = memMessages.get(conversationId) ?? [];
     list.push(row);
@@ -1814,7 +2244,9 @@ export const memoryMessagesStore: MessagesStore = {
       conversations: [...memConversations.values()]
         .filter((c) => {
           const membership = memMembership(c);
-          return membership !== null && isMember(membership, me);
+          if (membership === null || !isMember(membership, me)) return false;
+          // A deleted chat comes back only with something said after it.
+          return !memDeletions.get(c.id)?.has(me) || memVisibleMessages(c.id, me).length > 0;
         })
         .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt))
         .slice(0, MAX_CONVERSATIONS)
@@ -1831,7 +2263,7 @@ export const memoryMessagesStore: MessagesStore = {
     const membership = memMembership(conv);
     // COURTESY CHECK — non-participant gets null (route → 404).
     if (!membership || !isMember(membership, me)) return null;
-    const list = (memMessages.get(conversationId) ?? [])
+    const list = memVisibleMessages(conversationId, me)
       .slice()
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)) // newest-first cap
       .slice(0, MAX_MESSAGES)
@@ -1907,6 +2339,7 @@ export function __resetMemoryMessages(): void {
   memConversations.clear();
   memPairIndex.clear();
   memMessages.clear();
+  memDeletions.clear();
   memConvSeq = 0;
   memMsgSeq = 0;
 }

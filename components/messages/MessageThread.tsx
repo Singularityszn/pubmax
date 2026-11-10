@@ -24,12 +24,14 @@ import MessageAttachmentPicker, {
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import MessageAvatar from "@/components/messages/MessageAvatar";
 import MessageContactCard from "@/components/messages/MessageContactCard";
+import MessageConfirmDialog from "@/components/messages/MessageConfirmDialog";
 import MessageContactPicker from "@/components/messages/MessageContactPicker";
 import MessageEventCard from "@/components/messages/MessageEventCard";
 import MessageEventPicker from "@/components/messages/MessageEventPicker";
 import MessagePhoto from "@/components/messages/MessagePhoto";
 import MessagePollCard from "@/components/messages/MessagePollCard";
 import MessagePollComposer from "@/components/messages/MessagePollComposer";
+import MessageThreadMenu from "@/components/messages/MessageThreadMenu";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
 import MessageVenuePicker, {
@@ -49,11 +51,25 @@ import {
 } from "@/lib/messageAttachments";
 import {
   GROUP_EMPTY_THREAD_LINE,
+  GROUP_LEAVE_CONFIRM_LINE,
+  GROUP_LEAVE_CONFIRM_TITLE,
   GROUP_LEAVE_FAILED_LINE,
   GROUP_LEAVE_LABEL,
   GROUP_LEFT_LINE,
   groupMemberCountLine,
 } from "@/lib/messageGroupThread";
+import {
+  CHAT_DELETE_CONFIRM_LINE,
+  CHAT_DELETE_CONFIRM_TITLE,
+  CHAT_DELETE_FAILED_LINE,
+  CHAT_DELETE_LABEL,
+  CHAT_DELETED_LINE,
+  MESSAGE_UNSEND_CONFIRM_LINE,
+  MESSAGE_UNSEND_CONFIRM_TITLE,
+  MESSAGE_UNSEND_FAILED_LINE,
+  MESSAGE_UNSEND_LABEL,
+  MESSAGE_UNSENT_LINE,
+} from "@/lib/messageRemovals";
 import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
@@ -192,7 +208,9 @@ type ThreadState =
   | "signedout"
   | "unreachable"
   /** This reader has just left a group. The thread stays; the way in does not. */
-  | "left";
+  | "left"
+  /** This reader has just deleted the chat from their own inbox. */
+  | "deleted";
 
 type ThreadReadKey = {
   conversationId: string;
@@ -217,6 +235,12 @@ type PendingAttachment =
 
 /** Which picker is open. One at a time, because one attachment rides at a time. */
 type OpenPicker = "venue" | "contact" | "event" | "poll" | null;
+
+/** A removal waiting on its confirm. */
+type PendingRemoval =
+  | { kind: "unsend"; messageId: string }
+  | { kind: "delete" }
+  | { kind: "leave" };
 
 /** What the composer's pending row says about what is ready to send. */
 function pendingLabel(pending: PendingAttachment): string {
@@ -344,6 +368,10 @@ export default function MessageThread({
   const card = usePublicProfileCard(threadCardHandle(identity, otherHandle));
   const [mobileAttachOpen, setMobileAttachOpen] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
+  // ONE removal asked at a time, and the thread's own confirm answers it.
+  const [confirming, setConfirming] = useState<PendingRemoval | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removalError, setRemovalError] = useState("");
   const listRef = useRef<HTMLUListElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
@@ -366,6 +394,7 @@ export default function MessageThread({
     setViewRevision(null);
     setOutbox([]);
     setRevealedId(null);
+    setConfirming(null);
     setIdentity(null);
     setOtherHandle("");
     setMessages([]);
@@ -833,35 +862,74 @@ export default function MessageThread({
     [conversationId, user, authHandle],
   );
 
-  const leaveGroup = useCallback(async () => {
+  /**
+   * The one door every removal goes through: unsend a message, delete the
+   * chat, leave a group. The confirm stays open while the request runs and
+   * shows the server's own sentence if it is refused, so nothing is taken away
+   * on screen that the server did not take away.
+   */
+  const remove = useCallback(async () => {
+    const pendingRemoval = confirming;
     const h = normalizeHandle(authHandle ?? "") || readHandle();
-    if (!user || !h) return;
-    setError("");
+    if (!pendingRemoval || !user || !h) return;
+    const failedLine =
+      pendingRemoval.kind === "unsend"
+        ? MESSAGE_UNSEND_FAILED_LINE
+        : pendingRemoval.kind === "delete"
+          ? CHAT_DELETE_FAILED_LINE
+          : GROUP_LEAVE_FAILED_LINE;
+    setRemoving(true);
+    setRemovalError("");
     try {
       const res = await authedActionFetch(
         `/api/messages/${encodeURIComponent(conversationId)}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action: "leave", handle: h }),
+          body: JSON.stringify({
+            action: pendingRemoval.kind,
+            handle: h,
+            ...(pendingRemoval.kind === "unsend" ? { messageId: pendingRemoval.messageId } : {}),
+          }),
         },
         { requiresIdentity: true },
       );
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => null);
-        setError(offlineOrMessage(errorMessageFrom(body, GROUP_LEAVE_FAILED_LINE)));
+        setRemovalError(offlineOrMessage(errorMessageFrom(body, failedLine)));
         return;
       }
       discardBody(res);
-      // NO NAVIGATION. The thread is still on screen and still readable, so
-      // the honest thing is to SAY what happened and offer the way back, the
-      // same shape every other refused or finished state here takes. A
-      // redirect would take the words away mid-sentence.
-      setState("left");
+      setConfirming(null);
+      if (pendingRemoval.kind === "unsend") {
+        const unsentId = pendingRemoval.messageId;
+        setRevealedId(null);
+        setMessages((rows) =>
+          rows.map((row) =>
+            row.id === unsentId
+              ? { ...row, body: "", attachment: undefined, unsent: true }
+              : row,
+          ),
+        );
+        return;
+      }
+      // The inbox beside the thread and the nav badge both re-read now: a
+      // chat that left this person's inbox takes its unread count with it.
+      announceMessagesRead();
+      // NO NAVIGATION. The honest thing is to SAY what happened and offer the
+      // way back, the same shape every other finished state here takes.
+      setState(pendingRemoval.kind === "delete" ? "deleted" : "left");
     } catch {
-      setError(offlineOrMessage(GROUP_LEAVE_FAILED_LINE));
+      setRemovalError(offlineOrMessage(failedLine));
+    } finally {
+      setRemoving(false);
     }
-  }, [conversationId, user, authHandle]);
+  }, [confirming, conversationId, user, authHandle]);
+
+  const ask = useCallback((removal: PendingRemoval) => {
+    setRemovalError("");
+    setConfirming(removal);
+  }, []);
 
   const report = useCallback(
     async (messageId: string) => {
@@ -924,6 +992,13 @@ export default function MessageThread({
       </p>
     );
   }
+  if (state === "deleted") {
+    return (
+      <p className="conversationPreview" role="status">
+        {CHAT_DELETED_LINE} <Link href="/messages">Back to inbox</Link>
+      </p>
+    );
+  }
   if (state === "notfound") {
     return (
       <p className="conversationPreview">
@@ -978,6 +1053,66 @@ export default function MessageThread({
         poll={attachment.poll}
         disabled={sendingRow}
         onVote={(optionIndex) => vote(m.id, optionIndex)}
+      />
+    );
+  }
+
+  /** What a revealed message offers: Unsend on your own, Report on theirs. */
+  function renderMessageAction(
+    m: MessageDTO,
+    mine: boolean,
+    sendingRow: boolean,
+  ): React.JSX.Element | null {
+    if (m.unsent || sendingRow) return null;
+    if (mine) {
+      return (
+        <button
+          type="button"
+          className="messageUnsendBtn"
+          onClick={() => ask({ kind: "unsend", messageId: m.id })}
+        >
+          {MESSAGE_UNSEND_LABEL}
+        </button>
+      );
+    }
+    if (m.flagged) return <span className="messageFlagged">Reported</span>;
+    return (
+      <button type="button" className="messageReportBtn" onClick={() => void report(m.id)}>
+        Report
+      </button>
+    );
+  }
+
+  /** The confirm for whichever removal is being asked. */
+  function renderConfirm(): React.JSX.Element | null {
+    if (!confirming) return null;
+    const copy =
+      confirming.kind === "unsend"
+        ? {
+            title: MESSAGE_UNSEND_CONFIRM_TITLE,
+            line: MESSAGE_UNSEND_CONFIRM_LINE,
+            label: MESSAGE_UNSEND_LABEL,
+          }
+        : confirming.kind === "delete"
+          ? {
+              title: CHAT_DELETE_CONFIRM_TITLE,
+              line: CHAT_DELETE_CONFIRM_LINE,
+              label: CHAT_DELETE_LABEL,
+            }
+          : {
+              title: GROUP_LEAVE_CONFIRM_TITLE,
+              line: GROUP_LEAVE_CONFIRM_LINE,
+              label: GROUP_LEAVE_LABEL,
+            };
+    return (
+      <MessageConfirmDialog
+        title={copy.title}
+        line={copy.line}
+        confirmLabel={copy.label}
+        busy={removing}
+        error={removalError}
+        onConfirm={() => void remove()}
+        onCancel={() => setConfirming(null)}
       />
     );
   }
@@ -1093,11 +1228,11 @@ export default function MessageThread({
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
         {renderThreadWith()}
-        {isGroup ? (
-          <button type="button" className="threadLeaveBtn" onClick={() => void leaveGroup()}>
-            {GROUP_LEAVE_LABEL}
-          </button>
-        ) : null}
+        <MessageThreadMenu
+          isGroup={isGroup}
+          onDeleteChat={() => ask({ kind: "delete" })}
+          onLeaveGroup={() => ask({ kind: "leave" })}
+        />
       </div>
 
       {state === "loading" ? (
@@ -1157,6 +1292,14 @@ export default function MessageThread({
                 {/* The box the 75% width limit lives on. */}
                 <div className="messageLine">
                   {isGroup && !mine && item.first ? <span className="messageSender">@{m.senderHandle}</span> : null}
+                  {m.unsent ? (
+                    <div
+                      className="messageUnsent"
+                      onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
+                    >
+                      {MESSAGE_UNSENT_LINE}
+                    </div>
+                  ) : (
                   <div
                     className={[
                       mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
@@ -1171,21 +1314,12 @@ export default function MessageThread({
                     ) : null}
                     {m.body ? <MessageBody body={m.body} /> : null}
                   </div>
+                  )}
                   <div className="messageMeta">
                     <time className="messageClock" dateTime={m.createdAt}>
                       {item.clock}
                     </time>
-                    {m.flagged ? (
-                      <span className="messageFlagged">Reported</span>
-                    ) : !mine ? (
-                      <button
-                        type="button"
-                        className="messageReportBtn"
-                        onClick={() => void report(m.id)}
-                      >
-                        Report
-                      </button>
-                    ) : null}
+                    {renderMessageAction(m, mine, sendingRow)}
                   </div>
                   {sendingRow ? (
                     <span className="messageReadState">Sending</span>
@@ -1370,6 +1504,7 @@ export default function MessageThread({
       </div>
       </div>
       {adultGateDialog}
+      {renderConfirm()}
     </div>
   );
 }
