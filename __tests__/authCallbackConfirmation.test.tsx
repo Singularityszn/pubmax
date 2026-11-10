@@ -59,6 +59,7 @@ vi.mock("@/lib/deviceAccountSwitch", () => ({
   activateDeviceAccount: vi.fn(),
 }));
 vi.mock("@/lib/authRedirect", () => ({
+  hasPendingAuthAttempt: () => false,
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax-auth-return-fragment-restored",
   scrubAuthCallback: async () => {
     harness.scrubCallback();

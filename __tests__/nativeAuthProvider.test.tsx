@@ -29,24 +29,29 @@ vi.mock("@/lib/nativeAuthSession", async (original) => ({
   authenticateNativeSession: h.authenticate,
   cancelNativeAuthSession: h.cancel,
 }));
-vi.mock("@/lib/authClient", async (original) => ({
-  ...await original<typeof import("@/lib/authClient")>(),
-  createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
-  isAuthConfigured: () => true,
-  hasStoredBrowserSession: () => h.session !== null,
-  ensureSupabaseBrowser: vi.fn(async () => {
-    if (h.clientOffline) throw new Error("offline");
-    return { auth: {
-      signInWithOAuth: h.canonicalOAuth, setSession: h.setSession, signOut: h.signOut,
-      getSession: h.getSession,
-      onAuthStateChange: (callback: typeof h.subscriber) => {
-        h.subscriber = callback;
-        queueMicrotask(() => callback?.("INITIAL_SESSION", h.session));
-        return { data: { subscription: { unsubscribe: () => { h.subscriber = null; } } } };
-      },
-    } };
-  }),
-}));
+vi.mock("@/lib/authClient", async (original) => {
+  // This suite drives native account events, not load timing: the fake client
+  // is ready for every caller, so AuthProvider subscribes at once.
+  const browser = async () => ({ auth: {
+    signInWithOAuth: h.canonicalOAuth, setSession: h.setSession, signOut: h.signOut,
+    getSession: h.getSession,
+    onAuthStateChange: (callback: typeof h.subscriber) => {
+      h.subscriber = callback;
+      queueMicrotask(() => callback?.("INITIAL_SESSION", h.session));
+      return { data: { subscription: { unsubscribe: () => { h.subscriber = null; } } } };
+    },
+  } });
+  return {
+    ...await original<typeof import("@/lib/authClient")>(),
+    createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
+    isAuthConfigured: () => true,
+    ensureSupabaseBrowser: vi.fn(async () => {
+      if (h.clientOffline) throw new Error("offline");
+      return browser();
+    }),
+    ensureSupabaseBrowserForSession: browser,
+  };
+});
 vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
   bootstrapAuthSession: vi.fn(async () => h.bootstrapOffline ? ({ status: "unavailable" })
@@ -69,6 +74,7 @@ vi.mock("@/lib/identityClient", () => ({
   resolveCanonicalIdentity: async () => null,
 }));
 vi.mock("@/lib/authSessionResumeClient", () => ({
+  fetchResumeHint: async () => ({ status: "absent" }),
   clearPersistedSession: h.clearPersistedSession, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));

@@ -57,7 +57,7 @@ import {
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, hasStoredBrowserSession, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
+import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, ensureSupabaseBrowserForSession, finishNativeSessionInstallation, hasStoredBrowserSession, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
 import { authClientTurn } from "@/lib/authClientTurn";
 import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
@@ -98,6 +98,7 @@ import {
   beginCanonicalAuthAttempt,
   cancelAuthAttempt,
   defaultEmailAuthNext,
+  hasPendingAuthAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
   scrubLingeringAuthCallback,
@@ -125,6 +126,7 @@ import {
 } from "@/lib/authSessionBootstrap";
 import {
   clearPersistedSession,
+  fetchResumeHint,
   persistSessionForResume,
   markResumePersisted,
   resumeAlreadyPersisted,
@@ -674,12 +676,33 @@ export function AuthProvider({
 
     // A signed-out reader opening the map loads the client after the pins
     // (lib/authClientTurn.ts). The ceiling above starts when the load does.
+    // One durable-cookie read serves the wait below and the bootstrap.
+    let resumeHint: ReturnType<typeof fetchResumeHint> | null = null;
+    const readResumeHint = () => (resumeHint ??= fetchResumeHint());
     const clientTurn = authClientTurn(window, {
       storedSession: hasStoredBrowserSession(browserLocalStorage()),
-      nativeShell: nativePlatform() !== null,
+      pendingSignIn: hasPendingAuthAttempt(browserLocalStorage()),
       pinsVisible: performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0,
       callback: callbackCapture.then((captured) => Boolean(captured?.attempt)),
+      durableSession: () => readResumeHint().then((hint) => hint.status !== "absent"),
+      clientBuilt: ensureSupabaseBrowserForSession,
     });
+    // No stored session, no durable cookie and no callback is a signed-out
+    // reader. Say so now, so the sign-in invitation shows before the pins
+    // although the client loads after them. The bootstrap repeats the answer.
+    if (clientTurn.waiting) {
+      void Promise.all([callbackCapture, readResumeHint()]).then(([captured, hint]) => {
+        if (!active || captured?.attempt || hint.status !== "absent") return;
+        if (readProviderAuthState("supabase") !== "unresolved") return;
+        const signedOutState = resolveSupabaseAuthState(
+          "bootstrap",
+          false,
+          sessionTransitions.current.currentUserId(),
+        );
+        if (signedOutState) setProviderAuthState("supabase", signedOutState);
+        setSessionLoading(false);
+      }, () => {});
+    }
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
     // subscribe and restore. Everything client-dependent runs after it resolves.
@@ -991,7 +1014,7 @@ export function AuthProvider({
         sessionRestoreInFlight.current = true;
         let bootstrapped: Awaited<ReturnType<typeof bootstrapAuthSession>>;
         try {
-          bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(supabase.auth).catch(
+          bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(supabase.auth, { readHint: readResumeHint }).catch(
             () => ({ status: "unavailable" } as const),
           ));
         } finally {

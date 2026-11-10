@@ -71,6 +71,7 @@ vi.mock("@/lib/authProviderAvailability", () => ({
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false , microsoft: false },
 }));
 vi.mock("@/lib/authRedirect", () => ({
+  hasPendingAuthAttempt: () => false,
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax:auth-fragment-restored",
   beginCanonicalAuthAttempt: authRedirect.begin,
   cancelAuthAttempt: vi.fn(),
