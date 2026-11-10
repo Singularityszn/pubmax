@@ -1303,16 +1303,12 @@ export const supabaseMessagesStore: MessagesStore = {
       );
     }
 
-    // A DELETED CHAT stays out of this viewer's inbox until somebody says
-    // something after the delete. Its newest message decides; a thread whose
-    // newest message we could not read falls back to the conversation's own
-    // last-message stamp.
     const visible = rows.filter((row) => {
       const id = String(row.id);
       const mark = deletions.byConversation.get(id);
       if (!mark) return true;
       const last = lastByConversation.get(id);
-      return afterDeleteMark(last ? last.created_at : row.last_message_at, mark);
+      return last !== undefined && afterDeleteMark(last.created_at, mark);
     });
     if (visible.length === 0) return READY_EMPTY_INBOX;
 
@@ -1682,9 +1678,21 @@ async function visibleConversationRows(
   if (rows.length === 0) return rows;
   const deletions = await readInboxDeletions(rows.map((row) => String(row.id)), me);
   if (deletions.degraded) throw new MessageReadUnavailableError();
-  return rows.filter((row) =>
-    afterDeleteMark(row.last_message_at, deletions.byConversation.get(String(row.id))),
-  );
+  const visible = await Promise.all(rows.map(async (row) => {
+    const id = String(row.id);
+    const mark = deletions.byConversation.get(id);
+    if (!mark) return true;
+    const { data, error } = await admin()
+      .from(MESSAGES)
+      .select("created_at")
+      .eq("conversation_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new MessageReadUnavailableError();
+    return data !== null && afterDeleteMark(data.created_at, mark);
+  }));
+  return rows.filter((_, index) => visible[index]);
 }
 
 async function readGroupConversationRows(

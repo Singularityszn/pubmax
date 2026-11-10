@@ -20,7 +20,10 @@ const transport = vi.hoisted(() => ({
   reads: [] as Array<{ url: string; resolve: (response: Response) => void; reject: (error: Error) => void }>,
   writes: [] as Array<{ resolve: (response: Response) => void; reject: (error: Error) => void }>,
 }));
-const realtime = vi.hoisted(() => ({ poll: null as (() => void) | null }));
+const realtime = vi.hoisted(() => ({
+  poll: null as (() => void) | null,
+  signal: null as (() => void) | null,
+}));
 
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => viewer.current }));
 vi.mock("@/components/auth/useViewerSession", () => ({
@@ -32,10 +35,12 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...props }, children),
 }));
 vi.mock("@/lib/messagesRealtime", () => ({
-  subscribeToMessages: (_id: string, _signal: () => void, options?: { poll?: () => void }) => {
+  subscribeToMessages: (_id: string, signal: () => void, options?: { poll?: () => void }) => {
     realtime.poll = options?.poll ?? null;
+    realtime.signal = signal;
     return () => {
       realtime.poll = null;
+      realtime.signal = null;
     };
   },
 }));
@@ -134,6 +139,7 @@ beforeEach(() => {
   transport.reads = [];
   transport.writes = [];
   realtime.poll = null;
+  realtime.signal = null;
   window.localStorage.setItem("pubmax_handle", "alice");
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -306,6 +312,49 @@ it.each(["unsend", "delete", "leave"] as const)("ignores a pre-%s read after the
   await answer(removableThread());
   expect(host.textContent).not.toContain("Take this back");
   expect(host.textContent).toContain(kind === "unsend" ? "Message unsent" : kind === "delete" ? "Chat deleted" : "You've left");
+});
+
+it.each(["delete", "leave"] as const)("keeps the successful %s state through later refreshes", async (kind) => {
+  await render();
+  await answer(removableThread());
+  await requestRemoval(kind);
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ ok: true })));
+  await poll();
+  await act(async () => {
+    realtime.signal?.();
+    window.dispatchEvent(new Event("focus"));
+  });
+  await settle();
+  expect(transport.reads).toHaveLength(0);
+  expect(host.textContent).toContain(kind === "delete" ? "Chat deleted" : "You've left");
+  expect(host.querySelector("textarea")).toBeNull();
+});
+
+it("continues refreshing the thread after a successful unsend", async () => {
+  await render();
+  await answer(removableThread());
+  await requestRemoval("unsend");
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ ok: true })));
+  await poll();
+  await answer(thread("A later message"));
+  expect(host.textContent).toContain("A later message");
+  expect(host.querySelector("textarea")).not.toBeNull();
+});
+
+it.each([
+  ["delete", "thread"], ["delete", "account"],
+  ["leave", "thread"], ["leave", "account"],
+] as const)("resumes reads after %s when the %s changes", async (kind, change) => {
+  await render();
+  await answer(removableThread());
+  await requestRemoval(kind);
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ ok: true })));
+  if (change === "account") viewer.current = { user: { id: "account-b" }, handle: "bridget", accountRevision: 2 };
+  const id = change === "thread" ? "conversation-b" : "conversation-a";
+  await render(id);
+  await answer(thread("Current thread", id));
+  expect(host.textContent).toContain("Current thread");
+  expect(host.textContent).not.toContain(kind === "delete" ? "Chat deleted" : "You've left");
 });
 
 it.each(["thread", "account"] as const)("ignores old removal success after a %s change", async (change) => {

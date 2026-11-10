@@ -383,9 +383,11 @@ export default function MessageThread({
    * conversation or reader raises it past every read already sent.
    */
   const readFloorRef = useRef(0);
+  const removedForRef = useRef<ThreadReadKey | null>(null);
   const removalEpochRef = useRef(0);
   useLayoutEffect(() => () => {
     removalEpochRef.current += 1;
+    removedForRef.current = null;
   }, [accountRevision, conversationId]);
   const conversationIdRef = useRef(conversationId);
   /** Whether the inbox has already been asked to name THIS empty thread. */
@@ -471,6 +473,7 @@ export default function MessageThread({
     async (signal?: AbortSignal) => {
       const requestRevision = accountRevision;
       if (requestRevision !== accountRevisionRef.current) return;
+      if (sameThreadReadKey(removedForRef.current, conversationId, requestRevision)) return;
       const requestKey: ThreadReadKey = { conversationId, accountRevision: requestRevision };
       const generation = requestGenerationRef.current + 1;
       requestGenerationRef.current = generation;
@@ -935,6 +938,7 @@ export default function MessageThread({
         );
         return;
       }
+      removedForRef.current = { conversationId, accountRevision: requestRevision };
       // The inbox beside the thread and the nav badge both re-read now: a
       // chat that left this person's inbox takes its unread count with it.
       announceMessagesRead();

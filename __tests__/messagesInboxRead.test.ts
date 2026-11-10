@@ -504,7 +504,9 @@ describe("removal privacy on durable reads", () => {
     await expect(supabaseMessagesStore.listConversations("ken")).resolves.toEqual({ conversations: [], status: "degraded" });
   });
 
-  it.each(["direct", "group"])("replenishes the %s inbox after 100 deleted chats", async (kind) => {
+  it.each([
+    ["direct", false], ["group", false], ["direct", true], ["group", true],
+  ] as const)("replenishes the %s inbox after 100 deleted chats (restored: %s)", async (kind, restored) => {
     const rows = Array.from({ length: 201 }, (_, i) => ({
       id: `chat-${i}`,
       handle_a: "ken",
@@ -532,11 +534,29 @@ describe("removal privacy on durable reads", () => {
         const ids = filterValue(q, "in")?.[1] as string[];
         return { data: ids.filter((id) => deleted.has(id)).map((id) => ({ conversation_id: id, deleted_at: "2027-01-01T00:00:00Z" })), error: null };
       }
+      if (q.table === "messages") {
+        const id = filterValue(q, "eq")?.[1];
+        const ids = filterValue(q, "in")?.[1] as string[] | undefined;
+        const messages = rows
+          .filter((row) => id ? row.id === id : ids?.includes(row.id))
+          .map((row) => ({
+            conversation_id: row.id,
+            sender_handle: "ken",
+            body: "Hello again",
+            created_at: restored && row.id === "chat-0" ? "2028-01-01T00:00:00Z" : row.last_message_at,
+          }))
+          .sort((a, b) => b.created_at.localeCompare(a.created_at));
+        return { data: q.single ? messages[0] ?? null : messages, error: null };
+      }
       return { data: [], error: null };
     };
     const inbox = await supabaseMessagesStore.listConversations("ken");
     expect(inbox.status).toBe("ready");
-    expect(inbox.conversations.map((row) => row.id)).toEqual(rows.slice(100, 200).map((row) => row.id));
+    expect(inbox.conversations.map((row) => row.id)).toEqual(
+      restored
+        ? ["chat-0", ...rows.slice(100, 199).map((row) => row.id)]
+        : rows.slice(100, 200).map((row) => row.id),
+    );
   });
 
   it("keeps deleted history unread when a new message restores the thread", async () => {
@@ -559,6 +579,25 @@ describe("removal privacy on durable reads", () => {
     await expect(supabaseMessagesStore.markRead(C1, "ken")).resolves.toBe(1);
     expect(rows[0]?.read_at).toBeNull();
     expect(rows[1]?.read_at).not.toBeNull();
+  });
+
+  it.each(["direct", "group"])("does not restore a deleted %s chat from metadata alone", async (kind) => {
+    state.answer = (q) => {
+      if (q.table === "conversation_members") return { data: kind === "group" ? [{ conversation_id: C1 }] : [], error: null };
+      if (q.table === "conversations") return {
+        data: kind === "group" && !filterValue(q, "in") ? [] : [{
+          id: C1, handle_a: "ken", handle_b: "sam", kind, last_message_at: "2028-01-01T00:00:00Z",
+        }],
+        error: null,
+      };
+      if (q.table === "conversation_deletions") return { data: [{ conversation_id: C1, deleted_at: "2027-01-01T00:00:00Z" }], error: null };
+      if (q.table === "messages") {
+        const message = { conversation_id: C1, body: "Deleted history", created_at: "2026-01-01T00:00:00Z" };
+        return { data: q.single ? message : [message], error: null };
+      }
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.listConversations("ken")).resolves.toEqual({ conversations: [], status: "ready" });
   });
 
   it("fails closed before 0230 and reads unsend state after the migration without restarting", async () => {
