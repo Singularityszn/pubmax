@@ -841,7 +841,43 @@ function sameCreatedDrop(existing: PintDrop, input: PintDrop): boolean {
   return existing.id === input.id && existing.venueId === input.venueId &&
     existing.authorityKey === input.authorityKey &&
     (Boolean(input.authorityKey) || normalizeViewerHandle(existing.handle) === normalizeViewerHandle(input.handle)) &&
-    existing.priceGbp === input.priceGbp;
+    existing.priceGbp === input.priceGbp &&
+    existing.drink === input.drink &&
+    cleanDrinkMeasure(existing.measure) === cleanDrinkMeasure(input.measure) &&
+    (existing.measureLabel ?? "") === (input.measureLabel ?? "") &&
+    existing.passedDownNote === input.passedDownNote &&
+    existing.era === input.era &&
+    visibilityOf(existing) === visibilityOf(input) &&
+    JSON.stringify([...(existing.vibeTags ?? [])].sort()) === JSON.stringify([...(input.vibeTags ?? [])].sort()) &&
+    (existing.leaveByIso ? Date.parse(existing.leaveByIso) : null) ===
+      (input.leaveByIso ? Date.parse(input.leaveByIso) : null) &&
+    (existing.lastTrainDecision ?? null) === (input.lastTrainDecision ?? null);
+}
+
+export class PintDropReplayConflictError extends Error {
+  constructor() {
+    super("Pint Drop id already exists with different details.");
+    this.name = "PintDropReplayConflictError";
+  }
+}
+
+function replayBeforeCap(
+  existing: PersistableDrop | undefined,
+  input: PintDrop,
+  capped = false,
+): PersistableDrop | undefined {
+  if (existing) {
+    if (!sameCreatedDrop(existing, input)) throw new PintDropReplayConflictError();
+    return existing;
+  }
+  if (capped) throw new PintDropDailyCapError();
+  return undefined;
+}
+
+async function durableCreatedDrop(id: string): Promise<PersistableDrop | undefined> {
+  const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? fromRow(data) : undefined;
 }
 
 export const memoryPintDropStore: PintDropStore = {
@@ -861,20 +897,13 @@ export const memoryPintDropStore: PintDropStore = {
     // a priced drop is `unchecked`, whatever the caller's object said, until
     // the bill check reads its bill (lib/pintDropReceipt.ts).
     const drop = withEarnedEvidence(input);
-    // The same hard guard the Supabase backend gets from
-    // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
-    // pre-check and this create sit either side of an await, so two in-flight
-    // requests can both read "no price yet" here exactly as they could against
-    // Postgres. Asked against the drop's OWN day, so the row and the rule agree.
     const cappedVenueIds = dailyCapDay(drop, options) !== null ? await storedVenueIds(drop.venueId) : [];
-    const existing = findPintDropsByIds([drop.id]).get(drop.id);
-    if (existing) {
-      if (!sameCreatedDrop(existing, drop)) throw new Error("Pint Drop id already exists.");
-      return { ...toDTO(existing), created: false };
-    }
-    if (cappedVenueIds.some((id) => hasPricedDropTodayMemory(id, drop.handle, new Date(drop.createdAt)))) {
-      throw new PintDropDailyCapError();
-    }
+    const existing = replayBeforeCap(
+      findPintDropsByIds([drop.id]).get(drop.id),
+      drop,
+      cappedVenueIds.some((id) => hasPricedDropTodayMemory(id, drop.handle, new Date(drop.createdAt))),
+    );
+    if (existing) return { ...toDTO(existing), created: false };
     // Photos are not stored: there is no Storage without Supabase. The bill
     // itself is read by the route's background bill check, from the bytes
     // that arrived.
@@ -1304,6 +1333,20 @@ export const supabasePintDropStore: PintDropStore = {
     // still earn `receipt`: our outage may not cost the drinker the standing
     // their bill shows.
     const drop = withEarnedEvidence(input);
+    if (dailyCapDay(drop, options) !== null) {
+      let capped = false;
+      try {
+        capped = await supabasePintDropStore.hasPricedDropToday(drop.venueId, drop.handle, Date.parse(drop.createdAt));
+      } catch (err) {
+        log("warn", "pint_drops.dedupe_check_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      if (capped) {
+        const existing = replayBeforeCap(await durableCreatedDrop(drop.id), drop, true);
+        if (existing) return { ...await toDTOWithPhotos(existing), created: false };
+      }
+    }
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
     const creation: { existing?: PersistableDrop } = {};
@@ -1350,14 +1393,12 @@ export const supabasePintDropStore: PintDropStore = {
       const insert = async (candidate: typeof row) => {
         const { error: insertError } = await admin().from(TABLE).insert(candidate);
         if (insertError?.code === "23505") {
-          const { data, error: readError } = await admin().from(TABLE).select("*").eq("id", drop.id).maybeSingle();
-          if (readError) throw new Error(readError.message);
-          if (data) {
-            const stored = fromRow(data);
-            if (sameCreatedDrop(stored, drop)) {
-              creation.existing = stored;
-              return null;
-            }
+          const existing = replayBeforeCap(
+            await durableCreatedDrop(drop.id), drop, isDailyPriceCapViolation(insertError),
+          );
+          if (existing) {
+            creation.existing = existing;
+            return null;
           }
         }
         if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
@@ -1502,6 +1543,10 @@ export const supabasePintDropStore: PintDropStore = {
       // logged as one: an error line per refused duplicate would read as a
       // storage failure in every dashboard. It still cleans up its photos and
       // still rethrows, and the route answers the ordinary 409.
+      if (err instanceof PintDropReplayConflictError) {
+        await deletePhotos(uploaded);
+        throw err;
+      }
       if (isPintDropDailyCapError(err)) {
         log("warn", "pint_drops.daily_cap_conflict", {
           dropId: drop.id,
@@ -1543,10 +1588,8 @@ export const supabasePintDropStore: PintDropStore = {
   },
 
   async findCreated(input) {
-    const { data, error } = await admin().from(TABLE).select("*").eq("id", input.id).maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return null;
-    const stored = fromRow(data);
+    const stored = await durableCreatedDrop(input.id);
+    if (!stored) return null;
     return sameCreatedDrop(stored, input) ? toDTOWithPhotos(stored) : "conflict";
   },
 

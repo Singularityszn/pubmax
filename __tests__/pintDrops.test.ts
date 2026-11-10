@@ -1133,35 +1133,6 @@ describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", 
     const note = await post({ venueId: "note-pub", handle: "reg", passedDownNote: "my old local" });
     expect(note.status).toBe(201);
   });
-
-  it("answers the SAME refusal when the pre-check misses and the store refuses (0141)", async () => {
-    expect((await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.5 })).status).toBe(201);
-
-    const soft = await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.6 });
-    expect(soft.status).toBe(409);
-    const softBody = await soft.json();
-
-    // The pre-check is fail-open by design, and that is the hole a concurrent
-    // burst walks through: every request in flight reads "no price yet" before
-    // any row lands. Make the lookup fail and the HARD guard has to answer -
-    // the unique index on the Supabase backend, its mirror here - and it has to
-    // answer with the same sentence and the same status, because the drinker
-    // did the same thing either way.
-    const precheck = vi
-      .spyOn(memoryPintDropStore, "hasPricedDropToday")
-      .mockRejectedValue(new Error("lookup unavailable"));
-    try {
-      const hard = await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.7 });
-      expect(hard.status).toBe(409);
-      expect(await hard.json()).toEqual(softBody);
-    } finally {
-      precheck.mockRestore();
-    }
-
-    // And the refusal kept the first observation rather than stacking a second.
-    const drops = (await (await get("burst-pub")).json()).drops as Array<{ priceGbp: number }>;
-    expect(drops.map((row) => row.priceGbp)).toEqual([4.5]);
-  });
 });
 
 describe("POST /api/pint-drops — a retry resends its first clientRequestId", () => {
@@ -1237,6 +1208,26 @@ describe("POST /api/pint-drops — a retry resends its first clientRequestId", (
     expect((await post(note)).status).toBe(201);
     expect((await post(note)).status).toBe(200);
     expect((await (await get("retry-note-pub")).json()).drops).toHaveLength(1);
+  });
+
+  it("refuses changed note text on the early replay path and after a missed lookup", async () => {
+    const note = { venueId: "changed-note-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+    expect((await post(note)).status).toBe(201);
+    const changed = { ...note, passedDownNote: "a different memory" };
+    const early = await post(changed);
+    expect(early.status).toBe(409);
+    expect((await early.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
+    try {
+      const late = await post(changed);
+      expect(late.status).toBe(409);
+      expect((await late.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      const saved = (await (await get(note.venueId)).json()).drops;
+      expect(saved).toHaveLength(1);
+      expect(saved[0].passedDownNote).toBe(note.passedDownNote);
+    } finally {
+      lookup.mockRestore();
+    }
   });
 
   it("refuses a key resent for a different pub", async () => {

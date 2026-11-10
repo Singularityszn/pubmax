@@ -84,6 +84,8 @@ import {
   supabasePintDropStore,
   MAX_PUBLIC_DROPS,
   UncheckedPriceNotStorableError,
+  PintDropDailyCapError,
+  PintDropReplayConflictError,
 } from "@/lib/pintDropsStore";
 import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
@@ -391,6 +393,99 @@ describe("Pint Drop creation ownership", () => {
     expect(await memoryPintDropStore.listForModerationByIds([input.id])).toMatchObject([input]);
   });
 
+  it.each([
+    { drink: "Stout" },
+    { measure: "half" },
+    { measure: "other", measureLabel: "Glass" },
+    { passedDownNote: "A different memory" },
+    { era: "1990s" },
+    { visibility: "friends" },
+    { vibeTags: ["cheap"] },
+    { leaveByIso: "2026-01-01T00:30:00.000Z" },
+    { lastTrainDecision: "settle_up_now" },
+  ] satisfies Partial<PersistableDrop>[])("rejects changed retry details in both stores: %j", async (changed) => {
+    const input = drop({ id: "payload-retry", authorityKey: "account-a" });
+    await memoryPintDropStore.create(input, noPhotos);
+    const retry = { ...input, ...changed };
+    expect(await memoryPintDropStore.findCreated(retry)).toBe("conflict");
+    await expect(memoryPintDropStore.create(retry, noPhotos)).rejects.toThrow(PintDropReplayConflictError);
+
+    insertMock.mockReset();
+    insertMock.mockResolvedValue({ error: { code: "23505", message: "duplicate key" } });
+    const lookup = vi.spyOn(selectChain, "maybeSingle").mockResolvedValue({
+      data: {
+        id: input.id, venue_id: input.venueId, handle: input.handle, authority_key: input.authorityKey,
+        price_gbp: 4.2, drink: "", passed_down_note: "", era: "", status: "visible",
+        created_at: input.createdAt,
+      }, error: null,
+    });
+    try {
+      expect(await supabasePintDropStore.findCreated(retry)).toBe("conflict");
+      await expect(supabasePintDropStore.create(retry, noPhotos)).rejects.toThrow(PintDropReplayConflictError);
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it("matches durable defaults and equivalent timestamps on a retry", async () => {
+    const input = drop({
+      id: "normalised-retry", authorityKey: "account-a", vibeTags: ["cheap", "riverside"],
+      leaveByIso: "2026-01-01T00:30:00.000Z", lastTrainDecision: "settle_up_now",
+    });
+    const lookup = vi.spyOn(selectChain, "maybeSingle").mockResolvedValueOnce({
+      data: {
+        id: input.id, venue_id: input.venueId, handle: "old-handle", authority_key: input.authorityKey,
+        price_gbp: 4.2, status: "visible", created_at: input.createdAt, measure: "pint",
+        visibility: "public", vibe_tags: ["riverside", "cheap"],
+        leave_by_iso: "2026-01-01T00:30:00+00:00", last_train_decision: "settle_up_now",
+      }, error: null,
+    });
+    try {
+      expect(await supabasePintDropStore.findCreated(input)).toMatchObject({ id: input.id });
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it.each([
+    ["memory", memoryPintDropStore],
+    ["Supabase", supabasePintDropStore],
+  ] as const)(
+    "%s caps a new observation after a price-submit row without price_day", async (_backend, store) => {
+      const input = drop({ id: "new-keyed-price", authorityKey: "account-a" });
+      if (store === memoryPintDropStore) {
+        await store.create({ ...input, id: "price-submit-row" }, noPhotos);
+      }
+      reviewRowsRef.rows = [{ id: "price-submit-row", created_at: input.createdAt, price_day: null }];
+      const lookup = vi.spyOn(selectChain, "maybeSingle").mockResolvedValueOnce({ data: null, error: null });
+      try {
+        await expect(store.create(input, noPhotos, { underDailyPriceCap: true }))
+          .rejects.toThrow(PintDropDailyCapError);
+        expect(insertMock).not.toHaveBeenCalled();
+      } finally {
+        lookup.mockRestore();
+      }
+    },
+  );
+
+  it("recognises a durable replay after the cap read sees the first save", async () => {
+    const input = drop({ id: "cap-read-race", authorityKey: "account-a" });
+    reviewRowsRef.rows = [{ created_at: input.createdAt }];
+    const lookup = vi.spyOn(selectChain, "maybeSingle").mockResolvedValueOnce({
+      data: {
+        id: input.id, venue_id: input.venueId, handle: input.handle, authority_key: input.authorityKey,
+        price_gbp: 4.2, status: "visible", created_at: input.createdAt,
+      }, error: null,
+    });
+    try {
+      await expect(supabasePintDropStore.create(input, noPhotos, { underDailyPriceCap: true }))
+        .resolves.toMatchObject({ id: input.id, created: false });
+      expect(insertMock).not.toHaveBeenCalled();
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
   it.each(["pint_drops_pkey", "visit_reports_pkey", "pint_drops_priced_day_unique_idx"])("returns the stored durable drop and bill after a %s conflict", async (constraint) => {
     insertMock.mockReset();
     insertMock.mockResolvedValue({ error: { code: "23505", message: `duplicate key violates "${constraint}"` } });
@@ -405,7 +500,10 @@ describe("Pint Drop creation ownership", () => {
     });
     try {
       const result = await supabasePintDropStore.create(
-        drop({ id: "bound-drop", authorityKey: "account-a", handle: "new-handle" }), noPhotos,
+        drop({
+          id: "bound-drop", authorityKey: "account-a", handle: "new-handle",
+          drink: "Beer", passedDownNote: "Original submission",
+        }), noPhotos,
         { underDailyPriceCap: true },
       );
       expect(result).toMatchObject({
@@ -455,7 +553,7 @@ describe("Pint Drop creation ownership", () => {
       .mockResolvedValueOnce({ data: stored, error: null })
       .mockResolvedValueOnce({ data: null, error: null });
     try {
-      const input = drop({ id: "bound-drop", authorityKey: "account-a", handle: "new-handle" });
+      const input = drop({ id: "bound-drop", authorityKey: "account-a", handle: "new-handle", drink: "Beer" });
       expect(await supabasePintDropStore.findCreated(input)).toMatchObject({ id: "bound-drop", priceGbp: 4.2 });
       expect(await supabasePintDropStore.findCreated({ ...input, priceGbp: 7 })).toBe("conflict");
       expect(await supabasePintDropStore.findCreated(input)).toBeNull();
@@ -482,7 +580,7 @@ describe("Pint Drop creation ownership", () => {
     try {
       await expect(supabasePintDropStore.create(
         drop({ id: "bound-drop", authorityKey: "account-a" }), noPhotos,
-      )).rejects.toThrow("duplicate key");
+      )).rejects.toThrow(PintDropReplayConflictError);
     } finally {
       lookup.mockRestore();
     }
@@ -498,7 +596,7 @@ describe("Pint Drop creation ownership", () => {
     try {
       const input = drop({ id: "demo-retry", handle: "another-drinker" });
       expect(await supabasePintDropStore.findCreated(input)).toBe("conflict");
-      await expect(supabasePintDropStore.create(input, noPhotos)).rejects.toThrow("duplicate key");
+      await expect(supabasePintDropStore.create(input, noPhotos)).rejects.toThrow(PintDropReplayConflictError);
     } finally {
       lookup.mockRestore();
     }

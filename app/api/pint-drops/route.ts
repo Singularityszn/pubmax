@@ -44,6 +44,7 @@ import {
   isPintDropDailyCapError,
   isUncheckedPriceNotStorableError,
   PhotoRefusalError,
+  PintDropReplayConflictError,
   pintDropsStore,
   type PintDropDTO,
   type PintDropPhotos,
@@ -574,37 +575,7 @@ export async function POST(request: Request): Promise<Response> {
   const replay = await keyedReplay(dropPayload, canonicalDrop.id);
   if (replay) return replay;
 
-  // Duplicate guard (feat/price-drops-v2): one PRICED observation per
-  // venue+identity+London-day. A second priced drop at the same pub the same day
-  // is a 409, not a silent overwrite — the first observation is kept, and one
-  // actor can't stack rows to skew a venue's median. Note-only anecdotes are
-  // exempt (a passed-down memory isn't a price observation).
-  //
-  // This is the SOFT pre-check, and it is deliberately fail-open: a store hiccup
-  // here must not block an otherwise-good drop. It cannot be the whole rule,
-  // because it cannot see a burst: concurrent requests all read "no price yet"
-  // before any row lands, which is exactly how the cap was walked through. The
-  // HARD guard is the store's own (pint_drops_priced_day_unique_idx, migration
-  // 0141), and its refusal lands in the catch below wearing this same sentence.
-  if (dropPayload.priceGbp !== null && dropPayload.id === canonicalDrop.id) {
-    try {
-      if (await pintDropsStore().hasPricedDropToday(dropPayload.venueId, ownership.handle)) {
-        return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
-      }
-    } catch (err) {
-      log("warn", "pint_drops.dedupe_check_failed", {
-        route: "POST /api/pint-drops",
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
   try {
-    // This lane is the one that STATES the daily cap, so it is the one that
-    // opts into it: the store then claims the London day for this drop and the
-    // unique index behind it (0141) refuses the burst the pre-check above
-    // cannot see. The community-price pairing lane writes without this and
-    // keeps its own rule.
     const { created, ...drop } = await pintDropsStore().create(dropPayload, photos, {
       underDailyPriceCap: true,
     });
@@ -636,10 +607,9 @@ export async function POST(request: Request): Promise<Response> {
       { status: 201 },
     );
   } catch (err) {
-    // The daily cap, refused by the database (migration 0141). A drinker who
-    // hits the hard guard and one who hits the pre-check above did the same
-    // thing, so they are told the same thing: one sentence, one status, no way
-    // to tell which enforcer answered.
+    if (err instanceof PintDropReplayConflictError) {
+      return publicApiError("That Pint Drop was already sent with other details.", "IDEMPOTENCY_CONFLICT", 409);
+    }
     if (isPintDropDailyCapError(err)) {
       return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
     }
