@@ -18,7 +18,7 @@ vi.mock("@/lib/venueIndex", () => ({
 }));
 
 import { __resetDiary, diaryStore } from "@/lib/diaryStore";
-import { readPalTaste, readPalVisitedVenues } from "@/lib/palTaste.server";
+import { palNoveltyForAsk, readPalTaste, readPalVisitedVenues } from "@/lib/palTaste.server";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import * as pubPalStore from "@/lib/pubPalStore";
 import type { RatingValue } from "@/lib/ratings";
@@ -83,6 +83,24 @@ describe("readPalTaste", () => {
     const created = await diaryStore().create({ ownerUserId: "owner-alias", venueId: "venue-1s1ffqx", venueName: "The Three Colts Tavern", visitedOn: "2026-10-02", rating: null, review: "", visibility: "private" });
     expect(created.status).toBe("created");
     expect(await readPalVisitedVenues("owner-alias")).toEqual({ kind: "read", venueIds: new Set(["venue-1g0y58p"]) });
+  });
+
+  it("reads no one for an ordinary ask, and tells a novelty ask what it left out or why it could not", async () => {
+    const ownerId = vi.fn(async () => "owner-novel");
+    const ordinary = await palNoveltyForAsk("Find four pubs in Soho", ownerId);
+    const body = { answer: "Four picks." };
+    expect(ordinary.tell(body)).toBe(body);
+    expect(ordinary.excludeVenueIds).toBeUndefined();
+    expect(ownerId).not.toHaveBeenCalled();
+
+    await logVisit("owner-novel", "2026-10-02", 4);
+    const novel = await palNoveltyForAsk("Somewhere new in Soho", ownerId);
+    expect(novel.excludeVenueIds).toEqual(new Set(["venue-crown"]));
+    expect(novel.tell(body)).toEqual(body);
+
+    const signedOut = await palNoveltyForAsk("Surprise me", async () => null);
+    expect(signedOut.excludeVenueIds).toBeUndefined();
+    expect(signedOut.tell(body).answer).toBe("I don't know where you've been yet. Four picks.");
   });
 
   it("says the read is unavailable when the diary cannot be read", async () => {

@@ -3,7 +3,7 @@ import "server-only";
 import { diaryStore } from "@/lib/diaryStore";
 import { measureIsPint } from "@/lib/drinkMeasure";
 import { getNightAreasForCity, type NightArea } from "@/lib/nightAreas";
-import { buildPalTaste, palVisitedVenueIds, type PalTaste, type PalTastePlace } from "@/lib/palTaste";
+import { asksForSomewhereNew, buildPalTaste, palVisitedVenueIds, type PalTaste, type PalTastePlace } from "@/lib/palTaste";
 import { londonDayKey } from "@/lib/pintContributions";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
@@ -209,6 +209,27 @@ export async function palOnlyNewScope(ownerId: string | null): Promise<PalOnlyNe
   if (visited.kind === "unavailable") return { hint: ONLY_NEW_UNAVAILABLE };
   if (visited.venueIds.size === 0) return { hint: ONLY_NEW_NO_HISTORY };
   return { exclude: visited.venueIds, hint: "" };
+}
+
+/** What one typed ask needs for "somewhere new": the pubs to leave out and the words to say first. */
+export type PalNovelty = {
+  excludeVenueIds?: ReadonlySet<string>;
+  tell: <T extends { answer: string }>(body: T) => T;
+};
+
+const NOT_NOVEL: PalNovelty = { tell: (body) => body };
+
+/**
+ * The "somewhere new" read for a typed ask. Any other ask reads nothing, not
+ * even who is asking. `ownerId` is called only for a novelty ask.
+ */
+export async function palNoveltyForAsk(query: string, ownerId: () => Promise<string | null>): Promise<PalNovelty> {
+  if (!asksForSomewhereNew(query)) return NOT_NOVEL;
+  const scope = await palOnlyNewScope(await ownerId());
+  return {
+    excludeVenueIds: scope.exclude,
+    tell: (body) => (scope.hint ? { ...body, answer: `${scope.hint} ${body.answer}` } : body),
+  };
 }
 
 /** Test and eval only: forget every cached read. */
