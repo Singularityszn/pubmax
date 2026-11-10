@@ -91,7 +91,10 @@ export default function PricedLandingRows({
               >
                 {row.venueName}
               </Link>
-              <span className="drinkBrandDirectory__borough">
+              <span
+                className="drinkBrandDirectory__borough"
+                title={`${row.branchAddress ? `${row.branchAddress}, ` : ""}${row.borough}${row.nearbyArea ? `, near ${row.nearbyArea}` : ""}`}
+              >
                 {row.branchAddress ? (
                   <>
                     <span>{row.branchAddress}</span>

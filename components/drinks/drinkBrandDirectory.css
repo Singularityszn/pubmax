@@ -289,6 +289,20 @@
    sibling's column. Scoped above the collapse breakpoint, because the
    single-column grid below it would grow implicit tracks. */
 @media (min-width: 641px) {
+  .drinkBrandDirectory__details:not(.drinkBrandDirectory__details--withAction) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+    column-gap: 12px;
+  }
+
+  .drinkBrandDirectory__borough {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
   .drinkBrandDirectory__details--withAction .drinkBrandDirectory__contribution {
     grid-column: 5;
   }
