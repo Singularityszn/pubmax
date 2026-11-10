@@ -148,10 +148,12 @@ describe("getAccessToken", () => {
     const { setProviderIdentity, readProviderAccountRevision } = await import("@/lib/authProviderRevision");
     setProviderIdentity("supabase", providerOwner);
     const revision = readProviderAccountRevision();
-    const { getAccessToken } = await loadAuthClient();
+    const { ensureSupabaseBrowser, getAccessToken } = await loadAuthClient();
+    await ensureSupabaseBrowser();
 
     await expect(getAccessToken()).resolves.toBeNull();
     await expect(getAccessToken()).resolves.toBe("current-owner-token");
+    expect(getSession).toHaveBeenCalledTimes(2);
     expect(readProviderAccountRevision()).toBe(revision);
   });
 
@@ -165,14 +167,17 @@ describe("getAccessToken", () => {
     vi.stubGlobal("window", {});
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
-    createClient.mockReturnValue({ auth: { getSession: vi.fn().mockResolvedValue({
+    const getSession = vi.fn().mockResolvedValue({
       data: { session: { access_token: "old-supabase-token", user: { id: "account-a" } } },
-    }) } });
+    });
+    createClient.mockReturnValue({ auth: { getSession } });
     const { setProviderIdentity } = await import("@/lib/authProviderRevision");
     setProviderIdentity("clerk", "account-a");
-    const { getAccessToken } = await loadAuthClient();
+    const { ensureSupabaseBrowser, getAccessToken } = await loadAuthClient();
+    await ensureSupabaseBrowser();
 
     await expect(getAccessToken()).resolves.toBeNull();
+    expect(getSession).toHaveBeenCalledOnce();
   });
 
   it("keeps a matching Supabase session independent of the Clerk identity", async () => {
@@ -185,7 +190,8 @@ describe("getAccessToken", () => {
     const { setProviderIdentity } = await import("@/lib/authProviderRevision");
     setProviderIdentity("supabase", "account-a");
     setProviderIdentity("clerk", "different-clerk-account");
-    const { getAccessToken } = await loadAuthClient();
+    const { ensureSupabaseBrowser, getAccessToken } = await loadAuthClient();
+    await ensureSupabaseBrowser();
 
     await expect(getAccessToken()).resolves.toBe("current-supabase-token");
   });
@@ -221,7 +227,8 @@ describe("getAccessToken", () => {
     createClient.mockReturnValue({ auth: { getSession } });
     const { setProviderIdentity } = await import("@/lib/authProviderRevision");
     setProviderIdentity("supabase", "account-a");
-    const { getAccessToken } = await loadAuthClient();
+    const { ensureSupabaseBrowser, getAccessToken } = await loadAuthClient();
+    await ensureSupabaseBrowser();
 
     await expect(getAccessToken()).resolves.toBe("jwt-token");
     await expect(getAccessToken()).resolves.toBeNull();
@@ -232,12 +239,13 @@ describe("getAccessToken", () => {
     vi.stubGlobal("window", {});
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
-    createClient.mockReturnValue({
-      auth: { getSession: vi.fn().mockRejectedValue(new Error("storage blocked")) },
-    });
-    const { getAccessToken } = await loadAuthClient();
+    const getSession = vi.fn().mockRejectedValue(new Error("storage blocked"));
+    createClient.mockReturnValue({ auth: { getSession } });
+    const { ensureSupabaseBrowser, getAccessToken } = await loadAuthClient();
+    await ensureSupabaseBrowser();
 
     await expect(getAccessToken()).resolves.toBeNull();
+    expect(getSession).toHaveBeenCalledOnce();
   });
 });
 
