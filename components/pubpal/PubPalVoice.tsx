@@ -11,6 +11,7 @@ import type { PalGenome } from "@/lib/palGenome";
 import {
   readPalVoiceHost,
   registerPalVoicePanel,
+  revokePalVoiceCall,
   subscribePalVoiceHost,
   type PalVoicePanelProps,
 } from "@/lib/palVoiceHost";
@@ -214,6 +215,9 @@ export default function PubPalVoice({
   genome?: PalGenome;
   onMemoryChange?: () => void;
 }) {
+  useEffect(() => {
+    if (muted) revokePalVoiceCall();
+  }, [muted]);
   if (muted) return <PalVoiceMuted />;
   return (
     <VoiceAvailabilityGate

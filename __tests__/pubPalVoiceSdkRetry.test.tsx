@@ -33,7 +33,7 @@ vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) =>
     createElement("a", { href }, children),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }), usePathname: () => "/pal" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }), usePathname: () => "/pal", useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: requests.authedActionFetch }));
 // jsdom cannot play audio; the cues are proved in pubPalVoice.test.tsx.
 vi.mock("@/components/pubpal/palVoiceSounds", () => ({ playPalVoiceSound: vi.fn() }));

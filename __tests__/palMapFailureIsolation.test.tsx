@@ -22,7 +22,7 @@ const cards = points.map((point) => ({
 const answer = { status: "answered", message: "Four sourced Soho choices.", cards, proposals: [], toolsUsed: ["search_venues"] };
 
 vi.mock("next/dynamic", async () => ({ default: (await import("next/dist/shared/lib/app-dynamic")).default }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/pal" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/pal", useSearchParams: () => new URLSearchParams() }));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) => createElement("a", { href }, children),
 }));

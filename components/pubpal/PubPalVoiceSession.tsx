@@ -18,6 +18,7 @@ import type { Route } from "next";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -31,7 +32,7 @@ import {
   useConversationStatus,
 } from "@elevenlabs/react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mic, MicOff, Send } from "lucide-react";
 
@@ -159,6 +160,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 }) {
   const { getCurrentUserId } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams()?.toString() ?? "";
   const onMapRef = useOnMapRef();
   const {
     startSession,
@@ -295,10 +298,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return true;
   }, []);
   const openPubRef = useRef(openPub);
-  useEffect(() => () => {
-    nextStopRequestRef.current += 1;
-    if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
-  }, []);
+  useLayoutEffect(() => stayHere, [pathname, search, stayHere]);
 
   useEffect(() => {
     if (status === "connected" && !isSpeaking) return;

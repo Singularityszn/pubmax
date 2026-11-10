@@ -53,6 +53,10 @@ export function registerPalVoicePanel(element: HTMLElement, props: PalVoicePanel
   };
 }
 
+export function revokePalVoiceCall(): void {
+  update({ panel: null, props: null, engaged: false, ready: false });
+}
+
 export function setPalVoiceEngaged(engaged: boolean): void {
   if (state.engaged !== engaged) update({ engaged });
 }
