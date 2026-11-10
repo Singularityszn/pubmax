@@ -8,13 +8,13 @@ import { normalizeViewerHandle, type PintDrop } from "@/lib/pintDrops";
  * Three `el.click()` calls on Log it in one tick sent three POSTs, all 201, and
  * wrote three `pint_drops` rows 21 ms apart; a human double-tap on a slow
  * network does the same, and so does any retry of a request whose response was
- * lost. The client latch below is the first line, but a latch lives in one
+ * lost. The client latch is the first line, but a latch lives in one
  * browser tab and cannot speak for a retry, so the write path needs its own
  * answer.
  *
  * It is deliberately NOT the daily cap. `POST /api/price-submit` pairs a drop
- * with every community price and takes several from one account at one pub in
- * one day ON PURPOSE (AGENTS.md), so a day-wide guard would refuse the second
+ * with each beer pint price and takes several from one account at one pub in
+ * one day ON PURPOSE, so a day-wide guard would refuse the second
  * honest correction of an evening. Six seconds refuses a duplicate tap and a
  * lost-response retry, and refuses nothing a drinker meant twice.
  */
