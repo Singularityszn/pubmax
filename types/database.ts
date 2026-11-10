@@ -7835,6 +7835,18 @@ export type Database = {
         };
         Returns: Json;
       };
+      create_one_tap_price_pair_atomic: {
+        Args: {
+          p_venue_id: string | null;
+          p_drink_category: string | null;
+          p_price_pennies: number | null;
+          p_actor: string | null;
+          p_contributor_handle: string | null;
+          p_submitted_at: string | null;
+          p_drop: Json;
+        };
+        Returns: Json;
+      };
       create_plan_atomic: {
         Args: {
           p_id: string | null;
