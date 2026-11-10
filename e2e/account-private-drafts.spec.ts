@@ -3,7 +3,7 @@ import { ACCOUNTS, AUTH_STORAGE_KEY, DEVICE_ACCOUNTS_KEY, accessJwt, installAuth
 import { installDeterministicMapBasemap } from './helpers/mapNetworkFixtures';
 import type { SpeechRecognitionLike } from '../lib/pintDropSpeech';
 
-type HarnessWindow = Window & {
+type HarnessWindow = typeof window & {
   g13Speech: { stopCount: number; deliver: (text: string) => void };
   g13AuthChannel: BroadcastChannel;
   SpeechRecognition: new () => SpeechRecognitionLike;
@@ -57,7 +57,7 @@ async function setup(page: Page, width = 390) {
     }))));
   }, { accounts: ACCOUNTS, accountsKey: DEVICE_ACCOUNTS_KEY, width });
   await page.addInitScript(() => {
-    const state = { stopCount: 0, deliver: (_text: string) => {} };
+    const state: HarnessWindow['g13Speech'] = { stopCount: 0, deliver: () => {} };
     (window as HarnessWindow).g13Speech = state;
     (window as HarnessWindow).SpeechRecognition = class implements SpeechRecognitionLike {
       lang = ''; interimResults = false; continuous = false;
