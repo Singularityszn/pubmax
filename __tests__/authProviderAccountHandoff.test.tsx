@@ -12,6 +12,7 @@ import { createRoot, type Root } from "react-dom/client";
 import type { Session } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthContextValue } from "@/components/auth/authContext";
+import { defined } from "./helpers/defined";
 
 const h = vi.hoisted(() => ({
   session: null as Session | null,
@@ -194,9 +195,10 @@ describe("remembered-account refusal feedback", () => {
 
     const alerts = document.querySelectorAll<HTMLElement>('[role="alert"]');
     expect(alerts).toHaveLength(1);
-    expect(alerts[0].textContent).toContain("This account has been banned");
+    const alert = defined(alerts[0], "ban alert");
+    expect(alert.textContent).toContain("This account has been banned");
     expect(document.querySelector('[role="dialog"]')).toBeNull();
-    const dismiss = alerts[0].querySelector<HTMLButtonElement>("button")!;
+    const dismiss = alert.querySelector<HTMLButtonElement>("button")!;
     dismiss.focus();
     expect(document.activeElement).toBe(dismiss);
     expect(h.session?.user.id).toBe("leaving");
