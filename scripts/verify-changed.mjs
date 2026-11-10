@@ -14,27 +14,6 @@ import { POSTGRES_BACKED_SUITES } from "./rls/postgresSuites.mjs";
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-/**
- * A module imported directly by more than this many tracked modules is a hub:
- * a change to it reaches most of the suite anyway, so it runs the full bar.
- * Measured 16 October 2026: 37 lib/ modules sit above 40 (lib/supabase.ts at
- * 414, lib/venues.ts at 310), out of 1,115 lib/ modules anything imports.
- */
-export const FULL_SUITE_FAN_IN = 40;
-
-/** Paths every test, every compile or every lint reads, so a change runs the full bar. */
-export const FOUNDATIONS = Object.freeze([
-  /^package(?:-lock)?\.json$/,
-  /^vitest\.(?:config|setup)\.[cm]?[jt]s$/,
-  /^tsconfig[^/]*\.json$/,
-  /^eslint\.config\.[cm]?js$/,
-  /^next\.config\.[cm]?[jt]s$/,
-  /^__tests__\/helpers\//,
-  // The gate's own plan: a change to it proves itself on the whole suite.
-  /^scripts\/verify-changed\.(?:mjs|d\.mts)$/,
-  /^scripts\/run-with-restored-bundled-data\.mjs$/,
-]);
-
 const SOURCE = /\.(?:[cm]?[jt]s|tsx|jsx)$/;
 const LINTED = /\.(?:[cm]?[jt]s|tsx|jsx)$/;
 const TYPESCRIPT = /\.(?:m?ts|tsx)$/;
@@ -72,10 +51,11 @@ const EXTENSIONS = ["", ".ts", ".tsx", ".mts", ".mjs", ".js", ".cjs", "/index.ts
  * not a tracked file and is dropped.
  * @param {string[]} files repo-relative tracked source files
  * @param {(path: string) => string} readText
+ * @param {string[]} [resolverCandidates] additional targets, including deleted paths, resolved without reading them
  * @returns {Map<string, Set<string>>}
  */
-export function importGraph(files, readText) {
-  const tracked = new Set(files);
+export function importGraph(files, readText, resolverCandidates = []) {
+  const tracked = new Set([...files, ...resolverCandidates]);
   const resolveSpecifier = (from, specifier) => {
     let base;
     if (specifier.startsWith("@/")) base = specifier.slice(2);
@@ -107,25 +87,6 @@ export function importGraph(files, readText) {
 }
 
 /**
- * Why this change runs the full `npm run verify`, or null when it can be scoped.
- * @param {ChangedFile[]} changed
- * @param {Map<string, Set<string>>} importers
- * @param {Record<string, string | undefined>} [env]
- */
-export function fullSuiteReason(changed, importers, env = {}) {
-  if (env.PUBMAX_VERIFY_FULL === "1") return "PUBMAX_VERIFY_FULL=1 is set";
-  for (const { path, status } of changed) {
-    if (matchesAny(FOUNDATIONS, path)) return `${path} is a shared foundation`;
-    if (status === "D" && SOURCE.test(path) && !TEST_FILE.test(path)) return `${path} was deleted, so its importers cannot be scoped`;
-    const fan = importers.get(path)?.size ?? 0;
-    if (fan > FULL_SUITE_FAN_IN) {
-      return `${path} is imported directly by ${fan} modules (more than ${FULL_SUITE_FAN_IN})`;
-    }
-  }
-  return null;
-}
-
-/**
  * @param {{
  *   changed: ChangedFile[],
  *   importers: Map<string, Set<string>>,
@@ -147,9 +108,12 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
     ...(importers.get(path) ?? []),
     ...(path.endsWith(".d.mts") ? (importers.get(path.replace(/\.d\.mts$/, ".mjs")) ?? []) : []),
   ];
-  const typecheck = present
-    .flatMap((path) => [path, ...importersOf(path)])
-    .filter((path) => TYPESCRIPT.test(path) && !NOT_TYPECHECKED.test(path));
+  const deleted = new Set(paths.filter((path) => !present.includes(path)));
+  // A deleted module has no file for vitest related to start from, so its importers stand in.
+  const orphaned = [...deleted].flatMap(importersOf);
+  const typecheck = [...present.flatMap((path) => [path, ...importersOf(path)]), ...orphaned].filter(
+    (path) => TYPESCRIPT.test(path) && !NOT_TYPECHECKED.test(path),
+  );
 
   const named = testFiles.filter((test) => {
     let text;
@@ -161,11 +125,10 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
     // Deleted paths too: a fence that reads a deleted doc must fail here.
     return paths.some((path) => path !== test && text.includes(path));
   });
-  const deleted = new Set(paths.filter((path) => !present.includes(path)));
 
   // A PostgreSQL suite anywhere upstream of the change needs the cluster run.
   const reached = new Set();
-  const queue = [...present];
+  const queue = [...present, ...deleted];
   while (queue.length > 0) {
     for (const importer of importersOf(queue.pop())) {
       if (!reached.has(importer)) {
@@ -175,11 +138,16 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
     }
   }
 
+  // Vitest treats package and runner config paths as requests to run every test.
+  const related = present.flatMap((path) =>
+    /(?:^|\/)(?:package\.json|(?:vitest|vite)\.config\.[^/]+)$/.test(path) ? importersOf(path) : [path],
+  );
+
   return {
-    full: fullSuiteReason(changed, importers, env),
+    full: env.PUBMAX_VERIFY_FULL === "1" ? "PUBMAX_VERIFY_FULL=1 is set" : null,
     lint: sorted(present.filter((path) => LINTED.test(path))),
     typecheck: sorted(typecheck),
-    tests: sorted([...present, ...named].filter((path) => !postgres.has(path) && !deleted.has(path))),
+    tests: sorted([...related, ...named, ...orphaned].filter((path) => !postgres.has(path) && !deleted.has(path))),
     rls:
       touches(RLS_INPUTS) ||
       paths.some((path) => postgres.has(path)) ||
@@ -330,7 +298,7 @@ function main() {
   const readText = (path) => readFileSync(join(REPO_ROOT, path), "utf8");
   const plan = planChecks({
     changed,
-    importers: importGraph(sources, readText),
+    importers: importGraph(sources, readText, changed.map((file) => file.path)),
     testFiles: sources.filter((path) => TEST_FILE.test(path)),
     readText,
     env: process.env,
