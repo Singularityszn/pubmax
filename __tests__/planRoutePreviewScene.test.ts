@@ -143,10 +143,11 @@ describe("Pal picks after scene assembly", () => {
         { id: "pal-picks-scrim", type: "background", paint: { "background-opacity": 0.55 }, layout: {} },
       ]);
       const ctx = { map: scene.map, selectionMuteStore: new Map(), selectedId: "" } as SceneCtx;
-      scene.map.addLayer({ id: "pubs-point", type: "circle" });
+      scene.map.addSource("pubs", { type: "geojson", data: STOPS });
+      scene.map.addLayer({ id: "pubs-point", type: "circle", source: "pubs" });
       applySelectionState(ctx, true);
       expect(scene.order().at(-1)).toBe("pal-picks-scrim");
-      scene.map.addLayer({ id: "tonight", type: "circle" });
+      scene.map.addLayer({ id: "tonight", type: "circle", source: "pubs" });
       applySelectionState(ctx);
       expect(scene.order().at(-1)).toBe("pal-picks-scrim");
       expect(scene.find("pal-picks-scrim")?.paint["background-opacity"]).toBe(0.55);

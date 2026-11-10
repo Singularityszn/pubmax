@@ -51,5 +51,6 @@
 }
 
 .palPicksActive .donut-cluster-marker {
-  opacity: 0.45;
+  /* MapLibre rewrites marker opacity inline after camera and terrain updates. */
+  opacity: 0.45 !important;
 }

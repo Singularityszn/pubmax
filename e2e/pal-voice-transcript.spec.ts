@@ -400,6 +400,9 @@ for (const width of [390, 1440]) {
     hear(socket, "Show me the map");
     await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
     await expectMapLoadingFrameReleased(page);
+    await expect.poll(() => page.evaluate(() => Boolean(
+      (window as unknown as { __pubmaxMapCamera?: unknown }).__pubmaxMapCamera,
+    ))).toBe(true);
     const camera = () => page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
     const picks = () => page.evaluate(() => (window as unknown as { __pubmaxPalPicks?: () => PalPicksProbe }).__pubmaxPalPicks?.() ?? null);
     await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }, { timeout: 20_000 }).toBe(true);

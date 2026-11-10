@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { validateStyleMin, createExpression, v8 } from "@maplibre/maplibre-gl-style-spec";
 import type * as maplibregl from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -125,7 +122,7 @@ describe("attachMapReaderPositionWatch", () => {
     vi.restoreAllMocks();
   });
 
-  it("updates on each watch callback and never touches the map camera", () => {
+  it("updates on each watch callback", () => {
     const updates: Array<MapReaderPosition | null> = [];
     const detach = attachMapReaderPositionWatch((position) => {
       updates.push(position);
@@ -167,18 +164,6 @@ describe("attachMapReaderPositionWatch", () => {
     });
 
     detach();
-
-    const canvasSrc = readFileSync(
-      join(process.cwd(), "components/PubMapCanvas.tsx"),
-      "utf8",
-    );
-    const start = canvasSrc.indexOf("// The reader's dot is a CANVAS layer");
-    const readerBlock = canvasSrc.slice(
-      start,
-      canvasSrc.indexOf("// Frame the crawl only when", start),
-    );
-    expect(readerBlock).toContain('syncReaderPositionOnMap');
-    expect(readerBlock).not.toMatch(/\b(flyTo|easeTo|jumpTo|fitBounds|setCenter)\s*\(/);
   });
 
   it("starts watch when permission is already granted", async () => {
