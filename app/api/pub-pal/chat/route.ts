@@ -31,8 +31,8 @@ import {
 } from "@/lib/palElevenLabsChat.server";
 import { palClaudeConfigured, runPalClaudeChatTurn } from "@/lib/palClaudeChat.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
-import { palTasteAsk } from "@/lib/palTaste";
-import { readPalTaste } from "@/lib/palTaste.server";
+import { asksForSomewhereNew, palTasteAsk } from "@/lib/palTaste";
+import { palOnlyNewScope, readPalTaste } from "@/lib/palTaste.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -311,12 +311,14 @@ export async function POST(request: Request): Promise<Response> {
     try {
       const social = keylessSocialReply(query, turns);
       if (social) return social;
+      const scope = asksForSomewhereNew(query) ? await palOnlyNewScope(await callerUserId(request)) : null;
       const answer = await runAsk({
         query,
         cityId: record.cityId,
         turns,
         skipModel: true,
         traceRoute: "api/pub-pal/chat",
+        excludeVenueIds: scope?.exclude,
       });
       // Discovery ranks on area, mood, budget and group size. Without one,
       // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
@@ -346,9 +348,10 @@ export async function POST(request: Request): Promise<Response> {
               cityId: record.cityId,
               skipModel: true,
               traceRoute: "api/pub-pal/chat",
+              excludeVenueIds: scope?.exclude,
             });
             if (picked.cards.length > 0) {
-              return jsonNoStore({ ...picked, answer: `${tasteAsk.because} ${picked.answer}` });
+              return jsonNoStore({ ...picked, answer: `${scope?.hint ? `${scope.hint} ` : ""}${tasteAsk.because} ${picked.answer}` });
             }
           }
           return jsonNoStore({
@@ -361,7 +364,7 @@ export async function POST(request: Request): Promise<Response> {
           });
         }
       }
-      return jsonNoStore(answer);
+      return jsonNoStore(scope?.hint ? { ...answer, answer: `${scope.hint} ${answer.answer}` } : answer);
     } catch (error) {
       console.error("pub-pal-chat.unexpected_error", error);
       return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
