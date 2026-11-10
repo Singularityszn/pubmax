@@ -89,9 +89,8 @@
   color: var(--color-text-muted);
 }
 
-/* A source and its read date wrap as one, so a date never starts a line. When
-   large text leaves no room for both, the date moves down whole, with its
-   separator in front of it. */
+/* Keep the separator and read date together when large text moves them below
+   the source. */
 .tonightAnswerSourceDate {
   display: inline-flex;
   flex-wrap: wrap;
