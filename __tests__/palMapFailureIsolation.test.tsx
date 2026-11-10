@@ -45,6 +45,7 @@ vi.mock("@elevenlabs/react", () => ({
   useConversationControls: () => voice,
   useConversationMode: () => ({ isListening: voice.status === "connected", isSpeaking: false }),
   useConversationStatus: () => ({ status: voice.status }),
+  useConversationClientTool: () => {},
 }));
 
 type Session = {

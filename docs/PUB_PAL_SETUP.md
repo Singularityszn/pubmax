@@ -33,7 +33,8 @@ Map Ask uses OpenRouter when its key is set, or the keyless tools otherwise.
 A failed Claude request does not switch to another paid provider.
 Map Ask retains completed tool results or uses its keyless fallback. Typed chat returns its existing failure response.
 
-Text and voice use the same source-backed tool registry.
+Text and voice share the source-backed server tool registry.
+Voice also has browser map tools, described under [Creating the agent](#creating-the-agent).
 [ADR 0014, decision 3](adr/0014-night-os-ask-agent.md#decision) owns action confirmation, including the live voice exception for view moves.
 
 ---
@@ -170,8 +171,10 @@ tunnel test). It is idempotent: with `ELEVENLABS_PUB_PAL_AGENT_ID` set it
 patches that agent, and without one it looks for an agent named
 `PUBMAXX Pub Pal` before creating a new one. Re-running never leaves two.
 
-It reads `scripts/pubpal/pub-pal-agent-config.json` (model, tool allowlist)
-and PATCHes the agent plus workspace webhook tools. Each tool calls
+It reads `scripts/pubpal/pub-pal-agent-config.json` (model, server tool allowlist)
+and registers the browser tools from [`lib/palMapClientTools.mjs`](../lib/palMapClientTools.mjs).
+Without `--branch-id`, it PATCHes the agent and its workspace tools.
+Each webhook calls
 `<base-url>/api/pub-pal/tools/{name}` with `ELEVENLABS_LLM_SHARED_SECRET`
 (stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`), waits up to
 28 seconds for a response (`response_timeout_secs` in the script; the route
@@ -181,16 +184,24 @@ agent that already exists. The captain re-runs
 `npm run pubpal:agent -- --base-url https://pubmaxxing.com` after those
 changes. Do not run that command from an agent session.
 
+The map tools run in the voice browser through `client_tool_call`.
+They set `expects_response: false` and `pre_tool_speech: "off"`, so the agent neither waits nor announces a tool check.
+[`lib/palMapClientToolCall.ts`](../lib/palMapClientToolCall.ts) owns pick and area validation.
+A refusal reaches the agent through a contextual update.
+These tools are absent from the typed server tool catalog.
+The ElevenLabs typed fallback still uses the shared agent.
+If it receives a client tool call, it returns an error that asks the agent to answer in words.
+
 Update and `--check` resolve each tool by the same identity rule. The script
 first reads the existing agent and its attached tool IDs. It keeps the unique
-attached webhook for each name when `--base-url` changes, including moves to
-a tunnel and back to production. Update writes the requested endpoint to that
-same tool ID. Check reports a different URL as drift without writing.
+attached tool for each name. Without `--branch-id`, an update writes a changed
+webhook endpoint to that same tool ID. Check reports a different URL as drift without writing.
 Same-name workspace duplicates cannot replace that attachment.
 
 Without an attached match, the script reuses one compatible workspace webhook.
 Its URL must exactly match `<base-url>/api/pub-pal/tools/{name}`.
-If none exists, update creates a webhook and check reports it as missing.
+Without an attached client tool, update creates one. It never reuses an unattached same-name client tool.
+If no compatible tool exists, update creates one and check reports it as missing.
 Multiple attached matches or multiple compatible workspace matches cause a
 refusal. An incompatible attached type, an unknown attached ID, or an incomplete
 workspace tool list also causes a refusal. Update resolves all identities before
@@ -199,6 +210,22 @@ normal update and drift check.
 
 The [tool identity CLI proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/2026-10-08-pubpal-tool-identity/README.md)
 records the regression fixture, captured results, and proof limits.
+
+For branch proof, use an existing non-Main branch ID after the captain authorises the provider operation.
+The update refuses Main or a branch whose returned identity differs from the requested ID.
+
+```bash
+npm run pubpal:agent -- --branch-id BRANCH_ID --base-url https://your-test-tunnel.example
+npm run pubpal:agent -- --check --branch-id BRANCH_ID --base-url https://your-test-tunnel.example
+```
+
+A branch update preserves Main's attached tools and the workspace secret.
+A Main webhook with a different requested URL gets a new tool ID for the branch.
+If its URL is unchanged, other drift in a Main-attached tool stops the update before any write.
+Tools absent from Main can be updated in place. Their IDs can still be shared with other branches.
+The agent name and `platform_settings`, including auth and privacy, are agent-wide.
+A branch update neither sends nor checks those fields.
+These commands configure and check a branch. They do not select a branch for the app's signed session URL.
 
 ElevenLabs typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.
 The server opens its WebSocket. Voice opens a browser WebSocket from the signed URL.
@@ -319,6 +346,7 @@ Voice uses the same opening builder in its first-message override.
    call tools before any fact, never invent a price, propose then confirm,
    plain speech on get-home topics. A prompt change reaches the live agent only
    when the captain re-runs `npm run pubpal:agent`.
+   [`lib/palVoicePrompt.mjs`](../lib/palVoicePrompt.mjs) owns the voice-only short-answer and map-tool rules.
 5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
    conversation starts only from a signed URL the app issued, after sign-in,
    the voice cap and the spend ceiling. The agent id alone is refused.
@@ -406,6 +434,9 @@ A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.
 Ending a call releases its voice grant and clears its main-map picks and grounding.
+It also clears the last voice camera request and cancels pending voice navigation.
+The agent script requests a 20-second silence timeout as a provider backstop.
+The 180-second call cap remains. These settings reach an existing agent only after the captain runs the configuration command.
 
 If a background interruption leaves the session mounted, it keeps the transcript
 and offers **Carry on** when you return. On the map, **Close voice chat** dismisses

@@ -102,6 +102,50 @@ it("applies retained speaking focus on first installation and reinstallation", (
   expect(frame).not.toHaveBeenCalled();
 });
 
+it("frames an asked-for move once, and a map that mounts mid-call frames whichever came last", () => {
+  vi.stubGlobal("requestAnimationFrame", () => 1);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const container = document.createElement("div");
+  const layers = new Map<string, { id: string }>();
+  const map = {
+    getContainer: () => container,
+    getStyle: () => ({ layers: [...layers.values()] }),
+    getLayer: (id: string) => layers.get(id),
+    addLayer: (layer: { id: string }) => layers.set(layer.id, layer),
+    removeLayer: (id: string) => layers.delete(id),
+    project: () => ({ x: 100, y: 100 }),
+    on: () => {}, off: () => {}, triggerRepaint: () => {},
+  } as unknown as MapLibreMap;
+  const second = { venueId: "pub-2", name: "Another Pub", lat: 51.51, lng: -0.11, number: 2 };
+  groundPalMapResult(["pub-1", "pub-2"]);
+  applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "pub-1", name: "The Pub", lat: 51.5, lng: -0.1, number: 1 }, second] });
+  const frame = vi.fn();
+  dispose = installPalPicks(map, { frame, open: () => {} });
+  expect(frame).toHaveBeenCalledTimes(1);
+
+  applyPalMapCommand({ kind: "focusPick", number: 2, move: true });
+  expect(frame).toHaveBeenCalledTimes(2);
+  expect(frame.mock.calls[1]![1]).toEqual([{ lat: second.lat, lng: second.lng }]);
+  expect(document.querySelector(".palPick[data-speaking]")?.textContent).toBe("2");
+  applyPalMapCommand({ kind: "focusPick", number: 1 });
+  applyPalMapCommand({ kind: "focusPick", number: null });
+  expect(frame).toHaveBeenCalledTimes(2);
+
+  // Remounted after the move: the move is newest, so it frames after the picks.
+  dispose();
+  frame.mockClear();
+  dispose = installPalPicks(map, { frame, open: () => {} });
+  expect(frame.mock.calls.map(([, points]) => points.length)).toEqual([2, 1]);
+
+  // A newer answer outranks the older move on the next mount.
+  applyPalMapCommand({ kind: "showPicks", picks: [second] });
+  dispose();
+  frame.mockClear();
+  dispose = installPalPicks(map, { frame, open: () => {} });
+  expect(frame.mock.calls.map(([, points]) => points.length)).toEqual([1]);
+  expect(frame.mock.calls[0]![1]).toEqual([expect.objectContaining({ venueId: "pub-2" })]);
+});
+
 it.each([390, 768, 1440].flatMap((width) =>
   ["left", "right", "top", "bottom"].map((edge) => ({ width, edge })),
 ))("keeps separated 44 px picks visible at the $edge edge at $width px", ({ width, edge }) => {

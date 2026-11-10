@@ -487,16 +487,18 @@ export function useMapCamera(refs: CameraRefs) {
   // A voice answer's picks (lib/palMapCommands.ts). The person asked for these
   // pubs in this call, so the map frames them, but the answer lands seconds
   // after the ask: `pal` is a reactive intent, and a reader still reading the
-  // map keeps it (lib/mapGestureGuard.ts).
-  const fitPalPicks = useCallback((sequence: number, points: readonly { lng: number; lat: number }[]) => {
+  // map keeps it (lib/mapGestureGuard.ts). A move the person asked for by name
+  // or number (`asked`) is `pal-ask`: only a finger on the glass holds it.
+  const fitPalPicks = useCallback((sequence: number, points: readonly { lng: number; lat: number }[], asked = false) => {
     palFrameRef.current = null;
-    if (!points.length || cameraIntentBlocked("pal", gestureCameraRef.current, performance.now())) return;
+    const kind = asked ? "pal-ask" : "pal";
+    if (!points.length || cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
     const key = `pal:${sequence}`;
     palFrameRef.current = { key, gestureEndedAt: gestureCameraRef.current.endedAt };
     const bounds = new maplibregl.LngLatBounds();
     points.forEach((point) => bounds.extend([point.lng, point.lat]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    scheduleCamera("pal", "pal", key, (map) => map.fitBounds(bounds, {
+    scheduleCamera("pal", kind, key, (map) => map.fitBounds(bounds, {
       padding: routeFitPadding(map, isPhone),
       maxZoom: 16,
       duration: reducedRef.current ? 0 : 800,

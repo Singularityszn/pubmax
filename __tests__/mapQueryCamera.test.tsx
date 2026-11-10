@@ -284,6 +284,21 @@ describe("query camera with contextual price pins", () => {
     expect(fitBounds).not.toHaveBeenCalled();
   });
 
+  it("lands a move the person asked the Pal for inside the gesture hold, where answer framing stands down", () => {
+    const gesture = { active: false, endedAt: performance.now() - 500 };
+    mount({ current: soho }, soho, gesture);
+    camera.fitPalPicks(1, picks);
+    flush();
+    expect(fitBounds).not.toHaveBeenCalled();
+    camera.fitPalPicks(2, picks.slice(0, 1), true);
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    gesture.active = true;
+    camera.fitPalPicks(3, picks.slice(0, 1), true);
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+  });
+
   it("ends Pal ownership when a gesture interrupts the pending move", () => {
     const gesture = { active: false, endedAt: null as number | null };
     mount({ current: soho }, soho, gesture);

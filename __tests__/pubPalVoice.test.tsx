@@ -62,6 +62,7 @@ vi.mock("@elevenlabs/react", () => ({
     isSpeaking: voice.isSpeaking,
   }),
   useConversationStatus: () => ({ status: voice.status }),
+  useConversationClientTool: () => {},
 }));
 
 vi.mock("next/link", () => ({

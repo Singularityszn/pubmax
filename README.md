@@ -180,6 +180,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Grounded voice results also show numbered picks on the main map and dim the other pins. Tap a pick to open its pub. The map frames the picks unless you hold or move it. [ADR 0014](docs/adr/0014-night-os-ask-agent.md#decision) defines voice view moves and actions that still need confirmation.
 
+  During a voice call, ask to open the map or focus a numbered pick. You can also ask to open its pub page or clear the picks. Ask to move the view to a London area, such as Camden. The call stays live on the map. An unavailable pick or unknown area leaves the view unchanged and sends an explanation to the Pal.
+
+  When pubs appear on the map, the voice prompt requests a brief reply and directs you to the remaining picks. Plan requests can receive longer replies.
+
   As the Pal names a pick during audio playback, its marker pulses and the map voice bar shows its returned price card. The card keeps the recorded price, source and date. Each repeated mention restarts the pulse without reframing the map. Talking over the Pal stops the pulses and clears the card. With reduced motion, a ring replaces the pulse.
 
   The [voice interruption guide](docs/PUB_PAL_SETUP.md#voice-interruptions) explains navigation between `/pal` and `/map`, map voice controls, screen lock, background calls, **Carry on**, and SDK startup.

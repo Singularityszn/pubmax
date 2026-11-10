@@ -43,6 +43,7 @@ import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
 import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
 import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
+import { usePalMapClientTools } from "@/components/pubpal/usePalMapClientTools";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -225,7 +226,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   // The person asked for the map in their own words. The call lives in the
   // shell (PalVoiceHost), so it carries on as the voice bar on /map.
-  const openMap = useCallback((href: string = PAL_VOICE_MAP_HREF, label = "Opening the map"): void => {
+  // `stillWanted` lets a newer request retire this one before the map opens.
+  const openMap = useCallback((href: string = PAL_VOICE_MAP_HREF, label = "Opening the map", stillWanted?: () => boolean): void => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
     setMapLabel(label);
     setMapPending(true);
@@ -234,6 +236,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     mapTimerRef.current = window.setTimeout(() => {
       mapTimerRef.current = null;
       setMapPending(false);
+      if (stillWanted && !stillWanted()) return;
       router.push(href as Route);
     }, PAL_VOICE_MAP_DELAY_MS);
   }, [router]);
@@ -252,6 +255,19 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     openMapRef.current = openMap;
     showMapRef.current = showMap;
   }, [openMap, showMap]);
+  usePalMapClientTools({
+    openMap,
+    onMap: () => onMapRef.current,
+    mapOpening: () => mapTimerRef.current !== null,
+    tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
+    // A tool call also gives way to anything the person did since it began:
+    // a new line, a pub they picked, or a page they moved to (stayHere).
+    callLive: () => {
+      const attempt = activeAttemptRef.current;
+      const navigation = nextStopRequestRef.current;
+      return attempt ? () => ownsAttempt(attempt) && nextStopRequestRef.current === navigation : null;
+    },
+  });
 
   // "Next stop" during a planned night that is on: the map opens on the stop
   // after the one the person reached (their own Night Mode cursor). With no
@@ -334,6 +350,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (activeAttemptRef.current === attempt) {
       resetPalMap();
       currentToolCalls.current.clear();
+      // A map the call was still opening stays closed once the call ends.
+      stayHere();
     }
     clearStartupTimer(attempt);
     attempt.requestAbort.abort();
@@ -348,7 +366,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (!attempt.releaseRequired) return;
     attempt.released = true;
     void releaseVoiceSession(attempt.conversationId);
-  }, [clearCapTimer, clearStartupTimer]);
+  }, [clearCapTimer, clearStartupTimer, stayHere]);
 
   useEffect(() => {
     disposedRef.current = false;

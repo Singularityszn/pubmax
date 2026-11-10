@@ -23,8 +23,8 @@ type ProbeWindow = Window & {
 };
 
 type PalPicksOptions = {
-  /** Frame the picks through the camera lane, once per answer. */
-  frame: (sequence: number, picks: readonly PalMapPick[]) => void;
+  /** Frame the picks, or a move the person asked for (`asked`), through the camera lane, once each. */
+  frame: (sequence: number, points: readonly { lng: number; lat: number }[], asked?: boolean) => void;
   open: (venueId: string) => void;
 };
 
@@ -36,6 +36,7 @@ function scrimColour(): string {
 export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOptions): () => void {
   let pins: { marker: maplibregl.Marker; line: SVGLineElement; dot: SVGCircleElement; button: HTMLButtonElement; pick: PalMapPick }[] = [];
   let rendered = -1;
+  let moved = -1;
   let painted = -1;
   let paintFrame: number | null = null;
   const nativePaints = new Map<Element, number>();
@@ -100,9 +101,21 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     }
   };
 
+  // An asked-for move frames once. A newer answer outranks an older move, so a
+  // map that mounts mid-call frames whichever of the two came last.
+  const syncView = () => {
+    const { sequence, view } = readPalMapState();
+    if (!view || view.sequence === moved) return;
+    moved = view.sequence;
+    if (view.sequence > sequence) frame(view.sequence, view.points, true);
+  };
+
   const render = () => {
     const { sequence, picks } = readPalMapState();
-    if (sequence === rendered) return syncFocus();
+    if (sequence === rendered) {
+      syncFocus();
+      return syncView();
+    }
     rendered = sequence;
     nativePaints.clear();
     if (paintFrame !== null) cancelAnimationFrame(paintFrame);
@@ -139,6 +152,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     position();
     syncScrim();
     frame(sequence, picks);
+    syncView();
     map.triggerRepaint();
     paintFrame = requestAnimationFrame(() => {
       paintFrame = requestAnimationFrame(() => {

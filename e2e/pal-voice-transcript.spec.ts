@@ -1068,3 +1068,150 @@ for (const [width, theme, reducedMotion] of [
     await page.getByRole("button", { name: "End", exact: true }).click();
   });
 }
+
+// Step 7: the agent's map client tools move only the view. A pick number the
+// map does not show goes back to the agent as a contextual update.
+for (const [width, theme] of [[390, "light"], [1440, "dark"]] as const) {
+  test(`${width}px ${theme}: the agent's map tools fly to an area, focus, open and clear picks, and refuse a pick not on the map`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    await storeThemeChoice(page, theme);
+    const socket = await openLiveVoice(page);
+    const sent: { type?: string; text?: string; tool_call_id?: string; is_error?: boolean }[] = [];
+    socket.onMessage((message) => { sent.push(JSON.parse(String(message))); });
+    const venues = [
+      { id: "venue-1t8siin", lat: 51.5139, lng: -0.132474 },
+      { id: "venue-1ozggok", lat: 51.51118, lng: -0.13631 },
+    ];
+    // Disposable provider receipts, never written to a server or shared store.
+    const cards = ["The Crown & Two Chairmen", "The Crown"].map((title, index) => ({
+      key: `step7-${index}`, venueId: venues[index]!.id, title, place: "Soho",
+      note: "Disposable browser fixture", price: index === 0 ? 5.20 : 6.40,
+      provenance: { kind: "directory", label: "Disposable menu fixture. Recorded 10 Nov 2026.", url: "https://example.test/menu" },
+    }));
+    const request = { tool_name: "search_venues", tool_call_id: `step7-${++eventId}`, tool_type: "webhook", event_id: eventId };
+    socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+    socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+      ...request, is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: {
+        ok: true, tool: "search_venues", answerHint: "Two disposable test recommendations.", cards, data: { venues },
+      } }),
+    } }));
+    const call = (tool_name: string, parameters: Record<string, unknown>) => {
+      const id = ++eventId;
+      const tool_call_id = `${tool_name}-${id}`;
+      socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: { tool_name, tool_call_id, parameters, event_id: id } }));
+      return tool_call_id;
+    };
+    const answered = (id: string) => expect.poll(() => sent.find((event) => event.type === "client_tool_result" && event.tool_call_id === id)?.is_error).toBe(false);
+    const camera = () => page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
+    const settled = () => expect.poll(async () => {
+      const reading = await page.evaluate(() => (window as unknown as { __pubmaxMapCamera?: { read: () => CameraReading } }).__pubmaxMapCamera?.read());
+      return Boolean(reading && !reading.moving && !reading.settling);
+    }, { timeout: 20_000 }).toBe(true);
+    const picks = () => page.evaluate(() => (window as unknown as { __pubmaxPalPicks?: () => PalPicksProbe }).__pubmaxPalPicks?.() ?? null);
+
+    // From /pal, "take me to Camden" opens the map framed on Camden, not on the picks.
+    await answered(call("map_fly_to_area", { area: "Camden" }));
+    await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
+    await expectMapLoadingFrameReleased(page);
+    await expect.poll(async () => (await picks())?.picks.length, { timeout: 10_000 }).toBe(2);
+    await settled();
+    // The fit pads for the top bar and the voice bar, so the centre sits near
+    // Camden's (51.539, -0.143), not on it, and well away from the Soho picks.
+    const camden = await camera();
+    expect(Math.abs(camden.center[1] - 51.539)).toBeLessThan(0.01);
+    expect(Math.abs(camden.center[0] + 0.143)).toBeLessThan(0.01);
+    await page.screenshot({ path: `${SHOTS}/step7-${width}-${theme}-fly-to-camden.png` });
+
+    // "The second one": pick 2 pulses, its card shows, and the map moves to it.
+    await answered(call("map_focus_pick", { number: 2 }));
+    await expect(page.getByRole("button", { name: `2. ${cards[1]!.title}`, exact: true })).toHaveAttribute("data-speaking", "");
+    await expect(page.locator(".palVoiceBarPick")).toContainText("£6.40");
+    await settled();
+    const focused = await camera();
+    expect(focused.zoom).toBeGreaterThan(camden.zoom + 1);
+    expect(Math.abs(focused.center[1] - venues[1]!.lat)).toBeLessThan(0.0015);
+    expect(Math.abs(focused.center[0] - venues[1]!.lng)).toBeLessThan(0.0015);
+    const second = (await picks())!.picks.find((pick) => pick.number === 2)!;
+    expect(second.x).toBeGreaterThan(0);
+    expect(second.x).toBeLessThan(width);
+    expect(second.y).toBeGreaterThan(0);
+    expect(second.y).toBeLessThan(844);
+    await page.screenshot({ path: `${SHOTS}/step7-${width}-${theme}-focus-pick-2.png` });
+
+    // A pick the map does not show changes nothing and tells the agent what it has.
+    await answered(call("map_focus_pick", { number: 5 }));
+    await expect.poll(() => sent.filter((event) => event.type === "contextual_update").map((event) => event.text))
+      .toEqual(["The map could not show pick 5. 2 picks are on the map."]);
+    expect((await picks())?.speaking).toBe(2);
+
+    // "Open it": the pick's browse-only sheet opens and the call carries on.
+    await answered(call("map_open_pick_sheet", { number: 1 }));
+    await expect(page).toHaveURL(new RegExp(`sel=${venues[0]!.id}`), { timeout: 10_000 });
+    await expect(page.getByRole("dialog").getByRole("heading", { name: cards[0]!.title })).toBeVisible();
+    await page.screenshot({ path: `${SHOTS}/step7-${width}-${theme}-open-pick-1.png` });
+    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+
+    // "Clear the map": the picks and the fade go.
+    await answered(call("map_clear", {}));
+    await expect.poll(async () => (await picks())?.picks.length).toBe(0);
+    await expect(page.locator(".palPicksActive")).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Voice chat with Ripley" }).getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+    await testInfo.attach("step7-socket-from-browser", { body: JSON.stringify(sent.filter((event) => event.type !== "user_audio_chunk")), contentType: "application/json" });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+  });
+}
+
+test("ending the call drops a map move the agent asked for that is still on its way", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await openLiveVoice(page);
+  await page.clock.install();
+  const id = ++eventId;
+  socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+    tool_name: "map_fly_to_area", tool_call_id: `fly-${id}`, parameters: { area: "Camden" }, event_id: id,
+  } }));
+  // The map opens PAL_VOICE_MAP_DELAY_MS after the request. End the call inside that wait.
+  await expect(page.locator(".palVoiceMapCard")).toContainText("Opening Camden");
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await page.clock.fastForward(3_000);
+  await expect(page).toHaveURL(/\/pal$/);
+  await expect(page.locator(".palVoiceMapCard")).toHaveCount(0);
+});
+
+test("a newer map tool call retires a map trip still on its way", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await openLiveVoice(page);
+  const venues = [
+    { id: "venue-1t8siin", lat: 51.5139, lng: -0.132474 },
+    { id: "venue-1ozggok", lat: 51.51118, lng: -0.13631 },
+  ];
+  // Disposable provider receipts, never written to a server or shared store.
+  const cards = ["The Crown & Two Chairmen", "The Crown"].map((title, index) => ({
+    key: `retire-${index}`, venueId: venues[index]!.id, title, place: "Soho",
+    note: "Disposable browser fixture", price: index === 0 ? 5.20 : 6.40,
+    provenance: { kind: "directory", label: "Disposable menu fixture. Recorded 10 Nov 2026.", url: "https://example.test/menu" },
+  }));
+  const request = { tool_name: "search_venues", tool_call_id: `retire-${++eventId}`, tool_type: "webhook", event_id: eventId };
+  socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+  socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+    ...request, is_error: false, is_called: true,
+    full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: {
+      ok: true, tool: "search_venues", answerHint: "Two disposable test recommendations.", cards, data: { venues },
+    } }),
+  } }));
+  await expect(page.getByRole("list", { name: "Pubs from the voice answer" })).toBeVisible();
+  const call = (tool_name: string, parameters: Record<string, unknown>) => {
+    const id = ++eventId;
+    socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: { tool_name, tool_call_id: `${tool_name}-${id}`, parameters, event_id: id } }));
+  };
+  await page.clock.install();
+  call("map_open_pick_sheet", { number: 1 });
+  await expect(page.locator(".palVoiceMapCard")).toContainText(`Opening ${cards[0]!.title}`);
+  call("map_focus_pick", { number: 2 });
+  await expect(page.locator(".palVoiceMapCard")).toContainText(`Showing ${cards[1]!.title}`);
+  await page.clock.runFor(3_000);
+  await page.clock.resume();
+  await expect(page).toHaveURL(/\/map(?:\?|$)/);
+  expect(new URL(page.url()).searchParams.get("sel")).toBeNull();
+  await expect(page.getByRole("button", { name: `2. ${cards[1]!.title}`, exact: true })).toHaveAttribute("data-speaking", "");
+});
