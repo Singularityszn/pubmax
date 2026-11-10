@@ -157,9 +157,9 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
-// Every public asset has a fixed URL. Give it a modest browser window and a
-// year at the edge, which Vercel purges on every deploy, so a changed asset
-// cannot stay pinned in a browser no deploy can reach.
+// Public assets without a content version need a modest browser window and a
+// year at the edge, which Vercel purges on every deploy. A changed asset must
+// not stay pinned in a browser that no deploy can reach.
 const UNHASHED_PUBLIC_ASSET_CACHE_CONTROL =
   "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
 
