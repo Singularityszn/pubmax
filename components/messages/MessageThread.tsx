@@ -36,6 +36,7 @@ import MessageVenuePicker, {
   type PickedVenue,
 } from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
@@ -693,6 +694,7 @@ export default function MessageThread({
     const bodyText = draft.trim();
     if (!user || !h || over) return;
     if (!bodyText && !pending) return;
+    const signal = readProviderAccountSignal();
     sendInFlightRef.current = true;
     const sentPending = pending;
     const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
@@ -755,12 +757,13 @@ export default function MessageThread({
         const form = new FormData();
         form.append("post", JSON.stringify(keyedPost));
         form.append("photo", sentPending.file);
-        res = await authedActionFetch(address, { method: "POST", body: form }, { requiresIdentity: true });
+        res = await authedActionFetch(address, { method: "POST", body: form, signal }, { requiresIdentity: true });
       } else {
         res = await authedActionFetch(address, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(keyedPost),
+          signal,
         }, { requiresIdentity: true });
       }
 

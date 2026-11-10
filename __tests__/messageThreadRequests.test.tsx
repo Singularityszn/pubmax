@@ -32,6 +32,7 @@ const fetchLog = vi.hoisted(() => ({
   calls: [] as Array<{ url: string; method: string; body: string }>,
   pendingPosts: [] as Array<(response: Response) => void>,
   holdPosts: false,
+  useRealWrites: false,
   /** What the thread read answers. An empty list is an EMPTY thread. */
   threadRows: [] as Array<Record<string, unknown>>,
   /** What the inbox read answers, and whether it can be read at all. */
@@ -95,46 +96,56 @@ vi.mock("@/components/messages/MessagePhoto", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageVenueCard", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageAvatar", () => ({ default: () => null }));
 vi.mock("@/lib/keyboardInset", () => ({ useKeyboardInset: () => 0 }));
-vi.mock("@/lib/authedFetch", () => ({
-  authedActionFetch: (input: string, init?: RequestInit) => {
-    const method = init?.method ?? "GET";
-    fetchLog.calls.push({
-      url: String(input),
-      method,
-      body: init?.body instanceof FormData ? String(init.body.get("post")) : typeof init?.body === "string" ? init.body : "",
-    });
-    if (method === "GET") {
-      if (String(input).startsWith("/api/messages?")) {
-        if (fetchLog.inboxThrows) return Promise.reject(new TypeError("offline"));
-        if (fetchLog.inboxFails) {
-          return Promise.resolve(Response.json({ error: "down" }, { status: 503 }));
-        }
-        return Promise.resolve(Response.json({ conversations: fetchLog.inboxRows }));
-      }
-      return Promise.resolve(
-        Response.json({
-          messages: fetchLog.threadRows,
-          ...(fetchLog.threadConversation
-            ? { conversation: fetchLog.threadConversation }
-            : {}),
-        }),
-      );
-    }
-    if (fetchLog.holdPosts) {
-      return new Promise<Response>((resolve) => fetchLog.pendingPosts.push(resolve));
-    }
-    const body = JSON.parse(fetchLog.calls[fetchLog.calls.length - 1]!.body) as { body: string };
-    return Promise.resolve(
-      Response.json(
-        { message: { id: "m2", conversationId: "c1", senderHandle: "ken", body: body.body, createdAt: "2026-09-05T10:00:01Z", read: false, flagged: false } },
-        { status: 201 },
-      ),
-    );
-  },
+vi.mock("@/lib/authClient", () => ({
+  getAccessToken: async () => authState.current.user?.id ?? null,
 }));
+vi.mock("@/lib/authedFetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authedFetch")>();
+  return {
+    ...actual,
+    authedActionFetch: (input: string, init: RequestInit, options: import("@/lib/authedFetch").AuthActionOptions) => {
+      const method = init?.method ?? "GET";
+      if (method === "POST" && fetchLog.useRealWrites) return actual.authedActionFetch(input, init, options);
+      fetchLog.calls.push({
+        url: String(input),
+        method,
+        body: init?.body instanceof FormData ? String(init.body.get("post")) : typeof init?.body === "string" ? init.body : "",
+      });
+      if (method === "GET") {
+        if (String(input).startsWith("/api/messages?")) {
+          if (fetchLog.inboxThrows) return Promise.reject(new TypeError("offline"));
+          if (fetchLog.inboxFails) {
+            return Promise.resolve(Response.json({ error: "down" }, { status: 503 }));
+          }
+          return Promise.resolve(Response.json({ conversations: fetchLog.inboxRows }));
+        }
+        return Promise.resolve(
+          Response.json({
+            messages: fetchLog.threadRows,
+            ...(fetchLog.threadConversation
+              ? { conversation: fetchLog.threadConversation }
+              : {}),
+          }),
+        );
+      }
+      if (fetchLog.holdPosts) {
+        return new Promise<Response>((resolve) => fetchLog.pendingPosts.push(resolve));
+      }
+      const body = JSON.parse(fetchLog.calls[fetchLog.calls.length - 1]!.body) as { body: string };
+      return Promise.resolve(
+        Response.json(
+          { message: { id: "m2", conversationId: "c1", senderHandle: "ken", body: body.body, createdAt: "2026-09-05T10:00:01Z", read: false, flagged: false } },
+          { status: 201 },
+        ),
+      );
+    },
+  };
+});
 
 import MessageThread from "@/components/messages/MessageThread";
 import { defined } from "@/__tests__/helpers/defined";
+import { publishAuthActionState } from "@/lib/authedFetch";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -190,6 +201,7 @@ beforeEach(() => {
   fetchLog.calls = [];
   fetchLog.pendingPosts = [];
   fetchLog.holdPosts = false;
+  fetchLog.useRealWrites = false;
   fetchLog.threadRows = [...ONE_ROW];
   fetchLog.inboxRows = [
     { id: "c1", otherHandle: "sam", lastAt: "2026-09-05T10:00:00Z", lastFromMe: false, unread: 0 },
@@ -276,6 +288,48 @@ describe("message thread request budget", () => {
 // F-25 / fix task 13 - one tap is one message, and one message is one row.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("the send is latched and carries an idempotency key", () => {
+  it.each([false, true])("binds a delayed photo to its starting account (switch: %s)", async (switchAccount) => {
+    setProviderIdentity("supabase", "user-ken");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    fetchLog.useRealWrites = true;
+    const network = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ message: {
+      id: "photo-message", conversationId: "c1", senderHandle: "ken", body: "caption",
+      createdAt: "2026-09-05T10:00:01Z", read: false, flagged: false,
+    } }));
+    vi.stubGlobal("fetch", network);
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL() { return "blob:photo"; }
+      static revokeObjectURL() {}
+    });
+    let finishRead!: (bytes: ArrayBuffer) => void;
+    const bytes = new Promise<ArrayBuffer>((resolve) => { finishRead = resolve; });
+    const readPhoto = vi.fn(() => bytes);
+    photoSelection.file = new File([new Uint8Array([1, 2, 3])], "photo.jpg", { type: "image/jpeg" });
+    Object.defineProperty(photoSelection.file, "arrayBuffer", { value: readPhoto });
+    await mount();
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-crop]")!.click(); });
+    await typeAndSend("caption");
+    expect(readPhoto).toHaveBeenCalledOnce();
+    expect(network).not.toHaveBeenCalled();
+
+    if (switchAccount) {
+      setProviderIdentity("supabase", "user-sam");
+      authState.current = { user: { id: "user-sam" }, handle: "sam", accountRevision: 2 };
+      await act(async () => { root.render(createElement(MessageThread, { conversationId: "c1" })); });
+    }
+    await act(async () => { finishRead(new Uint8Array([1, 2, 3]).buffer); });
+
+    expect(network).toHaveBeenCalledTimes(switchAccount ? 0 : 1);
+    if (!switchAccount) {
+      const init = defined(defined(network.mock.calls[0])[1]);
+      expect(new Headers(init.headers).get("authorization")).toBe("Bearer user-ken");
+      const post = JSON.parse(String((init.body as FormData).get("post")));
+      expect(post).toMatchObject({ handle: "ken", body: "caption", clientMessageId: expect.any(String) });
+      expect(container.querySelector("[data-sending]")).toBeNull();
+    }
+  });
+
   it("reuses identical photo bytes after reselection and rotates for changed bytes or media type", async () => {
     fetchLog.holdPosts = true;
     vi.stubGlobal("URL", class extends URL {
