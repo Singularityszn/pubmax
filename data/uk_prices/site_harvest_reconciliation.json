@@ -10421,6 +10421,333 @@
         "rowCount": 7980,
         "siteHarvestRows": 3865
       }
+    },
+    {
+      "decidedOn": "2026-11-09",
+      "rule": "isCategoryQuarantined (lib/ukPriceBundle.ts)",
+      "reason": "truncated-menu-price",
+      "note": "Each row's reading cut a printed price, so its drink label starts with a decimal fragment or its figure is a whole pound the menu prints with pence. The bundle drops it. The original row stays in the ledger.",
+      "afterLaterPublications": 75,
+      "rows": [
+        {
+          "sha256": "3fb08620fd5174b54c5ae78386d88d027219c303ed16555e9f0640eb9d016772",
+          "host": "angelpershore.co.uk",
+          "venueId": "venue-uk-w358549496",
+          "category": "coffee",
+          "drinkLabel": ".1 Espresso",
+          "priceGbp": 2,
+          "sourceUrl": "https://angelpershore.co.uk/eat/menu/",
+          "observedAt": "2026-09-04T13:54:34.641Z"
+        },
+        {
+          "sha256": "210b7dcd1c536a578ef4ff67df8f3acfdf953e99da32625eaf2e039144f7deaf",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "vodka",
+          "drinkLabel": ".5 GUYANA 12 YEARS Vodka, Cognac & Armagnac 25ml SACRED VODKA",
+          "priceGbp": 3,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "3610f4aa0dbc8e0c8f822bd4fde55db44813d0fcda40dce45f8af21e15216830",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "rum",
+          "drinkLabel": null,
+          "priceGbp": 3,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "72f62e6b1ef8c3c5f12278c519a05f19637c8c3b15cadf4d458272fa7be7e996",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "whisky",
+          "drinkLabel": "KENTUCKY STRAIGHT BOURBON BUSHMILL’S BLACK BUSH",
+          "priceGbp": 3,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "73462237620e5bfd67c41f01abc08a2619a8c6f350af3a787714a18fc0714bca",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "shot",
+          "drinkLabel": ".7 LAZAARONI AMARETTO",
+          "priceGbp": 3,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "99a16729e0a1d69d3c5df95a9952dafb787fdda363ced0e4b3028d3a117efadc",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "alcohol-free",
+          "drinkLabel": ".1 5% UK LUCKY SAINT",
+          "priceGbp": 4,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "bacf2edc6f1bbccc17b4cecc262ca3930c1e094cfa1ee3726e629c471ccc8d3a",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "wine",
+          "drinkLabel": ".5 CLASSIC HUGO",
+          "priceGbp": 9,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "f3d8f72292aa7e2b708ee9f2ac43c3d6d7d760515f2a054152a027bbe22425be",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "beer",
+          "drinkLabel": ".2 0.5% UK ROTHAUS PILSNER",
+          "priceGbp": 3,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "f4b99a4f06ab6674090f35f57ffb637a976659b29faa2f449bb8a82ec00d90a9",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "cocktail",
+          "drinkLabel": ".5 BLOODY MARY Single",
+          "priceGbp": 6,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "fb5b18fd9242542551674ac92cb92523a822efb7b29bb6147c90bfcea58c6cdc",
+          "host": "blacklionkilburn.co.uk",
+          "venueId": "venue-uk-w172055438",
+          "category": "gin",
+          "drinkLabel": ".8 GERMANY MALFY CON",
+          "priceGbp": 4,
+          "sourceUrl": "https://blacklionkilburn.co.uk/drink-menu/",
+          "observedAt": "2026-09-21T18:53:02.452Z"
+        },
+        {
+          "sha256": "fe279921785a85a41ba98f7576b226f9f3dfc9eb1c82300fc63dd1d031d2a29a",
+          "host": "theartichoke.net",
+          "venueId": "venue-uk-w673989153",
+          "category": "wine",
+          "drinkLabel": ".00/bottle Cuvee Jean de la Fontaine, Brut Champagne elegant and fresh (France)",
+          "priceGbp": 12,
+          "sourceUrl": "https://theartichoke.net/menu-page-2/",
+          "observedAt": "2026-10-19T16:21:08.701Z"
+        },
+        {
+          "sha256": "9d84131912469ba0dc761dfc6334beaf7d2ad615ae0e45d53eb1c4ef6b65fdf9",
+          "host": "thegallimaufry.co.uk",
+          "venueId": "venue-uk-w264387934",
+          "category": "cocktail",
+          "drinkLabel": ".5 Wiper & True · Too Much Fun Guava Peach Pineapple Sour · 5.2% · 440ml",
+          "priceGbp": 6,
+          "sourceUrl": "https://thegallimaufry.co.uk/food-drink/",
+          "observedAt": "2026-09-04T13:40:39.833Z"
+        },
+        {
+          "sha256": "64260a12a2ef00457f7e8c066fd5597a0b9d8988384fca3e5ee47310ed82a61b",
+          "host": "artichokeonthegreen.co.uk",
+          "venueId": "venue-uk-w921298161",
+          "category": "coffee",
+          "drinkLabel": null,
+          "priceGbp": 3,
+          "sourceUrl": "https://www.artichokeonthegreen.co.uk/drinks",
+          "observedAt": "2026-09-21T19:01:08.818Z"
+        },
+        {
+          "sha256": "6bb9583319da337449220e77b3a820e818ba2211cbf76fd96d65f47ad56746b9",
+          "host": "artichokeonthegreen.co.uk",
+          "venueId": "venue-uk-w921298161",
+          "category": "wine",
+          "drinkLabel": null,
+          "priceGbp": 3,
+          "sourceUrl": "https://www.artichokeonthegreen.co.uk/drinks",
+          "observedAt": "2026-09-21T19:01:08.818Z"
+        },
+        {
+          "sha256": "c9756e5e233d6f8b2caac06fac68cf0dd87b9b23a1fa30c1a1152f1e45c53165",
+          "host": "artichokeonthegreen.co.uk",
+          "venueId": "venue-uk-w921298161",
+          "category": "soft-drink",
+          "drinkLabel": ".7 Cawston Press Pressed juice, shaken w/ water 200ml carton",
+          "priceGbp": 1,
+          "sourceUrl": "https://www.artichokeonthegreen.co.uk/drinks",
+          "observedAt": "2026-09-21T19:01:08.818Z"
+        },
+        {
+          "sha256": "074a0ee3692f3ae9970c6388496f2e4279f4ad35b81d60fac69c124f0ac48b7b",
+          "host": "cockandbottlew11.com",
+          "venueId": "venue-uk-w363039919",
+          "category": "shot",
+          "drinkLabel": ".5 Lillet Rosé, Fever-Tree Rhubarb & Raspberry Tonic Sparkling Marg",
+          "priceGbp": 12,
+          "sourceUrl": "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu",
+          "observedAt": "2026-09-04T13:43:53.506Z"
+        },
+        {
+          "sha256": "82432cf61d79138e39ea94d24aa54d4482ec7127414d11b1a9e687eb6c3685fc",
+          "host": "cockandbottlew11.com",
+          "venueId": "venue-uk-w363039919",
+          "category": "vodka",
+          "drinkLabel": "erry & Hibiscus Vodka, Beesou Honey, Fever-Tree Blood Orange Soda White Sangria",
+          "priceGbp": 11,
+          "sourceUrl": "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu",
+          "observedAt": "2026-09-04T13:43:53.506Z"
+        },
+        {
+          "sha256": "b36f75e4fc2e95f7d46e4c2223feb601bc63b4f992f1b554f2c40b2a8340458d",
+          "host": "cockandbottlew11.com",
+          "venueId": "venue-uk-w363039919",
+          "category": "cocktail",
+          "drinkLabel": "é, Burnt Faith Peach Liqueur, Fever-Tree Mediterannean Tonic Amalfi Spritz 0.0%",
+          "priceGbp": 9,
+          "sourceUrl": "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu",
+          "observedAt": "2026-09-04T13:43:53.506Z"
+        },
+        {
+          "sha256": "63aa049747239711b72c07955721d60a97520cfe9e013adae9239b39b77af9cd",
+          "host": "cuttysarkse10.co.uk",
+          "venueId": "venue-uk-n300452750",
+          "category": "wine",
+          "drinkLabel": ".5 28 per 125 ml serve kcal Nooh La Coste Rose, Provence",
+          "priceGbp": 8.7,
+          "sourceUrl": "https://www.cuttysarkse10.co.uk/food-drink",
+          "observedAt": "2026-09-21T18:32:34.358Z"
+        },
+        {
+          "sha256": "99ea970dc3d0b9589300ad40da8f00837debf94354956a499820dd0a159967f8",
+          "host": "theblindbull.co.uk",
+          "venueId": "venue-uk-n10978228105",
+          "category": "wine",
+          "drinkLabel": ".00 ROSÉ WINE Altano Douro Rosé, Tinta Roriz, 2021, Douro Valley, Portugal, 13%",
+          "priceGbp": 6.9,
+          "sourceUrl": "https://www.theblindbull.co.uk/menus/",
+          "observedAt": "2026-09-04T14:05:37.458Z"
+        },
+        {
+          "sha256": "46e41a100c64a7748181dcf2d3dd217928c68db3770a5e6bf12f862f49a2cefa",
+          "host": "thedukeofwellingtonpub.com",
+          "venueId": "venue-uk-w357280516",
+          "category": "rum",
+          "drinkLabel": ".5 Lillet Rosé, Fever-Tree Rhubarb & Raspberry Tonic Cuban Colada",
+          "priceGbp": 12,
+          "sourceUrl": "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz",
+          "observedAt": "2026-09-04T13:43:51.143Z"
+        },
+        {
+          "sha256": "d91c1dddc44ad59bbfff12a93c702612d29826cc38c89b7f1fdbae69ab33ad1c",
+          "host": "thedukeofwellingtonpub.com",
+          "venueId": "venue-uk-w357280516",
+          "category": "cocktail",
+          "drinkLabel": "t Blue Vodka, Montzi Passionfruit & Yuzu, Prosecco, Lemonade Amalfi Spritz 0.0%",
+          "priceGbp": 9,
+          "sourceUrl": "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz",
+          "observedAt": "2026-09-04T13:43:51.143Z"
+        },
+        {
+          "sha256": "28778b4e294da484c696f5dc6b7a72c91433ae9bef764d1a196e18524c70478d",
+          "host": "thedukeofwellingtonpub.com",
+          "venueId": "venue-uk-w357280516",
+          "category": "soft-drink",
+          "drinkLabel": ".5 Fever-Tree Raspberry & Rose Lemonade 50kcal Sicilian Lemon",
+          "priceGbp": 4,
+          "sourceUrl": "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz",
+          "observedAt": "2026-09-21T18:43:12.619Z"
+        },
+        {
+          "sha256": "2cde8774835295398f728c70dd5278426c5b071095a6df79329d7220892f3351",
+          "host": "thedukeofwellingtonpub.com",
+          "venueId": "venue-uk-w357280516",
+          "category": "cocktail",
+          "drinkLabel": null,
+          "priceGbp": 8,
+          "sourceUrl": "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz",
+          "observedAt": "2026-09-21T18:43:12.619Z"
+        },
+        {
+          "sha256": "a9c512e986d553ef7a3b1b8a5886e6a506303646898ff70784d757fae9e0411a",
+          "host": "thedukeofwellingtonpub.com",
+          "venueId": "venue-uk-w357280516",
+          "category": "wine",
+          "drinkLabel": "Plymouth Gin, Elderflower, Prosecco, Soda Berry Hugo 0.0%",
+          "priceGbp": 8,
+          "sourceUrl": "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz",
+          "observedAt": "2026-09-21T18:43:12.619Z"
+        },
+        {
+          "sha256": "444126be71382e6bb21021cf43a0cf62b22867dfd23c088c2cc344ec4d01cfd3",
+          "host": "thefeathers.co.uk",
+          "venueId": "venue-uk-w922192641",
+          "category": "coffee",
+          "drinkLabel": null,
+          "priceGbp": 3,
+          "sourceUrl": "https://www.thefeathers.co.uk/drinks",
+          "observedAt": "2026-09-21T19:00:44.692Z"
+        },
+        {
+          "sha256": "7e72198952694fcf68e185dfb7a95d6f66b3a0262ca9d391da06db22f8327755",
+          "host": "thefeathers.co.uk",
+          "venueId": "venue-uk-w922192641",
+          "category": "wine",
+          "drinkLabel": null,
+          "priceGbp": 3,
+          "sourceUrl": "https://www.thefeathers.co.uk/drinks",
+          "observedAt": "2026-09-21T19:00:44.692Z"
+        },
+        {
+          "sha256": "ac5806285cb6ef4b1ce08000ea07f84aeabf969b62b0443f6bb5c968054b6cb8",
+          "host": "thefeathers.co.uk",
+          "venueId": "venue-uk-w922192641",
+          "category": "soft-drink",
+          "drinkLabel": ".7 ​ Cawston Press Pressed juice, shaken w/ water 200ml carton",
+          "priceGbp": 1,
+          "sourceUrl": "https://www.thefeathers.co.uk/drinks",
+          "observedAt": "2026-09-21T19:00:44.692Z"
+        },
+        {
+          "sha256": "634f143e99f3c334b2b9b1953f4fbeb02e67aaf42ebccd4d7fa5bf79260560d4",
+          "host": "theprincealfred.com",
+          "venueId": "venue-uk-w122260658",
+          "category": "cocktail",
+          "drinkLabel": "t Blue Vodka, Montzi Passionfruit & Yuzu, Prosecco, Lemonade Amalfi Spritz (AF)",
+          "priceGbp": 9,
+          "sourceUrl": "https://www.theprincealfred.com/food-drinks?menu=spritz",
+          "observedAt": "2026-09-04T13:44:43.431Z"
+        },
+        {
+          "sha256": "6ed07b4c22a56053e1506d6948745ff3116e6fcf1dd9ec251c45eea5f90eed33",
+          "host": "theprincealfred.com",
+          "venueId": "venue-uk-w122260658",
+          "category": "wine",
+          "drinkLabel": ".5 Plymouth Gin, Elderflower, Prosecco, Soda Berry Hugo (AF)",
+          "priceGbp": 8,
+          "sourceUrl": "https://www.theprincealfred.com/food-drinks?menu=spritz",
+          "observedAt": "2026-09-04T13:44:43.431Z"
+        },
+        {
+          "sha256": "b71ea2d648e6b94687a3f9f1023d9d5c7c6fe1e4dc6677657dcceec7d3f8943a",
+          "host": "thewatermancambridge.com",
+          "venueId": "venue-uk-n20940218",
+          "category": "coffee",
+          "drinkLabel": ".6 Decaf also available Espresso",
+          "priceGbp": 2,
+          "sourceUrl": "https://www.thewatermancambridge.com/food-and-drink",
+          "observedAt": "2026-09-04T13:55:23.507Z"
+        }
+      ],
+      "historicalBundle": {
+        "rowCount": 7164,
+        "siteHarvestRows": 3049
+      },
+      "currentBundle": {
+        "rowCount": 7949,
+        "siteHarvestRows": 3834
+      }
     }
   ]
 }

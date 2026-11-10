@@ -17,6 +17,7 @@ export const GUINNDEX_SERVING = "Pint";
 /** Why a priced Guinndex pub yields no row. */
 export const GUINNDEX_SKIP_REASONS = [
   "no-price",
+  "placeholder",
   "not-gbp",
   "implausible-price",
   "closed",
@@ -76,6 +77,8 @@ function datedPrices(detail: Record<string, unknown>, pub: Record<string, unknow
  * THE PAGE MUST DATE ITS OWN PRICE. The headline price is taken only when a
  * dated record on the same page states the same figure, and only when the
  * newest dated record does not state a different one.
+ * Placeholder prices are excluded because a dated seed entry is not a price
+ * observation.
  */
 export function readGuinndexObservation(
   detail: unknown,
@@ -87,6 +90,7 @@ export function readGuinndexObservation(
   if (!pub || typeof pub.slug !== "string" || !Number.isInteger(cents) || (cents as number) <= 0) {
     return { ok: false, reason: "no-price" };
   }
+  if (pub.price_source === "placeholder") return { ok: false, reason: "placeholder" };
   if (pub.currency !== undefined && pub.currency !== null && pub.currency !== "GBP") {
     return { ok: false, reason: "not-gbp" };
   }
