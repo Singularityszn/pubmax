@@ -19,6 +19,7 @@ vi.mock("@/lib/authServer", () => ({
 
 import { GET, POST } from "@/app/api/operator-proposals/route";
 import { __resetOperatorProposals, memoryOperatorProposalStore } from "@/lib/operatorProposalsStore";
+import { __resetOperatorFacts, memoryOperatorFactsStore } from "@/lib/operatorFactsStore";
 import { __resetVenueOperators, memoryVenueOperatorStore } from "@/lib/venueOperatorsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
@@ -56,11 +57,12 @@ beforeEach(() => {
   process.env.ADMIN_TOKEN = "test-admin-secret";
   auth.identity = null;
   __resetOperatorProposals();
+  __resetOperatorFacts();
   __resetVenueOperators();
   __resetPintDrops();
 });
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe("POST /api/operator-proposals (create)", () => {
   it("401s an anonymous caller", async () => {
@@ -152,13 +154,80 @@ describe("POST /api/operator-proposals (moderator accept/decline)", () => {
     // A second accept from a stale tab must not withdraw the published fact.
     expect((await POST(withAdmin(req({ action: "accept", id: proposal.id })))).status).toBe(409);
     expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(1);
+    expect((await memoryOperatorFactsStore.listPublishedForVenue("v1")).facts).toMatchObject([
+      { proposalId: proposal.id, body: "Open till 1am" },
+    ]);
     // The moderator's undo still works.
     expect((await POST(withAdmin(req({ action: "decline", id: proposal.id })))).status).toBe(200);
     expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(0);
+    expect((await memoryOperatorFactsStore.listPublishedForVenue("v1")).facts).toEqual([]);
     // A stale tab cannot accept the declined proposal back, or decline it twice.
     expect((await POST(withAdmin(req({ action: "accept", id: proposal.id })))).status).toBe(409);
     expect((await POST(withAdmin(req({ action: "decline", id: proposal.id })))).status).toBe(409);
     expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(0);
+  });
+
+  it.each(["conflict", "storage error"])(
+    "preserves the winning fact when overlapping accepts end in a %s",
+    async (outcome) => {
+      const proposal = await memoryOperatorProposalStore.create({
+        ...correction,
+        type: "correction",
+        accountId: "acct-1",
+      });
+      let release!: () => void;
+      const bothPublished = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const publish = memoryOperatorFactsStore.publish;
+      let publications = 0;
+      vi.spyOn(memoryOperatorFactsStore, "publish").mockImplementation(async (...args) => {
+        const fact = await publish(...args);
+        if (++publications === 2) release();
+        await bothPublished;
+        return fact;
+      });
+      const setStatus = memoryOperatorProposalStore.setStatus;
+      let decisions = 0;
+      vi.spyOn(memoryOperatorProposalStore, "setStatus").mockImplementation(async (...args) => {
+        if (++decisions === 2 && outcome === "storage error") throw new Error("write failed");
+        return setStatus(...args);
+      });
+
+      const responses = await Promise.all([
+        POST(withAdmin(req({ action: "accept", id: proposal.id }))),
+        POST(withAdmin(req({ action: "accept", id: proposal.id }))),
+      ]);
+
+      expect(responses.map((response) => response.status).sort()).toEqual(
+        outcome === "conflict" ? [200, 409] : [200, 503],
+      );
+      expect((await memoryOperatorProposalStore.getById(proposal.id))?.status).toBe("accepted");
+      expect((await memoryOperatorFactsStore.listPublishedForVenue("v1")).facts).toMatchObject([
+        { proposalId: proposal.id, body: "Open till 1am" },
+      ]);
+    },
+  );
+
+  it("withdraws a rejected acceptance when a decline wins during publication", async () => {
+    const proposal = await memoryOperatorProposalStore.create({
+      ...correction,
+      type: "correction",
+      accountId: "acct-1",
+    });
+    const publish = memoryOperatorFactsStore.publish;
+    let decline: Response | undefined;
+    vi.spyOn(memoryOperatorFactsStore, "publish").mockImplementationOnce(async (...args) => {
+      decline = await POST(withAdmin(req({ action: "decline", id: proposal.id })));
+      return publish(...args);
+    });
+
+    const accepted = await POST(withAdmin(req({ action: "accept", id: proposal.id })));
+
+    expect(decline?.status).toBe(200);
+    expect(accepted.status).toBe(409);
+    expect((await memoryOperatorProposalStore.getById(proposal.id))?.status).toBe("declined");
+    expect((await memoryOperatorFactsStore.listPublishedForVenue("v1")).facts).toEqual([]);
   });
 
   it("404s accept against an unknown id", async () => {

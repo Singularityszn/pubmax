@@ -119,10 +119,15 @@ export async function POST(request: Request): Promise<Response> {
       try {
         done = await store.setStatus(id, "accepted", note);
       } finally {
-        // A proposal that did not become accepted shows nothing.
-        if (!done) await facts.withdraw(id).catch(() => false);
+        if (!done && (await store.getById(id))?.status !== "accepted") {
+          await facts.withdraw(id).catch(() => false);
+        }
       }
-      if (!done) return publicApiError("Proposal not found.", "NOT_FOUND", 404);
+      if (!done) {
+        return (await store.getById(id))
+          ? publicApiError("This proposal was already decided.", "CONFLICT", 409)
+          : publicApiError("Proposal not found.", "NOT_FOUND", 404);
+      }
 
       const materialized = acceptedProposalFactSource({
         value: proposalServedValue(proposal),
