@@ -5183,7 +5183,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         />
       ) : null}
       {softRetry ? (
-        <div className="mapSoftRetry" role="status" data-kind={softRetry.kind}>
+        <div className="mapSoftRetry" role="status" data-kind={softRetry.kind} data-focus-trap-exempt="">
           <span className="mapSoftRetryMessage">{softRetry.message}</span>
           <button
             type="button"
