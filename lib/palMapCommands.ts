@@ -18,7 +18,7 @@ export type PalMapCommand =
   | { kind: "clear" };
 
 /** A camera move the person asked for. The map frames these points once. */
-export type PalMapView = { sequence: number; points: readonly { lat: number; lng: number }[] };
+type PalMapView = { sequence: number; points: readonly { lat: number; lng: number }[] };
 
 export type PalMapState = {
   /** Rises when picks are published or cleared, so readers can identify a new answer. */
