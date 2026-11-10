@@ -559,6 +559,59 @@ describe("removal privacy on durable reads", () => {
     );
   });
 
+  it.each(
+    (["direct", "group"] as const).flatMap((kind) =>
+      (["recent-failure", "individual-failure", "success"] as const).map((read) => ({ kind, read })),
+    ),
+  )("retains a restored $kind chat with $read", async ({ kind, read }) => {
+    const restoredMessage = {
+      conversation_id: C2, sender_handle: "sam", body: "Hello again",
+      created_at: "2028-01-01T00:00:00Z",
+    };
+    const rows = [C1, C2].map((id) => ({
+      id, kind, handle_a: "ken", handle_b: "sam",
+      last_message_at: id === C1 ? "2028-02-01T00:00:00Z" : "2026-01-01T00:00:00Z",
+    }));
+    state.answer = (q) => {
+      if (q.table === "conversation_members") {
+        if (filterValue(q, "in")) return {
+          data: [C1, C2].flatMap((id) => ["ken", "sam", "jen"].map((handle) => ({ conversation_id: id, handle }))),
+          error: null,
+        };
+        return { data: kind === "group" ? rows.map((row) => ({ conversation_id: row.id })) : [], error: null };
+      }
+      if (q.table === "conversations") return {
+        data: kind === "group" && !filterValue(q, "in") ? [] : rows,
+        error: null,
+      };
+      if (q.table === "conversation_deletions") return {
+        data: [{ conversation_id: C2, deleted_at: "2027-01-01T00:00:00Z" }], error: null,
+      };
+      if (q.table === "messages") {
+        if (filterValue(q, "select")?.[0] === "created_at") return { data: restoredMessage, error: null };
+        if (q.filters.some((f) => f[0] === "is")) return { data: [], error: null };
+        if (read === "recent-failure" || (read === "individual-failure" && q.single)) {
+          return { data: null, error: { message: "connection reset" } };
+        }
+        if (q.single) return { data: restoredMessage, error: null };
+        return {
+          data: Array.from({ length: 2 * INBOX_LAST_MESSAGE_WINDOW }, () => ({
+            conversation_id: C1, sender_handle: "sam", body: "Busy chat",
+            created_at: "2028-02-01T00:00:00Z",
+          })),
+          error: null,
+        };
+      }
+      return { data: [], error: null };
+    };
+
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+
+    expect(inbox.status).toBe(read === "success" ? "ready" : "degraded");
+    expect(inbox.conversations.map((row) => row.id)).toEqual([C1, C2]);
+    expect(inbox.conversations[1]?.lastBody).toBe(read === "success" ? "Hello again" : undefined);
+  });
+
   it("keeps deleted history unread when a new message restores the thread", async () => {
     const mark = "2026-11-10T20:00:00Z";
     const rows = [

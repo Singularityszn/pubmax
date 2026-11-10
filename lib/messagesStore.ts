@@ -1303,16 +1303,7 @@ export const supabaseMessagesStore: MessagesStore = {
       );
     }
 
-    const visible = rows.filter((row) => {
-      const id = String(row.id);
-      const mark = deletions.byConversation.get(id);
-      if (!mark) return true;
-      const last = lastByConversation.get(id);
-      return last !== undefined && afterDeleteMark(last.created_at, mark);
-    });
-    if (visible.length === 0) return READY_EMPTY_INBOX;
-
-    const conversations = visible.slice(0, MAX_CONVERSATIONS).map((row) => {
+    const conversations = rows.slice(0, MAX_CONVERSATIONS).map((row) => {
       const id = String(row.id);
       const last = lastByConversation.get(id);
       const counted = unread.byConversation.get(id);
