@@ -247,6 +247,28 @@ describe("the Round page's active Round key", () => {
     });
   }
 
+  it.each([
+    ["pending", "BCDFGH", null],
+    ["failed", "BCDFGH", null],
+    ["open", "BCDFGH", null],
+    ["pending", "JKLMNP", "JKLMNP"],
+    ["failed", "JKLMNP", "JKLMNP"],
+    ["open", "JKLMNP", "JKLMNP"],
+  ] as const)("handles leaving a %s read with stored code %s", async (read, storedCode, expectedCode) => {
+    window.localStorage.setItem(ACTIVE_ROUND_KEY, "BCDFGH");
+    if (read === "pending") requests.round.mockReturnValue(deferred<Response>().promise);
+    if (read === "failed") requests.round.mockRejectedValue(new TypeError("Failed to fetch"));
+    await renderRound();
+    expect(requests.round).toHaveBeenCalled();
+    expect(window.localStorage.getItem(ACTIVE_ROUND_KEY)).toBe("BCDFGH");
+
+    window.localStorage.setItem(ACTIVE_ROUND_KEY, storedCode);
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(AuthProbe)));
+    });
+    expect(window.localStorage.getItem(ACTIVE_ROUND_KEY)).toBe(expectedCode);
+  });
+
   it("keeps the key when the read fails for a reason other than 404", async () => {
     window.localStorage.setItem(ACTIVE_ROUND_KEY, "BCDFGH");
     requests.round.mockImplementation(async () => { throw new TypeError("Failed to fetch"); });

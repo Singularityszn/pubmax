@@ -242,11 +242,14 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     if (!code || !isValidRoundCode(code)) return;
     if (isOpen) {
       writeActiveRoundCode(code);
-      return () => clearActiveRoundCode(code);
     }
     if (isClosed) clearActiveRoundCode(code);
-    return undefined;
   }, [code, isOpen, isClosed]);
+
+  useEffect(() => {
+    if (!code || !isValidRoundCode(code)) return;
+    return () => clearActiveRoundCode(code);
+  }, [code]);
 
   useEffect(() => {
     if (!isOpen) return;
