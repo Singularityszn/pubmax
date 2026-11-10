@@ -468,7 +468,7 @@ type PlanActionRequest = {
 
 New Night mode requests include both binding fields, including requests queued offline.
 The stores check the route revision and venue before inserting a bound action.
-An authorised stale binding returns a conflict even if the host removed the tapped stop.
+For a Plan that accepts new actions, an authorised stale binding returns a conflict even if the host removed the tapped stop.
 An identical accepted retry returns its original action even after a safe route revision.
 Legacy requests may omit both fields. They remain unstamped and establish neither a table location nor a completed-stop mystery reveal.
 Only bound arrivals can fulfil a signed-in owner's Wanted entry.
@@ -484,6 +484,7 @@ Full `PlanState` (with the new action in `actions[]`). Side effect: recording an
 | `404` | bad/unknown plan id |
 | `400` | malformed body, invalid action or binding, or missing/invalid idempotency key |
 | `403` | member token cannot update this Plan |
+| `409` | `PLAN_CLOSED` for a new action on a completed or abandoned Plan, with `retryable: false` |
 | `409` | `PLAN_ROUTE_CHANGED` when the route revision or the venue in that slot changed since the tap; `PLAN_IDEMPOTENCY_CONFLICT` when the same key is reused for another payload |
 | `429` | action request limit reached |
 | `503` | Plan storage unavailable |
@@ -497,7 +498,8 @@ Night mode displays this message when it handles the refused tap or its queued r
 
 Each request requires an `Idempotency-Key` header or a body `idempotencyKey`.
 The [mutation key helper](../lib/planMutationHttp.ts) defines precedence and validation.
-Identical retries return the saved action without another insertion. A different payload with the same key returns `409`.
+Identical retries return the saved action without another insertion, including after the Plan completes or is abandoned.
+A different payload with the same key returns `409`.
 
 ### Rate limit
 
@@ -521,7 +523,14 @@ type CompletePlanRequest = {
 
 - `POST` → `{ plan, completion }`. HTTP `201` when newly created, `200` when already completed (**idempotent** via `complete_plan_atomic` returning `already_completed`).
 - `GET /api/plans/:id/complete` → `{ completion: PlanCompletionDTO | null }` (public read).
-- Errors: `404` unknown plan; `400` invalid/malformed/missing terminal-for-food/`finalPintDropId` present; `403` member cannot complete; `409` route revision changed; `503` store error.
+- Errors include `404` for an unknown Plan, `400` for invalid input, `403` for a member who cannot complete, and `503` for unavailable storage.
+- Invalid input includes malformed requests, missing food terminals, a supplied `finalPintDropId`, or no qualifying arrival (`PLAN_ARRIVAL_REQUIRED`).
+- A changed route revision returns `409 PLAN_ROUTE_CONFLICT`.
+- An abandoned Plan refuses a new completion with `409 PLAN_CLOSED` and `retryable: false`.
+- After the qualifying arrival check, a new completion must pass [`canTransitionPlannedNight(status, "completed")`](../lib/plan.ts).
+  A refused transition returns `409 PLAN_CLOSED` with `retryable: false`.
+  The memory store and both SQL overloads follow this rule.
+  [`planEndedRefusesActionsMigrationEffective.test.ts`](../__tests__/planEndedRefusesActionsMigrationEffective.test.ts) checks SQL parity and completion replays.
 - Completion writes the chosen ending, ending action, completion record, and terminal status atomically (Supabase RPC `complete_plan_atomic`). A completion without `endingSelection` is rejected.
 
 **Safety invariant (#252):** the default/encouraged endings are `food` and `get_home`; `keep_going` exists but the product must never frame more drinking as success. Food terminals are late-food places, never pint-price pins (see §10).
