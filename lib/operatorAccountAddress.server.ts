@@ -15,13 +15,9 @@ import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 export async function operatorAccountAddress(accountId: string): Promise<string | null> {
   if (!accountId || !isSupabaseConfigured()) return null;
   const supabase = getSupabaseAdmin();
-  if (!supabase) return null;
-  try {
-    const { data, error } = await supabase.auth.admin.getUserById(accountId);
-    if (error) return null;
-    const email = data.user?.email?.trim();
-    return email ? email : null;
-  } catch {
-    return null;
-  }
+  if (!supabase) throw new Error("Operator account lookup unavailable");
+  const { data, error } = await supabase.auth.admin.getUserById(accountId);
+  if (error) throw error;
+  const email = data.user?.email?.trim();
+  return email ? email : null;
 }

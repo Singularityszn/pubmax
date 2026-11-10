@@ -19,6 +19,7 @@ const db = vi.hoisted(() => ({
   rows: [] as Row[],
   schemaMiss: false,
   failWrites: false,
+  failReads: false,
   beforeInsert: null as (() => Promise<void>) | null,
 }));
 
@@ -39,6 +40,7 @@ vi.mock("@/lib/supabase", () => {
 
     const result = async () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
+      if (db.failReads && state.op === "select") return { data: null, error: { message: "read unavailable" } };
       const rows = db.rows.filter(matches);
       if (state.op === "insert") {
         if (db.failWrites) return { data: null, error: { message: "insert boom" } };
@@ -117,6 +119,7 @@ beforeEach(() => {
   db.rows = [];
   db.schemaMiss = false;
   db.failWrites = false;
+  db.failReads = false;
   db.beforeInsert = null;
   __resetVenueOperators();
 });
@@ -175,6 +178,20 @@ describe("memoryVenueOperatorStore", () => {
 });
 
 describe("supabaseVenueOperatorStore", () => {
+  it("lists only verified operator accounts and distinguishes an empty audience", async () => {
+    const claim = await supabaseVenueOperatorStore.claim(fields());
+    expect(await supabaseVenueOperatorStore.verifiedOperatorAccountIds("venue-1")).toEqual([]);
+    await supabaseVenueOperatorStore.setState(claim.id, "verified");
+    expect(await supabaseVenueOperatorStore.verifiedOperatorAccountIds("venue-1")).toEqual(["acct-1"]);
+    expect(await supabaseVenueOperatorStore.verifiedOperatorAccountIds("venue-other")).toEqual([]);
+  });
+
+  it.each(["read", "schema"])("preserves a failed %s lookup instead of reporting no operators", async (failure) => {
+    db.failReads = failure === "read";
+    db.schemaMiss = failure === "schema";
+    await expect(supabaseVenueOperatorStore.verifiedOperatorAccountIds("venue-1")).rejects.toThrow();
+  });
+
   it("inserts, reopens on re-claim, and verifies", async () => {
     const first = await supabaseVenueOperatorStore.claim(fields());
     expect(db.rows).toHaveLength(1);

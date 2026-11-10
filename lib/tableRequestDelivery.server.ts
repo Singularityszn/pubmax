@@ -55,14 +55,9 @@ async function operatorAddresses(
   venueId: string,
   deps: TableRequestDeliveryDeps,
 ): Promise<{ operators: number; addresses: string[] }> {
-  let operators: string[] = [];
-  try {
-    operators = (await deps.verifiedOperatorAccountIds(venueId)).slice(0, MAX_OPERATOR_RECIPIENTS);
-  } catch {
-    operators = [];
-  }
+  const operators = (await deps.verifiedOperatorAccountIds(venueId)).slice(0, MAX_OPERATOR_RECIPIENTS);
   const addresses = (
-    await Promise.all(operators.map((id) => deps.operatorAddress(id).catch(() => null)))
+    await Promise.all(operators.map((id) => deps.operatorAddress(id)))
   ).map(normalizeEmail).filter(Boolean);
   return { operators: operators.length, addresses: [...new Set(addresses)] };
 }
@@ -81,7 +76,7 @@ async function reconcileNotSent(
   store: TableRequestsStore,
   requestId: string | undefined,
   requesterUserId: string,
-  reason: TableRequestNotSentReason,
+  reason?: TableRequestNotSentReason,
 ): Promise<TableRequestDeliveryOutcome> {
   if (requestId) {
     try {
@@ -92,7 +87,7 @@ async function reconcileNotSent(
       return { outcome: "retryable" };
     }
   }
-  return { outcome: "not_sent", reason };
+  return reason ? { outcome: "not_sent", reason } : { outcome: "retryable" };
 }
 
 /** One stable UUID per account and retry key. */
@@ -130,7 +125,13 @@ export async function deliverTableRequest(
     return reconcileNotSent(store, keyedId, fields.requesterUserId, "email_not_sent");
   }
 
-  const { operators, addresses } = await operatorAddresses(fields.venueId, deps);
+  let recipients: Awaited<ReturnType<typeof operatorAddresses>>;
+  try {
+    recipients = await operatorAddresses(fields.venueId, deps);
+  } catch {
+    return reconcileNotSent(store, keyedId, fields.requesterUserId);
+  }
+  const { operators, addresses } = recipients;
   if (operators === 0 || addresses.length === 0) {
     return reconcileNotSent(
       store, keyedId, fields.requesterUserId,

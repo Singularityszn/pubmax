@@ -462,6 +462,65 @@ describe("POST /api/table-requests: the two ways out", () => {
     }
   });
 
+  it.each(["operators", "address"])("keeps a failed %s lookup retryable before the original attempt exists", async (lookup) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const lookupStarted = Promise.withResolvers<void>();
+    const originalLookup = Promise.withResolvers<void>();
+    const target = lookup === "operators"
+      ? vi.spyOn(memoryVenueOperatorStore, "verifiedOperatorAccountIds")
+        .mockImplementationOnce(async () => {
+          lookupStarted.resolve();
+          await originalLookup.promise;
+          return [OPERATOR];
+        })
+        .mockRejectedValueOnce(new Error("store unavailable"))
+      : vi.spyOn(operatorAccounts, "operatorAccountAddress")
+        .mockImplementationOnce(async () => {
+          lookupStarted.resolve();
+          await originalLookup.promise;
+          return OPERATOR_ADDRESS;
+        })
+        .mockRejectedValueOnce(new Error("Auth unavailable"));
+    const payload = request({ requestKey: "before-row-key-0123456789" });
+    const original = POST(post(payload));
+    try {
+      await lookupStarted.promise;
+      const retry = await POST(post(payload));
+      expect(retry.status).toBe(503);
+      expect(await retry.json()).toMatchObject({ retryable: true });
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
+      expect(state.sent).toHaveLength(0);
+      originalLookup.resolve();
+      expect((await original).status).toBe(201);
+      expect((await POST(post(payload))).status).toBe(201);
+      expect(state.sent).toHaveLength(1);
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+    } finally {
+      originalLookup.resolve();
+      await original;
+      target.mockRestore();
+    }
+  });
+
+  it("does not send to a partial audience when another address lookup is unavailable", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    await verifyOperator(STRANGER, "venue-crown");
+    const address = vi.spyOn(operatorAccounts, "operatorAccountAddress")
+      .mockImplementation(async (id) => {
+        if (id === STRANGER) throw new Error("Auth unavailable");
+        return OPERATOR_ADDRESS;
+      });
+    try {
+      const response = await POST(post(request({ requestKey: "partial-key-0123456789ab" })));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ retryable: true });
+      expect(state.sent).toHaveLength(0);
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
+    } finally {
+      address.mockRestore();
+    }
+  });
+
   it("offers manual contact without creating an attempt when the email provider is absent", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
     state.noProvider = true;
