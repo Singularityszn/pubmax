@@ -313,9 +313,10 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   if (blockRefusal) return blockRefusal;
 
   const messageBody = readString(body.body) ?? "";
+  const clientMessageId = readString(body.clientMessageId) ?? undefined;
 
   if (photo) {
-    return sendPhoto(request, { conversationId: id, handle, messageBody, photo, store });
+    return sendPhoto(request, { conversationId: id, handle, messageBody, photo, store, clientMessageId });
   }
 
   const parsed = readSendAttachment(body);
@@ -327,7 +328,7 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   }
 
   const sent = await store.send(id, handle, messageBody, attachment, {
-    clientMessageId: readString(body.clientMessageId) ?? undefined,
+    clientMessageId,
   });
   if (!sent) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
@@ -501,11 +502,12 @@ async function sendPhoto(
     conversationId: string;
     handle: string;
     messageBody: string;
+    clientMessageId?: string;
     photo: File;
     store: ReturnType<typeof messagesStore>;
   },
 ): Promise<Response> {
-  const { conversationId, handle, messageBody, photo, store } = input;
+  const { conversationId, handle, messageBody, photo, store, clientMessageId } = input;
 
   const budgetKey = `msg-photo:${handle}:${hashIp(clientIp(request))}`;
   if (
@@ -558,10 +560,11 @@ async function sendPhoto(
       objectKey: promoted.objectKey,
       width: promoted.width,
       height: promoted.height,
-    });
+    }, { clientMessageId });
     if (!sent) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
+    if (sent.message.id !== messageId) await storage.remove([promoted.objectKey]);
     signalSent(conversationId, sent.membership);
     return jsonNoStore({ message: sent.message }, { status: 201 });
   } catch (error) {

@@ -238,6 +238,29 @@ beforeEach(() => {
 });
 
 describe("sending a photo", () => {
+  it("returns the committed photo on retry and keeps deliberate sends distinct", async () => {
+    const id = await openConversation();
+    const storage = deps();
+    const photo = await jpeg();
+    const post = { handle: "ken", body: "look at this", clientMessageId: crypto.randomUUID() };
+
+    const first = await postPhoto(id, photo, post);
+    expect(first.status).toBe(201);
+    const original = (await first.json()).message;
+    const retry = await postPhoto(id, photo, post);
+    expect(retry.status).toBe(201);
+    expect((await retry.json()).message.id).toBe(original.id);
+    expect(storage.keys()).toEqual([messagePhotoServingKey(id, original.id)]);
+    expect((await getPhoto(id, original.id, "ken")).status).toBe(200);
+    expect((await (await getThread(id, "ken")).json()).messages).toHaveLength(1);
+
+    const next = await postPhoto(id, photo, { ...post, clientMessageId: crypto.randomUUID() });
+    expect(next.status).toBe(201);
+    expect((await next.json()).message.id).not.toBe(original.id);
+    expect((await (await getThread(id, "ken")).json()).messages).toHaveLength(2);
+    expect(storage.keys()).toHaveLength(2);
+  });
+
   it("takes a photo with no caption, keys it to the conversation, and strips EXIF", async () => {
     const id = await openConversation();
     const storage = deps();

@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const authState = vi.hoisted(() => ({
   current: { user: { id: "user-ken" } as { id: string } | null, handle: "ken" as string | null, accountRevision: 1 },
 }));
+const selection = vi.hoisted(() => ({ value: "first", label: "First label" }));
 type ThreadRow = {
   id: string;
   conversationId: string;
@@ -57,7 +58,27 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
 vi.mock("@/lib/useFocusTrap", () => ({ useFocusTrap: vi.fn() }));
 vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null }));
-vi.mock("@/components/messages/MessageVenuePicker", () => ({ default: () => null }));
+vi.mock("@/components/messages/MessageAttachmentPicker", () => ({
+  default: ({ onAttachmentKind }: { onAttachmentKind: (kind: string) => void }) =>
+    createElement("div", {}, ...["venue", "contact", "event", "poll"].map((kind) =>
+      createElement("button", { key: kind, "data-attach": kind, onClick: () => onAttachmentKind(kind) }, kind))),
+}));
+vi.mock("@/components/messages/MessageVenuePicker", () => ({
+  default: ({ onPick }: { onPick: (venue: { id: string; name: string; area: string }) => void }) =>
+    createElement("button", { "data-pick": true, onClick: () => onPick({ id: selection.value, name: selection.label, area: "London" }) }, "Pick"),
+}));
+vi.mock("@/components/messages/MessageContactPicker", () => ({
+  default: ({ onPick }: { onPick: (handle: string) => void }) =>
+    createElement("button", { "data-pick": true, onClick: () => onPick(selection.value) }, "Pick"),
+}));
+vi.mock("@/components/messages/MessageEventPicker", () => ({
+  default: ({ onPick }: { onPick: (planId: string) => void }) =>
+    createElement("button", { "data-pick": true, onClick: () => onPick(selection.value) }, "Pick"),
+}));
+vi.mock("@/components/messages/MessagePollComposer", () => ({
+  default: ({ onPick }: { onPick: (poll: { question: string; options: string[] }) => void }) =>
+    createElement("button", { "data-pick": true, onClick: () => onPick({ question: selection.value, options: ["Yes", "No"] }) }, "Pick"),
+}));
 vi.mock("@/components/messages/MessagePhoto", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageVenueCard", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageAvatar", () => ({ default: () => null }));
@@ -150,6 +171,9 @@ function composerValue(): string {
 }
 
 beforeEach(() => {
+  authState.current = { user: { id: "user-ken" }, handle: "ken", accountRevision: 1 };
+  selection.value = "first";
+  selection.label = "First label";
   fetchLog.calls = [];
   fetchLog.pendingPosts = [];
   fetchLog.holdPosts = false;
@@ -286,6 +310,60 @@ describe("the send is latched and carries an idempotency key", () => {
 
     const keys = posts().map((call) => (JSON.parse(call.body) as { clientMessageId: string }).clientMessageId);
     expect(keys).toHaveLength(3);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[0]);
+  });
+
+  it.each(["account", "handle", "conversation"])("does not reuse a failed key after the %s changes", async (changed) => {
+    fetchLog.holdPosts = true;
+    await mount();
+    await typeAndSend("same words");
+    await act(async () => {
+      fetchLog.pendingPosts[0]!(Response.json({ error: "unavailable" }, { status: 503 }));
+    });
+    if (changed === "account") authState.current.user = { id: "user-sam" };
+    if (changed === "handle") authState.current.handle = "sam";
+    authState.current.accountRevision += 1;
+    await act(async () => {
+      root.render(createElement(MessageThread, { conversationId: changed === "conversation" ? "c2" : "c1" }));
+    });
+    await typeAndSend("same words");
+
+    const keys = posts().map((call) => (JSON.parse(call.body) as { clientMessageId: string }).clientMessageId);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toEqual(expect.any(String));
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
+  it.each(["venue", "contact", "event", "poll"])("reuses equivalent %s values and rotates for changed values", async (kind) => {
+    fetchLog.holdPosts = true;
+    await mount();
+    const pick = async () => {
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>(`[data-attach="${kind}"]`)!.click();
+      });
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>("[data-pick]")!.click();
+      });
+    };
+    await pick();
+    await typeAndSend("same words");
+    await act(async () => {
+      fetchLog.pendingPosts[0]!(Response.json({ error: "unavailable" }, { status: 503 }));
+    });
+    selection.label = "Updated display label";
+    await pick();
+    await typeAndSend("same words");
+    await act(async () => {
+      fetchLog.pendingPosts[1]!(Response.json({ error: "unavailable" }, { status: 503 }));
+    });
+    selection.value = "second";
+    await pick();
+    await typeAndSend("same words");
+
+    const keys = posts().map((call) => (JSON.parse(call.body) as { clientMessageId: string }).clientMessageId);
+    expect(keys).toHaveLength(3);
+    expect(keys[0]).toEqual(expect.any(String));
     expect(keys[1]).toBe(keys[0]);
     expect(keys[2]).not.toBe(keys[0]);
   });

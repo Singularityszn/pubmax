@@ -379,8 +379,7 @@ export default function MessageThread({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   /** Claimed before the first await in `send`; see the note there. */
   const sendInFlightRef = useRef(false);
-  // The key of the last send that did not land, kept with what it carried.
-  const unsentKeyRef = useRef<{ key: string; body: string; pending: unknown } | null>(null);
+  const unsentKeyRef = useRef<{ key: string; payload: string; photo: File | null } | null>(null);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
@@ -697,14 +696,23 @@ export default function MessageThread({
     sendInFlightRef.current = true;
     const sentPending = pending;
     const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
-    // ONE ID FOR THIS MESSAGE, reused when the same words and attachment are
-    // sent again after a failure, so a connection reset after the row committed
-    // cannot store the line twice (migration 0149's unique index is the other
-    // half). Changed words or a changed attachment are a new message.
+    const post = {
+      action: "send",
+      handle: h,
+      body: bodyText,
+      ...(sentPending?.kind === "venue" ? { venueId: sentPending.venue.id } : {}),
+      ...(sentPending?.kind === "contact" ? { contactHandle: sentPending.handle } : {}),
+      ...(sentPending?.kind === "event" ? { planId: sentPending.planId } : {}),
+      ...(sentPending?.kind === "poll"
+        ? { poll: { question: sentPending.poll.question, options: sentPending.poll.options } }
+        : {}),
+    };
+    const payload = JSON.stringify({ conversationId, senderId: user.id, post });
+    const photo = sentPending?.kind === "photo" ? sentPending.file : null;
     const unsent = unsentKeyRef.current;
     const clientMessageId =
-      unsent && unsent.body === bodyText && unsent.pending === sentPending ? unsent.key : newClientMessageId();
-    unsentKeyRef.current = { key: clientMessageId, body: bodyText, pending: sentPending };
+      unsent && unsent.payload === payload && unsent.photo === photo ? unsent.key : newClientMessageId();
+    unsentKeyRef.current = { key: clientMessageId, payload, photo };
     setSending(true);
     setError("");
     // The bubble lands and the field clears NOW; the server's answer replaces
@@ -730,33 +738,21 @@ export default function MessageThread({
     };
     try {
       const address = `/api/messages/${encodeURIComponent(conversationId)}`;
-      // AT MOST ONE attachment names itself on the wire, and the server refuses
-      // a body that names two, so this spread is the browser half of one rule
-      // rather than a second copy of it.
-      const post = {
-        action: "send",
-        handle: h,
-        body: bodyText,
-        clientMessageId,
-        ...(sentPending?.kind === "venue" ? { venueId: sentPending.venue.id } : {}),
-        ...(sentPending?.kind === "contact" ? { contactHandle: sentPending.handle } : {}),
-        ...(sentPending?.kind === "event" ? { planId: sentPending.planId } : {}),
-        ...(sentPending?.kind === "poll" ? { poll: sentPending.poll } : {}),
-      };
+      const keyedPost = { ...post, clientMessageId };
 
       let res: Response;
       if (sentPending?.kind === "photo") {
         // The photo lane is multipart: one JSON part and one file, exactly the
         // shape the pub wall already sends.
         const form = new FormData();
-        form.append("post", JSON.stringify(post));
+        form.append("post", JSON.stringify(keyedPost));
         form.append("photo", sentPending.file);
         res = await authedActionFetch(address, { method: "POST", body: form }, { requiresIdentity: true });
       } else {
         res = await authedActionFetch(address, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(post),
+          body: JSON.stringify(keyedPost),
         }, { requiresIdentity: true });
       }
 
