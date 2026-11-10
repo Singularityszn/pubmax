@@ -299,7 +299,7 @@ describe("POST /api/table-requests: the two ways out", () => {
 
   it("asks the pub once when a request is retried under its key, and again for a new key", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
-    const key = "retry-key-0123456789abcdef";
+    const key = "test-key-aaaaaaaaaaaaaaaa";
     expect((await POST(post(request({ requestKey: key })))).status).toBe(201);
     // The answer was lost; the form sends the same request under the same key.
     const retry = await POST(post(request({ requestKey: key })));
@@ -308,7 +308,7 @@ describe("POST /api/table-requests: the two ways out", () => {
     expect(state.sent).toHaveLength(1);
     expect((await memoryTableRequestsStore.listEmailedForVenue("venue-crown")).requests).toHaveLength(1);
 
-    expect((await POST(post(request({ requestKey: "another-key-0123456789ab", partySize: 9 })))).status).toBe(201);
+    expect((await POST(post(request({ requestKey: "test-key-bbbbbbbbbbbbbbbb", partySize: 9 })))).status).toBe(201);
     expect(state.sent).toHaveLength(2);
   });
 
@@ -329,7 +329,7 @@ describe("POST /api/table-requests: the two ways out", () => {
       retryStarted.resolve();
       return retrySend.promise;
     };
-    const payload = request({ requestKey: "overlapping-key-0123456789" });
+    const payload = request({ requestKey: "test-key-cccccccccccccccc" });
     const original = POST(post(payload));
     await originalStarted.promise;
     const retry = POST(post(payload));
@@ -361,7 +361,7 @@ describe("POST /api/table-requests: the two ways out", () => {
 
   it.each(["operators", "address"])("replays success when the current %s lookup fails", async (lookup) => {
     await verifyOperator(OPERATOR, "venue-crown");
-    const payload = request({ requestKey: "completed-key-0123456789" });
+    const payload = request({ requestKey: "test-key-dddddddddddddddd" });
     expect((await POST(post(payload))).status).toBe(201);
     const operators = lookup === "operators"
       ? vi.spyOn(memoryVenueOperatorStore, "verifiedOperatorAccountIds").mockRejectedValue(new Error("store unavailable"))
@@ -379,7 +379,7 @@ describe("POST /api/table-requests: the two ways out", () => {
 
   it.each(["error", "throw"] as const)("retries a %s send with its original row and email key", async (failure) => {
     await verifyOperator(OPERATOR, "venue-crown");
-    const payload = request({ requestKey: "uncertain-key-0123456789" });
+    const payload = request({ requestKey: "test-key-eeeeeeeeeeeeeeee" });
     state.sendResult = failure === "throw" ? "error" : failure;
     if (failure === "throw") state.send = async () => { throw new Error("connection lost"); };
     const failed = await POST(post(payload));
@@ -398,7 +398,7 @@ describe("POST /api/table-requests: the two ways out", () => {
     await verifyOperator(STRANGER, "venue-crown");
     if (change === "address") state.addresses.delete(OPERATOR);
     state.addresses.set(STRANGER, "second@thecrown.example");
-    const payload = request({ requestKey: "recipient-key-0123456789" });
+    const payload = request({ requestKey: "test-key-ffffffffffffffff" });
     state.sendResult = "error";
     expect((await POST(post(payload))).status).toBe(503);
     const firstKey = state.sent.find((message) => message.to === "second@thecrown.example")!.idempotencyKey;
@@ -440,7 +440,7 @@ describe("POST /api/table-requests: the two ways out", () => {
       sendStarted.resolve();
       return sendResult.promise;
     };
-    const payload = request({ requestKey: "delayed-lookup-0123456789" });
+    const payload = request({ requestKey: "test-key-gggggggggggggggg" });
     try {
       const retry = POST(post(payload));
       await lookupStarted.promise;
@@ -481,7 +481,7 @@ describe("POST /api/table-requests: the two ways out", () => {
           return OPERATOR_ADDRESS;
         })
         .mockRejectedValueOnce(new Error("Auth unavailable"));
-    const payload = request({ requestKey: "before-row-key-0123456789" });
+    const payload = request({ requestKey: "test-key-hhhhhhhhhhhhhhhh" });
     const original = POST(post(payload));
     try {
       await lookupStarted.promise;
@@ -511,7 +511,7 @@ describe("POST /api/table-requests: the two ways out", () => {
         return OPERATOR_ADDRESS;
       });
     try {
-      const response = await POST(post(request({ requestKey: "partial-key-0123456789ab" })));
+      const response = await POST(post(request({ requestKey: "test-key-iiiiiiiiiiiiiiii" })));
       expect(response.status).toBe(503);
       expect(await response.json()).toMatchObject({ retryable: true });
       expect(state.sent).toHaveLength(0);
@@ -524,7 +524,7 @@ describe("POST /api/table-requests: the two ways out", () => {
   it("offers manual contact without creating an attempt when the email provider is absent", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
     state.noProvider = true;
-    const payload = request({ requestKey: "no-provider-0123456789ab" });
+    const payload = request({ requestKey: "test-key-jjjjjjjjjjjjjjjj" });
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const response = await POST(post(payload));
       expect(response.status).toBe(200);
@@ -536,7 +536,7 @@ describe("POST /api/table-requests: the two ways out", () => {
 
   it("does not offer manual contact when an uncertain attempt loses its email provider", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
-    const payload = request({ requestKey: "lost-provider-0123456789" });
+    const payload = request({ requestKey: "test-key-kkkkkkkkkkkkkkkk" });
     state.sendResult = "error";
     expect((await POST(post(payload))).status).toBe(503);
     state.noProvider = true;
@@ -547,7 +547,7 @@ describe("POST /api/table-requests: the two ways out", () => {
 
   it.each(["error", "stamp"])("does not resend an old pending attempt after a %s failure", async (failure) => {
     await verifyOperator(OPERATOR, "venue-crown");
-    const payload = request({ requestKey: "expired-key-0123456789ab" });
+    const payload = request({ requestKey: "test-key-llllllllllllllll" });
     const stamp = failure === "stamp"
       ? vi.spyOn(memoryTableRequestsStore, "markEmailed").mockRejectedValue(new Error("stamp unavailable"))
       : null;
@@ -572,7 +572,7 @@ describe("POST /api/table-requests: the two ways out", () => {
 
   it("keeps a failed replay read retryable instead of offering manual contact", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
-    const payload = request({ requestKey: "unreadable-key-0123456789" });
+    const payload = request({ requestKey: "test-key-mmmmmmmmmmmmmmmm" });
     expect((await POST(post(payload))).status).toBe(201);
     const attempt = vi.spyOn(memoryTableRequestsStore, "findForRequester")
       .mockRejectedValue(new Error("store unavailable"));
@@ -588,7 +588,7 @@ describe("POST /api/table-requests: the two ways out", () => {
 
   it.each(["operators", "address"])("keeps an uncertain attempt retryable when its %s disappears", async (lookup) => {
     await verifyOperator(OPERATOR, "venue-crown");
-    const payload = request({ requestKey: "pending-key-0123456789" });
+    const payload = request({ requestKey: "test-key-nnnnnnnnnnnnnnnn" });
     state.sendResult = "error";
     expect((await POST(post(payload))).status).toBe(503);
     if (lookup === "operators") __resetVenueOperators();
@@ -601,7 +601,7 @@ describe("POST /api/table-requests: the two ways out", () => {
 
   it("does not replay another account's success for the same key", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
-    const payload = request({ requestKey: "account-key-0123456789" });
+    const payload = request({ requestKey: "test-key-oooooooooooooooo" });
     expect((await POST(post(payload))).status).toBe(201);
     state.caller = STRANGER;
     expect((await POST(post(payload))).status).toBe(201);
