@@ -266,6 +266,30 @@ describe("the send is latched and carries an idempotency key", () => {
     );
   });
 
+  it("sends a failed message again under its first key, and edited words under a new one", async () => {
+    fetchLog.holdPosts = true;
+    await mount();
+    await typeAndSend("same words");
+    await act(async () => {
+      fetchLog.pendingPosts[0]!(Response.json({ error: "Storage is unavailable." }, { status: 503 }));
+    });
+    await flush();
+    // The words came back to the field. Send them again, unchanged.
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".composerSend")!.click();
+    });
+    await act(async () => {
+      fetchLog.pendingPosts[1]!(Response.json({ error: "Storage is unavailable." }, { status: 503 }));
+    });
+    await flush();
+    await typeAndSend("same words, edited");
+
+    const keys = posts().map((call) => (JSON.parse(call.body) as { clientMessageId: string }).clientMessageId);
+    expect(keys).toHaveLength(3);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[0]);
+  });
+
   it("gives each deliberate send its own key, so two messages are never one row", async () => {
     await mount();
     await typeAndSend("first");

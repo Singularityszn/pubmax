@@ -379,6 +379,8 @@ export default function MessageThread({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   /** Claimed before the first await in `send`; see the note there. */
   const sendInFlightRef = useRef(false);
+  // The key of the last send that did not land, kept with what it carried.
+  const unsentKeyRef = useRef<{ key: string; body: string; pending: unknown } | null>(null);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
@@ -695,10 +697,14 @@ export default function MessageThread({
     sendInFlightRef.current = true;
     const sentPending = pending;
     const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
-    // ONE ID FOR THIS ATTEMPT, minted here and sent on every retry of it, so a
-    // connection reset after the row committed cannot store the line twice
-    // (migration 0149's unique index is the other half).
-    const clientMessageId = newClientMessageId();
+    // ONE ID FOR THIS MESSAGE, reused when the same words and attachment are
+    // sent again after a failure, so a connection reset after the row committed
+    // cannot store the line twice (migration 0149's unique index is the other
+    // half). Changed words or a changed attachment are a new message.
+    const unsent = unsentKeyRef.current;
+    const clientMessageId =
+      unsent && unsent.body === bodyText && unsent.pending === sentPending ? unsent.key : newClientMessageId();
+    unsentKeyRef.current = { key: clientMessageId, body: bodyText, pending: sentPending };
     setSending(true);
     setError("");
     // The bubble lands and the field clears NOW; the server's answer replaces
@@ -793,6 +799,7 @@ export default function MessageThread({
         await refresh();
       }
       setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
+      if (unsentKeyRef.current?.key === clientMessageId) unsentKeyRef.current = null;
     } catch {
       takeBack();
       setError(
