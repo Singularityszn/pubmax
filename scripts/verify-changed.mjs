@@ -51,6 +51,7 @@ const EXTENSIONS = ["", ".ts", ".tsx", ".mts", ".mjs", ".js", ".cjs", "/index.ts
  * not a tracked file and is dropped.
  * @param {string[]} files repo-relative tracked source files
  * @param {(path: string) => string} readText
+ * @param {string[]} [resolverCandidates] additional targets, including deleted paths, resolved without reading them
  * @returns {Map<string, Set<string>>}
  */
 export function importGraph(files, readText, resolverCandidates = []) {
