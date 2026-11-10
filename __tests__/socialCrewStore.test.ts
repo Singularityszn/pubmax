@@ -94,11 +94,12 @@ describe("open-crawl member arrival", () => {
   function arrivalFixture(
     visibility: RawSocialCrew["visibility"] = "open",
     startsAt = planState.plan.startTime,
+    status = planState.plan.status,
   ) {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-08-07T19:00:00Z"));
     const crew = rawCrew({ visibility });
-    const plan = { ...planState, plan: { ...planState.plan, startTime: startsAt } };
+    const plan = { ...planState, plan: { ...planState.plan, startTime: startsAt, status } };
     const seats = crew.members.map((member) => ({
       id: member.planMemberId, name: member.handle, status: "in" as "in" | "here",
       joinedAt: member.joinedAt, updatedAt: member.joinedAt,
@@ -116,9 +117,10 @@ describe("open-crawl member arrival", () => {
           const member = crew.members.find((member) =>
             member.planMemberId === seatId && member.accountId === accountId && member.state === "active");
           const seat = seats.find((seat) => seat.id === seatId);
-          if (planId !== PLAN_ID || !member || !seat) return false;
+          if (planId !== PLAN_ID || !member || !seat) return "missing";
+          if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return "closed";
           seat.status = "here";
-          return true;
+          return "marked";
         },
       },
     });
@@ -199,6 +201,12 @@ describe("open-crawl member arrival", () => {
     crew.members[1]!.state = "removed";
     await expect(store.markArrival(bob, { crewId: CREW_ID, here: true })).rejects.toMatchObject({ status: 404 });
     await expect(store.markArrival(bob, { crewId: OTHER_CREW_ID, here: true })).rejects.toMatchObject({ status: 404 });
+    expect(seats.every((seat) => seat.status === "in")).toBe(true);
+  });
+
+  it.each(["abandoned", "completed"] as const)("refuses Here once the crawl is %s without writing a seat", async (status) => {
+    const { store, seats } = arrivalFixture("open", planState.plan.startTime, status);
+    await expect(store.markArrival(bob, { crewId: CREW_ID, here: true })).rejects.toMatchObject({ status: 409 });
     expect(seats.every((seat) => seat.status === "in")).toBe(true);
   });
 

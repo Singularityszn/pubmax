@@ -13,7 +13,7 @@ import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 
 export type OpenCrawlPlanSeats = {
   read(planId: string): Promise<CrewMemberDTO[]>;
-  markHere(planId: string, seatId: string, accountId: string): Promise<boolean>;
+  markHere(planId: string, seatId: string, accountId: string): Promise<"marked" | "closed" | "missing">;
 };
 
 export const openCrawlPlanSeats: OpenCrawlPlanSeats = {
@@ -28,12 +28,14 @@ export const openCrawlPlanSeats: OpenCrawlPlanSeats = {
     }));
   },
   async markHere(planId, seatId, accountId) {
-    const { data, error } = await requireDynamicSupabaseAdmin().from("plan_crew_members")
-      .update({ status: "here", updated_at: new Date().toISOString() })
-      .eq("plan_id", planId).eq("id", seatId).eq("social_account_id", accountId)
-      .select("id");
+    const { data, error } = await requireDynamicSupabaseAdmin().rpc("set_crew_status", {
+      p_plan_id: planId, p_status: "here", p_seat_id: seatId, p_account_id: accountId,
+    });
     if (error) throw new Error("Arrival unavailable.");
-    return data?.length === 1;
+    if (data === "ok") return "marked";
+    if (data === "closed") return "closed";
+    if (data === "not_found") return "missing";
+    throw new Error("Arrival unavailable.");
   },
 };
 
@@ -93,7 +95,9 @@ export async function markOpenCrawlArrival(
     }
     const seats = dependencies.planSeats;
     if (!seats) throw new Error("Arrival unavailable.");
-    if (!await seats.markHere(projected.plan.plan.id, member.planMemberId, actor.accountId)) return notFound();
+    const marked = await seats.markHere(projected.plan.plan.id, member.planMemberId, actor.accountId);
+    if (marked === "closed") throw new SocialCrewStoreError("CONFLICT", 409, "This crawl has ended.");
+    if (marked === "missing") return notFound();
     const current = arrivalContext(await snapshot(), input.crewId, actor);
     const roster = await seats.read(projected.plan.plan.id);
     const active = new Set(current.raw.members.filter((member) => member.state === "active").map((member) => member.planMemberId));
