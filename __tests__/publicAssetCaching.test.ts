@@ -180,7 +180,13 @@ describe("public asset caching", () => {
     expect(MAPLIBRE_WORKER_URL).toBe(`/vendor/maplibre/${MAPLIBRE_VERSION}/maplibre-gl-worker.mjs`);
     const atlasUrls = JSON.stringify(mapIconSprite).match(/\/map-icons\/[^"]+\?v=[0-9a-f]+/g) ?? [];
     expect(atlasUrls.length).toBeGreaterThan(0);
-    const meta = mapOpeningSnapshot as MapOpeningSnapshotMeta;
+    const meta: MapOpeningSnapshotMeta = {
+      ...mapOpeningSnapshot,
+      camera: {
+        ...mapOpeningSnapshot.camera,
+        center: [mapOpeningSnapshot.camera.center[0]!, mapOpeningSnapshot.camera.center[1]!],
+      },
+    };
     const ground = resolveOpeningGround(meta, meta.camera);
     const openingUrls = ground ? [ground.light, ground.dark] : [];
     expect(openingUrls).toHaveLength(2);
