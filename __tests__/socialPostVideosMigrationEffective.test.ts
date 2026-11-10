@@ -111,9 +111,9 @@ describe.skipIf(skipReason !== null)("0183 social post videos", () => {
     expect(db().sql(asServiceRole(`select public.review_social_post_video('${ALICE_POST}', 'approved');`))).toBe("t");
     expect(visible(ALICE_POST, BOB)).toBe("approved");
     expect(db().sql(asServiceRole("select count(*) from public.read_held_social_post_videos(50);"))).toBe("0");
-    db().sql(asServiceRole(`select public.review_social_post_video('${ALICE_POST}', 'rejected');`));
-    expect(visible(ALICE_POST, BOB)).toBe("none");
-    expect(visible(ALICE_POST, ALICE)).toBe("rejected");
+    // 0228: a reviewed video is not reviewed again, so a stale tab cannot overturn it.
+    expect(db().sql(asServiceRole(`select public.review_social_post_video('${ALICE_POST}', 'rejected');`))).toBe("f");
+    expect(visible(ALICE_POST, BOB)).toBe("approved");
     expect(db().expectRefusal(asServiceRole(`select public.review_social_post_video('${ALICE_POST}', 'maybe');`))).toMatch(/invalid Social video decision/);
   });
 
