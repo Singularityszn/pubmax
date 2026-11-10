@@ -163,6 +163,7 @@ test('onboarding sign-out handoff shows the ban notice after closing the modal',
 
 test('onboarding guidelines link opens readable community rules', async ({ page }) => {
   const { dialog } = await seed(page, true, 390);
+  await dialog.locator('input').first().fill('draft_before_guidelines');
   await refusal(page, true);
   await switchB(dialog);
   await dialog.getByRole('alert').filter({ hasText: 'This account has been banned' })
@@ -173,4 +174,9 @@ test('onboarding guidelines link opens readable community rules', async ({ page 
   await shot(page, 'onboarding-guidelines-destination');
   // The rules must be readable and usable after the reader follows their link.
   await title.click({ trial: true });
+  await expect(dialog).toHaveCount(0);
+  await page.goBack();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('input').first()).toHaveValue('draft_before_guidelines');
+  await shot(page, 'onboarding-guidelines-return-preserves-draft');
 });

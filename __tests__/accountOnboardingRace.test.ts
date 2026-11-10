@@ -106,7 +106,7 @@ describe("AccountOnboarding cold-open identity race", () => {
   it("releases the guidelines page and restores the unfinished claim on return", async () => {
     requestState.responses = [Response.json({ complete: false })];
     authState.current.identityResolved = true;
-    const render = () => root?.render(createElement(AccountOnboarding, { authBannedNotice: true }));
+    const render = () => root?.render(createElement(AccountOnboarding));
     await commit(render);
     await settleOnboarding();
     const input = document.querySelector<HTMLInputElement>('[role="dialog"] input')!;

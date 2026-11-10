@@ -23,7 +23,10 @@ const h = vi.hoisted(() => ({
   refusal: null as "user_banned" | "invalid_grant" | null,
   onboardingComplete: true,
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => window.location.pathname,
+}));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
@@ -129,7 +132,10 @@ beforeEach(() => {
 });
 
 async function mountProvider(): Promise<void> {
-  await act(async () => { root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe))); });
+  await act(async () => {
+    await import("@/components/identity/AccountOnboarding");
+    root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe)));
+  });
   await vi.waitFor(() => expect(container.textContent).toBe("leaving"));
 }
 
