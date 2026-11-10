@@ -106,13 +106,9 @@ export default function ThemeAttribute(): null {
     return () => observer.disconnect();
   }, []);
 
-  // THE NIGHT THEME FOLLOWS THE CLOCK WHILE THE PAGE IS OPEN. theme-init.js
-  // decides once, before paint; a reader with no theme choice who has Tonight
-  // open at 21:29 should see it go dark at 21:30, and light again at 04:00.
-  // Asked every minute and whenever the tab comes back (a slept tab's timers
-  // do not fire). It stands down for good the moment the reader taps the
-  // theme control (html[data-theme-chosen]), even when storage refused to keep
-  // that choice, and it never touches a page whose choice is stored.
+  // Resume events cover tabs whose minute timer paused. Manual choices take
+  // priority, including choices received from other tabs and choices that
+  // storage refused. See docs/DESIGN_SYSTEM.md#daynight-coherence.
   useEffect(() => {
     const root = document.documentElement;
     const storage = safeLocalStorage();

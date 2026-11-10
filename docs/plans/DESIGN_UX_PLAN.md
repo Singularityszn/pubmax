@@ -46,7 +46,7 @@ The screenshot script is a scratch tool. Step 0.4 makes it a repo command.
 | Design | Where it is | What hides it |
 |---|---|---|
 | Drink taps on a Dock, pour line, pint belt, washing line, menu icons (#2456) | `components/ui/dock.tsx`, `app/tonight/TonightPintBelt.tsx`, `components/nav/siteNav.css` | Not deployed. Taps need a desktop mouse. Menu icons need 1024px or wider. See the [Tonight feature guide](../../README.md#features) for pint presentations. |
-| Night Out dark theme | `lib/themePreference.ts` | Default only from 21:30 to 04:00 London time, or by a tap on the moon |
+| Night Out dark theme | [Day/night coherence](../DESIGN_SYSTEM.md#daynight-coherence) | See [Appearance](../../README.md#features) for controls and saved-choice behaviour. |
 | List beside the map, two-pane messages, the command palette | `components/map/MapSplitList.tsx`, `app/messages/messages.css` | Desktop only (1024px or wider) |
 | Price pills on the map | `components/map/canvas/filters.ts` (`PRICE_PILL_MIN_ZOOM = 12`) | Only from zoom 12. The map opens on all of London, below that zoom |
 | Night Mode card, Plan card | `components/night/NightModeCard.tsx`, `components/plan/PlanCard.tsx` | Only with an active plan, or for a signed-in plan member |
@@ -224,7 +224,7 @@ rule.
 |---|---|---|
 | 6.1 | **The price lands.** When an answer arrives, the price badge presses in like a stamp. This brings back the "pressed ink" signature as motion, not as a tilt. | S |
 | 6.2 | **The route draws.** When a plan lands, the walk line draws from stop to stop. | S |
-| 6.3 | **Night comes in.** At 21:30 the app changes to the night theme with one short fade, and the Night Mode screen gets large tap targets (the launch UX variation V2). | M |
+| 6.3 | **Night comes in.** Use one short fade for the automatic changes in [Day/night coherence](../DESIGN_SYSTEM.md#daynight-coherence). The Night Mode screen gets large tap targets (the launch UX variation V2). | M |
 | 6.4 | **Touch versions of the #2456 effects,** or remove them. A desktop-only effect that most people never see costs code and gives nothing. | S |
 
 ### Phase 7. Make change cheap (ongoing, beside the phases)
