@@ -2671,8 +2671,23 @@ function PlanComposerForm({
     generation: 0,
     pending: true,
   });
-  const [sorting, setSorting] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  // One action owns the composer at a time: a route being made, or a Lock.
+  // The ref answers synchronously, so a second tap in the same frame is
+  // refused before it can start anything.
+  const [activity, setActivity] = useState<"idle" | "generating" | "locking">("idle");
+  const activityRef = useRef(activity);
+  const sorting = activity === "generating";
+  const submitting = activity === "locking";
+  const beginActivity = (next: "generating" | "locking"): boolean => {
+    if (activityRef.current !== "idle") return false;
+    activityRef.current = next;
+    setActivity(next);
+    return true;
+  };
+  const endActivity = () => {
+    activityRef.current = "idle";
+    setActivity("idle");
+  };
   // Walk minutes the browser measured between stops, merged over the route's
   // life so a reorder re-times a leg the generator never walked.
   const [measured, setMeasured] = useState<MeasuredLegMinutes>(() => new Map());
@@ -2742,7 +2757,7 @@ function PlanComposerForm({
   const nameField = (
     <div className="planComposer__field">
       <label htmlFor="plan-name">Your name</label>
-      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => { pendingDraftSave.current = true; automaticCreatorName.current = null; setCreatorName(event.target.value); }} placeholder="Shown on the invite" />
+      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required disabled={submitting} value={creatorName} onChange={(event) => { pendingDraftSave.current = true; automaticCreatorName.current = null; setCreatorName(event.target.value); }} placeholder="Shown on the invite" />
     </div>
   );
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
@@ -3129,6 +3144,7 @@ function PlanComposerForm({
     status: string,
     options: { reorder?: boolean; swapToAlternative?: boolean; settledStatus?: string; release?: boolean } = {},
   ): boolean {
+    if (activityRef.current === "locking") return false;
     const release = Boolean(options.release && heldVenueId);
     const mutation = composerRouteMutation({
       currentStops: stops,
@@ -3407,7 +3423,7 @@ function PlanComposerForm({
     context: Partial<NightContext> = requestContext,
   ) {
     const lifetimeSignal = formLifetime.current?.signal;
-    if (!lifetimeSignal) return;
+    if (!lifetimeSignal || activityRef.current !== "idle") return;
     const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
     if (signal.aborted) return;
     const request = prepareConciergeRequest(queryOverride, intakeOverride, context);
@@ -3423,7 +3439,7 @@ function PlanComposerForm({
       submittedStart = nextEvening();
       setStartTime(submittedStart);
     }
-    setSorting(true);
+    beginActivity("generating");
     setError("");
     setRouteStatus(palDraftCheckingLine(palDraft, routeSorted
       ? "Refreshing the route and rechecking every stop for your updated night."
@@ -3548,7 +3564,7 @@ function PlanComposerForm({
       setRouteStatus(failureStatus);
       setRouteRevealTick((tick) => tick + 1);
     } finally {
-      if (!lifetimeSignal.aborted) setSorting(false);
+      endActivity();
     }
   }
 
@@ -3598,14 +3614,30 @@ function PlanComposerForm({
     if (ownsAcceptance(owner)) clearPlanIntakeDraft(composerAcceptanceStorage(safeLocalStorage(), owner, "local"));
   }
 
+  // A refused route (422) or a key already spent on other details (409) can
+  // never lock as it is: the proof is bound to its key. The route waits for a
+  // refresh, which brings a new proof and key, instead of sending the same
+  // refusal on every tap.
+  function lockFailureMessage(status: number, body: unknown, operationKey: string): string {
+    if (status === 422 || status === 409) {
+      clearPersistentPlanMutationKey("create", operationKey);
+      pendingDraftSave.current = true;
+      setGroundingProof(null);
+      setCreateOperationKey(null);
+      setRouteStale(true);
+    }
+    const mapped = hydratedHandoff || status === 409 ? composerLockErrorFromResponse(status) : null;
+    return mapped || errorMessageFrom(body, "The plan could not be created.");
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const lifetimeSignal = formLifetime.current?.signal;
     if (!lifetimeSignal) return;
     const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
-    if (signal.aborted) return;
+    if (signal.aborted || activityRef.current !== "idle") return;
     if (!validatePlanSubmission()) return;
-    setSubmitting(true);
+    beginActivity("locking");
     setError("");
     try {
       const exactStartIso = resolveFutureLondonStartIso(
@@ -3638,10 +3670,7 @@ function PlanComposerForm({
       if (signal.aborted) return;
       assertComposerOwnership(ownsAcceptance(requestOwner.current));
       if (!response.ok || !body?.plan?.plan?.id) {
-        // Surface anchored-lock failures honestly: 422 for invalid or expired
-        // proof, and 409 for replay conflict.
-        const mapped = hydratedHandoff ? composerLockErrorFromResponse(response.status) : null;
-        throw new Error(mapped || errorMessageFrom(body, "The plan could not be created."));
+        throw new Error(lockFailureMessage(response.status, body, operationKey));
       }
       const planId = body.plan.plan.id as string;
       const attribution = serverPlanCreationAttribution(body);
@@ -3712,7 +3741,7 @@ function PlanComposerForm({
     } catch (caught) {
       if (!signal.aborted) setError(caught instanceof Error ? caught.message : "The plan could not be created.");
     } finally {
-      if (!lifetimeSignal.aborted) setSubmitting(false);
+      endActivity();
     }
   }
 
@@ -3806,7 +3835,7 @@ function PlanComposerForm({
       {inSheet ? null : routeStaleNotice}
       {!editableContext ? <div className="planComposer__context">{stopCountControl}</div> : null}
       {editableContext ? (
-        <fieldset className="planComposer__context">
+        <fieldset className="planComposer__context" disabled={submitting}>
           <legend>What PUBMAXX understood. Edit anything.</legend>
           <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
           <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={editableContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
@@ -3969,12 +3998,12 @@ function PlanComposerForm({
     <>
       <div className="planComposer__field planComposer__field--wide">
         <label htmlFor="plan-title">Name the night</label>
-        <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => { pendingDraftSave.current = true; setTitle(event.target.value); }} />
+        <input id="plan-title" type="text" maxLength={80} disabled={submitting} value={title} onChange={(event) => { pendingDraftSave.current = true; setTitle(event.target.value); }} />
       </div>
       {nameInLockBar ? null : nameField}
       <div className="planComposer__field">
         <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
-        <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
+        <input id="plan-time" type="datetime-local" required disabled={submitting} aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
         {/* Late in the evening the default is tomorrow at 19:00, so the night
             the reader is standing in needs a door of its own. It carries the
             date because an early-hours slot reads as tomorrow on a calendar
@@ -3984,6 +4013,7 @@ function PlanComposerForm({
             type="button"
             className="planComposer__tonight"
             data-testid="plan-tonight-choice"
+            disabled={submitting}
             onClick={() => {
               const slot = tonightLondonStartInput();
               if (slot) updatePlanStartTime(slot);
@@ -4002,7 +4032,7 @@ function PlanComposerForm({
   const summaryLine = routeSummaryLine(viewStops, measured, startTime);
   const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
   const stopsBlock = (
-    <fieldset className="planComposer__stops">
+    <fieldset className="planComposer__stops" disabled={submitting}>
       <legend className={resultMode ? "planComposer__srOnly" : undefined}>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
       {resultMode ? null : routeStatusLine}
       <PlanCultureOpener opener={cultureOpener} />
@@ -4062,7 +4092,7 @@ function PlanComposerForm({
     <section className="planResult" aria-labelledby="plan-result-title">
       <div className="planResult__top">
         <h1 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h1>
-        <button type="button" className="planResult__tune" aria-haspopup="dialog" onClick={() => setTuneOpen(true)}>
+        <button type="button" className="planResult__tune" aria-haspopup="dialog" disabled={submitting} onClick={() => setTuneOpen(true)}>
           <SlidersHorizontal size={16} aria-hidden="true" /> <span className="planResult__tuneLabel">Tune details</span>
         </button>
       </div>

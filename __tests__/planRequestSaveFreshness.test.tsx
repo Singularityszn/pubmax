@@ -1501,8 +1501,8 @@ describe("Lock owns the composer while it runs", () => {
   });
 
   it.each([
-    { status: 422, body: { error: { code: "PLAN_ANCHOR_REQUIRED", message: "Include the accepted pub for this route." } } },
-    { status: 409, body: { error: { code: "PLAN_IDEMPOTENCY_CONFLICT", message: "That request key was already used for a different Plan." } } },
+    { status: 422, body: { error: "Include the accepted pub for this route.", code: "PLAN_ANCHOR_REQUIRED" } },
+    { status: 409, body: { error: "That request key was already used for a different Plan.", code: "PLAN_IDEMPOTENCY_CONFLICT" } },
   ])("a $status Lock leaves a route to refresh, and the refreshed route locks with its own key", async ({ status, body }) => {
     const generated = await lockableRoute();
     fetchMock.mockImplementation(async (input) => (String(input) === "/api/plans"
