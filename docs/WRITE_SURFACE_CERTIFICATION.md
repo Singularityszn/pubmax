@@ -900,19 +900,12 @@ owns receipt counting and deduplication rules.
 
 ### `app/api/table-requests` - a crew asks a pub for a table
 
-- **Route / method:** `POST app/api/table-requests/route.ts` takes one JSON
-  request for a crew of 6 to 20: `venueId`, `name`, `partySize`, `date`,
-  `time`, an optional `note` and ONE `contact` (`{ kind: "email" | "phone",
-  value }`) the pub can reply to. It answers `201 { outcome: "sent" }` only
-  when an email to the pub's VERIFIED operator was sent through
-  `lib/emailProvider.ts`, and `200 { outcome: "not_sent" }` otherwise (no
-  verified operator, no address on the operator's account, a keyless
-  deployment where the seam answers `skipped`, a failed send, or a store that
-  could not keep the request). The sheet then hands the person a prefilled
-  email to the pub's own published address, or its phone, and says plainly
-  that PUBMAXX did not send it. The `GET ?venueId=` read lists that pub's
-  emailed requests to a verified operator of THAT pub alone (401 signed out,
-  403 anybody else), without the requester's account id.
+- **Route / method:** `POST app/api/table-requests/route.ts` accepts a group
+  table request. The [table request rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent)
+  own its delivery outcomes, retry keys, retention and manual-contact fallback.
+  The `GET ?venueId=` read lists that pub's emailed requests to a verified
+  operator of that pub alone (401 signed out, 403 anybody else), without the
+  requester's account id.
 - **What it never writes:** a booking, a hold, a fee, a payment, a venue, a pin,
   a price or an order. A fee per seated group is a later decision under
   ADR 0011 and the 0219 table has no column for one. The answer never echoes a
@@ -935,10 +928,8 @@ owns receipt counting and deduplication rules.
   and their address is read from Supabase Auth on the service role
   (`lib/operatorAccountAddress.server.ts`), never from a body or a venue
   record. The 0219 table keys the requester to `auth.users` with ON DELETE
-  CASCADE and has no browser grant. A request that was stored and then not
-  sent is deleted, so the operator panel never lists one the person was told
-  PUBMAXX did not send. The requester's account export carries their own
-  requests (the `tableRequests` lane), and nothing about the operator.
+  CASCADE and has no browser grant. The requester's account export carries
+  their own requests (the `tableRequests` lane), and nothing about the operator.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 

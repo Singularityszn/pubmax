@@ -474,7 +474,7 @@ Vercel, project `chengdu`, Settings, Environment Variables, filter Production: `
 |---|---|---|
 | `NEXT_PUBLIC_DEMO_CONTENT` | Unset, empty or `off`. Never `on`. | `on` shows seeded Pint Drops and presence counts to the public (`lib/demoContent.ts`). If the row is marked Sensitive, you cannot read it: delete the row, because unset means off. |
 | `NEXT_PUBLIC_DEMO_DRINKS` | Unset or empty | `on` shows seeded menus beside real prices. |
-| `RESEND_API_KEY` | The Resend API key, Sensitive, Production only | Without it, "Ask the pub for a table" sends nothing and says so. |
+| `RESEND_API_KEY` | The Resend API key, Sensitive, Production only | The [table request rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent) define delivery outcomes when this key is absent. |
 | `EMAIL_FROM` | A sender on a domain verified in Resend, as a bare address or `Name <address>` | Resend refuses any other sender. |
 | `PUBMAX_ALERT_WEBHOOK_URL` | The https Discord or Slack incoming-webhook URL, Sensitive | The app posts error-level events there (`lib/alertSink.ts`). Unset is silent. See 8.6.2. |
 | `NEXT_PUBLIC_SITE_URL` | `https://pubmaxxing.com` | The sign-in callback must return to the apex. |

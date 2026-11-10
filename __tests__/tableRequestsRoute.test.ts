@@ -9,6 +9,7 @@
 // are the real process-memory backends.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EmailMessage, EmailProvider } from "@/lib/emailProvider";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -27,8 +28,11 @@ const state = vi.hoisted(() => ({
   dateOfBirth: new Map<string, string>(),
   asserted: new Map<string, string>(),
   addresses: new Map<string, string>(),
+  addressUnavailable: false,
   sendResult: "sent" as "sent" | "skipped" | "error",
-  sent: [] as Array<Record<string, unknown>>,
+  noProvider: false,
+  send: null as EmailProvider["send"] | null,
+  sent: [] as EmailMessage[],
 }));
 
 vi.mock("@/lib/authServer", () => ({
@@ -88,19 +92,28 @@ vi.mock("@/lib/venueIndex", () => ({
 }));
 
 vi.mock("@/lib/operatorAccountAddress.server", () => ({
-  operatorAccountAddress: async (accountId: string) => state.addresses.get(accountId) ?? null,
-}));
-
-vi.mock("@/lib/emailProvider", () => ({
-  selectEmailProvider: () => ({
-    send: async (messages: Array<Record<string, unknown>>) => {
-      state.sent.push(...messages);
-      return messages.map((message) => ({ to: message.to, status: state.sendResult }));
-    },
+  operatorAccountAddress: vi.fn(async (accountId: string) => {
+    if (state.addressUnavailable) throw new Error("Auth unavailable");
+    return state.addresses.get(accountId) ?? null;
   }),
 }));
 
+vi.mock("@/lib/emailProvider", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/emailProvider")>();
+  return {
+    ...actual,
+    selectEmailProvider: () => state.noProvider ? actual.noopEmailProvider : ({
+      send: async (messages: readonly EmailMessage[]) => {
+        state.sent.push(...messages);
+        if (state.send) return state.send(messages);
+        return messages.map((message) => ({ to: message.to, status: state.sendResult }));
+      },
+    }),
+  };
+});
+
 import { GET, POST } from "@/app/api/table-requests/route";
+import * as operatorAccounts from "@/lib/operatorAccountAddress.server";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { londonCalendarDate } from "@/lib/privateIdentity";
 import { __resetTableRequests, memoryTableRequestsStore } from "@/lib/tableRequestsStore";
@@ -167,8 +180,11 @@ beforeEach(() => {
   state.dateOfBirth.clear();
   state.asserted.clear();
   state.addresses.clear();
+  state.addressUnavailable = false;
+  state.send = null;
   state.sent.length = 0;
   state.sendResult = "sent";
+  state.noProvider = false;
   adultWithHandle(ALICE, "alice");
   adultWithHandle(OPERATOR, "landlord");
   adultWithHandle(STRANGER, "stranger");
@@ -279,6 +295,320 @@ describe("POST /api/table-requests: the two ways out", () => {
     const listed = await memoryTableRequestsStore.listEmailedForVenue("venue-crown");
     expect(listed.requests).toHaveLength(1);
     expect(listed.requests[0]).toMatchObject({ partySize: 8, delivery: "emailed", contactValue: SAM_CONTACT });
+  });
+
+  it("asks the pub once when a request is retried under its key, and again for a new key", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const key = "test-key-aaaaaaaaaaaaaaaa";
+    expect((await POST(post(request({ requestKey: key })))).status).toBe(201);
+    // The answer was lost; the form sends the same request under the same key.
+    const retry = await POST(post(request({ requestKey: key })));
+    expect(retry.status).toBe(201);
+    expect(await retry.json()).toEqual({ outcome: "sent" });
+    expect(state.sent).toHaveLength(1);
+    expect((await memoryTableRequestsStore.listEmailedForVenue("venue-crown")).requests).toHaveLength(1);
+
+    expect((await POST(post(request({ requestKey: "test-key-bbbbbbbbbbbbbbbb", partySize: 9 })))).status).toBe(201);
+    expect(state.sent).toHaveLength(2);
+  });
+
+  it.each(["before", "after"])("preserves a shared request when a retry fails %s its successful stamp", async (order) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    type Results = Awaited<ReturnType<EmailProvider["send"]>>;
+    const originalSend = Promise.withResolvers<Results>();
+    const retrySend = Promise.withResolvers<Results>();
+    const originalStarted = Promise.withResolvers<void>();
+    const retryStarted = Promise.withResolvers<void>();
+    let calls = 0;
+    state.send = () => {
+      calls += 1;
+      if (calls === 1) {
+        originalStarted.resolve();
+        return originalSend.promise;
+      }
+      retryStarted.resolve();
+      return retrySend.promise;
+    };
+    const payload = request({ requestKey: "test-key-cccccccccccccccc" });
+    const original = POST(post(payload));
+    await originalStarted.promise;
+    const retry = POST(post(payload));
+    await retryStarted.promise;
+
+    if (order === "before") {
+      retrySend.resolve([{ to: OPERATOR_ADDRESS, status: "error" }]);
+      expect((await retry).status).toBe(503);
+      originalSend.resolve([{ to: OPERATOR_ADDRESS, status: "sent" }]);
+      expect((await original).status).toBe(201);
+    } else {
+      originalSend.resolve([{ to: OPERATOR_ADDRESS, status: "sent" }]);
+      expect((await original).status).toBe(201);
+      retrySend.resolve([{ to: OPERATOR_ADDRESS, status: "error" }]);
+      expect((await retry).status).toBe(503);
+    }
+
+    expect(await (await retry).json()).toMatchObject({ retryable: true });
+    expect(state.sent.map((message) => message.idempotencyKey)).toEqual([
+      state.sent[0]!.idempotencyKey,
+      state.sent[0]!.idempotencyKey,
+    ]);
+    const stored = await memoryTableRequestsStore.listEmailedForVenue("venue-crown");
+    expect(stored.requests).toHaveLength(1);
+    expect(stored.requests[0]).toMatchObject({ delivery: "emailed" });
+    expect((await POST(post(payload))).status).toBe(201);
+    expect(calls).toBe(2);
+  });
+
+  it.each(["operators", "address"])("replays success when the current %s lookup fails", async (lookup) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "test-key-dddddddddddddddd" });
+    expect((await POST(post(payload))).status).toBe(201);
+    const operators = lookup === "operators"
+      ? vi.spyOn(memoryVenueOperatorStore, "verifiedOperatorAccountIds").mockRejectedValue(new Error("store unavailable"))
+      : null;
+    state.addressUnavailable = lookup === "address";
+    try {
+      const response = await POST(post(payload));
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({ outcome: "sent" });
+      expect(state.sent).toHaveLength(1);
+    } finally {
+      operators?.mockRestore();
+    }
+  });
+
+  it.each(["error", "throw"] as const)("retries a %s send with its original row and email key", async (failure) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "test-key-eeeeeeeeeeeeeeee" });
+    state.sendResult = failure === "throw" ? "error" : failure;
+    if (failure === "throw") state.send = async () => { throw new Error("connection lost"); };
+    const failed = await POST(post(payload));
+    expect(failed.status).toBe(503);
+    expect(await failed.json()).toMatchObject({ retryable: true });
+    expect((await memoryTableRequestsStore.listEmailedForVenue("venue-crown")).requests).toEqual([]);
+    state.sendResult = "sent";
+    state.send = null;
+    expect((await POST(post(payload))).status).toBe(201);
+    expect(state.sent[1]!.idempotencyKey).toBe(state.sent[0]!.idempotencyKey);
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+  });
+
+  it.each(["address", "order", "case"])("keeps recipient email keys after an operator %s change", async (change) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    await verifyOperator(STRANGER, "venue-crown");
+    if (change === "address") state.addresses.delete(OPERATOR);
+    state.addresses.set(STRANGER, "second@thecrown.example");
+    const payload = request({ requestKey: "test-key-ffffffffffffffff" });
+    state.sendResult = "error";
+    expect((await POST(post(payload))).status).toBe(503);
+    const firstKey = state.sent.find((message) => message.to === "second@thecrown.example")!.idempotencyKey;
+    state.addresses.set(OPERATOR, OPERATOR_ADDRESS);
+    if (change === "case") state.addresses.set(STRANGER, " Second@TheCrown.Example ");
+    const operators = change === "order"
+      ? vi.spyOn(memoryVenueOperatorStore, "verifiedOperatorAccountIds").mockResolvedValue([STRANGER, OPERATOR])
+      : null;
+    state.sendResult = "sent";
+    try {
+      expect((await POST(post(payload))).status).toBe(201);
+      const secondRecipientMessages = state.sent.filter((message) => message.to === "second@thecrown.example");
+      expect(secondRecipientMessages.map((message) => message.idempotencyKey)).toEqual([firstKey, firstKey]);
+      expect(state.sent.find((message) => message.to === OPERATOR_ADDRESS)!.idempotencyKey).not.toBe(firstKey);
+    } finally {
+      operators?.mockRestore();
+    }
+  });
+
+  it.each([
+    ["operators", "pending"], ["operators", "emailed"],
+    ["address", "pending"], ["address", "emailed"],
+  ])("reconciles a concurrent %s lookup failure with a %s attempt", async (lookup, delivery) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const lookupStarted = Promise.withResolvers<void>();
+    const failedLookup = Promise.withResolvers<never>();
+    const delayedLookup = lookup === "operators"
+      ? vi.spyOn(memoryVenueOperatorStore, "verifiedOperatorAccountIds").mockImplementationOnce(() => {
+        lookupStarted.resolve();
+        return failedLookup.promise;
+      })
+      : vi.mocked(operatorAccounts.operatorAccountAddress).mockImplementationOnce(() => {
+        lookupStarted.resolve();
+        return failedLookup.promise;
+      });
+    const sendStarted = Promise.withResolvers<void>();
+    const sendResult = Promise.withResolvers<Awaited<ReturnType<EmailProvider["send"]>>>();
+    state.send = () => {
+      sendStarted.resolve();
+      return sendResult.promise;
+    };
+    const payload = request({ requestKey: "test-key-gggggggggggggggg" });
+    try {
+      const retry = POST(post(payload));
+      await lookupStarted.promise;
+      const original = POST(post(payload));
+      await sendStarted.promise;
+      if (delivery === "emailed") {
+        sendResult.resolve([{ to: OPERATOR_ADDRESS, status: "sent" }]);
+        expect((await original).status).toBe(201);
+      }
+      failedLookup.reject(new Error("lookup unavailable"));
+      const response = await retry;
+      expect(response.status).toBe(delivery === "emailed" ? 201 : 503);
+      expect(await response.json()).toMatchObject(delivery === "emailed" ? { outcome: "sent" } : { retryable: true });
+      sendResult.resolve([{ to: OPERATOR_ADDRESS, status: "sent" }]);
+      expect((await original).status).toBe(201);
+      expect(state.sent).toHaveLength(1);
+    } finally {
+      delayedLookup.mockRestore();
+    }
+  });
+
+  it.each(["operators", "address"])("keeps a failed %s lookup retryable before the original attempt exists", async (lookup) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const lookupStarted = Promise.withResolvers<void>();
+    const originalLookup = Promise.withResolvers<void>();
+    const target = lookup === "operators"
+      ? vi.spyOn(memoryVenueOperatorStore, "verifiedOperatorAccountIds")
+        .mockImplementationOnce(async () => {
+          lookupStarted.resolve();
+          await originalLookup.promise;
+          return [OPERATOR];
+        })
+        .mockRejectedValueOnce(new Error("store unavailable"))
+      : vi.mocked(operatorAccounts.operatorAccountAddress)
+        .mockImplementationOnce(async () => {
+          lookupStarted.resolve();
+          await originalLookup.promise;
+          return OPERATOR_ADDRESS;
+        })
+        .mockRejectedValueOnce(new Error("Auth unavailable"));
+    const payload = request({ requestKey: "test-key-hhhhhhhhhhhhhhhh" });
+    const original = POST(post(payload));
+    try {
+      await lookupStarted.promise;
+      const retry = await POST(post(payload));
+      expect(retry.status).toBe(503);
+      expect(await retry.json()).toMatchObject({ retryable: true });
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
+      expect(state.sent).toHaveLength(0);
+      originalLookup.resolve();
+      expect((await original).status).toBe(201);
+      expect((await POST(post(payload))).status).toBe(201);
+      expect(state.sent).toHaveLength(1);
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+    } finally {
+      originalLookup.resolve();
+      await original;
+      target.mockRestore();
+    }
+  });
+
+  it("does not send to a partial audience when another address lookup is unavailable", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    await verifyOperator(STRANGER, "venue-crown");
+    const address = vi.mocked(operatorAccounts.operatorAccountAddress)
+      .mockImplementation(async (id) => {
+        if (id === STRANGER) throw new Error("Auth unavailable");
+        return OPERATOR_ADDRESS;
+      });
+    try {
+      const response = await POST(post(request({ requestKey: "test-key-iiiiiiiiiiiiiiii" })));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ retryable: true });
+      expect(state.sent).toHaveLength(0);
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
+    } finally {
+      address.mockRestore();
+    }
+  });
+
+  it("offers manual contact without creating an attempt when the email provider is absent", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    state.noProvider = true;
+    const payload = request({ requestKey: "test-key-jjjjjjjjjjjjjjjj" });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await POST(post(payload));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ outcome: "not_sent" });
+    }
+    expect(state.sent).toHaveLength(0);
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
+  });
+
+  it("does not offer manual contact when an uncertain attempt loses its email provider", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "test-key-kkkkkkkkkkkkkkkk" });
+    state.sendResult = "error";
+    expect((await POST(post(payload))).status).toBe(503);
+    state.noProvider = true;
+    expect((await POST(post(payload))).status).toBe(503);
+    expect(state.sent).toHaveLength(1);
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+  });
+
+  it.each(["error", "stamp"])("does not resend an old pending attempt after a %s failure", async (failure) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "test-key-llllllllllllllll" });
+    const stamp = failure === "stamp"
+      ? vi.spyOn(memoryTableRequestsStore, "markEmailed").mockRejectedValue(new Error("stamp unavailable"))
+      : null;
+    const clock = vi.spyOn(Date, "now");
+    const start = Date.now();
+    try {
+      state.sendResult = failure === "error" ? "error" : "sent";
+      expect((await POST(post(payload))).status).toBe(failure === "error" ? 503 : 201);
+      stamp?.mockRestore();
+      clock.mockReturnValue(start + 24 * 60 * 60 * 1000);
+      state.sendResult = "sent";
+      const response = await POST(post(payload));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ retryable: true });
+      expect(state.sent).toHaveLength(1);
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+    } finally {
+      stamp?.mockRestore();
+      clock.mockRestore();
+    }
+  });
+
+  it("keeps a failed replay read retryable instead of offering manual contact", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "test-key-mmmmmmmmmmmmmmmm" });
+    expect((await POST(post(payload))).status).toBe(201);
+    const attempt = vi.spyOn(memoryTableRequestsStore, "findForRequester")
+      .mockRejectedValue(new Error("store unavailable"));
+    try {
+      const response = await POST(post(payload));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ retryable: true });
+      expect(state.sent).toHaveLength(1);
+    } finally {
+      attempt.mockRestore();
+    }
+  });
+
+  it.each(["operators", "address"])("keeps an uncertain attempt retryable when its %s disappears", async (lookup) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "test-key-nnnnnnnnnnnnnnnn" });
+    state.sendResult = "error";
+    expect((await POST(post(payload))).status).toBe(503);
+    if (lookup === "operators") __resetVenueOperators();
+    else state.addresses.clear();
+    const response = await POST(post(payload));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ retryable: true });
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+  });
+
+  it("does not replay another account's success for the same key", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const payload = request({ requestKey: "test-key-oooooooooooooooo" });
+    expect((await POST(post(payload))).status).toBe(201);
+    state.caller = STRANGER;
+    expect((await POST(post(payload))).status).toBe(201);
+    expect(state.sent).toHaveLength(2);
+    expect(state.sent[1]!.idempotencyKey).not.toBe(state.sent[0]!.idempotencyKey);
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toHaveLength(1);
+    expect((await memoryTableRequestsStore.listForRequester(STRANGER)).requests).toHaveLength(1);
   });
 
   it("puts a phone contact in the body and sets no Reply-To", async () => {

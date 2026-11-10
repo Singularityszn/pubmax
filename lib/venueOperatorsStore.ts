@@ -3,11 +3,9 @@
 // public.venue_operators), chosen at the single venueOperatorsStore() seam,
 // exactly like visitReportsStore / areaDemandStore.
 //
-// Supabase when env keys exist, process-memory otherwise. Before migration 0048
-// lands (or on a schema-cache miss) local/preview paths fail soft to memory, so
-// demos keep working and become durable the moment the table exists. Deployed
-// production fails closed: missing-schema and hard write failures THROW so the
-// route answers 503 (never a fake success). Reads remain fail-soft.
+// Supabase when env keys exist, process-memory otherwise. Guarded operations
+// use memory on local/preview schema misses. Production writes fail closed
+// on missing-schema and hard write failures, so routes never report fake success.
 //
 // VenueOperatorStore.claim defines the claim and re-claim contract.
 
@@ -49,8 +47,8 @@ export type VenueOperatorStore = {
    *  Fail-soft: false on any storage error (no proposal slips through on a wobble). */
   isVerifiedOperator(accountId: string, venueId: string): Promise<boolean>;
   /** The accounts that are VERIFIED operators of this venue, under any id it
-   *  was stored under (the table-request delivery's audience). Fail-soft: [] on
-   *  any storage error, so a wobble delivers nothing rather than to anybody. */
+   *  was stored under (the table-request delivery's audience). Storage errors
+   *  throw because an unavailable audience must not appear empty. */
   verifiedOperatorAccountIds(venueId: string): Promise<string[]>;
   /** Moderator review queue: claims in a state, newest-first. Fail-soft ([]). */
   listForReview(state: OperatorVerificationState): Promise<OperatorClaim[]>;
@@ -292,23 +290,15 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
   },
 
   async verifiedOperatorAccountIds(venueId) {
-    return guard<string[]>({
-      context: "verifiedOperatorAccountIds",
-      onSchemaMiss: () => memoryVenueOperatorStore.verifiedOperatorAccountIds(venueId),
-      message: "verifiedOperatorAccountIds failed, returning none (fail closed)",
-      onError: () => [],
-      run: async () => {
-        const { data, error } = await whereVenueIdIn(
-          admin().from(TABLE).select("account_id").eq("verification_state", "verified"),
-          await storedVenueIds(venueId),
-        );
-        if (error) throw new Error(error.message);
-        const accounts = ((data ?? []) as Record<string, unknown>[])
-          .map((row) => (typeof row.account_id === "string" ? row.account_id : ""))
-          .filter(Boolean);
-        return [...new Set(accounts)];
-      },
-    });
+    const { data, error } = await whereVenueIdIn(
+      admin().from(TABLE).select("account_id").eq("verification_state", "verified"),
+      await storedVenueIds(venueId),
+    );
+    if (error) throw new Error(error.message);
+    const accounts = ((data ?? []) as Record<string, unknown>[])
+      .map((row) => (typeof row.account_id === "string" ? row.account_id : ""))
+      .filter(Boolean);
+    return [...new Set(accounts)];
   },
 
   async listForReview(state) {

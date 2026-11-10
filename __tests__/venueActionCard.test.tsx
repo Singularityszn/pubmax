@@ -269,6 +269,32 @@ describe("table request arrival", () => {
     expect(tableTrack).toHaveBeenCalledWith("table_request_sent", { source: "pal", outcome });
   });
 
+  it("reuses the attempt key after lost and retryable answers, then rotates it for an edited request", async () => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    tableAuth.handle = "reader";
+    tableFetch
+      .mockRejectedValueOnce(new TypeError("Connection lost"))
+      .mockResolvedValueOnce(Response.json({ retryable: true }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ outcome: "sent" }));
+    await act(async () => root.render(createElement(TableRequestDialog, { venue: venue(), onClose: noop })));
+    await input('input[autocomplete="name"]', "Sam");
+    await submit();
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    await submit();
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    await input('input[autocomplete="name"]', "Sam's birthday");
+    await submit();
+    expect(document.querySelector('[data-table-request-outcome="sent"]')).not.toBeNull();
+    const requests = tableFetch.mock.calls.map(([, init]) => JSON.parse(String(init.body)));
+    expect(requests).toHaveLength(3);
+    expect(requests[0].requestKey).toEqual(expect.any(String));
+    expect(requests[0].requestKey.length).toBeGreaterThan(0);
+    expect(requests[1].requestKey).toBe(requests[0].requestKey);
+    expect(requests[2].requestKey).not.toBe(requests[1].requestKey);
+    expect(requests[2].name).toBe("Sam's birthday");
+  });
+
   it("counts the keyless fallback as a sheet request, but not invalid input", async () => {
     await act(async () => root.render(createElement(TableRequestDialog, { venue: venue(), onClose: noop })));
     await submit();
