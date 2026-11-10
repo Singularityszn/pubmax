@@ -137,6 +137,15 @@ describe("memoryVenueOperatorStore", () => {
     expect(queue).toHaveLength(1);
   });
 
+  it("never demotes a verified operator who claims again", async () => {
+    const first = await memoryVenueOperatorStore.claim(fields());
+    await memoryVenueOperatorStore.setState(first.id, "verified");
+    const again = await memoryVenueOperatorStore.claim(fields({ evidenceNote: "again" }));
+    expect(again.verificationState).toBe("verified");
+    expect(await memoryVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(true);
+    expect(await memoryVenueOperatorStore.listForReview("pending")).toHaveLength(0);
+  });
+
   it("isVerifiedOperator is false until the owner verifies, then true", async () => {
     const dto = await memoryVenueOperatorStore.claim(fields());
     expect(await memoryVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(false);
@@ -167,6 +176,15 @@ describe("supabaseVenueOperatorStore", () => {
     expect(second.id).toBe(first.id);
     expect(second.verificationState).toBe("pending");
     await supabaseVenueOperatorStore.setState(first.id, "verified");
+    expect(await supabaseVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(true);
+  });
+
+  it("never demotes a verified operator who claims again", async () => {
+    const first = await supabaseVenueOperatorStore.claim(fields());
+    await supabaseVenueOperatorStore.setState(first.id, "verified");
+    const again = await supabaseVenueOperatorStore.claim(fields({ evidenceNote: "again" }));
+    expect(again.verificationState).toBe("verified");
+    expect(db.rows[0]?.verification_state).toBe("verified");
     expect(await supabaseVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(true);
   });
 

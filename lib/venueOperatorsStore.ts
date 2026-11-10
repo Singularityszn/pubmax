@@ -12,7 +12,7 @@
 // Idempotent by construction: ONE claim per (accountId, venueId). A re-claim for
 // the same pair UPDATES the existing row (refreshes the evidence, resets a
 // rejected/revoked claim back to pending for another review) rather than stacking
-// a second row.
+// a second row. A verified claim is never reopened: the re-claim returns it as is.
 
 import "server-only";
 
@@ -41,7 +41,8 @@ const TABLE = "venue_operators";
 export type VenueOperatorStore = {
   /**
    * File (or refresh) a claim, upserting on (accountId, venueId). A re-claim for
-   * the same pair updates the evidence and returns the state to `pending`.
+   * the same pair updates the evidence and returns the state to `pending`,
+   * except a verified claim, which is returned unchanged.
    * Returns the caller-safe DTO. THROWS on a hard storage failure (route → 503).
    */
   claim(fields: OperatorClaimFields, now?: number): Promise<OperatorClaimDTO>;
@@ -86,6 +87,7 @@ async function memoryUpsert(fields: OperatorClaimFields, now: number): Promise<O
   const existingId = await memoryClaimIdForPair(fields.accountId, fields.venueId);
   if (existingId) {
     const prev = byId.get(existingId)!;
+    if (prev.verificationState === "verified") return prev;
     // Refresh the evidence and re-open for review; keep the id + createdAt.
     const updated: OperatorClaim = {
       ...prev,
@@ -198,8 +200,9 @@ async function selectByPair(accountId: string, venueId: string): Promise<Operato
   return row ? fromRow(row) : null;
 }
 
-async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<void> {
-  const { error } = await admin()
+/** Reopen a claim that is not verified. False when it is verified (or became so). */
+async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<boolean> {
+  const { data, error } = await admin()
     .from(TABLE)
     .update({
       evidence_kind: fields.evidenceKind,
@@ -208,9 +211,14 @@ async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<
       reviewed_at: null,
       reviewer_note: null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .in("verification_state", REOPENABLE_STATES)
+    .select("id");
   if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }
+
+const REOPENABLE_STATES: readonly OperatorVerificationState[] = ["pending", "rejected", "revoked"];
 
 export const supabaseVenueOperatorStore: VenueOperatorStore = {
   async claim(fields, now = Date.now()) {
@@ -227,7 +235,10 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
       run: async () => {
         const existing = await selectByPair(fields.accountId, fields.venueId);
         if (existing) {
-          await reopenExisting(existing.id, fields);
+          if (!(await reopenExisting(existing.id, fields))) {
+            const current = await selectByPair(fields.accountId, fields.venueId);
+            return toOperatorClaimDTO(current ?? existing);
+          }
           return toOperatorClaimDTO({
             ...existing,
             evidenceKind: fields.evidenceKind,
