@@ -108,6 +108,7 @@ function isSurfaceOpen(
 function urlForStack(
   stack: SurfaceStack<MapSurfaceState>,
   selectionHint: string,
+  previous: SurfaceStack<MapSurfaceState>,
 ): string {
   const { pathname, search, hash } = window.location;
   const venueId = selectedVenueId(stack);
@@ -117,7 +118,11 @@ function urlForStack(
       ? refreshSelectionUrl(pathname, search, venueId, hash, selectionHint)
       : browseSelectionUrl(pathname, search, venueId, hash, selectionHint)
     : cleanMapUrl(pathname, search, hash);
-  return stack.some((entry) => entry.id === "planner") ? plannerUrl(url, true) : url;
+  const plannerOpen = currentSurface(stack)?.id === "planner";
+  return plannerOpen || currentSurface(previous)?.id === "planner" ||
+    new URLSearchParams(search).get(PLANNER_PARAM) === "1"
+    ? plannerUrl(url, plannerOpen)
+    : url;
 }
 
 /**
@@ -181,7 +186,8 @@ export function useMapSurfaceNavigation({
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
       if (typeof window === "undefined") return;
-      const transition = mapSurfaceOpenTransition(stackRef.current, entry);
+      const previous = stackRef.current;
+      const transition = mapSurfaceOpenTransition(previous, entry);
       publishStack(transition.stack);
       const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
       const state = stampMapSurfaceHistory(
@@ -190,7 +196,7 @@ export function useMapSurfaceNavigation({
         selectedVenueId(transition.stack),
         transition.kind === "push" ? above + 1 : above,
       );
-      const url = urlForStack(transition.stack, selectionHintRef.current);
+      const url = urlForStack(transition.stack, selectionHintRef.current, previous);
       if (transition.kind === "push") {
         window.history.pushState(state, "", url);
       } else {
@@ -362,9 +368,9 @@ export function useMapSurfaceNavigation({
         const storyUrl = selectedVenueId(next) || next.some((entry) => entry.id === "landmark")
           ? selectionUrl
           : withoutLandmarkParam(selectionFree.pathname, selectionFree.search, selectionFree.hash);
-        const hasPlanner = next.some((entry) => entry.id === "planner");
+        const hasPlanner = currentSurface(next)?.id === "planner";
         const closesPlanner = !hasPlanner && (
-          previous.some((entry) => entry.id === "planner") ||
+          currentSurface(previous)?.id === "planner" ||
           new URLSearchParams(search).get(PLANNER_PARAM) === "1"
         );
         const cleanUrl = hasPlanner || closesPlanner ? plannerUrl(storyUrl, hasPlanner) : storyUrl;

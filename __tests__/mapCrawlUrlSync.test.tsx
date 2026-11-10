@@ -101,6 +101,7 @@ function HistoryHarness({
 }
 
 let plannerNavigation: ReturnType<typeof useMapSurfaceNavigation>;
+let showPlannerSurface: (entry: SurfaceEntry<MapSurfaceState>) => void;
 
 function PlannerHistoryHarness({ state }: { state: CrawlUrlState }) {
   const [shown, setShown] = useState<SurfaceEntry<MapSurfaceState> | null>(() =>
@@ -121,6 +122,7 @@ function PlannerHistoryHarness({ state }: { state: CrawlUrlState }) {
   });
   useLayoutEffect(() => {
     plannerNavigation = trail;
+    showPlannerSurface = setShown;
   }, [trail]);
   return null;
 }
@@ -285,6 +287,45 @@ describe("planner arrival and close URLs", () => {
     expect(new URLSearchParams(window.location.search).get("sel")).toBe("pub-a");
     expect(new URLSearchParams(window.location.search).get("plan")).toBe("0");
     expect(shouldOpenPlanningInitially(["pub-a", "pub-b"], "build", window.location.search)).toBe(false);
+  });
+
+  describe.each(["?mode=build&plan=1", "?mode=build"])("visible surface after %s", (search) => {
+    it.each([
+      { id: "venue", title: "Pub A", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "pub-a" } },
+      { id: "landmark", title: "Story", state: { ...EMPTY_MAP_SURFACE_STATE, landmarkId: "story-a" } },
+      { id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE },
+    ])("keeps the planner closed while $id is visible", async (surface) => {
+      window.history.replaceState({}, "", `/map${search}#route`);
+      const state = seedCrawlState(search);
+      const planner = { id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE };
+      await act(async () => root.render(createElement(PlannerHistoryHarness, { state })));
+      expect(window.location.search).toBe(search);
+
+      act(() => showPlannerSurface(surface));
+      expect(readMapSurfaceHistory(window.history.state)).toEqual([planner, surface]);
+      expect(new URLSearchParams(window.location.search).get("plan")).toBe("0");
+      expect(shouldOpenPlanningInitially(state.builtIds, state.mode, window.location.search)).toBe(false);
+
+      act(() => showPlannerSurface(planner));
+      expect(new URLSearchParams(window.location.search).get("plan")).toBe("1");
+      await traverseHistory(() => plannerNavigation.leave("planner", () => {}));
+      expect(readMapSurfaceHistory(window.history.state)).toEqual([planner, surface]);
+      expect(new URLSearchParams(window.location.search).get("plan")).toBe("0");
+      expect(shouldOpenPlanningInitially(state.builtIds, state.mode, window.location.search)).toBe(false);
+
+      await traverseHistory(() => window.history.forward());
+      expect(new URLSearchParams(window.location.search).get("plan")).toBe("1");
+      await traverseHistory(() => window.history.back());
+      expect(new URLSearchParams(window.location.search).get("plan")).toBe("0");
+      await traverseHistory(() => window.history.back());
+      expect(readMapSurfaceHistory(window.history.state)).toEqual([planner]);
+      expect(new URLSearchParams(window.location.search).get("plan")).toBe("1");
+
+      await traverseHistory(() => plannerNavigation.home());
+      expect(readMapSurfaceHistory(window.history.state)).toEqual([]);
+      expect(new URLSearchParams(window.location.search).get("plan")).toBe("0");
+      expect(window.location.hash).toBe("#route");
+    });
   });
 });
 
