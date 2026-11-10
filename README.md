@@ -40,6 +40,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 - **I'm here** - in a pub's map sheet, open **Overview** and tap **I'm here** to record a check-in. The [privacy notice](https://pubmaxxing.com/privacy#presence) explains who can see it and for how long.
 
+  A successful check-in at another pub replaces your previous presence. A failed save does not confirm that you are here. Tap again to retry.
+
 - **Control readiness** - Import, Near, and shared header buttons stay unavailable until page scripts can handle a click. Shared navigation links show a loading line while an accepted page change waits. If you choose **Meet your Pub Pal** while the session loads, the page keeps your request and shows a status message. The button stays unavailable while the request waits.
 
 - **Day and Tonight navigation** - the main **Tonight** link in mobile, desktop and homepage navigation uses the selected city's clock. All currently selectable cities use Europe/London. After the page loads, the link opens **Day** (`/today`) from 04:00 until 16:00. It opens **Tonight** (`/tonight`) from 16:00 across midnight until 04:00. Both pages mark the **Tonight** tab as current. The link updates at minute boundaries and when you return to the app. The open page stays at its current URL. Explicit links, bookmarks and the **Day | Tonight** page links keep their destinations. The app saves no Day or Tonight preference. Before JavaScript starts, or when it is disabled, the main link opens **Tonight**. The listings and planner keep their existing 04:00 rollover. The greeting keeps its separate 05:00 morning boundary. These content choices do not change the visual theme.

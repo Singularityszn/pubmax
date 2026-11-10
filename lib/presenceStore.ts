@@ -7,7 +7,7 @@ import "server-only";
 // (presenceStore()).
 //
 // A presence row is opt-in and ephemeral: the viewer taps "I'm here" at a
-// selected venue, we mark ONE row per (actor, venue) and auto-expire it (~2h).
+// selected venue. See markPresence below for replacement and expiry rules.
 // There is NO auto-tracking and NO GPS — the only signal is the deliberate tap.
 //
 // Trust boundary: the public DTO carries the pub NAME + a "/map?sel=…" link
