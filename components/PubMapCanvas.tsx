@@ -578,11 +578,9 @@ const PHONE_PIN_COMPOSITE_CONFIRM_FRAMES = 2;
 // fallback: sceneSettled=true cleared the hang guard, and no error ever fires.
 // MapLibre's "render" event only fires from a real frame, so its absence for
 // this long after construction is the honest "the map never drew" signal.
-// MapLibre draws its first frame only after the style loads, and a slow phone
-// has been measured loading the style 16.6 s after construction. So this waits
-// as long as the shell's readiness ceiling, and the style hang guard (also
-// 18 s) answers a slow style first, with "taking too long" rather than a claim
-// that this device cannot draw.
+// A slow style can delay the first render. Match the shell's readiness ceiling
+// so this guard allows the full style-loading window before blaming rendering.
+// The style hang guard reports loading failures separately.
 const FIRST_FRAME_TIMEOUT_MS = MAP_CANVAS_READINESS_CEILING_MS;
 // How many venues the no-map fallback lists so the venue content stays
 // reachable without a single WebGL frame.
