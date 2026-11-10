@@ -1,5 +1,6 @@
 "use client";
 
+import "./citySuggestBanner.css";
 import Link from "next/link";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { X } from "lucide-react";

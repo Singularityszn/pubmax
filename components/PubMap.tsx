@@ -24,8 +24,6 @@ import MapLiveOverlays from "@/components/map/liveOverlays/MapLiveOverlays";
 import PriceBadge from "@/components/PriceBadge";
 import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import "@/components/map/venueSheet.css";
-import "@/components/map/spillComposer.css";
-import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
 // The selection notice below renders `.ukPlaceArrival` MARKUP directly, and
 // that stylesheet used to arrive only with UkPlaceArrivalBanner or
@@ -35,13 +33,8 @@ import "@/components/map/mapBannerStaging.css";
 // renders the markup owns the stylesheet.
 import "@/components/map/ukPlaceArrivalBanner.css";
 import "@/components/map/mapToolbar.css";
-import "@/components/map/citySuggestBanner.css";
-import "@/components/map/cityStatusBanner.css";
-import "@/components/map/mapConciergeAsk.css";
-import "@/components/map/mapDesktopRail.css";
 // The list beside the map lays out the stage, so its sheet loads with the map.
 import "@/components/map/mapSplitList.css";
-import "@/components/map/tonightLane.css";
 const UkPlaceArrivalBanner = dynamic(
   () => import("@/components/map/UkPlaceArrivalBanner"),
   { ssr: false },
