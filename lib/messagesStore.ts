@@ -1263,12 +1263,9 @@ export const supabaseMessagesStore: MessagesStore = {
 
     const ids = rows.map((row) => String(row.id));
     const deletionsRead = readInboxDeletions(ids, me);
-    // TWO reads for the whole inbox, in parallel, where there used to be ONE
-    // PER CONVERSATION, each pulling up to 200 rows: the unread rows the
-    // viewer has not read (bounded), and a newest-first window of recent
-    // messages wide enough to hold the last message of every conversation
-    // on an ordinary inbox. A conversation either window did not reach is
-    // asked for on its own, so a busy thread cannot hide a quiet one.
+    // Batch unread messages, recent previews and deletion marks for the inbox.
+    // Each bounded message window queries conversations it did not reach
+    // separately, so a busy thread cannot hide a quiet one.
     const [unread, recent, deletions] = await Promise.all([
       readInboxUnread(ids, me, deletionsRead),
       readInboxRecent(ids),

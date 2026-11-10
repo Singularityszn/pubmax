@@ -292,6 +292,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 - **Messages** - sign in with a claimed handle, open `/messages`, and choose **New message**. Search by at least two characters of a public handle, then select people from the results or your recent direct conversations. Select one person and choose **Chat**, or select two to eleven people and choose **Create group**. Groups include you and can have an optional name. Members can leave, but nobody can be added after creation. **All**, **Unread**, and **Groups** filter your existing inbox. **Search conversations** matches displayed names, handles, or group titles within the selected filter. The search and filter reset when you change accounts. In an empty conversation, **Share a pub** and **Share a plan** open the existing pickers. These buttons do not send a message or replace your text draft. The [navigation rules](docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh) explain when unread badges refresh.
 
+  In a direct or group chat, tap, hover over, or focus one of your sent messages. Choose **Unsend** from the revealed actions. Confirm the removal. Everyone sees **Message unsent** instead of its text or attachment. The [permission matrix](docs/security/PERMISSION_MATRIX.md) explains access to reported content after an unsend.
+
+  Open **Chat options** in the thread header. Choose **Delete chat**. Confirm to remove the chat and its existing history from your view. Other participants keep their messages. A later message restores the chat in your inbox with only the messages sent after deletion. Deleting a group chat keeps your membership. Choose **Back to inbox** to see later messages after deletion.
+
+  To stop receiving group messages, open **Chat options**. Choose **Leave group**. Confirm your departure. Your earlier messages stay for the remaining members. After deletion or departure, the thread shows a confirmation until you leave that view or change accounts.
+
   If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations.
 
   A suspended account cannot start a conversation or send a message. If PUBMAXX cannot check suspension, it refuses the send and asks you to retry.

@@ -14,10 +14,9 @@
 //    may add, what the newcomer reads, what the thread says about it) and it is
 //    deliberately not answered here; see docs/adr/0015-group-message-threads.md.
 //
-// 2. THREE PEOPLE MINIMUM, AND THAT IS NOT AN ARBITRARY FLOOR. Two people in a
-//    group is a DM wearing a title, and it would be a SECOND row for a pair the
-//    direct lane already keys uniquely - so one pair could hold two threads and
-//    a reader would have to guess which one a reply landed in.
+// 2. THREE PEOPLE MINIMUM TO OPEN A GROUP. Opening one for two people would
+//    create a second conversation for a pair the direct lane already keys
+//    uniquely. A reader would have to guess which thread received a reply.
 //
 // 3. A NAME IS NEVER INVENTED. A group with no title reads as the people in it,
 //    in the order the membership answered, with the viewer left out because a
@@ -46,7 +45,7 @@ export function isConversationKind(value: unknown): value is ConversationKind {
 }
 
 /**
- * The floor is THREE, counting the person who opened it (see rule 2). The
+ * Opening needs THREE people, counting the creator (see rule 2). The
  * ceiling is a room, not a broadcast: past a dozen people a thread stops being
  * a night out being arranged and starts being a channel, which is a different
  * product with different moderation.
