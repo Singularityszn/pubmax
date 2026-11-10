@@ -200,8 +200,7 @@ async function selectByPair(accountId: string, venueId: string): Promise<Operato
   return row ? fromRow(row) : null;
 }
 
-/** Reopen a claim that is not verified. False when it is verified (or became so). */
-async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<boolean> {
+async function reopenExisting(existing: OperatorClaim, fields: OperatorClaimFields): Promise<OperatorClaimDTO> {
   const { data, error } = await admin()
     .from(TABLE)
     .update({
@@ -211,11 +210,22 @@ async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<
       reviewed_at: null,
       reviewer_note: null,
     })
-    .eq("id", id)
+    .eq("id", existing.id)
     .in("verification_state", REOPENABLE_STATES)
     .select("id");
   if (error) throw new Error(error.message);
-  return (data ?? []).length > 0;
+  if (!(data ?? []).length) {
+    const current = await selectByPair(fields.accountId, fields.venueId);
+    return toOperatorClaimDTO(current ?? existing);
+  }
+  return toOperatorClaimDTO({
+    ...existing,
+    evidenceKind: fields.evidenceKind,
+    evidenceNote: fields.evidenceNote,
+    verificationState: "pending",
+    reviewedAt: undefined,
+    reviewerNote: undefined,
+  });
 }
 
 const REOPENABLE_STATES: readonly OperatorVerificationState[] = ["pending", "rejected", "revoked"];
@@ -235,18 +245,7 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
       run: async () => {
         const existing = await selectByPair(fields.accountId, fields.venueId);
         if (existing) {
-          if (!(await reopenExisting(existing.id, fields))) {
-            const current = await selectByPair(fields.accountId, fields.venueId);
-            return toOperatorClaimDTO(current ?? existing);
-          }
-          return toOperatorClaimDTO({
-            ...existing,
-            evidenceKind: fields.evidenceKind,
-            evidenceNote: fields.evidenceNote,
-            verificationState: "pending",
-            reviewedAt: undefined,
-            reviewerNote: undefined,
-          });
+          return reopenExisting(existing, fields);
         }
         const claim: OperatorClaim = {
           id: randomUUID(),
@@ -263,15 +262,7 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
           if (isUniqueViolation(error)) {
             const raced = await selectByPair(fields.accountId, fields.venueId);
             if (raced) {
-              await reopenExisting(raced.id, fields);
-              return toOperatorClaimDTO({
-                ...raced,
-                evidenceKind: fields.evidenceKind,
-                evidenceNote: fields.evidenceNote,
-                verificationState: "pending",
-                reviewedAt: undefined,
-                reviewerNote: undefined,
-              });
+              return reopenExisting(raced, fields);
             }
           }
           throw new Error(error.message);
