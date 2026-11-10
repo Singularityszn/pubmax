@@ -25,7 +25,7 @@ export type PalPickCue = { number: number; delayMs: number };
 export function createPalPickSpeech() {
   let eventId: number | null = null;
   let spoken = "";
-  const processed = new Set<number>();
+  const processed = new Set<string>();
 
   return {
     /** The picks whose names begin inside this chunk, and when, after the chunk starts. */
@@ -52,8 +52,9 @@ export function createPalPickSpeech() {
       }
       const cues: PalPickCue[] = [];
       for (const { number, start } of references) {
-        if (processed.has(start)) continue;
-        processed.add(start);
+        const occurrence = `${start}:${number}`;
+        if (processed.has(occurrence)) continue;
+        processed.add(occurrence);
         cues.push({ number, delayMs: start < offset ? 0 : Math.max(0, alignment.char_start_times_ms[start - offset] ?? 0) });
       }
       return cues.sort((a, b) => a.delayMs - b.delayMs);

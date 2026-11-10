@@ -65,6 +65,14 @@ describe("which pick the Pal is naming", () => {
     expect(speech.play(chunk(1, " The Crown."), picks)).toEqual([{ number: 2, delayMs: 5 * 50 }]);
   });
 
+  it("cues the longer name when a later chunk completes an already-cued shorter name", () => {
+    const speech = createPalPickSpeech();
+    const picks = [{ number: 1, name: "The Crown & Two Chairmen" }, { number: 2, name: "The Crown" }];
+    expect(speech.play(chunk(1, "The Crown "), picks)).toEqual([{ number: 2, delayMs: 4 * 50 }]);
+    expect(speech.play(chunk(1, "and Two Chairmen."), picks)).toEqual([{ number: 1, delayMs: 0 }]);
+    expect(speech.play(chunk(1, " Enjoy."), picks)).toEqual([]);
+  });
+
   it("forgets processed occurrences after an interruption", () => {
     const speech = createPalPickSpeech();
     expect(speech.play(chunk(1, "Queen's Head."), PICKS)).toEqual([{ number: 1, delayMs: 0 }]);
