@@ -78,7 +78,21 @@ export const DEVICE_IDENTITY_SESSION_KEYS = [
   "pubmax:arrival-welcome:v1",
 ] as const;
 
+/**
+ * Session drafts a live account leaves behind. They are cleared only when that
+ * account departs (sign-out or a switch in this tab), never on a first sign-in:
+ * a signed-out person who typed one and then signed in to post it keeps it.
+ */
+const DEPARTED_ACCOUNT_SESSION_KEYS = [
+  "pubmaxx:price-mission-dismiss:v1",
+  "pubmax:ask-plan-draft:v1",
+] as const;
+
+/** Prefixes of per-venue session drafts with the same departure rule. */
+const DEPARTED_ACCOUNT_SESSION_PREFIXES = ["pubmax_pint_drop_draft:"] as const;
+
 type WritableStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type SweepableStorage = WritableStorage & Partial<Pick<Storage, "key" | "length">>;
 
 function readKey(storage: WritableStorage | null, key: string): string | null {
   if (!storage) return null;
@@ -135,6 +149,25 @@ export function clearDeviceAccountSessionArtifacts(session: WritableStorage | nu
   for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
 }
 
+/** Clear the drafts and dismissals a departing live account typed in this tab. */
+export function clearDepartedAccountSessionDrafts(session: SweepableStorage | null): void {
+  if (!session) return;
+  for (const key of DEPARTED_ACCOUNT_SESSION_KEYS) removeKey(session, key);
+  const prefixed: string[] = [];
+  try {
+    const length = session.length ?? 0;
+    for (let index = 0; index < length; index += 1) {
+      const key = session.key?.(index);
+      if (key && DEPARTED_ACCOUNT_SESSION_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+        prefixed.push(key);
+      }
+    }
+  } catch {
+    // Blocked storage holds no draft to leak.
+  }
+  for (const key of prefixed) removeKey(session, key);
+}
+
 /**
  * Storage cleanup and mounted forms share this departure condition so private
  * inputs cannot outlive their account. This predicate performs no cleanup.
@@ -172,9 +205,10 @@ export function bindDeviceAccountOwner(
 /** Sign-out: the set goes, and so does the claim that anyone owns it. */
 export function releaseDeviceAccountOwner(
   local: WritableStorage | null,
-  session: WritableStorage | null = null,
+  session: SweepableStorage | null = null,
 ): void {
   clearDeviceAccountArtifacts(local, session);
+  clearDepartedAccountSessionDrafts(session);
   removeKey(local, DEVICE_ACCOUNT_OWNER_KEY);
 }
 

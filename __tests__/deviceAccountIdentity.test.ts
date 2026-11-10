@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   bindDeviceAccountOwner,
+  clearDepartedAccountSessionDrafts,
   clearDeviceAccountArtifacts,
   deviceAccountOwner,
   DEVICE_ACCOUNT_OWNER_KEY,
@@ -28,6 +29,17 @@ function fakeStorage(initial: Record<string, string> = {}) {
     removeItem: (key: string) => {
       values.delete(key);
     },
+  };
+}
+
+function sweepableStorage(initial: Record<string, string> = {}) {
+  const storage = fakeStorage(initial);
+  return {
+    ...storage,
+    get length() {
+      return storage.values.size;
+    },
+    key: (index: number) => [...storage.values.keys()][index] ?? null,
   };
 }
 
@@ -71,6 +83,30 @@ describe("device account identity", () => {
       DEVICE_IDENTITY_SESSION_KEYS.length,
     );
     expect(DEVICE_IDENTITY_LOCAL_KEYS).not.toContain(DEVICE_ACCOUNT_OWNER_KEY);
+  });
+
+  it("clears a departing account's session drafts and dismissals, but a first sign-in keeps them", () => {
+    const drafts = {
+      "pubmax_pint_drop_draft:venue-1": '{"version":2}',
+      "pubmax_pint_drop_draft:venue-2": '{"version":2}',
+      "pubmaxx:price-mission-dismiss:v1": '["venue-1"]',
+      "pubmax:ask-plan-draft:v1": '{"query":"soho"}',
+    };
+    const session = sweepableStorage({ ...drafts, "pubmax:unrelated": "keep" });
+    const local = fakeStorage();
+
+    // A signed-out person drafted, then signed in to post it: the draft is theirs.
+    bindDeviceAccountOwner("user-a", local, session);
+    for (const [key, value] of Object.entries(drafts)) expect(session.getItem(key)).toBe(value);
+
+    // Account A departs this tab: the next person must not see A's drafts.
+    clearDepartedAccountSessionDrafts(session);
+    for (const key of Object.keys(drafts)) expect(session.getItem(key)).toBeNull();
+    expect(session.getItem("pubmax:unrelated")).toBe("keep");
+
+    const signedOut = sweepableStorage(drafts);
+    releaseDeviceAccountOwner(fakeStorage(), signedOut);
+    for (const key of Object.keys(drafts)) expect(signedOut.getItem(key)).toBeNull();
   });
 
   it("clears the previous account's whole set when a second account signs in", () => {
