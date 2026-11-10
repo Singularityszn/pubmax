@@ -1554,13 +1554,6 @@ export default function PubMap({
   // to report them: its module never loaded, and it never answered at all.
   // lib/mapCanvasAvailability.ts owns what either one means and what it says.
   const [mapCanvasModuleFailed, setMapCanvasModuleFailed] = useState(false);
-  // A map that cannot draw (no module, WebGL, or pub list) never reveals pins, so
-  // the document's opening prices (components/map/MapOpeningPreview.tsx) would
-  // stand over the fallback for ever. Tell them to stand down instead.
-  useEffect(() => {
-    if (!mapCanvasModuleFailed && !mapCanvasErrored && !venueIndexFailed) return;
-    window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
-  }, [mapCanvasModuleFailed, mapCanvasErrored, venueIndexFailed]);
   // Stamped with the attempt it lapsed on rather than a bare flag: a retry
   // bumps the attempt and the derived answer goes false with it, so nothing has
   // to reset this from inside an effect body.
@@ -2580,6 +2573,12 @@ export default function PubMap({
     ceilingLapsed: mapCanvasCeilingLapsedAttempt === mapCanvasAttempt,
   });
   const mapCanvasUnavailable = mapCanvasAvailabilityState.status === "unavailable";
+  // A map that cannot draw never reveals pins. Retract the opening prices so
+  // they cannot cover its fallback, including when the readiness ceiling lapses.
+  useEffect(() => {
+    if (!mapCanvasUnavailable && !mapCanvasErrored && !venueIndexFailed) return;
+    window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
+  }, [mapCanvasUnavailable, mapCanvasErrored, venueIndexFailed]);
   // Until the pins have painted, the wire belongs to the pins. The rule and the
   // measurement that produced it are lib/mapFirstPinStreams.ts; this is the one
   // place the answer is derived, and the canvas takes it as a prop rather than
