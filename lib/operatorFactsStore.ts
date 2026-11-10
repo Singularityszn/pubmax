@@ -187,7 +187,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
         onMissingDurableWrite({
           storeTag: STORE_TAG,
           migrationHint: MIGRATION_HINT,
-          fallback: () => memoryOperatorFactsStore.publish(proposal, now),
+          fallback: async () => memoryOperatorFactsStore.publish(proposal, now),
         }),
       // No onError: a hard write failure THROWS so the route answers 503.
       run: async () => {
@@ -214,7 +214,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
     return guard({
       context: "withdraw",
       // A table that does not exist holds no published fact to take down.
-      onSchemaMiss: () => memoryOperatorFactsStore.withdraw(proposalId, now),
+      onSchemaMiss: async () => memoryOperatorFactsStore.withdraw(proposalId, now),
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
@@ -229,7 +229,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
   },
 
   async listPublishedForVenue(venueId) {
-    return guard({
+    return guard<OperatorFactsRead>({
       context: "list-venue",
       onSchemaMiss: () => memoryOperatorFactsStore.listPublishedForVenue(venueId),
       onError: async () => ({ status: "degraded" as const, facts: [] }),
@@ -249,7 +249,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
   },
 
   async listPublishedForDay(serviceDay) {
-    return guard({
+    return guard<OperatorFactsRead>({
       context: "list-day",
       onSchemaMiss: () => memoryOperatorFactsStore.listPublishedForDay(serviceDay),
       onError: async () => ({ status: "degraded" as const, facts: [] }),

@@ -21,7 +21,7 @@ const TABLE = "operator_proposals";
 /** Bounded reads: never return more than this many rows for one query. */
 const MAX_PROPOSAL_ROWS = 500;
 
-export type OperatorProposalDecision =
+type OperatorProposalDecision =
   | { outcome: "missing" }
   | { outcome: "conflict" }
   | { outcome: "declined" }
