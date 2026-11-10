@@ -16,6 +16,7 @@ type Context = { params: Promise<{ id: string }> };
 const ACTIONS: PlanActionDTO["type"][] = ["arrived", "skipped", "swapped"];
 
 function actionFailure(error: string): Response {
+  if (error === "closed") return publicApiError("This Plan has ended.", "PLAN_CLOSED", 409, { retryable: false });
   const status = error === "forbidden" ? 403 : error === "not_found" ? 404 : error === "error" ? 503 : error === "conflict" ? 409 : 400;
   const message = error === "forbidden" ? "That member token cannot update this Plan." : error === "not_found" ? "That Plan doesn't exist." : error === "error" ? "The Plan update is temporarily unavailable." : "Could not record the action.";
   const code = error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : error === "not_found" ? "PLAN_NOT_FOUND" : error === "error" ? "PLAN_ACTION_UNAVAILABLE" : error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_ACTION_INVALID";

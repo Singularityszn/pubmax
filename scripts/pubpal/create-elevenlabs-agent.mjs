@@ -7,7 +7,7 @@
 // Captain, after this file changes, re-run once. Do not do this from an agent:
 //   npm run pubpal:agent -- --base-url https://pubmaxxing.com
 //
-// This script sets six things:
+// This script sets seven things:
 //
 //   1. the webhook tools, the shared secret they present, and the speech
 //      around each call (a short checking line before the tool runs),
@@ -18,7 +18,10 @@
 //   5. signed-URL authentication, so a conversation starts only with a URL the
 //      sign-in, the voice cap and the spend budget handed out,
 //   6. how the agent hears a person in a pub: patient turn-taking, speech kept
-//      during a proposal, and London pub words for the recogniser.
+//      during a proposal, London pub words for the recogniser, and a hang-up
+//      after a long silence,
+//   7. the map client tools a live voice call answers in the browser
+//      (lib/palMapClientTools.mjs).
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
 // without one it looks for an agent of the same name before creating a new
@@ -28,6 +31,11 @@
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --base-url https://pubmaxxing.com
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --dry-run
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --check --base-url https://pubmaxxing.com
+//
+// --branch-id <id> reads and writes that branch of the agent instead of Main,
+// so a change can be tried on a branch with no live traffic first. Workspace
+// tools are shared by every branch, so a branch run never changes a tool Main
+// has attached or the workspace secret (scripts/pubpal/branch-tools.mjs).
 //
 // --check only reads: it GETs the live agent and tools, compares them with what
 // a real run would write, and exits 1 on any drift. Safe from any session.
@@ -40,10 +48,12 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { PAL_MAP_CLIENT_TOOLS } from "../../lib/palMapClientTools.mjs";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
 import { PUB_PAL_TOOL_DESCRIPTIONS, pubPalToolArgumentProperties } from "../../lib/pubPalToolCatalog.mjs";
 import { agentDrift, formatDrift } from "./agent-drift.mjs";
+import { planBranchTools } from "./branch-tools.mjs";
 import { resolveExistingTools } from "./existing-tools.mjs";
 import { privacyDeleteOnly } from "./privacy-delete-only.mjs";
 
@@ -124,6 +134,8 @@ const CLIENT_EVENTS = [
   "agent_tool_response",
   "agent_tool_response_full_payload",
   "agent_response_complete",
+  // The map client tools run in the browser (lib/palMapClientTools.mjs).
+  "client_tool_call",
 ];
 
 // How the agent hears a person. The provider's defaults are tuned for a quick
@@ -140,9 +152,13 @@ const CLIENT_EVENTS = [
 //   words that are hard to hear and common in asks go here, not a gazetteer.
 // - `quality` and `user_input_audio_format` restate the provider's defaults,
 //   so `--check` reports a dashboard change that would make the Pal hear worse.
+// - `silence_end_call_timeout` hangs up after 20 s with nobody talking. The app
+//   ends the call when the screen locks; this is the provider's backstop, so a
+//   phone left in a pocket does not spend minutes up to the call cap.
 const PAL_TURN_CONFIG = {
   turn_eagerness: "patient",
   transcribe_on_disabled_interruptions: true,
+  silence_end_call_timeout: 20,
 };
 
 const PAL_ASR_KEYWORDS = [
@@ -232,33 +248,92 @@ function webhookToolConfig(name, baseUrl, secretId) {
   };
 }
 
+// A map tool only moves the view, so the agent neither waits for it nor says a
+// checking line first. A refusal reaches the agent as a contextual update.
+function clientToolConfig({ name, description, parameters }) {
+  return {
+    type: "client",
+    name,
+    description,
+    expects_response: false,
+    pre_tool_speech: "off",
+    execution_mode: "immediate",
+    interruption_mode: "allow",
+    parameters: {
+      type: "object",
+      properties: structuredClone(parameters),
+      required: Object.keys(parameters),
+    },
+  };
+}
+
 async function listWorkspaceTools(apiKey) {
   const listed = await call("GET", `${TOOLS_API}?page_size=100`, apiKey);
   if (listed.has_more) fail("Workspace tool list is incomplete. Refusing tool resolution before any update.");
   return Array.isArray(listed.tools) ? listed.tools : [];
 }
 
-function wantedWebhookTools(baseUrl, secretId) {
-  return Object.fromEntries(
-    (AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, secretId)]),
-  );
+function wantedTools(baseUrl, secretId) {
+  return Object.fromEntries([
+    ...(AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, secretId)]),
+    ...PAL_MAP_CLIENT_TOOLS.map((tool) => [tool.name, clientToolConfig(tool)]),
+  ]);
 }
 
-async function ensureWebhookTools(apiKey, wantedTools, resolvedTools) {
+async function ensureTools(apiKey, wantedTools, resolvedTools) {
+  return applyToolPlan(apiKey, Object.entries(wantedTools).map(([name, config]) => {
+    const id = resolvedTools[name]?.id ?? null;
+    return { name, method: id ? "PATCH" : "POST", id, config };
+  }));
+}
+
+async function applyToolPlan(apiKey, plan) {
   const ids = [];
-  for (const [name, tool_config] of Object.entries(wantedTools)) {
-    const hit = resolvedTools[name];
-    const payload = { tool_config };
-    if (hit?.id) {
-      await call("PATCH", `${TOOLS_API}/${hit.id}`, apiKey, payload);
-      ids.push(hit.id);
+  for (const { name, method, id, config } of plan) {
+    if (method === "keep") {
+      ids.push(id);
+    } else if (method === "PATCH") {
+      await call("PATCH", `${TOOLS_API}/${id}`, apiKey, { tool_config: config });
+      ids.push(id);
     } else {
-      const created = await call("POST", TOOLS_API, apiKey, payload);
+      const created = await call("POST", TOOLS_API, apiKey, { tool_config: config });
       if (!created.id) fail(`ElevenLabs returned no tool id for ${name}.`);
       ids.push(created.id);
     }
   }
   return ids;
+}
+
+async function mainToolIds(apiKey, currentAgent, liveTools, baseUrl, secret) {
+  const resolvedTools = resolveExistingTools(liveTools, currentAgent?.conversation_config?.agent?.prompt?.tool_ids, wantedTools(baseUrl, "unused"));
+  const secretId = await ensureWorkspaceLlmSecret(apiKey, secret);
+  return ensureTools(apiKey, wantedTools(baseUrl, secretId), resolvedTools);
+}
+
+/**
+ * A branch run preserves Main's tools and the workspace secret. Tools absent
+ * from Main may still be shared with other branches (scripts/pubpal/branch-tools.mjs).
+ */
+async function branchToolIds(apiKey, agentId, currentAgent, liveTools, baseUrl, branchId) {
+  if (!currentAgent) fail("--branch-id needs an existing agent.");
+  // The provider must name this exact branch, and it must not be Main.
+  if (currentAgent.branch_id !== branchId || !currentAgent.main_branch_id || currentAgent.main_branch_id === branchId) {
+    fail(`--branch-id ${branchId} is not a branch other than Main of this agent. No update was made.`);
+  }
+  const main = await call("GET", agentUrl(agentId, ""), apiKey);
+  const secrets = await call("GET", SECRETS_API, apiKey);
+  const secretId = (Array.isArray(secrets.secrets) ? secrets.secrets : [])
+    .find((row) => row?.name === LLM_SECRET_NAME)?.secret_id;
+  if (!secretId) fail(`A branch run needs the workspace secret ${LLM_SECRET_NAME}. Run Main first.`);
+  const wanted = wantedTools(baseUrl, secretId);
+  const resolvedTools = resolveExistingTools(liveTools, currentAgent.conversation_config?.agent?.prompt?.tool_ids, wanted);
+  const plan = planBranchTools({
+    wantedTools: wanted,
+    resolvedTools,
+    mainToolIds: new Set(main.conversation_config?.agent?.prompt?.tool_ids ?? []),
+    secretId,
+  });
+  return applyToolPlan(apiKey, plan);
 }
 
 function agentBody(toolIds) {
@@ -335,6 +410,7 @@ function redactAgentPreview(body, baseUrl) {
     webhook_tools: (AGENT_CONFIG.toolNames ?? []).map((name) =>
       redactToolConfig(webhookToolConfig(name, baseUrl, "redacted")),
     ),
+    client_tools: PAL_MAP_CLIENT_TOOLS.map(clientToolConfig),
     llm: AGENT_CONFIG.llm,
     llmCreditNote: AGENT_CONFIG.llmCreditNote,
   };
@@ -418,6 +494,18 @@ function mergeAgentPatch(existingAgent, body) {
   };
 }
 
+/**
+ * The name and platform settings (auth, overrides, privacy) belong to the
+ * whole agent, not to a branch, so a branch run neither checks nor sends them.
+ */
+function branchPatch(patch, branchId) {
+  if (!branchId) return patch;
+  const { name, platform_settings, ...versioned } = patch;
+  void name;
+  void platform_settings;
+  return versioned;
+}
+
 /** The PATCH a run sends to an existing agent: the live agent with this repo's fields laid over it. */
 function agentPatch(currentAgent, toolIds) {
   const { body } = agentBody(toolIds);
@@ -457,36 +545,42 @@ async function findAgentByName(apiKey) {
   return hit?.agent_id ?? null;
 }
 
+/** The agent's Main config, or one branch's when a branch id is given. */
+function agentUrl(agentId, branchId) {
+  return `${API}/agents/${agentId}${branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ""}`;
+}
+
 /** Read-only: GETs only, so it cannot change the live agent. Exits 1 on drift. */
-async function checkAgent(apiKey, baseUrl) {
+async function checkAgent(apiKey, baseUrl, branchId) {
   const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
   if (!agentId) fail(`No agent named ${AGENT_NAME} and ELEVENLABS_PUB_PAL_AGENT_ID is not set.`);
-  const liveAgent = await call("GET", `${API}/agents/${agentId}`, apiKey);
+  const liveAgent = await call("GET", agentUrl(agentId, branchId), apiKey);
   const liveTools = await listWorkspaceTools(apiKey);
   const secrets = await call("GET", SECRETS_API, apiKey);
   const secretId =
     (Array.isArray(secrets.secrets) ? secrets.secrets : []).find((row) => row?.name === LLM_SECRET_NAME)
       ?.secret_id ?? null;
-  const wantedTools = wantedWebhookTools(baseUrl, "unused");
-  const resolvedTools = resolveExistingTools(liveTools, liveAgent.conversation_config?.agent?.prompt?.tool_ids, wantedTools);
+  const wanted = wantedTools(baseUrl, "unused");
+  const resolvedTools = resolveExistingTools(liveTools, liveAgent.conversation_config?.agent?.prompt?.tool_ids, wanted);
   const liveToolIds = Object.values(resolvedTools)
     .map((row) => row?.id)
     .filter(Boolean);
   const drifts = agentDrift({
     liveAgent,
     liveTools,
-    wantedAgent: agentPatch(liveAgent, liveToolIds),
-    wantedTools,
+    wantedAgent: branchPatch(agentPatch(liveAgent, liveToolIds), branchId),
+    wantedTools: wanted,
     secret: { name: LLM_SECRET_NAME, id: secretId },
   });
-  console.log(`Checked agent ${agentId} against this repo's config (read-only).`);
+  const branch = branchId ? ` branch ${branchId}` : "";
+  console.log(`Checked agent ${agentId}${branch} against this repo's config (read-only).`);
   if (drifts.length === 0) {
     console.log("✓ The live agent matches.");
     return;
   }
   for (const drift of drifts) console.log(formatDrift(drift));
   console.log(
-    `\n✗ ${drifts.length} difference${drifts.length === 1 ? "" : "s"}. The captain re-runs: npm run pubpal:agent -- --base-url ${baseUrl}`,
+    `\n✗ ${drifts.length} difference${drifts.length === 1 ? "" : "s"}. The captain re-runs: npm run pubpal:agent -- --base-url ${baseUrl}${branchId ? ` --branch-id ${branchId}` : ""}`,
   );
   process.exit(1);
 }
@@ -511,6 +605,7 @@ async function main() {
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const secret = process.env.ELEVENLABS_LLM_SHARED_SECRET?.trim();
   const baseUrl = (arg("base-url", process.env.PUBMAX_BASE_URL ?? "")).trim().replace(/\/+$/, "");
+  const branchId = arg("branch-id").trim();
 
   if (!dryRun && !apiKey) fail("ELEVENLABS_API_KEY is not set. See docs/PUB_PAL_SETUP.md.");
   if (!secret && !check) fail("ELEVENLABS_LLM_SHARED_SECRET is not set. Generate one: openssl rand -hex 32");
@@ -518,14 +613,15 @@ async function main() {
   if (!/^https:\/\//.test(baseUrl) && !/^http:\/\/localhost/.test(baseUrl)) {
     fail(`--base-url must be https (or http://localhost for a tunnel test). Got: ${baseUrl}`);
   }
+  if (branchId && !/^[A-Za-z0-9_-]+$/.test(branchId)) fail(`--branch-id is not a branch id. Got: ${branchId}`);
 
   if (check) {
-    await checkAgent(apiKey, baseUrl);
+    await checkAgent(apiKey, baseUrl, branchId);
     return;
   }
 
   if (dryRun) {
-    const toolIds = (AGENT_CONFIG.toolNames ?? []).map((name) => `dry-run-tool:${name}`);
+    const toolIds = Object.keys(wantedTools(baseUrl, "redacted")).map((name) => `dry-run-tool:${name}`);
     const { body, defaultVoice } = agentBody(toolIds);
     console.log(
       "Dry run. This is the agent that would be written (secrets and tool ids held back):\n",
@@ -537,19 +633,19 @@ async function main() {
   }
 
   const existing = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
-  const currentAgent = existing ? await call("GET", `${API}/agents/${existing}`, apiKey) : null;
+  const currentAgent = existing ? await call("GET", agentUrl(existing, branchId), apiKey) : null;
   const liveTools = await listWorkspaceTools(apiKey);
   // Resolve every identity before the first secret, tool or agent write.
-  const resolvedTools = resolveExistingTools(liveTools, currentAgent?.conversation_config?.agent?.prompt?.tool_ids, wantedWebhookTools(baseUrl, "unused"));
-  const secretId = await ensureWorkspaceLlmSecret(apiKey, secret);
-  const toolIds = await ensureWebhookTools(apiKey, wantedWebhookTools(baseUrl, secretId), resolvedTools);
+  const toolIds = branchId
+    ? await branchToolIds(apiKey, existing, currentAgent, liveTools, baseUrl, branchId)
+    : await mainToolIds(apiKey, currentAgent, liveTools, baseUrl, secret);
   const { body, defaultVoice } = agentBody(toolIds);
 
   if (existing) {
-    await call("PATCH", `${API}/agents/${existing}`, apiKey, agentPatch(currentAgent, toolIds));
-    console.log(`✓ Updated agent ${existing}`);
+    await call("PATCH", agentUrl(existing, branchId), apiKey, branchPatch(agentPatch(currentAgent, toolIds), branchId));
+    console.log(`✓ Updated agent ${existing}${branchId ? ` branch ${branchId}` : ""}`);
     console.log(`  LLM: ${AGENT_CONFIG.llm}`);
-    console.log(`  Webhook tools: ${toolIds.length}`);
+    console.log(`  Tools: ${toolIds.length}`);
   } else {
     const created = await call("POST", `${API}/agents/create`, apiKey, body);
     const agentId = created.agent_id ?? created.id;

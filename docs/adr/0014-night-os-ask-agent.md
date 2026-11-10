@@ -95,7 +95,7 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    a proposal the client applies only after an explicit Confirm.
    A person's explicit generic map command uses client-owned navigation without requiring a server proposal or invented venue cards.
    On the server, `isGenericMapAsk` (`lib/ask/routingPolicy.ts`) keeps any pub name out of such a command, so neither its leftover words nor a model's guess become a venue.
-   Assistant suggestions still require confirmation.
+   Typed-chat suggestions still require confirmation. The live voice exception is below.
    `propose_plan` returns a draft the client carries to `/plan` behind one "Open in Plan" link
    (`planPalRouteHandoffHref` in `lib/planOccasion.ts`), which prefills the same
    ask there and saves nothing until the drinker acts on it; a Confirm button
@@ -128,6 +128,16 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    any shortage of suitable pubs (`palDraftRouteLines`).
    Nothing is saved until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
    `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
+   **Amended 10 Nov 2026 (captain, D2): a live voice call moves the view.**
+   In a voice call the person started, the Pal may apply view moves with no
+   Confirm: the camera, numbered picks, the highlight and the browse-only venue
+   sheet (`?sel=`). Every pick comes from the call's newest grounded venue-search
+   result (`lib/palMapCommands.ts`), so a model's guess never becomes a pin.
+   The [camera contract](../rules/components-map-canvas-and-pins.md#nothing-moves-this-camera-but-the-reader-and-there-is-one-compass)
+   owns framing and gesture priority. Writes still need a tap: a save, a plan, a crowd report or a
+   memory. Typed chat keeps its Confirm buttons. Pins:
+   `__tests__/palMapCommands.test.ts`, `__tests__/mapGestureGuard.test.ts`,
+   `e2e/pal-voice-transcript.spec.ts`.
 4. **Keyless path (map Ask)** - without `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`, `POST /api/ask`
    uses deterministic tools and house-voice templates.
    Decision 2 defines the recorded-answer routing exceptions.

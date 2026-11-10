@@ -476,6 +476,17 @@ denial, 409 for write conflict, 422 for invalid input, 429 for the write budget,
 and 503 for unavailable authority or storage. Store transactions re-check
 membership, current reciprocal follows, blocks, role, state, and revision.
 
+With migration `0232` applied, becoming an active member closes pending invitations to that Crew.
+Unexpired invitations become accepted, and expired invitations become expired.
+Leaving or removal revokes pending invitations and ends the linked Plan seat by setting `membership_revoked_at` and rotating its capability token.
+Reactivating an existing inactive membership clears that revocation and resets the seat status to `in`.
+Activation of an already active member preserves the seat status, including `here`.
+
+The migration also closes pending invitations for existing active members.
+For inactive memberships, it revokes pending invitations created before the membership ended and ends any linked Plan seat that remains live.
+The [rollback header](../supabase/migrations/rollback/20261110140000_0232_crew_membership_closes_leftovers_rollback.sql) describes what rollback preserves and restores.
+The regression cases are in [`crewMembershipLeftoversMigrationEffective.test.ts`](../__tests__/crewMembershipLeftoversMigrationEffective.test.ts).
+
 #### `app/api/social/crews` (route 81)
 
 `POST` binds one existing Planned Night. Creation alone reads the one-time
@@ -529,7 +540,8 @@ membership and updates only the seat bound to that account. It reads authority
 again before minting the existing arrival receipts. Private and friends crews
 return 404. No Plan capability or account ID is returned. Arrival opens at London
 midnight on the scheduled date and closes 12 hours after the start.
-Marking Here is idempotent without a receipt key. The endpoint cannot undo an arrival.
+The [crew-status contract](API_CONTRACTS_THE_LOCAL.md#crew-status) also applies at the database write.
+Within these guards, marking Here is idempotent without a receipt key. The endpoint cannot undo an arrival.
 The [arrival metric](analytics/METRICS.md#33-the-host-loop-and-hosted-night-arrivals)
 owns receipt counting and deduplication rules.
 
@@ -889,19 +901,12 @@ owns receipt counting and deduplication rules.
 
 ### `app/api/table-requests` - a crew asks a pub for a table
 
-- **Route / method:** `POST app/api/table-requests/route.ts` takes one JSON
-  request for a crew of 6 to 20: `venueId`, `name`, `partySize`, `date`,
-  `time`, an optional `note` and ONE `contact` (`{ kind: "email" | "phone",
-  value }`) the pub can reply to. It answers `201 { outcome: "sent" }` only
-  when an email to the pub's VERIFIED operator was sent through
-  `lib/emailProvider.ts`, and `200 { outcome: "not_sent" }` otherwise (no
-  verified operator, no address on the operator's account, a keyless
-  deployment where the seam answers `skipped`, a failed send, or a store that
-  could not keep the request). The sheet then hands the person a prefilled
-  email to the pub's own published address, or its phone, and says plainly
-  that PUBMAXX did not send it. The `GET ?venueId=` read lists that pub's
-  emailed requests to a verified operator of THAT pub alone (401 signed out,
-  403 anybody else), without the requester's account id.
+- **Route / method:** `POST app/api/table-requests/route.ts` accepts a group
+  table request. The [table request rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent)
+  own its delivery outcomes, retry keys, retention and manual-contact fallback.
+  The `GET ?venueId=` read lists that pub's emailed requests to a verified
+  operator of that pub alone (401 signed out, 403 anybody else), without the
+  requester's account id.
 - **What it never writes:** a booking, a hold, a fee, a payment, a venue, a pin,
   a price or an order. A fee per seated group is a later decision under
   ADR 0011 and the 0219 table has no column for one. The answer never echoes a
@@ -924,10 +929,8 @@ owns receipt counting and deduplication rules.
   and their address is read from Supabase Auth on the service role
   (`lib/operatorAccountAddress.server.ts`), never from a body or a venue
   record. The 0219 table keys the requester to `auth.users` with ON DELETE
-  CASCADE and has no browser grant. A request that was stored and then not
-  sent is deleted, so the operator panel never lists one the person was told
-  PUBMAXX did not send. The requester's account export carries their own
-  requests (the `tableRequests` lane), and nothing about the operator.
+  CASCADE and has no browser grant. The requester's account export carries
+  their own requests (the `tableRequests` lane), and nothing about the operator.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 
@@ -1097,9 +1100,8 @@ commit.
   in migration 0048 mirror the allowlists.
 - **Auth stance (ACCOUNT — the CREATE boundary):** `account_id` is the VERIFIED
   Supabase uid from the bearer JWT (`callerAuthIdentity`), never a body value; an
-  anonymous caller is 401. Idempotent per `(account_id, venue_id)` — a re-claim
-  UPDATES in place and reopens the row to `pending`, so table growth is bounded by
-  distinct account×venue pairs.
+  anonymous caller is 401. The [`VenueOperatorStore.claim` contract](../lib/venueOperatorsStore.ts)
+  owns claim uniqueness and re-claim behaviour.
 - **Rate limit (boundary):** durable per-account + hashed-IP `isLimited` with key
   `venue-operator-claim:${accountId}:${hashIp(clientIp)}` (raw IP never keyed),
   budget 10 — an operator may run a few pubs. 429 `{ code: "RATE_LIMITED",
@@ -1140,29 +1142,38 @@ commit.
   `operator-proposal:${accountId}:${hashIp(clientIp)}`, budget 20 — 429
   `{ retryable: true }` on exceed. This is the rate_limit-class boundary; the
   route also carries the moderator class (accept/decline).
-- **Moderation + the admin acceptance seam (boundary):** `accept` / `decline`
-  require the admin token (`isModerator`). TRUSTED DATA IS UNTOUCHED — a proposal
-  NEVER writes a venue fact. Only the `accept` branch (the admin acceptance seam)
-  materialises an accepted payload into served evidence, and even then only as a
-  `FactSource` of authority `operator` (rank 0, `factClaims.
-  acceptedProposalFactSource`): additive, attributed, and exposed as a CONFLICT if
-  it disagrees with the observed corpus, never a silent overwrite. A fence test
-  (`__tests__/operatorProposalFence.test.ts`) asserts the proposal store/module
-  import NO venue-fact module — the acceptance route is the sole bridge.
-- **Published fact:** the `accept` branch also publishes ONE operator fact
-  (`lib/operatorFactsStore.ts`, migration 0217, unique per proposal) BEFORE it
-  stamps the status, so a failed publish leaves the proposal pending and answers
-  503; a failed stamp withdraws the fact. `decline` withdraws any published fact
-  first. The fact is shown as "From the pub" and changes no rank, pin colour,
-  price band or order (`__tests__/operatorFactsFence.test.ts`).
+- **Moderation:** `accept` and `decline` require the admin token (`isModerator`).
+  `operatorProposalsStore().decide` accepts only a `pending` proposal.
+  It declines a `pending` or `accepted` proposal, so a moderator can undo acceptance.
+  Other transitions return 409 `CONFLICT` without changing the proposal or its fact.
+  A missing proposal returns 404 `NOT_FOUND`.
+- **Atomic publication:** the durable store calls `decide_operator_proposal`
+  (migration 0235). The function locks the proposal row and checks its status.
+  It publishes one operator fact on acceptance, or withdraws the fact on decline,
+  and stamps the decision in the same transaction.
+  A failed publication, withdrawal or status write rolls back the transaction.
+  Concurrent decisions cannot withdraw a winning acceptance as compensation.
+  The memory backend performs the decision without yielding between the guard and writes.
+  Regression coverage is in `__tests__/operatorProposalsRoute.test.ts` and
+  `__tests__/operatorFactsMigrationEffective.test.ts`.
+- **Trusted evidence:** the acceptance route converts the accepted payload through
+  `factClaims.acceptedProposalFactSource` into authority `operator` (rank 0).
+  This is attributed evidence. A disagreement with observed data appears as a conflict.
+  The proposal module and store cannot import trusted venue-data modules
+  (`__tests__/operatorProposalFence.test.ts`). The store can import operator-fact storage.
+  [The operator-fact display rule](rules/lib-venues-areas-listings-and-nights.md)
+  owns placement and ranking constraints.
 - **Freeze stance:** NOT under the SOCIAL freeze (venue-business content), same
   exemption as route 68.
-- **Rollback / kill:** durable rows live in `public.operator_proposals` (migration
-  0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
-  safe reset. Fails soft to process-memory until 0048 lands
-  (`lib/operatorProposalsStore.ts`); a hard write failure answers 503. Published
-  facts live in `public.operator_facts` (0217); its rollback drops the table and
-  keeps every proposal's review status.
+- **Storage and rollback:** proposals live in `public.operator_proposals` (0048).
+  Published facts live in `public.operator_facts` (0217).
+  [The permission matrix](security/PERMISSION_MATRIX.md) owns browser and service-role access.
+  A keyless process uses memory. With Supabase configured, creation and reads
+  retain their schema-miss fallback, but moderation requires the durable RPC.
+  A missing RPC or failed durable decision returns retryable 503 `STORE_UNAVAILABLE`.
+  The 0235 rollback removes only the function and preserves proposals and facts.
+  Moderation then remains unavailable until the function returns or compatible code is deployed.
+  The 0217 rollback drops the fact table and preserves proposal review statuses.
 
 ### `app/api/price-submit` - community price and venue-signal submissions (route 70)
 
@@ -1803,6 +1814,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   the moderator check.
 - **Validation:** a post UUID and a decision of `approved` or `rejected`,
   nothing else. `review_social_post_video` refuses any other word.
+- **Write:** only a `held` video can receive a decision. The first decision
+  wins. Later attempts leave the decision unchanged and return `false` from
+  the store, which the route maps to 404 `NOT_FOUND`, as for a missing video.
+  The memory store enforces this guard directly. Supabase requires migration
+  `0228`, which the captain applies separately.
 
 ### `app/api/social/posts/[postId]/photos` - Social photos 2 to 4 (route 98)
 

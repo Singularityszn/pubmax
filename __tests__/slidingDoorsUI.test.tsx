@@ -4,7 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SlidingDoors from "@/components/plan/SlidingDoors";
-import type { PlanState } from "@/lib/plan";
+import { PLANNED_NIGHT_STATUSES, type PlanState } from "@/lib/plan";
 
 vi.mock("@/components/plan/PlanRouteMiniMap", () => ({ default: ({ stops }: { stops: Array<{ venueId: string }> }) =>
   createElement("div", { "data-testid": "comparison-map" }, stops.map((stop) => stop.venueId).join(",")) }));
@@ -160,5 +160,10 @@ describe("Sliding Doors controls", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("Compare again to retry");
     expect(container.querySelector('input[value="shorter-walk"]')).toBeNull();
     expect(button("Compare again").disabled).toBe(false);
+  });
+
+  it.each([...PLANNED_NIGHT_STATUSES, undefined])("shows the controls only for a live Plan status: %s", async (status) => {
+    await act(async () => root.render(createElement(SlidingDoors, { planState: { ...state, plan: { ...state.plan, status } }, memberToken: "guest-token", onProposalCreated: vi.fn() })));
+    expect(container.childElementCount > 0).toBe(status !== "completed" && status !== "abandoned");
   });
 });

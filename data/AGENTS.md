@@ -7,7 +7,7 @@ The committed data: what a row is worth, which lane it belongs to and which laye
 - **Every UK price lives in one bundle, and each row says what it is worth.** `public/data/uk_prices/` is built by `npm run build:uk-price-bundle`. `lib/ukPriceBundle.ts` owns the shape. An estimate is in the file, but an authority lane reads `authoritativeBundleRows`, so an estimate never colours a pin or enters the cheapest buckets or the Pint Index.
 - **All harvest lanes share one set of price-reading rules.** `lib/harvest/ukPriceCrawl.ts` owns them, and [`docs/UK_PRICE_HARVEST.md`](../docs/UK_PRICE_HARVEST.md) explains them. An offer such as "2 for £9" is not a pint price. A shared pub name is not a match.
 - **Two pub layers, and only one is the product.** `venues_slim*.json` is the curated index. The UK-wide unpriced OSM pubs are a separate base layer. Never merge base pubs into the venue index. An area joins the curated layer by promotion from the base snapshot.
-- **A curated pin says name, position and address only.** `venues_slim.json` has no website, hours or price field. `validate-data` holds every pack to that.
+- **City pins have restricted fields.** See the [city-pack contract](cities/README.md#what-a-pin-says-it-knows).
 - **The OSM credit sits on the map.** `OSM_ATTRIBUTION` in `components/map/canvas/tokens.ts`.
 - **A hyped pub row needs a dated http source.** `score` and `mentions` order the list and are never shown. An ambiguous name stays unmatched.
 - **A date is derived, never typed.** `data/freshness_registry.json` is the one source. Tests read the collection day through `PINT_DATASET_OBSERVED_AT`.

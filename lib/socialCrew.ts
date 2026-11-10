@@ -384,5 +384,9 @@ export function socialCrewPhase(status: PlannedNightStatus): SocialCrewPhase {
     case "completed":
     case "abandoned":
       return "ended";
+    default: {
+      const unreachable: never = status;
+      return unreachable;
+    }
   }
 }

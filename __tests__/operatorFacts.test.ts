@@ -286,23 +286,15 @@ describe("accepting, declining and reading operator facts", () => {
     expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toEqual([]);
   });
 
-  it("a publish that fails leaves the proposal pending and shows nothing", async () => {
+  it.each(["accept", "decline"])("a failed %s leaves status and publication unchanged", async (action) => {
     const id = await propose({ venueId: "v1", type: "event", payload: { title: "Quiz", startsAt: "8pm" } });
-    const spy = vi.spyOn(memoryOperatorFactsStore, "publish").mockRejectedValueOnce(new Error("store down"));
-    const res = await POST(post({ action: "accept", id }, true));
-    expect(res.status).toBe(503);
+    if (action === "decline") expect((await POST(post({ action: "accept", id }, true))).status).toBe(200);
+    const before = await sheet("v1");
+    const spy = vi.spyOn(memoryOperatorProposalStore, "decide").mockRejectedValueOnce(new Error("store down"));
+    expect((await POST(post({ action, id }, true))).status).toBe(503);
     spy.mockRestore();
-    expect((await memoryOperatorProposalStore.getById(id))?.status).toBe("pending");
-    expect((await sheet("v1")).facts).toEqual([]);
-  });
-
-  it("a status stamp that fails after the publish takes the fact back down", async () => {
-    const id = await propose({ venueId: "v1", type: "event", payload: { title: "Quiz", startsAt: "8pm" } });
-    const spy = vi.spyOn(memoryOperatorProposalStore, "setStatus").mockRejectedValueOnce(new Error("store down"));
-    const res = await POST(post({ action: "accept", id }, true));
-    expect(res.status).toBe(503);
-    spy.mockRestore();
-    expect((await sheet("v1")).facts).toEqual([]);
+    expect(await memoryOperatorProposalStore.listForReview(action === "accept" ? "pending" : "accepted")).toMatchObject([{ id }]);
+    expect(await sheet("v1")).toEqual(before);
   });
 
   it("refuses a read with no pub", async () => {

@@ -79,7 +79,7 @@ const MEMBER_TABLE = "plan_crew_members";
 
 // ── RSVP ─────────────────────────────────────────────────────────────────
 
-type RsvpRow = { id: string; display_name: string; status: string; created_at: string };
+type RsvpRow = { id: string; display_name: string; status: RsvpStatus; created_at: string };
 
 function summarizeRsvpRows(rows: RsvpRow[]): PlanInviteRsvpSummary {
   const guests = rows
@@ -320,7 +320,7 @@ export function __resetMemoryRsvps(): void {
 // Reuses the pub-native reaction allowlist (lib/reactions.ts) rather than a
 // second closed emoji taxonomy — one canonical set, everywhere it's needed.
 
-type ReactionRow = { reaction: string; submitter_hash: string };
+type ReactionRow = { reaction: ReactionKey; submitter_hash: string };
 
 function summarizeReactionRows(rows: ReactionRow[], submitterHash: string): ReactionSummary {
   const counts: Partial<Record<ReactionKey, number>> = {};
@@ -392,7 +392,7 @@ const inviteReactionMemory = inviteReactionMemoryGlobal.__pubmaxPlanInviteReacti
 inviteReactionMemory.rows ??= new Set();
 const memoryReactionRows = inviteReactionMemory.rows;
 
-function reactionRowKey(planId: string, submitterHash: string, reaction: string): string {
+function reactionRowKey(planId: string, submitterHash: string, reaction: ReactionKey): string {
   return `${planId}|${submitterHash}|${reaction}`;
 }
 
@@ -410,7 +410,7 @@ const memoryReactionStore: PlanInviteReactionStore = {
       if (!key.startsWith(prefix)) continue;
       const [, hash, reaction] = key.split("|");
       if (hash === undefined || reaction === undefined) continue;
-      rows.push({ reaction, submitter_hash: hash });
+      rows.push({ reaction: reaction as ReactionKey, submitter_hash: hash });
     }
     return summarizeReactionRows(rows, submitterHash);
   },

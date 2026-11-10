@@ -67,8 +67,8 @@ const TABLES = [CANDIDATE_TABLE, CHECKPOINT_TABLE] as const;
 
 type CandidateRow = {
   id: string;
-  kind: string;
-  entity_type: string;
+  kind: NightSignalClaim["kind"];
+  entity_type: NightSignalClaim["entity"]["type"];
   entity_id: string;
   claim: string;
   source_url: string;
@@ -77,12 +77,12 @@ type CandidateRow = {
   observed_at: string;
   expires_at: string;
   confidence: number;
-  review_state: string;
-  verification: string;
-  route_effect: string;
+  review_state: NightSignalReviewState;
+  verification: NightSignalClaim["verification"];
+  route_effect: NightSignalClaim["routeEffect"];
   corroborating_sources: unknown;
   reviewed_at: string | null;
-  review_authority: string | null;
+  review_authority: NightSignalClaim["reviewAuthority"];
 };
 
 function claimToRow(candidate: NightSignalClaim): CandidateRow {

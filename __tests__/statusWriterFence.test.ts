@@ -49,10 +49,4 @@ export async function close(id: string) {
 `;
     expect(await lintRules("lib/unownedThingStore.ts", code)).toEqual(["status-writer/one-writer"]);
   });
-
-  it("reports an exception whose file no longer writes the lifecycle", async () => {
-    expect(await lintRules("lib/openCrawlArrivalStore.ts", "export const arrival = 1;\n")).toEqual([
-      "status-writer/stale-exception",
-    ]);
-  });
 });

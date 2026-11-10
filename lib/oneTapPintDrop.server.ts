@@ -1,9 +1,10 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { duplicateOneTapDrop } from "@/lib/oneTapDuplicate";
 
 import { submitCategoryLabel } from "@/lib/communityPrice";
-import { moderateCommunityPrice } from "@/lib/communityPriceStore";
+import type { CommunityPrice } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
 import { log } from "@/lib/log";
 import {
@@ -15,16 +16,14 @@ import type { PintDrop } from "@/lib/pintDrops";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import {
   PhotoRefusalError,
+  OneTapPriceSupersededError,
   pintDropsStore,
   type PintDropPhotos,
 } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
-import { reconcilePriceTrustForObservation } from "@/lib/priceTrustImpact.server";
-
 export type OneTapPintDropInput = Readonly<{
-  id?: string;
   venueId: string;
   handle: string;
   drinkCategory: DrinkCategory;
@@ -61,63 +60,9 @@ async function listRecentForDedupe(
 }
 
 export type OneTapPintDropOutcome =
-  | { ok: true; drop: PintDrop; created: boolean }
+  | { ok: true; drop: PintDrop; created: boolean; price?: CommunityPrice }
   | { ok: false; kind: "invalid_photo"; message: string }
-  | { ok: false; kind: "storage"; message: string };
-
-/**
- * How long two identical priced drops from one account at one pub are read as
- * ONE tap rather than two reports (battle test D10).
- *
- * Three `el.click()` calls on Log it in one tick sent three POSTs, all 201, and
- * wrote three `pint_drops` rows 21 ms apart; a human double-tap on a slow
- * network does the same, and so does any retry of a request whose response was
- * lost. The client latch below is the first line, but a latch lives in one
- * browser tab and cannot speak for a retry, so the write path needs its own
- * answer.
- *
- * It is deliberately NOT the daily cap. `POST /api/price-submit` pairs a drop
- * with every community price and takes several from one account at one pub in
- * one day ON PURPOSE (AGENTS.md), so a day-wide guard would refuse the second
- * honest correction of an evening. Six seconds refuses a duplicate tap and a
- * lost-response retry, and refuses nothing a drinker meant twice.
- */
-export const ONE_TAP_DUPLICATE_WINDOW_MS = 6_000;
-
-/**
- * The row an identical earlier tap already wrote, or null. Pure, so the window
- * rule is testable without a store.
- *
- * Identity is the whole observation: same pub, same account, same figure, same
- * measure. A different figure is a correction and is welcome; a different
- * measure is a different drink. Only an exact repeat inside the window is the
- * same tap arriving twice.
- */
-export function duplicateOneTapDrop(
-  rows: readonly PintDrop[],
-  candidate: Pick<PintDrop, "venueId" | "handle" | "priceGbp" | "measure">,
-  now: number,
-): PintDrop | null {
-  const handle = normalizeViewerHandle(candidate.handle);
-  if (!handle || typeof candidate.priceGbp !== "number") return null;
-  const measure = cleanDrinkMeasure(candidate.measure);
-  let best: PintDrop | null = null;
-  let bestAt = Number.NEGATIVE_INFINITY;
-  for (const row of rows) {
-    if (row.venueId !== candidate.venueId) continue;
-    if (normalizeViewerHandle(row.handle) !== handle) continue;
-    if (row.priceGbp !== candidate.priceGbp) continue;
-    if (cleanDrinkMeasure(row.measure) !== measure) continue;
-    const at = Date.parse(row.createdAt);
-    if (!Number.isFinite(at)) continue;
-    // A row dated ahead of us is a clock we cannot reason about, not a repeat.
-    if (at > now || now - at > ONE_TAP_DUPLICATE_WINDOW_MS) continue;
-    if (at <= bestAt) continue;
-    best = row;
-    bestAt = at;
-  }
-  return best;
-}
+  | { ok: false; kind: "storage" | "superseded"; message: string };
 
 async function ensureProfileForHandle(handle: string): Promise<void> {
   try {
@@ -142,7 +87,7 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
       ? cleanDrinkMeasureLabel(input.measureLabel)
       : "";
   return {
-    id: input.id ?? randomUUID(),
+    id: randomUUID(),
     venueId: input.venueId,
     handle,
     drink: submitCategoryLabel(input.drinkCategory),
@@ -170,44 +115,10 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
   };
 }
 
-export async function revertOneTapCommunityPricePairing(
-  priceId: string | undefined,
-): Promise<boolean> {
-  if (!priceId) return true;
-  const note = "one-tap pairing failed";
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      if (await moderateCommunityPrice(priceId, true, note)) {
-        const trust = await reconcilePriceTrustForObservation(priceId);
-        return trust.status === "synced";
-      }
-    } catch (err) {
-      log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
-        priceId,
-        attempt,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-  log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
-    priceId,
-    error: "hide did not land",
-  });
-  return false;
-}
-
-/**
- * The Pint Drop half of a one-tap price submission from the venue sheet.
- *
- * On a PINT the caller writes the community price first and this lands the
- * paired row. On any other measure there is no community price to pair with:
- * that lane carries no measure column, so the route sends the figure here
- * alone and the pint reads hold it out by measure (review finding F-2).
- */
 export async function writeOneTapPintDrop(
   input: OneTapPintDropInput,
   photos: PintDropPhotos = { pint: null, venue: null, receipt: null },
-  existingDrop?: PintDrop | null,
+  pairing?: { actor: string; submittedAt: number },
 ): Promise<OneTapPintDropOutcome> {
   // Pint Drops feed pint-only surfaces (pin colour, cheapest-pint buckets,
   // the Confirmed standing, the Pint Index). A non-beer price paired in here
@@ -227,29 +138,35 @@ export async function writeOneTapPintDrop(
   try {
     const store = pintDropsStore();
     const built = buildDrop(input);
+    if (pairing) built.createdAt = new Date(pairing.submittedAt).toISOString();
     // IDEMPOTENT ON A SHORT WINDOW. A duplicate tap is answered with the row the
     // first one wrote, so the caller sees the success it already earned and the
     // pub's sheet does not list the same pint three times. A read we could not
     // run writes the drop rather than refusing it: losing a drinker's price to
     // protect against a duplicate is the worse of the two failures.
-    const recent = existingDrop === undefined ? await listRecentForDedupe(store, input.venueId) : null;
-    const duplicate = existingDrop === undefined && recent
+    const recent = !pairing ? await listRecentForDedupe(store, input.venueId) : null;
+    const duplicate = !pairing && recent
       ? duplicateOneTapDrop(recent, built, Date.parse(built.createdAt))
-      : existingDrop;
+      : null;
     if (duplicate) {
       log("info", "one_tap_pint_drop.duplicate_tap", { venueId: input.venueId });
       return { ok: true, drop: duplicate, created: false };
     }
-    const { created, ...drop } = await store.create(built, photos);
+    const { created, communityPrice: price, ...drop } = await store.create(
+      built, photos, pairing ? { communityPrice: pairing } : undefined,
+    );
     if (created) {
       signalPintDropLanded();
       void ensureProfileForHandle(handle);
     }
-    return { ok: true, drop, created };
+    return { ok: true, drop, created, ...(price ? { price } : {}) };
   } catch (err) {
     // The CLASS, not the sentence: an unreadable image is refused with words
     // of its own, and asking about the words sent it down the storage branch
     // as a retryable 503 (lib/pintDropsStore.ts, PhotoRefusalError).
+    if (err instanceof OneTapPriceSupersededError) {
+      return { ok: false, kind: "superseded", message: "Could not log that price right now." };
+    }
     if (err instanceof PhotoRefusalError) {
       return { ok: false, kind: "invalid_photo", message: err.message };
     }

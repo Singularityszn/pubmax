@@ -21,7 +21,7 @@ const h = vi.hoisted(() => ({
   signOut: vi.fn<() => Promise<void>>(),
   refreshSession: vi.fn(),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname, useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
@@ -30,6 +30,8 @@ vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => null, isNativeApp
 vi.mock("@/lib/authClient", async (original) => ({
   ...await original<typeof import("@/lib/authClient")>(),
   isAuthConfigured: () => true,
+  // A signed-in browser stores its session, so the client loads at once.
+  hasStoredBrowserSession: () => h.session !== null,
   ensureSupabaseBrowser: async () => ({ auth: {
     setSession: h.setSession,
     signOut: h.signOut,

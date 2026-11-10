@@ -37,6 +37,7 @@ describe("Map surface history snapshot", () => {
       [MAP_SURFACE_HISTORY_KEY]: {
         version: 1,
         stack,
+        aboveRoot: 2,
       },
       pubmaxSelection: 1,
       venueId: "venue-french-house",
@@ -59,6 +60,7 @@ describe("Map surface history snapshot", () => {
       [MAP_SURFACE_HISTORY_KEY]: {
         version: 1,
         stack: [planner],
+        aboveRoot: 1,
       },
     });
   });

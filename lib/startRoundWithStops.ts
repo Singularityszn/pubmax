@@ -36,10 +36,15 @@ export async function startRoundWithStops(input: {
   identity: RoundRequestIdentity;
   title?: string;
   seedStops?: SeedStop[];
+  /** The start attempt's key. A retry resends it and gets the same Round. */
+  clientRequestId: string;
   fetchImpl?: FetchLike;
 }): Promise<StartRoundWithStopsResult> {
   const fetchImpl = input.fetchImpl ?? fetch;
-  const body: { handle: string; title?: string } = { handle: input.handle };
+  const body: { handle: string; title?: string; clientRequestId: string } = {
+    handle: input.handle,
+    clientRequestId: input.clientRequestId,
+  };
   if (input.title?.trim()) body.title = input.title.trim();
 
   let createRes: Response;

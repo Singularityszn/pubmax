@@ -79,6 +79,7 @@ export async function GET(request: Request, context: Context): Promise<Response>
 }
 
 function completionErrorResponse(error: string): Response {
+  if (error === "closed") return publicApiError("This Plan has ended.", "PLAN_CLOSED", 409, { retryable: false });
   return publicApiError(
     error === "forbidden" ? "Only the Plan host can complete this Plan." : error === "conflict" ? "That route has changed. Refresh and try again." : error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : error === "error" ? "Plan completion is temporarily unavailable." : "Could not complete this Plan.",
     error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : error === "not_found" ? "PLAN_NOT_FOUND" : error === "conflict" ? "PLAN_ROUTE_CONFLICT" : error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" : "PLAN_COMPLETION_INVALID",

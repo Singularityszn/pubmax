@@ -108,8 +108,8 @@ describe("provider identity revision", () => {
     expect(store.ownsSession("supabase", "account-b")).toBe(false);
   });
 
-  it("keeps Supabase unresolved for a null INITIAL_SESSION event", () => {
-    expect(resolveSupabaseAuthState("initial-session", false, null)).toBe("unresolved");
+  it("does not publish an auth answer for a null INITIAL_SESSION event", () => {
+    expect(resolveSupabaseAuthState("initial-session", false, null)).toBeNull();
   });
 
   it("settles signed-out after bootstrap proves no account exists", () => {

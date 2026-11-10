@@ -11,7 +11,7 @@ import { namedFiles, STATUS_WRITER_FENCE_CONFIG } from "./lib/statusWriterFence.
 const goneLifecycleFiles = namedFiles().filter((file) => !existsSync(new URL(file, import.meta.url)));
 if (goneLifecycleFiles.length > 0) {
   throw new Error(
-    `lib/statusWriterFence.mjs names ${goneLifecycleFiles.join(", ")}, which no longer exists. Move the owner or delete the exception.`,
+    `lib/statusWriterFence.mjs names ${goneLifecycleFiles.join(", ")}, which no longer exists. Move the owner to the file that writes it.`,
   );
 }
 

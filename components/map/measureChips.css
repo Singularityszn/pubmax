@@ -4,11 +4,9 @@
    Same chip shape as the price quick-adds beside it, because two rows of chips
    in one composer are one control system.
 
-   IT OWNS ITS OWN STYLESHEET, on the MobileSharedSheet law in AGENTS.md. These
-   rules used to live in spillComposer.css, which only the map imports, and the
-   same control now also mounts on the venue sheet's one-tap price door and on
-   /near through PriceEvidenceMissionSlot. A control whose classes load with a
-   different surface's sheet stands unstyled wherever that sheet is absent. */
+   This control also mounts on the venue sheet's one-tap price door and on
+   /near through PriceEvidenceMissionSlot. It imports its own stylesheet
+   because those surfaces do not all load PintDropComposer's spillComposer.css. */
 
 .measureField {
   display: grid;

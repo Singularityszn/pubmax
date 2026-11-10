@@ -3,12 +3,16 @@ import type { MutableRefObject } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
 import { LONG_JUMP_CURVE, easeOutCubic } from "./easing";
-import { createCameraIntentCoordinator, type CameraIntentKind } from "@/lib/cameraIntent";
+import { createCameraIntentCoordinator, type CameraIntentKind, type CameraIntentOwner } from "@/lib/cameraIntent";
 import { mapArrivalBearingPlan } from "@/lib/mapArrivalBearing";
 import { cameraIntentBlocked, type GestureCameraState } from "@/lib/mapGestureGuard";
 import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeMapFrame";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
+
+export function palCameraDefaults({ nearbyRequestToken = 0 }: { nearbyRequestToken?: number }) {
+  return { nearbyRequestToken };
+}
 
 // Chrome the near-me camera must stay clear of. The top values are only a
 // FALLBACK: the phone chrome stack is being reworked, and a hardcoded height
@@ -26,6 +30,52 @@ function desktopStatusSize(style: CSSStyleDeclaration | null) {
     gap: Number.parseFloat(style?.getPropertyValue("--city-status-desktop-gap") ?? "") || 82,
     height: Number.parseFloat(style?.getPropertyValue("--city-status-desktop-height") ?? "") || 58,
   };
+}
+
+export function useRouteCameraFraming({
+  mapReady, routeKey, selectedVenueId, requestToken = 0, fitRoute,
+}: {
+  mapReady: boolean;
+  routeKey: string;
+  selectedVenueId: string;
+  requestToken?: number;
+  fitRoute: ReturnType<typeof useMapCamera>["fitRoute"];
+}) {
+  const consumedRequest = useRef(requestToken);
+  useEffect(() => {
+    if (!mapReady) return;
+    const userOwned = consumedRequest.current !== requestToken;
+    consumedRequest.current = requestToken;
+    if (selectedVenueId && !userOwned) return;
+    fitRoute(userOwned ? "user" : "automatic");
+  }, [routeKey, mapReady, fitRoute, selectedVenueId, requestToken]);
+}
+
+export function useNearbyCameraFraming({
+  mapReady, userLocation, routeLength, nearbyMapVenues, fitNearby, framingOwedRef, requestToken,
+}: {
+  mapReady: boolean;
+  userLocation: { lat: number; lng: number } | null | undefined;
+  routeLength: number;
+  nearbyMapVenues: Venue[];
+  fitNearby: ReturnType<typeof useMapCamera>["fitNearby"];
+  framingOwedRef: MutableRefObject<boolean>;
+  requestToken: number;
+}) {
+  const didFitRef = useRef("");
+  const consumedRequest = useRef(requestToken);
+  const key = `${userLocation?.lat.toFixed(5)},${userLocation?.lng.toFixed(5)}:${requestToken}`;
+  useEffect(() => {
+    if (!mapReady || !userLocation || routeLength >= 2 || nearbyMapVenues.length === 0) return;
+    if (didFitRef.current === key) return;
+    didFitRef.current = key;
+    const owner = consumedRequest.current !== requestToken ? "user" : "automatic";
+    consumedRequest.current = requestToken;
+    fitNearby(userLocation, nearbyMapVenues, owner);
+  }, [mapReady, userLocation, routeLength, nearbyMapVenues, fitNearby, key, requestToken]);
+  useEffect(() => {
+    framingOwedRef.current = Boolean(userLocation) && routeLength < 2 && nearbyMapVenues.length > 0 && didFitRef.current !== key;
+  }, [mapReady, userLocation, routeLength, nearbyMapVenues, framingOwedRef, key]);
 }
 
 function routeFitPadding(
@@ -260,6 +310,7 @@ export function useMapCamera(refs: CameraRefs) {
     gestureCameraRef,
   } = refs;
   const routeFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
+  const palFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
   const coordinator = useMemo(() => createCameraIntentCoordinator({
     requestFrame: (callback) => requestAnimationFrame(callback),
     cancelFrame: (id) => cancelAnimationFrame(id),
@@ -275,19 +326,29 @@ export function useMapCamera(refs: CameraRefs) {
   // coalesces a still-pending move and interrupts any active MapLibre
   // animation before it begins, so route, nearby, cluster, and venue moves
   // cannot fight each other on screen.
-  const scheduleCamera = useCallback((kind: CameraIntentKind, key: string, move: (map: maplibregl.Map) => void) => {
+  const scheduleCamera = useCallback((owner: CameraIntentOwner, kind: CameraIntentKind, key: string, move: (map: maplibregl.Map) => void) => {
+    const allowed = () => {
+      const gesture = gestureCameraRef.current;
+      const frame = palFrameRef.current;
+      if (frame && (gesture.active || frame.gestureEndedAt !== gesture.endedAt)) palFrameRef.current = null;
+      if (cameraIntentBlocked(kind, gesture, performance.now())) return false;
+      if (owner === "pal") return palFrameRef.current?.key === key;
+      if (owner === "automatic" && palFrameRef.current) return false;
+      if (owner === "user") palFrameRef.current = null;
+      return true;
+    };
     // Asked twice on purpose. The first check keeps a move that is already
     // refused from occupying the lane; the second is the one that matters,
     // because the lane defers by a frame and a reader can put a finger down
     // inside it. `map.stop()` is behind the guard too: an intent that must
     // stand down may not interrupt the reader's own momentum either.
-    if (cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
+    if (!allowed()) return;
     // The automatic opening turn preserves the route's camera ownership.
     if (kind !== "route" && kind !== "route-recovery" && kind !== "arrival") routeFrameRef.current = null;
     const run = () => {
       const map = mapRef.current;
       if (!map) return;
-      if (cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
+      if (!allowed()) return;
       map.stop();
       move(map);
     };
@@ -305,14 +366,14 @@ export function useMapCamera(refs: CameraRefs) {
   );
 
   // Explicit camera move for venue, route, and city navigation.
-  const cinematic = useCallback((options: maplibregl.EaseToOptions, kind: CameraIntentKind = "venue") => {
+  const cinematic = useCallback((options: maplibregl.EaseToOptions, kind: CameraIntentKind, owner: CameraIntentOwner) => {
     const duration = reducedRef.current ? 0 : (options.duration ?? 1000);
     const center = Array.isArray(options.center)
       ? options.center.join(",")
       : options.center && "lng" in options.center
         ? `${options.center.lng},${options.center.lat}`
         : "current";
-    scheduleCamera(kind, `${kind}:${center}:${options.zoom ?? "current"}:${options.pitch ?? "current"}`, (map) => map.easeTo({ ...options, duration }));
+    scheduleCamera(owner, kind, `${kind}:${center}:${options.zoom ?? "current"}:${options.pitch ?? "current"}`, (map) => map.easeTo({ ...options, duration }));
   }, [reducedRef, scheduleCamera]);
 
   // The map's opening turn. ONE eased move, once, and the camera is still
@@ -329,7 +390,7 @@ export function useMapCamera(refs: CameraRefs) {
       deepLinkedVenue,
     });
     if (!plan) return;
-    scheduleCamera("arrival", `arrival:${plan.bearing}`, (target) => target.easeTo({
+    scheduleCamera("automatic", "arrival", `arrival:${plan.bearing}`, (target) => target.easeTo({
       bearing: plan.bearing,
       duration: plan.duration,
       easing: easeOutCubic,
@@ -337,7 +398,7 @@ export function useMapCamera(refs: CameraRefs) {
   }, [mapRef, reducedRef, scheduleCamera]);
 
   const routeRecoverySequence = useRef(0);
-  const fitRoute = useCallback((kind: "route" | "route-recovery" = "route") => {
+  const fitRoute = useCallback((owner: CameraIntentOwner = "automatic") => {
     const current = routeRef.current;
     if (current.length < 2) return;
     const routeBounds = () => {
@@ -358,11 +419,12 @@ export function useMapCamera(refs: CameraRefs) {
     };
     const boundsKey = routeBounds().toArray().flat().join(",");
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    const request = kind === "route-recovery" ? ++routeRecoverySequence.current : 0;
+    const kind = owner === "user" ? "route-recovery" : "route";
+    const request = owner === "user" ? ++routeRecoverySequence.current : 0;
     const routeKey = current.map((venue) => venue.id).join(">");
     const container = mapRef.current?.getContainer();
     const viewportKey = `${container?.clientWidth}:${container?.clientHeight}`;
-    scheduleCamera(kind, `${kind}:${request}:${routeKey}:${boundsKey}:${viewportKey}`, (map) => {
+    scheduleCamera(owner, kind, `${kind}:${request}:${routeKey}:${boundsKey}:${viewportKey}`, (map) => {
       routeFrameRef.current = { key: routeKey, gestureEndedAt: gestureCameraRef.current.endedAt };
       // A road response can arrive after scheduling but before this frame.
       // Read its geometry when the owned camera move actually runs.
@@ -381,7 +443,7 @@ export function useMapCamera(refs: CameraRefs) {
     const gesture = gestureCameraRef.current;
     if (!frame || gesture.active || frame.gestureEndedAt !== gesture.endedAt
       || frame.key !== routeRef.current.map((venue) => venue.id).join(">")) return;
-    fitRoute();
+    fitRoute("automatic");
   }, [fitRoute, gestureCameraRef, routeRef]);
 
   // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
@@ -390,7 +452,7 @@ export function useMapCamera(refs: CameraRefs) {
     const view = cityViewRef.current;
     // M3: fit-London / city-switch is a "long jump" — fitBounds animates via
     // flyTo by default (linear defaults to false), so `curve` shapes its arc.
-    scheduleCamera("city", `city:${cityBoundsRef.current.flat().join(",")}`, (map) => map.fitBounds(cityBoundsRef.current, {
+    scheduleCamera("user", "city", `city:${cityBoundsRef.current.flat().join(",")}`, (map) => map.fitBounds(cityBoundsRef.current, {
       padding: isPhone
         ? { top: 184, right: 24, bottom: 190, left: 24 }
         : 90,
@@ -411,7 +473,7 @@ export function useMapCamera(refs: CameraRefs) {
     const bounds = new maplibregl.LngLatBounds();
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    scheduleCamera(kind, `${kind}:${requestId}:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
+    scheduleCamera(kind === "search-recovery" ? "user" : "automatic", kind, `${kind}:${requestId}:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
       padding: isPhone
         ? { top: 160, right: 28, bottom: 200, left: 28 }
         : 90,
@@ -422,12 +484,34 @@ export function useMapCamera(refs: CameraRefs) {
     }));
   }, [queryVenuesRef, reducedRef, scheduleCamera, venuesRef]);
 
+  // A voice answer's picks (lib/palMapCommands.ts). The person asked for these
+  // pubs in this call, so the map frames them, but the answer lands seconds
+  // after the ask: `pal` is a reactive intent, and a reader still reading the
+  // map keeps it (lib/mapGestureGuard.ts). A move the person asked for by name
+  // or number (`asked`) is `pal-ask`: only a finger on the glass holds it.
+  const fitPalPicks = useCallback((sequence: number, points: readonly { lng: number; lat: number }[], asked = false) => {
+    palFrameRef.current = null;
+    const kind = asked ? "pal-ask" : "pal";
+    if (!points.length || cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
+    const key = `pal:${sequence}`;
+    palFrameRef.current = { key, gestureEndedAt: gestureCameraRef.current.endedAt };
+    const bounds = new maplibregl.LngLatBounds();
+    points.forEach((point) => bounds.extend([point.lng, point.lat]));
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
+    scheduleCamera("pal", kind, key, (map) => map.fitBounds(bounds, {
+      padding: routeFitPadding(map, isPhone),
+      maxZoom: 16,
+      duration: reducedRef.current ? 0 : 800,
+      bearing: map.getBearing(),
+    }));
+  }, [gestureCameraRef, reducedRef, scheduleCamera]);
+
   // Near me puts the READER on the map, not a cloud of pubs. A fitBounds over
   // nearby venues centres the cloud, which drops the reader wherever the
   // geometry leaves them — on a phone, under the near-me sheet. `nearMeCameraFrame`
   // keeps the centre on the reader and lets only zoom and screen offset move.
   const fitNearby = useCallback(
-    (location: { lat: number; lng: number }, nearbyVenues: Venue[]) => {
+    (location: { lat: number; lng: number }, nearbyVenues: Venue[], owner: CameraIntentOwner = "automatic") => {
       const map = mapRef.current;
       if (!map) return;
       const isPhone = window.matchMedia("(max-width: 640px)").matches;
@@ -450,7 +534,7 @@ export function useMapCamera(refs: CameraRefs) {
           bottomInset: isPhone ? PHONE_BOTTOM_INSET : DESKTOP_BOTTOM_INSET,
         });
         const frame = nearMeCameraFrame({ location, nearestVenueKm: reach, viewport, band });
-        scheduleCamera("nearby", `nearby:${locationKey}:${band.bottom}:${venueKey}`, (target) => target.easeTo({
+        scheduleCamera(owner, "nearby", `nearby:${locationKey}:${band.bottom}:${venueKey}`, (target) => target.easeTo({
           center: frame.center,
           zoom: frame.zoom,
           offset: frame.offset,
@@ -478,5 +562,6 @@ export function useMapCamera(refs: CameraRefs) {
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
+    fitPalPicks,
   };
 }

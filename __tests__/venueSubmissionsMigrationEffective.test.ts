@@ -71,14 +71,15 @@ type SubmissionFields = {
 function submission(owner: string, fields: SubmissionFields = {}): string {
   return `
     insert into public.venue_submissions
-      (id, owner_user_id, name, address, latitude, longitude, website, menu_url, prices, status, duplicate_of_venue_id)
+      (id, owner_user_id, name, address, latitude, longitude, website, menu_url, prices, status, duplicate_of_venue_id, reviewed_at)
     values (
       ${fields.id ? `'${fields.id}'` : "gen_random_uuid()"}, '${owner}',
       '${fields.name ?? "The Missing Crown"}', '${fields.address ?? "1 Example Street, London"}',
       ${fields.lat ?? "51.5"}, ${fields.lng ?? "-0.1"},
       '${fields.website ?? ""}', '${fields.menuUrl ?? ""}',
       '${fields.prices ?? "[]"}'::jsonb, '${fields.status ?? "pending"}',
-      ${fields.duplicateOf ? `'${fields.duplicateOf}'` : "null"})`;
+      ${fields.duplicateOf ? `'${fields.duplicateOf}'` : "null"},
+      ${fields.status && fields.status !== "pending" ? "now()" : "null"})`;
 }
 
 function file(owner: string, submissionId: string, key: string, kind = "image", contentType = "image/jpeg"): string {

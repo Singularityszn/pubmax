@@ -87,8 +87,8 @@ describe("browser jobs on their runners", () => {
   // share one group, so only the newest push waits behind the one running.
   // It was set when each push started the macOS layout pins; since 9 Nov 2026
   // they run only in the merge queue and on a labelled pull request.
-  // A main push is never cancelled while it runs, and the schedule and a
-  // dispatch still get a group of their own.
+  // A main push is never cancelled while it runs, and a dispatch still
+  // gets a group of its own.
   const OWN_RUN_GROUP =
     "${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}";
 
@@ -129,7 +129,6 @@ describe("browser jobs on their runners", () => {
     { event: "pull_request", action: "labeled", label: "needs-triage", expectedGroup: "run-123", cancel: false },
     { event: "push", expectedGroup: "main-push", cancel: false },
     { event: "merge_group", expectedGroup: "run-123", cancel: false },
-    { event: "schedule", expectedGroup: "run-123", cancel: false },
     { event: "workflow_dispatch", expectedGroup: "run-123", cancel: false },
   ] as const)("applies browser concurrency for $event $label", ({ expectedGroup, cancel, ...context }) => {
     const concurrency = workflows.find(({ file }) => file === "e2e.yml")?.parsed.concurrency;

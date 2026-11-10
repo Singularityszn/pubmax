@@ -195,8 +195,8 @@ describe("the price glass", () => {
     }));
     expect(marks).toEqual([
       { text: "£10", band: null },
-      { text: "£6.15", band: "priceBand-average" },
-      { text: "£5.20", band: "priceBand-cheap" },
+      { text: "£6.20", band: "priceBand-average" },
+      { text: "£5.25", band: "priceBand-cheap" },
       { text: "£0", band: null },
     ]);
   });

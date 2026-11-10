@@ -289,17 +289,18 @@ describe("characterisation: memory store lifecycle", () => {
     expect(await memoryPlanStore.update(id, token, { status: "abandoned" })).toEqual({ ok: false, error: "invalid" });
   });
 
-  it("today: a completed Plan still accepts a new arrival and stays completed", async () => {
+  it("refuses a new arrival on a completed Plan as closed", async () => {
     const created = await createAnchorOnly();
     const id = created.plan.plan.id;
     const token = created.memberToken;
     await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-before-end" });
     const completion = await memoryPlanStore.complete(id, token, WALK_HOME);
     expect(completion.ok).toBe(true);
-    const late = await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-after-end" });
-    if (!late.ok) throw new Error(late.error);
-    expect(late.plan.plan.status).toBe("completed");
-    expect(late.plan.actions?.filter((action) => action.type === "arrived")).toHaveLength(2);
+    expect(await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-after-end" }))
+      .toEqual({ ok: false, error: "closed" });
+    const plan = await memoryPlanStore.get(id);
+    expect(plan?.plan.status).toBe("completed");
+    expect(plan?.actions?.filter((action) => action.type === "arrived")).toHaveLength(1);
   });
 
   it("today: a status update marks a Plan completed with no completion record", async () => {
@@ -324,20 +325,17 @@ describe("characterisation: memory store lifecycle", () => {
       .toEqual({ ok: false, error: "invalid" });
   });
 
-  it("today: an abandoned Plan still accepts an arrival and completes (R1)", async () => {
+  it("refuses an arrival and completion on an abandoned Plan as closed (R1)", async () => {
     expect(canTransitionPlannedNight("abandoned", "completed")).toBe(false);
     const created = await createAnchorOnly();
     const id = created.plan.plan.id;
     const token = created.memberToken;
     const abandoned = await memoryPlanStore.update(id, token, { status: "abandoned" });
     expect(abandoned.ok && abandoned.plan.plan.status).toBe("abandoned");
-    const arrived = await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-abandoned-1" });
-    if (!arrived.ok) throw new Error(arrived.error);
-    expect(arrived.plan.plan.status).toBe("abandoned");
-    const completion = await memoryPlanStore.complete(id, token, WALK_HOME);
-    if (!completion.ok) throw new Error(completion.error);
-    expect(completion.created).toBe(true);
-    expect(completion.plan.plan.status).toBe("completed");
+    expect(await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-abandoned-1" }))
+      .toEqual({ ok: false, error: "closed" });
+    expect(await memoryPlanStore.complete(id, token, WALK_HOME)).toEqual({ ok: false, error: "closed" });
+    expect((await memoryPlanStore.get(id))?.plan.status).toBe("abandoned");
   });
 
   it("writes crew status for a member token and refuses a stranger", async () => {

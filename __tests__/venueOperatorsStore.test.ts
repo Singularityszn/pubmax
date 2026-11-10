@@ -11,11 +11,17 @@ import {
   memoryVenueOperatorStore,
   supabaseVenueOperatorStore,
 } from "@/lib/venueOperatorsStore";
-import type { OperatorClaimFields } from "@/lib/venueOperators";
+import type { OperatorClaimFields, OperatorVerificationState } from "@/lib/venueOperators";
 
 type Row = Record<string, unknown>;
 
-const db = vi.hoisted(() => ({ rows: [] as Row[], schemaMiss: false, failWrites: false }));
+const db = vi.hoisted(() => ({
+  rows: [] as Row[],
+  schemaMiss: false,
+  failWrites: false,
+  failReads: false,
+  beforeInsert: null as (() => Promise<void>) | null,
+}));
 
 vi.mock("@/lib/supabase", () => {
   const TABLE_MISSING = "Could not find the table 'public.venue_operators'";
@@ -32,11 +38,15 @@ vi.mock("@/lib/supabase", () => {
     const matches = (r: Row) =>
       state.filters.every((f) => (f.values ? f.values.includes(r[f.col]) : r[f.col] === f.value));
 
-    const result = () => {
+    const result = async () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
+      if (db.failReads && state.op === "select") return { data: null, error: { message: "read unavailable" } };
       const rows = db.rows.filter(matches);
       if (state.op === "insert") {
         if (db.failWrites) return { data: null, error: { message: "insert boom" } };
+        const beforeInsert = db.beforeInsert;
+        db.beforeInsert = null;
+        await beforeInsert?.();
         const row = state.insertRow!;
         const dup = db.rows.find(
           (r) => r.account_id === row.account_id && r.venue_id === row.venue_id,
@@ -109,6 +119,8 @@ beforeEach(() => {
   db.rows = [];
   db.schemaMiss = false;
   db.failWrites = false;
+  db.failReads = false;
+  db.beforeInsert = null;
   __resetVenueOperators();
 });
 
@@ -137,6 +149,15 @@ describe("memoryVenueOperatorStore", () => {
     expect(queue).toHaveLength(1);
   });
 
+  it("never demotes a verified operator who claims again", async () => {
+    const first = await memoryVenueOperatorStore.claim(fields());
+    await memoryVenueOperatorStore.setState(first.id, "verified");
+    const again = await memoryVenueOperatorStore.claim(fields({ evidenceNote: "again" }));
+    expect(again.verificationState).toBe("verified");
+    expect(await memoryVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(true);
+    expect(await memoryVenueOperatorStore.listForReview("pending")).toHaveLength(0);
+  });
+
   it("isVerifiedOperator is false until the owner verifies, then true", async () => {
     const dto = await memoryVenueOperatorStore.claim(fields());
     expect(await memoryVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(false);
@@ -157,6 +178,20 @@ describe("memoryVenueOperatorStore", () => {
 });
 
 describe("supabaseVenueOperatorStore", () => {
+  it("lists only verified operator accounts and distinguishes an empty audience", async () => {
+    const claim = await supabaseVenueOperatorStore.claim(fields());
+    expect(await supabaseVenueOperatorStore.verifiedOperatorAccountIds("venue-1")).toEqual([]);
+    await supabaseVenueOperatorStore.setState(claim.id, "verified");
+    expect(await supabaseVenueOperatorStore.verifiedOperatorAccountIds("venue-1")).toEqual(["acct-1"]);
+    expect(await supabaseVenueOperatorStore.verifiedOperatorAccountIds("venue-other")).toEqual([]);
+  });
+
+  it.each(["read", "schema"])("preserves a failed %s lookup instead of reporting no operators", async (failure) => {
+    db.failReads = failure === "read";
+    db.schemaMiss = failure === "schema";
+    await expect(supabaseVenueOperatorStore.verifiedOperatorAccountIds("venue-1")).rejects.toThrow();
+  });
+
   it("inserts, reopens on re-claim, and verifies", async () => {
     const first = await supabaseVenueOperatorStore.claim(fields());
     expect(db.rows).toHaveLength(1);
@@ -169,6 +204,55 @@ describe("supabaseVenueOperatorStore", () => {
     await supabaseVenueOperatorStore.setState(first.id, "verified");
     expect(await supabaseVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(true);
   });
+
+  it("never demotes a verified operator who claims again", async () => {
+    const first = await supabaseVenueOperatorStore.claim(fields());
+    await supabaseVenueOperatorStore.setState(first.id, "verified");
+    const again = await supabaseVenueOperatorStore.claim(fields({ evidenceNote: "again" }));
+    expect(again.verificationState).toBe("verified");
+    expect(db.rows[0]?.verification_state).toBe("verified");
+    expect(await supabaseVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(true);
+  });
+
+  it.each<OperatorVerificationState>(["pending", "rejected", "revoked", "verified"])(
+    "returns the correct claim after an insert conflicts with a %s claim",
+    async (state) => {
+      const createdAt = "2026-11-01T12:00:00.000Z";
+      let claimId = "";
+      let reviewedAt: string | undefined;
+      db.beforeInsert = async () => {
+        const first = await supabaseVenueOperatorStore.claim(
+          fields({ evidenceKind: "phone", evidenceNote: "Original evidence" }),
+          Date.parse(createdAt),
+        );
+        claimId = first.id;
+        await supabaseVenueOperatorStore.setState(first.id, state, "Moderator decision");
+        reviewedAt = (await supabaseVenueOperatorStore.getForAccountVenue("acct-1", "venue-1"))?.reviewedAt;
+      };
+
+      const again = await supabaseVenueOperatorStore.claim(fields({ evidenceNote: "New evidence" }));
+
+      expect(again).toEqual({
+        id: claimId,
+        venueId: "venue-1",
+        verificationState: state === "verified" ? "verified" : "pending",
+        evidenceKind: state === "verified" ? "phone" : "email-domain",
+        evidenceNote: state === "verified" ? "Original evidence" : "New evidence",
+        createdAt,
+        reviewedAt: state === "verified" ? reviewedAt : null,
+        reviewerNote: state === "verified" ? "Moderator decision" : null,
+      });
+      expect(db.rows).toHaveLength(1);
+      expect(await supabaseVenueOperatorStore.getForAccountVenue("acct-1", "venue-1")).toMatchObject({
+        id: again.id,
+        verificationState: again.verificationState,
+        evidenceKind: again.evidenceKind,
+        evidenceNote: again.evidenceNote,
+        reviewedAt: again.reviewedAt ?? undefined,
+        reviewerNote: again.reviewerNote ?? undefined,
+      });
+    },
+  );
 
   it("lists the review queue by state", async () => {
     await supabaseVenueOperatorStore.claim(fields({ accountId: "a", venueId: "v1" }));

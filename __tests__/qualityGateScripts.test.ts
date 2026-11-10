@@ -569,6 +569,40 @@ describe("assert-no-conditional-e2e-skips", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("no E2E specs");
   });
+
+  it.each([
+    {
+      scenario: "admits a quarantined test under its tracking issue",
+      list: "# https://github.com/Singularityszn/pubmax/issues/7 the drawer\n[chromium] › red.spec.ts › x\n",
+      problem: null,
+    },
+    {
+      scenario: "refuses a quarantined test with no tracking issue",
+      list: "# https://github.com/Singularityszn/pubmax/issues/7\n[chromium] › red.spec.ts › x\n\n[chromium] › red.spec.ts › y\n",
+      problem: 'no tracking issue above "[chromium] › red.spec.ts › y"',
+    },
+    {
+      scenario: "refuses a quarantined spec that does not exist",
+      list: "# https://github.com/Singularityszn/pubmax/issues/7\n[chromium] › gone.spec.ts:4:5 › x\n",
+      problem: "gone.spec.ts does not exist",
+    },
+  ])("$scenario", ({ list, problem }) => {
+    const directory = tempDirectory();
+    writeFileSync(
+      path.join(directory, "red.spec.ts"),
+      'import { test } from "@playwright/test";\ntest("x", () => {});\ntest("y", () => {});\n',
+    );
+    writeFileSync(path.join(directory, "full-suite-quarantine.txt"), list);
+
+    const result = run("assert-no-conditional-e2e-skips.mjs", [directory]);
+
+    if (problem === null) {
+      expect(result.status, result.stderr).toBe(0);
+    } else {
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(problem);
+    }
+  });
 });
 
 describe("assert-privacy-response", () => {

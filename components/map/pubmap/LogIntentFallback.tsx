@@ -1,3 +1,4 @@
+import "@/components/map/logIntentFallback.css";
 import { X } from "lucide-react";
 import { useState } from "react";
 
@@ -10,7 +11,6 @@ import {
 // Log-drop fallback panel: shown when a ?log= arrival can't auto-pick a venue.
 // Offers the nearby-pub list, a search action, and a "show all pubs" escape
 // when filters hide everything.
-// Global CSS (logIntentFallback / logIntent*) is already imported by PubMap.
 // Extracted verbatim from PubMap (F1); the logIntentFallbackVisible guard
 // stays in PubMap. Owns formatLogNearbyDistance.
 //
