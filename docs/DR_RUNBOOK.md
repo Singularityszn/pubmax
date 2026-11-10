@@ -219,6 +219,8 @@ set it in Vercel Production, redeploy with `npm run release:prod`, confirm
 `/api/health` and the smoke run, then update the copy in the password manager and
 `keys.env`. Put the date in the rotation table.
 
+For signing-key effects on pending Pint Drop and Round retries, see the [creation retry contract](rules/app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation).
+
 | Order | Secret | Why it is here | Side effect of rotating |
 | --- | --- | --- | --- |
 | 1 | `SUPABASE_SERVICE_ROLE_KEY`, and the database password | Full read and write on every table, bypassing row level security | None for users. Update the backup's service role key. Update `PUBMAX_BACKUP_DB_URL` only in `password` mode. |

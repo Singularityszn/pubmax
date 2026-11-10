@@ -1390,10 +1390,8 @@ export const supabasePintDropStore: PintDropStore = {
         }
       }
       let row = toRow(persistable, dailyCapDay(drop, options));
-      // EVERY insert attempt goes through here, because the daily cap is now a
-      // unique index (0141) and a retry can hit it just as the first attempt
-      // can. A cap violation leaves the try immediately: it is the rule working,
-      // not a storage fault, and the catch below tells the two apart.
+      // Every insert, including schema fallbacks, can race with the first save.
+      // Resolve its replay before treating a unique violation as a daily cap.
       const insert = async (candidate: typeof row) => {
         const { error: insertError } = await admin().from(TABLE).insert(candidate);
         if (insertError?.code === "23505") {
