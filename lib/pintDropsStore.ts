@@ -1338,6 +1338,23 @@ async function createPairedDrop(
   };
 }
 
+function logDropCreateFailure(err: unknown, drop: PintDrop, uploadedCount: number): void {
+  if (err instanceof PintDropReplayConflictError) return;
+  const fields = { dropId: drop.id, venueId: drop.venueId, uploadedCount };
+  if (isPintDropDailyCapError(err)) {
+    log("warn", "pint_drops.daily_cap_conflict", fields);
+    return;
+  }
+  if (isUncheckedPriceNotStorableError(err)) {
+    log("warn", "pint_drops.unchecked_price_needs_0218", fields);
+    return;
+  }
+  log("error", "pint_drops.create_failed", {
+    ...fields,
+    error: err instanceof Error ? err.message : String(err),
+  });
+}
+
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
@@ -1574,43 +1591,7 @@ export const supabasePintDropStore: PintDropStore = {
         if (retryError) throw new Error(retryError.message);
       }
     } catch (err) {
-      // A cap refusal is the rule holding, not an outage, so it may not be
-      // logged as one: an error line per refused duplicate would read as a
-      // storage failure in every dashboard. It still cleans up its photos and
-      // still rethrows, and the route answers the ordinary 409.
-      if (err instanceof PintDropReplayConflictError) {
-        await deletePhotos(uploaded);
-        throw err;
-      }
-      if (isPintDropDailyCapError(err)) {
-        log("warn", "pint_drops.daily_cap_conflict", {
-          dropId: drop.id,
-          venueId: drop.venueId,
-          uploadedCount: uploaded.length,
-        });
-        await deletePhotos(uploaded);
-        throw err;
-      }
-      // A pending migration, not an outage: warned once per refusal, the
-      // photos cleaned up, and the route answers with the bill rule.
-      if (isUncheckedPriceNotStorableError(err)) {
-        log("warn", "pint_drops.unchecked_price_needs_0218", {
-          dropId: drop.id,
-          venueId: drop.venueId,
-          uploadedCount: uploaded.length,
-        });
-        await deletePhotos(uploaded);
-        throw err;
-      }
-      // Log the storage/insert failure (safe fields only — no buffers, no keys)
-      // before cleaning up and re-throwing. The route still maps this to the
-      // same 503/400 for the user; logging is purely additive observability.
-      log("error", "pint_drops.create_failed", {
-        dropId: drop.id,
-        venueId: drop.venueId,
-        uploadedCount: uploaded.length,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      logDropCreateFailure(err, drop, uploaded.length);
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
     }
