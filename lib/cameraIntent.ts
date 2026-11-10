@@ -1,3 +1,5 @@
+export type CameraIntentOwner = "pal" | "user" | "automatic";
+
 export type CameraIntentKind =
   | "arrival"
   | "city"

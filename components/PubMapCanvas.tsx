@@ -1473,7 +1473,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venuesRef,
     queryVenuesRef,
     gestureCameraRef,
-    nearbyRequestToken,
   })
 
   // The map's opening turn (captain, 7 Sep 2026: "I also want the map to rotate
@@ -1524,7 +1523,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (!initialLandmarkId || !mapReady) return;
     const landmark = landmarkById(initialLandmarkId);
     if (!landmark) return;
-    cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark");
+    cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark", "automatic");
   }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
 
   // Every deliberate camera move arrives here: the opening-location answer and
@@ -4827,7 +4826,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         duration: PUB_SELECT_DURATION_MS,
         easing: easeOutCubic,
         ...(offset ? { offset } : {}),
-      });
+      }, "venue", "user");
     };
 
     const arrival = deepLinkSelectionCamera({
@@ -5211,7 +5210,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           <button
             type="button"
             className="mapRecenterBtn"
-            onClick={() => fitRoute("route-recovery")}
+            onClick={() => fitRoute("user")}
             aria-label="Show whole walk"
             title="Show whole walk"
           >
