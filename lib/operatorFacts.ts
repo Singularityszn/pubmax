@@ -1,10 +1,9 @@
 // Operator facts (launch plan 1 Nov 2026, section 7 item 1; launch review G1).
 //
-// A verified pub operator proposes an event, an offer, a correction or a
-// response (lib/operatorProposals.ts). A moderator accepts it, and the accept
-// branch of app/api/operator-proposals/route.ts publishes ONE operator fact
-// (lib/operatorFactsStore.ts). This module is the pure half: the shape, the
-// public projection, the words a reader sees and the reading rules. No IO.
+// Moderation and publication follow the operator proposal contract:
+// docs/WRITE_SURFACE_CERTIFICATION.md#appapioperator-proposals--reviewed-operator-proposals-route-69.
+// This module owns the shape, public projection, display words and reading
+// rules. No IO.
 //
 // WHAT A FACT IS. The pub's own dated word, labelled "From the pub", in its own
 // block. It is never a price, never hours on record, never a ranking signal and

@@ -8118,6 +8118,14 @@ export type Database = {
           object_key: string;
         }[];
       };
+      decide_operator_proposal: {
+        Args: {
+          p_id: string | null;
+          p_status: string | null;
+          p_note?: string | null;
+        };
+        Returns: Json;
+      };
       decide_plan_route_proposal_atomic: {
         Args: {
           p_plan_id: string | null;
