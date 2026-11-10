@@ -274,9 +274,11 @@ describe("scene icon registration", () => {
     for (const theme of ["light", "dark", "light"] as const) {
       const live = manifest.sheets.main.themes[theme].tokens as IconTokens;
       preloadMapIconSprite(theme);
+      // 84 images also counts the main sheet's drawn stand-ins, and the
+      // landmarks sheet can decode first, so wait for the main sheet itself.
       await vi.waitFor(() => {
         const ready = fakeMap(pixelRatio);
-        registerSceneIconImages(ready as never, theme, live);
+        expect(registerSceneIconImages(ready as never, theme, live)).toBe("sprite");
         expect(ready.images.size).toBe(84);
       });
       registerSceneIconImages(map as never, theme, live);
