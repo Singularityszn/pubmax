@@ -276,7 +276,7 @@ describe("scene icon registration", () => {
       preloadMapIconSprite(theme);
       await vi.waitFor(() => {
         const ready = fakeMap(pixelRatio);
-        registerSceneIconImages(ready as never, theme, live);
+        expect(registerSceneIconImages(ready as never, theme, live)).toBe("sprite");
         expect(ready.images.size).toBe(84);
       });
       registerSceneIconImages(map as never, theme, live);
