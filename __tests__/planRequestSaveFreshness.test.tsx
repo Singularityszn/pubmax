@@ -1531,6 +1531,36 @@ describe("Lock owns the composer while it runs", () => {
     expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).not.toBe("Our night");
   });
 
+  it("freezes acceptance release during Lock and allows it after failure", async () => {
+    const { generated } = await generateAcceptedRouteForLock();
+    const heldRecords = acceptanceRecords();
+    const finish = pendingCreation(generated);
+    const release = button("Release this pub")!;
+    expect(release.disabled).toBe(false);
+
+    await act(async () => {
+      lockButton().click();
+      release.click();
+    });
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+    expect(release.disabled).toBe(true);
+    await act(async () => release.click());
+    expect(document.querySelector("[aria-label='Accepted plan context']")?.textContent).toContain("New Pub");
+    expect(displayedStops()).toEqual(["New Pub", "Pub B", "Pub C"]);
+    expect(acceptanceRecords()).toEqual(heldRecords);
+    expect(JSON.parse(String(creations()[0]![1]?.body))).toMatchObject({
+      groundingProof: generated.groundingProof,
+      anchor: { venueId: "venue-new", source: "map-search", outcome: "route" },
+    });
+
+    await act(async () => finish(Response.json({ error: "Try again" }, { status: 503 })));
+    await vi.waitFor(() => expect(release.disabled).toBe(false));
+    await act(async () => release.click());
+    expect(document.querySelector("[aria-label='Accepted plan context']")).toBeNull();
+    expect(storedRoute()).toMatchObject({ groundingProof: null, planAnchor: null });
+    expect(displayedStops()).toEqual(["New Pub", "Pub B", "Pub C"]);
+  });
+
   it("freezes stop edits, and the Lock creates the route on screen", async () => {
     const generated = await lockableRoute();
     const finish = pendingCreation(generated);

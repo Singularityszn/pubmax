@@ -2105,10 +2105,12 @@ export function AcceptedContextPanel({
   handoff,
   acceptedVenueName = null,
   onRelease,
+  releaseDisabled = false,
 }: {
   handoff: ComposerHydration;
   acceptedVenueName?: string | null;
   onRelease?: () => void;
+  releaseDisabled?: boolean;
 }) {
   // Never the raw id: it is our name for a row, and a pin promoted out of the
   // UK base layer never reaches the slim index, so the id would have stood here
@@ -2141,6 +2143,7 @@ export function AcceptedContextPanel({
               className="planComposer__acceptedRelease"
               type="button"
               onClick={onRelease}
+              disabled={releaseDisabled}
             >Release this pub</button>
           ) : null}
         </section>
@@ -3249,6 +3252,7 @@ function PlanComposerForm({
   }
 
   function releaseAcceptance() {
+    if (activityRef.current === "locking") return;
     focusPlanRouteStatus();
     const first = stops[0];
     if (first && isUnnamedHeldStop(first, 0)) {
@@ -4164,6 +4168,7 @@ function PlanComposerForm({
           handoff={handoff}
           acceptedVenueName={acceptedVenueName}
           onRelease={releaseAcceptance}
+          releaseDisabled={submitting}
         />
       )}
       {planComposerShowsDescribeFirst({
