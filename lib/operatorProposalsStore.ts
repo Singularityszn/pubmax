@@ -1,21 +1,10 @@
-// Operator proposals store (Wayfinder 3.5) — the impure seam. ONE interface, TWO
-// implementations (process-memory + Supabase public.operator_proposals), chosen
-// at the single operatorProposalsStore() seam, exactly like visitReportsStore.
-//
-// This store PERSISTS a proposal and moves it through pending → accepted/declined.
-// It NEVER writes a venue fact: accepting a proposal only stamps its status here;
-// materialising the accepted payload into served evidence is the caller's job via
-// the admin acceptance seam (the factClaims bridge, named only in the route).
-// This module therefore imports NO venue fact store — asserted by the fence test.
-//
-// Fail-soft-to-memory until migration 0047 lands; a HARD durable write failure
-// THROWS so the route answers 503. Reads are fail-soft.
-
 import "server-only";
 
 import { randomUUID } from "crypto";
 
 import { admin, createFailSoftGuard, selectStore, whereVenueIdIn } from "@/lib/storeBackend";
+import type { OperatorFact } from "@/lib/operatorFacts";
+import { memoryOperatorFactsStore, operatorFactFromRow } from "@/lib/operatorFactsStore";
 import { storedVenueIds } from "@/lib/venueAliases";
 import {
   toOperatorProposalDTO,
@@ -32,6 +21,12 @@ const TABLE = "operator_proposals";
 /** Bounded reads: never return more than this many rows for one query. */
 const MAX_PROPOSAL_ROWS = 500;
 
+export type OperatorProposalDecision =
+  | { outcome: "missing" }
+  | { outcome: "conflict" }
+  | { outcome: "declined" }
+  | { outcome: "accepted"; proposal: OperatorProposal; fact: OperatorFact };
+
 export type OperatorProposalStore = {
   /** Persist a new pending proposal. Returns the DTO. THROWS on hard failure. */
   create(fields: OperatorProposalFields, now?: number): Promise<OperatorProposalDTO>;
@@ -40,13 +35,7 @@ export type OperatorProposalStore = {
   /** Accepted proposals for a venue (what a surface would fold into fact
    *  resolution). Fail-soft ([]). */
   listAcceptedForVenue(venueId: string): Promise<OperatorProposal[]>;
-  /** Fetch one proposal by id (the acceptance path needs the payload). Fail-soft
-   *  (null). */
-  getById(id: string): Promise<OperatorProposal | null>;
-  /** Moderator decision: set the status + stamp the review. False = unknown id,
-   *  or a proposal whose status does not allow it (accept needs pending; decline
-   *  needs pending or accepted). THROWS on a hard failure. */
-  setStatus(id: string, status: OperatorProposalStatus, note?: string): Promise<boolean>;
+  decide(id: string, status: "accepted" | "declined", note?: string): Promise<OperatorProposalDecision>;
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -86,17 +75,19 @@ export const memoryOperatorProposalStore: OperatorProposalStore = {
       .slice(0, MAX_PROPOSAL_ROWS);
   },
 
-  async getById(id) {
-    return byId.get(id) ?? null;
-  },
-
-  async setStatus(id, status, note) {
+  async decide(id, status, note) {
     const hit = byId.get(id);
-    if (!hit || !decidableFrom(status).includes(hit.status)) return false;
+    if (!hit) return { outcome: "missing" };
+    if (!decidableFrom(status).includes(hit.status)) return { outcome: "conflict" };
+    const now = Date.now();
+    const fact = status === "accepted" ? memoryOperatorFactsStore.publish(hit, now) : null;
+    if (status === "declined") memoryOperatorFactsStore.withdraw(id, now);
     hit.status = status;
-    hit.reviewedAt = new Date().toISOString();
+    hit.reviewedAt = new Date(now).toISOString();
     if (note) hit.reviewerNote = note;
-    return true;
+    return fact
+      ? { outcome: "accepted", proposal: { ...hit }, fact }
+      : { outcome: "declined" };
   },
 };
 
@@ -105,8 +96,8 @@ export const memoryOperatorProposalStore: OperatorProposalStore = {
  * a stale tab cannot accept a declined one. Decline also takes an accepted one:
  * that is the moderator's undo, and a second decline changes nothing.
  */
-function decidableFrom(status: OperatorProposalStatus): readonly OperatorProposalStatus[] {
-  return status === "accepted" ? ["pending"] : status === "declined" ? ["pending", "accepted"] : [];
+function decidableFrom(status: "accepted" | "declined"): readonly OperatorProposalStatus[] {
+  return status === "accepted" ? ["pending"] : ["pending", "accepted"];
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -214,39 +205,21 @@ export const supabaseOperatorProposalStore: OperatorProposalStore = {
     });
   },
 
-  async getById(id) {
-    return guard<OperatorProposal | null>({
-      context: "getById",
-      onSchemaMiss: () => memoryOperatorProposalStore.getById(id),
-      message: "getById failed — returning null",
-      onError: () => null,
-      run: async () => {
-        const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
-        if (error) throw new Error(error.message);
-        return data ? fromRow(data as Record<string, unknown>) : null;
-      },
+  async decide(id, status, note) {
+    const { data, error } = await admin().rpc("decide_operator_proposal", {
+      p_id: id,
+      p_status: status,
+      p_note: note || null,
     });
-  },
-
-  async setStatus(id, status, note) {
-    return guard<boolean>({
-      context: "setStatus",
-      onSchemaMiss: () => memoryOperatorProposalStore.setStatus(id, status, note),
-      run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .update({
-            status,
-            reviewed_at: new Date().toISOString(),
-            ...(note ? { reviewer_note: note } : {}),
-          })
-          .eq("id", id)
-          .in("status", decidableFrom(status))
-          .select("id");
-        if (error) throw new Error(error.message);
-        return (data ?? []).length > 0;
-      },
-    });
+    if (error) throw new Error(error.message);
+    if (data?.outcome === "missing" || data?.outcome === "conflict" || data?.outcome === "declined") {
+      return { outcome: data.outcome };
+    }
+    if (data?.outcome === "accepted" && data.proposal && data.fact) {
+      const fact = operatorFactFromRow(data.fact);
+      if (fact) return { outcome: "accepted", proposal: fromRow(data.proposal), fact };
+    }
+    throw new Error("operator proposal decision returned an unreadable result");
   },
 };
 

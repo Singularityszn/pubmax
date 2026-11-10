@@ -22,17 +22,7 @@
 // moderator ACCEPT branch — this file, the admin acceptance seam — materialises an
 // accepted payload into a served fact, and even then only as a `FactSource` of
 // authority `operator` (rank 0, factClaims.acceptedProposalFactSource): additive,
-// attributed evidence that surfaces as a conflict, never a silent overwrite. The
-// proposal store itself imports no fact module (fence test).
-//
-// PUBLISHED, NOT JUST BUILT (launch plan 1 Nov 2026, section 7 item 1). The
-// accept branch also PUBLISHES one operator fact (lib/operatorFactsStore.ts,
-// migration 0217), which the venue sheet's "From the pub" block and Tonight
-// read. It publishes BEFORE it stamps the status, so a publish that fails
-// leaves the proposal pending and answers 503; a status stamp that fails after
-// the publish takes the fact back down, so a proposal that is not accepted
-// never shows. A decline WITHDRAWS any fact an earlier accept published, and
-// it does that before the stamp for the same reason. Nothing else writes a fact.
+// attributed evidence that surfaces as a conflict, never a silent overwrite.
 //
 // NOT under the solo-operator SOCIAL freeze: an operator proposal is venue-business
 // content, not a social post — see the PR body for the exemption stance.
@@ -44,7 +34,6 @@ import { callerAuthIdentity } from "@/lib/authServer";
 import { acceptedProposalFactSource } from "@/lib/factClaims";
 import { log } from "@/lib/log";
 import { toPublicOperatorFact } from "@/lib/operatorFacts";
-import { operatorFactsStore } from "@/lib/operatorFactsStore";
 import {
   isOperatorProposalStatus,
   proposalServedValue,
@@ -83,51 +72,18 @@ export async function POST(request: Request): Promise<Response> {
     if (!id) return publicApiError("Proposal not found.", "NOT_FOUND", 404);
     const note = readString(body.note);
     try {
-      const store = operatorProposalsStore();
-
-      if (action === "decline") {
-        // Take down anything an earlier accept published FIRST: a withdrawal
-        // that fails leaves the proposal as it was and answers 503.
-        await operatorFactsStore().withdraw(id);
-        const done = await store.setStatus(id, "declined", note);
-        if (done) return jsonNoStore({ ok: true }, { status: 200 });
-        return (await store.getById(id))
-          ? publicApiError("This proposal was already declined.", "CONFLICT", 409)
-          : publicApiError("Proposal not found.", "NOT_FOUND", 404);
+      const result = await operatorProposalsStore().decide(
+        id, action === "accept" ? "accepted" : "declined", note,
+      );
+      if (result.outcome === "missing") {
+        return publicApiError("Proposal not found.", "NOT_FOUND", 404);
       }
-
-      // ── The admin acceptance seam ─────────────────────────────────────────
-      // Load the proposal, publish its operator fact, stamp it accepted, then
-      // materialise the accepted payload into an `operator` FactSource. This
-      // is the ONLY path from a proposal to served evidence. Rank-0 authority
-      // means it can never silently outrank the observed corpus — a venue
-      // surface folds it in and exposes any disagreement as a conflict.
-      const proposal = await store.getById(id);
-      if (!proposal) return publicApiError("Proposal not found.", "NOT_FOUND", 404);
-      // Only a pending proposal is accepted. Publishing for a decided one would
-      // withdraw the fact a real accept already published.
-      if (proposal.status !== "pending") {
+      if (result.outcome === "conflict") {
         return publicApiError("This proposal was already decided.", "CONFLICT", 409);
       }
-
-      const acceptedAt = Date.now();
-      // Publish first: a publish that fails THROWS (503) with the proposal
-      // still pending, so nothing claims a fact the store did not keep.
-      const facts = operatorFactsStore();
-      const fact = await facts.publish(proposal, acceptedAt);
-      let done = false;
-      try {
-        done = await store.setStatus(id, "accepted", note);
-      } finally {
-        if (!done && (await store.getById(id))?.status !== "accepted") {
-          await facts.withdraw(id).catch(() => false);
-        }
-      }
-      if (!done) {
-        return (await store.getById(id))
-          ? publicApiError("This proposal was already decided.", "CONFLICT", 409)
-          : publicApiError("Proposal not found.", "NOT_FOUND", 404);
-      }
+      if (result.outcome === "declined") return jsonNoStore({ ok: true }, { status: 200 });
+      const { proposal, fact } = result;
+      const acceptedAt = Date.parse(fact.publishedAt);
 
       const materialized = acceptedProposalFactSource({
         value: proposalServedValue(proposal),

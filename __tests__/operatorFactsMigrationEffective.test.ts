@@ -4,6 +4,7 @@
 // browser write, and a rollback that applies cleanly and lets the forward file
 // apply again.
 
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -146,5 +147,126 @@ describe.skipIf(skipReason !== null)("0217 operator facts", () => {
     db().applyFile(FORWARD);
     expect(db().sql("select count(*) from public.operator_facts")).toBe("0");
     db().applyFile(FORWARD);
+  });
+});
+
+
+describe.skipIf(skipReason !== null)("0227 atomic operator moderation", () => {
+  const forward = join(MIGRATIONS, "20261110090000_0227_operator_proposal_decisions.sql");
+  const rollback = join(MIGRATIONS, "rollback/20261110090000_0227_operator_proposal_decisions_rollback.sql");
+
+  function pending(kind = "correction"): string {
+    const id = randomUUID();
+    db().sql(asServiceRole(`insert into public.operator_proposals (id, venue_id, account_id, type, payload)
+      values ('${id}', '${VENUE}', '${OPERATOR}', '${kind}',
+        '{"title":"Quiz","body":"Details","field":"Hours","startsAt":"8pm","onDate":"2026-11-10"}')`));
+    return id;
+  }
+
+  function decide(id: string, status: string, note = "checked"): string {
+    return `select public.decide_operator_proposal('${id}', '${status}', '${note}')->>'outcome'`;
+  }
+
+  function state(id: string): string {
+    return db().sql(`select p.status || ':' || count(f.id)::text from public.operator_proposals p
+      left join public.operator_facts f on f.proposal_id = p.id and f.withdrawn_at is null
+      where p.id = '${id}' group by p.status`);
+  }
+
+  it("keeps exactly one publication when two accepts overlap", async () => {
+    const id = pending();
+    const outcomes = await db().concurrentResults([
+      asServiceRole(decide(id, "accepted")), asServiceRole(decide(id, "accepted")),
+    ]);
+    expect(outcomes.sort()).toEqual(["accepted", "conflict"]);
+    expect(state(id)).toBe("accepted:1");
+    const published = db().sql(`select id::text || ':' || published_at::text from public.operator_facts where proposal_id = '${id}'`);
+    expect(db().sql(asServiceRole(decide(id, "accepted")))).toBe("conflict");
+    expect(db().sql(`select id::text || ':' || published_at::text from public.operator_facts where proposal_id = '${id}'`)).toBe(published);
+  });
+
+  it.each(["accepted", "declined"])("keeps a decline final when %s races with it", async (first) => {
+    const id = pending();
+    const outcomes = await db().concurrentResults([
+      asServiceRole(decide(id, first)),
+      asServiceRole(decide(id, first === "accepted" ? "declined" : "accepted")),
+    ]);
+    expect(outcomes).toContain("declined");
+    expect(state(id)).toBe("declined:0");
+    expect(db().sql(asServiceRole(decide(id, "accepted")))).toBe("conflict");
+    expect(db().sql(asServiceRole(decide(id, "declined")))).toBe("conflict");
+  });
+
+  it.each([
+    ["correction", "Hours", null, null],
+    ["event", null, "8pm", "2026-11-10"],
+    ["offer", null, null, "2026-11-10"],
+    ["response", null, null, null],
+  ] as const)("publishes the stored %s payload with the required field projection", (kind, field, when, onDate) => {
+    const id = pending(kind);
+    const result = JSON.parse(db().sql(asServiceRole(
+      `select public.decide_operator_proposal('${id}', 'accepted', 'checked')`,
+    ))) as { outcome: string; fact: Record<string, unknown>; proposal: Record<string, unknown> };
+    expect(result.outcome).toBe("accepted");
+    expect(result.proposal).toMatchObject({ id, status: "accepted", reviewer_note: "checked" });
+    expect(result.fact).toMatchObject({
+      proposal_id: id, venue_id: VENUE, account_id: OPERATOR, kind, title: "Quiz", body: "Details",
+      field, when_text: when, on_date: onDate, withdrawn_at: null,
+    });
+    expect(state(id)).toBe("accepted:1");
+  });
+
+  it("rolls back publication and withdrawal when the decision stamp fails", async () => {
+    const id = pending();
+    db().sql("alter table public.operator_proposals add constraint moderation_fault check (reviewer_note is distinct from 'fail')");
+    try {
+      const failedAccept = await db().attempt(asServiceRole(decide(id, "accepted", "fail")));
+      expect(failedAccept.ok).toBe(false);
+      expect(state(id)).toBe("pending:0");
+      const outcomes = await Promise.all([
+        db().attempt(asServiceRole(decide(id, "accepted", "fail"))),
+        db().attempt(asServiceRole(decide(id, "accepted"))),
+      ]);
+      expect(outcomes[1]?.ok).toBe(true);
+      expect(state(id)).toBe("accepted:1");
+      const failedDecline = await db().attempt(asServiceRole(decide(id, "declined", "fail")));
+      expect(failedDecline.ok).toBe(false);
+      expect(state(id)).toBe("accepted:1");
+    } finally {
+      db().sql("alter table public.operator_proposals drop constraint moderation_fault");
+    }
+  });
+
+  it("leaves a proposal pending when publication fails", async () => {
+    const id = pending();
+    db().sql("alter table public.operator_facts add constraint publication_fault check (title is distinct from 'blocked')");
+    try {
+      db().sql(`update public.operator_proposals set payload = '{"title":"blocked"}' where id = '${id}'`);
+      expect((await db().attempt(asServiceRole(decide(id, "accepted")))).ok).toBe(false);
+      expect(state(id)).toBe("pending:0");
+    } finally {
+      db().sql("alter table public.operator_facts drop constraint publication_fault");
+    }
+  });
+
+  it("returns missing for unknown ids and refuses browser decisions", async () => {
+    expect(db().sql(asServiceRole(decide(randomUUID(), "accepted")))).toBe("missing");
+    expect(db().sql(asServiceRole(decide("nope", "declined")))).toBe("missing");
+    const id = pending();
+    for (const role of ["anon", "authenticated"] as const) {
+      expect((await db().attempt(asBrowserRole(role, OPERATOR, decide(id, "accepted")))).ok).toBe(false);
+    }
+    expect(state(id)).toBe("pending:0");
+  });
+
+  it("rolls back the RPC without losing decisions or publications, then applies again", () => {
+    const id = pending();
+    db().sql(asServiceRole(decide(id, "accepted")));
+    db().applyFile(rollback);
+    expect(state(id)).toBe("accepted:1");
+    expect(db().sql("select to_regprocedure('public.decide_operator_proposal(text,text,text)') is null")).toBe("t");
+    db().applyFile(forward);
+    expect(db().sql(asServiceRole(decide(id, "declined")))).toBe("declined");
+    expect(state(id)).toBe("declined:0");
   });
 });

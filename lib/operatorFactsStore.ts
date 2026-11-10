@@ -54,9 +54,9 @@ type PublishableProposal = Pick<OperatorProposal, "id" | "venueId" | "accountId"
 
 export type OperatorFactsStore = {
   /** Publish the fact for an accepted proposal. Idempotent on the proposal id. THROWS on a hard failure. */
-  publish(proposal: PublishableProposal, now?: number): Promise<OperatorFact>;
+  publish(proposal: PublishableProposal, now?: number): OperatorFact | Promise<OperatorFact>;
   /** Take down the published fact for a proposal. False when none was published. THROWS on a hard failure. */
-  withdraw(proposalId: string, now?: number): Promise<boolean>;
+  withdraw(proposalId: string, now?: number): boolean | Promise<boolean>;
   /** Published facts stored under any of a venue's ids, newest first. Fail-soft (degraded, []). */
   listPublishedForVenue(venueId: string): Promise<OperatorFactsRead>;
   /** Published events and offers dated for one London day, newest first. Fail-soft (degraded, []). */
@@ -70,8 +70,8 @@ function byNewest(left: OperatorFact, right: OperatorFact): number {
 // ── Memory ───────────────────────────────────────────────────────────────────
 const byProposalId = new Map<string, OperatorFact>();
 
-export const memoryOperatorFactsStore: OperatorFactsStore = {
-  async publish(proposal, now = Date.now()) {
+export const memoryOperatorFactsStore = {
+  publish(proposal: PublishableProposal, now = Date.now()) {
     const existing = byProposalId.get(proposal.id);
     const fact = operatorFactFromProposal(proposal, {
       id: existing?.id ?? randomUUID(),
@@ -81,14 +81,14 @@ export const memoryOperatorFactsStore: OperatorFactsStore = {
     return { ...fact };
   },
 
-  async withdraw(proposalId, now = Date.now()) {
+  withdraw(proposalId: string, now = Date.now()) {
     const hit = byProposalId.get(proposalId);
     if (!hit || !isPublishedOperatorFact(hit)) return false;
     hit.withdrawnAt = new Date(now).toISOString();
     return true;
   },
 
-  async listPublishedForVenue(venueId) {
+  async listPublishedForVenue(venueId: string) {
     const venueIds = await storedVenueIds(venueId);
     const facts = [...byProposalId.values()]
       .filter((fact) => venueIds.includes(fact.venueId) && isPublishedOperatorFact(fact))
@@ -98,7 +98,7 @@ export const memoryOperatorFactsStore: OperatorFactsStore = {
     return { status: "ready", facts };
   },
 
-  async listPublishedForDay(serviceDay) {
+  async listPublishedForDay(serviceDay: string) {
     const facts = [...byProposalId.values()]
       .filter(
         (fact) =>
@@ -111,7 +111,7 @@ export const memoryOperatorFactsStore: OperatorFactsStore = {
       .map((fact) => ({ ...fact }));
     return { status: "ready", facts };
   },
-};
+} satisfies OperatorFactsStore;
 
 // ── Supabase ─────────────────────────────────────────────────────────────────
 const { guard, resetWarnings } = createFailSoftGuard({
@@ -130,7 +130,7 @@ function readKind(value: unknown): OperatorFactKind | null {
     : null;
 }
 
-function fromRow(row: Record<string, unknown>): OperatorFact | null {
+export function operatorFactFromRow(row: Record<string, unknown>): OperatorFact | null {
   const id = readText(row.id);
   const proposalId = readText(row.proposal_id);
   const venueId = readText(row.venue_id);
@@ -159,7 +159,7 @@ function fromRow(row: Record<string, unknown>): OperatorFact | null {
 /** The filter in each query is the rule; this is the same rule again, so a row a query let through by mistake still never reaches a reader. */
 function publishedRows(data: unknown): OperatorFact[] {
   return (Array.isArray(data) ? data : [])
-    .map((row) => fromRow(row as Record<string, unknown>))
+    .map((row) => operatorFactFromRow(row as Record<string, unknown>))
     .filter((fact): fact is OperatorFact => fact !== null && isPublishedOperatorFact(fact));
 }
 
@@ -203,7 +203,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
           .select("*")
           .single();
         if (error) throw new Error(error.message);
-        const stored = fromRow(data as Record<string, unknown>);
+        const stored = operatorFactFromRow(data as Record<string, unknown>);
         if (!stored) throw new Error("operator fact upsert returned an unreadable row");
         return stored;
       },
@@ -273,7 +273,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
   },
 };
 
-export const operatorFactsStore = createDualBackendStore(
+export const operatorFactsStore = createDualBackendStore<OperatorFactsStore>(
   memoryOperatorFactsStore,
   supabaseOperatorFactsStore,
 );

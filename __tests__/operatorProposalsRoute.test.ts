@@ -167,66 +167,61 @@ describe("POST /api/operator-proposals (moderator accept/decline)", () => {
     expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(0);
   });
 
-  it.each(["conflict", "storage error"])(
-    "preserves the winning fact when overlapping accepts end in a %s",
+  it.each(["conflict", "failed read", "failure before winner", "failure after winner"])(
+    "preserves the winning publication with an overlapping %s",
     async (outcome) => {
       const proposal = await memoryOperatorProposalStore.create({
-        ...correction,
-        type: "correction",
-        accountId: "acct-1",
+        ...correction, type: "correction", accountId: "acct-1",
       });
+      const decide = memoryOperatorProposalStore.decide;
+      let entered!: () => void;
       let release!: () => void;
-      const bothPublished = new Promise<void>((resolve) => {
-        release = resolve;
+      const waiting = new Promise<void>((resolve) => { entered = resolve; });
+      const winnerDone = new Promise<void>((resolve) => { release = resolve; });
+      vi.spyOn(memoryOperatorProposalStore, "decide").mockImplementationOnce(async (...args) => {
+        entered();
+        if (outcome === "failure before winner") throw new Error("write failed");
+        await winnerDone;
+        if (outcome === "failure after winner") throw new Error("write failed");
+        return decide(...args);
       });
-      const publish = memoryOperatorFactsStore.publish;
-      let publications = 0;
-      vi.spyOn(memoryOperatorFactsStore, "publish").mockImplementation(async (...args) => {
-        const fact = await publish(...args);
-        if (++publications === 2) release();
-        await bothPublished;
-        return fact;
-      });
-      const setStatus = memoryOperatorProposalStore.setStatus;
-      let decisions = 0;
-      vi.spyOn(memoryOperatorProposalStore, "setStatus").mockImplementation(async (...args) => {
-        if (++decisions === 2 && outcome === "storage error") throw new Error("write failed");
-        return setStatus(...args);
-      });
-
-      const responses = await Promise.all([
-        POST(withAdmin(req({ action: "accept", id: proposal.id }))),
-        POST(withAdmin(req({ action: "accept", id: proposal.id }))),
-      ]);
-
-      expect(responses.map((response) => response.status).sort()).toEqual(
-        outcome === "conflict" ? [200, 409] : [200, 503],
-      );
-      expect((await memoryOperatorProposalStore.getById(proposal.id))?.status).toBe("accepted");
+      const loser = POST(withAdmin(req({ action: "accept", id: proposal.id })));
+      await waiting;
+      const winner = await POST(withAdmin(req({ action: "accept", id: proposal.id })));
+      if (outcome === "failed read") {
+        vi.spyOn(memoryOperatorProposalStore, "listForReview").mockResolvedValue([]);
+      }
+      release();
+      expect(winner.status).toBe(200);
+      expect((await loser).status).toBe(outcome.startsWith("failure") ? 503 : 409);
+      expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(1);
       expect((await memoryOperatorFactsStore.listPublishedForVenue("v1")).facts).toMatchObject([
         { proposalId: proposal.id, body: "Open till 1am" },
       ]);
     },
   );
 
-  it("withdraws a rejected acceptance when a decline wins during publication", async () => {
+  it.each(["accept", "decline"])("keeps a decline final when %s enters first", async (first) => {
     const proposal = await memoryOperatorProposalStore.create({
-      ...correction,
-      type: "correction",
-      accountId: "acct-1",
+      ...correction, type: "correction", accountId: "acct-1",
     });
-    const publish = memoryOperatorFactsStore.publish;
-    let decline: Response | undefined;
-    vi.spyOn(memoryOperatorFactsStore, "publish").mockImplementationOnce(async (...args) => {
-      decline = await POST(withAdmin(req({ action: "decline", id: proposal.id })));
-      return publish(...args);
+    const decide = memoryOperatorProposalStore.decide;
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { entered = resolve; });
+    const secondDone = new Promise<void>((resolve) => { release = resolve; });
+    vi.spyOn(memoryOperatorProposalStore, "decide").mockImplementationOnce(async (...args) => {
+      entered();
+      await secondDone;
+      return decide(...args);
     });
-
-    const accepted = await POST(withAdmin(req({ action: "accept", id: proposal.id })));
-
-    expect(decline?.status).toBe(200);
-    expect(accepted.status).toBe(409);
-    expect((await memoryOperatorProposalStore.getById(proposal.id))?.status).toBe("declined");
+    const delayed = POST(withAdmin(req({ action: first, id: proposal.id })));
+    await waiting;
+    const second = await POST(withAdmin(req({ action: first === "accept" ? "decline" : "accept", id: proposal.id })));
+    release();
+    expect(second.status).toBe(200);
+    expect((await delayed).status).toBe(first === "accept" ? 409 : 200);
+    expect(await memoryOperatorProposalStore.listForReview("declined")).toMatchObject([{ id: proposal.id }]);
     expect((await memoryOperatorFactsStore.listPublishedForVenue("v1")).facts).toEqual([]);
   });
 
