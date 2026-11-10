@@ -72,6 +72,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   The [saved map view rules](docs/MAP_URL_PARAMS.md#saved-map-views-and-location-privacy) explain which views can return and how location requests clear stored views.
 
+  The map planner's toggle and desktop map button return to the previous sheet or the map root. On phones, **Map the route** does the same. A planner opened over a venue returns to that venue. **Home** returns to the map root, even after you reopen an earlier sheet.
+
 - **Pub features** - open **Filters** on desktop or phone to select the following choices.
 
   - **Beer garden** uses listed pub records and dated OpenStreetMap facts.

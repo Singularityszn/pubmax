@@ -17,8 +17,8 @@ type MapSurfaceHistory<S> = {
   version: typeof MAP_SURFACE_HISTORY_VERSION;
   stack: SurfaceStack<S>;
   /**
-   * Browser entries between this one and the Map root. It equals the stack
-   * depth until a reopened parent is pushed again over a shorter trail.
+   * Browser history distance to the Map root. Reopening a parent can make
+   * this distance greater than the logical stack depth.
    */
   aboveRoot: number;
 };
