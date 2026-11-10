@@ -413,10 +413,10 @@ async function priceAdultRefusal(priceGbp: number | null, callerUserId: string |
 // the same observation, so the drinker gets it back rather than a daily-cap
 // refusal or a second note. The lookup fails open: the id is still the keyed
 // one, so a missed replay cannot store a second row.
-async function keyedReplay(drop: PintDrop, mintedId: string): Promise<Response | null> {
+async function keyedReplay(drop: PintDrop, photos: PintDropPhotos, mintedId: string): Promise<Response | null> {
   if (drop.id === mintedId) return null;
   try {
-    const prior = await pintDropsStore().findCreated(drop);
+    const prior = await pintDropsStore().findCreated(drop, photos);
     if (prior === "conflict") {
       return publicApiError("That Pint Drop was already sent with other details.", "IDEMPOTENCY_CONFLICT", 409);
     }
@@ -572,7 +572,7 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many submissions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  const replay = await keyedReplay(dropPayload, canonicalDrop.id);
+  const replay = await keyedReplay(dropPayload, photos, canonicalDrop.id);
   if (replay) return replay;
 
   try {

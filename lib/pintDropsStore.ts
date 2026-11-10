@@ -104,9 +104,6 @@ export const MAX_INDEX_CONFIRMED_DROPS = 5000;
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
 
-// The create path attaches uploaded Storage keys here before persisting. Kept
-// off the core PintDrop type in lib/pintDrops.ts (photos are a Supabase-only
-// concern); the in-memory store ignores them entirely.
 export type PersistableDrop = PintDrop & {
   pintPhotoKey?: string;
   venuePhotoKey?: string;
@@ -177,7 +174,7 @@ export type PintDropStore = {
    * The drop a keyed create already wrote under `drop.id`, answered as
    * `create` would answer it. "conflict" when that id holds another drop.
    */
-  findCreated(drop: PintDrop): Promise<PintDropDTO | "conflict" | null>;
+  findCreated(drop: PintDrop, photos: PintDropPhotos): Promise<PintDropDTO | "conflict" | null>;
   /**
    * Public read: visible drops + demo seeds, newest-first, capped at
    * MAX_PUBLIC_DROPS, with per-drop VISIBILITY applied server-side (issue #29).
@@ -837,10 +834,13 @@ async function attributedAuthorVenueIds(
   return [...new Set(published.map((drop) => drop.venueId))].sort();
 }
 
-function sameCreatedDrop(existing: PintDrop, input: PintDrop): boolean {
+function sameCreatedDrop(existing: PersistableDrop, input: PintDrop, photos: PintDropPhotos): boolean {
   return existing.id === input.id && existing.venueId === input.venueId &&
     existing.authorityKey === input.authorityKey &&
     (Boolean(input.authorityKey) || normalizeViewerHandle(existing.handle) === normalizeViewerHandle(input.handle)) &&
+    Boolean(existing.pintPhotoKey) === Boolean(photos.pint) &&
+    Boolean(existing.venuePhotoKey) === Boolean(photos.venue) &&
+    Boolean(existing.receiptPhotoKey) === Boolean(photos.receipt) &&
     existing.priceGbp === input.priceGbp &&
     existing.drink === input.drink &&
     cleanDrinkMeasure(existing.measure) === cleanDrinkMeasure(input.measure) &&
@@ -864,10 +864,11 @@ export class PintDropReplayConflictError extends Error {
 function replayBeforeCap(
   existing: PersistableDrop | undefined,
   input: PintDrop,
+  photos: PintDropPhotos,
   capped = false,
 ): PersistableDrop | undefined {
   if (existing) {
-    if (!sameCreatedDrop(existing, input)) throw new PintDropReplayConflictError();
+    if (!sameCreatedDrop(existing, input, photos)) throw new PintDropReplayConflictError();
     return existing;
   }
   if (capped) throw new PintDropDailyCapError();
@@ -901,20 +902,23 @@ export const memoryPintDropStore: PintDropStore = {
     const existing = replayBeforeCap(
       findPintDropsByIds([drop.id]).get(drop.id),
       drop,
+      photos,
       cappedVenueIds.some((id) => hasPricedDropTodayMemory(id, drop.handle, new Date(drop.createdAt))),
     );
     if (existing) return { ...toDTO(existing), created: false };
-    // Photos are not stored: there is no Storage without Supabase. The bill
-    // itself is read by the route's background bill check, from the bytes
-    // that arrived.
-    void photos;
-    addPintDrop(drop);
+    const persistable: PersistableDrop = {
+      ...drop,
+      pintPhotoKey: photos.pint ? `memory/${drop.id}/pint` : undefined,
+      venuePhotoKey: photos.venue ? `memory/${drop.id}/venue` : undefined,
+      receiptPhotoKey: photos.receipt ? `memory/${drop.id}/receipt` : undefined,
+    };
+    addPintDrop(persistable);
     return { ...toDTO(drop), created: true };
   },
-  async findCreated(input) {
+  async findCreated(input, photos) {
     const existing = findPintDropsByIds([input.id]).get(input.id);
     if (!existing) return null;
-    return sameCreatedDrop(existing, input) ? toDTO(existing) : "conflict";
+    return sameCreatedDrop(existing, input, photos) ? toDTO(existing) : "conflict";
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
     const venueRows = venueId
@@ -1343,7 +1347,7 @@ export const supabasePintDropStore: PintDropStore = {
         });
       }
       if (capped) {
-        const existing = replayBeforeCap(await durableCreatedDrop(drop.id), drop, true);
+        const existing = replayBeforeCap(await durableCreatedDrop(drop.id), drop, photos, true);
         if (existing) return { ...await toDTOWithPhotos(existing), created: false };
       }
     }
@@ -1394,7 +1398,7 @@ export const supabasePintDropStore: PintDropStore = {
         const { error: insertError } = await admin().from(TABLE).insert(candidate);
         if (insertError?.code === "23505") {
           const existing = replayBeforeCap(
-            await durableCreatedDrop(drop.id), drop, isDailyPriceCapViolation(insertError),
+            await durableCreatedDrop(drop.id), drop, photos, isDailyPriceCapViolation(insertError),
           );
           if (existing) {
             creation.existing = existing;
@@ -1587,10 +1591,10 @@ export const supabasePintDropStore: PintDropStore = {
     return { ...await toDTOWithPhotos(persistable), created: true };
   },
 
-  async findCreated(input) {
+  async findCreated(input, photos) {
     const stored = await durableCreatedDrop(input.id);
     if (!stored) return null;
-    return sameCreatedDrop(stored, input) ? toDTOWithPhotos(stored) : "conflict";
+    return sameCreatedDrop(stored, input, photos) ? toDTOWithPhotos(stored) : "conflict";
   },
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic

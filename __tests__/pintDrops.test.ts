@@ -1230,6 +1230,37 @@ describe("POST /api/pint-drops — a retry resends its first clientRequestId", (
     }
   });
 
+  it.each(["pint_photo", "venue_photo", "receipt_photo"])(
+    "refuses added or removed %s on early and late replay paths", async (slot) => {
+      const note = { venueId: "photo-retry-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+      const submit = (attached: boolean) => {
+        const form = new FormData();
+        for (const [key, value] of Object.entries(note)) form.set(key, value);
+        if (attached) form.set(slot, jpegFile("photo.jpg"));
+        return POST(new Request(URL_BASE, { method: "POST", body: form }));
+      };
+      expect((await submit(false)).status).toBe(201);
+      const added = await submit(true);
+      expect(added.status).toBe(409);
+      expect((await added.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
+      try {
+        const late = await submit(true);
+        expect(late.status).toBe(409);
+        expect((await late.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      } finally {
+        lookup.mockRestore();
+      }
+      note.clientRequestId = "client-request-0002";
+      expect((await submit(true)).status).toBe(201);
+      expect((await submit(true)).status).toBe(200);
+      const removed = await submit(false);
+      expect(removed.status).toBe(409);
+      expect((await removed.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      expect((await (await get(note.venueId)).json()).drops).toHaveLength(2);
+    },
+  );
+
   it("refuses a key resent for a different pub", async () => {
     expect((await post({ venueId: "retry-pub-a", handle: "reg", priceGbp: 4.5, clientRequestId: KEY })).status).toBe(201);
     const moved = await post({ venueId: "retry-pub-b", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
