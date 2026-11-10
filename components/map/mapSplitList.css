@@ -53,8 +53,8 @@
   /* Two members of the stage sized themselves on the WINDOW, which is the map
      only when nothing sits beside it. The Tonight chip docks on the bar's own
      left edge, and the arrival ask may not run past the map lane. Both read
-     the stage instead. An open drawer's own rules (mapBannerStaging.css) are
-     more specific and still win. */
+     the stage instead. Excluding the expanded Tonight panel preserves its
+     centring in tonightLane.css regardless of stylesheet load order. */
   .appShell:has(> .mapSplitList) .tonightLane:not(.tonightLane--open) {
     left: calc((100% - var(--desktop-map-surface-width)) / 2);
   }
