@@ -30,7 +30,6 @@ import {
 	type NightArea,
 } from "@/lib/nightAreas";
 import { planDietaryNeeds, type NightContext } from "@/lib/nightPlanning";
-import { nightAreaBoundaryContains } from "@/lib/nightAreaGeometry";
 import {
 	canAffectRoute,
 	claimsForEntity,
@@ -83,8 +82,6 @@ import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
 import weatherSnapshot from "@/public/data/weather/latest.json";
-
-const SOHO_BOUNDARY = [[-0.1418, 51.5154], [-0.1301, 51.5161], [-0.1286, 51.5133], [-0.134, 51.5101], [-0.1378, 51.5106]] as const;
 
 let bundledWhatsOn: WhatsOnRow[] | null = null;
 
@@ -561,8 +558,6 @@ export async function preparePlanGeneration(
 	const dietaryMenu = dietaryNeeds.length > 0
 		? { need: dietaryNeeds[0]!, menuLinkVenueIds: await menuLinkVenueIds() }
 		: null;
-	const sohoRequested = area.slug === "piccadilly-soho"
-		&& reconciled.reasons.some(({ field, evidence }) => field === "nightArea" && evidence.toLowerCase() === "soho");
 	const candidates = cappedVenues
 		.map((venue) => {
 			const distance = distanceKm(area.centre, venue);
@@ -586,7 +581,6 @@ export async function preparePlanGeneration(
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm
-			&& nightAreaBoundaryContains(sohoRequested ? SOHO_BOUNDARY : undefined, [venue.lng, venue.lat])
 			&& venue.promoted !== true
 			// A plan may be shared with people who have never met: never send
 			// them to a members', students' or staff bar. Swap options and the

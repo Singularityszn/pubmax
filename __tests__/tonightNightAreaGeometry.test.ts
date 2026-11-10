@@ -1,23 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
-import { compactDealAnchor, nearestCompactNightArea, nightAreaBoundaryContains } from "@/lib/nightAreaGeometry";
+import { compactDealAnchor, nearestCompactNightArea } from "@/lib/nightAreaGeometry";
 import { tonightNightAreas } from "@/lib/tonightNightAreas.server";
 
 describe("Tonight coarse night areas", () => {
-  it("checks polygon interiors, every edge and outside direction in either winding order", () => {
-    const boundary = [[0, 0], [2, 0], [2, 2], [0, 2]] as const;
-    for (const ring of [boundary, [...boundary].reverse()]) {
-      for (const point of [[1, 1], [0, 1], [1, 0], [2, 1], [1, 2], ...boundary] as const) {
-        expect(nightAreaBoundaryContains(ring, point)).toBe(true);
-      }
-      for (const point of [[-1, 1], [3, 1], [1, -1], [1, 3], [NaN, 1]] as const) {
-        expect(nightAreaBoundaryContains(ring, point)).toBe(false);
-      }
-    }
-    expect(nightAreaBoundaryContains(undefined, [1, 1])).toBe(true);
-  });
-
   it("keeps the canonical London selection for representative coordinates", () => {
     const areas = tonightNightAreas();
     for (const point of [[-0.134, 51.513], [-0.141, 51.463], [-0.075, 51.505]] as [number, number][]) {

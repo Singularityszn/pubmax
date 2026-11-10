@@ -3,27 +3,6 @@ export type CompactNightArea = {
   centre: { lat: number; lng: number };
 };
 
-export function nightAreaBoundaryContains(
-  boundary: readonly (readonly [number, number])[] | undefined,
-  [lng, lat]: readonly [number, number],
-): boolean {
-  if (!boundary) return true;
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
-  let inside = false;
-  for (let i = 0, j = boundary.length - 1; i < boundary.length; j = i, i += 1) {
-    const [xi, yi] = boundary[i];
-    const [xj, yj] = boundary[j];
-    const cross = (lng - xi) * (yj - yi) - (lat - yi) * (xj - xi);
-    if (Math.abs(cross) < Number.EPSILON
-      && lng >= Math.min(xi, xj) && lng <= Math.max(xi, xj)
-      && lat >= Math.min(yi, yj) && lat <= Math.max(yi, yj)) return true;
-    if ((yi > lat) !== (yj > lat) && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
 /** Select from the canonical order using the catalogue's viewport distance. */
 export function nearestCompactNightArea<T extends CompactNightArea>(
   areas: readonly T[] | undefined,

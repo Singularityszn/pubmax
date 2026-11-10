@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 import { comparablePint } from "@/lib/comparablePint.mjs";
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { measureNamedInDrinkText } from "@/lib/drinkMeasure";
 import { buildSlimPriceEvidence } from "@/scripts/build_slim_index.mjs";
 import { applySlimListingPrices } from "@/lib/slimListingPrices.mjs";
@@ -40,22 +41,25 @@ describe("selected serving evidence in the published price packs", () => {
       priceSource: "Guinndex", priceObservedAt: "2026-11-07",
     });
     const pin = slimVenueToPin(row);
-    expect(comparablePint(pin, listingNow)).toBe(6.45);
+    expect(comparableVenuePint(pin, null, false, listingNow)).toBe(6.45);
     const manifest = JSON.parse(readFileSync("data/generated/venue_detail_index.json", "utf8"));
     const entry = manifest.venues[row.id];
     const bytes = readFileSync("data/generated/venue_details.jsonl").subarray(entry.offset, entry.offset + entry.length);
     const detail = venueFromDetailArtifact(JSON.parse(bytes.toString("utf8")), row.id)!;
     expect(detail.cheapestPrice).toBeNull();
+    expect(detail.prices.length).toBeGreaterThan(0);
+    expect(detail.prices.every(({ price_gbp }) => price_gbp == null)).toBe(true);
     const [hydrated] = mergeLazyDetailPins([pin], new Map([[row.id, detail]]));
     expect(hydrated).toMatchObject({
       cheapestPrice: 6.45, cheapestPint: "Guinness", measure: "pint",
       priceSource: "Guinndex", priceObservedAt: "2026-11-07",
     });
-    expect(comparablePint(hydrated, listingNow)).toBe(6.45);
+    expect(comparableVenuePint(hydrated, null, false, listingNow)).toBe(6.45);
     const snapshot = pinsToSlimVenues([hydrated]);
     expect(snapshot[0]).toMatchObject(row);
+    expect(comparableVenuePint(slimVenueToPin(snapshot[0]), null, false, listingNow)).toBe(6.45);
     const [resumed] = mergeLazyDetailPins([slimVenueToPin(snapshot[0])], new Map([[row.id, detail]]));
-    expect(comparablePint(resumed, listingNow)).toBe(6.45);
+    expect(comparableVenuePint(resumed, null, false, listingNow)).toBe(6.45);
   });
 
   it.each([
