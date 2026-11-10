@@ -1,9 +1,8 @@
 // "Ask the pub for a table" (launch plan 1 Nov 2026, section 7 item 3).
 //
-//   POST { venueId, name, partySize, date, time, note?, contact: { kind, value } }
-//        -> 201 { outcome: "sent" }       emailed to the pub's verified operator
-//        -> 200 { outcome: "not_sent" }   PUBMAXX sent nothing; the sheet hands
-//                                         the person the pub's own address
+//   POST delivery and retry contract:
+//   docs/rules/lib-shared-seams-stores-http-freshness-brand.md
+//   #a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent
 //   GET  ?venueId=<id>
 //        -> 200 { status, requests }      the pub's verified operator alone
 //

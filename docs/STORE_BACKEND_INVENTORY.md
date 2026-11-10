@@ -102,7 +102,7 @@ silently stale.
 | socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
 | socialSafetyModerationStore | not dual-backend | Service-role RPCs for moderator report queues, reported-content and flagged-message evidence, reviews and audited suspension decisions. No memory implementation. |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
-| tableRequestsStore | factory-ready | "Ask the pub for a table" requests PUBMAXX emailed to a verified operator: stored pending, stamped emailed or discarded, listed to that operator alone, and read back for the requester's own export. |
+| tableRequestsStore | factory-ready | Group table requests. See the [table request rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent) for delivery, retries and visibility. |
 | venueCorrectionsStore | factory-ready | "That's wrong" notes about a pub (shut, hours, other) and the moderator's resolve or dismiss. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |

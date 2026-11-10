@@ -141,8 +141,7 @@ export async function deliverTableRequest(
 
   let requestId: string;
   try {
-    // A retry carries its first key, so it lands on the same row and the same
-    // email idempotency keys, and the operator is asked once.
+    // Concurrent keyed attempts must share the row and recipient email keys.
     const stored = await store.create(fields, now, keyedId);
     requestId = stored.id;
     if (stored.delivery === "emailed") return { outcome: "sent" };
@@ -180,8 +179,8 @@ export async function deliverTableRequest(
   try {
     await store.markEmailed(requestId, now);
   } catch (err) {
-    // The email went, so the person is told it went. The panel may miss this
-    // one row until the stamp is retried by hand; the log says which.
+    // The email went, so the person is told it went. The log identifies the
+    // pending row if its stamp fails.
     log("error", "table_request.stamp_failed", {
       requestId,
       error: err instanceof Error ? err.message : String(err),

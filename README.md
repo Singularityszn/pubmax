@@ -114,6 +114,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   This opens the pub's form with that size prefilled.
   If sign-in or handle setup is required, the table request link preserves the pub and group size through those steps.
   Opening the form sends nothing and confirms no booking.
+  Keep the form open when you retry after a connection error.
   The [table request rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent) explain delivery and contact fallback.
 
   Map Ask and keyless typed chat accept "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use."

@@ -13,13 +13,9 @@
 // IT CHANGES NOTHING ELSE. A request is never read by what ranks, colours,
 // bands or orders a venue (__tests__/tableRequestFence.test.ts).
 //
-// Two ways out, and the reader is told which one ran:
-//   1. The pub has a verified operator, and an email to that operator was
-//      SENT: the request is stored for the operator panel and the person reads
-//      "Sent to the pub".
-//   2. PUBMAXX sent nothing, and the sheet hands the person a
-//      prefilled email to the pub's own published address, or its phone, and
-//      says plainly that PUBMAXX did not send it.
+// Delivery outcomes and retries are documented in
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md
+// #a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent.
 
 import { isValidEmail, normalizeEmail } from "@/lib/emailAddress";
 import { londonCalendarDate } from "@/lib/privateIdentity";

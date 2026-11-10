@@ -3,11 +3,9 @@
 // public.venue_operators), chosen at the single venueOperatorsStore() seam,
 // exactly like visitReportsStore / areaDemandStore.
 //
-// Supabase when env keys exist, process-memory otherwise. Before migration 0048
-// lands (or on a schema-cache miss) local/preview paths fail soft to memory, so
-// demos keep working and become durable the moment the table exists. Deployed
-// production fails closed: missing-schema and hard write failures THROW so the
-// route answers 503 (never a fake success).
+// Supabase when env keys exist, process-memory otherwise. Guarded operations
+// use memory on local/preview schema misses. Production writes fail closed
+// on missing-schema and hard write failures, so routes never report fake success.
 //
 // VenueOperatorStore.claim defines the claim and re-claim contract.
 
@@ -49,7 +47,8 @@ export type VenueOperatorStore = {
    *  Fail-soft: false on any storage error (no proposal slips through on a wobble). */
   isVerifiedOperator(accountId: string, venueId: string): Promise<boolean>;
   /** The accounts that are VERIFIED operators of this venue, under any id it
-   *  was stored under (the table-request delivery's audience). */
+   *  was stored under (the table-request delivery's audience). Storage errors
+   *  throw because an unavailable audience must not appear empty. */
   verifiedOperatorAccountIds(venueId: string): Promise<string[]>;
   /** Moderator review queue: claims in a state, newest-first. Fail-soft ([]). */
   listForReview(state: OperatorVerificationState): Promise<OperatorClaim[]>;
