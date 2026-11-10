@@ -15,6 +15,7 @@ import { contributionAdultRefusal } from "@/lib/contributionGateStatus";
 // would only live in process memory.
 
 import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
+import { clientRequestRowId } from "@/lib/clientRequestKey.server";
 import { qualifyCheapPintForAccountId } from "@/lib/cheapPintPingQualify.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -31,6 +32,7 @@ import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { pintDropReportIdentity } from "@/lib/pintDropReportActor.server";
+import type { PintDrop } from "@/lib/pintDropShared";
 import {
   isLimited,
   validatePintDrop,
@@ -383,6 +385,59 @@ function scheduleDropBillCheck(
   return "reading";
 }
 
+async function priceAdultRefusal(priceGbp: number | null, callerUserId: string | null): Promise<Response | null> {
+  if (priceGbp === null || !callerUserId) return null;
+  try {
+    const evidence = await accountAdultEvidence(callerUserId, { strict: true });
+    const refusal = contributionAdultRefusal({
+      isAdult: accountIsAdult(evidence),
+      needsSelfAssertion: needsAdultSelfAssertion(evidence),
+    });
+    return refusal
+      ? publicApiError(refusal.error, "ADULT_REQUIRED", 409, {
+          compatibilityFields: { status: refusal.status },
+        })
+      : null;
+  } catch {
+    return publicApiError(
+      "We could not check your account just now. Try again.",
+      "IDENTITY_UNAVAILABLE",
+      503,
+      { retryable: true },
+    );
+  }
+}
+
+/** A drop sent with a valid clientRequestId gets the row id that key earns. */
+function dropIdFor(
+  mintedId: string,
+  ownership: { callerUserId: string | null; handle: string },
+  clientRequestId: unknown,
+): string {
+  return clientRequestRowId("pint-drop", ownership.callerUserId ?? ownership.handle, clientRequestId) ?? mintedId;
+}
+
+// A RETRY IS ANSWERED, NOT COUNTED AGAIN. A keyed drop that already landed is
+// the same observation, so the drinker gets it back rather than a daily-cap
+// refusal or a second note. The lookup fails open: the id is still the keyed
+// one, so a missed replay cannot store a second row.
+async function keyedReplay(drop: PintDrop, mintedId: string): Promise<Response | null> {
+  if (drop.id === mintedId) return null;
+  try {
+    const prior = await pintDropsStore().findCreated(drop);
+    if (prior === "conflict") {
+      return publicApiError("That Pint Drop was already sent with other details.", "IDEMPOTENCY_CONFLICT", 409);
+    }
+    return prior ? jsonNoStore({ drop: prior }, { status: 200 }) : null;
+  } catch (err) {
+    log("warn", "pint_drops.replay_check_failed", {
+      route: "POST /api/pint-drops",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
@@ -483,27 +538,8 @@ export async function POST(request: Request): Promise<Response> {
       401,
     );
   }
-  if (canonicalDrop.priceGbp !== null && ownership.callerUserId) {
-    try {
-      const evidence = await accountAdultEvidence(ownership.callerUserId, { strict: true });
-      const refusal = contributionAdultRefusal({
-        isAdult: accountIsAdult(evidence),
-        needsSelfAssertion: needsAdultSelfAssertion(evidence),
-      });
-      if (refusal) {
-        return publicApiError(refusal.error, "ADULT_REQUIRED", 409, {
-          compatibilityFields: { status: refusal.status },
-        });
-      }
-    } catch {
-      return publicApiError(
-        "We could not check your account just now. Try again.",
-        "IDENTITY_UNAVAILABLE",
-        503,
-        { retryable: true },
-      );
-    }
-  }
+  const underage = await priceAdultRefusal(canonicalDrop.priceGbp, ownership.callerUserId);
+  if (underage) return underage;
   // A PRICE WITHOUT THE BILL IS UNCHECKED, NOT REFUSED (captain decision 9,
   // 1 Nov 2026, amending the 7 Sept bill rule at this door). The verified
   // actor above, the rate limit and the daily cap below all still apply to
@@ -516,6 +552,7 @@ export async function POST(request: Request): Promise<Response> {
   // `receipt`.
   const dropPayload = {
     ...canonicalDrop,
+    id: dropIdFor(canonicalDrop.id, ownership, fields.clientRequestId),
     handle: ownership.handle,
     // ANONYMITY IS DISPLAY, NOT ATTRIBUTION (#1436). The key is derived from
     // the signed-in account whatever lane the drinker chose to post in, so an
@@ -534,6 +571,9 @@ export async function POST(request: Request): Promise<Response> {
   if (await isLimited(ownership.handle, submitKey)) {
     return publicApiError("Too many submissions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
+
+  const replay = await keyedReplay(dropPayload, canonicalDrop.id);
+  if (replay) return replay;
 
   // Duplicate guard (feat/price-drops-v2): one PRICED observation per
   // venue+identity+London-day. A second priced drop at the same pub the same day

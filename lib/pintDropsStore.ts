@@ -174,6 +174,11 @@ export type PintDropStore = {
     options?: PintDropCreateOptions,
   ): Promise<PintDropDTO & { created: boolean }>;
   /**
+   * The drop a keyed create already wrote under `drop.id`, answered as
+   * `create` would answer it. "conflict" when that id holds another drop.
+   */
+  findCreated(drop: PintDrop): Promise<PintDropDTO | "conflict" | null>;
+  /**
    * Public read: visible drops + demo seeds, newest-first, capped at
    * MAX_PUBLIC_DROPS, with per-drop VISIBILITY applied server-side (issue #29).
    *
@@ -877,6 +882,11 @@ export const memoryPintDropStore: PintDropStore = {
     addPintDrop(drop);
     return { ...toDTO(drop), created: true };
   },
+  async findCreated(input) {
+    const existing = findPintDropsByIds([input.id]).get(input.id);
+    if (!existing) return null;
+    return sameCreatedDrop(existing, input) ? toDTO(existing) : "conflict";
+  },
   async listVisible(venueId, viewer, authorHandle, cityId) {
     const venueRows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
@@ -1529,6 +1539,14 @@ export const supabasePintDropStore: PintDropStore = {
       return { ...await toDTOWithPhotos(existing), created: false };
     }
     return { ...await toDTOWithPhotos(persistable), created: true };
+  },
+
+  async findCreated(input) {
+    const { data, error } = await admin().from(TABLE).select("*").eq("id", input.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    const stored = fromRow(data);
+    return sameCreatedDrop(stored, input) ? toDTOWithPhotos(stored) : "conflict";
   },
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic

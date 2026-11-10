@@ -23,6 +23,7 @@ import {
   cleanNewRoundSpend,
   cleanNewStop,
   generateRoundCode,
+  type NewRound,
   normalizeRoundCode,
   resolveRoundPromotionStatus,
   type RoundDTO,
@@ -50,8 +51,27 @@ const CODE_MINT_ATTEMPTS = 6;
 export type RoundWriteError = "not_found" | "closed" | "invalid" | "forbidden" | "error";
 
 type CreateResult =
-  | { ok: true; state: RoundState }
-  | { ok: false; error: RoundWriteError };
+  | { ok: true; state: RoundState; created: boolean }
+  | { ok: false; error: RoundWriteError | "conflict" };
+
+type NewRoundInput = {
+  title?: unknown;
+  createdByHandle?: unknown;
+  /** A keyed create's id. A second create with it answers the first Round. */
+  id?: string;
+};
+
+/** A keyed retry matches only the Round the same person started with the same title. */
+function keyedRoundAnswer(
+  prior: { title: string; createdByHandle: string },
+  clean: NewRound,
+  state: RoundState | null,
+): CreateResult {
+  if (prior.createdByHandle !== clean.createdByHandle || prior.title !== clean.title) {
+    return { ok: false, error: "conflict" };
+  }
+  return state ? { ok: true, state, created: false } : { ok: false, error: "error" };
+}
 
 type JoinResult =
   | { ok: true; state: RoundState }
@@ -82,7 +102,7 @@ type ReconcilePromotionKeysResult =
   | { ok: false; error: "not_found" | "forbidden" | "error" };
 
 export type RoundsStore = {
-  create(input: { title?: unknown; createdByHandle?: unknown }): Promise<CreateResult>;
+  create(input: NewRoundInput): Promise<CreateResult>;
   getByCode(code: string): Promise<RoundState | null>;
   getSpendById(id: string): Promise<RoundSpendDTO | null>;
   join(code: string, handle: string): Promise<JoinResult>;
@@ -228,13 +248,35 @@ const supabaseRoundsStore: RoundsStore = {
   async create(input) {
     const clean = cleanNewRound(input);
     if (!clean) return { ok: false, error: "invalid" };
+    const keyed = async (id: string): Promise<CreateResult | null> => {
+      const { data, error } = await admin()
+        .from(ROUNDS)
+        .select("code, title, created_by_handle")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return null;
+      const row = data as { code: string; title: string; created_by_handle: string };
+      return keyedRoundAnswer(
+        { title: row.title, createdByHandle: row.created_by_handle },
+        clean,
+        await this.getByCode(row.code),
+      );
+    };
     try {
+      const prior = input.id ? await keyed(input.id) : null;
+      if (prior) return prior;
       // Mint a unique code, retrying on the (rare) unique-violation collision.
       for (let attempt = 0; attempt < CODE_MINT_ATTEMPTS; attempt += 1) {
         const code = generateRoundCode();
         const { data, error } = await admin()
           .from(ROUNDS)
-          .insert({ code, title: clean.title, created_by_handle: clean.createdByHandle })
+          .insert({
+            ...(input.id ? { id: input.id } : {}),
+            code,
+            title: clean.title,
+            created_by_handle: clean.createdByHandle,
+          })
           .select("id, code, title, created_by_handle, created_at, closed_at")
           .single();
         if (!error && data) {
@@ -243,12 +285,15 @@ const supabaseRoundsStore: RoundsStore = {
             .from(MEMBERS)
             .insert({ round_id: (data as { id: string }).id, handle: clean.createdByHandle });
           const state = await this.getByCode(code);
-          return state ? { ok: true, state } : { ok: false, error: "error" };
+          return state ? { ok: true, state, created: true } : { ok: false, error: "error" };
         }
         // 23505 = unique_violation → a code collision; retry with a new code.
         if (error && (error as { code?: string }).code !== "23505") {
           throw new Error(error.message);
         }
+        // Or the same keyed create landed first, in flight beside this one.
+        const raced = input.id ? await keyed(input.id) : null;
+        if (raced) return raced;
       }
       return { ok: false, error: "error" };
     } catch (err) {
@@ -616,6 +661,10 @@ export const memoryRoundsStore: RoundsStore = {
   async create(input) {
     const clean = cleanNewRound(input);
     if (!clean) return { ok: false, error: "invalid" };
+    const prior = input.id
+      ? [...memoryRounds.values()].find((round) => round.id === input.id)
+      : undefined;
+    if (prior) return keyedRoundAnswer(prior, clean, stateFrom(prior));
     let code = generateRoundCode();
     for (let attempt = 0; memoryRounds.has(code) && attempt < CODE_MINT_ATTEMPTS; attempt += 1) {
       code = generateRoundCode();
@@ -623,7 +672,7 @@ export const memoryRoundsStore: RoundsStore = {
     if (memoryRounds.has(code)) return { ok: false, error: "error" };
     memorySeq += 1;
     const round: MemoryRound = {
-      id: `r${memorySeq}`,
+      id: input.id ?? `r${memorySeq}`,
       code,
       title: clean.title,
       createdByHandle: clean.createdByHandle,
@@ -636,7 +685,7 @@ export const memoryRoundsStore: RoundsStore = {
       promotionOwners: new Map(),
     };
     memoryRounds.set(code, round);
-    return { ok: true, state: stateFrom(round) };
+    return { ok: true, state: stateFrom(round), created: true };
   },
 
   async getByCode(code) {

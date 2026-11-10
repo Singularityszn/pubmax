@@ -837,6 +837,7 @@ export function usePintDrops(
     try {
       // multipart/form-data — do NOT set Content-Type, the browser adds the boundary.
       const body = new FormData();
+      body.set("clientRequestId", clientRequestId);
       body.set("venueId", venueId);
       body.set("handle", submittedHandle);
       body.set("drink", submittedDrink);

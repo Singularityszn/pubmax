@@ -12,6 +12,7 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { clientRequestRowId } from "@/lib/clientRequestKey.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -44,14 +45,20 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many Rounds, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  const result = await roundsStore().create({ title: body.title, createdByHandle: handle });
+  // A retried start resends its first key, so a lost answer and a second tap
+  // reach the Round the first tap started instead of minting another.
+  const id = clientRequestRowId("round", handle, body.clientRequestId) ?? undefined;
+  const result = await roundsStore().create({ title: body.title, createdByHandle: handle, id });
   if (!result.ok) {
+    if (result.error === "conflict") {
+      return publicApiError("That Round was already started with other details.", "IDEMPOTENCY_CONFLICT", 409);
+    }
     // A store failure is a degraded dependency (503, fail-soft), not a bug (500)
     // — the house contract every other write route uses (see pint-drops).
     const status = result.error === "invalid" ? 400 : 503;
     return publicApiErrorFromStatus("Could not start the Round.", status);
   }
   return jsonNoStore(await projectRoundView(request, result.state), {
-    status: 201,
+    status: result.created ? 201 : 200,
   });
 }
