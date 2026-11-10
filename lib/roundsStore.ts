@@ -62,15 +62,11 @@ type NewRoundInput = {
 };
 
 /** A keyed retry matches only the Round the same person started with the same title. */
-function keyedRoundAnswer(
+function sameRoundRequest(
   prior: { title: string; createdByHandle: string },
   clean: NewRound,
-  state: RoundState | null,
-): CreateResult {
-  if (prior.createdByHandle !== clean.createdByHandle || prior.title !== clean.title) {
-    return { ok: false, error: "conflict" };
-  }
-  return state ? { ok: true, state, created: false } : { ok: false, error: "error" };
+): boolean {
+  return prior.createdByHandle === clean.createdByHandle && prior.title === clean.title;
 }
 
 type JoinResult =
@@ -248,20 +244,31 @@ const supabaseRoundsStore: RoundsStore = {
   async create(input) {
     const clean = cleanNewRound(input);
     if (!clean) return { ok: false, error: "invalid" };
+    const complete = async (
+      row: { id: string; code: string; title: string; created_by_handle: string },
+      created: boolean,
+    ): Promise<CreateResult> => {
+      if (!sameRoundRequest({ title: row.title, createdByHandle: row.created_by_handle }, clean)) {
+        return { ok: false, error: "conflict" };
+      }
+      const { error } = await admin()
+        .from(MEMBERS)
+        .upsert({ round_id: row.id, handle: clean.createdByHandle }, { onConflict: "round_id,handle", ignoreDuplicates: true });
+      if (error) throw new Error(error.message);
+      const state = await this.getByCode(row.code);
+      return state?.members.some((member) => member.handle === clean.createdByHandle)
+        ? { ok: true, state, created }
+        : { ok: false, error: "error" };
+    };
     const keyed = async (id: string): Promise<CreateResult | null> => {
       const { data, error } = await admin()
         .from(ROUNDS)
-        .select("code, title, created_by_handle")
+        .select("id, code, title, created_by_handle")
         .eq("id", id)
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return null;
-      const row = data as { code: string; title: string; created_by_handle: string };
-      return keyedRoundAnswer(
-        { title: row.title, createdByHandle: row.created_by_handle },
-        clean,
-        await this.getByCode(row.code),
-      );
+      return complete(data as { id: string; code: string; title: string; created_by_handle: string }, false);
     };
     try {
       const prior = input.id ? await keyed(input.id) : null;
@@ -280,12 +287,7 @@ const supabaseRoundsStore: RoundsStore = {
           .select("id, code, title, created_by_handle, created_at, closed_at")
           .single();
         if (!error && data) {
-          // The creator is the first member of their own Round.
-          await admin()
-            .from(MEMBERS)
-            .insert({ round_id: (data as { id: string }).id, handle: clean.createdByHandle });
-          const state = await this.getByCode(code);
-          return state ? { ok: true, state, created: true } : { ok: false, error: "error" };
+          return await complete(data as { id: string; code: string; title: string; created_by_handle: string }, true);
         }
         // 23505 = unique_violation → a code collision; retry with a new code.
         if (error && (error as { code?: string }).code !== "23505") {
@@ -664,7 +666,11 @@ export const memoryRoundsStore: RoundsStore = {
     const prior = input.id
       ? [...memoryRounds.values()].find((round) => round.id === input.id)
       : undefined;
-    if (prior) return keyedRoundAnswer(prior, clean, stateFrom(prior));
+    if (prior) {
+      return sameRoundRequest(prior, clean)
+        ? { ok: true, state: stateFrom(prior), created: false }
+        : { ok: false, error: "conflict" };
+    }
     let code = generateRoundCode();
     for (let attempt = 0; memoryRounds.has(code) && attempt < CODE_MINT_ATTEMPTS; attempt += 1) {
       code = generateRoundCode();

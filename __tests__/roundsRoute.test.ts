@@ -374,6 +374,21 @@ beforeEach(() => {
 });
 
 describe("POST /api/rounds — create", () => {
+  it("returns a retryable 503 for a keyed request without trusted signing", async () => {
+    const originalSecret = process.env.PLAN_IDEMPOTENCY_SECRET;
+    process.env.PLAN_IDEMPOTENCY_SECRET = "short";
+    try {
+      const body = { handle: "ken", title: "Big night" };
+      const result = await create({ ...body, clientRequestId: "round-request-unsigned" });
+      expect(result.status).toBe(503);
+      expect(await result.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+      expect((await create(body)).status).toBe(201);
+    } finally {
+      if (originalSecret === undefined) delete process.env.PLAN_IDEMPOTENCY_SECRET;
+      else process.env.PLAN_IDEMPOTENCY_SECRET = originalSecret;
+    }
+  });
+
   it("creates a Round with the creator as first member (201)", async () => {
     const res = await create({ handle: "ken", title: "Big night" });
     expect(res.status).toBe(201);

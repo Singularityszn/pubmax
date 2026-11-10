@@ -33,6 +33,7 @@ import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { pintDropReportIdentity } from "@/lib/pintDropReportActor.server";
 import type { PintDrop } from "@/lib/pintDropShared";
+import { isTrustedSigningKeyUnavailableError } from "@/lib/trustedSigningKey.server";
 import {
   isLimited,
   validatePintDrop,
@@ -375,12 +376,11 @@ async function settleConfirmation(
  * nothing about a read that will never happen.
  */
 function scheduleDropBillCheck(
-  created: boolean,
   drop: PintDropDTO,
   priceGbp: number | null,
   receipt: File | null,
 ): "reading" | null {
-  if (!created || priceGbp === null || !receipt || !billReaderKeyed()) return null;
+  if (priceGbp === null || !receipt || !billReaderKeyed()) return null;
   scheduleBillCheck({ photo: receipt, venueId: drop.venueId, priceGbp, drink: drop.drink, measure: drop.measure, measureLabel: drop.measureLabel, pintDropId: drop.id });
   return "reading";
 }
@@ -406,15 +406,6 @@ async function priceAdultRefusal(priceGbp: number | null, callerUserId: string |
       { retryable: true },
     );
   }
-}
-
-/** A drop sent with a valid clientRequestId gets the row id that key earns. */
-function dropIdFor(
-  mintedId: string,
-  ownership: { callerUserId: string | null; handle: string },
-  clientRequestId: unknown,
-): string {
-  return clientRequestRowId("pint-drop", ownership.callerUserId ?? ownership.handle, clientRequestId) ?? mintedId;
 }
 
 // A RETRY IS ANSWERED, NOT COUNTED AGAIN. A keyed drop that already landed is
@@ -550,9 +541,17 @@ export async function POST(request: Request): Promise<Response> {
   // WITH the bill is read after the answer (captain 5 Nov 2026,
   // lib/billCheck.server.ts), and only a bill that shows the price earns
   // `receipt`.
+  let id: string;
+  try {
+    id = clientRequestRowId("pint-drop", ownership.callerUserId ?? ownership.handle, fields.clientRequestId)
+      ?? canonicalDrop.id;
+  } catch (err) {
+    if (!isTrustedSigningKeyUnavailableError(err)) throw err;
+    return publicApiErrorFromStatus("Could not save the Pint Drop. Try again.", 503);
+  }
   const dropPayload = {
     ...canonicalDrop,
-    id: dropIdFor(canonicalDrop.id, ownership, fields.clientRequestId),
+    id,
     handle: ownership.handle,
     // ANONYMITY IS DISPLAY, NOT ATTRIBUTION (#1436). The key is derived from
     // the signed-in account whatever lane the drinker chose to post in, so an
@@ -587,7 +586,7 @@ export async function POST(request: Request): Promise<Response> {
   // before any row lands, which is exactly how the cap was walked through. The
   // HARD guard is the store's own (pint_drops_priced_day_unique_idx, migration
   // 0141), and its refusal lands in the catch below wearing this same sentence.
-  if (dropPayload.priceGbp !== null) {
+  if (dropPayload.priceGbp !== null && dropPayload.id === canonicalDrop.id) {
     try {
       if (await pintDropsStore().hasPricedDropToday(dropPayload.venueId, ownership.handle)) {
         return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
@@ -609,7 +608,8 @@ export async function POST(request: Request): Promise<Response> {
     const { created, ...drop } = await pintDropsStore().create(dropPayload, photos, {
       underDailyPriceCap: true,
     });
-    if (created) signalPintDropLanded();
+    if (!created) return jsonNoStore({ drop }, { status: 200 });
+    signalPintDropLanded();
     // The second-reporter pass, awaited so the drinker's own answer carries the
     // standing their report just earned. It never throws and never fails the
     // drop: when it cannot read or write, the pill stays grey and the drop
@@ -625,7 +625,7 @@ export async function POST(request: Request): Promise<Response> {
     // THE BILL IS READ AFTER THE ANSWER, never before it: the drinker's 201
     // does not wait on a vision model. `billCheck: "reading"` tells the
     // composer to say so, and is said only when this deployment can read.
-    const billCheck = scheduleDropBillCheck(created, drop, dropPayload.priceGbp, photos.receipt);
+    const billCheck = scheduleDropBillCheck(drop, dropPayload.priceGbp, photos.receipt);
     return jsonNoStore(
       {
         drop,

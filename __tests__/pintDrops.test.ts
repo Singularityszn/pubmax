@@ -1167,6 +1167,38 @@ describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", 
 describe("POST /api/pint-drops — a retry resends its first clientRequestId", () => {
   const KEY = "client-request-0001";
 
+  it("replays when the first save lands after the replay lookup misses", async () => {
+    const body = { venueId: "racing-retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY };
+    const first = await post(body);
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+    const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
+    try {
+      const retry = await post(body);
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).drop.id).toBe(saved.id);
+      expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it("returns a retryable 503 for a keyed request without trusted signing", async () => {
+    const originalSecret = process.env.PLAN_IDEMPOTENCY_SECRET;
+    process.env.PLAN_IDEMPOTENCY_SECRET = "short";
+    try {
+      const body = { venueId: "unsigned-retry-pub", handle: "reg", passedDownNote: "Old local" };
+      const keyed = await post({ ...body, clientRequestId: KEY });
+      expect(keyed.status).toBe(503);
+      expect(await keyed.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+      expect((await (await get(body.venueId)).json()).drops).toHaveLength(0);
+      expect((await post(body)).status).toBe(201);
+    } finally {
+      if (originalSecret === undefined) delete process.env.PLAN_IDEMPOTENCY_SECRET;
+      else process.env.PLAN_IDEMPOTENCY_SECRET = originalSecret;
+    }
+  });
+
   it("answers a priced retry with the drop it already saved, not the daily cap", async () => {
     const first = await post({ venueId: "retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
     expect(first.status).toBe(201);
@@ -1178,6 +1210,26 @@ describe("POST /api/pint-drops — a retry resends its first clientRequestId", (
 
     const drops = (await (await get("retry-pub")).json()).drops as Array<{ id: string }>;
     expect(drops.map((row) => row.id)).toEqual([saved.id]);
+  });
+
+  it("replays the account's saved price after its handle changes", async () => {
+    const body = { venueId: "rename-retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY };
+    const first = await post(body);
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+    const retry = await post({ ...body, handle: "renamed" });
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).drop.id).toBe(saved.id);
+    expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
+  });
+
+  it("caps a new keyed price after a different key already saved one", async () => {
+    const body = { venueId: "keyed-cap-pub", handle: "reg", priceGbp: 4.5 };
+    expect((await post({ ...body, clientRequestId: KEY })).status).toBe(201);
+    const next = await post({ ...body, clientRequestId: "client-request-0002" });
+    expect(next.status).toBe(409);
+    expect((await next.json()).code).toBe("CONFLICT");
+    expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
   });
 
   it("stores a retried note once", async () => {

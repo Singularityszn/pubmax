@@ -840,7 +840,7 @@ async function attributedAuthorVenueIds(
 function sameCreatedDrop(existing: PintDrop, input: PintDrop): boolean {
   return existing.id === input.id && existing.venueId === input.venueId &&
     existing.authorityKey === input.authorityKey &&
-    normalizeViewerHandle(existing.handle) === normalizeViewerHandle(input.handle) &&
+    (Boolean(input.authorityKey) || normalizeViewerHandle(existing.handle) === normalizeViewerHandle(input.handle)) &&
     existing.priceGbp === input.priceGbp;
 }
 
@@ -866,15 +866,15 @@ export const memoryPintDropStore: PintDropStore = {
     // pre-check and this create sit either side of an await, so two in-flight
     // requests can both read "no price yet" here exactly as they could against
     // Postgres. Asked against the drop's OWN day, so the row and the rule agree.
-    const capped =
-      dailyCapDay(drop, options) !== null &&
-      (await hasPricedDropTodayAcrossIds(drop.venueId, drop.handle, new Date(drop.createdAt)));
+    const cappedVenueIds = dailyCapDay(drop, options) !== null ? await storedVenueIds(drop.venueId) : [];
     const existing = findPintDropsByIds([drop.id]).get(drop.id);
     if (existing) {
       if (!sameCreatedDrop(existing, drop)) throw new Error("Pint Drop id already exists.");
       return { ...toDTO(existing), created: false };
     }
-    if (capped) throw new PintDropDailyCapError();
+    if (cappedVenueIds.some((id) => hasPricedDropTodayMemory(id, drop.handle, new Date(drop.createdAt)))) {
+      throw new PintDropDailyCapError();
+    }
     // Photos are not stored: there is no Storage without Supabase. The bill
     // itself is read by the route's background bill check, from the bytes
     // that arrived.
@@ -1349,10 +1349,10 @@ export const supabasePintDropStore: PintDropStore = {
       // not a storage fault, and the catch below tells the two apart.
       const insert = async (candidate: typeof row) => {
         const { error: insertError } = await admin().from(TABLE).insert(candidate);
-        if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
         if (insertError?.code === "23505") {
           const { data, error: readError } = await admin().from(TABLE).select("*").eq("id", drop.id).maybeSingle();
-          if (!readError && data) {
+          if (readError) throw new Error(readError.message);
+          if (data) {
             const stored = fromRow(data);
             if (sameCreatedDrop(stored, drop)) {
               creation.existing = stored;
@@ -1360,6 +1360,7 @@ export const supabasePintDropStore: PintDropStore = {
             }
           }
         }
+        if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
         return insertError;
       };
       // First attempt includes vibe_tags + Last Train columns. Once migrations

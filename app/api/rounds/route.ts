@@ -21,6 +21,7 @@ import { projectRoundView } from "@/lib/roundView.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { isTrustedSigningKeyUnavailableError } from "@/lib/trustedSigningKey.server";
 
 assertServerEnv();
 
@@ -47,7 +48,13 @@ export async function POST(request: Request): Promise<Response> {
 
   // A retried start resends its first key, so a lost answer and a second tap
   // reach the Round the first tap started instead of minting another.
-  const id = clientRequestRowId("round", handle, body.clientRequestId) ?? undefined;
+  let id: string | undefined;
+  try {
+    id = clientRequestRowId("round", handle, body.clientRequestId) ?? undefined;
+  } catch (err) {
+    if (!isTrustedSigningKeyUnavailableError(err)) throw err;
+    return publicApiErrorFromStatus("Could not start the Round. Try again.", 503);
+  }
   const result = await roundsStore().create({ title: body.title, createdByHandle: handle, id });
   if (!result.ok) {
     if (result.error === "conflict") {
