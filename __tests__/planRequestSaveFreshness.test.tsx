@@ -42,7 +42,7 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined, trackMeaningful
 import PlanComposer from "@/components/plan/PlanComposer";
 import { createPlanIntakeDraft, defaultLondonStartInput, nextLondonOccurrenceIso, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraftWithMetadata, reopenPlanIntakeStep, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
-import { rememberPlanHostName } from "@/lib/planHostName";
+import { PLAN_HOST_NAME_KEY, rememberPlanHostName } from "@/lib/planHostName";
 import { rememberLastCrew } from "@/lib/lastCrew";
 import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY, readPlanRouteDraftEnvelope, reconcilePlanRouteDrafts } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
@@ -5743,4 +5743,160 @@ it("revokes the expired route reference after a genuinely new request", async ()
   expect(document.querySelector(".planStop__name")).toBeNull();
   expect(readPlanIntakeDraftWithMetadata(localStorage)?.routeReference).toBeNull();
   expectNoRouteSave();
+});
+
+// SM-7(d): `submitting` gates only the Lock button. These pin what the
+// composer does today when the route changes under an in-flight Lock, and
+// what a Lock that answers 422 leaves behind.
+describe("Lock interleavings today", () => {
+  function deferredResponse() {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    return { pending, finish };
+  }
+  const creations = () => fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans");
+  const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+  const displayedStops = () => [...document.querySelectorAll(".planStop__name")].map((node) => node.textContent);
+  const submitButton = () => document.querySelector<HTMLButtonElement>(".planComposer__submit")!;
+  async function generateLockableRoute() {
+    pinClock();
+    const generated = await generateProofRoute(3);
+    // The stop list is a lazy chunk. Wait for it so the rows can be edited.
+    await vi.waitFor(() => expect(displayedStops()).toEqual(["Pub A", "Pub B", "Pub C"]));
+    return generated;
+  }
+  const createdPlan = (stops: { venueId: string; venueName: string }[]) => ({
+    created: true, grounded: true, memberToken: "in-flight-host",
+    plan: { plan: { id: "in-flight-plan", status: "draft" }, stops },
+  });
+
+  it("today: a stop removed during an in-flight Lock still applies, and Lock creates the stops it started with (N1)", async () => {
+    const generated = await generateLockableRoute();
+    const creation = deferredResponse();
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/plans") return creation.pending;
+      if (init?.method === "PATCH") return Response.json({});
+      return Response.json(String(input).includes("/api/plans/generate") ? generated : []);
+    });
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+    expect(submitButton().textContent).toBe("Locking it in…");
+    expect(submitButton().disabled).toBe(true);
+
+    const remove = document.querySelector<HTMLButtonElement>("[aria-label='Remove stop 2']")!;
+    expect(remove.disabled).toBe(false);
+    await act(async () => remove.click());
+    await settle();
+    expect(displayedStops()).toEqual(["Pub A", "Pub C"]);
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      routeStale: true, groundingProof: null, createOperationKey: null,
+    });
+    expect(submitButton().textContent).toBe("Locking it in…");
+
+    await act(async () => creation.finish(Response.json(createdPlan(generated.stops))));
+    await settle();
+    const sent = JSON.parse(String(creations()[0]![1]?.body));
+    expect(sent.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(["venue-a", "venue-b", "venue-c"]);
+    expect(sent.groundingProof).toBe(generated.groundingProof);
+    expect(document.querySelector("#plan-composer-error")).toBeNull();
+    expect(localStorage.getItem(PLAN_HOST_NAME_KEY)).toBe("Captain");
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+  });
+
+  it("today: Plan it again during an in-flight Lock still regenerates, and Lock creates the older route (N1)", async () => {
+    const generated = await generateLockableRoute();
+    const replacement = {
+      ...generated, operationKey: "replacement-operation",
+      groundingProof: `${btoa(JSON.stringify({ v: 1, expiresAt: T0 + CLIENT_PROOF_LIFETIME }))}.replacement`,
+      stops: [
+        { venueId: "venue-d", venueName: "Pub D" },
+        { venueId: "venue-e", venueName: "Pub E" },
+        { venueId: "venue-f", venueName: "Pub F" },
+      ],
+    };
+    const creation = deferredResponse();
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/plans") return creation.pending;
+      if (init?.method === "PATCH") return Response.json({});
+      return Response.json(String(input).includes("/api/plans/generate") ? replacement : []);
+    });
+    fetchMock.mockClear();
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+    expect(submitButton().textContent).toBe("Locking it in…");
+
+    await openTune();
+    await editInput("#plan-concierge-query", "Clapham tonight");
+    await sortAgainFromTune();
+    expect(generations()).toHaveLength(1);
+    expect(displayedStops()).toEqual(["Pub D", "Pub E", "Pub F"]);
+    expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+      routeStale: false, groundingProof: replacement.groundingProof, createOperationKey: "replacement-operation",
+    });
+    expect(submitButton().textContent).toBe("Locking it in…");
+
+    await act(async () => creation.finish(Response.json(createdPlan(generated.stops))));
+    await settle();
+    const [, init] = creations()[0]!;
+    expect(new Headers(init?.headers).get("idempotency-key")).toBe("proof-operation");
+    const sent = JSON.parse(String(init?.body));
+    expect(sent.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(["venue-a", "venue-b", "venue-c"]);
+    expect(sent.groundingProof).toBe(generated.groundingProof);
+    expect(document.querySelector("#plan-composer-error")).toBeNull();
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+  });
+
+  it("today: a 422 Lock keeps the proof and key, leaves the route fresh, and the next Lock resends the same key (N6, PL-1)", async () => {
+    const generated = await generateLockableRoute();
+    const storedRoute = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    fetchMock.mockImplementation(async (input) => (String(input) === "/api/plans"
+      ? Response.json({ error: { code: "PLAN_ANCHOR_REQUIRED", message: "Include the accepted pub for this route." } }, { status: 422 })
+      : Response.json([])));
+    fetchMock.mockClear();
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(document.querySelector("#plan-composer-error")?.textContent)
+      .toBe("Include the accepted pub for this route."));
+    expect(creations()).toHaveLength(1);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(storedRoute);
+    expect(JSON.parse(storedRoute!)).toMatchObject({
+      routeStale: false, groundingProof: generated.groundingProof, createOperationKey: "proof-operation",
+    });
+    expect(document.querySelector("#plan-route-stale-title")).toBeNull();
+    expect(document.querySelector("#plan-lock-hint")?.textContent ?? "").not.toContain("Refresh the route");
+    expect(submitButton().textContent).toBe("Lock it in");
+    expect(submitButton().disabled).toBe(false);
+    expect(submitButton().getAttribute("aria-disabled")).toBeNull();
+
+    await act(async () => submitButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(2));
+    const [first, second] = creations().map(([, init]) => init);
+    expect(new Headers(first?.headers).get("idempotency-key")).toBe("proof-operation");
+    expect(new Headers(second?.headers).get("idempotency-key")).toBe("proof-operation");
+    expect(second?.body).toBe(first?.body);
+    await settle();
+    expect(document.querySelector("#plan-composer-error")?.textContent).toBe("Include the accepted pub for this route.");
+  });
+
+  it("today: an accepted-pub 422 Lock shows the refresh copy but keeps the route lockable with the same key (N6, PL-1)", async () => {
+    const { generated } = await generateAcceptedRouteForLock();
+    const storedRoute = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    const heldRecords = acceptanceRecords();
+    fetchMock.mockImplementation(async (input) => (String(input) === "/api/plans"
+      ? Response.json({ error: { code: "PLAN_GROUNDING_EXPIRED", message: "Server words are not shown." } }, { status: 422 })
+      : Response.json([])));
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(document.querySelector("#plan-composer-error")?.textContent)
+      .toBe("Your route needs a refresh before you can lock it in. Rebuild the route and try again."));
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(storedRoute);
+    expect(acceptanceRecords()).toEqual(heldRecords);
+    expect(document.querySelector("#plan-route-stale-title")).toBeNull();
+    expect(submitButton().textContent).toBe("Lock it in");
+    expect(submitButton().getAttribute("aria-disabled")).toBeNull();
+
+    await act(async () => submitButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(2));
+    const keys = creations().map(([, init]) => new Headers(init?.headers).get("idempotency-key"));
+    expect(keys[0]).toBe(generated.operationKey);
+    expect(keys[1]).toBe(keys[0]);
+  });
 });
