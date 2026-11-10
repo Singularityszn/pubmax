@@ -123,6 +123,8 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 - Brand and brand-by-area rows also show the recorded branch address, or the
   recorded locality when the address is blank. The ledger link's accessible name
   includes that text. Without either value, the row keeps its pub name and borough.
+  Above 640 CSS pixels, the location cell shows at most two lines.
+  Its tooltip retains the full location.
 - Every action is at least 44 by 44 CSS pixels and shows visible focus.
 - No horizontal page scroll. Light and dark use existing tokens.
 - Bottom padding carries `env(safe-area-inset-bottom)`, so phone navigation
