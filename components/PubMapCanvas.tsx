@@ -177,6 +177,7 @@ import {
   measureBottomSheetTop,
   useMapCamera,
   useNearbyCameraFraming,
+  useRouteCameraFraming,
   whenBottomSheetSettles,
 } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
@@ -285,6 +286,7 @@ type PubMapCanvasProps = {
    */
   nationalBrowse?: boolean;
   route: Venue[];
+  routeRequestToken?: number;
   /**
    * Pals walk together: the crew Pals of the plan whose route this is
    * (lib/crewPals.ts). Empty unless `route` is the active plan's own route.
@@ -777,6 +779,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     filteredVenueCount,
     venueDataReady,
     route,
+    routeRequestToken,
     crewPals,
     palNextStop,
     selectedVenueId,
@@ -4714,20 +4717,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     syncReaderPositionOnMap(map, readerPositionGeoJSON);
   }, [mapReady, readerPositionGeoJSON]);
 
-  // Frame the crawl only when the route identity changes *materially* — the
-  // ordered list of stop ids. Filters that churn the route array or a mere
-  // selection change produce the same key, so the camera stays put while a user
-  // tunes filters and pans. A curated-crawl load, near-me, or add/remove/reverse
-  // all change the key and refit.
-  // routeKey is the material identity; fitRoute is stable and reads the live
-  // route via ref, so the effect only refits when the ordered stop ids change.
-  const routeKey = route.map((venue) => venue.id).join(">");
-  useEffect(() => {
-    if (!mapReady) return;
-    // An active selection owns the camera — don't let route framing yank out.
-    if (selectedVenueId) return;
-    fitRoute();
-  }, [routeKey, mapReady, fitRoute, selectedVenueId]);
+  useRouteCameraFraming({
+    mapReady, routeKey: route.map((venue) => venue.id).join(">"),
+    selectedVenueId, requestToken: routeRequestToken, fitRoute,
+  });
 
   useEffect(() => {
     const map = mapRef.current;

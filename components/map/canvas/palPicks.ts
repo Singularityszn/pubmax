@@ -2,6 +2,7 @@ import * as maplibregl from "maplibre-gl";
 
 import { palRecommendationPinOffsets } from "@/lib/palRecommendationMap";
 import { readPalMapState, subscribePalMapState, type PalMapPick } from "@/lib/palMapCommands";
+import { PAL_PICKS_SCRIM_LAYER, raisePalPicksScrim } from "./palPicksScrim";
 import { readTokens } from "./tokens";
 import "./palPicks.css";
 
@@ -11,7 +12,6 @@ import "./palPicks.css";
 // streets back, and the markers sit above the canvas. A tap opens the pick's
 // venue sheet the way a pin tap does.
 
-const SCRIM_LAYER = "pal-picks-scrim";
 const SCRIM_OPACITY = 0.55;
 const PROBE_KEY = "__pubmaxPalPicks";
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -43,15 +43,16 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     const wanted = pins.length > 0;
     map.getContainer().classList.toggle("palPicksActive", wanted);
     if (!map.getStyle()) return;
-    if (wanted && !map.getLayer(SCRIM_LAYER)) {
+    if (wanted && !map.getLayer(PAL_PICKS_SCRIM_LAYER)) {
       map.addLayer({
-        id: SCRIM_LAYER,
+        id: PAL_PICKS_SCRIM_LAYER,
         type: "background",
         paint: { "background-color": scrimColour(), "background-opacity": SCRIM_OPACITY },
       });
-    } else if (!wanted && map.getLayer(SCRIM_LAYER)) {
-      map.removeLayer(SCRIM_LAYER);
+    } else if (!wanted && map.getLayer(PAL_PICKS_SCRIM_LAYER)) {
+      map.removeLayer(PAL_PICKS_SCRIM_LAYER);
     }
+    if (wanted) raisePalPicksScrim(map);
   };
 
   const position = () => {
@@ -124,7 +125,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
   const probeWindow = window as ProbeWindow;
   probeWindow[PROBE_KEY] = () => ({
     sequence: painted,
-    scrim: Boolean(map.getStyle() && map.getLayer(SCRIM_LAYER)),
+    scrim: Boolean(map.getStyle() && map.getLayer(PAL_PICKS_SCRIM_LAYER)),
     picks: painted === rendered ? pins.map(({ pick, button }) => {
       const rect = button.getBoundingClientRect();
       return { number: pick.number, venueId: pick.venueId, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -140,7 +141,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     pins.forEach((pin) => pin.marker.remove());
     pins = [];
     map.getContainer().classList.remove("palPicksActive");
-    if (map.getStyle() && map.getLayer(SCRIM_LAYER)) map.removeLayer(SCRIM_LAYER);
+    if (map.getStyle() && map.getLayer(PAL_PICKS_SCRIM_LAYER)) map.removeLayer(PAL_PICKS_SCRIM_LAYER);
     delete probeWindow[PROBE_KEY];
   };
 }

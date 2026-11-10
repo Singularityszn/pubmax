@@ -63,6 +63,7 @@ import {
   PIN_PRICE_LABEL_MIN_ZOOM,
   SELECTED_PIN_PRICE_LABEL_EXPR,
 } from "./filters";
+import { raisePalPicksScrim } from "./palPicksScrim";
 import { buildLegRoute } from "./legRouteScene";
 
 // The two zooms that shape pub density. They are deliberately NOT the same
@@ -2145,4 +2146,5 @@ export function applySelectionState(ctx: SceneCtx, freshStyle = false) {
   if (freshStyle) selectionMuteStore.clear();
   applyMapFocusMute(map, selectedId ? "selection"
     : (ctx.routeStops?.features.length ?? 0) >= 2 ? "route" : "browse", selectionMuteStore);
+  raisePalPicksScrim(map);
 }

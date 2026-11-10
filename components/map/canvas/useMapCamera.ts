@@ -28,6 +28,25 @@ function desktopStatusSize(style: CSSStyleDeclaration | null) {
   };
 }
 
+export function useRouteCameraFraming({
+  mapReady, routeKey, selectedVenueId, requestToken = 0, fitRoute,
+}: {
+  mapReady: boolean;
+  routeKey: string;
+  selectedVenueId: string;
+  requestToken?: number;
+  fitRoute: ReturnType<typeof useMapCamera>["fitRoute"];
+}) {
+  const consumedRequest = useRef(requestToken);
+  useEffect(() => {
+    if (!mapReady) return;
+    const userOwned = consumedRequest.current !== requestToken;
+    consumedRequest.current = requestToken;
+    if (selectedVenueId && !userOwned) return;
+    fitRoute(userOwned ? "route-recovery" : "route");
+  }, [routeKey, mapReady, fitRoute, selectedVenueId, requestToken]);
+}
+
 export function useNearbyCameraFraming({
   mapReady, userLocation, routeLength, nearbyMapVenues, fitNearby, framingOwedRef, requestToken,
 }: {
@@ -376,6 +395,7 @@ export function useMapCamera(refs: CameraRefs) {
 
   const routeRecoverySequence = useRef(0);
   const fitRoute = useCallback((kind: "route" | "route-recovery" = "route") => {
+    if (kind === "route-recovery") palFrameRef.current = null;
     const current = routeRef.current;
     if (current.length < 2) return;
     const routeBounds = () => {

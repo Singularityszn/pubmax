@@ -5,7 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import type { Map, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useMapCamera, useNearbyCameraFraming } from "@/components/map/canvas/useMapCamera";
+import { useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
+import { useMapPlanCoordinator } from "@/components/map/pubmap/useMapPlanCoordinator";
 import type { Venue } from "@/lib/venues";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -49,8 +50,15 @@ afterEach(() => {
 
 function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gesture = { active: false, endedAt: null as number | null },
   routeLineRef: { current: GeoJSON.FeatureCollection } = { current: { type: "FeatureCollection", features: [] } },
-  nearbyRequest = { current: 0 }, nearby = false) {
+  nearbyRequest = { current: 0 }, nearby = false,
+  planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null }) {
   function Camera() {
+    const plan = useMapPlanCoordinator({
+      mode: "build", builtIds: route.map((venue) => venue.id), routeMapped: true,
+      planningOpen: false, nightArea: null,
+    });
+    if (planRef) planRef.current = plan;
+    const currentRoute = planRef ? plan.builtIds.flatMap((id) => route.filter((venue) => venue.id === id)) : route;
     camera = useMapCamera({
       mapRef: { current: {
         stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
@@ -60,12 +68,16 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       reducedRef: { current: true },
       cityViewRef: { current: { center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
       cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
-      routeRef: { current: route },
+      routeRef: { current: currentRoute },
       routeLineRef,
       venuesRef: { current: surrounding },
       queryVenuesRef,
       gestureCameraRef: { current: gesture },
       nearbyRequestToken: nearbyRequest.current,
+    });
+    useRouteCameraFraming({
+      mapReady: Boolean(planRef), routeKey: currentRoute.map((venue) => venue.id).join(">"),
+      selectedVenueId: "", requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
     });
     useNearbyCameraFraming({
       mapReady: true, userLocation: nearby ? { lat: 51.51, lng: -0.13 } : null,
@@ -141,6 +153,61 @@ describe("query camera with contextual price pins", () => {
       expect(fitBounds.mock.calls.length + easeTo.mock.calls.length).toBe(2);
     },
   );
+
+  it.each(["Map route", "stop change", "reverse", "crawl", "generated plan"])(
+    "lets mounted %s actions end Pal ownership", (action) => {
+      const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+      mount({ current: soho }, surrounding, { active: false, endedAt: null }, undefined, undefined, false, planRef);
+      flush();
+      fitBounds.mockClear();
+      camera.fitPalPicks(1, picks);
+      flush();
+      expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+        .toEqual([[-0.22, 51.56], [-0.21, 51.57]]);
+      act(() => {
+        const plan = planRef.current!;
+        if (action === "generated plan") plan.activateGeneratedPlan(null, soho.map((venue) => venue.id));
+        else {
+          if (action === "reverse") plan.setBuiltIds((ids) => [...ids].reverse());
+          if (action === "crawl" || action === "stop change") plan.setBuiltIds(soho.map((venue) => venue.id));
+          plan.mapRoute();
+        }
+      });
+      flush();
+      const expectedBounds = action === "Map route" || action === "reverse"
+        ? [[-2.244, 51.514], [-0.129, 53.483]]
+        : [[-0.139, 51.514], [-0.129, 51.516]];
+      expect(fitBounds).toHaveBeenCalledTimes(2);
+      expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+        .toEqual(expectedBounds);
+      camera.fitQueryVenues();
+      flush();
+      expect(fitBounds).toHaveBeenCalledTimes(3);
+      expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    },
+  );
+
+  it("blocks mounted restoration updates while Pal owns the camera", () => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    mount({ current: soho }, surrounding, { active: false, endedAt: null }, undefined, undefined, false, planRef);
+    flush();
+    fitBounds.mockClear();
+    camera.fitPalPicks(1, picks);
+    act(() => {
+      planRef.current!.setBuiltIds(soho.map((venue) => venue.id));
+      planRef.current!.setRouteMapped(true);
+    });
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.22, 51.56], [-0.21, 51.57]]);
+    act(() => planRef.current!.mapRoute());
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect((fitBounds.mock.calls[1]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+  });
 
   it("cancels a queued Pal move when picks clear before its frame", () => {
     mount({ current: soho });
