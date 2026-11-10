@@ -2,6 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { oneTapPriceDropId } from "@/lib/oneTapPriceDropId";
+import { cleanNightMomentDraft } from "@/lib/nightMemory";
 import { asServiceRole, postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 
 const skipReason = postgresSkipReason();
@@ -82,6 +83,46 @@ beforeEach(() => {
 });
 
 describe.skipIf(skipReason !== null)("0234 atomic one-tap pairing", () => {
+  it.each([
+    [500, "fed69bbf-f311-5c2a-ab6b-64f9c9bcf4d1"],
+    [520, "89498f4c-8d1e-5bc8-8063-4267a1040b47"],
+    [525, "9a3d25f0-9e5e-5da4-b95a-ebeaab9accd3"],
+  ])("preserves main's UUID derivation for a %i-penny request", (pennies, expectedId) => {
+    const priceId = "00000000-0000-4000-8000-000000000234";
+    db().sql(`insert into public.community_prices
+      (id, venue_id, drink_category, price_pennies, actor, submitted_at)
+      values ('${priceId}', '${venue}', 'beer', 400, '${actor}', '${at}'::timestamptz - interval '1 hour')`);
+    const result = JSON.parse(db().sql(asServiceRole(call(at, pennies))));
+    expect(result).toMatchObject({ status: "saved", created: true, drop: { id: expectedId } });
+    expect(oneTapPriceDropId(priceId, Date.parse(at), pennies / 100)).toBe(expectedId);
+    expect(result.drop.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(cleanNightMomentDraft({ kind: "pint_drop", pintDropId: result.drop.id })).toMatchObject({
+      kind: "pint_drop", pintDropId: expectedId,
+    });
+  });
+
+  it("replays a drop written with main's ID without changing the current observation", () => {
+    const priceId = "00000000-0000-4000-8000-000000000234";
+    const original = {
+      ...requestDrop, id: "fed69bbf-f311-5c2a-ab6b-64f9c9bcf4d1", price_evidence: "receipt", verified_report_count: 0,
+    };
+    db().sql(`insert into public.community_prices
+      (id, venue_id, drink_category, price_pennies, actor, submitted_at)
+      values ('${priceId}', '${venue}', 'beer', 600, '${actor}', '${at}');
+      insert into public.pint_drops select (pg_catalog.jsonb_populate_record(
+        null::public.pint_drops, '${JSON.stringify(original)}'::jsonb)).*`);
+    const before = db().sql("select row_to_json(p)::text from public.community_prices p");
+    const dropBefore = JSON.parse(db().sql("select row_to_json(d) from public.pint_drops d"));
+    const replay = JSON.parse(db().sql(asServiceRole(call())));
+    expect(replay).toMatchObject({
+      status: "saved", created: false,
+      price: { id: priceId, priceGbp: 5, submittedAt: Date.parse(at) },
+    });
+    expect(replay.drop).toEqual(dropBefore);
+    expect(db().sql("select row_to_json(p)::text from public.community_prices p")).toBe(before);
+    expect(counts()).toBe("1|1");
+  });
+
   it("rolls back the price when the drop insert fails", () => {
     db().sql(`create function public.refuse_pair_drop() returns trigger language plpgsql as $$
       begin raise exception 'forced drop failure'; end $$;

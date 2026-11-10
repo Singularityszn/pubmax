@@ -23,6 +23,7 @@ declare
   v_price record;
   v_drop public.pint_drops%rowtype;
   v_drop_id uuid;
+  v_drop_hash bytea;
   v_created boolean := true;
 begin
   if p_actor is null or p_actor = '' or p_drink_category is distinct from 'beer'
@@ -46,8 +47,12 @@ begin
     return pg_catalog.jsonb_build_object('status', 'superseded');
   end if;
 
-  v_drop_id := pg_catalog.md5(v_price.id::text || ':' ||
-    (extract(epoch from p_submitted_at) * 1000)::bigint::text || ':' || p_price_pennies::text)::uuid;
+  v_drop_hash := extensions.digest(pg_catalog.decode(pg_catalog.replace(v_price.id::text, '-', ''), 'hex') ||
+    pg_catalog.convert_to((extract(epoch from p_submitted_at) * 1000)::bigint::text || ':' ||
+      pg_catalog.trim_scale(p_price_pennies::numeric / 100)::text, 'UTF8'), 'sha1');
+  v_drop_hash := pg_catalog.set_byte(v_drop_hash, 6, (pg_catalog.get_byte(v_drop_hash, 6) & 15) | 80);
+  v_drop_hash := pg_catalog.set_byte(v_drop_hash, 8, (pg_catalog.get_byte(v_drop_hash, 8) & 63) | 128);
+  v_drop_id := pg_catalog.encode(pg_catalog.substring(v_drop_hash, 1, 16), 'hex')::uuid;
   select * into v_drop from public.pint_drops where id = v_drop_id;
   if found then
     if v_drop.venue_id is distinct from p_venue_id
@@ -61,8 +66,12 @@ begin
   end if;
 
   if v_created and v_price.id is not null and v_price.price_pennies = p_price_pennies then
-    v_drop_id := pg_catalog.md5(v_price.id::text || ':' ||
-      (extract(epoch from v_price.submitted_at) * 1000)::bigint::text || ':' || v_price.price_pennies::text)::uuid;
+    v_drop_hash := extensions.digest(pg_catalog.decode(pg_catalog.replace(v_price.id::text, '-', ''), 'hex') ||
+      pg_catalog.convert_to((extract(epoch from v_price.submitted_at) * 1000)::bigint::text || ':' ||
+        pg_catalog.trim_scale(p_price_pennies::numeric / 100)::text, 'UTF8'), 'sha1');
+    v_drop_hash := pg_catalog.set_byte(v_drop_hash, 6, (pg_catalog.get_byte(v_drop_hash, 6) & 15) | 80);
+    v_drop_hash := pg_catalog.set_byte(v_drop_hash, 8, (pg_catalog.get_byte(v_drop_hash, 8) & 63) | 128);
+    v_drop_id := pg_catalog.encode(pg_catalog.substring(v_drop_hash, 1, 16), 'hex')::uuid;
     select * into v_drop from public.pint_drops
     where id = v_drop_id and venue_id = p_venue_id
       and handle = p_drop->>'handle'
@@ -87,8 +96,12 @@ begin
     end if;
 
     v_drop := pg_catalog.jsonb_populate_record(null::public.pint_drops, p_drop);
-    v_drop.id := pg_catalog.md5(v_price.id::text || ':' ||
-      (extract(epoch from p_submitted_at) * 1000)::bigint::text || ':' || p_price_pennies::text)::uuid;
+    v_drop_hash := extensions.digest(pg_catalog.decode(pg_catalog.replace(v_price.id::text, '-', ''), 'hex') ||
+      pg_catalog.convert_to((extract(epoch from p_submitted_at) * 1000)::bigint::text || ':' ||
+        pg_catalog.trim_scale(p_price_pennies::numeric / 100)::text, 'UTF8'), 'sha1');
+    v_drop_hash := pg_catalog.set_byte(v_drop_hash, 6, (pg_catalog.get_byte(v_drop_hash, 6) & 15) | 80);
+    v_drop_hash := pg_catalog.set_byte(v_drop_hash, 8, (pg_catalog.get_byte(v_drop_hash, 8) & 63) | 128);
+    v_drop.id := pg_catalog.encode(pg_catalog.substring(v_drop_hash, 1, 16), 'hex')::uuid;
     v_drop.price_gbp := p_price_pennies::numeric / 100;
     insert into public.pint_drops (
       id,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { submitCategoryLabel } from "@/lib/communityPrice";
+import { cleanNightMomentDraft } from "@/lib/nightMemory";
 import {
   __resetCommunityPrices,
   memoryCommunityPriceStore,
@@ -134,6 +135,9 @@ describe("writeOneTapPintDrop", () => {
     const first = await writeOneTapPintDrop(input, undefined, pairing);
     expect(first).toMatchObject({ ok: true, created: true });
     if (!first.ok) throw new Error("The first pair was not saved.");
+    expect(cleanNightMomentDraft({ kind: "pint_drop", pintDropId: first.drop.id })).toMatchObject({
+      kind: "pint_drop", pintDropId: first.drop.id,
+    });
     expect(dropMemory.grantPintDropReceipt(first.drop.id)).toBe(true);
     const original = structuredClone(listVisiblePintDrops(input.venueId));
     expect(await writeOneTapPintDrop({ ...input, priceGbp: 6 }, undefined, pairing)).toMatchObject({ ok: true, created: true });
