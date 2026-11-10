@@ -38,6 +38,7 @@ import MessageVenuePicker, {
   type PickedVenue,
 } from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
@@ -71,6 +72,11 @@ import {
   MESSAGE_UNSENT_LINE,
 } from "@/lib/messageRemovals";
 import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
+import {
+  messageSendPayload,
+  retainedMessageSendKey,
+  type MessageSendAttempt,
+} from "@/lib/messageSendAttempt";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
   linkifyMentions,
@@ -423,6 +429,7 @@ export default function MessageThread({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   /** Claimed before the first await in `send`; see the note there. */
   const sendInFlightRef = useRef(false);
+  const unsentKeyRef = useRef<MessageSendAttempt | null>(null);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
@@ -726,13 +733,17 @@ export default function MessageThread({
     const bodyText = draft.trim();
     if (!user || !h || over) return;
     if (!bodyText && !pending) return;
+    const signal = readProviderAccountSignal();
     sendInFlightRef.current = true;
     const sentPending = pending;
     const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
-    // ONE ID FOR THIS ATTEMPT, minted here and sent on every retry of it, so a
-    // connection reset after the row committed cannot store the line twice
-    // (migration 0149's unique index is the other half).
-    const clientMessageId = newClientMessageId();
+    const { post, payload } = messageSendPayload({
+      conversationId,
+      senderId: user.id,
+      handle: h,
+      body: bodyText,
+      attachment: sentPending,
+    });
     setSending(true);
     setError("");
     // The bubble lands and the field clears NOW; the server's answer replaces
@@ -757,34 +768,27 @@ export default function MessageThread({
       if (sentPending) setPending((current) => current ?? sentPending);
     };
     try {
+      const photo = sentPending?.kind === "photo" ? new Uint8Array(await sentPending.file.arrayBuffer()) : null;
+      const clientMessageId =
+        retainedMessageSendKey(unsentKeyRef.current, payload, photo) ?? newClientMessageId();
+      unsentKeyRef.current = { key: clientMessageId, payload, photo };
       const address = `/api/messages/${encodeURIComponent(conversationId)}`;
-      // AT MOST ONE attachment names itself on the wire, and the server refuses
-      // a body that names two, so this spread is the browser half of one rule
-      // rather than a second copy of it.
-      const post = {
-        action: "send",
-        handle: h,
-        body: bodyText,
-        clientMessageId,
-        ...(sentPending?.kind === "venue" ? { venueId: sentPending.venue.id } : {}),
-        ...(sentPending?.kind === "contact" ? { contactHandle: sentPending.handle } : {}),
-        ...(sentPending?.kind === "event" ? { planId: sentPending.planId } : {}),
-        ...(sentPending?.kind === "poll" ? { poll: sentPending.poll } : {}),
-      };
+      const keyedPost = { ...post, clientMessageId };
 
       let res: Response;
       if (sentPending?.kind === "photo") {
         // The photo lane is multipart: one JSON part and one file, exactly the
         // shape the pub wall already sends.
         const form = new FormData();
-        form.append("post", JSON.stringify(post));
+        form.append("post", JSON.stringify(keyedPost));
         form.append("photo", sentPending.file);
-        res = await authedActionFetch(address, { method: "POST", body: form }, { requiresIdentity: true });
+        res = await authedActionFetch(address, { method: "POST", body: form, signal }, { requiresIdentity: true });
       } else {
         res = await authedActionFetch(address, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(post),
+          body: JSON.stringify(keyedPost),
+          signal,
         }, { requiresIdentity: true });
       }
 
@@ -827,6 +831,7 @@ export default function MessageThread({
         await refresh();
       }
       setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
+      if (unsentKeyRef.current?.key === clientMessageId) unsentKeyRef.current = null;
     } catch {
       takeBack();
       setError(

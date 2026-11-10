@@ -2175,7 +2175,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 .planCard {
   width: 100%;
   max-width: 1160px;
-  margin: 0 auto var(--space-8);
+  margin: var(--space-4) auto var(--space-8);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   border: 1px solid var(--hairline);
@@ -2187,6 +2187,9 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 .planCard__cover {
   --plan-cover-tint: var(--amber);
   position: relative;
+  /* A definite width keeps the capped height from shrinking the cover to 16:9
+     of 240px on a wide card. */
+  width: 100%;
   margin: 0;
   aspect-ratio: 16 / 9;
   max-height: 240px;

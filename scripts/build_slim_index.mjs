@@ -38,6 +38,7 @@ import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "../lib/legacyPriceEvidence.mjs";
 import { isComparablePintServing } from "../lib/comparablePint.mjs";
+import { applySlimListingPrices } from "../lib/slimListingPrices.mjs";
 import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
@@ -800,6 +801,18 @@ async function readScrapedIds() {
   return scrapedIds;
 }
 
+async function readBundleRows() {
+  try {
+    const bundle = JSON.parse(
+      await readFile(path.join(DATA_DIR, "uk_prices", "rows.json"), "utf8"),
+    );
+    if (Array.isArray(bundle)) return bundle;
+    return Array.isArray(bundle?.rows) ? bundle.rows : null;
+  } catch {
+    return null;
+  }
+}
+
 // The soft-drink subtypes a venue's own menu prices, from the UK price bundle's
 // listed site-harvest rows: the same rows /soft-drinks-and-water lists. Without
 // them the map's soft-drink lens finds none of the pubs that page names, because
@@ -822,14 +835,6 @@ export function bundleSlimHints(bundle) {
     softDrinkSubtypes.set(row.venueId, held);
   }
   return { softDrinkSubtypes, recordedPintVenueIds };
-}
-
-async function readBundleSlimHints() {
-  try {
-    return bundleSlimHints(JSON.parse(await readFile(path.join(DATA_DIR, "uk_prices", "rows.json"), "utf8")));
-  } catch {
-    return bundleSlimHints(null);
-  }
 }
 
 function slimBundlePriceCoverage(slim, recordedPintVenueIds) {
@@ -903,7 +908,8 @@ async function main() {
   }
 
   const scrapedIds = await readScrapedIds();
-  const { softDrinkSubtypes: bundleSoftDrinkSubtypes, recordedPintVenueIds } = await readBundleSlimHints();
+  const bundleRows = await readBundleRows();
+  const { softDrinkSubtypes, recordedPintVenueIds } = bundleSlimHints(bundleRows);
 
   const { grouped, droppedOob } = groupLondonRows(rows);
   if (droppedOob > 0) {
@@ -1012,7 +1018,7 @@ async function main() {
         groupRows,
         id,
         scrapedIds,
-        bundleSoftDrinkSubtypes.get(id),
+        softDrinkSubtypes.get(id),
       ),
     });
 
@@ -1046,6 +1052,7 @@ async function main() {
       1,
     );
   }
+  applySlimListingPrices(slim, bundleRows ?? []);
   const featureHints = buildVenueFeatureHints(
     slim,
     JSON.parse(await readFile(path.join(ROOT, UK_OSM_PUBS_FILE), "utf8")).pubs,
