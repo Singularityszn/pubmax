@@ -391,8 +391,8 @@ can be retried. Repeated taps while voice starts use the same attempt.
 Client navigation between `/pal` and `/map`, including `/map/` subroutes, keeps
 the same call and socket open. `PalVoiceHost` holds the session in the root
 shell. On the map, `PalVoiceBar` shows the call status and newest transcript line.
-**End** stops a live call. **Cancel** stops a pending startup attempt, subject
-to the SDK limit below. Returning to `/pal` restores the full transcript panel
+**End** stops a live call. **Cancel** stops a pending startup attempt,
+and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
 without starting another call. A cold `/map` loads no ElevenLabs SDK.
 
 A connected call ends when you navigate outside these routes, reload or close
@@ -411,9 +411,20 @@ cancels the startup attempt while microphone permission is pending. If permissio
 then arrives, the app stops the returned stream without requesting a voice grant.
 
 The pinned ElevenLabs SDK cannot cancel startup once its connection is in
-progress. Its microphone and audio output can remain active until startup
-finishes. The app then closes the late session.
-This limit also applies if you lock the screen during SDK startup.
+progress. The app keeps a microphone guard installed for the life of the page.
+Each SDK microphone request uses the startup token that is current when the
+request begins. Cancelling that token stops its held streams at once.
+The guard refuses requests with a cancelled token. It also stops streams that
+resolve after cancellation or while the page is hidden. SDK status changes do
+not remove this guard. The app's own permission probe bypasses the guard.
+
+If you start again, the app waits until the previous SDK startup reports
+connected or disconnected. The startup timeout also limits this wait.
+If an attempt claims its token but stops before the SDK starts, the app marks
+that startup as finished. Later attempts do not wait for an SDK status change
+from that attempt.
+A new SDK startup becomes the current token. The SDK can still finish an old
+connection. The app then closes the late session.
 
 `components/pubpal/usePageLeft.ts` detects document hiding, `pagehide`, and native
 `pause`. It ignores native foreground inactivity, which can include permission

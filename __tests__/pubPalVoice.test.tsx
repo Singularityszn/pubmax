@@ -115,6 +115,8 @@ import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
+  PAL_VOICE_START_TIMEOUT_ERROR,
+  PAL_VOICE_START_TIMEOUT_MS,
 } from "@/lib/pubPalVoiceSession";
 import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
@@ -757,12 +759,14 @@ describe("Pub Pal voice controls", () => {
       await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
       await settle();
       const session = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
         onConnect?: () => void;
         onDisconnect?: () => void;
         onMessage?: (message: { role: string; message: string }) => void;
       };
       voice.endSession.mockImplementation(() => session.onDisconnect?.());
       await act(async () => {
+        session.onStatusChange?.({ status: "connected" });
         session.onConnect?.();
         session.onMessage?.({ role: "agent", message: "Evening. Where are we drinking?" });
       });
@@ -847,6 +851,229 @@ describe("Pub Pal voice controls", () => {
       expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
     });
 
+    it("stops the SDK microphone at once when the page hides during SDK startup", async () => {
+      type Stream = { getTracks: () => { stop: () => void }[] };
+      const sdkStop = vi.fn();
+      const lateStop = vi.fn();
+      const late = deferred<Stream>();
+      const retryPermission = deferred<Stream>();
+      const retryProbeStop = vi.fn();
+      const retrySdkStop = vi.fn();
+      const retryGrant = deferred<Response>();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: sdkStop }] })
+        .mockReturnValueOnce(late.promise)
+        .mockReturnValueOnce(retryPermission.promise)
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: retrySdkStop }] });
+      requests.authedActionFetch
+        .mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceStartup1" }))
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      // The SDK opens the microphone itself and cannot be cancelled until its
+      // socket finishes, so endSession only marks the pending start.
+      let sdkInput: Promise<Stream> | undefined;
+      voice.startSession.mockImplementation((options: { onStatusChange?: (event: { status: string }) => void }) => {
+        voice.status = "connecting";
+        options.onStatusChange?.({ status: "connecting" });
+        void navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput.catch(() => undefined);
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      await settle();
+      expect(getUserMedia).toHaveBeenCalledTimes(3);
+
+      hidePage("visibilitychange");
+      expect(sdkStop).toHaveBeenCalledOnce();
+
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(3);
+
+      const session = defined(voice.startSession.mock.calls[0])[0] as { onStatusChange?: (event: { status: string }) => void };
+      voice.status = "disconnected";
+      visibility = "visible";
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        root?.render(createElement(PubPalVoice));
+      });
+      requests.authedActionFetch.mockReturnValueOnce(retryGrant.promise);
+      let retrySdkInput: Promise<Stream> | undefined;
+      voice.startSession.mockImplementation(() => {
+        retrySdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+      });
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+
+      await act(async () => { retryPermission.resolve({ getTracks: () => [{ stop: retryProbeStop }] }); });
+      expect(retryProbeStop).toHaveBeenCalledOnce();
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+
+      await act(async () => {
+        retryGrant.resolve(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_voiceStartup2" }));
+      });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+      await act(async () => { session.onStatusChange?.({ status: "disconnected" }); });
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      await expect(defined(retrySdkInput)).resolves.toBeDefined();
+      await act(async () => { late.resolve({ getTracks: () => [{ stop: lateStop }] }); });
+      expect(lateStop).toHaveBeenCalledOnce();
+      await expect(defined(sdkInput)).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(5);
+      hidePage("visibilitychange");
+      expect(retrySdkStop).toHaveBeenCalledOnce();
+      const retrySession = defined(voice.startSession.mock.calls[1])[0] as { onStatusChange?: (event: { status: string }) => void };
+      act(() => { retrySession.onStatusChange?.({ status: "disconnected" }); });
+      expect(getUserMedia).toHaveBeenCalledTimes(5);
+    });
+
+    it("refuses late SDK input after a cancelled startup reports disconnected", async () => {
+      const sdkStop = vi.fn();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockResolvedValue({ getTracks: () => [{ stop: sdkStop }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/session", conversationId: "conv_lateInput",
+      }));
+      voice.startSession.mockImplementation(() => {
+        void navigator.mediaDevices.getUserMedia({ audio: true });
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      const session = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      expect(sdkStop).toHaveBeenCalledOnce();
+      await act(async () => { session.onStatusChange?.({ status: "disconnected" }); });
+
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      visibility = "visible";
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops an SDK stream that resolves while hidden before the visibility event", async () => {
+      const input = deferred<MediaStream>();
+      const stopTrack = vi.fn();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockReturnValueOnce(input.promise);
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session" }));
+      let sdkInput: Promise<MediaStream> | undefined;
+      voice.startSession.mockImplementation(() => {
+        sdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput.catch(() => undefined);
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      visibility = "hidden";
+      await act(async () => { input.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream); });
+
+      await expect(defined(sdkInput)).rejects.toMatchObject({ name: "AbortError" });
+      expect(stopTrack).toHaveBeenCalledOnce();
+    });
+
+    it.each(["cancel", "timeout", "unmount"] as const)("never starts a waiting retry after %s", async (ending) => {
+      vi.useFakeTimers();
+      getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/first", conversationId: "conv_waitFirst",
+      }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      const first = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      await settle();
+      visibility = "visible";
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/retry", conversationId: "conv_waitRetry",
+      }));
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        container.querySelector<HTMLButtonElement>("button")?.click();
+      });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(voice.startSession).toHaveBeenCalledOnce();
+
+      if (ending === "unmount") unmount();
+      else if (ending === "cancel") {
+        await act(async () => { container.querySelector<HTMLButtonElement>('button[aria-label="Cancel voice startup"]')?.click(); });
+      } else {
+        await act(async () => { await vi.advanceTimersByTimeAsync(PAL_VOICE_START_TIMEOUT_MS); });
+        expect(container.textContent).toContain(PAL_VOICE_START_TIMEOUT_ERROR);
+      }
+      await settle();
+      await act(async () => { first.onStatusChange?.({ status: "disconnected" }); });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.flatMap(([, init]) => {
+        const body = JSON.parse(String((init as RequestInit | undefined)?.body ?? "{}"));
+        return body.action === "release" ? [body.conversationId] : [];
+      });
+      expect(releases).toEqual(["conv_waitFirst", "conv_waitRetry"]);
+    });
+
+    it("allows a new start after unmount between claiming a retry token and starting the SDK", async () => {
+      vi.useFakeTimers();
+      getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/first", conversationId: "conv_claimFirst",
+      }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      const first = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      await settle();
+      visibility = "visible";
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/retry", conversationId: "conv_claimRetry",
+      }));
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        container.querySelector<HTMLButtonElement>("button")?.click();
+      });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(voice.startSession).toHaveBeenCalledOnce();
+
+      await act(async () => {
+        first.onStatusChange?.({ status: "disconnected" });
+        queueMicrotask(() => {
+          root?.unmount();
+          root = null;
+        });
+      });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.flatMap(([, init]) => {
+        const body = JSON.parse(String((init as RequestInit | undefined)?.body ?? "{}"));
+        return body.action === "release" ? [body.conversationId] : [];
+      });
+      expect(releases).toEqual(["conv_claimFirst", "conv_claimRetry"]);
+
+      root = createRoot(container);
+      await mountAvailable();
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/next", conversationId: "conv_claimNext",
+      }));
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      expect(defined(voice.startSession.mock.calls[1])[0]).toMatchObject({
+        signedUrl: "wss://voice.example/next",
+      });
+    });
+
     it("keeps the transcript and offers Carry on when the page returns", async () => {
       await goLive();
       hidePage("visibilitychange");
@@ -918,11 +1145,13 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     const sessionA = defined(voice.startSession.mock.calls[0])[0] as {
+      onStatusChange?: (event: { status: string }) => void;
       onConnect?: () => void;
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
     };
     await act(async () => {
+      sessionA.onStatusChange?.({ status: "connected" });
       sessionA.onConnect?.();
       sessionA.onError?.(new Error("attempt A failed"));
       await Promise.resolve();

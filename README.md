@@ -165,7 +165,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Voice starts only after your action. You can cancel startup or choose **Ask in writing** if voice cannot connect. The status line tells you when your chosen voice falls back to the default. Configured voice shows transcripts, returned pub cards and their map.
 
-  The [voice interruption guide](docs/PUB_PAL_SETUP.md#voice-interruptions) explains navigation between `/pal` and `/map`, map voice controls, screen lock, background calls, **Carry on**, and the SDK startup limit.
+  The [voice interruption guide](docs/PUB_PAL_SETUP.md#voice-interruptions) explains navigation between `/pal` and `/map`, map voice controls, screen lock, background calls, **Carry on**, and SDK startup.
 
   Memory cards in text and voice need your confirmation. Approved past-night reports can retain your stated visits, drinks and spending. Recorded pint prices never establish your bill. Correct or delete memories on your Pal page.
 

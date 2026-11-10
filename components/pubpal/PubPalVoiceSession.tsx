@@ -57,6 +57,7 @@ import {
 } from "@/lib/elevenlabsWorkletAssets";
 import {
   createPubPalVoiceStartController,
+  createPalVoiceMicrophoneHold,
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
@@ -64,6 +65,8 @@ import {
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
   palVoiceLineDropped,
+  requestPalVoiceMicrophone,
+  type PalVoiceMicrophoneHold,
 } from "@/lib/pubPalVoiceSession";
 import {
   appendPalVoiceLine,
@@ -110,6 +113,7 @@ type VoiceSessionAttempt = {
   released: boolean;
   conversationId: string | null;
   sdkSessionStarted: boolean;
+  microphone: PalVoiceMicrophoneHold;
   connectedAt: number | null;
   capTimer: number | null;
   startupTimer: number | null;
@@ -324,6 +328,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     clearStartupTimer(attempt);
     attempt.requestAbort.abort();
+    attempt.microphone.release();
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
       attempt.voiceEndReported = true;
       trackEvent("voice_ended", { reason: attempt.voiceEndReason ?? "disconnect" });
@@ -390,7 +395,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (attempt) void stop(attempt);
   }, [stop]);
 
-  // See docs/PUB_PAL_SETUP.md#voice-interruptions for the SDK startup limit.
+  // See docs/PUB_PAL_SETUP.md#voice-interruptions for leaving during SDK startup.
   usePageLeft(useCallback((): void => {
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
@@ -411,6 +416,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       released: false,
       conversationId: null,
       sdkSessionStarted: false,
+      microphone: createPalVoiceMicrophoneHold(),
       connectedAt: null,
       capTimer: null,
       startupTimer: null,
@@ -438,7 +444,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new PubPalVoiceStartError("Can't reach your microphone. Type instead.");
         }
-        return navigator.mediaDevices.getUserMedia({ audio: true });
+        return requestPalVoiceMicrophone({ audio: true });
       },
       issueGrant: async () => {
         const response = await authedActionFetch("/api/pub-pal/voice-token", {
@@ -455,8 +461,14 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         return { ...body, signedUrl: body.signedUrl };
       },
-      connect: (grant) => {
+      connect: async (grant) => {
         if (!ownsAttempt(attempt)) {
+          void finalizeSession(attempt);
+          return;
+        }
+        await attempt.microphone.begin();
+        if (!ownsAttempt(attempt)) {
+          attempt.microphone.reportStartupFinished();
           void finalizeSession(attempt);
           return;
         }
@@ -472,6 +484,10 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           useWakeLock: true,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
+          onStatusChange: ({ status: next }) => {
+            if (next !== "connected" && next !== "disconnected") return;
+            attempt.microphone.reportStartupFinished();
+          },
           onMessage: ({ role, message, event_id }) => {
             if (!ownsAttempt(attempt)) return;
             const content = message.trim();
