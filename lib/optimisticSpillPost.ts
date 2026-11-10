@@ -45,6 +45,11 @@ export type OptimisticSpillRetryInput = OptimisticSpillInput & {
 };
 
 export type OptimisticSpillRetryPayload = {
+  /**
+   * The first attempt's key, resent so the server answers a retry of a drop
+   * it already saved. Absent on entries stored before retries carried it.
+   */
+  clientRequestId?: string;
   venueId: string;
   venueName?: string;
   handle: string;
@@ -146,6 +151,7 @@ export function buildOptimisticSpillRetryPayload(
   input: OptimisticSpillRetryInput,
 ): OptimisticSpillRetryPayload {
   return {
+    clientRequestId: input.clientRequestId,
     venueId: input.venueId,
     venueName: input.venueName,
     handle: input.handle,
@@ -262,6 +268,7 @@ export async function buildOptimisticSpillRetryFormData(
   const measure = statedDrinkMeasure(payload.measure);
   if (!measure) throw new Error(RETRY_DETAILS_GONE);
   const body = new FormData();
+  if (payload.clientRequestId) body.set("clientRequestId", payload.clientRequestId);
   body.set("venueId", payload.venueId);
   body.set("handle", payload.handle);
   body.set("drink", payload.drink);

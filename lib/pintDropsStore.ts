@@ -92,6 +92,15 @@ import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 
+import {
+  PintDropDailyCapError,
+  PintDropReplayConflictError,
+  replayBeforeCap,
+  sameCreatedDrop,
+} from "@/lib/pintDropReplay";
+
+export { PintDropDailyCapError, PintDropReplayConflictError } from "@/lib/pintDropReplay";
+
 const TABLE = PINT_DROPS_TABLE;
 
 /**
@@ -104,9 +113,6 @@ export const MAX_INDEX_CONFIRMED_DROPS = 5000;
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
 
-// The create path attaches uploaded Storage keys here before persisting. Kept
-// off the core PintDrop type in lib/pintDrops.ts (photos are a Supabase-only
-// concern); the in-memory store ignores them entirely.
 export type PersistableDrop = PintDrop & {
   pintPhotoKey?: string;
   venuePhotoKey?: string;
@@ -173,6 +179,11 @@ export type PintDropStore = {
     photos: PintDropPhotos,
     options?: PintDropCreateOptions,
   ): Promise<PintDropDTO & { created: boolean }>;
+  /**
+   * The drop a keyed create already wrote under `drop.id`, answered as
+   * `create` would answer it. "conflict" when that id holds another drop.
+   */
+  findCreated(drop: PintDrop, photos: PintDropPhotos): Promise<PintDropDTO | "conflict" | null>;
   /**
    * Public read: visible drops + demo seeds, newest-first, capped at
    * MAX_PUBLIC_DROPS, with per-drop VISIBILITY applied server-side (issue #29).
@@ -832,11 +843,10 @@ async function attributedAuthorVenueIds(
   return [...new Set(published.map((drop) => drop.venueId))].sort();
 }
 
-function sameCreatedDrop(existing: PintDrop, input: PintDrop): boolean {
-  return existing.id === input.id && existing.venueId === input.venueId &&
-    existing.authorityKey === input.authorityKey &&
-    normalizeViewerHandle(existing.handle) === normalizeViewerHandle(input.handle) &&
-    existing.priceGbp === input.priceGbp;
+async function durableCreatedDrop(id: string): Promise<PersistableDrop | undefined> {
+  const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? fromRow(data) : undefined;
 }
 
 export const memoryPintDropStore: PintDropStore = {
@@ -856,26 +866,27 @@ export const memoryPintDropStore: PintDropStore = {
     // a priced drop is `unchecked`, whatever the caller's object said, until
     // the bill check reads its bill (lib/pintDropReceipt.ts).
     const drop = withEarnedEvidence(input);
-    // The same hard guard the Supabase backend gets from
-    // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
-    // pre-check and this create sit either side of an await, so two in-flight
-    // requests can both read "no price yet" here exactly as they could against
-    // Postgres. Asked against the drop's OWN day, so the row and the rule agree.
-    const capped =
-      dailyCapDay(drop, options) !== null &&
-      (await hasPricedDropTodayAcrossIds(drop.venueId, drop.handle, new Date(drop.createdAt)));
-    const existing = findPintDropsByIds([drop.id]).get(drop.id);
-    if (existing) {
-      if (!sameCreatedDrop(existing, drop)) throw new Error("Pint Drop id already exists.");
-      return { ...toDTO(existing), created: false };
-    }
-    if (capped) throw new PintDropDailyCapError();
-    // Photos are not stored: there is no Storage without Supabase. The bill
-    // itself is read by the route's background bill check, from the bytes
-    // that arrived.
-    void photos;
-    addPintDrop(drop);
+    const cappedVenueIds = dailyCapDay(drop, options) !== null ? await storedVenueIds(drop.venueId) : [];
+    const existing = replayBeforeCap(
+      findPintDropsByIds([drop.id]).get(drop.id),
+      drop,
+      photos,
+      cappedVenueIds.some((id) => hasPricedDropTodayMemory(id, drop.handle, new Date(drop.createdAt))),
+    );
+    if (existing) return { ...toDTO(existing), created: false };
+    const persistable: PersistableDrop = {
+      ...drop,
+      pintPhotoKey: photos.pint ? `memory/${drop.id}/pint` : undefined,
+      venuePhotoKey: photos.venue ? `memory/${drop.id}/venue` : undefined,
+      receiptPhotoKey: photos.receipt ? `memory/${drop.id}/receipt` : undefined,
+    };
+    addPintDrop(persistable);
     return { ...toDTO(drop), created: true };
+  },
+  async findCreated(input, photos) {
+    const existing = findPintDropsByIds([input.id]).get(input.id);
+    if (!existing) return null;
+    return sameCreatedDrop(existing, input, photos) ? toDTO(existing) : "conflict";
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
     const venueRows = venueId
@@ -1089,25 +1100,6 @@ function dailyCapDay(
   return londonDayKey(drop.createdAt) || null;
 }
 
-/**
- * The daily cap, refused by the DATABASE rather than by the pre-check in front
- * of it (migration 0141, pentest F-1). A concurrent burst is exactly the case
- * the pre-check cannot see: every request reads "no price yet" before any row
- * lands. `pint_drops_priced_day_unique_idx` is what actually holds the rule, so
- * one of those inserts wins and the rest arrive here.
- *
- * It is a REFUSAL, not a fault: the route answers it with the same 409 and the
- * same sentence the pre-check gives, so a drinker cannot tell which enforcer
- * turned them away.
- */
-export class PintDropDailyCapError extends Error {
-  readonly code = "PINT_DROP_DAILY_PRICE_CAP";
-  constructor() {
-    super("A priced Pint Drop for this venue, handle and London day already exists.");
-    this.name = "PintDropDailyCapError";
-  }
-}
-
 /** The one question a caller asks about that refusal. */
 export function isPintDropDailyCapError(error: unknown): error is PintDropDailyCapError {
   return error instanceof PintDropDailyCapError;
@@ -1253,6 +1245,23 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+async function durableReplayBeforeCap(
+  drop: PintDrop,
+  photos: PintDropPhotos,
+  options?: PintDropCreateOptions,
+): Promise<PersistableDrop | undefined> {
+  if (dailyCapDay(drop, options) === null) return undefined;
+  let capped = false;
+  try {
+    capped = await supabasePintDropStore.hasPricedDropToday(drop.venueId, drop.handle, Date.parse(drop.createdAt));
+  } catch (err) {
+    log("warn", "pint_drops.dedupe_check_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  return capped ? replayBeforeCap(await durableCreatedDrop(drop.id), drop, photos, true) : undefined;
+}
+
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
@@ -1294,6 +1303,8 @@ export const supabasePintDropStore: PintDropStore = {
     // still earn `receipt`: our outage may not cost the drinker the standing
     // their bill shows.
     const drop = withEarnedEvidence(input);
+    const replay = await durableReplayBeforeCap(drop, photos, options);
+    if (replay) return { ...await toDTOWithPhotos(replay), created: false };
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
     const creation: { existing?: PersistableDrop } = {};
@@ -1333,23 +1344,20 @@ export const supabasePintDropStore: PintDropStore = {
         }
       }
       let row = toRow(persistable, dailyCapDay(drop, options));
-      // EVERY insert attempt goes through here, because the daily cap is now a
-      // unique index (0141) and a retry can hit it just as the first attempt
-      // can. A cap violation leaves the try immediately: it is the rule working,
-      // not a storage fault, and the catch below tells the two apart.
+      // Every insert, including schema fallbacks, can race with the first save.
+      // Resolve its replay before treating a unique violation as a daily cap.
       const insert = async (candidate: typeof row) => {
         const { error: insertError } = await admin().from(TABLE).insert(candidate);
-        if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
         if (insertError?.code === "23505") {
-          const { data, error: readError } = await admin().from(TABLE).select("*").eq("id", drop.id).maybeSingle();
-          if (!readError && data) {
-            const stored = fromRow(data);
-            if (sameCreatedDrop(stored, drop)) {
-              creation.existing = stored;
-              return null;
-            }
+          const existing = replayBeforeCap(
+            await durableCreatedDrop(drop.id), drop, photos, isDailyPriceCapViolation(insertError),
+          );
+          if (existing) {
+            creation.existing = existing;
+            return null;
           }
         }
+        if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
         return insertError;
       };
       // First attempt includes vibe_tags + Last Train columns. Once migrations
@@ -1491,6 +1499,10 @@ export const supabasePintDropStore: PintDropStore = {
       // logged as one: an error line per refused duplicate would read as a
       // storage failure in every dashboard. It still cleans up its photos and
       // still rethrows, and the route answers the ordinary 409.
+      if (err instanceof PintDropReplayConflictError) {
+        await deletePhotos(uploaded);
+        throw err;
+      }
       if (isPintDropDailyCapError(err)) {
         log("warn", "pint_drops.daily_cap_conflict", {
           dropId: drop.id,
@@ -1529,6 +1541,12 @@ export const supabasePintDropStore: PintDropStore = {
       return { ...await toDTOWithPhotos(existing), created: false };
     }
     return { ...await toDTOWithPhotos(persistable), created: true };
+  },
+
+  async findCreated(input, photos) {
+    const stored = await durableCreatedDrop(input.id);
+    if (!stored) return null;
+    return sameCreatedDrop(stored, input, photos) ? toDTOWithPhotos(stored) : "conflict";
   },
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
