@@ -201,6 +201,13 @@
     transform: none;
   }
 
+  /* The basemap retry notice is centred on the stage's foot, so the drawer
+     covered its right half and the Retry button with it. */
+  .appShell.detail-open .mapSoftRetry {
+    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+    max-width: min(360px, calc(100% - var(--desktop-venue-drawer-width) - 32px));
+  }
+
   /* The planner owns the mirrored left edge. Keep both ambient banners inside
      the remaining map lane using the same centre and width as the toolbar. */
   .appShell.planning-open .cityStatusStack,
