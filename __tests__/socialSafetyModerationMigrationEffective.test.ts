@@ -123,18 +123,18 @@ beforeAll(async () => {
     insert into public.private_social_staff_roles(id,profile_id,display_name,role,active,revoked_at) values
       ('${STAFF}','${MOD_PROFILE}','Carol','moderator',true,null),
       ('${REVOKED_STAFF}','${REVOKED_PROFILE}','Old mod','moderator',false,now());
-    insert into public.social_posts (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, moderation_state)
-      values ('${POST}','${TARGET_PROFILE}','targetted','standard','public','Meet me outside, I know where you live','open','approved');
+    insert into public.social_posts (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, moderation_state, moderated_at)
+      values ('${POST}','${TARGET_PROFILE}','targetted','standard','public','Meet me outside, I know where you live','open','approved',now());
     insert into public.social_post_media(id,generation,owner_profile_id,object_key,sha256,width,height,byte_size,moderation_state)
       values ('${MEDIA}','${GENERATION}','${TARGET_PROFILE}','${PHOTO_KEY}',repeat('a',64),800,1000,100,'approved');
-    insert into public.social_posts(id,author_profile_id,author_handle,kind,visibility,body,comment_policy,moderation_state,photo_media_id,photo_alt_text)
-      values ('${PHOTO_POST}','${TARGET_PROFILE}','targetted','standard','friends','','open','approved','${MEDIA}','Reported photo');
+    insert into public.social_posts(id,author_profile_id,author_handle,kind,visibility,body,comment_policy,moderation_state,photo_media_id,photo_alt_text,moderated_at)
+      values ('${PHOTO_POST}','${TARGET_PROFILE}','targetted','standard','friends','','open','approved','${MEDIA}','Reported photo',now());
     insert into public.follows(follower_id,followee_id) values
       ('${REPORTER_PROFILE}','${TARGET_PROFILE}'),('${TARGET_PROFILE}','${REPORTER_PROFILE}');
     insert into public.social_video_uploads(id,owner_profile_id,object_key,content_type,declared_bytes,claimed_post_id)
       values ('${VIDEO_UPLOAD}','${TARGET_PROFILE}','${VIDEO_KEY}','video/mp4',100,'${PHOTO_POST}');
-    insert into public.social_post_videos(post_id,author_profile_id,upload_id,object_key,content_type,byte_size,review_state)
-      values ('${PHOTO_POST}','${TARGET_PROFILE}','${VIDEO_UPLOAD}','${VIDEO_KEY}','video/mp4',100,'approved');
+    insert into public.social_post_videos(post_id,author_profile_id,upload_id,object_key,content_type,byte_size,review_state,reviewed_at)
+      values ('${PHOTO_POST}','${TARGET_PROFILE}','${VIDEO_UPLOAD}','${VIDEO_KEY}','video/mp4',100,'approved',now());
     insert into public.social_comments(id,post_id,author_profile_id,author_handle,body,moderation_state,idempotency_key_hash,payload_digest) values
       ('${COMMENT}','${PHOTO_POST}','${TARGET_PROFILE}','targetted','${REPORTED_TEXT}','approved',repeat('c',64),repeat('c',64)),
       ('${OTHER_COMMENT}','${PHOTO_POST}','${TARGET_PROFILE}','targetted','Unreported comment','approved',repeat('d',64),repeat('d',64));
@@ -211,7 +211,11 @@ describe.skipIf(skipReason !== null)("0224 social safety moderation applied to P
     ]);
     expect(scalar(`select public.resolve_social_report_admin('${STAFF}','${reportId}')`)).toBe("t");
     expect(json(`select public.read_social_report_queue_admin('${STAFF}',20)`)).toEqual([]);
+    expect(db().sql(`select resolved_at is not null and resolved_by_staff_role_id = '${STAFF}'
+      from public.social_content_reports where id='${reportId}'`)).toBe("t");
     expect(scalar(submit)).toBe(reportId);
+    expect(db().sql(`select resolved_at is null and resolved_by_staff_role_id is null
+      from public.social_content_reports where id='${reportId}'`)).toBe("t");
     expect(scalar(submit)).toBe(reportId);
     expect(json(`select public.read_social_report_queue_admin('${STAFF}',20)`)).toEqual([
       expect.objectContaining({ reportId, kind: "profile", state: "queued", contentId: TARGET_PROFILE, reason: "harassment" }),

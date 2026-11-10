@@ -8,6 +8,7 @@ import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { palVoiceToolAnswer } from "@/lib/palVoiceToolAnswer";
 import {
   enrichPubPalToolArgs,
   invokePubPalAskTool,
@@ -90,6 +91,22 @@ describe("propose_plan over the Pal webhook", () => {
     vi.restoreAllMocks();
     __resetPubPalToolTurnStore();
     vi.unstubAllGlobals();
+  });
+
+  it.each([
+    { toolName: "search_venues", args: { query: "Find four pubs in Soho" } },
+    { toolName: "cheapest_pint_near", args: { query: "Cheapest pints in Westminster", area: "Westminster" } },
+  ])("returns $toolName map coordinates in the full webhook payload", async ({ toolName, args }) => {
+    const outcome = await invokePubPalAskTool({ toolName, args, conversationId: null });
+    const answer = palVoiceToolAnswer({ tool_name: toolName, is_called: true, is_error: false, full_tool_result: JSON.stringify({ ...outcome, requestedTool: toolName }) });
+    const venues = await loadConciergeVenues("london");
+    expect(answer?.cards.length).toBeGreaterThan(0);
+    expect(answer?.picks.map((pick) => pick.venueId)).toEqual(answer?.cards.map((card) => card.venueId));
+    for (const pick of answer?.picks ?? []) {
+      const venue = venues.find((item) => item.id === pick.venueId);
+      expect(venue).toBeDefined();
+      expect([pick.lat, pick.lng]).toEqual([venue?.lat, venue?.lng]);
+    }
   });
 
   it.each(QUANTITY_FITNESS_CASES.flatMap((entry) => (["current", "user", "assistant"] as const).map((role) => ({ ...entry, role }))))(

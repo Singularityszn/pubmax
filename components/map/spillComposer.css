@@ -310,10 +310,7 @@
   color: var(--state-selected-ink);
 }
 
-/* The measure row's own rules live in components/map/measureChips.css, beside
-   the shared control that renders them (MeasureChips). They used to sit here,
-   and this sheet is imported by the map alone, so the same row mounted on the
-   venue sheet's price door and on /near stood unstyled. */
+/* components/map/measureChips.css owns the shared measure row's styles. */
 
 .priceChip:focus-visible {
   outline: 2px solid var(--brass);

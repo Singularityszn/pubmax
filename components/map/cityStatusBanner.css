@@ -4,10 +4,15 @@
 .appShell {
   --city-status-desktop-gap: 82px;
   --city-status-desktop-height: 58px;
-  --city-status-desktop-top: calc(
-    var(--map-top-clearance, 0px) +
-    var(--map-toolbar-resting-height, 181px) +
-    var(--city-status-desktop-gap)
+  --city-status-desktop-floor: 0px;
+  /* A control that shares the lane can set a floor under itself. */
+  --city-status-desktop-top: max(
+    calc(
+      var(--map-top-clearance, 0px) +
+      var(--map-toolbar-resting-height, 181px) +
+      var(--city-status-desktop-gap)
+    ),
+    var(--city-status-desktop-floor)
   );
   /* The bottom of one desktop pill: the 44px .cityStatusBannerLink, the
      banner's 6px padding and its 1px border on each side. */
@@ -126,6 +131,18 @@
   color: var(--ink);
 }
 .cityStatusBannerMobileCopy { display: none; }
+
+/* A feed headline can be a long all-caps line. Two lines and an ellipsis keep
+   the pill a pill. The full text stays in the title, the feed and the source. */
+@media (min-width: 641px) {
+  .cityStatusBannerCopy {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+}
 
 .cityStatusBannerDismiss {
   display: inline-flex;

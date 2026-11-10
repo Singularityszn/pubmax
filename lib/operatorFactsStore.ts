@@ -1,22 +1,18 @@
 // Operator facts store - dual backend (process-memory + Supabase
 // public.operator_facts, migration 0217).
 //
-// This store holds what a moderator's ACCEPTANCE of a verified operator's
-// proposal publishes: one fact per proposal, keyed on the proposal id, so a
-// second accept of the same proposal republishes the one row rather than
-// adding a twin. A later decline WITHDRAWS it, and a withdrawn fact is never
-// read. The only writer is the moderator branch of
-// app/api/operator-proposals/route.ts; browser roles may read the public
-// columns of a published row and write nothing (0217).
+// Moderation coordinates these facts through operatorProposalsStore.decide.
+// The decision contract is documented in
+// docs/WRITE_SURFACE_CERTIFICATION.md#appapioperator-proposals--reviewed-operator-proposals-route-69.
+// Browser permissions are documented in docs/security/PERMISSION_MATRIX.md.
 //
 // It NEVER writes a venue fact, a price, hours or a pin. Nothing that ranks,
 // colours or orders a venue may import this module
 // (__tests__/operatorFactsFence.test.ts).
 //
-// Reads are fail-soft. A HARD durable publish failure THROWS so the route
-// answers 503 rather than a fake success. A missing table in production is
-// refused on the publish path (onMissingDurableWrite); a withdrawal from a
-// table that does not exist has nothing to take down.
+// Reads are fail-soft. A hard durable publish failure throws to the caller.
+// A missing production table is refused on the publish path
+// (onMissingDurableWrite). A missing table holds no fact to withdraw.
 
 import "server-only";
 
@@ -54,9 +50,9 @@ type PublishableProposal = Pick<OperatorProposal, "id" | "venueId" | "accountId"
 
 export type OperatorFactsStore = {
   /** Publish the fact for an accepted proposal. Idempotent on the proposal id. THROWS on a hard failure. */
-  publish(proposal: PublishableProposal, now?: number): Promise<OperatorFact>;
+  publish(proposal: PublishableProposal, now?: number): OperatorFact | Promise<OperatorFact>;
   /** Take down the published fact for a proposal. False when none was published. THROWS on a hard failure. */
-  withdraw(proposalId: string, now?: number): Promise<boolean>;
+  withdraw(proposalId: string, now?: number): boolean | Promise<boolean>;
   /** Published facts stored under any of a venue's ids, newest first. Fail-soft (degraded, []). */
   listPublishedForVenue(venueId: string): Promise<OperatorFactsRead>;
   /** Published events and offers dated for one London day, newest first. Fail-soft (degraded, []). */
@@ -70,8 +66,8 @@ function byNewest(left: OperatorFact, right: OperatorFact): number {
 // ── Memory ───────────────────────────────────────────────────────────────────
 const byProposalId = new Map<string, OperatorFact>();
 
-export const memoryOperatorFactsStore: OperatorFactsStore = {
-  async publish(proposal, now = Date.now()) {
+export const memoryOperatorFactsStore = {
+  publish(proposal: PublishableProposal, now = Date.now()) {
     const existing = byProposalId.get(proposal.id);
     const fact = operatorFactFromProposal(proposal, {
       id: existing?.id ?? randomUUID(),
@@ -81,14 +77,14 @@ export const memoryOperatorFactsStore: OperatorFactsStore = {
     return { ...fact };
   },
 
-  async withdraw(proposalId, now = Date.now()) {
+  withdraw(proposalId: string, now = Date.now()) {
     const hit = byProposalId.get(proposalId);
     if (!hit || !isPublishedOperatorFact(hit)) return false;
     hit.withdrawnAt = new Date(now).toISOString();
     return true;
   },
 
-  async listPublishedForVenue(venueId) {
+  async listPublishedForVenue(venueId: string) {
     const venueIds = await storedVenueIds(venueId);
     const facts = [...byProposalId.values()]
       .filter((fact) => venueIds.includes(fact.venueId) && isPublishedOperatorFact(fact))
@@ -98,7 +94,7 @@ export const memoryOperatorFactsStore: OperatorFactsStore = {
     return { status: "ready", facts };
   },
 
-  async listPublishedForDay(serviceDay) {
+  async listPublishedForDay(serviceDay: string) {
     const facts = [...byProposalId.values()]
       .filter(
         (fact) =>
@@ -111,7 +107,7 @@ export const memoryOperatorFactsStore: OperatorFactsStore = {
       .map((fact) => ({ ...fact }));
     return { status: "ready", facts };
   },
-};
+} satisfies OperatorFactsStore;
 
 // ── Supabase ─────────────────────────────────────────────────────────────────
 const { guard, resetWarnings } = createFailSoftGuard({
@@ -130,7 +126,7 @@ function readKind(value: unknown): OperatorFactKind | null {
     : null;
 }
 
-function fromRow(row: Record<string, unknown>): OperatorFact | null {
+export function operatorFactFromRow(row: Record<string, unknown>): OperatorFact | null {
   const id = readText(row.id);
   const proposalId = readText(row.proposal_id);
   const venueId = readText(row.venue_id);
@@ -159,7 +155,7 @@ function fromRow(row: Record<string, unknown>): OperatorFact | null {
 /** The filter in each query is the rule; this is the same rule again, so a row a query let through by mistake still never reaches a reader. */
 function publishedRows(data: unknown): OperatorFact[] {
   return (Array.isArray(data) ? data : [])
-    .map((row) => fromRow(row as Record<string, unknown>))
+    .map((row) => operatorFactFromRow(row as Record<string, unknown>))
     .filter((fact): fact is OperatorFact => fact !== null && isPublishedOperatorFact(fact));
 }
 
@@ -187,23 +183,22 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
         onMissingDurableWrite({
           storeTag: STORE_TAG,
           migrationHint: MIGRATION_HINT,
-          fallback: () => memoryOperatorFactsStore.publish(proposal, now),
+          fallback: async () => memoryOperatorFactsStore.publish(proposal, now),
         }),
-      // No onError: a hard write failure THROWS so the route answers 503.
+      // Publish failures propagate to the caller.
       run: async () => {
         const fact = operatorFactFromProposal(proposal, {
           id: randomUUID(),
           publishedAt: new Date(now).toISOString(),
         });
-        // One row per proposal: a second accept republishes it in place and
-        // keeps the row's own id (the id column is not in the upsert).
+        // The upsert omits the id column to preserve the existing row's id.
         const { data, error } = await admin()
           .from(TABLE)
           .upsert(toRow(fact), { onConflict: "proposal_id" })
           .select("*")
           .single();
         if (error) throw new Error(error.message);
-        const stored = fromRow(data as Record<string, unknown>);
+        const stored = operatorFactFromRow(data as Record<string, unknown>);
         if (!stored) throw new Error("operator fact upsert returned an unreadable row");
         return stored;
       },
@@ -214,7 +209,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
     return guard({
       context: "withdraw",
       // A table that does not exist holds no published fact to take down.
-      onSchemaMiss: () => memoryOperatorFactsStore.withdraw(proposalId, now),
+      onSchemaMiss: async () => memoryOperatorFactsStore.withdraw(proposalId, now),
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
@@ -229,7 +224,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
   },
 
   async listPublishedForVenue(venueId) {
-    return guard({
+    return guard<OperatorFactsRead>({
       context: "list-venue",
       onSchemaMiss: () => memoryOperatorFactsStore.listPublishedForVenue(venueId),
       onError: async () => ({ status: "degraded" as const, facts: [] }),
@@ -249,7 +244,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
   },
 
   async listPublishedForDay(serviceDay) {
-    return guard({
+    return guard<OperatorFactsRead>({
       context: "list-day",
       onSchemaMiss: () => memoryOperatorFactsStore.listPublishedForDay(serviceDay),
       onError: async () => ({ status: "degraded" as const, facts: [] }),
@@ -273,7 +268,7 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
   },
 };
 
-export const operatorFactsStore = createDualBackendStore(
+export const operatorFactsStore = createDualBackendStore<OperatorFactsStore>(
   memoryOperatorFactsStore,
   supabaseOperatorFactsStore,
 );

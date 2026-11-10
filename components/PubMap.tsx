@@ -24,8 +24,6 @@ import MapLiveOverlays from "@/components/map/liveOverlays/MapLiveOverlays";
 import PriceBadge from "@/components/PriceBadge";
 import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import "@/components/map/venueSheet.css";
-import "@/components/map/spillComposer.css";
-import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
 // The selection notice below renders `.ukPlaceArrival` MARKUP directly, and
 // that stylesheet used to arrive only with UkPlaceArrivalBanner or
@@ -35,13 +33,8 @@ import "@/components/map/mapBannerStaging.css";
 // renders the markup owns the stylesheet.
 import "@/components/map/ukPlaceArrivalBanner.css";
 import "@/components/map/mapToolbar.css";
-import "@/components/map/citySuggestBanner.css";
-import "@/components/map/cityStatusBanner.css";
-import "@/components/map/mapConciergeAsk.css";
-import "@/components/map/mapDesktopRail.css";
 // The list beside the map lays out the stage, so its sheet loads with the map.
 import "@/components/map/mapSplitList.css";
-import "@/components/map/tonightLane.css";
 const UkPlaceArrivalBanner = dynamic(
   () => import("@/components/map/UkPlaceArrivalBanner"),
   { ssr: false },
@@ -1561,13 +1554,6 @@ export default function PubMap({
   // to report them: its module never loaded, and it never answered at all.
   // lib/mapCanvasAvailability.ts owns what either one means and what it says.
   const [mapCanvasModuleFailed, setMapCanvasModuleFailed] = useState(false);
-  // A map that cannot draw (no module, WebGL, or pub list) never reveals pins, so
-  // the document's opening prices (components/map/MapOpeningPreview.tsx) would
-  // stand over the fallback for ever. Tell them to stand down instead.
-  useEffect(() => {
-    if (!mapCanvasModuleFailed && !mapCanvasErrored && !venueIndexFailed) return;
-    window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
-  }, [mapCanvasModuleFailed, mapCanvasErrored, venueIndexFailed]);
   // Stamped with the attempt it lapsed on rather than a bare flag: a retry
   // bumps the attempt and the derived answer goes false with it, so nothing has
   // to reset this from inside an effect body.
@@ -1831,6 +1817,7 @@ export default function PubMap({
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus(cityId);
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
+  const [nearbyRequestToken, setNearbyRequestToken] = useState(0);
   const [pendingNearMeRequest, setPendingNearMeRequest] =
     useState<PendingNearMeRequest | null>(null);
   const [nearbyLoadedPoint, setNearbyLoadedPoint] = useState<{
@@ -1845,7 +1832,7 @@ export default function PubMap({
     builtIds,
     setBuiltIds,
     routeMapped,
-    setRouteMapped,
+    setRouteMapped, mapRoute, routeRequestToken,
     planningOpen,
     setPlanningOpen,
     plannedNightArea,
@@ -2262,6 +2249,7 @@ export default function PubMap({
   // worse than one. The trail is assembled further down this component, so the
   // gesture reaches it through a ref.
   const surfaceBackRef = useRef<() => void>(() => {});
+  const surfaceLeaveRef = useRef<(id: MapSurfaceId, close: () => void) => void>((_id, close) => close());
   const surfaceOpenRef = useRef<
     (entry: SurfaceEntry<MapSurfaceState>) => void
   >(() => {});
@@ -2353,9 +2341,7 @@ export default function PubMap({
 
   // Ref so fling-dismiss can call the same closePlanning as chrome buttons
   // without a hook ↔ callback cycle (useSheetDrag needs onDismiss up front).
-  const closePlanningRef = useRef<() => void>(() => {
-    setPlanningOpen(false);
-  });
+  const closePlanningRef = useRef<() => void>(() => setPlanningOpen(false));
   const {
     sheetSnap: plannerSheetSnap,
     setSheetSnap: setPlannerSheetSnap,
@@ -2414,10 +2400,10 @@ export default function PubMap({
     setSheetSnap,
   ]);
 
-  const togglePlanning = useCallback(() => {
-    if (planningOpen) closePlanning();
-    else openPlanning();
-  }, [closePlanning, openPlanning, planningOpen]);
+  // The planner's own exits go Back when it is the top entry, so its browser entry goes too.
+  const exitPlanning = useCallback(() => surfaceLeaveRef.current("planner", closePlanning), [closePlanning]);
+  const togglePlanning = useCallback(() => (planningOpen ? exitPlanning() : openPlanning()),
+    [exitPlanning, openPlanning, planningOpen]);
 
   // Issue #35 + location-first sharding: paint pins from the slim index cells
   // that intersect the opening viewport (or instantly from the resume
@@ -2588,6 +2574,12 @@ export default function PubMap({
     ceilingLapsed: mapCanvasCeilingLapsedAttempt === mapCanvasAttempt,
   });
   const mapCanvasUnavailable = mapCanvasAvailabilityState.status === "unavailable";
+  // A map that cannot draw never reveals pins. Retract the opening prices so
+  // they cannot cover its fallback, including when the readiness ceiling lapses.
+  useEffect(() => {
+    if (!mapCanvasUnavailable && !mapCanvasErrored && !venueIndexFailed) return;
+    window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
+  }, [mapCanvasUnavailable, mapCanvasErrored, venueIndexFailed]);
   // Until the pins have painted, the wire belongs to the pins. The rule and the
   // measurement that produced it are lib/mapFirstPinStreams.ts; this is the one
   // place the answer is derived, and the canvas takes it as a prop rather than
@@ -3962,7 +3954,7 @@ export default function PubMap({
       }
       setMode("build");
       setBuiltIds(ids);
-      setRouteMapped(true);
+      mapRoute();
       setActiveCrawl(null);
       showLoadedRoute(first);
     };
@@ -4027,7 +4019,7 @@ export default function PubMap({
     setActiveCrawl,
     setBuiltIds,
     setMode,
-    setRouteMapped,
+    mapRoute,
     showLoadedRoute,
     logPickerLocation,
     userLocation,
@@ -4451,7 +4443,7 @@ export default function PubMap({
         selectVenue(match.id);
       } else if (move === "fit-many") {
         // Frame the whole matched set so none stay hidden off-screen.
-        setSearchFitToken((token) => token + 1);
+        setSearchRecoveryToken((token) => token + 1);
       }
     }, 320);
     return () => window.clearTimeout(handle);
@@ -4627,17 +4619,17 @@ export default function PubMap({
     // six-stop crawl and the pill read "6-stop plan" over one picked pub
     // (verify-preview-4, J04); the built route is only read in build mode.
     setMode("build");
-    setRouteMapped(true);
+    mapRoute();
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, [builtIds, setActiveCrawl, setBuiltIds, setMode, setRouteMapped, venueById]);
+  }, [builtIds, setActiveCrawl, setBuiltIds, setMode, mapRoute, venueById]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
   const reverseRoute = useCallback(() => {
     setBuiltIds((current) => [...current].reverse());
-    setRouteMapped(true);
+    mapRoute();
     setActiveCrawl(null);
-  }, [setActiveCrawl, setBuiltIds, setRouteMapped]);
+  }, [setActiveCrawl, setBuiltIds, mapRoute]);
 
   const clearBuilt = useCallback(() => {
     setBuiltIds([]);
@@ -4668,7 +4660,7 @@ export default function PubMap({
     (crawl: CuratedCrawl) => {
       setMode("build");
       setBuiltIds(crawl.venueIds);
-      setRouteMapped(true);
+      mapRoute();
       setFilters((current) => filtersForCuratedCrawl(current, crawl));
       setAltStyle(crawl.altStyle ?? "pint"); // "kind of night" label for copy
       setActiveCrawl(crawl); // its blurb shows under the route title until mutated
@@ -4682,7 +4674,7 @@ export default function PubMap({
       setBuiltIds,
       setFilters,
       setMode,
-      setRouteMapped,
+      mapRoute,
       showLoadedRoute,
     ],
   );
@@ -4698,7 +4690,7 @@ export default function PubMap({
     dismissOnboarding,
     setMode,
     setBuiltIds,
-    setRouteMapped,
+    mapRoute,
     setActiveCrawl,
     setPlanningOpen: (open) => {
       if (open) openPlanning();
@@ -4812,6 +4804,7 @@ export default function PubMap({
             lng: position.coords.longitude,
           };
           setUserLocation(location);
+          if (mode !== "resume") setNearbyRequestToken((token) => token + 1);
           latchMapReaderLocationWatch();
           invalidatePrivateCamera();
           setPendingNearMeRequest({ kind: "map", location, mode });
@@ -4842,10 +4835,10 @@ export default function PubMap({
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
     trackEvent("route_opened", { surface: "map" });
-    setRouteMapped(true);
+    mapRoute();
     dismissOnboarding();
-    if (isMobileViewport()) closePlanning();
-  }, [route.length, closePlanning, dismissOnboarding, setRouteMapped]);
+    if (isMobileViewport()) exitPlanning();
+  }, [route.length, exitPlanning, dismissOnboarding, mapRoute]);
 
   const hideMappedRoute = useCallback(() => {
     setRouteMapped(false);
@@ -5510,9 +5503,10 @@ export default function PubMap({
   );
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
+    surfaceLeaveRef.current = mapSurfaceTrail.leave;
     surfaceOpenRef.current = mapSurfaceTrail.open;
     surfaceStateRef.current = mapSurfaceState;
-  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open]);
+  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.leave, mapSurfaceTrail.open]);
 
   // ── The landmark story ───────────────────────────────────────────────────
   // One body (components/map/LandmarkStoryBody.tsx) in the frame each width
@@ -5854,7 +5848,7 @@ export default function PubMap({
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
 
   function renderPlannerMapButton() {
-    return !mobileViewport ? <button type="button" className="plannerMapButton" onClick={closePlanning}>
+    return !mobileViewport ? <button type="button" className="plannerMapButton" onClick={exitPlanning}>
       <MapPinned size={16} aria-hidden="true" />
       View {mapDisplayName} map
     </button> : null;
@@ -5963,6 +5957,7 @@ export default function PubMap({
         crawlBlurb={activeCrawlBlurb}
         crawlName={activeCrawlName}
         crawlId={activeCrawlId}
+        curatedCrawls={cityCuratedCrawls}
         routeMapped={routeMappedActive}
         stopsFirst={builtCrawlLeads}
         originDistanceKm={distanceFromUserKm}
@@ -6965,6 +6960,7 @@ export default function PubMap({
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
+        routeRequestToken={routeRequestToken}
         crewPals={routeIsActivePlan ? crewPals : undefined}
         palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}
@@ -7008,6 +7004,7 @@ export default function PubMap({
         searchRecoveryToken={searchRecoveryToken}
         queryVenues={queryVenues}
         userLocation={userLocation}
+        nearbyRequestToken={nearbyRequestToken}
         nearMePending={nearbyLoading}
         readerPosition={readerPosition}
         poisPath={city.poisPath}

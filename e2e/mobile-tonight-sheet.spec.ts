@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // Regression guard for the map's phone Tonight surface (owner bug: opening it
 // gave a sheet whose lane content was absolutely positioned for the map edge —
@@ -87,6 +88,28 @@ test.use({
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
 });
 test.setTimeout(90_000);
+
+test("the expanded desktop Tonight card stays inside the map lane", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await seed(page, "light");
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    window.localStorage.setItem("pubmax:cityStatusDismiss:v1", "1");
+  });
+  await installDeterministicMapBasemap(page);
+  await page.goto("/map");
+  await page.getByTestId("tonight-lane-chip").click();
+  const card = page.locator(".tonightLane--open .tonightLaneCard").first();
+  await expect(card).toBeVisible();
+
+  const mapLane = await page.locator(".mapStage").boundingBox();
+  const cardBox = await card.boundingBox();
+  expect(mapLane).not.toBeNull();
+  expect(cardBox).not.toBeNull();
+  expect(cardBox!.x, "the pub list must not cover the Tonight card").toBeGreaterThanOrEqual(mapLane!.x);
+  expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(mapLane!.x + mapLane!.width);
+});
 
 for (const theme of ["light", "dark"] as const) {
   test(`map Tonight lane lays out in-flow with one close (${theme})`, async ({ page }) => {

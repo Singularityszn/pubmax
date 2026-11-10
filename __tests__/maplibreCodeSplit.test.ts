@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -12,10 +13,6 @@ const pubMap = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8"
 const canvas = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
 const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
-const workerCopy = readFileSync(
-  join(process.cwd(), "scripts/copy_maplibre_worker.mjs"),
-  "utf8",
-);
 
 describe("maplibre cold-open code split", () => {
   it("loads PubMapCanvas via next/dynamic (ssr:false), not a static value import", () => {
@@ -68,15 +65,47 @@ describe("maplibre cold-open code split", () => {
   });
 
   it("configures the MapLibre 6 module worker for webpack", () => {
-    expect(MAPLIBRE_WORKER_URL).toBe("/vendor/maplibre/maplibre-gl-worker.mjs");
     // ignore-scripts skips predev/prebuild, so both steps live in the commands
     // npm actually runs. The fresh check stays ahead of next dev.
     expect(packageJson.scripts.dev).toBe(
       "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker && npm run build:places-enrichment && next dev --webpack",
     );
     expect(packageJson.scripts.build).toMatch(/^npm run prepare:maplibre-worker && /);
-    expect(workerCopy).toContain('"maplibre-gl-worker.mjs"');
-    expect(workerCopy).toContain('"maplibre-gl-shared.mjs"');
+  });
+
+  it("copies both worker modules unchanged to the installed-version public URL", () => {
+    const root = process.cwd();
+    const fixture = mkdtempSync(join(root, ".maplibre-worker-test-"));
+    const installedPackage = join(root, "node_modules/maplibre-gl");
+    const { version } = JSON.parse(readFileSync(join(installedPackage, "package.json"), "utf8"));
+    const modules = ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"];
+
+    try {
+      for (const directory of ["scripts", "lib", "node_modules/maplibre-gl/dist"]) {
+        mkdirSync(join(fixture, directory), { recursive: true });
+      }
+      for (const file of ["scripts/copy_maplibre_worker.mjs", "lib/maplibreVendor.mjs"]) {
+        copyFileSync(join(root, file), join(fixture, file));
+      }
+      copyFileSync(join(installedPackage, "package.json"), join(fixture, "node_modules/maplibre-gl/package.json"));
+      for (const file of modules) {
+        copyFileSync(join(installedPackage, "dist", file), join(fixture, "node_modules/maplibre-gl/dist", file));
+      }
+
+      execFileSync(process.execPath, [join(fixture, "scripts/copy_maplibre_worker.mjs")], { cwd: fixture });
+
+      const vendorDirectory = join(fixture, "public/vendor/maplibre");
+      expect(readdirSync(vendorDirectory)).toEqual([version]);
+      expect(readdirSync(join(vendorDirectory, version)).sort()).toEqual([...modules].sort());
+      for (const file of modules) {
+        expect(readFileSync(join(vendorDirectory, version, file))).toEqual(readFileSync(join(installedPackage, "dist", file)));
+      }
+      expect(readFileSync(join(fixture, "public", MAPLIBRE_WORKER_URL))).toEqual(
+        readFileSync(join(installedPackage, "dist/maplibre-gl-worker.mjs")),
+      );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   it("uses the MapLibre 6 missing-image resolver", () => {

@@ -5,10 +5,28 @@ const result = {
   ok: true, tool: "search_venues", answerHint: "Four listed pubs in Soho.",
   cards: [1, 2, 3, 4].map((number) => ({ key: `pub-${number}`, venueId: `venue-${number}`, title: `Pub ${number}`, place: "Soho", note: "", price: null, provenance: { kind: "directory", label: "On record" } })),
   proposals: [],
+  data: { venues: [
+    { id: "venue-2", lat: 51.52, lng: -0.12 },
+    { id: "venue-1", lat: 51.51, lng: -0.11 },
+    { id: "unrelated", lat: 51.53, lng: -0.13 },
+  ] },
 };
 const event = { tool_name: "search_venues", tool_call_id: "search-1", is_error: false, is_called: true, full_tool_result: JSON.stringify({ result }) };
 
 describe("voice tool display data", () => {
+  it.each(["search_venues", "cheapest_pint_near"])("locates %s picks from the grounded payload in card order", (tool) => {
+    expect(palVoiceToolAnswer({ ...event, tool_name: tool, full_tool_result: JSON.stringify({ result: { ...result, tool } }) })?.picks).toEqual([
+      { venueId: "venue-1", name: "Pub 1", lat: 51.51, lng: -0.11, number: 1 },
+      { venueId: "venue-2", name: "Pub 2", lat: 51.52, lng: -0.12, number: 2 },
+    ]);
+  });
+
+  it.each([undefined, null, { venues: [null, {}, { id: "venue-1", lat: "51.5", lng: -0.1 }, { id: "venue-2", lat: 91, lng: 0 }] }])(
+    "does not plot absent or invalid grounded coordinates", (data) => {
+      expect(palVoiceToolAnswer({ ...event, full_tool_result: JSON.stringify({ result: { ...result, data } }) })?.picks).toEqual([]);
+    },
+  );
+
   it("shows the four real tool cards without parsing pub names from speech", () => {
     expect(palVoiceToolAnswer(event)?.cards.map((card) => card.venueId)).toEqual(["venue-1", "venue-2", "venue-3", "venue-4"]);
   });

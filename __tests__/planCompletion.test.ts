@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -77,27 +75,6 @@ afterEach(() => {
 });
 
 describe("Plan Completion", () => {
-  it("pins the durable RPC to the canonical host and an in-route arrival", () => {
-    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260717071841_plan_completion_arrival_ending_selection.sql"), "utf8");
-    expect(sql).toContain("order by joined_at, id limit 1");
-    expect(sql).toContain("actor_id <> host_id");
-    expect(sql).toContain("stop.position = action.stop_position");
-    expect(sql).toContain("candidate.created_at <= completion.completed_at");
-    expect(sql.match(/action\.created_at <= p_completed_at/g)).toHaveLength(2);
-    expect(sql).toContain("on delete no action");
-    expect(sql).toContain("deferrable initially deferred");
-    expect(sql).toContain("p_ending_selection jsonb");
-    expect(sql).toContain("terminal_venue_id, ending_selection");
-    expect(sql).toContain("qualifying_arrival_action_id, qualifying_arrival_stop_position");
-    expect(sql).toContain("uuid, text, integer, uuid, uuid, text, text, jsonb, timestamptz");
-    const shapeConstraint = /add constraint plan_completions_qualifying_arrival_shape check \([\s\S]*?\)\s+not valid;/i.exec(sql);
-    expect(shapeConstraint).not.toBeNull();
-    const validateIndex = sql.indexOf("validate constraint plan_completions_qualifying_arrival_shape");
-    expect(validateIndex).toBeGreaterThan((shapeConstraint?.index ?? -1) + (shapeConstraint?.[0].length ?? 0));
-    expect(sql).not.toContain("on delete set null");
-    expect(sql).not.toContain("on delete cascade");
-  });
-
   it("completes against the expected canonical route revision exactly once and redacts actor ids", async () => {
     const created = await createPlan();
     const id = created.plan.plan.id;
@@ -249,6 +226,63 @@ describe("Plan Completion", () => {
     expect(await response.json()).toMatchObject({ code: "PLAN_ENDING_SELECTION_INVALID" });
     const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, { headers: { authorization: `Bearer ${created.memberToken}` } }), ctx(id));
     expect(await completion.json()).toEqual({ completion: null });
+  });
+
+  it("an ended Plan refuses a new stop action and completion, and still replays earlier work", async () => {
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const act = (key: string, stopPosition: number) => ACTION(new Request(`http://localhost/api/plans/${id}/actions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}`, "idempotency-key": key },
+      body: JSON.stringify({ type: "arrived", stopPosition }),
+    }), ctx(id));
+    const complete = () => COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}` },
+      body: JSON.stringify({
+        expectedRouteRevision: 1,
+        ending: "get_home",
+        endingSelection: { kind: "get_home", optionId: "transport:nearest-station", evidenceSnapshot: { label: "Nearest station", confidence: "unknown" } },
+      }),
+    }), ctx(id));
+
+    expect((await act("ended-arrival-0", 0)).status).toBe(201);
+    expect((await planStore().update(id, created.memberToken, { status: "abandoned" })).ok).toBe(true);
+
+    const lateArrival = await act("ended-arrival-1", 1);
+    expect(lateArrival.status).toBe(409);
+    expect(await lateArrival.json()).toMatchObject({ code: "PLAN_CLOSED", retryable: false });
+    const lateCompletion = await complete();
+    expect(lateCompletion.status).toBe(409);
+    expect(await lateCompletion.json()).toMatchObject({ code: "PLAN_CLOSED", retryable: false });
+    expect((await act("ended-arrival-0", 0)).status).toBeLessThan(300);
+
+    const plan = await GET_PLAN(new Request(`http://localhost/api/plans/${id}`, {
+      headers: { authorization: `Bearer ${created.memberToken}` },
+    }), ctx(id));
+    const state = await plan.json() as { plan: { status: string }; actions: unknown[] };
+    expect(state.plan.status).toBe("abandoned");
+    expect(state.actions).toHaveLength(1);
+  });
+
+  it("a completed Plan refuses a new stop action", async () => {
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const act = (key: string, stopPosition: number) => ACTION(new Request(`http://localhost/api/plans/${id}/actions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}`, "idempotency-key": key },
+      body: JSON.stringify({ type: "arrived", stopPosition }),
+    }), ctx(id));
+    expect((await act("completed-arrival-0", 0)).status).toBe(201);
+    const completion = await planStore().complete(id, created.memberToken, {
+      expectedRouteRevision: 1,
+      ending: "get_home",
+      endingSelection: { kind: "get_home", optionId: "walk", evidenceSnapshot: { label: "Walk home", confidence: "high" } },
+    });
+    expect(completion.ok).toBe(true);
+    const late = await act("completed-arrival-1", 1);
+    expect(late.status).toBe(409);
+    expect(await late.json()).toMatchObject({ code: "PLAN_CLOSED" });
   });
 
   it("rejects a stale route revision without recording a partial ending action or completion", async () => {

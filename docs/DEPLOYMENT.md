@@ -74,7 +74,7 @@ Voice and the ElevenLabs typed path need the agent values below.
 
 | Var | Purpose |
 |---|---|
-| `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
+| `PLAN_IDEMPOTENCY_SECRET` | Trusted signing configuration and consumers are defined in [`.env.example`](../.env.example). |
 | `EXA_API_KEY` | Powers the scheduled signals-ingestion job (docs/plans/sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
 | `SEARCH_PROVIDER` | **Server-only** `exa` (default) or `tavily` selector for `/api/cron/enrich-city-pubs`. `exa` may fall back to a configured Tavily key. `tavily` uses only Tavily, so one environment change can switch providers without a code change. |
 | `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel request-context OIDC is also accepted automatically. No separate Exa key is used by this path. |
@@ -97,7 +97,7 @@ storage backend; it never relaxes signing. `playwright.config.ts` injects a fres
 production-style browser-test run, keeping it out of the command and argv.
 Plan generation, creation, and completion return retryable
 `PLAN_SIGNING_UNAVAILABLE` (503) before mutation when that boundary is
-misconfigured.
+misconfigured. Keyed Pint Drop and Round creation follow the [API retry contract](rules/app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation).
 
 ### Vercel-injected (do not set by hand)
 

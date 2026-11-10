@@ -1,16 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Hermetic tests for BOTH backends of the operator-proposals store. Memory is
-// exercised directly; the Supabase backend runs against an in-memory fluent mock
-// (no network), proving create/list/getById/setStatus and the schema-miss
-// fail-soft to memory.
-
 import {
   __resetOperatorProposals,
   memoryOperatorProposalStore,
   supabaseOperatorProposalStore,
 } from "@/lib/operatorProposalsStore";
 import type { OperatorProposalFields } from "@/lib/operatorProposals";
+import { __resetOperatorFacts, memoryOperatorFactsStore } from "@/lib/operatorFactsStore";
 import { defined } from "@/__tests__/helpers/defined";
 
 type Row = Record<string, unknown>;
@@ -22,14 +18,13 @@ vi.mock("@/lib/supabase", () => {
 
   function makeQuery() {
     const state: {
-      op: "select" | "insert" | "update" | null;
+      op: "select" | "insert" | null;
       insertRow: Row | null;
-      patch: Row | null;
-      filters: { col: string; value: unknown }[];
-      single: boolean;
-    } = { op: null, insertRow: null, patch: null, filters: [], single: false };
+      filters: { col: string; value?: unknown; values?: readonly unknown[] }[];
+    } = { op: null, insertRow: null, filters: [] };
 
-    const matches = (r: Row) => state.filters.every((f) => r[f.col] === f.value);
+    const matches = (r: Row) =>
+      state.filters.every((f) => (f.values ? f.values.includes(r[f.col]) : r[f.col] === f.value));
 
     const result = () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
@@ -39,12 +34,6 @@ vi.mock("@/lib/supabase", () => {
         db.rows.push({ ...state.insertRow! });
         return { data: null, error: null };
       }
-      if (state.op === "update") {
-        if (db.failWrites) return { data: null, error: { message: "update boom" } };
-        rows.forEach((r) => Object.assign(r, state.patch));
-        return { data: rows.map((r) => ({ id: r.id })), error: null };
-      }
-      if (state.single) return { data: rows[0] ?? null, error: null };
       return { data: rows, error: null };
     };
 
@@ -58,9 +47,8 @@ vi.mock("@/lib/supabase", () => {
         state.insertRow = row;
         return q;
       },
-      update(patch: Row) {
-        state.op = "update";
-        state.patch = patch;
+      in(col: string, values: readonly unknown[]) {
+        state.filters.push({ col, values });
         return q;
       },
       eq(col: string, value: unknown) {
@@ -73,10 +61,6 @@ vi.mock("@/lib/supabase", () => {
       limit() {
         return q;
       },
-      maybeSingle() {
-        state.single = true;
-        return Promise.resolve(result());
-      },
       then(onFulfilled: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) {
         return Promise.resolve(result()).then(onFulfilled, onRejected);
       },
@@ -86,7 +70,28 @@ vi.mock("@/lib/supabase", () => {
 
   return {
     isSupabaseConfigured: () => true,
-    requireSupabaseAdmin: () => ({ from: () => makeQuery() }),
+    requireSupabaseAdmin: () => ({
+      from: () => makeQuery(),
+      rpc: (_name: string, args: { p_id: string; p_status: string; p_note: string | null }) => {
+        if (db.schemaMiss || db.failWrites) return { data: null, error: { message: "decision unavailable" } };
+        const row = db.rows.find((r) => r.id === args.p_id);
+        if (!row) return { data: { outcome: "missing" }, error: null };
+        if (row.status !== "pending" && !(args.p_status === "declined" && row.status === "accepted")) {
+          return { data: { outcome: "conflict" }, error: null };
+        }
+        Object.assign(row, { status: args.p_status, reviewed_at: "2026-11-10T09:00:00.000Z" });
+        return {
+          data: args.p_status === "declined" ? { outcome: "declined" } : {
+            outcome: "accepted", proposal: row, fact: {
+              id: "fact-1", proposal_id: row.id, venue_id: row.venue_id, account_id: row.account_id,
+              kind: "correction", field: "hours", body: "Open until midnight Fri/Sat",
+              published_at: row.reviewed_at, withdrawn_at: null,
+            },
+          },
+          error: null,
+        };
+      },
+    }),
   };
 });
 
@@ -103,6 +108,7 @@ beforeEach(() => {
   db.schemaMiss = false;
   db.failWrites = false;
   __resetOperatorProposals();
+  __resetOperatorFacts();
 });
 
 afterEach(() => {
@@ -119,7 +125,7 @@ describe("memoryOperatorProposalStore", () => {
 
   it("accept moves it out of pending and into the venue's accepted set", async () => {
     const dto = await memoryOperatorProposalStore.create(fields());
-    expect(await memoryOperatorProposalStore.setStatus(dto.id, "accepted", "verified change")).toBe(true);
+    expect(await memoryOperatorProposalStore.decide(dto.id, "accepted", "verified change")).toMatchObject({ outcome: "accepted" });
     expect(await memoryOperatorProposalStore.listForReview("pending")).toHaveLength(0);
     const accepted = await memoryOperatorProposalStore.listAcceptedForVenue("venue-1");
     expect(accepted).toHaveLength(1);
@@ -128,15 +134,23 @@ describe("memoryOperatorProposalStore", () => {
 
   it("decline leaves nothing accepted", async () => {
     const dto = await memoryOperatorProposalStore.create(fields());
-    await memoryOperatorProposalStore.setStatus(dto.id, "declined");
+    await memoryOperatorProposalStore.decide(dto.id, "declined");
     expect(await memoryOperatorProposalStore.listAcceptedForVenue("venue-1")).toHaveLength(0);
   });
 
-  it("getById returns the payload; unknown id is null / false", async () => {
-    const dto = await memoryOperatorProposalStore.create(fields());
-    expect((await memoryOperatorProposalStore.getById(dto.id))?.type).toBe("correction");
-    expect(await memoryOperatorProposalStore.getById("nope")).toBeNull();
-    expect(await memoryOperatorProposalStore.setStatus("nope", "accepted")).toBe(false);
+  it.each(["publish", "withdraw"] as const)("a failed %s changes neither status nor facts", async (effect) => {
+    const proposal = await memoryOperatorProposalStore.create(fields());
+    if (effect === "withdraw") await memoryOperatorProposalStore.decide(proposal.id, "accepted");
+    const before = await memoryOperatorFactsStore.listPublishedForVenue("venue-1");
+    const spy = vi.spyOn(memoryOperatorFactsStore, effect).mockImplementationOnce(() => { throw new Error("write failed"); });
+    await expect(memoryOperatorProposalStore.decide(proposal.id, effect === "publish" ? "accepted" : "declined")).rejects.toThrow("write failed");
+    spy.mockRestore();
+    expect(await memoryOperatorProposalStore.listForReview(effect === "publish" ? "pending" : "accepted")).toMatchObject([{ id: proposal.id }]);
+    expect(await memoryOperatorFactsStore.listPublishedForVenue("venue-1")).toEqual(before);
+  });
+
+  it("unknown decisions report missing", async () => {
+    expect(await memoryOperatorProposalStore.decide("nope", "accepted")).toEqual({ outcome: "missing" });
   });
 });
 
@@ -145,13 +159,21 @@ describe("supabaseOperatorProposalStore", () => {
     const dto = await supabaseOperatorProposalStore.create(fields());
     expect(db.rows).toHaveLength(1);
     expect(await supabaseOperatorProposalStore.listForReview("pending")).toHaveLength(1);
-    expect(await supabaseOperatorProposalStore.setStatus(dto.id, "accepted")).toBe(true);
+    expect(await supabaseOperatorProposalStore.decide(dto.id, "accepted")).toMatchObject({ outcome: "accepted" });
     expect(await supabaseOperatorProposalStore.listAcceptedForVenue("venue-1")).toHaveLength(1);
   });
 
   it("throws on a hard write failure (route maps that to 503)", async () => {
     db.failWrites = true;
     await expect(supabaseOperatorProposalStore.create(fields())).rejects.toThrow();
+  });
+
+  it("refuses moderation when the durable RPC is unavailable", async () => {
+    const proposal = await memoryOperatorProposalStore.create(fields());
+    db.schemaMiss = true;
+    await expect(supabaseOperatorProposalStore.decide(proposal.id, "accepted")).rejects.toThrow("decision unavailable");
+    expect(await memoryOperatorProposalStore.listForReview("pending")).toMatchObject([{ id: proposal.id }]);
+    expect((await memoryOperatorFactsStore.listPublishedForVenue("venue-1")).facts).toEqual([]);
   });
 
   it("fails soft to memory on a schema miss", async () => {

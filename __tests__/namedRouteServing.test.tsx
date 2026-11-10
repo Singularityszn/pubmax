@@ -52,11 +52,9 @@ it("keeps bottle stops on the mounted route and omits both from every selected-p
   const root = createRoot(host);
   try {
     await act(async () => root.render(await NamedRoutePage({ params: Promise.resolve({ slug: "victorian-soho" }) })));
-    await vi.waitFor(async () => {
-      await act(async () => { await Promise.resolve(); });
-      expect(host.querySelectorAll(".crawlReceipt__item")).toHaveLength(5);
-      expect(host.querySelectorAll(".pintLine__label")).toHaveLength(5);
-    });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    expect(host.querySelectorAll(".crawlReceipt__item")).toHaveLength(5);
+    expect(host.querySelectorAll(".pintLine__label")).toHaveLength(5);
     const stops = host.querySelectorAll('ul[aria-label="Victorian Soho stops"] > li');
     const receipt = host.querySelector(".crawlReceipt")!;
     const items = receipt.querySelectorAll(".crawlReceipt__item");

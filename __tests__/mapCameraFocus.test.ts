@@ -187,20 +187,20 @@ describe("mounted camera focus ownership", () => {
     expect(cinematic).not.toHaveBeenCalled();
     render({ resolved: true });
     expect(cinematic.mock.calls).toEqual([
-      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location"],
+      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location", "automatic"],
     ]);
     const area = nextAreaCameraFocus(null, { center: CUMBRIA, zoom: 14 });
     act(() => camera.claimMapCamera());
     render({ resolved: true, area });
     render({ resolved: true, area: { ...area } });
     expect(cinematic.mock.calls).toEqual([
-      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location"],
-      [{ center: CUMBRIA, zoom: 14, duration: 900 }, "area"],
+      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location", "automatic"],
+      [{ center: CUMBRIA, zoom: 14, duration: 900 }, "area", "user"],
     ]);
     render({ resolved: true, area: nextAreaCameraFocus(area, { center: CUMBRIA, zoom: 14 }) });
     expect(cinematic).toHaveBeenCalledTimes(3);
     expect(cinematic).toHaveBeenLastCalledWith(
-      { center: CUMBRIA, zoom: 14, duration: 900 }, "area",
+      { center: CUMBRIA, zoom: 14, duration: 900 }, "area", "user",
     );
   });
 
@@ -227,7 +227,7 @@ describe("mounted camera focus ownership", () => {
     render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 }, area });
     expect(camera.openingLocationFocus).toBeNull();
     expect(cinematic.mock.calls).toEqual([
-      [{ center: LONDON, zoom: 14, duration: 900 }, "area"],
+      [{ center: LONDON, zoom: 14, duration: 900 }, "area", "user"],
     ]);
   });
 
@@ -237,7 +237,7 @@ describe("mounted camera focus ownership", () => {
     render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 } });
     expect(host.textContent).toBe("false");
     expect(cinematic.mock.calls).toEqual([
-      [{ center: CUMBRIA, zoom: 16, duration: 900 }, "opening-location"],
+      [{ center: CUMBRIA, zoom: 16, duration: 900 }, "opening-location", "automatic"],
     ]);
     render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 } });
     expect(cinematic).toHaveBeenCalledOnce();

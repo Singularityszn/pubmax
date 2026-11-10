@@ -3,6 +3,7 @@
 import type * as maplibregl from "maplibre-gl";
 import { describe, expect, it } from "vitest";
 
+import { applySelectionState, type SceneCtx } from "@/components/map/canvas/buildScene";
 import { syncPlanRoutePreviewScene } from "@/components/map/canvas/planRoutePreviewScene";
 
 type FakeLayer = {
@@ -131,5 +132,31 @@ describe("syncPlanRoutePreviewScene", () => {
     expect(find("route-stops-name")?.paint["text-color"]).toEqual(nameColor);
     expect(find("route-stops-label")?.paint["text-color"]).toEqual(numberColor);
     expect(find("route-stops-label")?.paint["text-halo-color"]).toEqual(numberHalo);
+  });
+});
+
+describe("Pal picks after scene assembly", () => {
+  it("keeps ordinary pins below the scrim across replacement styles and deferred layers", () => {
+    for (const theme of ["light", "dark", "recovered"]) {
+      const scene = fakeMap([
+        { id: `${theme}-background`, type: "background", paint: {}, layout: {} },
+        { id: "pal-picks-scrim", type: "background", paint: { "background-opacity": 0.55 }, layout: {} },
+      ]);
+      const ctx = { map: scene.map, selectionMuteStore: new Map(), selectedId: "" } as SceneCtx;
+      scene.map.addSource("pubs", { type: "geojson", data: STOPS });
+      scene.map.addLayer({ id: "pubs-point", type: "circle", source: "pubs" });
+      applySelectionState(ctx, true);
+      expect(scene.order().at(-1)).toBe("pal-picks-scrim");
+      scene.map.addLayer({ id: "tonight", type: "circle", source: "pubs" });
+      applySelectionState(ctx);
+      expect(scene.order().at(-1)).toBe("pal-picks-scrim");
+      expect(scene.find("pal-picks-scrim")?.paint["background-opacity"]).toBe(0.55);
+    }
+  });
+
+  it("does not introduce a scrim when no Pal picks are active", () => {
+    const scene = fakeMap([{ id: "pubs-point", type: "circle", paint: {}, layout: {} }]);
+    applySelectionState({ map: scene.map, selectionMuteStore: new Map(), selectedId: "" } as SceneCtx);
+    expect(scene.order()).toEqual(["pubs-point"]);
   });
 });

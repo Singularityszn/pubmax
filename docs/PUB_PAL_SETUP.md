@@ -33,9 +33,8 @@ Map Ask uses OpenRouter when its key is set, or the keyless tools otherwise.
 A failed Claude request does not switch to another paid provider.
 Map Ask retains completed tool results or uses its keyless fallback. Typed chat returns its existing failure response.
 
-Nothing here changes what the Pal may SAY. Text and voice run the same
-source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
-(ADR 0006).
+Text and voice use the same source-backed tool registry.
+[ADR 0014, decision 3](adr/0014-night-os-ask-agent.md#decision) owns action confirmation, including the live voice exception for view moves.
 
 ---
 
@@ -238,8 +237,16 @@ Voice uses the same opening builder in its first-message override.
    as the answer. `npm run pubpal:agent -- --check` reports whether the live
    agent matches this config.
    Voice also needs `agent_tool_response_full_payload` to show the actual
-   returned pub cards, their fitted map and memory-confirmation cards. The
-   browser uses the tool result, never pub names or prices parsed from speech.
+   returned pub cards, their fitted map and memory-confirmation cards.
+   The browser uses the tool result for pub identities, coordinates and prices.
+   `onAudioAlignmentPlayback` supplies character timing when each audio chunk starts and skips interrupted chunks.
+   `lib/palPickSpeech.ts` matches that played text against existing pick names, without creating new picks or price facts.
+   The [Pub Pal feature guide](../README.md#features) owns the visible pick and price-card behaviour.
+   For `search_venues` and `cheapest_pint_near`, the webhook forwards `result.data`.
+   Returned pub coordinates use `venues` records with `id`, `lat` and `lng`.
+   This includes the named-pub opening-hours variant of `search_venues`, even when current hours are unknown.
+   Main-map picks use those coordinates without waiting for a separate browser venue index.
+   `lib/palVoiceToolAnswer.ts` joins the coordinates to returned cards by venue ID.
    Requests for one to six pubs pass a result count to `search_venues`.
    An upper pint-price limit filters eligible records before ranking.
    The script also sets how the agent hears a person in a pub. Turn-taking is
@@ -391,14 +398,14 @@ can be retried. Repeated taps while voice starts use the same attempt.
 Client navigation between `/pal` and `/map`, including `/map/` subroutes, keeps
 the same call and socket open. `PalVoiceHost` holds the session in the root
 shell. On the map, `PalVoiceBar` shows the call status and newest transcript line.
-**End** stops a live call. **Cancel** stops a pending startup attempt, subject
-to the SDK limit below. Returning to `/pal` restores the full transcript panel
+**End** stops a live call. **Cancel** stops a pending startup attempt,
+and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
 without starting another call. A cold `/map` loads no ElevenLabs SDK.
 
 A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.
-Ending a call releases its voice grant.
+Ending a call releases its voice grant and clears its main-map picks and grounding.
 
 If a background interruption leaves the session mounted, it keeps the transcript
 and offers **Carry on** when you return. On the map, **Close voice chat** dismisses
@@ -411,9 +418,20 @@ cancels the startup attempt while microphone permission is pending. If permissio
 then arrives, the app stops the returned stream without requesting a voice grant.
 
 The pinned ElevenLabs SDK cannot cancel startup once its connection is in
-progress. Its microphone and audio output can remain active until startup
-finishes. The app then closes the late session.
-This limit also applies if you lock the screen during SDK startup.
+progress. The app keeps a microphone guard installed for the life of the page.
+Each SDK microphone request uses the startup token that is current when the
+request begins. Cancelling that token stops its held streams at once.
+The guard refuses requests with a cancelled token. It also stops streams that
+resolve after cancellation or while the page is hidden. SDK status changes do
+not remove this guard. The app's own permission probe bypasses the guard.
+
+If you start again, the app waits until the previous SDK startup reports
+connected or disconnected. The startup timeout also limits this wait.
+If an attempt claims its token but stops before the SDK starts, the app marks
+that startup as finished. Later attempts do not wait for an SDK status change
+from that attempt.
+A new SDK startup becomes the current token. The SDK can still finish an old
+connection. The app then closes the late session.
 
 `components/pubpal/usePageLeft.ts` detects document hiding, `pagehide`, and native
 `pause`. It ignores native foreground inactivity, which can include permission

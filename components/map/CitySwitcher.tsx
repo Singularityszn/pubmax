@@ -15,7 +15,7 @@ import {
   PINT_COMPASS_HREF,
   PINT_COMPASS_LABEL,
 } from "@/lib/pintCompassDoor";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { trackEvent } from "@/lib/analytics";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {

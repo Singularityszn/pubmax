@@ -14,7 +14,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObjec
 import { useRouter } from "next/navigation";
 
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
-import { THEME_STORAGE_KEY } from "@/lib/themePreference";
+import { toggleThemeChoice } from "@/lib/useThemeChoice";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
 import { commands } from "./commands";
@@ -22,22 +22,6 @@ import { filterCommands } from "./commandFilter";
 import type { Command, CommandContext, CommandGroup } from "./types";
 
 import "./commandPalette.css";
-
-// Flip light ↔ dark exactly the way ThemeToggle does (attribute on <html> +
-// persisted choice), so the palette's "Toggle theme" stays in sync with the nav
-// toggle and survives reloads via the no-flash init script.
-function toggleTheme(): void {
-  if (typeof document === "undefined") return;
-  const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
-  const next = current === "dark" ? "light" : "dark";
-  document.documentElement.dataset.theme = next;
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, next);
-  } catch {
-    // Private-mode / storage-disabled: the attribute flip still applies for the
-    // session; persistence is best-effort.
-  }
-}
 
 export default function CommandPalette({
   onClose,
@@ -129,7 +113,7 @@ export default function CommandPalette({
           router.push(href);
         },
         close: onClose,
-        toggleTheme,
+        toggleTheme: toggleThemeChoice,
       };
       onClose();
       command.run(ctx);

@@ -567,6 +567,7 @@ export const supabasePlanStore: PlanStore = {
     if (data === "forbidden") return { ok: false, error: "forbidden" };
     if (data === "not_found") return { ok: false, error: "not_found" };
     if (data === "conflict") return { ok: false, error: "conflict" };
+    if (data === "closed") return { ok: false, error: "closed" };
     if (data === "invalid") return { ok: false, error: "invalid" };
     if (data !== "applied" && data !== "replayed") return { ok: false, error: "error" };
     const plan = await this.get(id);
@@ -607,7 +608,7 @@ export const supabasePlanStore: PlanStore = {
         p_completed_at: new Date().toISOString(),
       });
       if (error) throw new Error(error.message);
-      if (data !== "completed" && data !== "already_completed") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : data === "not_found" ? "not_found" : data === "arrival_required" ? "arrival_required" : "invalid" };
+      if (data !== "completed" && data !== "already_completed") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : data === "closed" ? "closed" : data === "not_found" ? "not_found" : data === "arrival_required" ? "arrival_required" : "invalid" };
       const [plan, completion] = await Promise.all([this.get(id), this.getCompletion(id)]);
       return plan && completion ? { ok: true, plan, completion, created: data === "completed" } : { ok: false, error: "error" };
     } catch (error) {
@@ -913,6 +914,7 @@ export const memoryPlanStore: PlanStore = {
     if (replay) {
       return replay.requestHash === requestHash ? { ok: true, plan: publicState(plan) } : { ok: false, error: "conflict" };
     }
+    if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     const bound = action.expectedRouteRevision !== undefined || action.venueId !== undefined;
     if (bound && (!Number.isInteger(action.expectedRouteRevision) || action.expectedRouteRevision! < 1
       || typeof action.venueId !== "string" || !action.venueId.trim())) return { ok: false, error: "invalid" };
@@ -949,12 +951,14 @@ export const memoryPlanStore: PlanStore = {
     if (plan.completion) {
       return { ok: true, plan: publicState(plan), completion: publicCompletion(plan.completion), created: false };
     }
+    if (plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     const qualifyingArrival = plan.actions.find((action) => (
       action.type === "arrived"
       && action.stopPosition !== null
       && plan.stops.some((stop) => stop.position === action.stopPosition)
     ));
     if (!qualifyingArrival || qualifyingArrival.stopPosition === null) return { ok: false, error: "arrival_required" };
+    if (!canTransitionPlannedNight(plan.plan.status ?? "draft", "completed")) return { ok: false, error: "closed" };
     if (input.ending === "food" && !input.terminalVenueId) return { ok: false, error: "invalid" };
     if (input.terminalVenueId && !plan.stops.some((stop) => stop.venueId === input.terminalVenueId)) return { ok: false, error: "invalid" };
     const completedAt = stamp();

@@ -105,6 +105,8 @@ beforeAll(async () => {
       if (state.failGroupMembers) return json(response, { code: "57014", message: "Synthetic group membership failure" }, 400);
       return json(response, [HANDLE, FRIEND, "fixture_third"].map((handle) => ({ handle })));
     }
+    // Nobody in these cases has deleted the chat.
+    if (path === "/rest/v1/conversation_deletions") return json(response, []);
     if (path === "/rest/v1/messages" && request.method === "GET") {
       if (state.schema) return json(response, { code: "42P01", message: 'relation "public.messages" does not exist' }, 400);
       if (state.failRead) return json(response, { code: "57014", message: "Synthetic retryable read failure" }, state.status);
