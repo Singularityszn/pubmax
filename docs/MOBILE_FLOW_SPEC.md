@@ -77,10 +77,9 @@ in [README Features](../README.md#features).
 1. **Tab switches never build history.** Tapping a bottom tab replaces, it does not
    push — back must never walk the user backward through tabs they tapped.
 2. **In-tab pushes DO build history** (list→detail, story→venue, plan→join).
-3. **The sheet closes before the tab pops.** With the venue sheet or planner open
-   (`appShell.detail-open` / `.planning-open`), the first back gesture closes the
-   overlay; only a second back leaves the map. Tab-bar visibility and sheet clearance
-   follow the [sheet portal clearance rules](../components/mobile/mobileMapShell.css).
+3. Map sheet Back gestures follow the [surface navigation contract](rules/components-sheets-chrome-and-navigation.md#no-surface-is-a-dead-end-and-the-way-out-is-one-pattern).
+   The [map guide](../README.md#features) owns planner exit and Home destinations.
+   Tab-bar visibility and sheet clearance follow the [sheet portal clearance rules](../components/mobile/mobileMapShell.css).
 4. **Scroll restoration:** returning to Discover / Pubs / Stories restores the prior
    scroll position (Next default scroll restoration); deep-linking into Map does not
    inherit list scroll.

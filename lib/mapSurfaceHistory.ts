@@ -16,6 +16,11 @@ const MAP_SURFACE_HISTORY_VERSION = 1 as const;
 type MapSurfaceHistory<S> = {
   version: typeof MAP_SURFACE_HISTORY_VERSION;
   stack: SurfaceStack<S>;
+  /**
+   * Browser history distance to the Map root. Reopening a parent can make
+   * this distance greater than the logical stack depth.
+   */
+  aboveRoot: number;
 };
 
 function historyStateRecord(state: unknown): Record<string, unknown> {
@@ -42,16 +47,26 @@ export function readMapSurfaceHistory<S>(state: unknown): SurfaceStack<S> | null
   return snapshot.stack.map((entry) => ({ ...entry })) as SurfaceStack<S>;
 }
 
+/** How many browser entries sit above the Map root, or null for no Map entry. */
+export function readEntriesAboveRoot(state: unknown): number | null {
+  const stack = readMapSurfaceHistory(state);
+  if (stack === null) return null;
+  const aboveRoot = ((state as Record<string, unknown>)[MAP_SURFACE_HISTORY_KEY] as { aboveRoot?: unknown }).aboveRoot;
+  return typeof aboveRoot === "number" && Number.isInteger(aboveRoot) && aboveRoot >= 0 ? aboveRoot : stack.length;
+}
+
 export function stampMapSurfaceHistory<S>(
   state: unknown,
   stack: SurfaceStack<S>,
   selectedVenueId: string,
+  aboveRoot: number = stack.length,
 ): Record<string, unknown> {
   const base = historyStateRecord(state);
   delete base[LEGACY_SURFACE_HISTORY_KEY];
   base[MAP_SURFACE_HISTORY_KEY] = {
     version: MAP_SURFACE_HISTORY_VERSION,
     stack: stack.map((entry) => ({ ...entry })),
+    aboveRoot,
   } satisfies MapSurfaceHistory<S>;
 
   if (selectedVenueId) {

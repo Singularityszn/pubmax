@@ -2255,6 +2255,7 @@ export default function PubMap({
   // worse than one. The trail is assembled further down this component, so the
   // gesture reaches it through a ref.
   const surfaceBackRef = useRef<() => void>(() => {});
+  const surfaceLeaveRef = useRef<(id: MapSurfaceId, close: () => void) => void>((_id, close) => close());
   const surfaceOpenRef = useRef<
     (entry: SurfaceEntry<MapSurfaceState>) => void
   >(() => {});
@@ -2346,9 +2347,7 @@ export default function PubMap({
 
   // Ref so fling-dismiss can call the same closePlanning as chrome buttons
   // without a hook ↔ callback cycle (useSheetDrag needs onDismiss up front).
-  const closePlanningRef = useRef<() => void>(() => {
-    setPlanningOpen(false);
-  });
+  const closePlanningRef = useRef<() => void>(() => setPlanningOpen(false));
   const {
     sheetSnap: plannerSheetSnap,
     setSheetSnap: setPlannerSheetSnap,
@@ -2407,10 +2406,10 @@ export default function PubMap({
     setSheetSnap,
   ]);
 
-  const togglePlanning = useCallback(() => {
-    if (planningOpen) closePlanning();
-    else openPlanning();
-  }, [closePlanning, openPlanning, planningOpen]);
+  // The planner's own exits go Back when it is the top entry, so its browser entry goes too.
+  const exitPlanning = useCallback(() => surfaceLeaveRef.current("planner", closePlanning), [closePlanning]);
+  const togglePlanning = useCallback(() => (planningOpen ? exitPlanning() : openPlanning()),
+    [exitPlanning, openPlanning, planningOpen]);
 
   // Issue #35 + location-first sharding: paint pins from the slim index cells
   // that intersect the opening viewport (or instantly from the resume
@@ -4837,8 +4836,8 @@ export default function PubMap({
     trackEvent("route_opened", { surface: "map" });
     setRouteMapped(true);
     dismissOnboarding();
-    if (isMobileViewport()) closePlanning();
-  }, [route.length, closePlanning, dismissOnboarding, setRouteMapped]);
+    if (isMobileViewport()) exitPlanning();
+  }, [route.length, exitPlanning, dismissOnboarding, setRouteMapped]);
 
   const hideMappedRoute = useCallback(() => {
     setRouteMapped(false);
@@ -5503,9 +5502,10 @@ export default function PubMap({
   );
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
+    surfaceLeaveRef.current = mapSurfaceTrail.leave;
     surfaceOpenRef.current = mapSurfaceTrail.open;
     surfaceStateRef.current = mapSurfaceState;
-  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open]);
+  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.leave, mapSurfaceTrail.open]);
 
   // ── The landmark story ───────────────────────────────────────────────────
   // One body (components/map/LandmarkStoryBody.tsx) in the frame each width
@@ -5847,7 +5847,7 @@ export default function PubMap({
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
 
   function renderPlannerMapButton() {
-    return !mobileViewport ? <button type="button" className="plannerMapButton" onClick={closePlanning}>
+    return !mobileViewport ? <button type="button" className="plannerMapButton" onClick={exitPlanning}>
       <MapPinned size={16} aria-hidden="true" />
       View {mapDisplayName} map
     </button> : null;
