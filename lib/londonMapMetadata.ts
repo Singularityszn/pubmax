@@ -8,13 +8,13 @@
 
 import type { Metadata } from "next";
 
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import {
   cityMapOgAlt,
   cityMapOgDescription,
   cityMapOgImageUrl,
   cityMapOgTitle,
   cityMapShareSelectsDescription,
-  cityMapShareUrl,
   type CityMapShareOptions,
 } from "@/lib/cityShare";
 

@@ -88,8 +88,6 @@ export function firstSearchParam(
   return value;
 }
 
-export { cityMapShareUrl } from "@/lib/cityMapHref";
-
 /**
  * OG / document title for a city map. Curated crawl wins when it resolves;
  * otherwise cult band title; else city display name + short map label.

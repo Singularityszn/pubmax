@@ -10,7 +10,7 @@ import {
 } from "@/lib/cities";
 import { discardBody } from "@/lib/responseBody";
 import { writePreferredCity } from "@/lib/cityPreference";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { resolveLocateMapDestination } from "@/lib/locateMapDestination";
 import {
   dismissCitySuggest,
