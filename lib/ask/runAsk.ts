@@ -168,7 +168,7 @@ export type RunAskInput = {
   modelTimeoutMs?: number;
   /** Static route tag for the trace (e.g. "api/ask"). */
   traceRoute?: string;
-  /** Pubs search_venues leaves out, set by the server for "somewhere new". */
+  /** Server-owned discovery exclusions. See AskToolContext. */
   excludeVenueIds?: ReadonlySet<string>;
 };
 

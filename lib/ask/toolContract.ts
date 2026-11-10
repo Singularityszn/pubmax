@@ -55,8 +55,8 @@ export type AskToolContext = {
   /** Injected clock, so a "what is on right now" answer is testable. */
   now?: number;
   /**
-   * Pubs search_venues must leave out: the signed-in owner's own visits, set
-   * by the server for "somewhere new", never by a model argument.
+   * Server-owned visit exclusions for discovery, including search_venues
+   * requests redirected to cheapest_pint_near. A model cannot supply this set.
    */
   excludeVenueIds?: ReadonlySet<string>;
 };

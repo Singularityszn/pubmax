@@ -110,6 +110,15 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **No alcohol and food views** - open **Filters**, then use **Show me** to narrow the map. The no-alcohol view keeps venues known to serve without alcohol, any pub with a corroborated soft-drink or alcohol-free price, and sourced food venues. The food view includes pubs and bars with recorded food service, plus late-food and restaurant venues. A recorded absence of food service excludes a venue. Soft drinks and alcohol-free drinks are their own logged categories, held to the same corroboration and freshness rules as a pint, and they colour and label pins like any other chosen drink. A food or dish anchor never prints on a pin: it stays on the venue sheet, labelled and sourced. A view's figure always names its drink or dish, and never reaches cheapest-pint buckets or the Pint Index. A pub with nothing logged says so plainly rather than implying it was checked.
 - **Pub Pal** - typed chat starts with a greeting. Ask for four pubs in Soho to get grounded choices beside a map of those pubs. Follow with "Same area, under £6 a pint" to refine the budget. Open a result and return to continue the [current conversation](docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md). **New conversation** clears the chat without deleting approved memories.
 
+  <a id="pub-pal-new-picks"></a>
+
+  For new picks in typed or voice chat, ask for "somewhere new", "places I haven't been" or "surprise me".
+  When you are signed in with **Taste read** enabled, these picks exclude pubs in your diary, visible Pint Drops and **Been here** list.
+  With **Taste read** off, Pal reads no visit history.
+  Pal says, "I'm not using your history, so some of these you may know."
+  Without history or sign-in, Pal says, "I don't know where you've been yet."
+  If the history check fails, Pal says, "I couldn't check where you've been, so some of these you may know."
+
   <a id="pub-pal-age-requirements"></a>
 
   Creating a Pal requires sign-in and confirmation that you are 18 or over.
