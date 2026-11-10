@@ -10,6 +10,9 @@ import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 // while a sign-in the reader started is in progress. A sign-in action loads
 // the client itself (ensureSupabaseBrowser), and the wait ends when any caller
 // has built it. A touch on the map does not load it.
+// Unreadable storage and an unavailable resume hint do not release the wait.
+// Leaving /map releases it because the departed map cannot reveal pins.
+// The bootstrap timeout starts after release, not while waiting for pins.
 
 const MAP_PATH = /^\/map(?:\/|$)/;
 
@@ -20,10 +23,10 @@ export type AuthClientTurnWindow = Pick<Window, "addEventListener" | "removeEven
 export type AuthClientTurn = {
   /** Resolves when the auth client may load. */
   ready: Promise<void>;
-  /** True when the client waits for the pins: no stored session and no sign-in under way. */
+  /** True when this turn initially defers client loading. */
   waiting: boolean;
   updatePathname: (pathname: string) => void;
-  /** Drops the listener. `ready` then never resolves. */
+  /** Cancels future releases when the provider unmounts. */
   cancel: () => void;
 };
 
@@ -35,7 +38,7 @@ export function authClientTurn(
     pinsVisible: boolean;
     /** Resolves true when an auth callback in the address has to be finished. */
     callback: Promise<boolean>;
-    /** Asked only when the client would wait: true when a durable session may exist. */
+    /** Asked only when the client would wait: true only for a confirmed durable-session hint. */
     durableSession: () => Promise<boolean>;
     /** Asked only when the client would wait: resolves when another caller builds it. */
     clientBuilt: () => Promise<unknown>;

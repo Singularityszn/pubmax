@@ -26,6 +26,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   After an offline start, reconnect or return to the app to retry the sign-in check. Once the check confirms you are signed out, you can retry **Continue with Apple** without restarting the iPhone app.
 
+  On a signed-out map visit, **Sign in** can appear before the map pins. If the account check is unavailable, account status stays unresolved until pins appear or you leave the map. A failed check does not sign you out.
+
   If you are signed in and your profile check fails or takes too long, **You** and **Social** offer **Retry**. **Retry** checks your profile again without reloading the page.
 
   Your profile has a cover, personal details, statistics and section links. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.

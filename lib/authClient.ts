@@ -193,10 +193,10 @@ export function ensureSupabaseBrowser(): Promise<SupabaseClient | null> {
 }
 
 /**
- * Best-effort SYNChronous accessor for consumers that return synchronously (the
- * realtime subscribe helpers). Returns the client once it has loaded, else null
- * while kicking off the lazy load in the background. A null here simply means the
- * caller degrades to its existing poll fallback until the client warms.
+ * Best-effort synchronous accessor for realtime subscribe helpers.
+ * Returns the loaded client or null while the caller uses its poll fallback.
+ * Loading follows ensureSupabaseBrowserForSession, so a passive read cannot
+ * bypass the auth loading gate in lib/authClientTurn.ts.
  */
 export function getSupabaseBrowser(): SupabaseClient | null {
   if (typeof window === "undefined") return null;
@@ -213,7 +213,7 @@ function windowLocalStorage(): Pick<Storage, "getItem"> | null {
   }
 }
 
-/** True when no session is stored and no caller has started the client. */
+/** True before any client starts when no session key is readable. This does not prove sign-out. */
 function signedOutBeforeClient(): boolean {
   return cached === undefined && !clientPromise && !hasStoredBrowserSession(windowLocalStorage());
 }
@@ -222,8 +222,8 @@ function signedOutBeforeClient(): boolean {
  * The browser client for work that only a signed-in reader has, such as a
  * private realtime channel. With a stored session it loads the client like
  * ensureSupabaseBrowser. With none it does not load supabase-js: it resolves
- * when another caller builds the client (AuthProvider, after the map's pins,
- * lib/authClientTurn.ts), so a later sign-in still reaches the caller.
+ * when another caller builds the client, so a later sign-in still reaches
+ * the caller. lib/authClientTurn.ts owns AuthProvider's loading conditions.
  */
 export function ensureSupabaseBrowserForSession(): Promise<SupabaseClient | null> {
   if (typeof window === "undefined") return Promise.resolve(null);
@@ -231,8 +231,8 @@ export function ensureSupabaseBrowserForSession(): Promise<SupabaseClient | null
 }
 
 /**
- * True when this browser stores a Supabase session for the configured project,
- * read without loading supabase-js.
+ * True when the configured project's Supabase session key is present.
+ * Missing or unreadable storage returns false without loading supabase-js.
  */
 export function hasStoredBrowserSession(storage: Pick<Storage, "getItem"> | null): boolean {
   const config = resolveSupabaseConfig(
@@ -275,8 +275,7 @@ export function isAuthConfigured(): boolean {
  * an anonymous request or requires a retry or refusal.
  */
 export async function getAccessToken(): Promise<string | null> {
-  // No stored session means the client would read none: answer anonymous
-  // without loading supabase-js.
+  // A token lookup must not start the client without a readable session key.
   if (typeof window !== "undefined" && signedOutBeforeClient()) return null;
   const accountSignal = readProviderAccountSignal();
   const supabase = await ensureSupabaseBrowser();
