@@ -33,36 +33,45 @@ let creation: {
   failMemberRead: boolean;
 } | null;
 
+function createRoundFixture(state: NonNullable<typeof creation>) {
+  return (url: URL, method: string, init?: RequestInit): Response => {
+    if (url.pathname === "/rest/v1/rounds") {
+      if (method === "POST") {
+        if (state.round) return Response.json({ code: "23505", message: "Duplicate id" }, { status: 409 });
+        state.round = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return Response.json(state.round, { status: 201 });
+      }
+      if (state.missFirstRead) {
+        state.missFirstRead = false;
+        return Response.json(null);
+      }
+      return Response.json(state.round);
+    }
+    if (url.pathname === "/rest/v1/round_members") {
+      if (method === "POST") {
+        if (state.failMembership) return new Response(null, { status: 503 });
+        const member = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        const exists = state.members.some((row) => row.round_id === member.round_id && row.handle === member.handle);
+        if (exists && !new Headers(init?.headers).get("prefer")?.includes("resolution=ignore-duplicates")) {
+          return Response.json({ code: "23505", message: "Duplicate member" }, { status: 409 });
+        }
+        if (!exists) {
+          state.members.push(member);
+        }
+        return new Response(null, { status: 201 });
+      }
+      return state.failMemberRead ? new Response(null, { status: 503 }) : Response.json(state.members);
+    }
+    throw new Error(`Unexpected creation fixture path: ${url.pathname}`);
+  };
+}
+
 const fixtureFetch: typeof fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input));
   if (url.hostname !== "rounds-receipt.test") throw new Error("Unexpected fixture host");
   const method = init?.method ?? (input instanceof Request ? input.method : "GET");
-  if (creation && url.pathname === "/rest/v1/rounds") {
-    if (method === "POST") {
-      if (creation.round) return Response.json({ code: "23505", message: "Duplicate id" }, { status: 409 });
-      creation.round = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      return Response.json(creation.round, { status: 201 });
-    }
-    if (creation.missFirstRead) {
-      creation.missFirstRead = false;
-      return Response.json(null);
-    }
-    return Response.json(creation.round);
-  }
-  if (creation && url.pathname === "/rest/v1/round_members") {
-    if (method === "POST") {
-      if (creation.failMembership) return new Response(null, { status: 503 });
-      const member = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      const exists = creation.members.some((row) => row.round_id === member.round_id && row.handle === member.handle);
-      if (exists && !new Headers(init?.headers).get("prefer")?.includes("resolution=ignore-duplicates")) {
-        return Response.json({ code: "23505", message: "Duplicate member" }, { status: 409 });
-      }
-      if (!exists) {
-        creation.members.push(member);
-      }
-      return new Response(null, { status: 201 });
-    }
-    return creation.failMemberRead ? new Response(null, { status: 503 }) : Response.json(creation.members);
+  if (creation && (url.pathname === "/rest/v1/rounds" || url.pathname === "/rest/v1/round_members")) {
+    return createRoundFixture(creation)(url, method, init);
   }
   if (url.pathname === "/rest/v1/rounds") {
     if (failReadAfterInsert && rows.length) return new Response(null, { status: 503 });
@@ -176,6 +185,29 @@ function spend() {
     receipt: new File([PNG], "bill.png", { type: "image/png" }),
   };
 }
+
+it("keeps round and membership creation state across fixture requests", async () => {
+  const state: NonNullable<typeof creation> = {
+    round: null, members: [], missFirstRead: true,
+    failMembership: false, failMemberRead: false,
+  };
+  const request = createRoundFixture(state);
+  const roundUrl = new URL("https://rounds-receipt.test/rest/v1/rounds");
+  const memberUrl = new URL("https://rounds-receipt.test/rest/v1/round_members");
+  const round = { id: ROUND_ID, code: CODE, title: "Friday", created_by_handle: "ken" };
+  const member = { round_id: ROUND_ID, handle: "ken" };
+
+  expect(request(roundUrl, "POST", { body: JSON.stringify(round) }).status).toBe(201);
+  expect(await request(roundUrl, "GET").json()).toBeNull();
+  expect(await request(roundUrl, "GET").json()).toEqual(round);
+  expect(request(roundUrl, "POST", { body: JSON.stringify(round) }).status).toBe(409);
+  expect(request(memberUrl, "POST", { body: JSON.stringify(member) }).status).toBe(201);
+  expect(request(memberUrl, "POST", { body: JSON.stringify(member) }).status).toBe(409);
+  expect(request(memberUrl, "POST", {
+    body: JSON.stringify(member), headers: { prefer: "resolution=ignore-duplicates" },
+  }).status).toBe(201);
+  expect(await request(memberUrl, "GET").json()).toEqual([member]);
+});
 
 it.each(["fresh", "replay", "collision"])("completes creator membership before a %s create succeeds", async (path) => {
   creation = {

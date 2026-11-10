@@ -90,6 +90,7 @@ import {
 } from "@/lib/pintDropsStore";
 import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
+import { replayBeforeCap } from "@/lib/pintDropReplay";
 import {
   addPintDrop,
   __resetPintDrops,
@@ -192,6 +193,41 @@ function drop(overrides: Partial<PersistableDrop> = {}): PersistableDrop {
     ...overrides,
   };
 }
+
+describe("replayBeforeCap", () => {
+  const noPhotos = { pint: null, venue: null, receipt: null };
+
+  it("allows a new observation only when the cap permits it", () => {
+    const input = drop();
+    expect(replayBeforeCap(undefined, input, noPhotos)).toBeUndefined();
+    expect(() => replayBeforeCap(undefined, input, noPhotos, true)).toThrow(PintDropDailyCapError);
+  });
+
+  it.each([false, true])("replays an account's saved observation before the cap (%s)", (capped) => {
+    const existing = drop({ authorityKey: "account-a" });
+    const retry = drop({ authorityKey: "account-a", handle: "renamed", createdAt: "2026-01-02T00:00:00.000Z" });
+    expect(replayBeforeCap(existing, retry, noPhotos, capped)).toBe(existing);
+  });
+
+  it.each([false, true])("refuses changed details before the cap (%s)", (capped) => {
+    const existing = drop();
+    const retry = drop({ passedDownNote: "Changed note" });
+    expect(() => replayBeforeCap(existing, retry, noPhotos, capped)).toThrow(PintDropReplayConflictError);
+  });
+
+  it.each([
+    ["pint", "pintPhotoKey"],
+    ["venue", "venuePhotoKey"],
+    ["receipt", "receiptPhotoKey"],
+  ] as const)("matches %s photo presence without comparing bytes", (slot, key) => {
+    const input = drop();
+    const photos = { ...noPhotos, [slot]: new File(["different bytes"], "retry.jpg") };
+    const existing = drop({ [key]: "stored/photo.jpg" });
+    expect(replayBeforeCap(existing, input, photos, true)).toBe(existing);
+    expect(() => replayBeforeCap(existing, input, noPhotos)).toThrow(PintDropReplayConflictError);
+    expect(() => replayBeforeCap(input, input, photos)).toThrow(PintDropReplayConflictError);
+  });
+});
 
 describe("toDTO", () => {
   it("uses the verified ledger count instead of the mixed legacy count", () => {

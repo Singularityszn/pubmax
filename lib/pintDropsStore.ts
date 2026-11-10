@@ -92,6 +92,15 @@ import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 
+import {
+  PintDropDailyCapError,
+  PintDropReplayConflictError,
+  replayBeforeCap,
+  sameCreatedDrop,
+} from "@/lib/pintDropReplay";
+
+export { PintDropDailyCapError, PintDropReplayConflictError } from "@/lib/pintDropReplay";
+
 const TABLE = PINT_DROPS_TABLE;
 
 /**
@@ -834,47 +843,6 @@ async function attributedAuthorVenueIds(
   return [...new Set(published.map((drop) => drop.venueId))].sort();
 }
 
-function sameCreatedDrop(existing: PersistableDrop, input: PintDrop, photos: PintDropPhotos): boolean {
-  return existing.id === input.id && existing.venueId === input.venueId &&
-    existing.authorityKey === input.authorityKey &&
-    (Boolean(input.authorityKey) || normalizeViewerHandle(existing.handle) === normalizeViewerHandle(input.handle)) &&
-    Boolean(existing.pintPhotoKey) === Boolean(photos.pint) &&
-    Boolean(existing.venuePhotoKey) === Boolean(photos.venue) &&
-    Boolean(existing.receiptPhotoKey) === Boolean(photos.receipt) &&
-    existing.priceGbp === input.priceGbp &&
-    existing.drink === input.drink &&
-    cleanDrinkMeasure(existing.measure) === cleanDrinkMeasure(input.measure) &&
-    (existing.measureLabel ?? "") === (input.measureLabel ?? "") &&
-    existing.passedDownNote === input.passedDownNote &&
-    existing.era === input.era &&
-    visibilityOf(existing) === visibilityOf(input) &&
-    JSON.stringify([...(existing.vibeTags ?? [])].sort()) === JSON.stringify([...(input.vibeTags ?? [])].sort()) &&
-    (existing.leaveByIso ? Date.parse(existing.leaveByIso) : null) ===
-      (input.leaveByIso ? Date.parse(input.leaveByIso) : null) &&
-    (existing.lastTrainDecision ?? null) === (input.lastTrainDecision ?? null);
-}
-
-export class PintDropReplayConflictError extends Error {
-  constructor() {
-    super("Pint Drop id already exists with different details.");
-    this.name = "PintDropReplayConflictError";
-  }
-}
-
-function replayBeforeCap(
-  existing: PersistableDrop | undefined,
-  input: PintDrop,
-  photos: PintDropPhotos,
-  capped = false,
-): PersistableDrop | undefined {
-  if (existing) {
-    if (!sameCreatedDrop(existing, input, photos)) throw new PintDropReplayConflictError();
-    return existing;
-  }
-  if (capped) throw new PintDropDailyCapError();
-  return undefined;
-}
-
 async function durableCreatedDrop(id: string): Promise<PersistableDrop | undefined> {
   const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
   if (error) throw new Error(error.message);
@@ -1132,25 +1100,6 @@ function dailyCapDay(
   return londonDayKey(drop.createdAt) || null;
 }
 
-/**
- * The daily cap, refused by the DATABASE rather than by the pre-check in front
- * of it (migration 0141, pentest F-1). A concurrent burst is exactly the case
- * the pre-check cannot see: every request reads "no price yet" before any row
- * lands. `pint_drops_priced_day_unique_idx` is what actually holds the rule, so
- * one of those inserts wins and the rest arrive here.
- *
- * It is a REFUSAL, not a fault: the route answers it with the same 409 and the
- * same sentence the pre-check gives, so a drinker cannot tell which enforcer
- * turned them away.
- */
-export class PintDropDailyCapError extends Error {
-  readonly code = "PINT_DROP_DAILY_PRICE_CAP";
-  constructor() {
-    super("A priced Pint Drop for this venue, handle and London day already exists.");
-    this.name = "PintDropDailyCapError";
-  }
-}
-
 /** The one question a caller asks about that refusal. */
 export function isPintDropDailyCapError(error: unknown): error is PintDropDailyCapError {
   return error instanceof PintDropDailyCapError;
@@ -1296,6 +1245,23 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+async function durableReplayBeforeCap(
+  drop: PintDrop,
+  photos: PintDropPhotos,
+  options?: PintDropCreateOptions,
+): Promise<PersistableDrop | undefined> {
+  if (dailyCapDay(drop, options) === null) return undefined;
+  let capped = false;
+  try {
+    capped = await supabasePintDropStore.hasPricedDropToday(drop.venueId, drop.handle, Date.parse(drop.createdAt));
+  } catch (err) {
+    log("warn", "pint_drops.dedupe_check_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  return capped ? replayBeforeCap(await durableCreatedDrop(drop.id), drop, photos, true) : undefined;
+}
+
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
@@ -1337,20 +1303,8 @@ export const supabasePintDropStore: PintDropStore = {
     // still earn `receipt`: our outage may not cost the drinker the standing
     // their bill shows.
     const drop = withEarnedEvidence(input);
-    if (dailyCapDay(drop, options) !== null) {
-      let capped = false;
-      try {
-        capped = await supabasePintDropStore.hasPricedDropToday(drop.venueId, drop.handle, Date.parse(drop.createdAt));
-      } catch (err) {
-        log("warn", "pint_drops.dedupe_check_failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      if (capped) {
-        const existing = replayBeforeCap(await durableCreatedDrop(drop.id), drop, photos, true);
-        if (existing) return { ...await toDTOWithPhotos(existing), created: false };
-      }
-    }
+    const replay = await durableReplayBeforeCap(drop, photos, options);
+    if (replay) return { ...await toDTOWithPhotos(replay), created: false };
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
     const creation: { existing?: PersistableDrop } = {};
