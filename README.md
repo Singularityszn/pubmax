@@ -294,6 +294,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations.
 
+  Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
+
+  If a send fails, check the restored draft before choosing **Send** again. The [message retry rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries) explain duplicate protection and its limits.
+
   A suspended account cannot start a conversation or send a message. If PUBMAXX cannot check suspension, it refuses the send and asks you to retry.
 
 - **Founders wall** - `/founders` keeps the first hundred claimed handles on public record. Social Posts and Your PUBMAXX link to it.

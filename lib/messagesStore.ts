@@ -105,8 +105,8 @@ type GroupLeaveOutcome = "left" | "floor" | "not-member" | "unavailable";
  * the row committed used to leave the message stored, the optimistic bubble
  * removed and the text back in the field, so the drinker sent it again and
  * there were two. With a key, the retry finds the row it already wrote and is
- * handed that one back. A caller that does not send one keeps the old
- * behaviour, which is what the memory backend and the legacy lanes rely on.
+ * handed that one back. A caller that omits the key receives no duplicate
+ * protection.
  */
 type MessageSendOptions = Readonly<{
   clientMessageId?: string;

@@ -1,6 +1,6 @@
 // A single conversation's thread (PRD E4 / Wave I2).
 //   GET  ?handle=<handle>                              → { messages: MessageDTO[] }
-//   POST { action:"send",   handle, body, venueId? }   → { message }
+//   POST { action:"send", handle, body, clientMessageId?, ...attachment } → { message }
 //   POST multipart { post: <send json>, photo: <file> }→ { message }
 //   POST { action:"report", handle, messageId }        → { flagged: boolean }
 //
@@ -8,8 +8,8 @@
 // ownership still collapses 403 → 404 so the endpoint never confirms a private
 // thread exists to an outsider.
 //
-// A message may carry ONE attachment (`lib/messageAttachments.ts`): a photo or
-// a pub. The photo takes the whole owned-image journey - staging, EXIF strip,
+// `lib/messageAttachments.ts` owns the supported attachment kinds. A message
+// carries at most one. A photo takes the owned-image journey - staging, EXIF strip,
 // advisory scan, Blob write, write-side proof - through
 // `lib/messagePhotoMedia.server.ts`, so refused bytes never reach a serving key
 // and a mangled write is refused while the sender is still here to be told. The
