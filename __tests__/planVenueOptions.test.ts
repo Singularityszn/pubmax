@@ -15,8 +15,13 @@ describe("planVenueOptions", () => {
       }),
     ).toEqual([
       { id: "pub", name: "Wrapped Arms" },
-      { id: "lion", name: "Red Lion", borough: "Westminster", lat: 51.5, lng: -0.1, zone: 1 },
+      { id: "lion", name: "Red Lion", borough: "Westminster", lat: 51.5, lng: -0.1, zone: 1, hasRecordedPrice: true },
     ]);
+  });
+
+  it.each([null, undefined, "5.50", NaN, Infinity, 0, -1])("does not treat %s as a recorded price", (cheapestPrice) => {
+    expect(planVenueOptions([{ id: "pub", name: "Test Arms", cheapestPrice }]))
+      .toEqual([{ id: "pub", name: "Test Arms" }]);
   });
 
   it.each([

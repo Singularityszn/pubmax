@@ -465,19 +465,42 @@ describe("the fare-zone estimate", () => {
     expect(venueBundlePrices(withBundle(chain), PUBLISHED).estimate).toEqual(chain);
   });
 
+  it.each(["confirmed", "corroborated", "disputed", "logged-once", "unchecked", "aged-out"])(
+    "keeps a %s report ahead of the zone estimate",
+    (pintTrust) => {
+      const pub = makeVenue({ zone: 2 });
+      expect(zoneEstimatePinStandings([pub], new Map([[pub.id, { latestContributorPrice: null, pintTrust }]]), PUBLISHED)?.size)
+        .toBe(0);
+    },
+  );
+
+  it("keeps the pin estimate after a successful empty Pint Drop read", () => {
+    const pub = makeVenue({ zone: 2 });
+    const before = zoneEstimatePinStandings([pub], new Map(), PUBLISHED);
+    const after = zoneEstimatePinStandings([pub], new Map([[pub.id, { latestContributorPrice: null, pintTrust: "none" }]]), PUBLISHED);
+    expect(after?.get(pub.id)).toEqual(before?.get(pub.id));
+    expect(after?.get(pub.id)).toMatchObject({ standing: "estimate", priceGbp: 5.45 });
+  });
+
   it("puts an estimate on a pin only when the pin holds no price and no drop", () => {
     const pins = [
       makeVenue({ id: "bare", zone: 2 }),
       makeVenue({ id: "listed", zone: 2, cheapestPrice: 6.2 }),
       makeVenue({ id: "logged", zone: 2 }),
       makeVenue({ id: "reported", zone: 2 }),
+      makeVenue({ id: "empty-read", zone: 2 }),
+      { ...makeVenue({ id: "bundle-listed", zone: 2 }), bundlePrices: { listed: {
+        priceGbp: 6.45, sourceUrl: "https://guinndex.co.uk/pub/kings-head-chingford-london",
+        observedAt: "2026-11-07T18:27:36.845Z", publisher: "Guinndex",
+      } } },
     ];
     const signals = new Map([
       ["logged", { latestContributorPrice: 5.9 }],
-      ["reported", { latestContributorPrice: null, pintTrust: "provisional" }],
+      ["reported", { latestContributorPrice: null, pintTrust: "logged-once" }],
+      ["empty-read", { latestContributorPrice: null, pintTrust: "none" }],
     ]);
     const standings = zoneEstimatePinStandings(pins, signals, PUBLISHED);
-    expect([...(standings?.keys() ?? [])]).toEqual(["bare"]);
+    expect([...(standings?.keys() ?? [])]).toEqual(["bare", "empty-read"]);
     expect(standings?.get("bare")?.standing).toBe("estimate");
   });
 });

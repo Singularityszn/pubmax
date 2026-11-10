@@ -97,6 +97,20 @@ async function swipe(card: HTMLElement, steps: Array<{ x: number; t: number }>, 
 }
 
 describe("PlanStopList", () => {
+  it("does not replace a chosen pub's recorded price with a zone estimate", async () => {
+    await mount({
+      stops: [picked],
+      venues: [{ id: picked.venueId, name: picked.venueName, zone: 4, hasRecordedPrice: true }],
+      zoneIndex: {
+        rows: [{ zone: 4, medianGbp: 4.95, pricedCount: 66, enough: true }],
+        ranked: [], dearest: null, cheapest: null, taxGbp: null,
+        computedAt: "2026-11-10T00:00:00Z",
+      },
+    });
+    expect(host!.textContent).not.toContain("est. £4.95");
+    expect(host!.textContent).not.toContain("Zone 4 estimate");
+  });
+
   it.each(["", "   "])("shows an unnamed accepted venue as a card, never a finder (%j)", async (venueName) => {
     const accepted: DraftStop = { key: 1, venueId: "venue-uk-unindexed", venueName, alternatives: [] };
     const props = await mount({ stops: [accepted, picked], heldVenueId: accepted.venueId, swapDisabled: () => false });

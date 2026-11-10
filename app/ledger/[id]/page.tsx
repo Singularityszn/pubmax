@@ -203,12 +203,11 @@ export default async function LedgerPage({ params }: PageProps) {
   )[0]!;
   const bundleRead = await ukPriceBundleRowsFor(canonicalId);
   if (bundleRead.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
-  const [zone, zoneIndex] = await Promise.all([loadVenueZone(canonicalId), loadZonePintIndex()]);
-  const bundle = withZoneEstimate(
-    bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY),
-    zone,
-    zoneIndex,
-  );
+  let bundle = bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  if (isPubVenueKind(venue.kind)) {
+    const [zone, zoneIndex] = await Promise.all([loadVenueZone(canonicalId), loadZonePintIndex()]);
+    bundle = withZoneEstimate(bundle, zone, zoneIndex);
+  }
   const hasPubOrBarSchema = isPubVenueKind(venue.kind) || venue.kind === "bar";
 
   return (

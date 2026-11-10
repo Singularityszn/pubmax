@@ -14,13 +14,13 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
 import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
-import { zonePriceEstimate } from "@/lib/zonePriceEstimate";
+import { venueBundlePrices, venuePriceLane, venuePriceLaneObservedGbp, venueSourcedPrice } from "@/lib/venuePriceLane";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { ZonePintIndex } from "@/lib/zones";
 
 type MapVenueListVenueSignals = ReadonlyMap<
   string,
-  { latestContributorPrice: number | null; latestContributorAt?: number | null }
+  { latestContributorPrice: number | null; latestContributorAt?: number | null; pintTrust?: unknown }
 >;
 
 // Accessibility contract (WCAG 2.1.1): WebGL pins are pointer-only. This is the
@@ -167,9 +167,18 @@ function mapVenueListPintPriceLabel(
 ): string {
   const price = mapVenueListPintPrice(venue, venueSignals);
   if (price !== null) return formatGbp(price);
+  if (!isPubVenueKind(venue.kind)) return "Price TBD";
   // A pub with no recorded price reads its zone estimate, "est." and all.
-  const estimate = isPubVenueKind(venue.kind) ? zonePriceEstimate(venue.zone, zoneIndex) : null;
-  return (estimate && priceStandingFigure(priceStandingFor({ estimate }))) ?? "Price TBD";
+  const signal = venueSignals?.get(venue.id);
+  const lane = venuePriceLane(venue, signal?.latestContributorPrice, venueSourcedPrice(venue), venueBundlePrices(venue, zoneIndex));
+  if (lane && lane.lane !== "estimate") {
+    const recordedPrice = venuePriceLaneObservedGbp(lane);
+    return recordedPrice !== null ? formatGbp(recordedPrice) : "Price TBD";
+  }
+  if (signal?.pintTrust && signal.pintTrust !== "none") return "Price TBD";
+  return (lane?.lane === "estimate"
+    ? priceStandingFigure(priceStandingFor({ estimate: lane.estimate }))
+    : null) ?? "Price TBD";
 }
 
 /**

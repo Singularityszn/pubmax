@@ -25,6 +25,9 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { zoneEstimateNote, zonePriceEstimate } from "@/lib/zonePriceEstimate";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { zoneLabel } from "@/lib/zones";
+import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { venuePriceLane, venuePriceLaneObservedGbp } from "@/lib/venuePriceLane";
 import {
   buildWhatsOnAnswer,
   detectWhatsOnIntent,
@@ -390,17 +393,24 @@ async function toolVenuePrices(
   }
 
   const communityRead = await readCommunityPricesWithStatus(venue.id);
+  const bundleRead = await ukPriceBundleRowsFor(venue.id);
+  const bundle = bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  const lane = venuePriceLane({ cheapestPrice: venue.cheapestPrice }, null, null, bundle, null, null, null, ctx.now);
+  const recordedPrice = lane ? venuePriceLaneObservedGbp(lane) : null;
+  const recordedVenue = lane?.lane === "listed"
+    ? { ...venue, cheapestPrice: recordedPrice, priceSource: lane.listed.publisher ?? "Published menu", priceObservedAt: lane.listed.observedAt }
+    : venue;
   const intent = resolveAskPriceIntent(ctx.query);
   const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
   // A pub with no recorded pint gets its fare zone's estimate, named as one.
   // It is never price evidence and never the card's price.
-  const zoneEstimate = venue.cheapestPrice == null && trusted.length === 0
+  const zoneEstimate = recordedPrice === null && !communityRead.prices.some((price) => price.drinkCategory === "beer") && bundleRead.status !== "unavailable"
     ? zonePriceEstimate(venue.zone, await loadZonePintIndex())
     : null;
 
   const curatedCard = venueCard(
-    venue,
-    venue.cheapestPrice != null
+    recordedVenue,
+    recordedPrice !== null
       ? "Current recorded pint on the listed index."
       : zoneEstimate
         ? `No recorded pint. ${zoneEstimateNote(zoneEstimate)}`
@@ -440,8 +450,8 @@ async function toolVenuePrices(
   const answerHint =
     trusted.length > 0
       ? `${venue.name}: ${trusted.length} corroborated people-logged figure${trusted.length === 1 ? "" : "s"} plus the listed index.`
-      : venue.cheapestPrice != null
-        ? `${venue.name}: listed pint ${formatGbp(venue.cheapestPrice)} (no corroborated people-logged figure yet).`
+      : recordedPrice !== null
+        ? `${venue.name}: listed pint ${formatGbp(recordedPrice)} (no corroborated people-logged figure yet).`
         : zoneEstimate
           ? `${venue.name}: no listed pint price. Estimate ${formatGbp(zoneEstimate.priceGbp)}, the middle of ${zoneEstimate.sampleSize} recorded pint prices in ${zoneLabel(zoneEstimate.zone)}. Not a recorded price.`
           : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
@@ -451,7 +461,7 @@ async function toolVenuePrices(
     tool: "venue_prices",
     data: {
       venueId: venue.id,
-      curatedPrice: venue.cheapestPrice,
+      curatedPrice: recordedPrice,
       zoneEstimate: zoneEstimate
         ? { estimateGbp: zoneEstimate.priceGbp, zone: zoneEstimate.zone, sampleSize: zoneEstimate.sampleSize }
         : null,
@@ -467,11 +477,11 @@ async function toolVenuePrices(
     cards,
     priceEvidence: [
       ...trusted.map((price, index) => communityCategoryEvidence(`${venue.id}:c-${index}`, venue.id, price)),
-      ...(venue.cheapestPrice != null ? [listedPintEvidence(`${venue.id}:curated`, venue.id, venue.cheapestPrice)] : []),
+      ...(recordedPrice !== null ? [listedPintEvidence(`${venue.id}:curated`, venue.id, recordedPrice)] : []),
     ],
     proposals,
     answerHint,
-    degraded: communityRead.degraded,
+    degraded: communityRead.degraded || bundleRead.status === "unavailable",
   };
 }
 

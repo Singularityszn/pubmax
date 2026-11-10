@@ -12,6 +12,7 @@ export type PlanVenueOption = {
   lng?: number;
   /** Nearest-station fare zone, for the stop card's zone estimate. */
   zone?: number;
+  hasRecordedPrice?: true;
 };
 
 export function planVenueOptions(value: unknown): PlanVenueOption[] {
@@ -37,9 +38,12 @@ export function planVenueOptions(value: unknown): PlanVenueOption[] {
         ? { lat: row.lat, lng: row.lng }
         : {};
     const zone = toZoneId(row.zone);
+    const price = row.cheapestPrice;
+    const hasRecordedPrice = typeof price === "number" && Number.isFinite(price) && price > 0;
     return [{
       id, name, ...(address ? { address } : {}), ...(borough ? { borough } : {}), ...coordinates,
       ...(zone !== null ? { zone } : {}),
+      ...(hasRecordedPrice ? { hasRecordedPrice: true as const } : {}),
     }];
   });
 }

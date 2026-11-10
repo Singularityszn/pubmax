@@ -8,20 +8,25 @@ import { offlineFetch } from "@/evals/pal/offlineFetch";
 import type { PalEvalAnswerExpectations } from "@/evals/pal/types";
 import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
 import { runAsk } from "@/lib/ask/runAsk";
-import { zonePintIndexFromSlimPayload, zonePriceEstimate } from "@/lib/zonePriceEstimate";
+import { runAskTool } from "@/lib/ask/tools";
 
 const now = Date.parse(dataset.now);
 const index = loadPalEvalVenueIndex();
-const slimPayload = JSON.parse(readFileSync(join(process.cwd(), "public/data/venues_slim.json"), "utf8")) as {
-  rows: Array<{ id: string; zone?: number }>;
+const zoneOne = { priceGbp: 6.2, zone: 1, sampleSize: 352 };
+const zoneTwo = { priceGbp: 5.7, zone: 2, sampleSize: 294 };
+const zoneThree = { priceGbp: 5.35, zone: 3, sampleSize: 127 };
+const recordedZoneMedians: Record<string, typeof zoneOne> = {
+  "venue-60y3sa": zoneTwo,
+  "venue-10paqy": zoneThree,
+  "venue-ru7vbr": zoneOne,
+  "venue-4pqtn7": zoneOne,
+  "venue-on4bgj": zoneTwo,
+  "venue-f1vl09": zoneTwo,
+  "venue-1kt3p9o": zoneOne,
+  "venue-1wgngrf": zoneOne,
+  "venue-14mrz2z": zoneOne,
+  "venue-4zg2be": zoneTwo,
 };
-const zoneIndex = zonePintIndexFromSlimPayload(slimPayload, dataset.now);
-
-/** The one figure an unknown price may quote: the venue's own zone estimate. */
-function zoneEstimateGbp(venueId: string): number | undefined {
-  const row = slimPayload.rows.find((candidate) => candidate.id === venueId);
-  return zonePriceEstimate(row?.zone, zoneIndex)?.priceGbp;
-}
 
 function ask(query: string) {
   return runAsk({ query, cityId: "london", now, skipModel: true, fetchImpl: offlineFetch });
@@ -29,7 +34,7 @@ function ask(query: string) {
 
 function reference(caseDef: typeof dataset.cases[number]): PalEvalAnswerExpectations {
   if (caseDef.value === null) {
-    return { priceAnswer: { venueId: caseDef.venueId, value: null, estimateGbp: zoneEstimateGbp(caseDef.venueId) } };
+    return { priceAnswer: { venueId: caseDef.venueId, value: null, estimateGbp: recordedZoneMedians[caseDef.venueId]!.priceGbp } };
   }
   if (!caseDef.source) throw new Error(`Missing price source for ${caseDef.id}`);
   return { priceAnswer: { venueId: caseDef.venueId, value: caseDef.value, source: caseDef.source } };
@@ -66,18 +71,34 @@ describe("Pal fail-closed price eval", () => {
     }
   });
 
-  it.each(dataset.cases)("$id answers honestly through runAsk without network access", async (entry) => {
+  it.each(dataset.cases)("$id matches independent committed zone medians or recorded prices through runAsk", async (entry) => {
     const body = await ask(entry.query);
     // A refusal for the wrong pub must not count as a successful absence answer.
     expect(body.toolsUsed).toContain("venue_prices");
     expect(body.cards.some((card) => card.venueId === entry.venueId)).toBe(true);
+    if (entry.value === null) {
+      const expected = recordedZoneMedians[entry.venueId]!;
+      expect(body.answer).toContain(`Estimate £${expected.priceGbp.toFixed(2)}`);
+      expect(body.answer).toContain(`middle of ${expected.sampleSize} recorded pint prices in Zone ${expected.zone}`);
+    }
     const outcome = gradePalCase(body, reference(entry), index);
     expect(outcome.checks.filter((check) => !check.pass)).toEqual([]);
   });
 
+  it("answers with a bundle listing when the slim pint price is empty", async () => {
+    const body = await runAskTool("venue_prices", { venueId: "venue-10x17k9" }, {
+      cityId: "london", query: "", now, skipModel: true, fetchImpl: offlineFetch,
+    });
+    const card = body.cards.find((card) => card.venueId === "venue-10x17k9");
+    expect(card?.price).toBe(6.45);
+    expect(card?.provenance?.label).toContain("Guinndex");
+    expect(body.answerHint).toContain("listed pint £6.45");
+    expect(body.data).toMatchObject({ zoneEstimate: null });
+  });
+
   it("rejects an invented price in the answer even when the card leaves it unknown", async () => {
     const body = await ask("How much is a pint at The Coronet?");
-    const estimateGbp = zoneEstimateGbp("venue-60y3sa");
+    const estimateGbp = recordedZoneMedians["venue-60y3sa"]!.priceGbp;
     expect(estimateGbp).toBeDefined();
     expect(body.answer).toContain("no listed pint price");
     expect(body.answer).toContain(`Estimate £${estimateGbp?.toFixed(2)}`);

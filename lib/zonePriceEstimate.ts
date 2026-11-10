@@ -10,6 +10,7 @@ import {
   type EstimatedPriceInput,
   type PriceStandingDecision,
 } from "@/lib/priceTier";
+import { venueBundlePrices, venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
@@ -127,9 +128,11 @@ export function zoneEstimatePinStandings(
   if (!index?.computedAt) return null;
   const standings = new Map<string, PriceStandingDecision>();
   for (const venue of venues) {
-    if (typeof venue.cheapestPrice === "number" || !isPubVenueKind(venue.kind)) continue;
+    if (!isPubVenueKind(venue.kind)) continue;
     const signal = signals.get(venue.id);
-    if (signal && (signal.latestContributorPrice !== null || signal.pintTrust)) continue;
+    const lane = venuePriceLane(venue, signal?.latestContributorPrice, venueSourcedPrice(venue), venueBundlePrices(venue));
+    if (lane && lane.lane !== "estimate") continue;
+    if (signal?.pintTrust && signal.pintTrust !== "none") continue;
     const estimate = zonePriceEstimate(venue.zone, index);
     if (estimate) standings.set(venue.id, priceStandingFor({ estimate }));
   }
