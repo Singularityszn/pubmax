@@ -1526,8 +1526,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark", "automatic");
   }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
 
-  // Every deliberate camera move arrives here: the opening-location answer and
-  // the area lane (choose-area pick, "go somewhere else", a map-search select).
+  // Opening-location results and explicit area choices share this entry point.
   // The identity is the SOURCE plus its own counter, because a bare number let
   // one owner's first move look like the other's and swallowed the pick
   // (lib/mapCameraFocus.ts). cinematic honours reduced-motion (it jumps at
