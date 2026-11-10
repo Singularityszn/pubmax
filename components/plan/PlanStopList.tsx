@@ -7,6 +7,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DraftStop } from "@/components/plan/PlanComposer";
 import PlanPintPriceCaption from "@/components/plan/PlanPintPriceCaption";
 import { useStopGestures } from "@/components/plan/useStopGestures";
+import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
 import { categoryLabel } from "@/lib/drinks";
 import { UNRESOLVED_ACCEPTED_STOP_LABEL } from "@/lib/planComposerHandoff";
 import { matchingPlanPintPriceEvidence } from "@/lib/planPintPrice";
@@ -236,6 +237,10 @@ export default function PlanStopList({
   });
   const options = useMemo(() => finderOptions(venues), [venues]);
   const venueById = useMemo(() => new Map(venues.map((venue) => [venue.id, venue])), [venues]);
+  const estimateVenueIds = useMemo(() => [...new Set(stops
+    .filter((stop) => stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex))
+    .map((stop) => stop.venueId))], [stops, venueById, zoneIndex]);
+  const publicPriceAbsent = usePlanPriceAbsence(estimateVenueIds, refreshKey);
   const byValue = useMemo(
     () => new Map(options.map((option) => [option.value.toLocaleLowerCase(), option.venue])),
     [options],
@@ -281,7 +286,8 @@ export default function PlanStopList({
             stop.venueId, stop.estimatedPintPricePence, stop.priceKind, stop.pintPriceEvidence,
           );
           const pintServingKnown = pintEvidence?.serving === "pint";
-          const estimate = stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex);
+          const estimate = publicPriceAbsent.has(stop.venueId)
+            ? stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex) : null;
           const stamp = stampFor(stop, pintServingKnown, estimate);
           const drinkLine = selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence);
           const meta = metaFor(stop, areaName, pintServingKnown, estimate);
