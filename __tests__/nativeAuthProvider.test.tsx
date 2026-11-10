@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   authenticate: vi.fn(), setSession: vi.fn(), signOut: vi.fn(), cancel: vi.fn(), openBrowser: vi.fn(),
   clearPersistedSession: vi.fn(async () => {}),
   session: null as Session | null,
+  bootstrapOffline: false,
   subscriber: null as null | ((event: string, session: Session | null) => void),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.navigate }) }));
@@ -43,7 +44,8 @@ vi.mock("@/lib/authClient", async (original) => ({
 }));
 vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
-  bootstrapAuthSession: async () => h.session ? ({ status: "local", session: h.session }) : ({ status: "none" }),
+  bootstrapAuthSession: async () => h.bootstrapOffline ? ({ status: "unavailable" })
+    : h.session ? ({ status: "local", session: h.session }) : ({ status: "none" }),
 }));
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: true, apple: true, microsoft: true }),
@@ -89,7 +91,7 @@ let container: HTMLDivElement;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks();
-  h.platform = "ios"; h.session = null; h.available = true;
+  h.platform = "ios"; h.session = null; h.available = true; h.bootstrapOffline = false;
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.getSession.mockImplementation(async () => ({ data: { session: h.session }, error: null }));
@@ -399,6 +401,22 @@ describe("AuthProvider's installed iPhone OAuth consumer", () => {
     expect(h.nativeOAuth).not.toHaveBeenCalled();
     expect(h.setSession).not.toHaveBeenCalled();
     expect(container.textContent).toBe("original");
+  });
+
+  it("lets native sign-in run once the network returns after an offline boot", async () => {
+    await act(async () => root.unmount());
+    setProviderAuthState("supabase", "unresolved");
+    h.bootstrapOffline = true;
+    root = createRoot(container);
+    await act(async () => { root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe))); });
+    await act(async () => { expect((await actions.signInWithApple()).error).toMatch(/could not be confirmed/); });
+
+    h.bootstrapOffline = false;
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    await vi.waitFor(async () => {
+      await act(async () => { expect(await actions.signInWithApple()).toEqual({ error: null }); });
+    });
+    expect(container.textContent).toBe("replacement");
   });
 
   it("keeps the signed-out state when the user cancels the native session", async () => {

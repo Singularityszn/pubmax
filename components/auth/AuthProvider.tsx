@@ -130,6 +130,7 @@ import {
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
+import { subscribeToReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
   readProviderAccountSignal,
@@ -643,6 +644,7 @@ export function AuthProvider({
 
     let active = true;
     let subscription: { unsubscribe: () => void } | null = null;
+    let stopBootstrapRetry: (() => void) | null = null;
     // Session restoration is additive; it must never hold the anonymous app or
     // Pub Pal onboarding behind an infinite loading screen when the provider is
     // slow, blocked, or temporarily unavailable. This fail-soft boundary also
@@ -977,6 +979,19 @@ export function AuthProvider({
         }
         if (!active) return;
         publishBootstrappedSession(bootstrapped);
+        // An offline boot leaves the state unavailable, and native sign-in
+        // refuses that state. Ask again when the network or the app comes back.
+        stopBootstrapRetry = subscribeToReconnectRecovery(() => {
+          if (!active || sessionRestoreInFlight.current) return;
+          if (readProviderAuthState("supabase") !== "unavailable") return;
+          sessionRestoreInFlight.current = true;
+          const retry = bootstrapAuthSession(supabase.auth).catch(() => ({ status: "unavailable" } as const));
+          sessionBootstrapInFlight.current = retry;
+          void retry.then((retried) => {
+            sessionRestoreInFlight.current = false;
+            if (active) publishBootstrappedSession(retried);
+          });
+        });
         if (confirmation && captured) {
           const prepared = confirmation;
           setAuthCallbackConfirmation({
@@ -995,6 +1010,7 @@ export function AuthProvider({
       active = false;
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
+      stopBootstrapRetry?.();
       subscription?.unsubscribe();
       publishAuthEvent.current = null;
     };
