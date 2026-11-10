@@ -93,6 +93,13 @@ describe("re-mark refreshes expiry (UPSERT on actor+venue)", () => {
     expect(stillLive).toHaveLength(1);
   });
 
+  it("moves a person to the pub they marked last: one pub at a time", async () => {
+    await markPresence({ handle: HANDLE, venueId: VENUE, actorHash: ACTOR }, T0);
+    await markPresence({ handle: HANDLE, venueId: "venue-the-other-pub", actorHash: ACTOR }, T0 + 60_000);
+    const rows = await recentPresence(undefined, T0 + 120_000);
+    expect(rows.map((row) => row.venueId)).toEqual(["venue-the-other-pub"]);
+  });
+
   it("updates the stored handle on a re-mark", async () => {
     await markPresence({ handle: HANDLE, venueId: VENUE, actorHash: ACTOR }, T0);
     await markPresence({ handle: "renamed_ken", venueId: VENUE, actorHash: ACTOR }, T0 + 1000);

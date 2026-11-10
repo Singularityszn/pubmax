@@ -70,9 +70,13 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  // markPresence is fail-soft (never throws) — a presence hiccup must not fail
-  // the tap. Cleaning/capping happens inside the store.
-  await markPresence({ handle: ownership.handle, venueId, actorHash });
+  // Cleaning/capping happens inside the store. A write that did not land is
+  // an honest 503, never an "ok" for a tap nobody can see.
+  try {
+    await markPresence({ handle: ownership.handle, venueId, actorHash });
+  } catch {
+    return publicApiError("Could not mark you here. Try again.", "UNAVAILABLE", 503, { retryable: true });
+  }
   // Quiet Wanted fulfilment: landing at a saved place closes the Wanted.
   const fulfilled = await fulfilWantedsForHandleAtVenue(ownership.handle, venueId);
   const wantedNote =

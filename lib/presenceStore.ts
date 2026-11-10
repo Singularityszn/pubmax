@@ -74,23 +74,19 @@ async function enrich(
 }
 
 // ── In-memory backend ────────────────────────────────────────────────────────
-// One row per (actor_hash, venue_id) — a Map keyed on that pair, so a re-mark
-// overwrites (refreshes) rather than appends. Resets on restart (test/dev/demo).
+// One row per actor — a Map keyed on actor_hash, so a re-mark refreshes and a
+// mark at another pub moves the person there. Resets on restart (test/dev/demo).
 // The injectable clock lets tests drive expiry deterministically.
 type MemoryRow = { handle: string; venueId: string; actorHash: string; expiresAt: number };
 const memoryRows = new Map<string, MemoryRow>();
-
-function memoryKey(actorHash: string, venueId: string): string {
-  return `${actorHash}|${venueId}`;
-}
 
 function memoryMark(input: PresenceInput, now: number): void {
   const handle = clean(input.handle, HANDLE_MAX);
   const venueId = clean(input.venueId, MAX_VENUE_ID);
   if (!handle || !venueId || !input.actorHash) return;
-  // UPSERT on (actor_hash, venue_id): the same key overwrites, so re-marking is
-  // a refresh (new expiry, latest handle) — one row per actor+venue, never two.
-  memoryRows.set(memoryKey(input.actorHash, venueId), {
+  // One row per actor: re-marking is a refresh (new expiry, latest handle), and
+  // a mark at another pub replaces the old one. Nobody is at two pubs at once.
+  memoryRows.set(input.actorHash, {
     handle,
     venueId,
     actorHash: input.actorHash,
@@ -150,31 +146,27 @@ const supabasePresenceStore: PresenceStore = {
     const handle = clean(input.handle, HANDLE_MAX);
     const venueId = clean(input.venueId, MAX_VENUE_ID);
     if (!handle || !venueId || !input.actorHash) return;
-    try {
-      const at = new Date(now).toISOString();
-      const expiresAt = new Date(now + PRESENCE_TTL_MS).toISOString();
-      // onConflict on the (actor_hash, venue_id) unique index → refresh in place.
-      const { error } = await requireSupabaseAdmin()
-        .from(TABLE)
-        .upsert(
-          {
-            handle,
-            venue_id: venueId,
-            actor_hash: input.actorHash,
-            created_at: at,
-            expires_at: expiresAt,
-          },
-          { onConflict: "actor_hash,venue_id" },
-        );
-      if (error) throw new Error(error.message);
-    } catch (err) {
-      // Fail-soft: presence is non-critical. Log the outage so it's observable,
-      // never bubble a throw up to the tap handler.
-      console.warn(
-        "[presence] mark failed (tap not persisted):",
-        err instanceof Error ? err.message : err,
+    const at = new Date(now).toISOString();
+    const expiresAt = new Date(now + PRESENCE_TTL_MS).toISOString();
+    const admin = requireSupabaseAdmin();
+    // One pub per person: leave any other pub first (0229 makes it a unique key).
+    const left = await admin.from(TABLE).delete().eq("actor_hash", input.actorHash).neq("venue_id", venueId);
+    if (left.error) throw new Error(left.error.message);
+    // onConflict on the (actor_hash, venue_id) unique index → refresh in place.
+    const { error } = await admin
+      .from(TABLE)
+      .upsert(
+        {
+          handle,
+          venue_id: venueId,
+          actor_hash: input.actorHash,
+          created_at: at,
+          expires_at: expiresAt,
+        },
+        { onConflict: "actor_hash,venue_id" },
       );
-    }
+    // A tap that did not land is told so: the route answers 503, never ok.
+    if (error) throw new Error(error.message);
   },
 
   async recent(venueId, now = Date.now(), handles) {
@@ -216,11 +208,11 @@ function presenceStore(): PresenceStore {
 // ── Compatibility wrappers (route + tests keep calling these) ────────────────
 
 /**
- * Mark the viewer present at a venue. UPSERT on (actor_hash, venue_id): sets the
- * handle, stamps created_at=now, expires_at=now+2h — a re-mark REFRESHES the
- * existing row (never a second row). Supabase when configured, memory otherwise.
- * The `now` clock is injectable so the memory path is deterministically testable.
- * Fail-soft: never throws to the caller (a presence hiccup must not fail the tap).
+ * Mark the viewer present at a venue: one row per person. It sets the handle,
+ * stamps created_at=now, expires_at=now+2h — a re-mark REFRESHES the row, and a
+ * mark at another pub moves the person there. Supabase when configured, memory
+ * otherwise. The `now` clock is injectable for the memory path. THROWS when the
+ * write fails, so the tap is never told it landed when it did not.
  */
 export async function markPresence(input: PresenceInput, now = Date.now()): Promise<void> {
   await presenceStore().mark(input, now);
