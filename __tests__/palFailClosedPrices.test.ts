@@ -154,6 +154,35 @@ describe("Pal fail-closed price eval", () => {
     }
   });
 
+  it.each(["£5.70", "GBP 5.70", "5.70 pounds", "570p", "5.70"])(
+    "requires an estimate label beside every %s claim in each text field",
+    async (amount) => {
+      const body = await ask("How much is a pint at The Coronet?");
+      const expected = { priceAnswer: { venueId: "venue-60y3sa", value: null, estimateGbp: 5.7 } };
+      for (const claim of [
+        `I cannot estimate it. A pint costs ${amount}.`,
+        `Estimate ${amount}. A pint costs ${amount}.`,
+        `I cannot estimate ${amount}.`,
+      ]) {
+        const responses = [
+          { ...body, answer: `The Coronet: no listed pint price. ${claim}` },
+          { ...body, cards: body.cards.map((card) => ({ ...card, title: claim })) },
+          { ...body, cards: body.cards.map((card) => ({ ...card, note: claim })) },
+        ];
+        for (const response of responses) {
+          const outcome = gradePalCase(response, expected, index);
+          expect(outcome.checks, claim).toContainEqual(expect.objectContaining({ name: "unknown_price_empty", pass: false }));
+        }
+      }
+      const labelled = `Estimate: ${amount}.`;
+      expect(gradePalCase({
+        ...body,
+        answer: `The Coronet: no listed pint price. ${labelled}`,
+        cards: body.cards.map((card) => ({ ...card, note: labelled })),
+      }, expected, index).pass).toBe(true);
+    },
+  );
+
   it.each(["£4.50", "GBP 4.50", "4.50 pounds", "450p", "4.50"])(
     "rejects the numeric price form %s even beside an absence disclaimer",
     async (amount) => {

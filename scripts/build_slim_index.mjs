@@ -20,6 +20,7 @@ import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { tsImport } from "tsx/esm/api";
 
 import {
   CORE_FILE,
@@ -42,6 +43,8 @@ import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
 import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
 import { UK_OSM_PUBS_FILE } from "../lib/ukOsmPubsFile.mjs";
+
+const { parseUkPriceBundleRows } = await tsImport("../lib/ukPriceBundle.ts", import.meta.url);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -804,16 +807,15 @@ async function readScrapedIds() {
 // unreadable bundle hints nothing, so the lens is no wider than its evidence.
 export function bundleSlimHints(bundle) {
   const softDrinkSubtypes = new Map();
-  const rows = Array.isArray(bundle) ? bundle : bundle?.rows;
-  if (!Array.isArray(rows)) return { softDrinkSubtypes, recordedPintVenueIds: null };
+  if (!Array.isArray(bundle)) return { softDrinkSubtypes, recordedPintVenueIds: null };
   const recordedPintVenueIds = new Set();
-  for (const row of rows) {
-    if (row?.category === "beer" && row.standing !== "estimate" && typeof row.venueId === "string") {
+  for (const row of parseUkPriceBundleRows(bundle)) {
+    if (row.category === "beer" && row.standing !== "estimate") {
       recordedPintVenueIds.add(row.venueId);
     }
     if (
-      row?.lane !== "site-harvest" || row.standing !== "listed" || row.category !== "soft-drink" ||
-      typeof row.venueId !== "string" || typeof row.drinkSubtype !== "string"
+      row.lane !== "site-harvest" || row.standing !== "listed" || row.category !== "soft-drink" ||
+      typeof row.drinkSubtype !== "string"
     ) continue;
     const held = softDrinkSubtypes.get(row.venueId) ?? new Set();
     held.add(row.drinkSubtype);

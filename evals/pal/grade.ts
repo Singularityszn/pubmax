@@ -146,15 +146,19 @@ function gradePrice(
 ): void {
   const cards = body.cards.filter((card) => card.venueId === reference.venueId);
   // This check covers single-venue price questions, not budgets or comparisons.
-  const text = [body.answer, ...body.cards.flatMap((card) => [card.title, card.note])].join("\n");
-  const amounts = [...text.matchAll(/(?:£\s*|\bGBP\s*)(\d+(?:\.\d+)?)|\b(\d+(?:\.\d+)?)\s*(?:pounds?|quid|GBP)\b|\b(\d+)\s*(?:pence|p)\b|\b(\d+\.\d{1,2})\b/gi)]
-    .map((match) => match[3] ? Number(match[3]) / 100 : Number(match[1] ?? match[2] ?? match[4]));
+  const texts = [body.answer, ...body.cards.flatMap((card) => [card.title, card.note])];
+  const claims = texts.flatMap((text) => [...text.matchAll(/(?:£\s*|\bGBP\s*)(\d+(?:\.\d+)?)|\b(\d+(?:\.\d+)?)\s*(?:pounds?|quid|GBP)\b|\b(\d+)\s*(?:pence|p)\b|\b(\d+\.\d{1,2})\b/gi)]
+    .map((match) => ({
+      amount: match[3] ? Number(match[3]) / 100 : Number(match[1] ?? match[2] ?? match[4]),
+      labelledEstimate: /(?:^|[.!?\n;])\s*estimate\s*:?\s*$/i.test(text.slice(0, match.index)),
+    })));
+  const amounts = claims.map((claim) => claim.amount);
   if (reference.value === null) {
     // A recorded price is still unknown. The one figure an answer may quote is
     // the venue's own zone estimate, and only while it calls it an estimate.
     const estimate = reference.estimateGbp;
-    const quotesOnlyEstimate = estimate !== undefined && /\bestimate\b/i.test(body.answer)
-      && amounts.every((amount) => Math.abs(amount - estimate) <= tolerance);
+    const quotesOnlyEstimate = estimate !== undefined
+      && claims.every((claim) => claim.labelledEstimate && Math.abs(claim.amount - estimate) <= tolerance);
     push(checks, "unknown_price_empty",
       body.cards.every((card) => card.price === null) && (amounts.length === 0 || quotesOnlyEstimate),
       `prices=${body.cards.map((card) => card.price).join(",")} amounts=${amounts.join(",")}`);
