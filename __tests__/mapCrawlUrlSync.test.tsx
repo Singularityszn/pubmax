@@ -289,6 +289,43 @@ describe("planner arrival and close URLs", () => {
     expect(shouldOpenPlanningInitially(["pub-a", "pub-b"], "build", window.location.search)).toBe(false);
   });
 
+  it.each([
+    { id: "venue", title: "Pub A", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "pub-a" } },
+    { id: "landmark", title: "Story", state: { ...EMPTY_MAP_SURFACE_STATE, landmarkId: "story-a" } },
+    { id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE },
+  ])("keeps an empty build closed after Home from $id on a clean arrival", async (surface) => {
+    window.history.replaceState({}, "", "/map#route");
+    const state = seedCrawlState("");
+    await act(async () => root.render(createElement(PlannerHistoryHarness, { state })));
+    expect(window.location.search).toBe("");
+
+    act(() => showPlannerSurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    const buildState = { ...state, mode: "build" as const };
+    await act(async () => root.render(createElement(PlannerHistoryHarness, { state: buildState })));
+    act(() => showPlannerSurface(surface));
+    await traverseHistory(() => plannerNavigation.home());
+
+    expect(readMapSurfaceHistory(window.history.state)).toEqual([]);
+    expect(new URLSearchParams(window.location.search).get("plan")).toBe("0");
+    expect(seedCrawlState(window.location.search).mode).toBe("build");
+    expect(seedCrawlState(window.location.search).builtIds).toEqual([]);
+    expect(window.location.hash).toBe("#route");
+
+    await traverseHistory(() => window.history.forward());
+    expect(new URLSearchParams(window.location.search).get("plan")).toBe("1");
+    await traverseHistory(() => window.history.forward());
+    expect(new URLSearchParams(window.location.search).get("plan")).toBe("0");
+    await traverseHistory(() => plannerNavigation.home());
+
+    const closedUrl = window.location.pathname + window.location.search + window.location.hash;
+    await act(async () => root.render(null));
+    window.history.replaceState({}, "", closedUrl);
+    await act(async () => root.render(createElement(PlannerHistoryHarness, {
+      state: seedCrawlState(window.location.search),
+    })));
+    expect(plannerNavigation.holdsSurface("planner")).toBe(false);
+  });
+
   describe.each(["?mode=build&plan=1", "?mode=build"])("visible surface after %s", (search) => {
     it.each([
       { id: "venue", title: "Pub A", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "pub-a" } },
@@ -625,7 +662,7 @@ describe("crawl URL after Map history traversal", () => {
       await landed;
     });
 
-    expect(window.location.search).toBe("?q=Soho&max=6&drink=wine&zone=3");
+    expect(window.location.search).toBe("?q=Soho&plan=0&max=6&drink=wine&zone=3");
   });
 
   it("updates the drink lens without putting a closed venue back in the URL", async () => {

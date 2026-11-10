@@ -370,6 +370,7 @@ export function useMapSurfaceNavigation({
           : withoutLandmarkParam(selectionFree.pathname, selectionFree.search, selectionFree.hash);
         const hasPlanner = currentSurface(next)?.id === "planner";
         const closesPlanner = !hasPlanner && (
+          closingHome ||
           currentSurface(previous)?.id === "planner" ||
           new URLSearchParams(search).get(PLANNER_PARAM) === "1"
         );
