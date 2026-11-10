@@ -180,3 +180,22 @@ test('onboarding guidelines link opens readable community rules', async ({ page 
   await expect(dialog.locator('input').first()).toHaveValue('draft_before_guidelines');
   await shot(page, 'onboarding-guidelines-return-preserves-draft');
 });
+
+test('a banned remembered switch from the guidelines page shows the ban notice', async ({ page }) => {
+  await seed(page);
+  await page.goto('/terms', { waitUntil: 'domcontentloaded' });
+  await refusal(page, true);
+  const menu = page.locator('.authAccountMenu');
+  await expect(async () => {
+    if (!(await menu.isVisible())) {
+      await page.getByRole('button', { name: /^Account options for / }).click();
+    }
+    await expect(menu).toBeVisible();
+  }).toPass();
+  await switchB(menu);
+  await retired(page);
+  expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).user.id, AUTH_STORAGE_KEY)).toBe(ACCOUNTS.A.id);
+  if (EVIDENCE) await page.screenshot({ path: `${EVIDENCE}/guidelines-page-banned-switch.png` });
+  // G14 requires feedback for a refused switch regardless of the current page.
+  await expect(page.getByRole('alert').filter({ hasText: 'This account has been banned' })).toBeVisible();
+});

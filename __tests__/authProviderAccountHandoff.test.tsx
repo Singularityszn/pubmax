@@ -182,6 +182,29 @@ describe("an account sign-out that hands the device to the next account", () => 
 });
 
 describe("remembered-account refusal feedback", () => {
+  it.each([true, false])("shows ban feedback on the guidelines page with onboarding complete: %s", async (complete) => {
+    // G14 requires refused switches to show feedback while the rules stay readable.
+    window.history.replaceState(null, "", "/terms");
+    h.onboardingComplete = complete;
+    h.refusal = "user_banned";
+    await mountProvider();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await act(async () => { await actions.switchAccount("next"); });
+
+    const alerts = document.querySelectorAll<HTMLElement>('[role="alert"]');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].textContent).toContain("This account has been banned");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    const dismiss = alerts[0].querySelector<HTMLButtonElement>("button")!;
+    dismiss.focus();
+    expect(document.activeElement).toBe(dismiss);
+    expect(h.session?.user.id).toBe("leaving");
+    expect(readDeviceAccounts(localStorage).find((account) => account.userId === "next")?.refreshToken).toBeNull();
+    await act(async () => dismiss.click());
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+  });
+
   it.each(["switch", "handoff"] as const)("shows a dismissible ban notice after a refused %s", async (path) => {
     h.refusal = "user_banned";
     await mountProvider();

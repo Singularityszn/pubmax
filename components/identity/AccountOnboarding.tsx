@@ -559,15 +559,13 @@ function AccountOnboardingForUser({
     ],
   );
 
-  if (readingGuidelines) return null;
-
   const bannedNotice = authBannedNotice ? (
     <AuthAccountBannedNotice
-      className={status === "needed" ? "authCallbackNotice authCallbackNotice--inline" : undefined}
+      className={onboardingVisible ? "authCallbackNotice authCallbackNotice--inline" : undefined}
       onDismiss={onDismissAuthBannedNotice}
     />
   ) : null;
-  if (status === "loading" || status === "complete") return bannedNotice;
+  if (readingGuidelines || status === "loading" || status === "complete") return bannedNotice;
   if (status === "unavailable") {
     return (
       <>
