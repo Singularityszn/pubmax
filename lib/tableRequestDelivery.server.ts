@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "crypto";
+
 // "Ask the pub for a table": who gets the request, and whether PUBMAXX sent it.
 //
 // ONE PATH SENDS, AND ONLY A SEND COUNTS. When the pub has a verified operator
@@ -81,11 +83,19 @@ async function discardQuietly(store: TableRequestsStore, id: string): Promise<vo
  * Deliver one validated request to the pub's verified operator, or report that
  * PUBMAXX did not send it. Never throws.
  */
+/** One stable UUID per account and retry key. */
+function tableRequestIdForKey(requesterUserId: string, requestKey: string): string {
+  const hex = createHash("sha256").update(`table-request:${requesterUserId}:${requestKey}`).digest("hex");
+  const variant = ((parseInt(hex[16]!, 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 export async function deliverTableRequest(
   fields: TableRequestFields,
   venueName: string,
   deps: TableRequestDeliveryDeps = DEFAULT_DEPS,
   now: number = Date.now(),
+  requestKey: string | null = null,
 ): Promise<TableRequestDeliveryOutcome> {
   const { operators, addresses } = await operatorAddresses(fields.venueId, deps);
   if (operators === 0) return { outcome: "not_sent", reason: "no_operator" };
@@ -93,14 +103,21 @@ export async function deliverTableRequest(
 
   const store = deps.store();
   let requestId: string;
+  let alreadyEmailed = false;
   try {
-    requestId = (await store.create(fields, now)).id;
+    // A retry carries its first key, so it lands on the same row and the same
+    // email idempotency keys, and the operator is asked once.
+    const stored = await store.create(fields, now, requestKey ? tableRequestIdForKey(fields.requesterUserId, requestKey) : undefined);
+    requestId = stored.id;
+    alreadyEmailed = stored.delivery === "emailed";
   } catch (err) {
     log("error", "table_request.store_failed", {
       error: err instanceof Error ? err.message : String(err),
     });
     return { outcome: "not_sent", reason: "store_unavailable" };
   }
+
+  if (alreadyEmailed) return { outcome: "sent" };
 
   const message = tableRequestOperatorEmail(venueName, fields);
   const results = await deps

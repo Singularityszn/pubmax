@@ -35,7 +35,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { deliverTableRequest } from "@/lib/tableRequestDelivery.server";
-import { toOperatorTableRequest, validateTableRequest } from "@/lib/tableRequests";
+import { tableRequestKey, toOperatorTableRequest, validateTableRequest } from "@/lib/tableRequests";
 import { tableRequestsStore } from "@/lib/tableRequestsStore";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -154,7 +154,13 @@ export async function POST(request: Request): Promise<Response> {
   const venueKey = `table-request-venue:${pub.venueId}`;
   if (await isLimited(venueKey, venueKey, VENUE_HOURLY_LIMIT, HOUR_MS)) return rateLimited();
 
-  const delivery = await deliverTableRequest({ ...validation.fields, venueId: pub.venueId }, pub.name);
+  const delivery = await deliverTableRequest(
+    { ...validation.fields, venueId: pub.venueId },
+    pub.name,
+    undefined,
+    undefined,
+    tableRequestKey(body.requestKey),
+  );
   log("info", "table_request.answered", {
     route: "POST /api/table-requests",
     outcome: delivery.outcome,

@@ -147,6 +147,8 @@ export default function TableRequestDialog({
   const [stage, setStage] = useState<Stage>({ kind: "form" });
   const [error, setError] = useState<{ field: TableRequestField | null; text: string } | null>(null);
   const [gate, setGate] = useState<ContributionGateStatus | null>(null);
+  // One key per request payload: a retry of the same words reuses it, an edit mints a new one.
+  const attemptRef = useRef<{ key: string; payload: string } | null>(null);
 
   useDismissOnEscape(gate === null, onClose);
   useFocusTrap(gate === null, dialogRef, "strict-modal");
@@ -181,21 +183,28 @@ export default function TableRequestDialog({
       return;
     }
     setStage({ kind: "sending" });
+    const payload = {
+      venueId: venue.id,
+      name: validation.fields.name,
+      partySize: validation.fields.partySize,
+      date: validation.fields.date,
+      time: validation.fields.time,
+      note: validation.fields.note ?? "",
+      contact: { kind: validation.fields.contactKind, value: validation.fields.contactValue },
+    };
+    const payloadText = JSON.stringify(payload);
+    if (attemptRef.current?.payload !== payloadText) {
+      const key = globalThis.crypto?.randomUUID?.() ?? `table-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      attemptRef.current = { key, payload: payloadText };
+    }
+    const requestKey = attemptRef.current.key;
     try {
       const response = await authedActionFetch(
         "/api/table-requests",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            venueId: venue.id,
-            name: validation.fields.name,
-            partySize: validation.fields.partySize,
-            date: validation.fields.date,
-            time: validation.fields.time,
-            note: validation.fields.note ?? "",
-            contact: { kind: validation.fields.contactKind, value: validation.fields.contactValue },
-          }),
+          body: JSON.stringify({ ...payload, requestKey }),
         },
         { requiresIdentity: true },
       );

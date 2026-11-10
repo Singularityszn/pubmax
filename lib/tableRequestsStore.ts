@@ -55,7 +55,8 @@ type TableRequestsRead = { status: "ready" | "degraded"; requests: TableRequest[
 
 export type TableRequestsStore = {
   /** Keep a request as `pending` before its email goes. THROWS on a hard failure. */
-  create(fields: TableRequestFields, now?: number): Promise<TableRequest>;
+  /** Store a request. Given an `id` that is already stored, it changes nothing and returns it. */
+  create(fields: TableRequestFields, now?: number, id?: string): Promise<TableRequest>;
   /** Stamp a request `emailed`. False when no pending row has that id. THROWS on a hard failure. */
   markEmailed(id: string, now?: number): Promise<boolean>;
   /** Remove a request whose email was not sent. False when there was none. THROWS on a hard failure. */
@@ -74,10 +75,12 @@ function byNewest(left: TableRequest, right: TableRequest): number {
 const byId = new Map<string, TableRequest>();
 
 export const memoryTableRequestsStore: TableRequestsStore = {
-  async create(fields, now = Date.now()) {
+  async create(fields, now = Date.now(), id = randomUUID()) {
+    const held = byId.get(id);
+    if (held) return { ...held };
     const request: TableRequest = {
       ...fields,
-      id: randomUUID(),
+      id,
       delivery: "pending",
       createdAt: new Date(now).toISOString(),
       deliveredAt: null,
@@ -196,27 +199,33 @@ function toRow(request: TableRequest) {
 }
 
 export const supabaseTableRequestsStore: TableRequestsStore = {
-  async create(fields, now = Date.now()) {
+  async create(fields, now = Date.now(), id = randomUUID()) {
     return guard({
       context: "create",
       onSchemaMiss: () =>
         onMissingDurableWrite({
           storeTag: STORE_TAG,
           migrationHint: MIGRATION_HINT,
-          fallback: () => memoryTableRequestsStore.create(fields, now),
+          fallback: () => memoryTableRequestsStore.create(fields, now, id),
         }),
       // No onError: a hard write failure THROWS.
       run: async () => {
         const request: TableRequest = {
           ...fields,
-          id: randomUUID(),
+          id,
           delivery: "pending",
           createdAt: new Date(now).toISOString(),
           deliveredAt: null,
         };
         const { error } = await admin().from(TABLE).insert(toRow(request));
-        if (error) throw new Error(error.message);
-        return request;
+        if (!error) return request;
+        // The primary key is the table's only unique key: a retry of a stored request.
+        if (error.code !== "23505") throw new Error(error.message);
+        const held = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
+        if (held.error) throw new Error(held.error.message);
+        const stored = held.data ? fromRow(held.data as Record<string, unknown>) : null;
+        if (!stored) throw new Error("table request vanished during a retry");
+        return stored;
       },
     });
   },

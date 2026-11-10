@@ -138,6 +138,11 @@ export function toOperatorTableRequest(request: TableRequest): OperatorTableRequ
 
 // ── Words ────────────────────────────────────────────────────────────────────
 
+/** A retry key the form mints once per payload. Absent or malformed means none. */
+export function tableRequestKey(value: unknown): string | null {
+  return typeof value === "string" && /^[A-Za-z0-9-]{16,128}$/.test(value) ? value : null;
+}
+
 export const TABLE_REQUEST_ACTION_LABEL = "Ask for a table";
 export const TABLE_REQUEST_SEND_LABEL = "Send request";
 export const TABLE_REQUEST_FREE_LINE =

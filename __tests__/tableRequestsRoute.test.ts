@@ -281,6 +281,21 @@ describe("POST /api/table-requests: the two ways out", () => {
     expect(listed.requests[0]).toMatchObject({ partySize: 8, delivery: "emailed", contactValue: SAM_CONTACT });
   });
 
+  it("asks the pub once when a request is retried under its key, and again for a new key", async () => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const key = "retry-key-0123456789abcdef";
+    expect((await POST(post(request({ requestKey: key })))).status).toBe(201);
+    // The answer was lost; the form sends the same request under the same key.
+    const retry = await POST(post(request({ requestKey: key })));
+    expect(retry.status).toBe(201);
+    expect(await retry.json()).toEqual({ outcome: "sent" });
+    expect(state.sent).toHaveLength(1);
+    expect((await memoryTableRequestsStore.listEmailedForVenue("venue-crown")).requests).toHaveLength(1);
+
+    expect((await POST(post(request({ requestKey: "another-key-0123456789ab", partySize: 9 })))).status).toBe(201);
+    expect(state.sent).toHaveLength(2);
+  });
+
   it("puts a phone contact in the body and sets no Reply-To", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
     const response = await POST(post(request({ contact: { kind: "phone", value: "+44 7700 900123" } })));
