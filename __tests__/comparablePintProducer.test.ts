@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { comparablePint } from "@/lib/comparablePint.mjs";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { measureNamedInDrinkText } from "@/lib/drinkMeasure";
-import { buildSlimPriceEvidence } from "@/scripts/build_slim_index.mjs";
+import { buildSlimPriceEvidence, bundleSlimHints } from "@/scripts/build_slim_index.mjs";
 import { applySlimListingPrices } from "@/lib/slimListingPrices.mjs";
 import { pinsToSlimVenues, slimVenueToPin } from "@/lib/slimPins";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
@@ -172,5 +172,32 @@ describe("selected serving evidence in the published price packs", () => {
     ], 5);
     expect(evidence).toEqual({ priceSource: "pub.example", priceObservedAt: "2026-01-01" });
     expect(comparablePint({ cheapestPrice: 5, ...evidence })).toBe(5);
+  });
+});
+
+
+describe("slim bundle price availability", () => {
+  it("retains a recorded beer lane even without a slim minimum", () => {
+    const listed = {
+      category: "beer", standing: "listed", priceGbp: 6.45, lane: "site-harvest",
+      sourceUrl: "https://pub.example/menu", observedAt: "2026-11-07",
+    };
+    const hints = bundleSlimHints([
+      { ...listed, venueId: "kings-head" },
+      { ...listed, venueId: "bare", standing: "estimate", basis: "zone_median", sampleSize: 10 },
+      { ...listed, venueId: "wine-only", category: "wine" },
+      { ...listed, venueId: "quarantined", drinkLabel: ".2 0.5% UK ROTHAUS PILSNER" },
+      { ...listed, venueId: "invalid-source", sourceUrl: null },
+      { ...listed, venueId: "invalid-price", priceGbp: 0 },
+      { ...listed, venueId: "soft-drink", category: "soft-drink", drinkLabel: "Coke Zero", drinkSubtype: "soft-drink-coke-zero" },
+      { ...listed, venueId: "invalid-soft-drink", category: "soft-drink", sourceUrl: null, drinkLabel: "Coke Zero", drinkSubtype: "soft-drink-coke-zero" },
+    ]);
+    expect(hints.recordedPintVenueIds).toEqual(new Set(["kings-head"]));
+    expect(hints.softDrinkSubtypes).toEqual(new Map([["soft-drink", new Set(["soft-drink-coke-zero"])]]));
+    expect(bundleSlimHints([]).recordedPintVenueIds).toEqual(new Set());
+    expect(bundleSlimHints(null).recordedPintVenueIds).toBeNull();
+    const published = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    expect(bundleSlimHints(published).recordedPintVenueIds?.has("venue-10x17k9")).toBe(true);
+    expect(bundleSlimHints(published).recordedPintVenueIds?.has("venue-1embrnu")).toBe(false);
   });
 });

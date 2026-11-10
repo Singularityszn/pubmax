@@ -284,7 +284,7 @@ describe("scene icon registration", () => {
       const live = manifest.sheets.main.themes[theme].tokens as IconTokens;
       preloadMapIconSprite(theme);
       await vi.waitFor(() => {
-        registerSceneIconImages(map as never, theme, live);
+        expect(registerSceneIconImages(map as never, theme, live)).toBe("sprite");
         expect(map.images.size).toBe(84);
         for (const spec of MAP_ICON_SPECS) {
           const entry = map.images.get(iconId(spec.ns, spec.key));

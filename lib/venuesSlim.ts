@@ -55,6 +55,7 @@ export type SlimVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  hasRecordedPrice?: boolean;
   cheapestPint?: string;
   measure?: string;
   /** Publisher named by the exact listed minimum price row. */
@@ -245,6 +246,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    ...(typeof venue.hasRecordedPrice === "boolean" ? { hasRecordedPrice: venue.hasRecordedPrice } : {}),
     ...(typeof venue.cheapestPint === "string" ? { cheapestPint: venue.cheapestPint } : {}),
     ...(typeof venue.measure === "string" ? { measure: venue.measure } : {}),
     ...(venue.priceSource !== undefined ? { priceSource: venue.priceSource } : {}),

@@ -44,6 +44,7 @@ import {
   baselineTrustCaption,
   uncheckedPriceLine,
   venueBundlePrices,
+  venuePriceLaneEstimate,
   venuePriceLane,
   venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
@@ -116,6 +117,7 @@ import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
+import { zoneEstimateBasisNote } from "@/lib/zonePriceEstimate";
 import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
@@ -492,10 +494,11 @@ function VenuePriceSummary({
   // in on the venue from the UK price bundle, and `priceStandingFor` decides
   // which of them speaks rather than this component choosing.
   const bundle = venueBundlePrices(venue);
+  const estimate = venuePriceLaneEstimate(lane, bundle);
   const priceStanding = priceStandingFor({
     confirmed: confirmedPrice ?? null,
     listed: bundle.listed ?? null,
-    estimate: bundle.estimate ?? null,
+    estimate,
   });
   // THE TRUST CHIP. Every drop-lane row below carries `data-pint-trust`, the
   // one state lib/pintTrust.ts reads this lane as, so a browser test can hold
@@ -711,8 +714,13 @@ function VenuePriceSummary({
         {/* NO CLAIM BADGE. Nobody published this figure, so nothing here may
             wear the mark that says somebody did. The pill prints "est. £X" and
             carries the method link beside it, and the basis line is left to
-            /how-we-estimate rather than restated here in a second vocabulary. */}
-        <TrustPill decision={priceStanding} area={bandArea} />
+            /how-we-estimate rather than restated here in a second vocabulary.
+            A zone estimate names its zone, so a reader knows where it is from. */}
+        <TrustPill
+          decision={priceStanding}
+          area={bandArea}
+          basisNote={zoneEstimateBasisNote(estimate)}
+        />
         {door}
       </div>
     );
@@ -1116,7 +1124,7 @@ export default function VenueOverviewTab({
     venue,
     latestContributorPrice,
     sourcedPrice,
-    venueBundlePrices(venue),
+    venueBundlePrices(venue, zoneIndex),
     provisionalPrice,
     agedPrice,
     disputedPrice,

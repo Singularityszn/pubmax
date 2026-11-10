@@ -91,10 +91,16 @@ export default function PricedLandingRows({
               >
                 {row.venueName}
               </Link>
-              {row.branchAddress ? (
-                <span className="drinkBrandDirectory__borough">{row.branchAddress}</span>
-              ) : null}
-              <span className="drinkBrandDirectory__borough">
+              <span
+                className="drinkBrandDirectory__borough"
+                title={`${row.branchAddress ? `${row.branchAddress}, ` : ""}${row.borough}${row.nearbyArea ? `, near ${row.nearbyArea}` : ""}`}
+              >
+                {row.branchAddress ? (
+                  <>
+                    <span>{row.branchAddress}</span>
+                    <br />
+                  </>
+                ) : null}
                 {row.borough}{row.nearbyArea ? `, near ${row.nearbyArea}` : ""}
               </span>
               <span className="drinkBrandDirectory__pint">

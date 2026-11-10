@@ -50,9 +50,17 @@ describe("unverified Night Area reviews", () => {
     }
   });
 
-  it("withholds unreviewed area-brand pairs while retaining other priced pages", async () => {
+  it("publishes priced area-brand pages without certifying a route review", async () => {
     const venues = await loadPintPriceLandingVenues();
-    expect(listDrinkBrandAreaLandings(venues)).toEqual([]);
+    const landings = listDrinkBrandAreaLandings(venues);
+    expect(landings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ areaSlug: "victoria", brandSlug: "guinness" }),
+    ]));
+    for (const landing of landings) {
+      expect(landing.totalPricedVenues).toBeGreaterThanOrEqual(10);
+      expect(landing.areaEstimate?.basis).toBe("area_median");
+      expect(isNightAreaRouteReady(getNightArea(landing.areaSlug))).toBe(false);
+    }
     expect(listDrinkBrandLandings(venues).length).toBeGreaterThan(0);
     expect(listAreaLandings(venues).length).toBeGreaterThan(0);
   });

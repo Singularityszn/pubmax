@@ -30,10 +30,10 @@ describe.each([
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const address = server.address() as AddressInfo;
-    let receivedHeaders = false;
+    let receivedHeaders = Promise.withResolvers<void>();
     let requestSignal: AbortSignal | null | undefined;
-    let watchdog: ReturnType<typeof setTimeout> | undefined;
 
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {
       const scanner = new Adapter({
         apiKey: "test-key",
@@ -41,30 +41,30 @@ describe.each([
         fetcher: async (_url, init) => {
           requestSignal = init?.signal;
           const response = await fetch(`http://127.0.0.1:${address.port}/moderation`, init);
-          receivedHeaders = true;
+          receivedHeaders.resolve();
           return response;
         },
       });
-      const outcome = await Promise.race([
-        scanUploadedImage({
-          surface: "profile-avatar",
-          signedUrl: "https://storage.test/signed-avatar",
-          adapter: () => scanner,
-        }),
-        new Promise<"deadline_missed">((resolve) => {
-          watchdog = setTimeout(() => resolve("deadline_missed"), 2_000);
-        }),
-      ]);
+      const outcome = scanUploadedImage({
+        surface: "profile-avatar",
+        signedUrl: "https://storage.test/signed-avatar",
+        adapter: () => scanner,
+      });
+      await receivedHeaders.promise;
+      await vi.advanceTimersByTimeAsync(500);
 
-      expect(receivedHeaders).toBe(true);
-      expect(outcome).toEqual({ verdict: "skipped", reason: "scan_failed" });
+      expect(await outcome).toEqual({ verdict: "skipped", reason: "scan_failed" });
       expect(requestSignal?.aborted).toBe(true);
-      await expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
+      receivedHeaders = Promise.withResolvers<void>();
+      const failure = expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
         message: `${provider} moderation request failed.`,
         retryable: true,
       });
+      await receivedHeaders.promise;
+      await vi.advanceTimersByTimeAsync(500);
+      await failure;
     } finally {
-      clearTimeout(watchdog);
+      vi.useRealTimers();
       server.closeAllConnections();
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     }

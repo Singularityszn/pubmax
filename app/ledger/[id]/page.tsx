@@ -28,6 +28,8 @@ import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import { mergePriceUpdates, parsePriceUpdates } from "@/lib/priceUpdates";
 import { venueUpdateKey } from "@/lib/pubMap";
 import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import { withZoneEstimate } from "@/lib/zonePriceEstimate";
+import { loadVenueZone, loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import rawPriceUpdates from "@/public/data/price_updates/latest.json";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -201,7 +203,11 @@ export default async function LedgerPage({ params }: PageProps) {
   )[0]!;
   const bundleRead = await ukPriceBundleRowsFor(canonicalId);
   if (bundleRead.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
-  const bundle = bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  let bundle = bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  if (isPubVenueKind(venue.kind)) {
+    const [zone, zoneIndex] = await Promise.all([loadVenueZone(canonicalId), loadZonePintIndex()]);
+    bundle = withZoneEstimate(bundle, zone, zoneIndex);
+  }
   const hasPubOrBarSchema = isPubVenueKind(venue.kind) || venue.kind === "bar";
 
   return (

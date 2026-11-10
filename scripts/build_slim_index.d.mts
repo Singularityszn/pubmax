@@ -64,3 +64,8 @@ export function typeRelativePriceBands<
     anchor: { price: number };
   },
 >(rows: readonly T[]): Map<string, 0 | 1 | 2>;
+
+export function bundleSlimHints(bundle: unknown): {
+  softDrinkSubtypes: Map<string, Set<string>>;
+  recordedPintVenueIds: Set<string> | null;
+};

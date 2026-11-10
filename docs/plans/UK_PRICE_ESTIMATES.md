@@ -32,9 +32,11 @@ on its own slow cadence and not on a drinker's visit. It is one constant,
 `LISTED_MAX_AGE_DAYS`, and moving it is a one-line decision rather than an
 archaeology exercise.
 
-## The estimate engine
+## The baseline estimate engine
 
 `lib/priceEstimate.ts` is pure and takes two inputs: a pub, and the basis table.
+The [London estimate rules](../rules/lib-prices-trust-and-drinks.md#london-zone-estimates)
+own the separate fare-zone method and its precedence over this baseline.
 
 ### What it knows about a pub
 
@@ -56,9 +58,7 @@ inferred from a name, which keeps this continuous with the extraction law in
    operator off the same menu.
 2. **`regional_baseline`.** Otherwise, the median for the pub's own region.
 
-A pub that matches neither gets nothing, and grey is a real answer. It is what
-points a drinker at the pubs whose price is still missing, which is the whole
-reason for showing the weak standings rather than hiding them.
+A pub that matches neither gets no estimate from this engine.
 
 ### The sample floor
 
@@ -105,10 +105,6 @@ contradiction by re-reading robots is PR 2's job, not a judgement made here.
 | --- | --- | --- |
 | Chains | **0** | No chain we are permitted to read has published a single pint price. The 1,538 Greene King rows in the tree are 863 wines and 675 cocktails, with no beer among them. |
 | Regions | **29** | London boroughs, from the bundled dataset's own per-borough average. |
-
-So today **2,963 of the 38,215 UK pubs (7.8%) carry an estimate**, and every one
-of them is in London. The other 35,252 are grey and say so. Raising that number
-is exactly what the chain harvest is for.
 
 ### The London rows are modelled off a scrape, and say so
 
@@ -167,26 +163,10 @@ Two things the pin deliberately does NOT do:
   to add a sixth ring nobody could tell from the other five. The standing went
   into the price tag instead, which is where a claim about a price belongs.
 
-### The one wiring step left, and why it is left
-
-`pubsToGeoJSON` takes the standings map as its own optional argument, defaulting
-to null, so today's behaviour is bit-for-bit unchanged until a caller passes one.
-The only caller is `components/PubMapCanvas.tsx`, which this lane is not
-permitted to edit. The change there is one argument on one call:
-
-```ts
-pubsToGeoJSON(venues, venueSignals, favoritePint, drinkCategory,
-  whatsOnByVenue, provisionalVenueIds, lensPrices, priceStandings)
-```
-
-Everything behind that argument is built and tested
-(`__tests__/pinPriceStanding.test.ts`).
-
 ## What this does not do
 
 - The estimate engine does not confirm prices.
 - It does not harvest. PR 2 extends the first-party lane to permitted chain
-  menus UK-wide, which is what puts chain rows in the basis table and lifts
-  estimate coverage off 7.8%.
+  menus UK-wide, which is what puts chain rows in the basis table.
 - It does not touch the Pint Index, which still publishes only prices with a
   named source and a date, and still holds none.

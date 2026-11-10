@@ -20,6 +20,7 @@ import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { tsImport } from "tsx/esm/api";
 
 import {
   CORE_FILE,
@@ -43,6 +44,8 @@ import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
 import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
 import { UK_OSM_PUBS_FILE } from "../lib/ukOsmPubsFile.mjs";
+
+const { parseUkPriceBundleRows } = await tsImport("../lib/ukPriceBundle.ts", import.meta.url);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -803,9 +806,10 @@ async function readBundleRows() {
     const bundle = JSON.parse(
       await readFile(path.join(DATA_DIR, "uk_prices", "rows.json"), "utf8"),
     );
-    return Array.isArray(bundle) ? bundle : (bundle?.rows ?? []);
+    if (Array.isArray(bundle)) return bundle;
+    return Array.isArray(bundle?.rows) ? bundle.rows : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -814,23 +818,33 @@ async function readBundleRows() {
 // them the map's soft-drink lens finds none of the pubs that page names, because
 // a Coke Zero on a menu never reaches pint_name or drinkText. A missing or
 // unreadable bundle hints nothing, so the lens is no wider than its evidence.
-function bundleSoftDrinkSubtypes(rows) {
-  const byVenue = new Map();
-  for (const row of rows) {
-    if (
-      row?.lane !== "site-harvest" ||
-      row.standing !== "listed" ||
-      row.category !== "soft-drink" ||
-      typeof row.venueId !== "string" ||
-      typeof row.drinkSubtype !== "string"
-    ) {
-      continue;
+export function bundleSlimHints(bundle) {
+  const softDrinkSubtypes = new Map();
+  if (!Array.isArray(bundle)) return { softDrinkSubtypes, recordedPintVenueIds: null };
+  const recordedPintVenueIds = new Set();
+  for (const row of parseUkPriceBundleRows(bundle)) {
+    if (row.category === "beer" && row.standing !== "estimate") {
+      recordedPintVenueIds.add(row.venueId);
     }
-    const held = byVenue.get(row.venueId) ?? new Set();
+    if (
+      row.lane !== "site-harvest" || row.standing !== "listed" || row.category !== "soft-drink" ||
+      typeof row.drinkSubtype !== "string"
+    ) continue;
+    const held = softDrinkSubtypes.get(row.venueId) ?? new Set();
     held.add(row.drinkSubtype);
-    byVenue.set(row.venueId, held);
+    softDrinkSubtypes.set(row.venueId, held);
   }
-  return byVenue;
+  return { softDrinkSubtypes, recordedPintVenueIds };
+}
+
+function slimBundlePriceCoverage(slim, recordedPintVenueIds) {
+  if (recordedPintVenueIds === null) return {};
+  return {
+    bundlePricesChecked: true,
+    recordedPintVenueIds: slim
+      .filter((venue) => venue.cheapestPrice === null && recordedPintVenueIds.has(venue.id))
+      .map((venue) => venue.id),
+  };
 }
 
 function groupLondonRows(rows) {
@@ -895,7 +909,7 @@ async function main() {
 
   const scrapedIds = await readScrapedIds();
   const bundleRows = await readBundleRows();
-  const softDrinkSubtypes = bundleSoftDrinkSubtypes(bundleRows);
+  const { softDrinkSubtypes, recordedPintVenueIds } = bundleSlimHints(bundleRows);
 
   const { grouped, droppedOob } = groupLondonRows(rows);
   if (droppedOob > 0) {
@@ -1038,7 +1052,7 @@ async function main() {
       1,
     );
   }
-  applySlimListingPrices(slim, bundleRows);
+  applySlimListingPrices(slim, bundleRows ?? []);
   const featureHints = buildVenueFeatureHints(
     slim,
     JSON.parse(await readFile(path.join(ROOT, UK_OSM_PUBS_FILE), "utf8")).pubs,
@@ -1065,9 +1079,12 @@ async function main() {
   const priceDatasetDigest = priceDatasetDigestFor(slim, detailText, selectionSources);
   detailIndex.priceDatasetDigest = priceDatasetDigest;
 
+  const bundlePriceCoverage = slimBundlePriceCoverage(slim, recordedPintVenueIds);
+
   // Compact JSON (no whitespace) — the map never reads this file by hand.
   const slimText = JSON.stringify({
     ...buildShardPayload(slim),
+    ...bundlePriceCoverage,
     d: priceDatasetDigest,
     generatedAt: builtAt.toISOString(),
   });

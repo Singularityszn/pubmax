@@ -438,18 +438,9 @@ Collection rules:
 
 ### 5.2 Comparable-price model dataset
 
-Do not turn on public estimates until each model segment has:
-
-- At least 30 comparable current observations.
-- Drink category.
-- Night Area or borough.
-- Venue class.
-- Verified observation date.
-- Train and validation split that avoids venue leakage.
-- Mean absolute error at or below £0.50.
-- An 80% prediction interval that meets its coverage target.
-
-The model must be deterministic. Generative AI must not create prices.
+The [price-standing contract](../rules/lib-prices-trust-and-drinks.md#a-price-says-what-it-is-worth-and-a-modelled-figure-may-never-pass-as-a-publishe)
+owns estimate evidence requirements and authority limits.
+The [public estimate guide](https://pubmaxxing.com/how-we-estimate) owns the permitted methods.
 
 ### 5.3 Venue essentials
 
