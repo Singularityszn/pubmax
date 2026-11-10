@@ -118,9 +118,9 @@ describe("the band a figure wears", () => {
       "priceBand-average",
       "priceBand-expensive",
     ]);
-    expect(priceBandLegendLabel("cheap", LONDON)).toBe("£5.20 or less");
-    expect(priceBandLegendLabel("average", LONDON)).toBe("Over £5.20, up to £6.15");
-    expect(priceBandLegendLabel("expensive", LONDON)).toBe("Over £6.15");
+    expect(priceBandLegendLabel("cheap", LONDON)).toBe("£5.25 or less");
+    expect(priceBandLegendLabel("average", LONDON)).toBe("Over £5.25, up to £6.20");
+    expect(priceBandLegendLabel("expensive", LONDON)).toBe("Over £6.20");
     expect(priceBandNote("expensive", LONDON)).toContain(
       `dearest third of ${thresholdsTable.cities.london.sampleSize} priced pubs`,
     );

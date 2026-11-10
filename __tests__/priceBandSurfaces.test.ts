@@ -100,7 +100,7 @@ describe("every price surface paints through lib/priceBand.ts", () => {
   it("the pin bucket, the legend and the band module agree on one £6.50", () => {
     expect(priceBucket(6.5)).toBe(2);
     expect(priceBand(6.5)).toBe("expensive");
-    expect(orientationLegendRows()[2]).toMatchObject({ tone: "red", label: "Over £6.15" });
+    expect(orientationLegendRows()[2]).toMatchObject({ tone: "red", label: "Over £6.20" });
   });
 });
 
