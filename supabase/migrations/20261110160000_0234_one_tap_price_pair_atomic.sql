@@ -1,3 +1,10 @@
+-- Atomic one-tap price pairing (0234) replaces hide-based compensation.
+-- The Pint Drop carries the request figure, measure and evidence.
+-- A newer stored observation answers superseded without minting a Pint Drop.
+-- Reverse: rollback/20261110160000_0234_one_tap_price_pair_atomic_rollback.sql
+
+begin;
+
 create or replace function public.create_one_tap_price_pair_atomic(
   p_venue_id text,
   p_drink_category text,
@@ -158,3 +165,5 @@ revoke all on function public.create_one_tap_price_pair_atomic(
 grant execute on function public.create_one_tap_price_pair_atomic(
   text, text, integer, text, text, timestamptz, jsonb
 ) to service_role;
+
+commit;

@@ -76,17 +76,29 @@ async function renderDoor(props: Record<string, unknown> = {}) {
   });
 }
 
-async function logPrice() {
+async function preparePrice() {
   const quickPrice = container.querySelector<HTMLButtonElement>(".vpsubQuickChip");
   if (!quickPrice) throw new Error("quick price button did not render");
   await act(async () => {
     quickPrice.click();
   });
   await attachBill(container);
-  const logButton = container.querySelector<HTMLButtonElement>(".vpsubLog");
-  if (!logButton) throw new Error("Log it button did not render");
+}
+
+function tapLog(method: "button" | "Enter") {
+  if (method === "button") {
+    defined(container.querySelector<HTMLButtonElement>(".vpsubLog")).click();
+  } else {
+    defined(container.querySelector<HTMLInputElement>(".vpsubInput")).dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+  }
+}
+
+async function logPrice() {
+  await preparePrice();
   await act(async () => {
-    logButton.click();
+    tapLog("button");
     await Promise.resolve();
   });
 }
@@ -108,6 +120,52 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+});
+
+describe.each(["button", "Enter"] as const)("the D10 client latch through %s", (method) => {
+  it("submits once for three taps while the request is pending", async () => {
+    const pending = Promise.withResolvers<Awaited<ReturnType<CommunityPricesState["submit"]>>>();
+    submit.mockReturnValueOnce(pending.promise);
+    const onLogged = vi.fn();
+    await renderDoor({ onLogged });
+    await preparePrice();
+
+    await act(async () => {
+      tapLog(method);
+      tapLog(method);
+      tapLog(method);
+    });
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(onLogged).not.toHaveBeenCalled();
+
+    await act(async () => {
+      pending.resolve({
+        ok: true,
+        attribution: { status: "credited", handle: "alice" },
+        price: null,
+        pintTrust: null,
+        confirmationOutcome: null,
+      });
+    });
+    expect(onLogged).toHaveBeenCalledExactlyOnceWith("venue-1");
+  });
+
+  it("allows another attempt after a failed submission", async () => {
+    submit.mockResolvedValueOnce({ ok: false, error: "Could not save.", reason: "network" });
+    const onLogged = vi.fn();
+    await renderDoor({ onLogged });
+    await preparePrice();
+
+    await act(async () => tapLog(method));
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(container.querySelector("#vpsubError")?.textContent).toBe("Could not save.");
+    expect(onLogged).not.toHaveBeenCalled();
+
+    await act(async () => tapLog(method));
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(onLogged).toHaveBeenCalledExactlyOnceWith("venue-1");
+    expect(container.querySelector("#vpsubError")).toBeNull();
+  });
 });
 
 describe("the one-tap price door asks the measure", () => {
