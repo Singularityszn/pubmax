@@ -43,6 +43,27 @@ function venue(id: string, name = id): Venue {
 }
 
 describe("mergeLazyDetailPins", () => {
+  it("keeps loaded price evidence together instead of borrowing the pin's date", () => {
+    const slim = { ...venue("venue-a", "Slim A"), cheapestPint: "Guinness", measure: "pint",
+      priceSource: "Guinndex", priceObservedAt: "2026-11-07" };
+    const detail = { ...venue("venue-a", "Detail A"), cheapestPrice: 6, cheapestPint: "Lager",
+      priceSource: "Pub menu" };
+
+    expect(mergeLazyDetailPins([slim], new Map([[detail.id, detail]]))).toEqual([detail]);
+  });
+
+  it("carries the complete pin evidence over an unpriced detail record", () => {
+    const slim = { ...venue("venue-a", "Slim A"), cheapestPint: "Guinness", measure: "pint",
+      priceSource: "Guinndex", priceObservedAt: "2026-11-07" };
+    const detail = { ...venue("venue-a", "Detail A"), cheapestPrice: null, measure: "half",
+      priceSource: "Old menu", priceObservedAt: "2025-01-01" };
+
+    expect(mergeLazyDetailPins([slim], new Map([[detail.id, detail]]))[0]).toMatchObject({
+      name: "Detail A", cheapestPrice: 5.5, cheapestPint: "Guinness", measure: "pint",
+      priceSource: "Guinndex", priceObservedAt: "2026-11-07",
+    });
+  });
+
   it("keeps the slim pin's price read day on the hydrated record, so a fresh price stays fresh", () => {
     const slim = { ...venue("venue-a", "Slim A"), priceObservedAt: "2026-10-01" };
     const detail = venue("venue-a", "Detail A");

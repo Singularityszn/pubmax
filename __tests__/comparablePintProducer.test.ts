@@ -6,6 +6,7 @@ import { measureNamedInDrinkText } from "@/lib/drinkMeasure";
 import { buildSlimPriceEvidence } from "@/scripts/build_slim_index.mjs";
 import { applySlimListingPrices } from "@/lib/slimListingPrices.mjs";
 import { pinsToSlimVenues, slimVenueToPin } from "@/lib/slimPins";
+import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { buildLastOrdersPacks } from "@/scripts/build_last_orders_pack.mjs";
@@ -30,7 +31,7 @@ describe("selected serving evidence in the published price packs", () => {
     borough: "Waltham Forest", cheapestPrice: null,
   });
 
-  it("projects the recorded Kings Head Guinness into its pin and resume snapshot", () => {
+  it("keeps the recorded Kings Head Guinness through detail loading and resume", () => {
     const row = unpriced();
     const bundle = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
     applySlimListingPrices([row], bundle, listingNow);
@@ -40,7 +41,21 @@ describe("selected serving evidence in the published price packs", () => {
     });
     const pin = slimVenueToPin(row);
     expect(comparablePint(pin, listingNow)).toBe(6.45);
-    expect(pinsToSlimVenues([pin])[0]).toMatchObject(row);
+    const manifest = JSON.parse(readFileSync("data/generated/venue_detail_index.json", "utf8"));
+    const entry = manifest.venues[row.id];
+    const bytes = readFileSync("data/generated/venue_details.jsonl").subarray(entry.offset, entry.offset + entry.length);
+    const detail = venueFromDetailArtifact(JSON.parse(bytes.toString("utf8")), row.id)!;
+    expect(detail.cheapestPrice).toBeNull();
+    const [hydrated] = mergeLazyDetailPins([pin], new Map([[row.id, detail]]));
+    expect(hydrated).toMatchObject({
+      cheapestPrice: 6.45, cheapestPint: "Guinness", measure: "pint",
+      priceSource: "Guinndex", priceObservedAt: "2026-11-07",
+    });
+    expect(comparablePint(hydrated, listingNow)).toBe(6.45);
+    const snapshot = pinsToSlimVenues([hydrated]);
+    expect(snapshot[0]).toMatchObject(row);
+    const [resumed] = mergeLazyDetailPins([slimVenueToPin(snapshot[0])], new Map([[row.id, detail]]));
+    expect(comparablePint(resumed, listingNow)).toBe(6.45);
   });
 
   it.each([
