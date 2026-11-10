@@ -319,12 +319,20 @@ function AccountOnboardingForUser({
     };
   }, []);
 
+  // A token refresh is the same account: it may not restart the status read
+  // and reset the handle the person is typing. The read uses the newest token.
+  const authRef = useRef(auth);
+  useEffect(() => {
+    authRef.current = auth;
+  }, [auth]);
+  const authUserId = auth.userId;
+
   useEffect(() => {
     if (!identityResolved) return;
     let activeLoad = true;
     const controller = new AbortController();
     void loadAccountOnboardingStatusWithRetry(
-      (input, init) => accountBoundFetch(auth, input, init),
+      (input, init) => accountBoundFetch(authRef.current, input, init),
       controller.signal,
     ).then(
       (result) => {
@@ -347,7 +355,7 @@ function AccountOnboardingForUser({
             // Storage blocked: account ownership is still server-truth.
           }
           emitIdentityHandleChanged({
-            ownerId: auth.userId,
+            ownerId: authUserId,
             handle: serverHandle,
           });
           // An account that already owns a handle is owed NOTHING on arrival.
@@ -377,7 +385,7 @@ function AccountOnboardingForUser({
       activeLoad = false;
       controller.abort();
     };
-  }, [auth, finish, identityResolved, statusAttempt]);
+  }, [authUserId, finish, identityResolved, statusAttempt]);
 
   useReconnectRecovery(status === "unavailable", retryStatus);
 

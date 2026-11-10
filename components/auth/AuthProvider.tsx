@@ -1495,6 +1495,7 @@ export function AuthProvider({
       );
       emitDeviceAccountSessionsChanged();
       if (outcome.status === "switched") trackEvent("account_switched");
+      if (outcome.status === "needs_sign_in" && outcome.banned) setAuthBannedNotice(true);
       return outcome;
     },
     [cancelPendingNativeAuth],

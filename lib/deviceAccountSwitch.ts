@@ -56,7 +56,7 @@ export type MintOutcome =
 
 export type DeviceAccountSwitchOutcome =
   | { status: "switched"; userId: string }
-  | { status: "needs_sign_in"; userId: string }
+  | { status: "needs_sign_in"; userId: string; banned?: true }
   | { status: "unavailable" };
 
 export type DeviceAccountSwitchDeps = {
@@ -162,7 +162,7 @@ export async function activateDeviceAccount(
   const minted = await mintSessionFromRefreshToken(row.refreshToken, deps);
   if (minted.status === "refused") {
     markDeviceAccountNeedsSignIn(deps.storage, userId);
-    return { status: "needs_sign_in", userId };
+    return minted.banned ? { status: "needs_sign_in", userId, banned: true } : { status: "needs_sign_in", userId };
   }
   if (minted.status === "unavailable") return { status: "unavailable" };
 

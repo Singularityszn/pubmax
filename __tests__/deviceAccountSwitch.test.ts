@@ -182,6 +182,19 @@ describe("activating a remembered account", () => {
     expect(row?.refreshToken).toBeNull();
   });
 
+  it("says when the refused account is banned, so the switcher can show the ban notice", async () => {
+    const outcome = await activateDeviceAccount(
+      "b",
+      deps({
+        storage: local,
+        fetchImpl: (async () => jsonResponse({ code: 403, error_code: "user_banned", msg: "User is banned" }, 403)) as typeof fetch,
+      }),
+    );
+
+    expect(outcome).toEqual({ status: "needs_sign_in", userId: "b", banned: true });
+    expect(readDeviceAccounts(local)[0]?.refreshToken).toBeNull();
+  });
+
   it("keeps a token it could not ask about, and installs nothing", async () => {
     const setSession = vi.fn(async () => ({ ok: true }));
     const outcome = await activateDeviceAccount(

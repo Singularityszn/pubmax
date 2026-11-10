@@ -233,6 +233,21 @@ describe("AccountOnboarding cold-open identity race", () => {
     expect(requestState.calls).toHaveLength(1);
   });
 
+  it("does not restart the status read when the access token refreshes", async () => {
+    requestState.responses = Array.from({ length: 20 }, () =>
+      Response.json({ complete: true, handle: "night_owl" }),
+    );
+    authState.current.identityResolved = true;
+
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    await settleOnboarding();
+    authState.current = { ...authState.current, session: { user: { id: "user-a" }, access_token: "token-a-refreshed" } };
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    await settleOnboarding();
+
+    expect(requestState.calls).toEqual(["/api/identity/onboarding"]);
+  });
+
   it("retries one failed authenticated read before showing a failure", async () => {
     vi.useFakeTimers();
     requestState.responses = [
