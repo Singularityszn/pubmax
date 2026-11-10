@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 
 import {
   CULT_STORY_BAND_IDS,
@@ -6,7 +7,6 @@ import {
   cityMapOgDescription,
   cityMapOgImageUrl,
   cityMapOgTitle,
-  cityMapShareUrl,
   firstSearchParam,
   stopCountFromPubsParam,
 } from "@/lib/cityShare";

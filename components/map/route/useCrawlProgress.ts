@@ -49,8 +49,15 @@ export function useCrawlProgress(
   }, [progressKey]);
 
   useEffect(() => {
-    const entry = progressKey && route.length >= 2 ? readCrawl(progressKey) : null;
-    applyCompletionAck(entry);
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const entry = progressKey && route.length >= 2 ? readCrawl(progressKey) : null;
+      applyCompletionAck(entry);
+    });
+    return () => {
+      active = false;
+    };
   }, [progressKey, route.length, applyCompletionAck]);
 
   useEffect(() => {
