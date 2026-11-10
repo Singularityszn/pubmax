@@ -45,7 +45,7 @@ admits `public` rows only, so an unlisted crawl's slug never lists.
 hold SELECT on the public columns of a published row only (`withdrawn_at is
 null`), never `account_id`, `proposal_id` or `withdrawn_at`, and no browser
 write. The moderator branch of `/api/operator-proposals` calls
-`public.decide_operator_proposal(text, text, text)` (0230) through the service role.
+`public.decide_operator_proposal(text, text, text)` (0235) through the service role.
 Only `service_role` can execute that function. `PUBLIC`, `anon` and
 `authenticated` have no execute grant.
 

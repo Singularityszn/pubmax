@@ -151,9 +151,9 @@ describe.skipIf(skipReason !== null)("0217 operator facts", () => {
 });
 
 
-describe.skipIf(skipReason !== null)("0230 atomic operator moderation", () => {
-  const forward = join(MIGRATIONS, "20261110110000_0230_operator_proposal_decisions.sql");
-  const rollback = join(MIGRATIONS, "rollback/20261110110000_0230_operator_proposal_decisions_rollback.sql");
+describe.skipIf(skipReason !== null)("0235 atomic operator moderation", () => {
+  const forward = join(MIGRATIONS, "20261110170000_0235_operator_proposal_decisions.sql");
+  const rollback = join(MIGRATIONS, "rollback/20261110170000_0235_operator_proposal_decisions_rollback.sql");
 
   function pending(kind = "correction"): string {
     const id = randomUUID();

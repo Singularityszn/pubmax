@@ -1146,7 +1146,7 @@ commit.
   Other transitions return 409 `CONFLICT` without changing the proposal or its fact.
   A missing proposal returns 404 `NOT_FOUND`.
 - **Atomic publication:** the durable store calls `decide_operator_proposal`
-  (migration 0230). The function locks the proposal row and checks its status.
+  (migration 0235). The function locks the proposal row and checks its status.
   It publishes one operator fact on acceptance, or withdraws the fact on decline,
   and stamps the decision in the same transaction.
   A failed publication, withdrawal or status write rolls back the transaction.
@@ -1169,7 +1169,7 @@ commit.
   A keyless process uses memory. With Supabase configured, creation and reads
   retain their schema-miss fallback, but moderation requires the durable RPC.
   A missing RPC or failed durable decision returns retryable 503 `STORE_UNAVAILABLE`.
-  The 0230 rollback removes only the function and preserves proposals and facts.
+  The 0235 rollback removes only the function and preserves proposals and facts.
   Moderation then remains unavailable until the function returns or compatible code is deployed.
   The 0217 rollback drops the fact table and preserves proposal review statuses.
 
