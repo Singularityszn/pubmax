@@ -254,6 +254,7 @@ import {
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
 import { BASEMAP_DRAWN_EVENT, markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
 import {
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
@@ -577,7 +578,12 @@ const PHONE_PIN_COMPOSITE_CONFIRM_FRAMES = 2;
 // fallback: sceneSettled=true cleared the hang guard, and no error ever fires.
 // MapLibre's "render" event only fires from a real frame, so its absence for
 // this long after construction is the honest "the map never drew" signal.
-const FIRST_FRAME_TIMEOUT_MS = 10_000;
+// MapLibre draws its first frame only after the style loads, and a slow phone
+// has been measured loading the style 16.6 s after construction. So this waits
+// as long as the shell's readiness ceiling, and the style hang guard (also
+// 18 s) answers a slow style first, with "taking too long" rather than a claim
+// that this device cannot draw.
+const FIRST_FRAME_TIMEOUT_MS = MAP_CANVAS_READINESS_CEILING_MS;
 // How many venues the no-map fallback lists so the venue content stays
 // reachable without a single WebGL frame.
 const FALLBACK_VENUE_COUNT = 6;
