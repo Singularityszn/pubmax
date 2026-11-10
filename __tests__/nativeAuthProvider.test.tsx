@@ -225,6 +225,13 @@ describe("tab-local private state across account events", () => {
     expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
   });
 
+  it("signs out of this device only, never the account's other devices", async () => {
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    await act(async () => { await actions.signOut(); });
+    expect(h.signOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(h.signOut).not.toHaveBeenCalledWith();
+  });
+
   it("clears Plan inputs before the provider and cookie sign-out requests finish", async () => {
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
     localStorage.setItem("pubmaxx:plan-route-draft:v1", "account-a-route");
