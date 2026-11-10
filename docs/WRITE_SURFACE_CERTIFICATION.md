@@ -476,6 +476,17 @@ denial, 409 for write conflict, 422 for invalid input, 429 for the write budget,
 and 503 for unavailable authority or storage. Store transactions re-check
 membership, current reciprocal follows, blocks, role, state, and revision.
 
+With migration `0232` applied, becoming an active member closes pending invitations to that Crew.
+Unexpired invitations become accepted, and expired invitations become expired.
+Leaving or removal revokes pending invitations and ends the linked Plan seat by setting `membership_revoked_at` and rotating its capability token.
+Reactivating an existing inactive membership clears that revocation and resets the seat status to `in`.
+Activation of an already active member preserves the seat status, including `here`.
+
+The migration also closes pending invitations for existing active members.
+For inactive memberships, it revokes pending invitations created before the membership ended and ends any linked Plan seat that remains live.
+The [rollback header](../supabase/migrations/rollback/20261110140000_0232_crew_membership_closes_leftovers_rollback.sql) describes what rollback preserves and restores.
+The regression cases are in [`crewMembershipLeftoversMigrationEffective.test.ts`](../__tests__/crewMembershipLeftoversMigrationEffective.test.ts).
+
 #### `app/api/social/crews` (route 81)
 
 `POST` binds one existing Planned Night. Creation alone reads the one-time

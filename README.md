@@ -276,6 +276,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Choose **Ask to join** to request a place. The host accepts or declines the request.
   Crews that are not open and failed reads show a plain PUBMAXX image instead.
 
+  See the [Crew membership rules](docs/WRITE_SURFACE_CERTIFICATION.md#social-crew-authority-routes-routes-81-89) for invitation closure and returning after leaving or removal.
+
   On the night, accepted open-crawl members can choose **I'm here** on the crew page.
   The control marks your own place **Here** and does not undo an arrival.
   See the [arrival API contract](docs/WRITE_SURFACE_CERTIFICATION.md#appapisocialcrewscrewidarrival-route-89) for the arrival window.
