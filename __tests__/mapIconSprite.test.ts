@@ -275,18 +275,16 @@ describe("scene icon registration", () => {
       const live = manifest.sheets.main.themes[theme].tokens as IconTokens;
       preloadMapIconSprite(theme);
       await vi.waitFor(() => {
-        const ready = fakeMap(pixelRatio);
-        registerSceneIconImages(ready as never, theme, live);
-        expect(ready.images.size).toBe(84);
+        expect(registerSceneIconImages(map as never, theme, live)).toBe("sprite");
+        expect(map.images.size).toBe(84);
+        for (const spec of MAP_ICON_SPECS) {
+          const entry = map.images.get(iconId(spec.ns, spec.key));
+          expect(entry?.options).toEqual(mapIconImageOptions(spec));
+          expect(entry?.image).toMatchObject({ width: spec.size * 2, height: (spec.height ?? spec.size) * 2 });
+        }
+        const images = new Map([...map.images].map(([id, entry]) => [id, entry.image as SpriteImage]));
+        expect(iconPixelHash(images)).toBe(PRE_SPLIT_ICON_PIXEL_HASHES[theme]);
       });
-      registerSceneIconImages(map as never, theme, live);
-      for (const spec of MAP_ICON_SPECS) {
-        const entry = map.images.get(iconId(spec.ns, spec.key));
-        expect(entry?.options).toEqual(mapIconImageOptions(spec));
-        expect(entry?.image).toMatchObject({ width: spec.size * 2, height: (spec.height ?? spec.size) * 2 });
-      }
-      const images = new Map([...map.images].map(([id, entry]) => [id, entry.image as SpriteImage]));
-      expect(iconPixelHash(images)).toBe(PRE_SPLIT_ICON_PIXEL_HASHES[theme]);
     }
     expect(fetch).toHaveBeenCalledTimes(4);
   });

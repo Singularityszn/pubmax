@@ -235,6 +235,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/planVenueOptions.ts": [
     {"owner": "planVenueOptions", "count": 1, "reason": "Preserves recorded-price availability so a chosen pub cannot receive a zone estimate."},
   ],
+  "lib/slimPayload.ts": [
+    {"owner": "rowsFromSlimPayload", "count": 1, "reason": "Restores recorded-price availability from the slim transport without ranking prices."},
+  ],
   "lib/zones.ts": [
     {"owner": "computeZonePintIndex", "count": 1, "reason": "Computes zone medians outside cheapest-answer scope."},
   ],
@@ -331,6 +334,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "scripts/build_price_bands.mjs": [
     {"owner": "readCityPintPrices", "count": 4, "reason": "Computes ordinary price band statistics outside cheapest-answer scope."},
+  ],
+  "scripts/build_slim_index.mjs": [
+    {"owner": "slimBundlePriceCoverage", "count": 1, "reason": "Publishes bundle-price availability for unpriced slim rows without ranking prices."},
   ],
   "scripts/lib/slimShards.mjs": [
     {"owner": "pricedRatio", "count": 2, "reason": "Measures shard coverage without ranking."},
