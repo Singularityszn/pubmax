@@ -26,6 +26,9 @@ import {
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue } from "@/lib/venues";
 import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
+import { mapSplitListPrice } from "@/lib/mapSplitList";
+import { buildMapVenueListModel } from "@/lib/mapVenueList";
+import { pinsToSlimVenues, slimVenueToPin } from "@/lib/slimPins";
 import { zoneEstimatePinStandings } from "@/lib/zonePriceEstimate";
 import { computeZonePintIndex, MIN_PRICED_VENUES } from "@/lib/zones";
 
@@ -84,6 +87,7 @@ function makeVenue(overrides: Partial<Venue> = {}): Venue {
     visibleBoroughs: [],
     prices: [],
     cheapestPrice: null,
+    hasRecordedPrice: false,
     cheapestPint: "",
     averagePrice: null,
     hasStory: false,
@@ -439,6 +443,26 @@ describe("the fare-zone estimate", () => {
       estimate: { priceGbp: 5.45, basis: "zone_median", sampleSize: 10, computedAt: PUBLISHED.computedAt, zone: 2 },
     });
     expect(priceStandingFigure(priceStandingFor({ estimate: lane?.lane === "estimate" ? lane.estimate : null }))).toBe("est. £5.45");
+  });
+
+  it.each([true, undefined])("withholds estimates when recorded-price availability is %s", (hasRecordedPrice) => {
+    const pin = slimVenueToPin({
+      id: "venue-10x17k9", name: "The Kings Head", lat: 51.63, lng: -0.002,
+      borough: "Waltham Forest", zone: 2, cheapestPrice: null, hasRecordedPrice,
+    });
+    expect(zoneEstimatePinStandings([pin], new Map(), PUBLISHED)?.size).toBe(0);
+    expect(venueBundlePrices(pin, PUBLISHED)).toEqual({});
+    expect(buildMapVenueListModel([pin], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("Price TBD");
+    expect(mapSplitListPrice(pin, undefined, undefined, PUBLISHED).figure).not.toContain("est.");
+    expect(pinsToSlimVenues([pin])[0]?.hasRecordedPrice).toBe(hasRecordedPrice);
+  });
+
+  it("keeps a confirmed empty price lane through saved slim pins", () => {
+    const pin = makeVenue({ zone: 2 });
+    const restored = slimVenueToPin(pinsToSlimVenues([pin])[0]!);
+    expect(zoneEstimatePinStandings([restored], new Map(), PUBLISHED)?.get(pin.id)?.priceGbp).toBe(5.45);
+    expect(buildMapVenueListModel([restored], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("est. £5.45");
+    expect(mapSplitListPrice(restored, undefined, undefined, PUBLISHED).figure).toContain("5.45");
   });
 
   it("never displaces a recorded price", () => {

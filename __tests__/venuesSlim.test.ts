@@ -101,6 +101,17 @@ function serveSlimPayload(payload: unknown) {
   return fetcher;
 }
 
+it("keeps recorded-price availability through the published slim loader", async () => {
+  const source = slim.find((row) => row.id === "venue-10x17k9")!;
+  serveSlimPayload({ rows: [
+    { ...source, id: "known-listed", hasRecordedPrice: true },
+    { ...source, id: "known-empty", hasRecordedPrice: false },
+    { ...source, id: "unread" },
+  ] });
+  const loaded = await loadSlimVenuesFromPathResult("/data/price-availability-contract.json");
+  expect(loaded.rows.map((row) => slimVenueToPin(row).hasRecordedPrice)).toEqual([true, false, undefined]);
+});
+
 it("keeps the two Coach and Horses streets through the published slim loader and pin conversion", async () => {
   serveSlimPayload(slimPayload);
   const loaded = await loadSlimVenuesFromPathResult("/data/near-branch-contract.json");

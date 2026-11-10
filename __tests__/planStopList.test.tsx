@@ -97,10 +97,10 @@ async function swipe(card: HTMLElement, steps: Array<{ x: number; t: number }>, 
 }
 
 describe("PlanStopList", () => {
-  it("does not replace a chosen pub's recorded price with a zone estimate", async () => {
+  it.each([true, undefined])("withholds a chosen stop estimate when recorded-price availability is %s", async (hasRecordedPrice) => {
     await mount({
       stops: [picked],
-      venues: [{ id: picked.venueId, name: picked.venueName, zone: 4, hasRecordedPrice: true }],
+      venues: [{ id: picked.venueId, name: picked.venueName, zone: 4, hasRecordedPrice }],
       zoneIndex: {
         rows: [{ zone: 4, medianGbp: 4.95, pricedCount: 66, enough: true }],
         ranked: [], dearest: null, cheapest: null, taxGbp: null,
@@ -109,6 +109,18 @@ describe("PlanStopList", () => {
     });
     expect(host!.textContent).not.toContain("est. £4.95");
     expect(host!.textContent).not.toContain("Zone 4 estimate");
+  });
+
+  it("estimates a manually chosen stop after confirmed price absence", async () => {
+    await mount({
+      stops: [picked],
+      venues: [{ id: picked.venueId, name: picked.venueName, zone: 4, hasRecordedPrice: false }],
+      zoneIndex: {
+        rows: [{ zone: 4, medianGbp: 4.95, pricedCount: 66, enough: true }],
+        ranked: [], dearest: null, cheapest: null, taxGbp: null, computedAt: "2026-11-10T00:00:00Z",
+      },
+    });
+    expect(host!.textContent).toContain("est. £4.95");
   });
 
   it.each(["", "   "])("shows an unnamed accepted venue as a card, never a finder (%j)", async (venueName) => {

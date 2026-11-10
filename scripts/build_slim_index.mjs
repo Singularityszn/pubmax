@@ -802,30 +802,32 @@ async function readScrapedIds() {
 // them the map's soft-drink lens finds none of the pubs that page names, because
 // a Coke Zero on a menu never reaches pint_name or drinkText. A missing or
 // unreadable bundle hints nothing, so the lens is no wider than its evidence.
-async function readBundleSoftDrinkSubtypes() {
-  const byVenue = new Map();
-  try {
-    const bundle = JSON.parse(
-      await readFile(path.join(DATA_DIR, "uk_prices", "rows.json"), "utf8"),
-    );
-    for (const row of Array.isArray(bundle) ? bundle : (bundle?.rows ?? [])) {
-      if (
-        row?.lane !== "site-harvest" ||
-        row.standing !== "listed" ||
-        row.category !== "soft-drink" ||
-        typeof row.venueId !== "string" ||
-        typeof row.drinkSubtype !== "string"
-      ) {
-        continue;
-      }
-      const held = byVenue.get(row.venueId) ?? new Set();
-      held.add(row.drinkSubtype);
-      byVenue.set(row.venueId, held);
+export function bundleSlimHints(bundle) {
+  const softDrinkSubtypes = new Map();
+  const rows = Array.isArray(bundle) ? bundle : bundle?.rows;
+  if (!Array.isArray(rows)) return { softDrinkSubtypes, recordedPintVenueIds: null };
+  const recordedPintVenueIds = new Set();
+  for (const row of rows) {
+    if (row?.category === "beer" && row.standing !== "estimate" && typeof row.venueId === "string") {
+      recordedPintVenueIds.add(row.venueId);
     }
-  } catch {
-    // No bundle, no subtype hints.
+    if (
+      row?.lane !== "site-harvest" || row.standing !== "listed" || row.category !== "soft-drink" ||
+      typeof row.venueId !== "string" || typeof row.drinkSubtype !== "string"
+    ) continue;
+    const held = softDrinkSubtypes.get(row.venueId) ?? new Set();
+    held.add(row.drinkSubtype);
+    softDrinkSubtypes.set(row.venueId, held);
   }
-  return byVenue;
+  return { softDrinkSubtypes, recordedPintVenueIds };
+}
+
+async function readBundleSlimHints() {
+  try {
+    return bundleSlimHints(JSON.parse(await readFile(path.join(DATA_DIR, "uk_prices", "rows.json"), "utf8")));
+  } catch {
+    return bundleSlimHints(null);
+  }
 }
 
 function groupLondonRows(rows) {
@@ -889,7 +891,7 @@ async function main() {
   }
 
   const scrapedIds = await readScrapedIds();
-  const bundleSoftDrinkSubtypes = await readBundleSoftDrinkSubtypes();
+  const { softDrinkSubtypes: bundleSoftDrinkSubtypes, recordedPintVenueIds } = await readBundleSlimHints();
 
   const { grouped, droppedOob } = groupLondonRows(rows);
   if (droppedOob > 0) {
@@ -1057,6 +1059,12 @@ async function main() {
   );
   const priceDatasetDigest = priceDatasetDigestFor(slim, detailText, selectionSources);
   detailIndex.priceDatasetDigest = priceDatasetDigest;
+
+  if (recordedPintVenueIds !== null) {
+    for (const venue of slim) {
+      if (venue.cheapestPrice === null) venue.hasRecordedPrice = recordedPintVenueIds.has(venue.id);
+    }
+  }
 
   // Compact JSON (no whitespace) — the map never reads this file by hand.
   const slimText = JSON.stringify({

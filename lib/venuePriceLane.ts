@@ -301,7 +301,9 @@ export function venueBundlePrices(
   venue: Venue,
   zoneIndex?: ZonePintIndex | null,
 ): VenueBundlePrices {
-  const bundle = (venue as VenueWithBundlePrices).bundlePrices ?? {};
+  const read = (venue as VenueWithBundlePrices).bundlePrices;
+  const bundle = read ?? {};
+  if (venue.hasRecordedPrice === true || (read == null && venue.hasRecordedPrice !== false)) return bundle;
   return isPubVenueKind(venue.kind) ? withZoneEstimate(bundle, venue.zone, zoneIndex) : bundle;
 }
 

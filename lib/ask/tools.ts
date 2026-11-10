@@ -404,7 +404,7 @@ async function toolVenuePrices(
   const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
   // A pub with no recorded pint gets its fare zone's estimate, named as one.
   // It is never price evidence and never the card's price.
-  const zoneEstimate = recordedPrice === null && !communityRead.prices.some((price) => price.drinkCategory === "beer") && bundleRead.status !== "unavailable"
+  const zoneEstimate = recordedPrice === null && !communityRead.degraded && !communityRead.prices.some((price) => price.drinkCategory === "beer") && bundleRead.status !== "unavailable"
     ? zonePriceEstimate(venue.zone, await loadZonePintIndex())
     : null;
 
@@ -414,7 +414,9 @@ async function toolVenuePrices(
       ? "Current recorded pint on the listed index."
       : zoneEstimate
         ? `No recorded pint. ${zoneEstimateNote(zoneEstimate)}`
-        : "No current recorded pint on the listed index.",
+        : communityRead.degraded || bundleRead.status === "unavailable"
+          ? "I couldn't read all recorded pint prices."
+          : "No current recorded pint on the listed index.",
     `${venue.id}:curated`,
     ctx.now,
   );
@@ -447,14 +449,17 @@ async function toolVenuePrices(
     },
   ];
 
-  const answerHint =
+  const priceAnswer =
     trusted.length > 0
       ? `${venue.name}: ${trusted.length} corroborated people-logged figure${trusted.length === 1 ? "" : "s"} plus the listed index.`
       : recordedPrice !== null
-        ? `${venue.name}: listed pint ${formatGbp(recordedPrice)} (no corroborated people-logged figure yet).`
+        ? `${venue.name}: listed pint ${formatGbp(recordedPrice)}${communityRead.degraded ? "." : " (no corroborated people-logged figure yet)."}`
         : zoneEstimate
           ? `${venue.name}: no listed pint price. Estimate ${formatGbp(zoneEstimate.priceGbp)}, the middle of ${zoneEstimate.sampleSize} recorded pint prices in ${zoneLabel(zoneEstimate.zone)}. Not a recorded price.`
-          : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
+          : communityRead.degraded || bundleRead.status === "unavailable"
+            ? `${venue.name}: recorded pint prices are unavailable.`
+            : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
+  const answerHint = `${communityRead.degraded ? "I couldn't read people-logged pint prices. " : ""}${priceAnswer}`;
 
   return {
     ok: true,

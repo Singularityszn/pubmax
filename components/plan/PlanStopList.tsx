@@ -50,7 +50,7 @@ function stopZoneEstimate(
   venue: PlanVenueOption | undefined,
   zoneIndex: ZonePintIndex | null,
 ): StopZoneEstimate {
-  if (stop.selectedDrinkPriceEvidence || typeof stop.estimatedPintPricePence === "number" || venue?.hasRecordedPrice) return null;
+  if (stop.selectedDrinkPriceEvidence || typeof stop.estimatedPintPricePence === "number" || venue?.hasRecordedPrice !== false) return null;
   const estimate = zonePriceEstimate(venue?.zone, zoneIndex);
   const text = estimate ? priceStandingFigure(priceStandingFor({ estimate })) : null;
   return estimate && text ? { stamp: { text, bandClass: "" }, label: `${zoneLabel(estimate.zone)} estimate` } : null;

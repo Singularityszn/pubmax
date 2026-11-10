@@ -19,6 +19,11 @@ describe("planVenueOptions", () => {
     ]);
   });
 
+  it.each([true, false, undefined])("preserves recorded-price availability %s for manually chosen stops", (hasRecordedPrice) => {
+    const [option] = planVenueOptions([{ id: "kings-head", name: "The Kings Head", zone: 5, cheapestPrice: null, hasRecordedPrice }]);
+    expect(option?.hasRecordedPrice).toBe(hasRecordedPrice);
+  });
+
   it.each([null, undefined, "5.50", NaN, Infinity, 0, -1])("does not treat %s as a recorded price", (cheapestPrice) => {
     expect(planVenueOptions([{ id: "pub", name: "Test Arms", cheapestPrice }]))
       .toEqual([{ id: "pub", name: "Test Arms" }]);

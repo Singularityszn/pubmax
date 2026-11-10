@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { comparablePint } from "@/lib/comparablePint.mjs";
 import { measureNamedInDrinkText } from "@/lib/drinkMeasure";
-import { buildSlimPriceEvidence } from "@/scripts/build_slim_index.mjs";
+import { buildSlimPriceEvidence, bundleSlimHints } from "@/scripts/build_slim_index.mjs";
 import { buildLastOrdersPacks } from "@/scripts/build_last_orders_pack.mjs";
 import { venueFromDetailArtifact } from "@/lib/venueDetailIndex";
 import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
@@ -91,5 +91,21 @@ describe("selected serving evidence in the published price packs", () => {
     ], 5);
     expect(evidence).toEqual({ priceSource: "pub.example", priceObservedAt: "2026-01-01" });
     expect(comparablePint({ cheapestPrice: 5, ...evidence })).toBe(5);
+  });
+});
+
+
+describe("slim bundle price availability", () => {
+  it("retains a recorded beer lane even without a slim minimum", () => {
+    const hints = bundleSlimHints([
+      { venueId: "kings-head", category: "beer", standing: "listed", priceGbp: 6.45 },
+      { venueId: "bare", category: "beer", standing: "estimate", priceGbp: 4.6 },
+      { venueId: "wine-only", category: "wine", standing: "listed", priceGbp: 7 },
+    ]);
+    expect(hints.recordedPintVenueIds).toEqual(new Set(["kings-head"]));
+    expect(bundleSlimHints([]).recordedPintVenueIds).toEqual(new Set());
+    expect(bundleSlimHints(null).recordedPintVenueIds).toBeNull();
+    const published = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    expect(bundleSlimHints(published).recordedPintVenueIds?.has("venue-10x17k9")).toBe(true);
   });
 });

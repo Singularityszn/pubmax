@@ -130,11 +130,10 @@ export function zoneEstimatePinStandings(
   for (const venue of venues) {
     if (!isPubVenueKind(venue.kind)) continue;
     const signal = signals.get(venue.id);
-    const lane = venuePriceLane(venue, signal?.latestContributorPrice, venueSourcedPrice(venue), venueBundlePrices(venue));
+    const lane = venuePriceLane(venue, signal?.latestContributorPrice, venueSourcedPrice(venue), venueBundlePrices(venue, index));
     if (lane && lane.lane !== "estimate") continue;
     if (signal?.pintTrust && signal.pintTrust !== "none") continue;
-    const estimate = zonePriceEstimate(venue.zone, index);
-    if (estimate) standings.set(venue.id, priceStandingFor({ estimate }));
+    if (lane?.lane === "estimate") standings.set(venue.id, priceStandingFor({ estimate: lane.estimate }));
   }
   return standings;
 }

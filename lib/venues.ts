@@ -172,6 +172,7 @@ export type Venue = {
   visibleBoroughs: string[];
   prices: VenuePrice[];
   cheapestPrice: number | null;
+  hasRecordedPrice?: boolean;
   cheapestPint: string;
   measure?: string;
   averagePrice: number | null;
