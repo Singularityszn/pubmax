@@ -3,7 +3,7 @@ import "server-only";
 import { diaryStore } from "@/lib/diaryStore";
 import { measureIsPint } from "@/lib/drinkMeasure";
 import { getNightAreasForCity, type NightArea } from "@/lib/nightAreas";
-import { buildPalTaste, type PalTaste, type PalTastePlace } from "@/lib/palTaste";
+import { buildPalTaste, palVisitedVenueIds, type PalTaste, type PalTastePlace } from "@/lib/palTaste";
 import { londonDayKey } from "@/lib/pintContributions";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
@@ -47,11 +47,11 @@ function patchOf(venue: VenueRef, areas: readonly NightArea[]): string | null {
   return best?.area.name ?? (venue.borough || null);
 }
 
-async function readTaste(ownerId: string): Promise<PalTaste | null> {
-  const [handle, diary, index] = await Promise.all([
+/** The owner's own diary, drops and saves. Drops and saves need a handle the owner still holds. */
+async function readHistory(ownerId: string) {
+  const [handle, diary] = await Promise.all([
     profileStore().getHandleByUserId(ownerId),
     diaryStore().listForOwner(ownerId),
-    getVenueIndex(),
   ]);
   const profile = handle ? await profileStore().getByHandle(handle) : null;
   const ownedHandle = profile?.userId === ownerId && !profile.tombstonedAt ? handle : null;
@@ -61,6 +61,11 @@ async function readTaste(ownerId: string): Promise<PalTaste | null> {
         savedPubsStore(ownedHandle).listSaved({ handle: ownedHandle }),
       ])
     : [[], []];
+  return { profile: ownedHandle ? profile : null, diary: diary.entries, drops, saved };
+}
+
+async function readTaste(ownerId: string): Promise<PalTaste | null> {
+  const [{ profile, diary, drops, saved }, index] = await Promise.all([readHistory(ownerId), getVenueIndex()]);
 
   const areas = getNightAreasForCity(DEFAULT_CITY_ID);
   const places = new Map<string, PalTastePlace | null>();
@@ -73,8 +78,8 @@ async function readTaste(ownerId: string): Promise<PalTaste | null> {
   };
 
   return buildPalTaste({
-    favouriteDrink: ownedHandle ? profile?.favouriteDrink : null,
-    diary: diary.entries.map((entry) => ({
+    favouriteDrink: profile?.favouriteDrink ?? null,
+    diary: diary.map((entry) => ({
       venueId: entry.venueId,
       venueName: entry.venueName,
       visitedOn: entry.visitedOn,
@@ -143,6 +148,24 @@ async function readTasteWithinBudget(ownerId: string, now: number): Promise<PalT
     return await Promise.race([read, budget]);
   } finally {
     clearTimeout(timer);
+  }
+}
+
+export type PalVisited = { kind: "off" } | { kind: "read"; venueIds: ReadonlySet<string> };
+
+/**
+ * Where the owner has been, for "somewhere new". The taste opt-out is checked
+ * first, so an owner who turned it off never has their logs read. A failed
+ * read is an empty set: the picks are then simply not filtered.
+ */
+export async function readPalVisitedVenues(ownerId: string): Promise<PalVisited> {
+  if (!(await tasteAllowedFor(ownerId))) return { kind: "off" };
+  try {
+    const { diary, drops, saved } = await readHistory(ownerId);
+    return { kind: "read", venueIds: palVisitedVenueIds({ diary, drops, saved }) };
+  } catch (error) {
+    console.warn("pub-pal-visited.read_failed", error instanceof Error ? error.message : String(error));
+    return { kind: "read", venueIds: new Set() };
   }
 }
 

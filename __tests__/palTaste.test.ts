@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildPalTaste,
   palTasteAsk,
+  palVisitedVenueIds,
   palTastePreamble,
   type PalTasteDiaryInput,
   type PalTasteDropInput,
@@ -88,6 +89,18 @@ describe("buildPalTaste", () => {
       placeOf,
     });
     expect(taste?.wishlist).toEqual(["The Anchor"]);
+  });
+
+  it("counts a pub as visited from the diary, a price log or the Been here list, and nothing else", () => {
+    const visited = palVisitedVenueIds({
+      diary: [diary("crown", "2026-10-02")],
+      drops: [drop("lamb", "2026-10-03")],
+      saved: [
+        { venueId: "ship", listType: "Been here" },
+        { venueId: "anchor", listType: "Want to Visit" },
+      ],
+    });
+    expect([...visited].sort()).toEqual(["crown", "lamb", "ship"]);
   });
 
   it("uses only pint prices and needs two of them for a usual pint", () => {

@@ -54,4 +54,9 @@ export type AskToolContext = {
   fetchImpl?: typeof fetch;
   /** Injected clock, so a "what is on right now" answer is testable. */
   now?: number;
+  /**
+   * Pubs search_venues must leave out: the signed-in owner's own visits, set
+   * by the server for "somewhere new", never by a model argument.
+   */
+  excludeVenueIds?: ReadonlySet<string>;
 };
