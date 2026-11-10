@@ -340,4 +340,3 @@ describe("a signed-out browser", () => {
     await expect(getAccessToken()).resolves.toBe("jwt-token");
   });
 });
-
