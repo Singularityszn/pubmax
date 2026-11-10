@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { announcePalMoment } from "@/lib/palMoments";
 import type { Venue } from "@/lib/venues";
@@ -31,38 +31,27 @@ export function useCrawlProgress(
 ): CrawlProgressState {
   const [crawlProgress, setCrawlProgress] = useState<CrawlProgressEntry | null>(null);
   // Wave G2: one-shot celebration after 100% — claimed via acknowledgeCrawlCompletion.
-  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebratingCrawlKey, setCelebratingCrawlKey] = useState<string | null>(null);
+  const showCelebration = celebratingCrawlKey === progressKey;
 
-  function applyCompletionAck(entry: CrawlProgressEntry | null) {
+  function setShowCelebration(show: boolean) {
+    setCelebratingCrawlKey(show ? progressKey : null);
+  }
+
+  const applyCompletionAck = useCallback((entry: CrawlProgressEntry | null) => {
     setCrawlProgress(entry);
     if (!progressKey || !isComplete(entry)) {
-      setShowCelebration(false);
+      setCelebratingCrawlKey(null);
       return;
     }
     const ack = acknowledgeCrawlCompletion(progressKey, { placeStoryBandId });
-    setShowCelebration(ack.celebrate);
-  }
+    setCelebratingCrawlKey((current) => ack.celebrate || current === progressKey ? progressKey : null);
+  }, [progressKey, placeStoryBandId]);
 
   useEffect(() => {
-    let active = true;
-    async function hydrate() {
-      const entry = progressKey && route.length >= 2 ? readCrawl(progressKey) : null;
-      if (!active) return;
-      setCrawlProgress(entry);
-      // Remount with an already-complete crawl: credit quest if needed, but only
-      // celebrate when the one-shot flag is still unset.
-      if (progressKey && isComplete(entry)) {
-        const ack = acknowledgeCrawlCompletion(progressKey, { placeStoryBandId });
-        if (active) setShowCelebration(ack.celebrate);
-      } else if (active) {
-        setShowCelebration(false);
-      }
-    }
-    void hydrate();
-    return () => {
-      active = false;
-    };
-  }, [progressKey, route.length, placeStoryBandId]);
+    const entry = progressKey && route.length >= 2 ? readCrawl(progressKey) : null;
+    applyCompletionAck(entry);
+  }, [progressKey, route.length, applyCompletionAck]);
 
   function handleStartCrawl() {
     if (!progressKey || route.length < 2) return;
