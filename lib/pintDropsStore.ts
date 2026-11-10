@@ -10,6 +10,10 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import sharp from "sharp";
 
+import { oneTapPriceDropId } from "@/lib/oneTapPriceDropId";
+import { duplicateOneTapDrop } from "@/lib/oneTapDuplicate";
+import { submitMemoryCommunityPrice, resetCommunityPriceCategoryIndexMemo } from "@/lib/communityPriceStore";
+import type { CommunityPrice } from "@/lib/communityPrice";
 import { COMMUNITY_PRICE_MAX_AGE_MS, isWithinMaxAge } from "@/lib/communityPrice";
 import { cleanVenueId } from "@/lib/cleanVenueId";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
@@ -165,6 +169,7 @@ export type PintDropPhotos = {
  */
 type PintDropCreateOptions = {
   readonly underDailyPriceCap?: boolean;
+  readonly communityPrice?: { actor: string; submittedAt: number };
 };
 
 /** The one seam the API route talks to. Both implementations below. */
@@ -178,7 +183,7 @@ export type PintDropStore = {
     drop: PintDrop,
     photos: PintDropPhotos,
     options?: PintDropCreateOptions,
-  ): Promise<PintDropDTO & { created: boolean }>;
+  ): Promise<PintDropDTO & { created: boolean; communityPrice?: CommunityPrice }>;
   /**
    * The drop a keyed create already wrote under `drop.id`, answered as
    * `create` would answer it. "conflict" when that id holds another drop.
@@ -849,6 +854,54 @@ async function durableCreatedDrop(id: string): Promise<PersistableDrop | undefin
   return data ? fromRow(data) : undefined;
 }
 
+export class OneTapPriceSupersededError extends Error {
+  constructor() {
+    super("A newer price observation is already stored.");
+    this.name = "OneTapPriceSupersededError";
+  }
+}
+
+function createMemoryPairedDrop(
+  drop: PintDrop,
+  pairing: NonNullable<PintDropCreateOptions["communityPrice"]>,
+): PintDropDTO & { created: boolean; communityPrice: CommunityPrice } {
+  let saved: PintDrop | null = null;
+  let created = false;
+  const result = submitMemoryCommunityPrice({
+    venueId: drop.venueId,
+    drinkCategory: "beer",
+    priceGbp: drop.priceGbp!,
+    actor: pairing.actor,
+    contributorHandle: drop.handle,
+  }, pairing.submittedAt, (price, previous) => {
+    drop.id = oneTapPriceDropId(price.id!, pairing.submittedAt, drop.priceGbp!);
+    const replay = findPintDropsByIds([drop.id]).get(drop.id);
+    if (replay) {
+      if (replay.venueId !== drop.venueId || replay.handle !== drop.handle
+        || replay.priceGbp !== drop.priceGbp || replay.measure !== drop.measure) {
+        throw new Error("Pint Drop id already exists.");
+      }
+      saved = replay;
+    } else if (previous?.id && previous.priceGbp === drop.priceGbp) {
+      const id = oneTapPriceDropId(previous.id, previous.submittedAt, previous.priceGbp);
+      const existing = findPintDropsByIds([id]).get(id);
+      if (existing && duplicateOneTapDrop([existing], drop, pairing.submittedAt)) {
+        saved = existing;
+      }
+    }
+    if (saved) {
+      return { ...price, priceGbp: saved.priceGbp!, submittedAt: Date.parse(saved.createdAt) };
+    }
+    addPintDrop(drop);
+    saved = drop;
+    created = true;
+    return null;
+  });
+  if (!saved || !result.price) throw new OneTapPriceSupersededError();
+  resetCommunityPriceCategoryIndexMemo();
+  return { ...toDTO(saved), created, communityPrice: result.price };
+}
+
 export const memoryPintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const covered = new Set<string>();
@@ -866,6 +919,9 @@ export const memoryPintDropStore: PintDropStore = {
     // a priced drop is `unchecked`, whatever the caller's object said, until
     // the bill check reads its bill (lib/pintDropReceipt.ts).
     const drop = withEarnedEvidence(input);
+    if (options?.communityPrice) {
+      return createMemoryPairedDrop(drop, options.communityPrice);
+    }
     const cappedVenueIds = dailyCapDay(drop, options) !== null ? await storedVenueIds(drop.venueId) : [];
     const existing = replayBeforeCap(
       findPintDropsByIds([drop.id]).get(drop.id),
@@ -1262,6 +1318,51 @@ async function durableReplayBeforeCap(
   return capped ? replayBeforeCap(await durableCreatedDrop(drop.id), drop, photos, true) : undefined;
 }
 
+async function createPairedDrop(
+  drop: PersistableDrop,
+  pairing: NonNullable<PintDropCreateOptions["communityPrice"]>,
+  uploaded: string[],
+): Promise<PintDropDTO & { created: boolean; communityPrice: CommunityPrice }> {
+  const { data, error } = await admin().rpc("create_one_tap_price_pair_atomic", {
+    p_venue_id: drop.venueId,
+    p_drink_category: "beer",
+    p_price_pennies: Math.round(drop.priceGbp! * 100),
+    p_actor: pairing.actor,
+    p_contributor_handle: drop.handle,
+    p_submitted_at: new Date(pairing.submittedAt).toISOString(),
+    p_drop: toRow(drop),
+  });
+  if (error) throw new Error(error.message);
+  if (data?.status === "superseded") throw new OneTapPriceSupersededError();
+  if (data?.status !== "saved" || !data.drop || !data.price || typeof data.created !== "boolean") {
+    throw new Error("Could not save the price and Pint Drop.");
+  }
+  if (!data.created) await deletePhotos(uploaded);
+  resetCommunityPriceCategoryIndexMemo();
+  return {
+    ...await toDTOWithPhotos(fromRow(data.drop)),
+    created: data.created,
+    communityPrice: data.price as CommunityPrice,
+  };
+}
+
+function logDropCreateFailure(err: unknown, drop: PintDrop, uploadedCount: number): void {
+  if (err instanceof PintDropReplayConflictError) return;
+  const fields = { dropId: drop.id, venueId: drop.venueId, uploadedCount };
+  if (isPintDropDailyCapError(err)) {
+    log("warn", "pint_drops.daily_cap_conflict", fields);
+    return;
+  }
+  if (isUncheckedPriceNotStorableError(err)) {
+    log("warn", "pint_drops.unchecked_price_needs_0218", fields);
+    return;
+  }
+  log("error", "pint_drops.create_failed", {
+    ...fields,
+    error: err instanceof Error ? err.message : String(err),
+  });
+}
+
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
@@ -1342,6 +1443,9 @@ export const supabasePintDropStore: PintDropStore = {
             error: err instanceof Error ? err.message : String(err),
           });
         }
+      }
+      if (options?.communityPrice) {
+        return await createPairedDrop(persistable, options.communityPrice, uploaded);
       }
       let row = toRow(persistable, dailyCapDay(drop, options));
       // Every insert, including schema fallbacks, can race with the first save.
@@ -1495,43 +1599,7 @@ export const supabasePintDropStore: PintDropStore = {
         if (retryError) throw new Error(retryError.message);
       }
     } catch (err) {
-      // A cap refusal is the rule holding, not an outage, so it may not be
-      // logged as one: an error line per refused duplicate would read as a
-      // storage failure in every dashboard. It still cleans up its photos and
-      // still rethrows, and the route answers the ordinary 409.
-      if (err instanceof PintDropReplayConflictError) {
-        await deletePhotos(uploaded);
-        throw err;
-      }
-      if (isPintDropDailyCapError(err)) {
-        log("warn", "pint_drops.daily_cap_conflict", {
-          dropId: drop.id,
-          venueId: drop.venueId,
-          uploadedCount: uploaded.length,
-        });
-        await deletePhotos(uploaded);
-        throw err;
-      }
-      // A pending migration, not an outage: warned once per refusal, the
-      // photos cleaned up, and the route answers with the bill rule.
-      if (isUncheckedPriceNotStorableError(err)) {
-        log("warn", "pint_drops.unchecked_price_needs_0218", {
-          dropId: drop.id,
-          venueId: drop.venueId,
-          uploadedCount: uploaded.length,
-        });
-        await deletePhotos(uploaded);
-        throw err;
-      }
-      // Log the storage/insert failure (safe fields only — no buffers, no keys)
-      // before cleaning up and re-throwing. The route still maps this to the
-      // same 503/400 for the user; logging is purely additive observability.
-      log("error", "pint_drops.create_failed", {
-        dropId: drop.id,
-        venueId: drop.venueId,
-        uploadedCount: uploaded.length,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      logDropCreateFailure(err, drop, uploaded.length);
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
     }
