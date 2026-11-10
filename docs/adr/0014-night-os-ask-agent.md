@@ -131,7 +131,7 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    **Amended 10 Nov 2026 (captain, D2): a live voice call moves the view.**
    In a voice call the person started, the Pal may apply view moves with no
    Confirm: the camera, numbered picks, the highlight and the browse-only venue
-   sheet (`?sel=`). Every pick comes from the call's newest grounded tool
+   sheet (`?sel=`). Every pick comes from the call's newest grounded venue-search
    result (`lib/palMapCommands.ts`), so a model's guess never becomes a pin.
    The [camera contract](../rules/components-map-canvas-and-pins.md#nothing-moves-this-camera-but-the-reader-and-there-is-one-compass)
    owns framing and gesture priority. Writes still need a tap: a save, a plan, a crowd report or a
