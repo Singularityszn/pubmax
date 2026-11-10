@@ -193,6 +193,7 @@ describe("optimistic Spill posting", () => {
         clientRequestId: "client-1",
         drop: draft,
         retry: {
+          clientRequestId: "client-1",
           venueId: "venue-1",
           venueName: "The Crown",
           handle: "karan",
@@ -235,6 +236,7 @@ describe("optimistic Spill posting", () => {
 
       const form = await buildOptimisticSpillRetryFormData(payload);
 
+      expect(form.get("clientRequestId")).toBe("client-1");
       expect(form.get("venueId")).toBe("venue-1");
       expect(form.get("handle")).toBe("karan");
       expect(form.get("priceGbp")).toBe("5.8");

@@ -1164,6 +1164,48 @@ describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", 
   });
 });
 
+describe("POST /api/pint-drops — a retry resends its first clientRequestId", () => {
+  const KEY = "client-request-0001";
+
+  it("answers a priced retry with the drop it already saved, not the daily cap", async () => {
+    const first = await post({ venueId: "retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+
+    const retry = await post({ venueId: "retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(retry.status).toBe(200);
+    expect(((await retry.json()).drop as { id: string }).id).toBe(saved.id);
+
+    const drops = (await (await get("retry-pub")).json()).drops as Array<{ id: string }>;
+    expect(drops.map((row) => row.id)).toEqual([saved.id]);
+  });
+
+  it("stores a retried note once", async () => {
+    const note = { venueId: "retry-note-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+    expect((await post(note)).status).toBe(201);
+    expect((await post(note)).status).toBe(200);
+    expect((await (await get("retry-note-pub")).json()).drops).toHaveLength(1);
+  });
+
+  it("refuses a key resent for a different pub", async () => {
+    expect((await post({ venueId: "retry-pub-a", handle: "reg", priceGbp: 4.5, clientRequestId: KEY })).status).toBe(201);
+    const moved = await post({ venueId: "retry-pub-b", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(moved.status).toBe(409);
+    expect((await moved.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    expect((await (await get("retry-pub-b")).json()).drops).toHaveLength(0);
+  });
+
+  it("keeps two accounts' equal keys apart", async () => {
+    await memoryAdultSelfAssertionStore.record("account-reg");
+    await memoryAdultSelfAssertionStore.record("account-other");
+    gateActor.userId = "account-reg";
+    expect((await post({ venueId: "retry-shared", handle: "reg", priceGbp: 4.5, clientRequestId: KEY })).status).toBe(201);
+    gateActor.userId = "account-other";
+    expect((await post({ venueId: "retry-shared", handle: "other", priceGbp: 4.6, clientRequestId: KEY })).status).toBe(201);
+    expect((await (await get("retry-shared")).json()).drops).toHaveLength(2);
+  });
+});
+
 describe("validatePintDrop — vibe tags (server-authoritative allowlist)", () => {
   const base = { venueId: VENUE, handle: "ale", priceGbp: 4.2 };
 

@@ -407,6 +407,27 @@ describe("Pint Drop creation ownership", () => {
     }
   });
 
+  it("finds a keyed durable drop for a retry, and names a changed one a conflict", async () => {
+    const stored = {
+      id: "bound-drop", venue_id: "the-crown", handle: "ale", authority_key: "account-a",
+      price_gbp: 4.2, status: "visible", drink: "Beer", provenance: "contributor",
+      created_at: "2026-01-01T00:00:00.000Z",
+    };
+    const lookup = vi.spyOn(selectChain, "maybeSingle")
+      .mockResolvedValueOnce({ data: stored, error: null })
+      .mockResolvedValueOnce({ data: stored, error: null })
+      .mockResolvedValueOnce({ data: null, error: null });
+    try {
+      const input = drop({ id: "bound-drop", authorityKey: "account-a" });
+      expect(await supabasePintDropStore.findCreated(input)).toMatchObject({ id: "bound-drop", priceGbp: 4.2 });
+      expect(await supabasePintDropStore.findCreated({ ...input, priceGbp: 7 })).toBe("conflict");
+      expect(await supabasePintDropStore.findCreated(input)).toBeNull();
+      expect(insertMock).not.toHaveBeenCalled();
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
   it.each([
     { venue_id: "another-pub" },
     { authority_key: "account-b" },
