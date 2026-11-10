@@ -89,6 +89,8 @@ type ZonePintIndexRow = {
 };
 
 export type ZonePintIndex = {
+  /** Checked bundle prices absent from slim rows, carried outside map shards. */
+  recordedPintVenueIds?: string[];
   rows: ZonePintIndexRow[];
   /** Zones that cleared the observation gate, cheapest → dearest by median. */
   ranked: ZonePintIndexRow[];

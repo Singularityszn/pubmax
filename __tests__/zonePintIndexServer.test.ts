@@ -41,6 +41,20 @@ describe("loadZonePintIndex", () => {
     );
   });
 
+  it("passes checked bundle availability to the map beside the published medians", async () => {
+    readFile.mockResolvedValue(JSON.stringify({
+      bundlePricesChecked: true,
+      recordedPintVenueIds: ["listed"],
+      rows: [...rows("pub", 10, 5),
+        { id: "listed", zone: 1, cheapestPrice: null },
+        { id: "empty", zone: 1, cheapestPrice: null },
+      ],
+    }));
+    const index = await (await freshLoader())();
+    expect(index?.recordedPintVenueIds).toEqual(["listed"]);
+    expect(index?.rows.find((row) => row.zone === 1)?.medianGbp).toBe(5);
+  });
+
   it.each([
     { cheapestPint: "BOTTLED BEER" },
     { cheapestPint: "Lager can" },

@@ -12,7 +12,7 @@ import {
 } from "@/lib/priceTier";
 import { venueBundlePrices, venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
-import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { recordedPintVenueIdsFromSlimPayload, rowsFromSlimPayload } from "@/lib/slimPayload";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
 import {
@@ -23,7 +23,7 @@ import {
   type ZonePintIndex,
 } from "@/lib/zones";
 
-export const ZONE_MEDIAN_BASIS = "zone_median";
+const ZONE_MEDIAN_BASIS = "zone_median";
 
 function toFinite(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -49,6 +49,7 @@ function toSlimKind(value: unknown): VenueKind | undefined {
  */
 export function zonePintIndexFromSlimPayload(payload: unknown, computedAt: string): ZonePintIndex {
   const rows = rowsFromSlimPayload(payload) ?? [];
+  const recordedPintVenueIds = recordedPintVenueIdsFromSlimPayload(payload);
   return {
     ...computeZonePintIndex(
       rows.map((item) => {
@@ -61,6 +62,7 @@ export function zonePintIndexFromSlimPayload(payload: unknown, computedAt: strin
       }),
     ),
     computedAt,
+    ...(recordedPintVenueIds ? { recordedPintVenueIds } : {}),
   };
 }
 

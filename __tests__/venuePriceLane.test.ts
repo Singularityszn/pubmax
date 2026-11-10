@@ -465,6 +465,21 @@ describe("the fare-zone estimate", () => {
     expect(mapSplitListPrice(restored, undefined, undefined, PUBLISHED).figure).toContain("5.45");
   });
 
+  it("uses published bundle availability for pins whose shards carry no price metadata", () => {
+    const listed = makeVenue({ id: "listed", zone: 2, hasRecordedPrice: undefined });
+    const empty = makeVenue({ id: "empty", zone: 2, hasRecordedPrice: undefined });
+    const published = { ...PUBLISHED, recordedPintVenueIds: ["listed"] };
+    const standings = zoneEstimatePinStandings([listed, empty], new Map(), published);
+    expect(standings?.has("listed")).toBe(false);
+    expect(standings?.get("empty")?.priceGbp).toBe(5.45);
+    expect(venueBundlePrices(listed, published)).toEqual({});
+    expect(buildMapVenueListModel([listed, empty], null, 2, null, "this view", "ready", "nearest", null, published)
+      .rows.map((row) => row.priceLabel)).toEqual(["Price TBD", "est. £5.45"]);
+    expect(mapSplitListPrice(listed, undefined, undefined, published).figure).toBeNull();
+    expect(mapSplitListPrice(empty, undefined, undefined, published).figure).toContain("5.45");
+    expect(venueBundlePrices({ ...empty, hasRecordedPrice: true }, published)).toEqual({});
+  });
+
   it("never displaces a recorded price", () => {
     const priced = makeVenue({ zone: 2, cheapestPrice: 6.2 });
     expect(venuePriceLane(priced, null, null, venueBundlePrices(priced, PUBLISHED))?.lane).toBe("baseline");

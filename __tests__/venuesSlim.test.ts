@@ -130,6 +130,22 @@ it.each([true, false, undefined])("decodes compact bundle-price availability onl
   expect(planVenueOptions(payload).map((row) => row.hasRecordedPrice)).toEqual([true, absence, true]);
 });
 
+it.each([true, false, undefined])("reads bundle availability beside the full index only after a successful read: %s", async (bundlePricesChecked) => {
+  const source = { ...slim.find((row) => row.id === "venue-10x17k9")! };
+  delete source.hasRecordedPrice;
+  const payload = { bundlePricesChecked, recordedPintVenueIds: ["listed"], rows: [
+    { ...source, id: "listed", cheapestPrice: null },
+    { ...source, id: "empty", cheapestPrice: null },
+    { ...source, id: "priced", cheapestPrice: 5.5 },
+  ] };
+  serveSlimPayload(payload);
+  const loaded = await loadSlimVenuesFromPathResult(`/data/sidecar-availability-${bundlePricesChecked}.json`);
+  const listed = bundlePricesChecked === true ? true : undefined;
+  const empty = bundlePricesChecked === true ? false : undefined;
+  expect(loaded.rows.map((row) => slimVenueToPin(row).hasRecordedPrice)).toEqual([listed, empty, undefined]);
+  expect(planVenueOptions(payload).map((row) => row.hasRecordedPrice)).toEqual([listed, empty, true]);
+});
+
 it("keeps the two Coach and Horses streets through the published slim loader and pin conversion", async () => {
   serveSlimPayload(slimPayload);
   const loaded = await loadSlimVenuesFromPathResult("/data/near-branch-contract.json");

@@ -832,6 +832,16 @@ async function readBundleSlimHints() {
   }
 }
 
+function slimBundlePriceCoverage(slim, recordedPintVenueIds) {
+  if (recordedPintVenueIds === null) return {};
+  return {
+    bundlePricesChecked: true,
+    recordedPintVenueIds: slim
+      .filter((venue) => venue.cheapestPrice === null && recordedPintVenueIds.has(venue.id))
+      .map((venue) => venue.id),
+  };
+}
+
 function groupLondonRows(rows) {
   // Group rows by the canonical key. Preserve first-seen order so the first row
   // of a group supplies name/lat/lng/borough — matching groupVenuePrices, whose
@@ -1062,12 +1072,7 @@ async function main() {
   const priceDatasetDigest = priceDatasetDigestFor(slim, detailText, selectionSources);
   detailIndex.priceDatasetDigest = priceDatasetDigest;
 
-  if (recordedPintVenueIds !== null) {
-    for (const venue of slim) {
-      if (venue.cheapestPrice === null && recordedPintVenueIds.has(venue.id)) venue.hasRecordedPrice = true;
-    }
-  }
-  const bundlePriceCoverage = recordedPintVenueIds !== null ? { bundlePricesChecked: true } : {};
+  const bundlePriceCoverage = slimBundlePriceCoverage(slim, recordedPintVenueIds);
 
   // Compact JSON (no whitespace) — the map never reads this file by hand.
   const slimText = JSON.stringify({
@@ -1106,7 +1111,7 @@ async function main() {
   manifest.priceDatasetDigest = priceDatasetDigest;
   const coreCell = cells.get(coreId);
   if (!coreCell) throw new Error(`Spatial core cell ${coreId} is missing`);
-  const coreText = JSON.stringify({ ...buildShardPayload(coreCell.venues), ...bundlePriceCoverage, d: priceDatasetDigest });
+  const coreText = JSON.stringify({ ...buildShardPayload(coreCell.venues), d: priceDatasetDigest });
   const manifestText = JSON.stringify(manifest);
   await writeFile(path.join(DATA_DIR, CORE_FILE), coreText);
   await writeFile(path.join(DATA_DIR, MANIFEST_FILE), manifestText);
@@ -1122,7 +1127,7 @@ async function main() {
   const shardReport = [];
   for (const [id, { lat, lon, venues }] of cells) {
     if (id === coreId) continue;
-    const text = JSON.stringify({ ...buildShardPayload(venues), ...bundlePriceCoverage, d: priceDatasetDigest });
+    const text = JSON.stringify({ ...buildShardPayload(venues), d: priceDatasetDigest });
     spatialBytesTotal += Buffer.byteLength(text);
     await writeFile(path.join(DATA_DIR, spatialShardFile(lat, lon, SPATIAL_GRID)), text);
     shardReport.push({

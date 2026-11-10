@@ -256,7 +256,7 @@ export function nightAreaForMapQuery(cityId: CityId, query: string): NightArea |
 }
 
 /** No supplied reference is a review until a review evidence source exists. */
-export function nightAreaHasRouteReadyProof(area: NightArea): boolean {
+function nightAreaHasRouteReadyProof(area: NightArea): boolean {
   void area;
   return false;
 }
