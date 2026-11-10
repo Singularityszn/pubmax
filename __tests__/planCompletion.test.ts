@@ -265,7 +265,7 @@ describe("Plan Completion", () => {
       body: JSON.stringify({
         expectedRouteRevision: 1,
         ending: "get_home",
-        endingSelection: { kind: "get_home", optionId: "walk", evidenceSnapshot: { label: "Walk home", confidence: "high" } },
+        endingSelection: { kind: "get_home", optionId: "transport:nearest-station", evidenceSnapshot: { label: "Nearest station", confidence: "unknown" } },
       }),
     }), ctx(id));
 
