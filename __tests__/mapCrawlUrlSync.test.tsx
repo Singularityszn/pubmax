@@ -103,13 +103,17 @@ function HistoryHarness({
 let plannerNavigation: ReturnType<typeof useMapSurfaceNavigation>;
 let showPlannerSurface: (entry: SurfaceEntry<MapSurfaceState>) => void;
 
-function PlannerHistoryHarness({ state }: { state: CrawlUrlState }) {
+function PlannerHistoryHarness({ state, holdCleanUrl = false, restoredPlannerOpen = false }: {
+  state: CrawlUrlState;
+  holdCleanUrl?: boolean;
+  restoredPlannerOpen?: boolean;
+}) {
   const [shown, setShown] = useState<SurfaceEntry<MapSurfaceState> | null>(() =>
-    shouldOpenPlanningInitially(state.builtIds, state.mode, window.location.search)
+    restoredPlannerOpen || shouldOpenPlanningInitially(state.builtIds, state.mode, window.location.search)
       ? { id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }
       : null,
   );
-  const onSurfaceClose = useCrawlUrlSync(state);
+  const onSurfaceClose = useCrawlUrlSync(state, holdCleanUrl);
   const trail = useMapSurfaceNavigation({
     arrivalSearch: window.location.search,
     surfaceId: (shown?.id ?? "none") as MapSurfaceId,
@@ -223,6 +227,61 @@ async function traverseHistory(action: () => void) {
 }
 
 describe("planner arrival and close URLs", () => {
+  it.each([true, false])("preserves restored filters when the initial planner is %s", async (restoredPlannerOpen) => {
+    window.history.replaceState({}, "", "/map#route");
+    const state = {
+      ...mapState("Camden", "wine", ""),
+      filters: { ...initialFilters, query: "Camden", drinkCategory: "wine" as const, maxPrice: 6, zone: "3" as const },
+    };
+    await act(async () => root.render(createElement(PlannerHistoryHarness, {
+      state, holdCleanUrl: true, restoredPlannerOpen,
+    })));
+    expect(window.location.search).toBe("");
+
+    const planner = { id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE };
+    if (!restoredPlannerOpen) act(() => showPlannerSurface(planner));
+
+    const expectReload = (plannerOpen: boolean) => {
+      const reloaded = seedCrawlState(window.location.search);
+      expect(reloaded.filters).toMatchObject({ query: "Camden", drinkCategory: "wine", maxPrice: 6, zone: "3" });
+      expect(shouldOpenPlanningInitially(reloaded.builtIds, reloaded.mode, window.location.search)).toBe(plannerOpen);
+      expect(window.location.hash).toBe("#route");
+    };
+    if (!restoredPlannerOpen) expectReload(true);
+
+    await traverseHistory(() => plannerNavigation.leave("planner", () => {}));
+    expectReload(false);
+    await traverseHistory(() => window.history.forward());
+    expectReload(true);
+
+    for (const surface of [
+      { id: "venue", title: "Pub A", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "pub-a" } },
+      { id: "landmark", title: "Story", state: { ...EMPTY_MAP_SURFACE_STATE, landmarkId: "story-a" } },
+    ]) {
+      act(() => showPlannerSurface(surface));
+      expectReload(false);
+      act(() => showPlannerSurface(planner));
+      expectReload(true);
+      await traverseHistory(() => plannerNavigation.leave("planner", () => {}));
+      expectReload(false);
+      await traverseHistory(() => plannerNavigation.home());
+      expectReload(false);
+      act(() => showPlannerSurface(planner));
+      expectReload(true);
+    }
+
+    await traverseHistory(() => plannerNavigation.home());
+    expectReload(false);
+    const closedUrl = window.location.pathname + window.location.search + window.location.hash;
+    await act(async () => root.render(null));
+    window.history.replaceState({}, "", closedUrl);
+    await act(async () => root.render(createElement(PlannerHistoryHarness, {
+      state: seedCrawlState(window.location.search),
+    })));
+    expect(plannerNavigation.holdsSurface("planner")).toBe(false);
+    expectReload(false);
+  });
+
   it.each([
     "?drink=beer&plan=1",
     "?mode=build&plan=1",

@@ -202,6 +202,9 @@ export function useMapSurfaceNavigation({
       } else {
         window.history.replaceState(state, "", url);
       }
+      if (new URLSearchParams(window.location.search).has(PLANNER_PARAM)) {
+        onSurfaceCloseRef.current();
+      }
     },
     [publishStack],
   );
@@ -288,6 +291,7 @@ export function useMapSurfaceNavigation({
         "",
         plannerUrl(cleanMapUrl(pathname, search, hash), false),
       );
+      onSurfaceCloseRef.current();
       const planner = [shown] as SurfaceStack<MapSurfaceState>;
       window.history.pushState(
         stampMapSurfaceHistory(window.history.state, planner, ""),
