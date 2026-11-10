@@ -1,7 +1,7 @@
--- 0227: Unsend a message for everybody, and delete a chat for one person.
+-- 0230: Unsend a message for everybody, and delete a chat for one person.
 -- Captain applies; agents ship SQL only.
 --
--- Reverse: supabase/migrations/rollback/20261110120000_0227_message_unsend_and_chat_delete_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261110120000_0230_message_unsend_and_chat_delete_rollback.sql
 --
 -- UNSEND. `messages.unsent_at` marks a message its sender took back. The row
 -- stays, so the thread can print one line where it was. Its words, its

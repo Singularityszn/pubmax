@@ -1,9 +1,9 @@
-// Effective PostgreSQL proof for 0227 (unsend a message, delete a chat).
+// Effective PostgreSQL proof for 0230 (unsend a message, delete a chat).
 //
 // THE CLAIMS UNDER TEST are constraints and grants, so only a real database
 // can answer them:
 //
-// 1. BEFORE 0227 an unsent message has no shape it could take: 0102's content
+// 1. BEFORE 0230 an unsent message has no shape it could take: 0102's content
 //    check refuses a row with no words and no attachment.
 // 2. AFTER it, an unsent message holds nothing unless it was reported. A
 //    reported one keeps its words for the moderator queue.
@@ -29,11 +29,11 @@ const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const FORWARD_NAME = "20261110120000_0227_message_unsend_and_chat_delete.sql";
+const FORWARD_NAME = "20261110120000_0230_message_unsend_and_chat_delete.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
 const ROLLBACK = join(
   MIGRATIONS,
-  "rollback/20261110120000_0227_message_unsend_and_chat_delete_rollback.sql",
+  "rollback/20261110120000_0230_message_unsend_and_chat_delete_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -86,7 +86,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0227 unsend and chat delete", () => {
+describe.skipIf(skipReason !== null)("0230 unsend and chat delete", () => {
   it("BEFORE the migration a message cannot be emptied out", async () => {
     const said = await requireDatabase().attempt(
       `update public.messages set body = '' where id = '${PLAIN}'::uuid;`,

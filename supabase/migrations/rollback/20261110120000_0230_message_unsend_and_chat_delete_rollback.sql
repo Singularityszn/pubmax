@@ -1,4 +1,4 @@
--- Rollback for 0227. Deploy the application without unsend and chat delete
+-- Rollback for 0230. Deploy the application without unsend and chat delete
 -- first.
 --
 -- WHAT IT COSTS. Every chat delete is forgotten, so each deleted chat comes

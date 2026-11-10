@@ -319,7 +319,7 @@ const MESSAGE_COLUMNS_WIDE = `${MESSAGE_COLUMNS_BASE}, ${WIDE_ATTACHMENT_COLUMNS
 let wideAttachmentColumns = true;
 
 /**
- * The same latch for migration 0227's `unsent_at`. Before the apply no row can
+ * The same latch for migration 0230's `unsent_at`. Before the apply no row can
  * be unsent, so a read without the column is still the whole truth; only the
  * unsend itself is refused until the column is there.
  */
@@ -346,7 +346,7 @@ function dropMissingMessageColumn(
   if (dropToBaseAttachmentColumns(error)) return true;
   if (!unsentColumn || !isMissingUnsentColumn(error)) return false;
   unsentColumn = false;
-  console.warn("[messages] unsent_at missing - nothing can be unsent yet (apply migration 0227)");
+  console.warn("[messages] unsent_at missing - nothing can be unsent yet (apply migration 0230)");
   return true;
 }
 
@@ -999,7 +999,7 @@ export const supabaseMessagesStore: MessagesStore = {
     try {
       const membership = await loadMembership(conversationId);
       if (!membership || !isMember(membership, me)) return UNSEND_NOT_FOUND;
-      // Before 0227 there is no column to mark it with. Refused, never faked.
+      // Before 0230 there is no column to mark it with. Refused, never faked.
       if (!unsentColumn) return { status: "unavailable" };
       const read = await admin()
         .from(MESSAGES)
@@ -1096,7 +1096,7 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       console.error(
         isMissingDeletionSchema(err)
-          ? "[messages] deleteConversationForViewer: conversation_deletions missing (apply migration 0227)"
+          ? "[messages] deleteConversationForViewer: conversation_deletions missing (apply migration 0230)"
           : "[messages] deleteConversationForViewer failed:",
         err instanceof Error ? err.message : err,
       );
@@ -1135,7 +1135,7 @@ export const supabaseMessagesStore: MessagesStore = {
 
       let inserted = await insertRow();
 
-      // Migration 0156 or 0227 has not landed. A message with no new-kind
+      // Migration 0156 or 0230 has not landed. A message with no new-kind
       // column in it is still a message, so the process drops to the older
       // read list and this write is retried; a write that NEEDED one of those
       // columns was refused above and never reaches here. Each latch moves at
