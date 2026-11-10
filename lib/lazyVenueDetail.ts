@@ -6,11 +6,10 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
     seen.add(pin.id);
     const detail = detailById.get(pin.id);
     if (!detail) return pin;
-    // The fare zone and the published price's read day are stamped on the
-    // slim pin only; the detail artifact has neither, so they ride onto the
-    // hydrated record. The zone feeds the zone lens and the sheet's zone
-    // compare; the read day keeps a fresh price from looking aging once the
-    // pub is opened (components/map/canvas/geojson.ts, pinPriceAging).
+    // Detail artifacts can lack the pin's fare zone and price read day.
+    // Preserve them for zone comparisons and pinPriceAging. An unpriced
+    // detail also needs the pin's complete listing evidence, because its
+    // legacy rows cannot supply the listing's drink, measure or publisher.
     // The slim builder carries sourced features before a detail request. Keep
     // those same facts when opening a pub, so its filter membership stays put.
     const featureHints = pin.filterHints?.outdoorSeating || pin.filterHints?.beerGardenSource || pin.filterHints?.liveSportsSource || pin.filterHints?.dogsWelcome || pin.filterHints?.amenities.liveSports || pin.filterHints?.amenities.darts || pin.filterHints?.amenities.pool

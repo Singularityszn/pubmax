@@ -111,17 +111,16 @@ Restate it from the shipped file whenever rows are added or dropped.
   a human read: **641 venues attempted**, of which 602 pub pages were readable.
 - 183 of those 602 pages (30%) named both a price and a pint, giving 134
   candidate figures across 103 venues.
-- **103 observations across 90 venues, 2012 to 2023**, shipped. **51 of those
-  venues also carry a current price** and so show both figures side by side;
-  the rest show the historical fact alone.
+- **103 observations across 90 venues, 2012 to 2023**, shipped.
+  [Then against now](#then-against-now) explains how available current prices
+  affect the display.
 - So of 641 venues attempted, **90 produced usable evidence: a 14% yield.**
 
 Candidates were dropped by hand for hedges ("around £4 a pint"), promotions and
 festival weekends, food, half and bottle prices, hypotheticals, prices quoted for
 a different pub in the same sentence, and matches whose identity did not hold
 against the archived address. One venue was dropped in review after shipping,
-for a price attributed to the wrong building. The Coach and Horses now has a
-Guinndex listing price, which brings the comparison count to 51.
+for a price attributed to the wrong building.
 
 Dead ends, not worth retrying: archived Nicholson's, Greene King and Young's pub
 menu pages (119 venue menu URLs) publish drinks with no prices at all; the
