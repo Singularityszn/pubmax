@@ -372,6 +372,13 @@ export default function MessageThread({
   const [confirming, setConfirming] = useState<PendingRemoval | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removalError, setRemovalError] = useState("");
+  const [removalAccountRevision, setRemovalAccountRevision] = useState(accountRevision);
+  if (removalAccountRevision !== accountRevision) {
+    setRemovalAccountRevision(accountRevision);
+    setConfirming(null);
+    setRemoving(false);
+    setRemovalError("");
+  }
   const listRef = useRef<HTMLUListElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
@@ -411,9 +418,6 @@ export default function MessageThread({
   }, [conversationId]);
   useLayoutEffect(() => {
     accountRevisionRef.current = accountRevision;
-    setConfirming(null);
-    setRemoving(false);
-    setRemovalError("");
   }, [accountRevision]);
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);

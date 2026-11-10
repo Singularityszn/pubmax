@@ -366,6 +366,9 @@ describe("inbox read is honest about what it could not do", () => {
   it("keeps the conversations when the recent window fails, and says so", async () => {
     state.answer = (q) => {
       if (q.table === "conversations") return conversationRows;
+      if (q.table === "conversation_deletions" || q.table === "conversation_members") {
+        return { data: [], error: null };
+      }
       if (q.filters.some((f) => f[0] === "is")) {
         return { data: [{ conversation_id: C1 }], error: null };
       }

@@ -8140,6 +8140,14 @@ export type Database = {
         };
         Returns: Json;
       };
+      delete_conversation_for_viewer: {
+        Args: {
+          p_conversation_id: string | null;
+          p_handle: string | null;
+          p_deleted_at: string | null;
+        };
+        Returns: string;
+      };
       edit_social_post: {
         Args: {
           p_post_id: string | null;

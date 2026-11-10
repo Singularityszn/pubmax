@@ -1623,7 +1623,7 @@ async function readDirectConversationRows(
     const first = await read();
     const { data, error } = dropToBaseConversationColumns(first.error) ? await read() : first;
     if (error) throw new Error(error.message);
-    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
     visible.push(...(await visibleConversationRows(rows.filter((row) => row.kind !== "group"), me)));
     if (rows.length < MAX_CONVERSATIONS) break;
   }
@@ -1700,7 +1700,7 @@ async function readGroupConversationRows(
         .in("id", ids.slice(offset, offset + MAX_CONVERSATIONS))
         .order("last_message_at", { ascending: false });
       if (error) throw new Error(error.message);
-      rows = (data ?? []) as Array<Record<string, unknown>>;
+      rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
     } catch (err) {
       console.error("[messages] inbox group rows failed:", err instanceof Error ? err.message : err);
       return [];
