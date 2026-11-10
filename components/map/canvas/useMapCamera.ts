@@ -28,6 +28,30 @@ function desktopStatusSize(style: CSSStyleDeclaration | null) {
   };
 }
 
+export function useNearbyCameraFraming({
+  mapReady, userLocation, routeLength, nearbyMapVenues, fitNearby, framingOwedRef, requestToken,
+}: {
+  mapReady: boolean;
+  userLocation: { lat: number; lng: number } | null | undefined;
+  routeLength: number;
+  nearbyMapVenues: Venue[];
+  fitNearby: ReturnType<typeof useMapCamera>["fitNearby"];
+  framingOwedRef: MutableRefObject<boolean>;
+  requestToken: number;
+}) {
+  const didFitRef = useRef("");
+  const key = `${userLocation?.lat.toFixed(5)},${userLocation?.lng.toFixed(5)}:${requestToken}`;
+  useEffect(() => {
+    if (!mapReady || !userLocation || routeLength >= 2 || nearbyMapVenues.length === 0) return;
+    if (didFitRef.current === key) return;
+    didFitRef.current = key;
+    fitNearby(userLocation, nearbyMapVenues);
+  }, [mapReady, userLocation, routeLength, nearbyMapVenues, fitNearby, key]);
+  useEffect(() => {
+    framingOwedRef.current = Boolean(userLocation) && routeLength < 2 && nearbyMapVenues.length > 0 && didFitRef.current !== key;
+  }, [mapReady, userLocation, routeLength, nearbyMapVenues, framingOwedRef, key]);
+}
+
 function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
@@ -243,6 +267,7 @@ type CameraRefs = {
   queryVenuesRef?: MutableRefObject<Venue[]>;
   /** Live gesture ownership. See lib/mapGestureGuard.ts for the rule. */
   gestureCameraRef: MutableRefObject<GestureCameraState>;
+  nearbyRequestToken?: number;
 };
 
 // Camera helpers read live refs and keep stable callback identities. Recreating
@@ -258,8 +283,11 @@ export function useMapCamera(refs: CameraRefs) {
     venuesRef,
     queryVenuesRef,
     gestureCameraRef,
+    nearbyRequestToken = 0,
   } = refs;
   const routeFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
+  const palFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
+  useEffect(() => { palFrameRef.current = null; }, [nearbyRequestToken]);
   const coordinator = useMemo(() => createCameraIntentCoordinator({
     requestFrame: (callback) => requestAnimationFrame(callback),
     cancelFrame: (id) => cancelAnimationFrame(id),
@@ -276,18 +304,28 @@ export function useMapCamera(refs: CameraRefs) {
   // animation before it begins, so route, nearby, cluster, and venue moves
   // cannot fight each other on screen.
   const scheduleCamera = useCallback((kind: CameraIntentKind, key: string, move: (map: maplibregl.Map) => void) => {
+    const allowed = () => {
+      const gesture = gestureCameraRef.current;
+      const owner = palFrameRef.current;
+      if (owner && (gesture.active || owner.gestureEndedAt !== gesture.endedAt)) palFrameRef.current = null;
+      if (cameraIntentBlocked(kind, gesture, performance.now())) return false;
+      if (kind === "pal") return palFrameRef.current?.key === key;
+      if (palFrameRef.current && (kind === "arrival" || kind === "route" || kind === "query" || kind === "nearby")) return false;
+      palFrameRef.current = null;
+      return true;
+    };
     // Asked twice on purpose. The first check keeps a move that is already
     // refused from occupying the lane; the second is the one that matters,
     // because the lane defers by a frame and a reader can put a finger down
     // inside it. `map.stop()` is behind the guard too: an intent that must
     // stand down may not interrupt the reader's own momentum either.
-    if (cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
+    if (!allowed()) return;
     // The automatic opening turn preserves the route's camera ownership.
     if (kind !== "route" && kind !== "route-recovery" && kind !== "arrival") routeFrameRef.current = null;
     const run = () => {
       const map = mapRef.current;
       if (!map) return;
-      if (cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
+      if (!allowed()) return;
       map.stop();
       move(map);
     };
@@ -427,17 +465,20 @@ export function useMapCamera(refs: CameraRefs) {
   // after the ask: `pal` is a reactive intent, and a reader still reading the
   // map keeps it (lib/mapGestureGuard.ts).
   const fitPalPicks = useCallback((sequence: number, points: readonly { lng: number; lat: number }[]) => {
-    if (!points.length) return;
+    palFrameRef.current = null;
+    if (!points.length || cameraIntentBlocked("pal", gestureCameraRef.current, performance.now())) return;
+    const key = `pal:${sequence}`;
+    palFrameRef.current = { key, gestureEndedAt: gestureCameraRef.current.endedAt };
     const bounds = new maplibregl.LngLatBounds();
     points.forEach((point) => bounds.extend([point.lng, point.lat]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    scheduleCamera("pal", `pal:${sequence}`, (map) => map.fitBounds(bounds, {
+    scheduleCamera("pal", key, (map) => map.fitBounds(bounds, {
       padding: routeFitPadding(map, isPhone),
       maxZoom: 16,
       duration: reducedRef.current ? 0 : 800,
       bearing: map.getBearing(),
     }));
-  }, [reducedRef, scheduleCamera]);
+  }, [gestureCameraRef, reducedRef, scheduleCamera]);
 
   // Near me puts the READER on the map, not a cloud of pubs. A fitBounds over
   // nearby venues centres the cloud, which drops the reader wherever the

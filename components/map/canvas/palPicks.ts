@@ -101,7 +101,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     });
     position();
     syncScrim();
-    if (picks.length) frame(sequence, picks);
+    frame(sequence, picks);
     map.triggerRepaint();
     paintFrame = requestAnimationFrame(() => {
       paintFrame = requestAnimationFrame(() => {

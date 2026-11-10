@@ -303,7 +303,7 @@ export async function toolCheapestPintNear(
     ok: true,
     tool: "cheapest_pint_near",
     data: { anchor, scope, rows, venues: rows.flatMap((row) => {
-      const venue = byId.get(row.id);
+      const venue = venues.find((item) => item.id === row.id);
       return venue ? [{ id: venue.id, lat: venue.lat, lng: venue.lng }] : [];
     }) },
     provenance: askCardSources(cards),

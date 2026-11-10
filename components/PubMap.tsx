@@ -1824,6 +1824,7 @@ export default function PubMap({
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus(cityId);
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
+  const [nearbyRequestToken, setNearbyRequestToken] = useState(0);
   const [pendingNearMeRequest, setPendingNearMeRequest] =
     useState<PendingNearMeRequest | null>(null);
   const [nearbyLoadedPoint, setNearbyLoadedPoint] = useState<{
@@ -4443,7 +4444,7 @@ export default function PubMap({
         selectVenue(match.id);
       } else if (move === "fit-many") {
         // Frame the whole matched set so none stay hidden off-screen.
-        setSearchFitToken((token) => token + 1);
+        setSearchRecoveryToken((token) => token + 1);
       }
     }, 320);
     return () => window.clearTimeout(handle);
@@ -4804,6 +4805,7 @@ export default function PubMap({
             lng: position.coords.longitude,
           };
           setUserLocation(location);
+          if (mode !== "resume") setNearbyRequestToken((token) => token + 1);
           latchMapReaderLocationWatch();
           invalidatePrivateCamera();
           setPendingNearMeRequest({ kind: "map", location, mode });
@@ -7001,6 +7003,7 @@ export default function PubMap({
         searchRecoveryToken={searchRecoveryToken}
         queryVenues={queryVenues}
         userLocation={userLocation}
+        nearbyRequestToken={nearbyRequestToken}
         nearMePending={nearbyLoading}
         readerPosition={readerPosition}
         poisPath={city.poisPath}

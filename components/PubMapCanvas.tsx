@@ -176,6 +176,7 @@ import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
   useMapCamera,
+  useNearbyCameraFraming,
   whenBottomSheetSettles,
 } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
@@ -494,6 +495,7 @@ type PubMapCanvasProps = {
   queryVenues?: Venue[];
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
+  nearbyRequestToken?: number;
   readerPosition?: MapReaderPosition | null;
   poiHidden?: Record<PoiCategory, boolean>;
   onPoiHiddenChange?: (next: PoiHiddenChange) => void;
@@ -658,6 +660,7 @@ function withPubMapCanvasDefaults({
   fitQueryOnArrival = false,
   searchFitToken = 0,
   userLocation = null,
+  nearbyRequestToken = 0,
   readerPosition = null,
   hideLayersControl = false,
   onCameraResetChange,
@@ -698,6 +701,7 @@ function withPubMapCanvasDefaults({
     fitQueryOnArrival,
     searchFitToken,
     userLocation,
+    nearbyRequestToken,
     readerPosition,
     hideLayersControl,
     onCameraResetChange,
@@ -828,6 +832,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     searchRecoveryToken,
     queryVenues = venues,
     userLocation,
+    nearbyRequestToken,
     readerPosition,
     poiHidden: controlledPoiHidden,
     onPoiHiddenChange,
@@ -1465,6 +1470,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venuesRef,
     queryVenuesRef,
     gestureCameraRef,
+    nearbyRequestToken,
   })
 
   // The map's opening turn (captain, 7 Sep 2026: "I also want the map to rotate
@@ -4692,27 +4698,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitQueryVenues("search-recovery", searchRecoveryToken);
   }, [searchRecoveryToken, mapReady, fitQueryVenues]);
 
-  // A granted location is a temporary map aid, not a persisted Home Area.
-  // Frame the local pub cloud once, then leave the camera entirely under the
-  // user's control. Active routes own their own framing and take precedence.
-  const didFitUserLocationRef = useRef("");
-  useEffect(() => {
-    if (!mapReady || !userLocation || route.length >= 2 || nearbyMapVenues.length === 0) return;
-    const key = `${userLocation.lat.toFixed(5)},${userLocation.lng.toFixed(5)}`;
-    if (didFitUserLocationRef.current === key) return;
-    didFitUserLocationRef.current = key;
-    fitNearby(userLocation, nearbyMapVenues);
-  }, [mapReady, userLocation, route.length, nearbyMapVenues, fitNearby]);
-  // The camera probe's reading of that same rule: a granted location with pubs
-  // around it that has not been framed yet is a move the map still owes.
-  useEffect(() => {
-    nearbyFramingOwedRef.current =
-      Boolean(userLocation) &&
-      route.length < 2 &&
-      nearbyMapVenues.length > 0 &&
-      didFitUserLocationRef.current !==
-        `${userLocation?.lat.toFixed(5)},${userLocation?.lng.toFixed(5)}`;
-  }, [mapReady, userLocation, route.length, nearbyMapVenues]);
+  useNearbyCameraFraming({
+    mapReady, userLocation, routeLength: route.length, nearbyMapVenues, fitNearby,
+    framingOwedRef: nearbyFramingOwedRef, requestToken: nearbyRequestToken,
+  });
 
   // The reader's dot is a CANVAS layer under the pins (see buildUserLocation),
   // not a DOM marker over them, so a pin the reader is standing on keeps its
