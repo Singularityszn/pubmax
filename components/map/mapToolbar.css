@@ -55,6 +55,7 @@
      while the stack is a column, one row once it is a row. */
   .appShell {
     --map-camera-stack-height: 94px;
+    --map-camera-stack-top: var(--map-overlay-top);
   }
 
   /* AND IT CLEARS THE TOOLBAR'S OWN PUBLISHED BERTH, NOT THE CAMERA STACK
@@ -81,7 +82,7 @@
   .appShell .mapStage .maplibregl-ctrl-top-right {
     top: max(
       calc(
-        var(--map-overlay-top) + var(--map-camera-stack-height) +
+        var(--map-camera-stack-top) + var(--map-camera-stack-height) +
           var(--map-chrome-gap)
       ),
       calc(
@@ -871,15 +872,21 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   }
 }
 
-/* The tablet zoom column clears the arrival card's actual occupied berth.
-   Without a card, -12px cancels its top gap so the existing max terms win. */
-@media (min-width: 641px) and (max-width: 900px) {
-  .appShell:not(.detail-open) .mapStage .maplibregl-ctrl-top-right {
-    top: max(
-      calc(var(--map-overlay-top) + var(--map-camera-stack-height) + var(--map-chrome-gap)),
-      calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap)),
+/* Below 1024px the first-visit ask runs under the camera stack's corner, so
+   "Show whole walk" covered "Choose an area". The stack starts under the ask's
+   actual occupied berth, and the zoom column, which reads the stack's top,
+   follows it down. Without a card, -12px cancels the gap so the overlay top
+   wins. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .appShell {
+    --map-camera-stack-top: max(
+      var(--map-overlay-top),
       calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + 12px + var(--map-arrival-occupied-height, -12px) + var(--map-chrome-gap))
     );
+  }
+
+  .appShell:not(.detail-open) .mapStage .mapCameraControls {
+    top: var(--map-camera-stack-top);
   }
 }
 

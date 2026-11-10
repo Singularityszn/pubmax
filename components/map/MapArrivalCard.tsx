@@ -50,7 +50,7 @@ export default function MapArrivalCard({
     const node = cardRef.current;
     const shell = node?.closest<HTMLElement>(".appShell");
     if (!node || !shell) return;
-    const tablet = window.matchMedia("(min-width: 641px) and (max-width: 900px)");
+    const tablet = window.matchMedia("(min-width: 641px) and (max-width: 1023px)");
     const property = "--map-arrival-occupied-height";
     let published = "";
     const clear = () => {
