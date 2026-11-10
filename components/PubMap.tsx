@@ -5958,6 +5958,7 @@ export default function PubMap({
         crawlBlurb={activeCrawlBlurb}
         crawlName={activeCrawlName}
         crawlId={activeCrawlId}
+        curatedCrawls={cityCuratedCrawls}
         routeMapped={routeMappedActive}
         stopsFirst={builtCrawlLeads}
         originDistanceKm={distanceFromUserKm}

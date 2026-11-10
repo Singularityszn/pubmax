@@ -13,6 +13,13 @@ import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { ONBOARDING_DISMISSED_KEY } from "@/lib/onboardingDismissal";
 import type { UkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 import type { ZonePintIndex } from "@/lib/zones";
+// PubMap and PubMapCanvas load side by side from this shell: the canvas is
+// warmed when this module runs and PubMap renders below. A module both of them
+// import therefore ships in both chunk groups, unless this shell already holds
+// it. Both read the venue model and the UK base pubs, so the shell holds those
+// and each crosses the wire once.
+import "@/lib/venues";
+import "@/lib/ukBasePubs";
 
 // next/dynamic hands its loading component no props, so the city the shell is
 // about reaches the held skeleton through context instead. The placeholder
