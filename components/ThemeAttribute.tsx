@@ -29,6 +29,7 @@ import {
   resolveThemePreference,
   storedThemePreference,
 } from "@/lib/themePreference";
+import { followStoredThemeChange } from "@/lib/useThemeChoice";
 import {
   LEGACY_STORAGE_KEY,
   MODE_STORAGE_KEY,
@@ -127,12 +128,15 @@ export default function ThemeAttribute(): null {
     const onVisible = () => {
       if (document.visibilityState === "visible") follow();
     };
+    const onStorage = (event: StorageEvent) => followStoredThemeChange(event.key, event.newValue);
     const timer = window.setInterval(follow, NIGHT_THEME_TICK_MS);
+    window.addEventListener("storage", onStorage);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pageshow", follow);
     window.addEventListener("focus", follow);
     return () => {
       window.clearInterval(timer);
+      window.removeEventListener("storage", onStorage);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", follow);
       window.removeEventListener("focus", follow);
