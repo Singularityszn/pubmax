@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
@@ -173,7 +173,7 @@ export function useCrawlUrlSync(
     encoded: string; preserveCrawlParam: boolean; preserveBeerParam: boolean; entry: UrlEntry;
   } | null>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const encoded = encodeCrawl(state);
     // Keep a shared explicit default only for its original plan context.
@@ -213,20 +213,16 @@ export function useCrawlUrlSync(
     if (crawlHold.current === undefined) {
       crawlHold.current = holdSeededCrawlParam ? { encodedAtMount: encoded } : null;
     }
+    if (!crawlUrlWriteAllowed(hold.current, encoded)) {
+      latestWrite.current = null;
+      return;
+    }
+    hold.current = null;
     const preserveCrawlParam =
       crawlHold.current !== null &&
       crawlHold.current !== undefined &&
       holdSeededCrawlParam;
     if (!holdSeededCrawlParam) crawlHold.current = null;
-    const entry = urlEntry();
-    latestWrite.current = { encoded, preserveCrawlParam, preserveBeerParam, entry };
-  }, [holdCleanUrl, holdSeededCrawlParam, state]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || latestWrite.current === null) return;
-    const { encoded, preserveCrawlParam, preserveBeerParam } = latestWrite.current;
-    if (!crawlUrlWriteAllowed(hold.current ?? null, encoded)) return;
-    hold.current = null;
     const entry = urlEntry();
     latestWrite.current = { encoded, preserveCrawlParam, preserveBeerParam, entry };
     if (timer.current) clearTimeout(timer.current);
@@ -255,8 +251,6 @@ export function useCrawlUrlSync(
         latestWrite.current = null;
         return;
       }
-      if (!crawlUrlWriteAllowed(hold.current ?? null, encoded) && !window.location.search) return;
-      hold.current = null;
       writeLandedCrawlContext(encoded, preserveCrawlParam, preserveBeerParam);
     }
   }, []);
