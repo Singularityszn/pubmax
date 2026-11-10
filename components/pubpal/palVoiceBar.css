@@ -15,9 +15,8 @@
   gap: 10px;
   border: 1px solid color-mix(in srgb, var(--brass) 24%, var(--line));
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
+  background: var(--panel-raised);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(16px);
   color: var(--ink);
 }
 .palVoiceBar[data-live="true"] {
@@ -69,11 +68,5 @@ body:has(.palVoiceBar) .palSummon {
 @media (min-width: 641px) {
   .palVoiceBar {
     bottom: 22px;
-  }
-}
-@media (prefers-reduced-transparency: reduce) {
-  .palVoiceBar {
-    background: var(--panel-raised);
-    backdrop-filter: none;
   }
 }

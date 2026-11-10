@@ -85,7 +85,7 @@ export default function PalVoiceBar({
   const line = lines.at(-1);
   const caption = error ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
   return (
-    <section ref={barRef} className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-live={live ? "true" : undefined}>
+    <section ref={barRef} className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-focus-trap-exempt="" data-live={live ? "true" : undefined}>
       {appearance ? <PubPalAvatar appearance={appearance} name={palName} compact genome={genome} /> : null}
       <div className="palVoiceBarText">
         <p role="status">{status}</p>
