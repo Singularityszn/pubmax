@@ -14,9 +14,9 @@ import {
   markPresence,
   recentPresence,
   __resetPresence,
-  PRESENCE_TTL_MS,
   type PresenceDTO,
 } from "@/lib/presenceStore";
+import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
 import { defined } from "@/__tests__/helpers/defined";
 
 const HANDLE = "old_ken";

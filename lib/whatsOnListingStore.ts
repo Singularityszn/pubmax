@@ -129,7 +129,7 @@ const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
 
 type ListingRow = {
   id: string;
-  kind: string;
+  kind: WhatsOnKind;
   city: string;
   payload: unknown;
   observed_at: string;
@@ -137,7 +137,7 @@ type ListingRow = {
 };
 
 type GenerationRow = {
-  kind: string;
+  kind: WhatsOnKind;
   generated_at: string;
 };
 

@@ -3,6 +3,7 @@ import "server-only";
 import { type CrewMemberDTO, isCrewPresenceStatus } from "@/lib/crew";
 import { londonDayKey } from "@/lib/pintContributions";
 import { londonMsSinceMidnight } from "@/lib/londonHour";
+import { OPEN_CRAWL_ARRIVAL_CLOSE_MS } from "@/lib/nightWindows";
 import { planCrewArrivedReceipts } from "@/lib/planCrewArrived.server";
 import { projectSocialCrewRead, type RawSocialCrew } from "@/lib/socialCrewProjection.server";
 import type { SocialCrewStoreDependencies } from "@/lib/socialCrewStore";
@@ -61,7 +62,7 @@ function openCrawlArrivalWindow(startTime: string, now = new Date()) {
   if (!Number.isFinite(start)) return { open: false, refreshAt: null };
   const midnight = new Date(`${londonDayKey(startTime)}T00:00:00Z`);
   const opensAt = midnight.getTime() - londonMsSinceMidnight(midnight);
-  const closesAt = start + 12 * 60 * 60 * 1000;
+  const closesAt = start + OPEN_CRAWL_ARRIVAL_CLOSE_MS;
   return {
     open: now.getTime() >= opensAt && now.getTime() < closesAt,
     refreshAt: now.getTime() < opensAt ? opensAt : now.getTime() < closesAt ? closesAt : null,

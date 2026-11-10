@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ACTIVE_PLAN_POST_MS } from "@/lib/activePlan";
+import { ACTIVE_PLAN_POST_MS } from "@/lib/nightWindows";
 import { inviteExpiresAtIso, isPastPlanScheduledEnd, planScheduledEndMs } from "@/lib/inviteExpiry";
 
 describe("inviteExpiry", () => {

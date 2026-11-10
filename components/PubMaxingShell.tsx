@@ -10,6 +10,7 @@ import { warmCityMapFirstPaint, warmMapFirstPaint } from "@/lib/mapWarmup";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
+import { ONBOARDING_DISMISSED_KEY } from "@/lib/onboardingDismissal";
 import type { UkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 import type { ZonePintIndex } from "@/lib/zones";
 
@@ -41,21 +42,7 @@ if (typeof window !== "undefined") {
   }
 }
 
-// ── One-time-ever "Start with a story" onboarding (UX defect fix) ──────────
-// PubMap gates its onboarding overlay on a sessionStorage flag, so it came
-// back in every new tab/session and covered most of the map (and the search
-// box) on mobile. PubMap.tsx is edit-locked this cycle (F1 map decomposition),
-// so durability lives here in its unlocked host shell instead:
-//   1. before PubMap ever reads the flag, a durable localStorage dismissal is
-//      restored into sessionStorage (the key PubMap reads);
-//   2. after any user interaction, a dismissal PubMap wrote to sessionStorage
-//      is mirrored back into localStorage.
-// Net effect: the overlay shows at most once ever per device — the same
-// durable pattern as the pubmax-tour-v1-done first-run tour flag. When the F1
-// lock lifts, PubMap can read/write localStorage directly and this bridge can
-// be deleted.
-const ONBOARDING_DISMISSED_KEY = "pubmax_onboarding_dismissed";
-
+// lib/onboardingDismissal.ts owns the dismissal key and its storage contract.
 function restoreOnboardingDismissal(): null {
   if (typeof window === "undefined") return null;
   try {
@@ -120,9 +107,8 @@ export default function PubMaxingShell({
   useEffect(() => {
     warmCityMapFirstPaint(cityId);
   }, [cityId]);
-  // Every dismissal path is user-initiated (scrim tap, ✕, "Dismiss / explore",
-  // picking a crawl — click or Enter/Escape), so a deferred post-interaction
-  // check catches the sessionStorage write without touching the locked PubMap.
+  // Defer the check after clicks and key presses so PubMap can write its
+  // dismissal before the shell persists it.
   useEffect(() => {
     const onInteract = () => {
       window.setTimeout(persistOnboardingDismissal, 0);
