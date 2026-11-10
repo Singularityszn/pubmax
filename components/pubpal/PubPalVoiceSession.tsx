@@ -260,9 +260,12 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     onMap: () => onMapRef.current,
     mapOpening: () => mapTimerRef.current !== null,
     tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
+    // A tool call also gives way to anything the person did since it began:
+    // a new line, a pub they picked, or a page they moved to (stayHere).
     callLive: () => {
       const attempt = activeAttemptRef.current;
-      return attempt ? () => ownsAttempt(attempt) : null;
+      const navigation = nextStopRequestRef.current;
+      return attempt ? () => ownsAttempt(attempt) && nextStopRequestRef.current === navigation : null;
     },
   });
 
