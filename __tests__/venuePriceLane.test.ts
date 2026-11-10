@@ -453,7 +453,7 @@ describe("the fare-zone estimate", () => {
     expect(zoneEstimatePinStandings([pin], new Map(), PUBLISHED)?.size).toBe(0);
     expect(venueBundlePrices(pin, PUBLISHED)).toEqual({});
     expect(buildMapVenueListModel([pin], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("Price TBD");
-    expect(mapSplitListPrice(pin, undefined, undefined, PUBLISHED).figure).not.toContain("est.");
+    expect(mapSplitListPrice(pin, undefined, undefined, PUBLISHED).figure).toBeNull();
     expect(pinsToSlimVenues([pin])[0]?.hasRecordedPrice).toBe(hasRecordedPrice);
   });
 

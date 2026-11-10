@@ -33,6 +33,7 @@ import { buildMapVenueListModel, mapVenueListCheapest } from "@/lib/mapVenueList
 import { buildLogNearbyCandidates } from "@/lib/mapLogIntent";
 import { deriveMapRenderedState } from "@/lib/mapRenderedState";
 import { priceBucket } from "@/lib/communityPrice";
+import { planVenueOptions } from "@/lib/planVenueOptions";
 import { nearSavingLine, rankNearMe, venueToPricedPoint } from "@/lib/nearMeAnswer";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
@@ -112,6 +113,21 @@ it("keeps recorded-price availability through the published slim loader", async 
   ] });
   const loaded = await loadSlimVenuesFromPathResult("/data/price-availability-contract.json");
   expect(loaded.rows.map((row) => slimVenueToPin(row).hasRecordedPrice)).toEqual([true, false, undefined]);
+});
+
+it.each([true, false, undefined])("decodes compact bundle-price availability only after a successful read: %s", async (bundlePricesChecked) => {
+  const source = { ...slim.find((row) => row.id === "venue-10x17k9")! };
+  delete source.hasRecordedPrice;
+  const payload = { bundlePricesChecked, rows: [
+    { ...source, id: "listed", cheapestPrice: null, hasRecordedPrice: true },
+    { ...source, id: "empty", cheapestPrice: null },
+    { ...source, id: "priced", cheapestPrice: 5.5 },
+  ] };
+  serveSlimPayload(payload);
+  const loaded = await loadSlimVenuesFromPathResult(`/data/compact-availability-${bundlePricesChecked}.json`);
+  const absence = bundlePricesChecked === true ? false : undefined;
+  expect(loaded.rows.map((row) => slimVenueToPin(row).hasRecordedPrice)).toEqual([true, absence, undefined]);
+  expect(planVenueOptions(payload).map((row) => row.hasRecordedPrice)).toEqual([true, absence, true]);
 });
 
 it("keeps the two Coach and Horses streets through the published slim loader and pin conversion", async () => {

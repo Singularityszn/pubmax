@@ -1064,13 +1064,15 @@ async function main() {
 
   if (recordedPintVenueIds !== null) {
     for (const venue of slim) {
-      if (venue.cheapestPrice === null) venue.hasRecordedPrice = recordedPintVenueIds.has(venue.id);
+      if (venue.cheapestPrice === null && recordedPintVenueIds.has(venue.id)) venue.hasRecordedPrice = true;
     }
   }
+  const bundlePriceCoverage = recordedPintVenueIds !== null ? { bundlePricesChecked: true } : {};
 
   // Compact JSON (no whitespace) — the map never reads this file by hand.
   const slimText = JSON.stringify({
     ...buildShardPayload(slim),
+    ...bundlePriceCoverage,
     d: priceDatasetDigest,
     generatedAt: builtAt.toISOString(),
   });
@@ -1104,7 +1106,7 @@ async function main() {
   manifest.priceDatasetDigest = priceDatasetDigest;
   const coreCell = cells.get(coreId);
   if (!coreCell) throw new Error(`Spatial core cell ${coreId} is missing`);
-  const coreText = JSON.stringify({ ...buildShardPayload(coreCell.venues), d: priceDatasetDigest });
+  const coreText = JSON.stringify({ ...buildShardPayload(coreCell.venues), ...bundlePriceCoverage, d: priceDatasetDigest });
   const manifestText = JSON.stringify(manifest);
   await writeFile(path.join(DATA_DIR, CORE_FILE), coreText);
   await writeFile(path.join(DATA_DIR, MANIFEST_FILE), manifestText);
@@ -1120,7 +1122,7 @@ async function main() {
   const shardReport = [];
   for (const [id, { lat, lon, venues }] of cells) {
     if (id === coreId) continue;
-    const text = JSON.stringify({ ...buildShardPayload(venues), d: priceDatasetDigest });
+    const text = JSON.stringify({ ...buildShardPayload(venues), ...bundlePriceCoverage, d: priceDatasetDigest });
     spatialBytesTotal += Buffer.byteLength(text);
     await writeFile(path.join(DATA_DIR, spatialShardFile(lat, lon, SPATIAL_GRID)), text);
     shardReport.push({
