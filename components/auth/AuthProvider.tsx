@@ -645,6 +645,7 @@ export function AuthProvider({
     let active = true;
     let subscription: { unsubscribe: () => void } | null = null;
     let clientLoadInFlight = true;
+    let bootstrapRetryPending = false;
     let retrySessionBootstrap: (() => void) | null = null;
     // Session restoration is additive; it must never hold the anonymous app or
     // Pub Pal onboarding behind an infinite loading screen when the provider is
@@ -987,6 +988,7 @@ export function AuthProvider({
           void retry.then((retried) => {
             sessionRestoreInFlight.current = false;
             if (active) publishBootstrappedSession(retried);
+            if (bootstrapRetryPending) retryBootstrap();
           });
         };
         if (confirmation && captured) {
@@ -1003,10 +1005,16 @@ export function AuthProvider({
       })();
     }).finally(() => {
       clientLoadInFlight = false;
+      if (bootstrapRetryPending) retryBootstrap();
     });
 
     const retryBootstrap = () => {
-      if (!active || clientLoadInFlight || sessionRestoreInFlight.current) return;
+      if (!active) return;
+      if (clientLoadInFlight || sessionRestoreInFlight.current) {
+        bootstrapRetryPending = true;
+        return;
+      }
+      bootstrapRetryPending = false;
       if (readProviderAuthState("supabase") !== "unavailable") return;
       if (retrySessionBootstrap) retrySessionBootstrap();
       else {
@@ -1020,6 +1028,7 @@ export function AuthProvider({
 
     return () => {
       active = false;
+      bootstrapRetryPending = false;
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
       stopBootstrapRetry();

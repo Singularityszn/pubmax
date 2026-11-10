@@ -33,7 +33,7 @@ vi.mock("@/lib/authClient", async (original) => ({
   ...await original<typeof import("@/lib/authClient")>(),
   createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
   isAuthConfigured: () => true,
-  ensureSupabaseBrowser: async () => {
+  ensureSupabaseBrowser: vi.fn(async () => {
     if (h.clientOffline) throw new Error("offline");
     return { auth: {
       signInWithOAuth: h.canonicalOAuth, setSession: h.setSession, signOut: h.signOut,
@@ -44,12 +44,12 @@ vi.mock("@/lib/authClient", async (original) => ({
         return { data: { subscription: { unsubscribe: () => { h.subscriber = null; } } } };
       },
     } };
-  },
+  }),
 }));
 vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
-  bootstrapAuthSession: async () => h.bootstrapOffline ? ({ status: "unavailable" })
-    : h.session ? ({ status: "local", session: h.session }) : ({ status: "none" }),
+  bootstrapAuthSession: vi.fn(async () => h.bootstrapOffline ? ({ status: "unavailable" })
+    : h.session ? ({ status: "local", session: h.session }) : ({ status: "none" })),
 }));
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: true, apple: true, microsoft: true }),
@@ -72,6 +72,8 @@ vi.mock("@/lib/authSessionResumeClient", () => ({
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));
 import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { ensureSupabaseBrowser } from "@/lib/authClient";
+import { bootstrapAuthSession } from "@/lib/authSessionBootstrap";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
 import { readProviderAccountSignal, readProviderAuthState, setProviderAuthState } from "@/lib/authProviderRevision";
 import { PLAN_HOST_NAME_KEY, readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
@@ -405,6 +407,53 @@ describe("AuthProvider's installed iPhone OAuth consumer", () => {
     expect(h.nativeOAuth).not.toHaveBeenCalled();
     expect(h.setSession).not.toHaveBeenCalled();
     expect(container.textContent).toBe("original");
+  });
+
+  it.each([
+    ["client", "online"], ["client", "visible"], ["client", "focus"],
+    ["session", "online"], ["session", "visible"], ["session", "focus"],
+    ["session retry", "online"], ["session retry", "visible"], ["session retry", "focus"],
+  ])("retains %s recovery from %s while the attempt is pending", async (stage, event) => {
+    await act(async () => root.unmount());
+    setProviderAuthState("supabase", "unresolved");
+    h.bootstrapOffline = stage === "session retry";
+    let failBootstrap!: (error: Error) => void;
+    const pendingBootstrap = new Promise<never>((_resolve, reject) => { failBootstrap = reject; });
+    if (stage === "client") {
+      vi.mocked(ensureSupabaseBrowser).mockImplementationOnce(() => new Promise(() => {}));
+    } else if (stage === "session") {
+      vi.mocked(bootstrapAuthSession).mockReturnValueOnce(pendingBootstrap);
+    }
+    root = createRoot(container);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    try {
+      await act(async () => {
+        root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe)));
+      });
+      if (stage === "session retry") {
+        expect(readProviderAuthState("supabase")).toBe("unavailable");
+        vi.mocked(bootstrapAuthSession).mockReturnValueOnce(pendingBootstrap);
+        await act(async () => { window.dispatchEvent(new Event("focus")); });
+        h.bootstrapOffline = false;
+      }
+      await act(async () => {
+        if (event === "visible") document.dispatchEvent(new Event("visibilitychange"));
+        else window.dispatchEvent(new Event(event));
+        await vi.runAllTimersAsync();
+      });
+      if (stage !== "client") {
+        expect(readProviderAuthState("supabase")).toBe("unavailable");
+        await act(async () => { failBootstrap(new Error("offline resume read")); });
+      }
+      expect(readProviderAuthState("supabase")).toBe("signed-out");
+      await act(async () => { expect(await actions.signInWithApple()).toEqual({ error: null }); });
+      expect(container.textContent).toBe("replacement");
+      expect(h.authenticate).toHaveBeenCalledTimes(1);
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it.each([
