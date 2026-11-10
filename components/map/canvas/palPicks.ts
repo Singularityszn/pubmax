@@ -38,6 +38,22 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
   let rendered = -1;
   let painted = -1;
   let paintFrame: number | null = null;
+  const nativePaints = new Map<Element, number>();
+  const recordPaint = (sequence: number, paintedAt: number) => {
+    if (sequence !== rendered || painted === sequence) return;
+    painted = sequence;
+    performance.mark("pubmax:pal-picks-painted", { startTime: paintedAt });
+    window.dispatchEvent(new CustomEvent("pubmax:pal-picks-painted", { detail: { sequence, count: pins.length } }));
+  };
+  const paintObserver = typeof PerformanceObserver !== "undefined" && PerformanceObserver.supportedEntryTypes.includes("element")
+    ? new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const { element, renderTime } = entry as PerformanceEntry & { element: Element | null; renderTime: number };
+        if (renderTime > 0 && pins.some(({ button }) => button === element)) nativePaints.set(element!, renderTime);
+      }
+      if (pins.length && nativePaints.size === pins.length) recordPaint(rendered, Math.max(...nativePaints.values()));
+    }) : null;
+  paintObserver?.observe({ type: "element", buffered: true });
 
   const syncScrim = () => {
     const wanted = pins.length > 0;
@@ -71,6 +87,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     const { sequence, picks } = readPalMapState();
     if (sequence === rendered) return;
     rendered = sequence;
+    nativePaints.clear();
     if (paintFrame !== null) cancelAnimationFrame(paintFrame);
     performance.clearMarks("pubmax:pal-picks-painted");
     pins.forEach((pin) => pin.marker.remove());
@@ -89,6 +106,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
       const button = document.createElement("button");
       button.type = "button";
       button.className = "palPick";
+      button.setAttribute("elementtiming", `pal-pick-${sequence}-${pick.number}`);
       button.textContent = String(pick.number);
       button.setAttribute("aria-label", `${pick.number}. ${pick.name}`);
       button.dataset.venueId = pick.venueId;
@@ -107,9 +125,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     paintFrame = requestAnimationFrame(() => {
       paintFrame = requestAnimationFrame(() => {
         paintFrame = null;
-        painted = sequence;
-        performance.mark("pubmax:pal-picks-painted");
-        window.dispatchEvent(new CustomEvent("pubmax:pal-picks-painted", { detail: { sequence, count: picks.length } }));
+        if (!paintObserver || !picks.length) recordPaint(sequence, performance.now());
       });
     });
   };
@@ -134,6 +150,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
 
   return () => {
     unsubscribe();
+    paintObserver?.disconnect();
     if (paintFrame !== null) cancelAnimationFrame(paintFrame);
     map.off("move", position);
     map.off("resize", position);

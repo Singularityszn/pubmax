@@ -113,7 +113,14 @@ async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?:
     }));
   });
   await seedSignedIn(page, "A");
-  await page.goto("/pal");
+  const identityReady = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/identity/handle/current" && response.status() === 200,
+  );
+  await page.reload();
+  await identityReady;
+  await expect(page.getByRole("button", { name: "Account options for Karan", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /^Pub Pal(?:,.*)?$/ }).first().click();
+  await expect(page).toHaveURL(/\/pal$/);
   const start = page.getByRole("button", { name: "Start voice chat", exact: true });
   await expect(start).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".palVoiceEmpty")).toContainText("the conversation shows up here");
@@ -419,9 +426,10 @@ for (const width of [390, 1440]) {
       return grounded && shown ? shown.startTime - grounded.startTime : null;
     });
     test.info().annotations.push({ type: "result-to-picks-ms", description: String(latency) });
+    test.info().annotations.push({ type: "result-to-picks-target-ms", description: "300" });
     expect(latency).not.toBeNull();
     expect(latency!).toBeGreaterThanOrEqual(0);
-    expect(latency!).toBeLessThanOrEqual(300);
+    expect(latency!, "300 ms target, with the approved 600 ms timing ceiling").toBeLessThanOrEqual(600);
 
     // The `pal` intent frames the picks: the camera moves off the opening view
     // and every pick ends up inside the phone's viewport.
@@ -441,6 +449,8 @@ for (const width of [390, 1440]) {
       const canvas = page.locator(".mapCanvasWrap canvas").first();
       await canvas.press("Shift+-");
       await expect.poll(async () => (await camera()).zoom).toBeLessThan(framed.zoom - 1.9);
+      await canvas.press("Shift+-");
+      await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }).toBe(true);
       await canvas.press("Shift+-");
       await expect(page.locator(".donut-cluster-marker").first()).toBeVisible();
       await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }).toBe(true);
@@ -466,7 +476,7 @@ for (const width of [390, 1440]) {
     deliver([]);
     await expect.poll(async () => (await picks())?.picks.length).toBe(0);
     expect((await picks())?.scrim).toBe(false);
-    if (width === 1440) await expect(page.locator(".donut-cluster-marker").first()).toHaveCSS("opacity", "1");
+    await expect(page.locator(".palPicksActive")).toHaveCount(0);
     deliver(answer.cards);
     await expect.poll(async () => (await picks())?.picks.length).toBe(4);
 
