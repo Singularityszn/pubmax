@@ -191,7 +191,7 @@
      the 90px pair. The lane keeps its full width for the headline. */
   .appShell.detail-open {
     --city-status-desktop-floor: calc(
-      var(--map-zoom-column-top) + 100px + var(--map-chrome-gap, 6px)
+      var(--map-zoom-column-top) + 100px + var(--map-chrome-gap)
     );
   }
 
