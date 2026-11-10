@@ -11,6 +11,7 @@ import {
 
 import {
   mapSurfaceOpenTransition,
+  readEntriesAboveRoot,
   readMapSurfaceHistory,
   stampMapSurfaceHistory,
 } from "@/lib/mapSurfaceHistory";
@@ -174,10 +175,12 @@ export function useMapSurfaceNavigation({
       if (typeof window === "undefined") return;
       const transition = mapSurfaceOpenTransition(stackRef.current, entry);
       publishStack(transition.stack);
+      const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
       const state = stampMapSurfaceHistory(
         window.history.state,
         transition.stack,
         selectedVenueId(transition.stack),
+        transition.kind === "push" ? above + 1 : above,
       );
       const url = urlForStack(transition.stack, selectionHintRef.current);
       if (transition.kind === "push") {
@@ -397,7 +400,8 @@ export function useMapSurfaceNavigation({
           : held;
         if (next !== held) publishStack(next);
         window.history.replaceState(
-          stampMapSurfaceHistory(window.history.state, next, resolution.venueId),
+          stampMapSurfaceHistory(window.history.state, next, resolution.venueId,
+            readEntriesAboveRoot(window.history.state) ?? next.length),
           "",
           canonicalUrl,
         );
@@ -405,7 +409,8 @@ export function useMapSurfaceNavigation({
         return;
       }
       window.history.replaceState(
-        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
+        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held),
+          readEntriesAboveRoot(window.history.state) ?? held.length),
         "",
         cleanMapUrl(pathname, search, hash),
       );
@@ -425,7 +430,8 @@ export function useMapSurfaceNavigation({
       const { pathname, search, hash } = window.location;
       if (new URLSearchParams(search).get("sel") !== venueId) return;
       window.history.replaceState(
-        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
+        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held),
+          readEntriesAboveRoot(window.history.state) ?? held.length),
         "",
         cleanMapUrl(pathname, search, hash),
       );
@@ -439,19 +445,28 @@ export function useMapSurfaceNavigation({
     pendingHomeRef.current = held;
     publishStack(ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
     onHomeRef.current();
-    if (typeof window !== "undefined") window.history.go(-held.length);
+    if (typeof window === "undefined") return;
+    const above = readEntriesAboveRoot(window.history.state) ?? held.length;
+    if (above > 0) window.history.go(-above);
   }, [publishStack]);
+
+  /** Close `id` through Back when it is the top entry, otherwise with `close`. */
+  const leave = useCallback((id: MapSurfaceId, close: () => void) => {
+    if (currentSurface(stackRef.current)?.id === id) back();
+    else close();
+  }, [back]);
 
   return useMemo(
     () => ({
       backLabel: backActionLabel(stack),
       back,
       home,
+      leave,
       open,
       rejectSelection,
       resolveSelection,
       holdsSurface: (id: MapSurfaceId) => stack.some((entry) => entry.id === id),
     }),
-    [back, home, open, rejectSelection, resolveSelection, stack],
+    [back, home, leave, open, rejectSelection, resolveSelection, stack],
   );
 }

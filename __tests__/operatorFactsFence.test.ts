@@ -30,7 +30,8 @@ const OPERATOR_FACT_MODULES = [
 const ALLOWED_IMPORTERS: Record<string, string> = {
   "lib/operatorFactsStore.ts": "the store",
   "lib/tonightOperatorFacts.server.ts": "Tonight's server read",
-  "app/api/operator-proposals/route.ts": "the one writer: the moderator's accept and decline",
+  "lib/operatorProposalsStore.ts": "atomic moderation and publication",
+  "app/api/operator-proposals/route.ts": "moderator responses",
   "app/api/operator-facts/route.ts": "the public read for the venue sheet",
   "components/operators/VenueFromThePub.tsx": "the venue sheet's block",
   "components/map/inspector/VenueOverviewTab.tsx": "mounts the block as one row in the pub fold",

@@ -14,13 +14,21 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/socialAccessServer", () => ({
   requireVerifiedSocialActor: async () => routeState.access,
 }));
+vi.mock("@/lib/authServer", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authServer")>(),
+  callerUserId: async (request: Request) => request.headers.get("authorization") === "Bearer fixture-me" ? "user-me" : null,
+}));
+vi.mock("@/lib/pintDrops", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/pintDrops")>(),
+  isLimited: async () => false,
+}));
 
-import { GET } from "@/app/api/presence/route";
+import { GET, POST } from "@/app/api/presence/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import type { PresenceDTO } from "@/lib/presence";
 import { presenceHandlesForViewer } from "@/lib/presenceAudience.server";
-import { __resetPresence, markPresence } from "@/lib/presenceStore";
-import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { __resetPresence, markPresence, recentPresence } from "@/lib/presenceStore";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile, renameMemoryOwnedProfile } from "@/lib/profileStore";
 import { clearSocialMemoryBlocks, setSocialMemoryBlock } from "@/lib/socialBlockMemory";
 
 const VENUE = "venue-1vle947";
@@ -62,6 +70,46 @@ afterEach(() => {
   __resetMemoryFollows();
   __resetMemoryProfiles();
   clearSocialMemoryBlocks();
+});
+
+describe("POST /api/presence identity", () => {
+  async function checkIn(handle: string, venueId: string, ip: string, authenticated = true): Promise<void> {
+    const response = await POST(new Request("http://localhost/api/presence", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": ip, ...(authenticated ? { authorization: "Bearer fixture-me" } : {}) },
+      body: JSON.stringify({ handle, venueId }),
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true });
+  }
+
+  it("moves an owner between pubs after a network change", async () => {
+    await checkIn(ME, VENUE, "192.0.2.1");
+    await checkIn(ME, "venue-second", "198.51.100.1");
+    expect((await recentPresence()).map(({ handle, venueId }) => ({ handle, venueId })))
+      .toEqual([{ handle: ME, venueId: "venue-second" }]);
+    expect(await recentPresence(VENUE)).toEqual([]);
+  });
+
+  it("keeps the account identity after a handle and network change", async () => {
+    await checkIn(ME, VENUE, "192.0.2.1");
+    renameMemoryOwnedProfile(me.id, "user-me", "presence_renamed_p0");
+    await checkIn("presence_renamed_p0", "venue-second", "198.51.100.1");
+    expect((await recentPresence()).map(({ handle, venueId }) => ({ handle, venueId })))
+      .toEqual([{ handle: "presence_renamed_p0", venueId: "venue-second" }]);
+  });
+
+  it("replaces a legacy network-derived mark on the first new check-in", async () => {
+    await markPresence({ handle: ME, venueId: VENUE, actorHash: "legacy-network-hash" });
+    await checkIn(ME, "venue-second", "198.51.100.1");
+    expect((await recentPresence()).map((row) => row.venueId)).toEqual(["venue-second"]);
+  });
+
+  it("moves an unlinked demo handle after a network change", async () => {
+    await checkIn("demo_presence_p0", VENUE, "192.0.2.1", false);
+    await checkIn("demo_presence_p0", "venue-second", "198.51.100.1", false);
+    expect((await recentPresence()).map((row) => row.venueId)).toEqual(["venue-second"]);
+  });
 });
 
 describe("GET /api/presence", () => {

@@ -28,6 +28,12 @@ import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
 let clientPromise: Promise<SupabaseClient | null> | undefined;
 let cached: SupabaseClient | null | undefined;
+// Resolves with the first client any caller builds. Work that only a signed-in
+// reader has waits on it instead of loading supabase-js itself.
+let announceClient: (client: SupabaseClient) => void = () => {};
+const clientBuilt = new Promise<SupabaseClient>((resolve) => {
+  announceClient = resolve;
+});
 
 type NativeInstallation = { auth: SupabaseClient["auth"]; session: Session; current: () => boolean; settled: boolean };
 let nativeInstallation: NativeInstallation | null = null;
@@ -84,6 +90,10 @@ export async function installNativeSession(
   }
 }
 
+function browserSessionStorageKey(url: string): string {
+  return `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;
+}
+
 function buildBrowserClient(): Promise<SupabaseClient | null> {
   return (async () => {
     const config = resolveSupabaseConfig(
@@ -97,7 +107,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     if (!config) return null;
 
     const { createClient } = await (modulePromise ??= import("@supabase/supabase-js"));
-    const storageKey = `sb-${new URL(config.url).hostname.split(".")[0]}-auth-token`;
+    const storageKey = browserSessionStorageKey(config.url);
     let storage: Storage | null = null;
     try {
       const candidate = window.localStorage;
@@ -151,6 +161,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
         flowType: "implicit",
       },
     });
+    announceClient(cached);
     return cached;
   })();
 }
@@ -182,16 +193,63 @@ export function ensureSupabaseBrowser(): Promise<SupabaseClient | null> {
 }
 
 /**
- * Best-effort SYNChronous accessor for consumers that return synchronously (the
- * realtime subscribe helpers). Returns the client once it has loaded, else null
- * while kicking off the lazy load in the background. A null here simply means the
- * caller degrades to its existing poll fallback until the client warms.
+ * Best-effort synchronous accessor for realtime subscribe helpers.
+ * Returns the loaded client or null while the caller uses its poll fallback.
+ * Loading follows ensureSupabaseBrowserForSession, so a passive read cannot
+ * bypass the auth loading gate in lib/authClientTurn.ts.
  */
 export function getSupabaseBrowser(): SupabaseClient | null {
   if (typeof window === "undefined") return null;
   if (cached !== undefined) return cached;
-  void ensureSupabaseBrowser();
+  void ensureSupabaseBrowserForSession();
   return null;
+}
+
+function windowLocalStorage(): Pick<Storage, "getItem"> | null {
+  try {
+    return window.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** True before any client starts when no session key is readable. This does not prove sign-out. */
+function signedOutBeforeClient(): boolean {
+  return cached === undefined && !clientPromise && !hasStoredBrowserSession(windowLocalStorage());
+}
+
+/**
+ * The browser client for work that only a signed-in reader has, such as a
+ * private realtime channel. With a stored session it loads the client like
+ * ensureSupabaseBrowser. With none it does not load supabase-js: it resolves
+ * when another caller builds the client, so a later sign-in still reaches
+ * the caller. lib/authClientTurn.ts owns AuthProvider's loading conditions.
+ */
+export function ensureSupabaseBrowserForSession(): Promise<SupabaseClient | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  return signedOutBeforeClient() ? clientBuilt : ensureSupabaseBrowser();
+}
+
+/**
+ * True when the configured project's Supabase session key is present.
+ * Missing or unreadable storage returns false without loading supabase-js.
+ */
+export function hasStoredBrowserSession(storage: Pick<Storage, "getItem"> | null): boolean {
+  const config = resolveSupabaseConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    {
+      expectedKeyRole: "publishable",
+      allowUnknownKeyRole: process.env.NODE_ENV !== "production",
+    },
+  );
+  if (!config) return false;
+  if (!storage) return false;
+  try {
+    return storage.getItem(browserSessionStorageKey(config.url)) !== null;
+  } catch {
+    return false;
+  }
 }
 
 /** True when the public Supabase env is present (browser sign-in can be shown). */
@@ -217,6 +275,8 @@ export function isAuthConfigured(): boolean {
  * an anonymous request or requires a retry or refusal.
  */
 export async function getAccessToken(): Promise<string | null> {
+  // A token lookup must not start the client without a readable session key.
+  if (typeof window !== "undefined" && signedOutBeforeClient()) return null;
   const accountSignal = readProviderAccountSignal();
   const supabase = await ensureSupabaseBrowser();
   if (!supabase) return null;

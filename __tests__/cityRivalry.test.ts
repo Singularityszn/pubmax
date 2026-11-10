@@ -9,7 +9,7 @@ import {
   rivalryScore,
 } from "@/lib/cityRivalry";
 import { listEnabledCities } from "@/lib/cities";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import { defined } from "@/__tests__/helpers/defined";
 

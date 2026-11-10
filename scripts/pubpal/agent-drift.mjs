@@ -2,8 +2,9 @@
 //
 // `npm run pubpal:agent -- --check` reads the live agent and its tools, builds
 // the PATCH a run would send to that agent, and lists every field where the
-// two differ. It compares only what a re-run writes, so a drift it names is
-// one a re-run fixes. Nothing here calls the network or prints a secret.
+// two differ. Branch checks omit agent-wide settings. A branch update still
+// obeys Main's tool protection (branch-tools.mjs), so protected drift can stop
+// the update. Nothing here calls the network or prints a secret.
 
 import { resolveExistingTools } from "./existing-tools.mjs";
 
@@ -53,8 +54,10 @@ function promptDrift(wantedPrompt, livePrompt) {
   ];
 }
 
-function toolDrift(name, wantedTool, liveTool, secretId) {
-  if (!liveTool) return [{ path: `tools.${name}`, wanted: "a workspace webhook tool", live: "missing" }];
+export function toolDrift(name, wantedTool, liveTool, secretId) {
+  if (!liveTool) return [{ path: `tools.${name}`, wanted: `a workspace ${wantedTool.type} tool`, live: "missing" }];
+  // A client tool runs in the browser: it has no endpoint and no secret.
+  if (!wantedTool.api_schema) return subsetDrift(wantedTool, liveTool.tool_config, `tools.${name}`);
   const { request_headers: wantedHeaders, ...wantedSchema } = wantedTool.api_schema;
   void wantedHeaders;
   const found = subsetDrift(
@@ -79,7 +82,7 @@ function toolDrift(name, wantedTool, liveTool, secretId) {
  * @param {object} input.liveAgent The agent as GET /v1/convai/agents/{id} returns it.
  * @param {object[]} input.liveTools The workspace tools as GET /v1/convai/tools lists them.
  * @param {object} input.wantedAgent The PATCH the provisioner would send to this live agent.
- * @param {Record<string, object>} input.wantedTools The desired webhook tool config by name.
+ * @param {Record<string, object>} input.wantedTools The desired webhook and client tool configs by name.
  * @param {{name: string, id: string | null}} input.secret The workspace secret the tools' header must name, and its id, or null when it does not exist.
  * @returns {{path: string, wanted: unknown, live: unknown}[]}
  */

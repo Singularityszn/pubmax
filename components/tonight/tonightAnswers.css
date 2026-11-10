@@ -89,11 +89,17 @@
   color: var(--color-text-muted);
 }
 
-/* A source and its read date wrap as one, so a date never starts a line. */
+/* Keep the separator and read date together when large text moves them below
+   the source. */
 .tonightAnswerSourceDate {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   column-gap: var(--space-1);
+}
+
+.tonightAnswerReadDate {
+  white-space: nowrap;
 }
 
 /* The Last train card's one action is the shared secondary Button

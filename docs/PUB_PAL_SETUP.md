@@ -33,9 +33,9 @@ Map Ask uses OpenRouter when its key is set, or the keyless tools otherwise.
 A failed Claude request does not switch to another paid provider.
 Map Ask retains completed tool results or uses its keyless fallback. Typed chat returns its existing failure response.
 
-Nothing here changes what the Pal may SAY. Text and voice run the same
-source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
-(ADR 0006).
+Text and voice share the source-backed server tool registry.
+Voice also has browser map tools, described under [Creating the agent](#creating-the-agent).
+[ADR 0014, decision 3](adr/0014-night-os-ask-agent.md#decision) owns action confirmation, including the live voice exception for view moves.
 
 ---
 
@@ -171,8 +171,10 @@ tunnel test). It is idempotent: with `ELEVENLABS_PUB_PAL_AGENT_ID` set it
 patches that agent, and without one it looks for an agent named
 `PUBMAXX Pub Pal` before creating a new one. Re-running never leaves two.
 
-It reads `scripts/pubpal/pub-pal-agent-config.json` (model, tool allowlist)
-and PATCHes the agent plus workspace webhook tools. Each tool calls
+It reads `scripts/pubpal/pub-pal-agent-config.json` (model, server tool allowlist)
+and registers the browser tools from [`lib/palMapClientTools.mjs`](../lib/palMapClientTools.mjs).
+Without `--branch-id`, it PATCHes the agent and its workspace tools.
+Each webhook calls
 `<base-url>/api/pub-pal/tools/{name}` with `ELEVENLABS_LLM_SHARED_SECRET`
 (stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`), waits up to
 28 seconds for a response (`response_timeout_secs` in the script; the route
@@ -182,16 +184,24 @@ agent that already exists. The captain re-runs
 `npm run pubpal:agent -- --base-url https://pubmaxxing.com` after those
 changes. Do not run that command from an agent session.
 
+The map tools run in the voice browser through `client_tool_call`.
+They set `expects_response: false` and `pre_tool_speech: "off"`, so the agent neither waits nor announces a tool check.
+[`lib/palMapClientToolCall.ts`](../lib/palMapClientToolCall.ts) owns pick and area validation.
+A refusal reaches the agent through a contextual update.
+These tools are absent from the typed server tool catalog.
+The ElevenLabs typed fallback still uses the shared agent.
+If it receives a client tool call, it returns an error that asks the agent to answer in words.
+
 Update and `--check` resolve each tool by the same identity rule. The script
 first reads the existing agent and its attached tool IDs. It keeps the unique
-attached webhook for each name when `--base-url` changes, including moves to
-a tunnel and back to production. Update writes the requested endpoint to that
-same tool ID. Check reports a different URL as drift without writing.
+attached tool for each name. Without `--branch-id`, an update writes a changed
+webhook endpoint to that same tool ID. Check reports a different URL as drift without writing.
 Same-name workspace duplicates cannot replace that attachment.
 
 Without an attached match, the script reuses one compatible workspace webhook.
 Its URL must exactly match `<base-url>/api/pub-pal/tools/{name}`.
-If none exists, update creates a webhook and check reports it as missing.
+Without an attached client tool, update creates one. It never reuses an unattached same-name client tool.
+If no compatible tool exists, update creates one and check reports it as missing.
 Multiple attached matches or multiple compatible workspace matches cause a
 refusal. An incompatible attached type, an unknown attached ID, or an incomplete
 workspace tool list also causes a refusal. Update resolves all identities before
@@ -200,6 +210,22 @@ normal update and drift check.
 
 The [tool identity CLI proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/2026-10-08-pubpal-tool-identity/README.md)
 records the regression fixture, captured results, and proof limits.
+
+For branch proof, use an existing non-Main branch ID after the captain authorises the provider operation.
+The update refuses Main or a branch whose returned identity differs from the requested ID.
+
+```bash
+npm run pubpal:agent -- --branch-id BRANCH_ID --base-url https://your-test-tunnel.example
+npm run pubpal:agent -- --check --branch-id BRANCH_ID --base-url https://your-test-tunnel.example
+```
+
+A branch update preserves Main's attached tools and the workspace secret.
+A Main webhook with a different requested URL gets a new tool ID for the branch.
+If its URL is unchanged, other drift in a Main-attached tool stops the update before any write.
+Tools absent from Main can be updated in place. Their IDs can still be shared with other branches.
+The agent name and `platform_settings`, including auth and privacy, are agent-wide.
+A branch update neither sends nor checks those fields.
+These commands configure and check a branch. They do not select a branch for the app's signed session URL.
 
 ElevenLabs typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.
 The server opens its WebSocket. Voice opens a browser WebSocket from the signed URL.
@@ -238,8 +264,16 @@ Voice uses the same opening builder in its first-message override.
    as the answer. `npm run pubpal:agent -- --check` reports whether the live
    agent matches this config.
    Voice also needs `agent_tool_response_full_payload` to show the actual
-   returned pub cards, their fitted map and memory-confirmation cards. The
-   browser uses the tool result, never pub names or prices parsed from speech.
+   returned pub cards, their fitted map and memory-confirmation cards.
+   The browser uses the tool result for pub identities, coordinates and prices.
+   `onAudioAlignmentPlayback` supplies character timing when each audio chunk starts and skips interrupted chunks.
+   `lib/palPickSpeech.ts` matches that played text against existing pick names, without creating new picks or price facts.
+   The [Pub Pal feature guide](../README.md#features) owns the visible pick and price-card behaviour.
+   For `search_venues` and `cheapest_pint_near`, the webhook forwards `result.data`.
+   Returned pub coordinates use `venues` records with `id`, `lat` and `lng`.
+   This includes the named-pub opening-hours variant of `search_venues`, even when current hours are unknown.
+   Main-map picks use those coordinates without waiting for a separate browser venue index.
+   `lib/palVoiceToolAnswer.ts` joins the coordinates to returned cards by venue ID.
    Requests for one to six pubs pass a result count to `search_venues`.
    An upper pint-price limit filters eligible records before ranking.
    The script also sets how the agent hears a person in a pub. Turn-taking is
@@ -312,6 +346,7 @@ Voice uses the same opening builder in its first-message override.
    call tools before any fact, never invent a price, propose then confirm,
    plain speech on get-home topics. A prompt change reaches the live agent only
    when the captain re-runs `npm run pubpal:agent`.
+   [`lib/palVoicePrompt.mjs`](../lib/palVoicePrompt.mjs) owns the voice-only short-answer and map-tool rules.
 5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
    conversation starts only from a signed URL the app issued, after sign-in,
    the voice cap and the spend ceiling. The agent id alone is refused.
@@ -388,10 +423,25 @@ can be retried. Repeated taps while voice starts use the same attempt.
 
 ### Voice interruptions
 
-A connected call ends when you lock the screen, hide the browser tab, leave the
-page, or put the native app in the background. If the page stays open, it keeps
-the transcript and offers **Carry on** when you return. This button starts a new
-call. Returning does not restart the microphone automatically.
+Client navigation between `/pal` and `/map`, including `/map/` subroutes, keeps
+the same call and socket open. `PalVoiceHost` holds the session in the root
+shell. On the map, `PalVoiceBar` shows the call status and newest transcript line.
+**End** stops a live call. **Cancel** stops a pending startup attempt,
+and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
+without starting another call. A cold `/map` loads no ElevenLabs SDK.
+
+A connected call ends when you navigate outside these routes, reload or close
+the page, lock the screen, hide the browser tab, or background the native app.
+Muting or deleting the Pal, signing out, or switching accounts also ends the call.
+Ending a call releases its voice grant and clears its main-map picks and grounding.
+It also clears the last voice camera request and cancels pending voice navigation.
+The agent script requests a 20-second silence timeout as a provider backstop.
+The 180-second call cap remains. These settings reach an existing agent only after the captain runs the configuration command.
+
+If a background interruption leaves the session mounted, it keeps the transcript
+and offers **Carry on** when you return. On the map, **Close voice chat** dismisses
+the stopped bar. **Carry on** starts a new call. Returning does not restart the
+microphone automatically.
 
 The first microphone permission prompt does not cancel startup while the native
 app remains in the foreground. A hidden page or native background transition
@@ -399,9 +449,20 @@ cancels the startup attempt while microphone permission is pending. If permissio
 then arrives, the app stops the returned stream without requesting a voice grant.
 
 The pinned ElevenLabs SDK cannot cancel startup once its connection is in
-progress. Its microphone and audio output can remain active until startup
-finishes. The app then closes the late session.
-This limit also applies if you lock the screen during SDK startup.
+progress. The app keeps a microphone guard installed for the life of the page.
+Each SDK microphone request uses the startup token that is current when the
+request begins. Cancelling that token stops its held streams at once.
+The guard refuses requests with a cancelled token. It also stops streams that
+resolve after cancellation or while the page is hidden. SDK status changes do
+not remove this guard. The app's own permission probe bypasses the guard.
+
+If you start again, the app waits until the previous SDK startup reports
+connected or disconnected. The startup timeout also limits this wait.
+If an attempt claims its token but stops before the SDK starts, the app marks
+that startup as finished. Later attempts do not wait for an SDK status change
+from that attempt.
+A new SDK startup becomes the current token. The SDK can still finish an old
+connection. The app then closes the late session.
 
 `components/pubpal/usePageLeft.ts` detects document hiding, `pagehide`, and native
 `pause`. It ignores native foreground inactivity, which can include permission

@@ -379,23 +379,9 @@ keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
 the shard matrix and project lists. Each Chromium shard builds one server.
 `Full browser suite (WebGL and keyless)` builds both the normal and keyless
 servers. These jobs use the worker limit defined above.
-Scheduled runs and manual dispatches skip the layout-pin jobs because the full
-suite covers those specs on the same commit.
-
-The full suite runs only on the nightly schedule and on a manual dispatch,
-never on a pull request or a push to `main`. The schedule is set for 20:17 UTC.
-From 29 Oct to 7 Nov 2026, GitHub started the old 03:17 UTC schedule between
-09:40 and 11:11 UTC, about six to eight hours late. The full-suite jobs then
-held the `pubmax-mac` pool in the working day while pull requests waited. With the same
-delay, a 20:17 schedule starts in the early morning. GitHub does not promise a
-start time, so a late run can still land in the day.
-
-When either scheduled full-suite job fails or is cancelled, the
-`nightly-failure-issue` job reports the result. This includes timeout cancellations.
-The job comments on an open issue with the exact title "Nightly full browser suite failed".
-If no open issue has that exact title, the job creates one.
-The job uses the run's own `GITHUB_TOKEN` and needs no configured secret.
-Close the issue when the nightly is green again.
+A dispatch skips the layout-pin jobs to avoid duplicate runs on the Mac pool.
+[The nightly full suite](#the-nightly-full-suite) owns dispatch timing and
+quarantine exclusions.
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite, manual dispatches and merge queue runs never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
@@ -412,6 +398,51 @@ after all three shards: it merges the blobs with
 `npx vitest --merge-reports=blob-reports --coverage` and enforces the
 thresholds in `vitest.config.mts` over the whole suite. So CI runs the unit
 suite once, not once in the shards and again for coverage.
+
+### The nightly full suite
+
+The full suite runs only on a dispatch, never on a pull request or a push to
+`main`. It has no `schedule`. GitHub started the old 03:17 UTC schedule six to
+eight hours late (29 Oct to 7 Nov 2026), and the 20:17 UTC schedule at 23:38
+and 23:43 UTC (7 and 8 Nov 2026), while pull requests still came in. A pull
+request waited p50 79 minutes for a Mac place while the full suite ran,
+against 27 minutes when it did not (6 to 9 Nov 2026).
+
+A launchd agent on the Mac Studio starts the nightly at 05:00 Mac local time
+(Europe/London: 05:00 UTC in winter, 04:00 UTC in summer). It runs
+`gh workflow run e2e.yml --repo Singularityszn/pubmax --ref main` with the
+Studio's `gh` login, and logs to `~/Library/Logs/pubmax-nightly-browser-suite.log`.
+launchd runs a missed time after the Mac wakes, so the agent dispatches nothing
+at or after 07:00 UTC. Install it, or reinstall it after a change to the file:
+
+```sh
+cp scripts/ci/com.pubmax.nightly-browser-suite.plist ~/Library/LaunchAgents/
+launchctl bootout "gui/$(id -u)/com.pubmax.nightly-browser-suite" 2>/dev/null
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.pubmax.nightly-browser-suite.plist
+```
+
+`launchctl kickstart "gui/$(id -u)/com.pubmax.nightly-browser-suite"` runs it
+once now. Before 07:00 UTC that dispatches a full run.
+
+When a full-suite job of a dispatch on `main` fails or is cancelled, the
+`nightly-failure-issue` job reports the result. This includes timeout cancellations.
+A dispatch on any other branch is a check of that branch and reports nothing.
+The job comments on an open issue with the exact title "Nightly full browser suite failed".
+If no open issue has that exact title, the job creates one.
+The job uses the run's own `GITHUB_TOKEN` and needs no configured secret.
+Close the issue when the nightly is green again.
+
+`e2e/full-suite-quarantine.txt` lists the known-red tests that both full-suite
+jobs exclude with `--test-list-invert`. Each block needs a comment with a
+`Singularityszn/pubmax` tracking issue link. A blank line ends the block.
+`npm run gate:e2e-skips` rejects a test line without that link or an existing spec.
+Delete the lines in the same pull request that fixes the test, then close the issue.
+The law-pin and layout-pin jobs do not read the list. When eligible, these jobs
+still run every test they name.
+
+A failure outside the list makes the nightly red. The screenshot failure in
+[#2630](https://github.com/Singularityszn/pubmax/issues/2630) can affect a different
+test each night, so the quarantine cannot guarantee a green run.
 
 ### The freshness gate
 
@@ -538,7 +569,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
 | Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | follows the [layout-job schedule](#the-required-checks-and-the-merge-queue) and layout scope above |
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
-| Browser tests / nightly failure report | not run on pull requests (schedule only) | same | same |
+| Browser tests / nightly failure report | not run on pull requests (nightly dispatch on `main` only) | same | same |
 | Browser tests / Browser tests check (required) | runs | runs | runs |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | RLS session tests / RLS session check (required) | runs | runs | runs |

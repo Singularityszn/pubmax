@@ -4,6 +4,12 @@ import { join, relative, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import mapIconSprite from "@/components/map/canvas/mapIconSprite.json";
+import { resolveOpeningGround, type MapOpeningSnapshotMeta } from "@/lib/mapOpeningSnapshot";
+import mapOpeningSnapshot from "@/lib/mapOpeningSnapshot.json";
+import { MAPLIBRE_VERSION } from "@/lib/maplibreVendor.mjs";
+import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
+
 const REPO_ROOT = join(__dirname, "..");
 const PUBLIC_DIR = join(REPO_ROOT, "public");
 
@@ -11,8 +17,13 @@ const EDITED_IN_PLACE_CACHE =
   "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
 const SHORT_EDGE_CACHE = "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 const REVALIDATE_CACHE = "public, max-age=0, must-revalidate";
+const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
 
-type HeaderRule = { source: string; headers: Array<{ key: string; value: string }> };
+type HeaderRule = {
+  source: string;
+  headers: Array<{ key: string; value: string }>;
+  has?: Array<{ type: string; key: string; value?: string }>;
+};
 
 function configHeaders(): HeaderRule[] {
   const out = execFileSync(
@@ -44,10 +55,15 @@ function matches(source: string, pathname: string): boolean {
   return new RegExp(`^${pattern}$`).test(pathname);
 }
 
-function cacheControlFor(pathname: string): string | null {
+function cacheControlFor(url: string): string | null {
+  const { pathname, searchParams } = new URL(url, "https://pubmaxxing.com");
   let winner: string | null = null;
   for (const rule of rules) {
     if (!matches(rule.source, pathname)) continue;
+    const conditionsHold = (rule.has ?? []).every(
+      (condition) => condition.type === "query" && searchParams.get(condition.key),
+    );
+    if (!conditionsHold) continue;
     const header = rule.headers.find(
       (candidate) => candidate.key.toLowerCase() === "cache-control",
     );
@@ -85,8 +101,12 @@ const FIXED_ASSETS = filesOutsideData.filter((file) =>
   (file.startsWith("/landing/") && LANDING_IMAGE_PATTERN.test(file)),
 );
 
+const VERSIONED_MAPLIBRE_DIR = /^\/vendor\/maplibre\/\d+\.\d+\.\d+[^/]*\//;
+const CONTENT_NAMED_ASSETS = filesOutsideData.filter((file) => VERSIONED_MAPLIBRE_DIR.test(file));
+
 const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
   (file) =>
+    !CONTENT_NAMED_ASSETS.includes(file) && (
     (file.startsWith("/landing/") && !LANDING_IMAGE_PATTERN.test(file)) ||
     file.startsWith("/vendor/") ||
     file.startsWith("/store-assets/") ||
@@ -98,7 +118,7 @@ const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
       "/theme-init.js",
       "/map-first-paint-init.js",
       "/manifest.webmanifest",
-    ].includes(file),
+    ].includes(file)),
 );
 
 const REVALIDATING_METADATA = [
@@ -112,11 +132,6 @@ const REVALIDATING_METADATA = [
 const WORKERS = ["/sw.js", "/sw-plan-cache.js", "/offline.html"];
 
 const BUILD_WRITTEN_FIXED_URLS = [
-  {
-    prefix: "/vendor/maplibre/",
-    probe: "/vendor/maplibre/maplibre-gl-worker.mjs",
-    reason: "npm run build overwrites fixed MapLibre worker module URLs",
-  },
   {
     prefix: "/vendor/elevenlabs/",
     probe: "/vendor/elevenlabs/raw-audio-processor.js",
@@ -161,8 +176,36 @@ describe("public asset caching", () => {
     for (const file of WORKERS) expect(cacheControlFor(file), file).toBe(REVALIDATE_CACHE);
   });
 
+  it("keeps a URL that names its own content for a year", () => {
+    expect(MAPLIBRE_WORKER_URL).toBe(`/vendor/maplibre/${MAPLIBRE_VERSION}/maplibre-gl-worker.mjs`);
+    const atlasUrls = JSON.stringify(mapIconSprite).match(/\/map-icons\/[^"]+\?v=[0-9a-f]+/g) ?? [];
+    expect(atlasUrls.length).toBeGreaterThan(0);
+    const meta: MapOpeningSnapshotMeta = {
+      ...mapOpeningSnapshot,
+      camera: {
+        ...mapOpeningSnapshot.camera,
+        center: [mapOpeningSnapshot.camera.center[0]!, mapOpeningSnapshot.camera.center[1]!],
+      },
+    };
+    const ground = resolveOpeningGround(meta, meta.camera);
+    const openingUrls = ground ? [ground.light, ground.dark] : [];
+    expect(openingUrls).toHaveLength(2);
+    for (const url of [MAPLIBRE_WORKER_URL, ...CONTENT_NAMED_ASSETS, ...atlasUrls, ...openingUrls]) {
+      expect(cacheControlFor(url), url).toBe(IMMUTABLE_CACHE);
+    }
+    for (const url of [
+      "/vendor/maplibre/maplibre-gl-worker.mjs",
+      "/map-icons/dark.png",
+      "/landing/map-opening/london-dark.webp",
+      "/landing/hero-thames-1600.avif?v=1",
+    ]) {
+      expect(cacheControlFor(url), url).toBe(EDITED_IN_PLACE_CACHE);
+    }
+  });
+
   it("never marks a fixed-URL public asset immutable", () => {
-    for (const file of [...publicFiles, "/data/venues_slim.json"]) {
+    const fixedUrlFiles = publicFiles.filter((file) => !CONTENT_NAMED_ASSETS.includes(file));
+    for (const file of [...fixedUrlFiles, "/data/venues_slim.json"]) {
       expect(cacheControlFor(file) ?? "", file).not.toContain("immutable");
     }
   });
@@ -193,6 +236,7 @@ describe("public asset caching", () => {
 
   it("classifies every shipped public file outside data", () => {
     const classes = [
+      CONTENT_NAMED_ASSETS,
       FIXED_ASSETS,
       EDITED_IN_PLACE_ASSETS,
       REVALIDATING_METADATA,

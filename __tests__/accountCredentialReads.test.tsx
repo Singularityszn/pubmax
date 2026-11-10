@@ -22,16 +22,18 @@ import MatesPricesLine from "@/components/map/MatesPricesLine";
 import { useDrinkerRegularNights } from "@/components/tonight/useTonightAnswerReads";
 import { readProviderAccountRevision, setProviderIdentity } from "@/lib/authProviderRevision";
 import { publishAuthActionState } from "@/lib/authedFetch";
+import { ensureSupabaseBrowser } from "@/lib/authClient";
 
 let host: HTMLDivElement;
 let root: Root;
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
   getSession.mockReset();
+  await ensureSupabaseBrowser();
   viewer.signedIn = true;
   viewer.identityResolved = true;
   setProviderIdentity("clerk", null);

@@ -1,3 +1,5 @@
+export type CameraIntentOwner = "pal" | "user" | "automatic";
+
 export type CameraIntentKind =
   | "arrival"
   | "city"
@@ -10,7 +12,10 @@ export type CameraIntentKind =
   | "route-recovery"
   | "venue"
   | "landmark"
-  | "area";
+  | "area"
+  | "pal"
+  /** A view the person asked the voice Pal for: a numbered pick or an area. */
+  | "pal-ask";
 
 type CameraIntentCoordinatorOptions = {
   requestFrame: (callback: FrameRequestCallback) => number;

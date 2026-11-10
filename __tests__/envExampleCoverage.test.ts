@@ -27,6 +27,7 @@ const PLATFORM_OWNED: Record<string, string> = {
   NEXT_PHASE: "Next.js build phase marker",
   NEXT_DEPLOYMENT_ID: "Next.js deployment marker",
   NEXT_DIST_DIR: "Next.js build directory (npm scripts pass it)",
+  NEXT_PUBLIC_MAPLIBRE_VERSION: "next.config.mjs env, from the installed maplibre-gl package",
   // Set by the Vercel platform on a deployment.
   VERCEL_ENV: "Vercel platform",
   VERCEL_URL: "Vercel platform deployment hostname",

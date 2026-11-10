@@ -185,6 +185,23 @@
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
   }
 
+  /* The zoom column stands at the drawer's left edge (mapToolbar.css), level
+     with the status rail, and a long headline covered "Zoom out". The rail
+     docks under the column instead: MapLibre's own 10px control margin and
+     the 90px pair. The lane keeps its full width for the headline. */
+  .appShell.detail-open {
+    --city-status-desktop-floor: calc(
+      var(--map-zoom-column-top) + 100px + var(--map-chrome-gap)
+    );
+  }
+
+  /* The basemap retry notice is centred on the stage's foot, so the drawer
+     covered its right half and the Retry button with it. */
+  .appShell.detail-open .mapSoftRetry {
+    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+    max-width: min(360px, calc(100% - var(--desktop-venue-drawer-width) - 32px));
+  }
+
   /* The planner owns the mirrored left edge. Keep both ambient banners inside
      the remaining map lane using the same centre and width as the toolbar. */
   .appShell.planning-open .cityStatusStack,

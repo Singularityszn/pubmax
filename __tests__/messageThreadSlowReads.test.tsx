@@ -18,8 +18,12 @@ const viewer = vi.hoisted(() => ({
 }));
 const transport = vi.hoisted(() => ({
   reads: [] as Array<{ url: string; resolve: (response: Response) => void; reject: (error: Error) => void }>,
+  writes: [] as Array<{ resolve: (response: Response) => void; reject: (error: Error) => void }>,
 }));
-const realtime = vi.hoisted(() => ({ poll: null as (() => void) | null }));
+const realtime = vi.hoisted(() => ({
+  poll: null as (() => void) | null,
+  signal: null as (() => void) | null,
+}));
 
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => viewer.current }));
 vi.mock("@/components/auth/useViewerSession", () => ({
@@ -31,10 +35,12 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...props }, children),
 }));
 vi.mock("@/lib/messagesRealtime", () => ({
-  subscribeToMessages: (_id: string, _signal: () => void, options?: { poll?: () => void }) => {
+  subscribeToMessages: (_id: string, signal: () => void, options?: { poll?: () => void }) => {
     realtime.poll = options?.poll ?? null;
+    realtime.signal = signal;
     return () => {
       realtime.poll = null;
+      realtime.signal = null;
     };
   },
 }));
@@ -47,9 +53,10 @@ vi.mock("@/components/messages/MessagePhoto", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageVenueCard", () => ({ default: () => null }));
 vi.mock("@/lib/keyboardInset", () => ({ useKeyboardInset: () => 0 }));
 vi.mock("@/lib/authedFetch", () => ({
-  authedActionFetch: (input: string) =>
+  authedActionFetch: (input: string, init?: RequestInit) =>
     new Promise<Response>((resolve, reject) => {
-      transport.reads.push({ url: String(input), resolve, reject });
+      if (init?.method === "POST") transport.writes.push({ resolve, reject });
+      else transport.reads.push({ url: String(input), resolve, reject });
     }),
 }));
 
@@ -130,7 +137,9 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   viewer.current = { user: { id: "account-a" }, handle: "alice", accountRevision: 1 };
   transport.reads = [];
+  transport.writes = [];
   realtime.poll = null;
+  realtime.signal = null;
   window.localStorage.setItem("pubmax_handle", "alice");
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -260,4 +269,120 @@ it("leaves a cold failure at the top of the page, and still scrolls a loaded thr
   await answer(thread("Meet at seven"));
   expect(host.textContent).toContain("Meet at seven");
   expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
+});
+
+
+async function click(selector: string, scope: ParentNode = host): Promise<void> {
+  const button = scope.querySelector<HTMLButtonElement>(selector);
+  if (!button) throw new Error(`Missing control: ${selector}`);
+  await act(async () => button.click());
+}
+
+async function requestRemoval(kind: "unsend" | "delete" | "leave"): Promise<void> {
+  if (kind === "unsend") {
+    await click(".messageBubble");
+    await click(".messageUnsendBtn");
+  } else {
+    await click('[aria-label="Chat options"]');
+    const item = [...host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+      .find((button) => button.textContent?.includes(kind === "delete" ? "Delete chat" : "Leave group"));
+    if (!item) throw new Error("Missing removal menu item");
+    await act(async () => item.click());
+  }
+  const dialog = document.querySelector('[role="alertdialog"]');
+  if (!dialog) throw new Error("Missing confirmation");
+  const confirm = [...dialog.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent !== "Cancel");
+  if (!confirm) throw new Error("Missing confirm action");
+  await act(async () => confirm.click());
+}
+
+function removableThread(): Response {
+  return Response.json({
+    messages: [{ id: "own-message", conversationId: "conversation-a", senderHandle: "alice", body: "Take this back", createdAt: "2026-10-04T12:00:00Z", read: true, flagged: false }],
+    conversation: { kind: "group", members: ["alice", "bridget", "charlie"], title: "Friday" },
+  });
+}
+
+it.each(["unsend", "delete", "leave"] as const)("ignores a pre-%s read after the removal succeeds", async (kind) => {
+  await render();
+  await answer(removableThread());
+  await poll();
+  await requestRemoval(kind);
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ ok: true })));
+  await answer(removableThread());
+  expect(host.textContent).not.toContain("Take this back");
+  expect(host.textContent).toContain(kind === "unsend" ? "Message unsent" : kind === "delete" ? "Chat deleted" : "You've left");
+});
+
+it.each(["delete", "leave"] as const)("keeps the successful %s state through later refreshes", async (kind) => {
+  await render();
+  await answer(removableThread());
+  await requestRemoval(kind);
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ ok: true })));
+  await poll();
+  await act(async () => {
+    realtime.signal?.();
+    window.dispatchEvent(new Event("focus"));
+  });
+  await settle();
+  expect(transport.reads).toHaveLength(0);
+  expect(host.textContent).toContain(kind === "delete" ? "Chat deleted" : "You've left");
+  expect(host.querySelector("textarea")).toBeNull();
+});
+
+it("continues refreshing the thread after a successful unsend", async () => {
+  await render();
+  await answer(removableThread());
+  await requestRemoval("unsend");
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ ok: true })));
+  await poll();
+  await answer(thread("A later message"));
+  expect(host.textContent).toContain("A later message");
+  expect(host.querySelector("textarea")).not.toBeNull();
+});
+
+it.each([
+  ["delete", "thread"], ["delete", "account"],
+  ["leave", "thread"], ["leave", "account"],
+] as const)("resumes reads after %s when the %s changes", async (kind, change) => {
+  await render();
+  await answer(removableThread());
+  await requestRemoval(kind);
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ ok: true })));
+  if (change === "account") viewer.current = { user: { id: "account-b" }, handle: "bridget", accountRevision: 2 };
+  const id = change === "thread" ? "conversation-b" : "conversation-a";
+  await render(id);
+  await answer(thread("Current thread", id));
+  expect(host.textContent).toContain("Current thread");
+  expect(host.textContent).not.toContain(kind === "delete" ? "Chat deleted" : "You've left");
+});
+
+it.each(["thread", "account"] as const)("ignores old removal success after a %s change", async (change) => {
+  await render();
+  await answer(removableThread());
+  await requestRemoval("delete");
+  if (change === "account") viewer.current = { user: { id: "account-b" }, handle: "bridget", accountRevision: 2 };
+  await render(change === "thread" ? "conversation-b" : "conversation-a");
+  await answer(thread("Current thread", change === "thread" ? "conversation-b" : "conversation-a"));
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ deleted: true })));
+  expect(host.textContent).toContain("Current thread");
+  expect(host.textContent).not.toContain("Chat deleted");
+  expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+});
+
+it.each(["refusal", "network"] as const)("ignores an old removal %s while the next thread awaits removal", async (failure) => {
+  await render();
+  await answer(removableThread());
+  await requestRemoval("delete");
+  const old = transport.writes.shift()!;
+  await render("conversation-b");
+  await answer(thread("Current thread", "conversation-b"));
+  await requestRemoval("delete");
+  await act(async () => {
+    if (failure === "refusal") old.resolve(Response.json({ error: "Old removal failed" }, { status: 503 }));
+    else old.reject(new Error("offline"));
+  });
+  expect(document.querySelector('[role="alertdialog"]')?.textContent).not.toContain("Old removal failed");
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')];
+  expect(buttons.every((button) => button.disabled)).toBe(true);
 });

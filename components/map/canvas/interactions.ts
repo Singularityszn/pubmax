@@ -11,6 +11,7 @@ import { opportunityForFeature } from "./filters";
 import { pubHitOf } from "./pubHitPriority";
 import { recordPubHitClick } from "./pubHitTrace";
 import type { HoveredVenue } from "./types";
+import type { useMapCamera } from "./useMapCamera";
 
 type ActivePoi = { name: string; category: PoiCategory };
 
@@ -34,7 +35,7 @@ type ClickDeps = {
   onTonightOpportunityClickRef: MutableRefObject<((op: ThingsToDoOpportunity) => void) | undefined>;
   cityLandmarksRef: MutableRefObject<Landmark[]>;
   tonightOpportunitiesRef: MutableRefObject<ThingsToDoOpportunity[]>;
-  cinematic: (options: maplibregl.EaseToOptions, kind?: "cluster" | "venue" | "landmark") => void;
+  cinematic: ReturnType<typeof useMapCamera>["cinematic"];
 };
 
 export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
@@ -96,7 +97,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       if (clusterId == null || !source) return;
       source.getClusterExpansionZoom(clusterId).then((zoom) => {
         const center = lngLatOf((clusterHit.geometry as GeoJSON.Point).coordinates);
-        if (center) cinematic({ center, zoom, duration: 700 }, "cluster");
+        if (center) cinematic({ center, zoom, duration: 700 }, "cluster", "user");
       });
       return;
     }
@@ -159,7 +160,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
         zoom: Math.max(map.getZoom(), 13),
         pitch: 55,
         duration: 1100,
-      }, "landmark");
+      }, "landmark", "user");
       return;
     }
 

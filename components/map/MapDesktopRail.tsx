@@ -1,5 +1,6 @@
 "use client";
 
+import "./mapDesktopRail.css";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import DesktopRail from "@/components/desktop/DesktopRail";
 

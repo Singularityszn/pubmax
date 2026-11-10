@@ -13,6 +13,8 @@ import {
   type SocialPost,
   type SocialPostDTO,
   type SocialPostFields,
+  type SocialPostModerationState,
+  type SocialPostStatus,
 } from "@/lib/socialPosts";
 import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
@@ -1404,8 +1406,8 @@ export const supabaseSocialPostStore: SocialPostStore = {
           state?: string;
           created_at?: string;
           social_posts?:
-            | { moderation_state?: string; status?: string; created_at?: string }
-            | Array<{ moderation_state?: string; status?: string; created_at?: string }>;
+            | { moderation_state?: SocialPostModerationState; status?: SocialPostStatus; created_at?: string }
+            | Array<{ moderation_state?: SocialPostModerationState; status?: SocialPostStatus; created_at?: string }>;
         };
         const post = Array.isArray(row.social_posts) ? row.social_posts[0] : row.social_posts;
         if (!post || post.status !== "visible" || post.moderation_state !== "pending") continue;

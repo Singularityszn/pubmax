@@ -30,6 +30,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
   const result = await planStore().updatePresence(id, memberToken, body.status);
   if (!result.ok) {
+    if (result.error === "closed") return publicApiError("This Plan has ended.", "PLAN_CLOSED", 409, { retryable: false });
     const status = result.error === "invalid" ? 400 : result.error === "not_found" ? 404 : result.error === "forbidden" ? 403 : 503;
     const error = result.error === "forbidden" ? "That member token isn't valid." : result.error === "invalid" ? "Choose a valid crew status." : result.error === "not_found" ? "That Plan doesn't exist." : "Could not update presence.";
     return publicApiError(error, result.error === "error" ? "PLAN_PRESENCE_UNAVAILABLE" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "forbidden" ? "PLAN_PRESENCE_FORBIDDEN" : "PLAN_PRESENCE_INVALID", status, { retryable: result.error === "error" });

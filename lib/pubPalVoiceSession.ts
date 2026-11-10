@@ -31,7 +31,7 @@ type VoiceProbeStream = {
 type VoiceStartAttempt<TGrant> = {
   requestMicrophone: () => Promise<VoiceProbeStream>;
   issueGrant: () => Promise<TGrant>;
-  connect: (grant: TGrant) => void;
+  connect: (grant: TGrant) => void | Promise<void>;
   onFailure?: (message: string) => void;
   onCancelled?: () => void;
 };
@@ -57,14 +57,90 @@ function voiceStartErrorMessage(error: unknown): string {
   return PAL_VOICE_START_ERROR;
 }
 
-function stopProbe(stream: VoiceProbeStream): void {
+function stopTracks(stream: VoiceProbeStream): void {
   for (const track of stream.getTracks()) {
     try {
       track.stop();
     } catch {
-      // Best effort. Permission is already resolved and the SDK opens its own stream.
+      // Best effort: one failed stop must not keep the other tracks open.
     }
   }
+}
+
+export type PalVoiceMicrophoneHold = {
+  begin: () => Promise<void>;
+  reportStartupFinished: () => void;
+  release: () => void;
+};
+
+type MicrophoneStartup = {
+  cancelled: boolean;
+  streams: Set<VoiceProbeStream>;
+  pending: boolean;
+  finished: Promise<void>;
+};
+
+let currentMicrophoneStartup: MicrophoneStartup | null = null;
+let installedMicrophone: {
+  mediaDevices: MediaDevices;
+  original: MediaDevices["getUserMedia"];
+} | null = null;
+
+function startupCancelled(): DOMException {
+  return new DOMException("Voice startup was cancelled.", "AbortError");
+}
+
+function installPalVoiceMicrophone() {
+  const mediaDevices = navigator.mediaDevices;
+  if (installedMicrophone?.mediaDevices === mediaDevices) return installedMicrophone;
+  const original = mediaDevices.getUserMedia;
+  installedMicrophone = { mediaDevices, original };
+  currentMicrophoneStartup = null;
+  mediaDevices.getUserMedia = async (constraints) => {
+    const startup = currentMicrophoneStartup;
+    if (startup?.cancelled) throw startupCancelled();
+    const stream = await original.call(mediaDevices, constraints);
+    if (startup?.cancelled || document.visibilityState === "hidden") {
+      stopTracks(stream);
+      throw startupCancelled();
+    }
+    startup?.streams.add(stream);
+    return stream;
+  };
+  return installedMicrophone;
+}
+
+export function createPalVoiceMicrophoneHold(): PalVoiceMicrophoneHold {
+  let reportStartupFinished!: () => void;
+  const finished = new Promise<void>((resolve) => { reportStartupFinished = resolve; });
+  const startup: MicrophoneStartup = { cancelled: false, streams: new Set(), pending: true, finished };
+
+  return {
+    begin: async () => {
+      if (startup.cancelled || !navigator.mediaDevices?.getUserMedia) return;
+      installPalVoiceMicrophone();
+      while (currentMicrophoneStartup?.pending) {
+        if (currentMicrophoneStartup === startup) return;
+        await currentMicrophoneStartup.finished;
+        if (startup.cancelled) return;
+      }
+      currentMicrophoneStartup = startup;
+    },
+    reportStartupFinished: () => {
+      startup.pending = false;
+      reportStartupFinished();
+    },
+    release: () => {
+      startup.cancelled = true;
+      for (const stream of startup.streams) stopTracks(stream);
+      startup.streams.clear();
+    },
+  };
+}
+
+export function requestPalVoiceMicrophone(constraints: MediaStreamConstraints): Promise<MediaStream> {
+  const { mediaDevices, original } = installPalVoiceMicrophone();
+  return original.call(mediaDevices, constraints);
 }
 
 export function createPubPalVoiceStartController() {
@@ -111,10 +187,10 @@ export function createPubPalVoiceStartController() {
           try {
             const stream = await attempt.requestMicrophone();
             if (currentStart.cancelled) {
-              stopProbe(stream);
+              stopTracks(stream);
               return false;
             }
-            stopProbe(stream);
+            stopTracks(stream);
             currentStart.grantRequestStarted = true;
             let grant: TGrant;
             try {
@@ -134,7 +210,7 @@ export function createPubPalVoiceStartController() {
               notifyCancellation(currentStart);
               return false;
             }
-            attempt.connect(grant);
+            await attempt.connect(grant);
             return true;
           } catch (error) {
             if (currentStart.cancelled) return false;

@@ -20,7 +20,7 @@ export function useLandmarkJourney(deps: {
   dismissOnboarding: () => void;
   setMode: (mode: CrawlMode) => void;
   setBuiltIds: (ids: string[]) => void;
-  setRouteMapped: (mapped: boolean) => void;
+  mapRoute: () => void;
   setActiveCrawl: (crawl: CuratedCrawl | null) => void;
   setPlanningOpen: (open: boolean) => void;
 }) {
@@ -30,7 +30,7 @@ export function useLandmarkJourney(deps: {
     dismissOnboarding,
     setMode,
     setBuiltIds,
-    setRouteMapped,
+    mapRoute,
     setActiveCrawl,
     setPlanningOpen,
   } =
@@ -42,7 +42,7 @@ export function useLandmarkJourney(deps: {
       if (firstStop) {
         setMode("build");
         setBuiltIds(stops);
-        setRouteMapped(true);
+        mapRoute();
         setActiveCrawl(null); // a landmark-seeded crawl isn't a curated one
         showLoadedRoute(firstStop);
         dismissOnboarding();
@@ -52,7 +52,7 @@ export function useLandmarkJourney(deps: {
       dismissOnboarding,
       setMode,
       setBuiltIds,
-      setRouteMapped,
+      mapRoute,
       setActiveCrawl,
       showLoadedRoute,
     ],

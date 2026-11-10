@@ -13,7 +13,7 @@ vi.mock("server-only", () => ({}));
 
 type Recorded = {
   table: string;
-  op: "select" | "update" | "insert" | "upsert";
+  op: "select" | "update" | "insert" | "upsert" | "delete" | "rpc";
   filters: Array<[string, ...unknown[]]>;
   limit?: number;
   single?: boolean;
@@ -57,7 +57,11 @@ function builder(table: string) {
     query.filters.push(["upsert", ...args]);
     return chain;
   };
-  for (const name of ["eq", "neq", "is", "in", "or", "order"]) chain[name] = record(name);
+  chain.delete = () => {
+    query.op = "delete";
+    return chain;
+  };
+  for (const name of ["eq", "neq", "is", "in", "or", "order", "gt", "not", "range"]) chain[name] = record(name);
   chain.limit = (n: number) => {
     query.limit = n;
     return chain;
@@ -77,7 +81,14 @@ function builder(table: string) {
   return chain;
 }
 
-const fakeAdmin = { from: (table: string) => builder(table) };
+const fakeAdmin = {
+  from: (table: string) => builder(table),
+  rpc: (name: string, args: Record<string, unknown>) => {
+    const query: Recorded = { table: name, op: "rpc", filters: [["rpc", args]] };
+    state.queries.push(query);
+    return Promise.resolve(state.answer(query));
+  },
+};
 
 vi.mock("@/lib/supabase", () => ({
   requireSupabaseAdmin: () => fakeAdmin,
@@ -91,6 +102,7 @@ import {
   supabaseMessagesStore,
 } from "@/lib/messagesStore";
 import { defined } from "@/__tests__/helpers/defined";
+import { messagePhotoServingKey } from "@/lib/messageAttachments";
 
 const C1 = "11111111-1111-4111-8111-111111111111";
 const C2 = "22222222-2222-4222-8222-222222222222";
@@ -215,8 +227,10 @@ describe("thread read", () => {
 
     const thread = await supabaseMessagesStore.listMessages(C1, "ken");
 
+    // The reader's own delete mark rides in the same parallel round trip.
     expect(state.queries.map((q) => `${q.table}:${q.op}`)).toEqual([
       "conversations:select",
+      "conversation_deletions:select",
       "messages:select",
     ]);
     expect(thread?.map((m) => m.body)).toEqual(["one", "two"]);
@@ -352,6 +366,9 @@ describe("inbox read is honest about what it could not do", () => {
   it("keeps the conversations when the recent window fails, and says so", async () => {
     state.answer = (q) => {
       if (q.table === "conversations") return conversationRows;
+      if (q.table === "conversation_deletions" || q.table === "conversation_members") {
+        return { data: [], error: null };
+      }
       if (q.filters.some((f) => f[0] === "is")) {
         return { data: [{ conversation_id: C1 }], error: null };
       }
@@ -376,5 +393,282 @@ describe("inbox read is honest about what it could not do", () => {
       conversations: [],
       status: "degraded",
     });
+  });
+});
+
+describe("taking words back", () => {
+  const pairAnswer = { handle_a: "ken", handle_b: "sam" };
+  const M = "33333333-3333-4333-8333-333333333333";
+
+  function unsendAnswers(wipeMatches: boolean) {
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: pairAnswer, error: null };
+      if (q.table === "messages" && q.op === "select") {
+        return {
+          data: { id: M, sender_handle: "ken", attachment_kind: "photo", unsent_at: null },
+          error: null,
+        };
+      }
+      if (q.table === "messages" && q.op === "update") {
+        const guarded = q.filters.some((f) => f[0] === "is" && f[1] === "flagged_at");
+        return { data: guarded && !wipeMatches ? [] : [{ id: M }], error: null };
+      }
+      return { data: [], error: null };
+    };
+  }
+
+  it("wipes an unreported message and names the photo bytes to delete", async () => {
+    unsendAnswers(true);
+    const outcome = await supabaseMessagesStore.unsendMessage(C1, M, "ken");
+    expect(outcome).toMatchObject({
+      status: "unsent",
+      photoObjectKey: messagePhotoServingKey(C1, M),
+    });
+    const updates = state.queries.filter((q) => q.op === "update");
+    expect(updates).toHaveLength(1);
+    expect(filterValue(updates[0]!, "update")?.[0]).toMatchObject({
+      body: "",
+      attachment_kind: null,
+      attachment_object_key: null,
+    });
+  });
+
+  it("keeps a reported message's content and bytes, marking it alone", async () => {
+    // The guarded wipe matched nothing: a report landed first.
+    unsendAnswers(false);
+    const outcome = await supabaseMessagesStore.unsendMessage(C1, M, "ken");
+    expect(outcome).toMatchObject({ status: "unsent", photoObjectKey: null });
+    const updates = state.queries.filter((q) => q.op === "update");
+    expect(updates).toHaveLength(2);
+    expect(Object.keys(filterValue(updates[1]!, "update")?.[0] as object)).toEqual(["unsent_at"]);
+  });
+
+  it("refuses somebody else's message without writing anything", async () => {
+    unsendAnswers(true);
+    await expect(supabaseMessagesStore.unsendMessage(C1, M, "sam")).resolves.toEqual({
+      status: "not-found",
+    });
+    expect(state.queries.some((q) => q.op !== "select")).toBe(false);
+  });
+
+  it("marks a delete no earlier than the newest message, to the microsecond", async () => {
+    const newest = "2999-01-01 00:00:00.123456+00";
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: pairAnswer, error: null };
+      if (q.table === "messages") return { data: { created_at: newest }, error: null };
+      return { data: null, error: null };
+    };
+    await expect(supabaseMessagesStore.deleteConversationForViewer(C1, "ken")).resolves.toBe(
+      "deleted",
+    );
+    const write = state.queries.find((q) => q.op === "rpc");
+    expect(write?.table).toBe("delete_conversation_for_viewer");
+    expect(filterValue(write!, "rpc")?.[0]).toEqual({
+      p_conversation_id: C1,
+      p_handle: "ken",
+      p_deleted_at: newest,
+    });
+  });
+
+  it("reads nothing at or before the delete mark, to the microsecond", async () => {
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: pairAnswer, error: null };
+      if (q.table === "conversation_deletions") {
+        return { data: { deleted_at: "2026-09-05 10:00:00.0004+00" }, error: null };
+      }
+      return {
+        data: [
+          { id: "m2", conversation_id: C1, sender_handle: "sam", body: "after", created_at: "2026-09-05T10:00:00.000401+00:00" },
+          { id: "m1", conversation_id: C1, sender_handle: "sam", body: "same instant", created_at: "2026-09-05T10:00:00.0004+00:00" },
+        ],
+        error: null,
+      };
+    };
+    const thread = await supabaseMessagesStore.listMessages(C1, "ken");
+    expect(thread?.map((m) => m.body)).toEqual(["after"]);
+  });
+});
+
+
+describe("removal privacy on durable reads", () => {
+  it.each([1, 2])("returns no inbox projection when deletion read %i fails", async (failedRead) => {
+    let deletionReads = 0;
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: [{ id: C1, handle_a: "ken", handle_b: "sam", last_message_at: "2026-11-10T20:00:00Z" }], error: null };
+      if (q.table === "conversation_deletions") {
+        deletionReads += 1;
+        return deletionReads === failedRead
+          ? { data: null, error: { message: "connection reset" } }
+          : { data: [], error: null };
+      }
+      if (q.table === "messages") return { data: [{ conversation_id: C1, body: "deleted secret", sender_handle: "sam" }], error: null };
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.listConversations("ken")).resolves.toEqual({ conversations: [], status: "degraded" });
+  });
+
+  it.each([
+    ["direct", false], ["group", false], ["direct", true], ["group", true],
+  ] as const)("replenishes the %s inbox after 100 deleted chats (restored: %s)", async (kind, restored) => {
+    const rows = Array.from({ length: 201 }, (_, i) => ({
+      id: `chat-${i}`,
+      handle_a: "ken",
+      handle_b: "sam",
+      kind,
+      last_message_at: new Date(Date.UTC(2026, 0, 1, 0, 300 - i)).toISOString(),
+    }));
+    const deleted = new Set(rows.slice(0, 100).map((row) => row.id));
+    state.answer = (q) => {
+      if (q.table === "conversation_members") {
+        const batch = filterValue(q, "in");
+        if (batch) return { data: (batch[1] as string[]).flatMap((id) => ["ken", "sam", "jen"].map((handle) => ({ conversation_id: id, handle }))), error: null };
+        if (kind === "direct") return { data: [], error: null };
+        const [start, end] = filterValue(q, "range") as number[];
+        return { data: rows.slice(start, end! + 1).map((row) => ({ conversation_id: row.id })), error: null };
+      }
+      if (q.table === "conversations") {
+        const ids = filterValue(q, "in")?.[1] as string[] | undefined;
+        if (ids) return { data: rows.filter((row) => ids.includes(row.id)), error: null };
+        if (kind === "group") return { data: [], error: null };
+        const [start, end] = filterValue(q, "range") as number[];
+        return { data: rows.slice(start, end! + 1), error: null };
+      }
+      if (q.table === "conversation_deletions") {
+        const ids = filterValue(q, "in")?.[1] as string[];
+        return { data: ids.filter((id) => deleted.has(id)).map((id) => ({ conversation_id: id, deleted_at: "2027-01-01T00:00:00Z" })), error: null };
+      }
+      if (q.table === "messages") {
+        const id = filterValue(q, "eq")?.[1];
+        const ids = filterValue(q, "in")?.[1] as string[] | undefined;
+        const messages = rows
+          .filter((row) => id ? row.id === id : ids?.includes(row.id))
+          .map((row) => ({
+            conversation_id: row.id,
+            sender_handle: "ken",
+            body: "Hello again",
+            created_at: restored && row.id === "chat-0" ? "2028-01-01T00:00:00Z" : row.last_message_at,
+          }))
+          .sort((a, b) => b.created_at.localeCompare(a.created_at));
+        return { data: q.single ? messages[0] ?? null : messages, error: null };
+      }
+      return { data: [], error: null };
+    };
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+    expect(inbox.status).toBe("ready");
+    expect(inbox.conversations.map((row) => row.id)).toEqual(
+      restored
+        ? ["chat-0", ...rows.slice(100, 199).map((row) => row.id)]
+        : rows.slice(100, 200).map((row) => row.id),
+    );
+  });
+
+  it.each(
+    (["direct", "group"] as const).flatMap((kind) =>
+      (["recent-failure", "individual-failure", "success"] as const).map((read) => ({ kind, read })),
+    ),
+  )("retains a restored $kind chat with $read", async ({ kind, read }) => {
+    const restoredMessage = {
+      conversation_id: C2, sender_handle: "sam", body: "Hello again",
+      created_at: "2028-01-01T00:00:00Z",
+    };
+    const rows = [C1, C2].map((id) => ({
+      id, kind, handle_a: "ken", handle_b: "sam",
+      last_message_at: id === C1 ? "2028-02-01T00:00:00Z" : "2026-01-01T00:00:00Z",
+    }));
+    state.answer = (q) => {
+      if (q.table === "conversation_members") {
+        if (filterValue(q, "in")) return {
+          data: [C1, C2].flatMap((id) => ["ken", "sam", "jen"].map((handle) => ({ conversation_id: id, handle }))),
+          error: null,
+        };
+        return { data: kind === "group" ? rows.map((row) => ({ conversation_id: row.id })) : [], error: null };
+      }
+      if (q.table === "conversations") return {
+        data: kind === "group" && !filterValue(q, "in") ? [] : rows,
+        error: null,
+      };
+      if (q.table === "conversation_deletions") return {
+        data: [{ conversation_id: C2, deleted_at: "2027-01-01T00:00:00Z" }], error: null,
+      };
+      if (q.table === "messages") {
+        if (filterValue(q, "select")?.[0] === "created_at") return { data: restoredMessage, error: null };
+        if (q.filters.some((f) => f[0] === "is")) return { data: [], error: null };
+        if (read === "recent-failure" || (read === "individual-failure" && q.single)) {
+          return { data: null, error: { message: "connection reset" } };
+        }
+        if (q.single) return { data: restoredMessage, error: null };
+        return {
+          data: Array.from({ length: 2 * INBOX_LAST_MESSAGE_WINDOW }, () => ({
+            conversation_id: C1, sender_handle: "sam", body: "Busy chat",
+            created_at: "2028-02-01T00:00:00Z",
+          })),
+          error: null,
+        };
+      }
+      return { data: [], error: null };
+    };
+
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+
+    expect(inbox.status).toBe(read === "success" ? "ready" : "degraded");
+    expect(inbox.conversations.map((row) => row.id)).toEqual([C1, C2]);
+    expect(inbox.conversations[1]?.lastBody).toBe(read === "success" ? "Hello again" : undefined);
+  });
+
+  it("keeps deleted history unread when a new message restores the thread", async () => {
+    const mark = "2026-11-10T20:00:00Z";
+    const rows = [
+      { id: "hidden", created_at: "2026-11-10T19:00:00Z", read_at: null },
+      { id: "visible", created_at: "2026-11-10T21:00:00Z", read_at: null },
+    ] as Array<{ id: string; created_at: string; read_at: string | null }>;
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: { handle_a: "ken", handle_b: "sam" }, error: null };
+      if (q.table === "conversation_deletions") return { data: { deleted_at: mark }, error: null };
+      if (q.op === "update") {
+        const after = filterValue(q, "gt")?.[1] as string | undefined;
+        const updated = rows.filter((row) => !after || row.created_at > after);
+        for (const row of updated) row.read_at = "2026-11-10T22:00:00Z";
+        return { data: updated, error: null };
+      }
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.markRead(C1, "ken")).resolves.toBe(1);
+    expect(rows[0]?.read_at).toBeNull();
+    expect(rows[1]?.read_at).not.toBeNull();
+  });
+
+  it.each(["direct", "group"])("does not restore a deleted %s chat from metadata alone", async (kind) => {
+    state.answer = (q) => {
+      if (q.table === "conversation_members") return { data: kind === "group" ? [{ conversation_id: C1 }] : [], error: null };
+      if (q.table === "conversations") return {
+        data: kind === "group" && !filterValue(q, "in") ? [] : [{
+          id: C1, handle_a: "ken", handle_b: "sam", kind, last_message_at: "2028-01-01T00:00:00Z",
+        }],
+        error: null,
+      };
+      if (q.table === "conversation_deletions") return { data: [{ conversation_id: C1, deleted_at: "2027-01-01T00:00:00Z" }], error: null };
+      if (q.table === "messages") {
+        const message = { conversation_id: C1, body: "Deleted history", created_at: "2026-01-01T00:00:00Z" };
+        return { data: q.single ? message : [message], error: null };
+      }
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.listConversations("ken")).resolves.toEqual({ conversations: [], status: "ready" });
+  });
+
+  it("fails closed before 0230 and reads unsend state after the migration without restarting", async () => {
+    let migrated = false;
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: { handle_a: "ken", handle_b: "sam" }, error: null };
+      if (q.table === "conversation_deletions") return { data: null, error: null };
+      const selected = String(filterValue(q, "select")?.[0]);
+      if (!migrated && selected.includes("unsent_at")) {
+        return { data: null, error: { code: "42703", message: 'column "unsent_at" does not exist' } };
+      }
+      return { data: [{ id: "retained", conversation_id: C1, sender_handle: "sam", body: "retained evidence", created_at: "2026-11-10T20:00:00Z", ...(selected.includes("unsent_at") ? { unsent_at: "2026-11-10T21:00:00Z" } : {}) }], error: null };
+    };
+    await expect(supabaseMessagesStore.listMessages(C1, "ken")).rejects.toThrow();
+    migrated = true;
+    await expect(supabaseMessagesStore.listMessages(C1, "ken")).resolves.toMatchObject([{ body: "", unsent: true }]);
   });
 });

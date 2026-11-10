@@ -41,6 +41,7 @@ import { diaryStore } from "@/lib/diaryStore";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { findPintDropsByIds } from "@/lib/pintDrops";
+import type { PintDropStatus, Visibility } from "@/lib/pintDropShared";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 import {
   WITH_TAG_MAX,
@@ -132,8 +133,8 @@ export type WithTagRows = {
 
 export type WithTagDrop = {
   handle: string;
-  visibility: string;
-  status: string;
+  visibility: Visibility;
+  status: PintDropStatus;
   venueId: string;
 };
 
@@ -760,8 +761,8 @@ async function readDrop(dropId: string): Promise<WithTagDrop | null> {
       const row = data as Record<string, unknown>;
       return {
         handle: String(row.handle ?? ""),
-        visibility: typeof row.visibility === "string" ? row.visibility : "public",
-        status: String(row.status ?? ""),
+        visibility: (typeof row.visibility === "string" ? row.visibility : "public") as Visibility,
+        status: String(row.status ?? "") as PintDropStatus,
         venueId: String(row.venue_id ?? ""),
       };
     }

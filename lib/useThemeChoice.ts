@@ -61,6 +61,18 @@ export function toggleThemeChoice(): void {
   }
 }
 
+/**
+ * Another tab stored a theme choice: show it here too, and stand the clock
+ * down as a tap on this tab's control would.
+ */
+export function followStoredThemeChange(key: string | null, value: string | null): void {
+  if (key !== THEME_STORAGE_KEY || (value !== "light" && value !== "dark")) return;
+  const root = document.documentElement;
+  root.dataset.themeChosen = "1";
+  delete root.dataset.nightTheme;
+  if (root.dataset.theme !== value) root.dataset.theme = value;
+}
+
 /** What a control that flips the theme says it will do. */
 export function themeSwitchLabel(theme: ThemePreference): string {
   return theme === "dark" ? "Switch to light theme" : "Switch to dark theme";

@@ -279,7 +279,10 @@ describe("coffee pilot bundle regression fixture", () => {
     }>;
     const reconciliation = JSON.parse(readFileSync(
       join(process.cwd(), "data/uk_prices/site_harvest_reconciliation.json"), "utf8",
-    )) as { laterPublications: Array<{ sourceUrl: string; sourceObservedAt: string }> };
+    )) as {
+      laterPublications: Array<{ sourceUrl: string; sourceObservedAt: string }>;
+      bundleWithdrawals?: Array<{ rows: Array<{ category: string; sourceUrl: string | null; observedAt: string }> }>;
+    };
     // The recorded Small Beer publication closes this historical cohort.
     // Later publications may add coffee without changing its evidence count.
     const laterSources = new Set(reconciliation.laterPublications
@@ -287,7 +290,12 @@ describe("coffee pilot bundle regression fixture", () => {
       .map((publication) => `${publication.sourceUrl}|${publication.sourceObservedAt}`));
     const coffee = rows.filter((row) => row.category === "coffee" &&
       !laterSources.has(`${row.sourceUrl}|${row.observedAt}`));
-    expect(coffee).toHaveLength(85);
+    // A recorded bundle withdrawal leaves its row in the ledger, so it still
+    // counts as evidence for this cohort.
+    const withdrawnCoffee = (reconciliation.bundleWithdrawals ?? [])
+      .flatMap((withdrawal) => withdrawal.rows)
+      .filter((row) => row.category === "coffee" && !laterSources.has(`${row.sourceUrl}|${row.observedAt}`));
+    expect(coffee.length + withdrawnCoffee.length).toBe(85);
   });
 
   it("flags every tea, water and affogato label the bundle already misfiled", () => {
