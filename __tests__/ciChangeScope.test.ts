@@ -329,8 +329,6 @@ describe("what each scope runs", () => {
     { event: "merge_group", cancelled: true, expected: false },
     { event: "push", expected: false },
     { event: "push", result: "failure", layout: "", expected: false },
-    { event: "schedule", expected: false },
-    { event: "schedule", result: "failure", expected: false },
     { event: "workflow_dispatch", expected: false },
     { event: "workflow_dispatch", result: "failure", expected: false },
   ] as const)("applies layout-pin eligibility to $event ($expected)", ({ expected, ...context }) => {

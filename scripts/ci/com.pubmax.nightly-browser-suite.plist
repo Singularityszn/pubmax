@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Starts the nightly full browser suite on main at 05:00 Mac local time
+  (Europe/London). docs/CI_RUNBOOK.md, "The nightly full suite", has the
+  install steps. launchd runs a missed time after the Mac wakes, so the job
+  dispatches nothing after 07:00 UTC, when pull-request traffic starts.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.pubmax.nightly-browser-suite</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>exec &gt;&gt; "$HOME/Library/Logs/pubmax-nightly-browser-suite.log" 2&gt;&amp;1; echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) nightly full browser suite"; if [ "$(date -u +%H)" -ge 7 ]; then echo "too late in the day: not dispatched"; exit 0; fi; gh workflow run e2e.yml --repo Singularityszn/pubmax --ref main</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>5</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+</dict>
+</plist>

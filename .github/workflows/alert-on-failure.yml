@@ -25,7 +25,6 @@ on:
   workflow_run:
     workflows:
       - API performance
-      - Browser tests
       - Drink price refresh
       - Freshness release gate
       - Performance

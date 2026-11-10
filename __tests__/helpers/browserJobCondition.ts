@@ -1,6 +1,6 @@
 import { runInNewContext } from "node:vm";
 
-type BrowserEvent = "pull_request" | "merge_group" | "push" | "schedule" | "workflow_dispatch";
+type BrowserEvent = "pull_request" | "merge_group" | "push" | "workflow_dispatch";
 type BrowserContext = {
   event?: BrowserEvent;
   action?: string;

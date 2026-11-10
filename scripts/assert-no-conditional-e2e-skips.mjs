@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import ts from "typescript";
@@ -254,6 +255,38 @@ if (staleRows.length > 0) {
     `conditional skip scan failed: ${staleRows.length} stale allowlist row(s). Delete the row when the skip goes.`,
   );
   process.exit(1);
+}
+
+// THE FULL-SUITE QUARANTINE NAMES ITS TRACKING ISSUE. The nightly leaves out
+// each test this list names (`--test-list-invert`, paths relative to the
+// scanned root). Every test line sits in a block of lines whose comment names
+// an issue, and every spec it names must exist.
+const QUARANTINE_ISSUE = /^#.*https:\/\/github\.com\/Singularityszn\/pubmax\/issues\/\d+/;
+const quarantinePath = path.join(root, "full-suite-quarantine.txt");
+if (existsSync(quarantinePath)) {
+  const problems = [];
+  let blockIssue = false;
+  const lines = (await readFile(quarantinePath, "utf8")).split("\n");
+  for (const [index, raw] of lines.entries()) {
+    const line = raw.trim();
+    if (!line) {
+      blockIssue = false;
+      continue;
+    }
+    if (line.startsWith("#")) {
+      blockIssue ||= QUARANTINE_ISSUE.test(line);
+      continue;
+    }
+    const where = `${path.relative(process.cwd(), quarantinePath)}:${index + 1}`;
+    if (!blockIssue) problems.push(`${where}: no tracking issue above "${line}"`);
+    const spec = line.replace(/^\[[^\]]*\]\s*›\s*/, "").split("›")[0].trim().replace(/:\d+(?::\d+)?$/, "");
+    if (!existsSync(path.join(root, spec))) problems.push(`${where}: ${spec} does not exist`);
+  }
+  if (problems.length > 0) {
+    for (const problem of problems) console.error(problem);
+    console.error(`full-suite quarantine check failed: ${problems.length} problem(s)`);
+    process.exit(1);
+  }
 }
 
 if (findings.length > 0) {

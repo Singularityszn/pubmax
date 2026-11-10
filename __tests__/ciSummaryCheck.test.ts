@@ -37,7 +37,7 @@ const REQUIRED_CHECKS = [
 ] as const;
 
 // Jobs that never run for a pull request or the merge queue, so the summary
-// does not wait for them: the full browser suite and its scheduled failure report.
+// does not wait for them: the full browser suite and its nightly failure report.
 const NOT_PULL_REQUEST_JOBS: Record<string, string[]> = {
   "ci.yml": [],
   "e2e.yml": ["full-suite", "full-suite-gl", "nightly-failure-issue"],
@@ -166,7 +166,7 @@ describe("the required checks", () => {
       expect(browserJobName(job.name), id).toBe(normal);
       expect(browserJobName(job.name, context), id).toBe(`Not run for label - ${normal}`);
       expect(browserJobName(job.name, { ...context, label: "layout-pins" }), id).toBe(normal);
-      for (const event of ["push", "merge_group", "schedule", "workflow_dispatch"] as const) {
+      for (const event of ["push", "merge_group", "workflow_dispatch"] as const) {
         expect(browserJobName(job.name, { event }), id).toBe(normal);
       }
     }
