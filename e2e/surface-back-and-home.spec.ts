@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectHydrated } from "./helpers/streamedPage";
 
 /**
@@ -29,6 +30,7 @@ async function settleFirstRun(page: Page): Promise<void> {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 }
@@ -36,6 +38,7 @@ async function settleFirstRun(page: Page): Promise<void> {
 async function openMap(page: Page): Promise<void> {
   await settleFirstRun(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await installDeterministicMapBasemap(page);
   await page.goto("/map");
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }
