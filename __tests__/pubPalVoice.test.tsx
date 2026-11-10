@@ -115,6 +115,8 @@ import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
+  PAL_VOICE_START_TIMEOUT_ERROR,
+  PAL_VOICE_START_TIMEOUT_MS,
 } from "@/lib/pubPalVoiceSession";
 import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
@@ -1020,6 +1022,56 @@ describe("Pub Pal voice controls", () => {
         return body.action === "release" ? [body.conversationId] : [];
       });
       expect(releases).toEqual(["conv_waitFirst", "conv_waitRetry"]);
+    });
+
+    it("allows a new start after unmount between claiming a retry token and starting the SDK", async () => {
+      vi.useFakeTimers();
+      getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/first", conversationId: "conv_claimFirst",
+      }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      const first = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      await settle();
+      visibility = "visible";
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/retry", conversationId: "conv_claimRetry",
+      }));
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        container.querySelector<HTMLButtonElement>("button")?.click();
+      });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(voice.startSession).toHaveBeenCalledOnce();
+
+      await act(async () => {
+        first.onStatusChange?.({ status: "disconnected" });
+        queueMicrotask(() => {
+          root?.unmount();
+          root = null;
+        });
+      });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.flatMap(([, init]) => {
+        const body = JSON.parse(String((init as RequestInit | undefined)?.body ?? "{}"));
+        return body.action === "release" ? [body.conversationId] : [];
+      });
+      expect(releases).toEqual(["conv_claimFirst", "conv_claimRetry"]);
+
+      root = createRoot(container);
+      await mountAvailable();
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/next", conversationId: "conv_claimNext",
+      }));
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      expect(defined(voice.startSession.mock.calls[1])[0]).toMatchObject({
+        signedUrl: "wss://voice.example/next",
+      });
     });
 
     it("keeps the transcript and offers Carry on when the page returns", async () => {

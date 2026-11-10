@@ -468,6 +468,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         await attempt.microphone.begin();
         if (!ownsAttempt(attempt)) {
+          attempt.microphone.reportStartupFinished();
           void finalizeSession(attempt);
           return;
         }
