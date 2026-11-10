@@ -46,7 +46,21 @@ begin
     return pg_catalog.jsonb_build_object('status', 'superseded');
   end if;
 
-  if v_price.id is not null and v_price.price_pennies = p_price_pennies then
+  v_drop_id := pg_catalog.md5(v_price.id::text || ':' ||
+    (extract(epoch from p_submitted_at) * 1000)::bigint::text || ':' || p_price_pennies::text)::uuid;
+  select * into v_drop from public.pint_drops where id = v_drop_id;
+  if found then
+    if v_drop.venue_id is distinct from p_venue_id
+      or v_drop.handle is distinct from p_drop->>'handle'
+      or v_drop.price_gbp is distinct from p_price_pennies::numeric / 100
+      or v_drop.measure is distinct from p_drop->>'measure'
+    then
+      raise exception 'Pint Drop id already exists';
+    end if;
+    v_created := false;
+  end if;
+
+  if v_created and v_price.id is not null and v_price.price_pennies = p_price_pennies then
     v_drop_id := pg_catalog.md5(v_price.id::text || ':' ||
       (extract(epoch from v_price.submitted_at) * 1000)::bigint::text || ':' || v_price.price_pennies::text)::uuid;
     select * into v_drop from public.pint_drops

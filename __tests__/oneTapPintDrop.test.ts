@@ -127,6 +127,47 @@ describe("writeOneTapPintDrop", () => {
     expect(listVisiblePintDrops("venue-xjf3n0")).toEqual([]);
   });
 
+  it("replays the first figure after a same-millisecond correction and preserves its receipt evidence", async () => {
+    const now = Date.now();
+    const input = { venueId: "venue-xjf3n0", handle: "karan", drinkCategory: "beer" as const, priceGbp: 5, measure: "pint" as const };
+    const pairing = { actor: "profile:test", submittedAt: now };
+    const first = await writeOneTapPintDrop(input, undefined, pairing);
+    expect(first).toMatchObject({ ok: true, created: true });
+    if (!first.ok) throw new Error("The first pair was not saved.");
+    expect(dropMemory.grantPintDropReceipt(first.drop.id)).toBe(true);
+    const original = structuredClone(listVisiblePintDrops(input.venueId));
+    expect(await writeOneTapPintDrop({ ...input, priceGbp: 6 }, undefined, pairing)).toMatchObject({ ok: true, created: true });
+    const priceBefore = await readCommunityPrices(input.venueId);
+    expect(await writeOneTapPintDrop(input, undefined, pairing)).toMatchObject({
+      ok: true, created: false, drop: { id: first.drop.id, priceGbp: 5, priceEvidence: "receipt" },
+    });
+    expect(listVisiblePintDrops(input.venueId)).toHaveLength(2);
+    expect(listVisiblePintDrops(input.venueId)).toEqual(expect.arrayContaining(original));
+    expect(await readCommunityPrices(input.venueId)).toEqual(priceBefore);
+    expect(await writeOneTapPintDrop({ ...input, priceGbp: 6 }, undefined, { ...pairing, submittedAt: now + 7000 })).toMatchObject({ ok: true, created: true });
+    expect(await writeOneTapPintDrop(input, undefined, pairing)).toMatchObject({ ok: false, kind: "superseded" });
+    expect(listVisiblePintDrops(input.venueId)).toHaveLength(3);
+  });
+
+  it.each([
+    { venueId: "another-venue" }, { handle: "another_drinker" }, { priceGbp: 7 }, { measure: "half" as const },
+  ])("refuses a conflicting derived id with %j", async (change) => {
+    const input = { venueId: "venue-xjf3n0", handle: "karan", drinkCategory: "beer" as const, priceGbp: 5, measure: "pint" as const };
+    const pairing = { actor: "profile:test", submittedAt: Date.now() };
+    const first = await writeOneTapPintDrop(input, undefined, pairing);
+    if (!first.ok) throw new Error("The first pair was not saved.");
+    const stored = dropMemory.findPintDropsByIds([first.drop.id]).get(first.drop.id);
+    if (!stored) throw new Error("The first drop was not stored.");
+    Object.assign(stored, change);
+    expect(await writeOneTapPintDrop({ ...input, priceGbp: 6 }, undefined, pairing)).toMatchObject({ ok: true, created: true });
+    const priceBefore = await readCommunityPrices(input.venueId);
+    const dropsBefore = structuredClone(dropMemory.findPintDropsByIds([first.drop.id]));
+    expect(await writeOneTapPintDrop(input, undefined, pairing)).toMatchObject({ ok: false, kind: "storage" });
+    expect(await readCommunityPrices(input.venueId)).toEqual(priceBefore);
+    expect(dropMemory.findPintDropsByIds([first.drop.id])).toEqual(dropsBefore);
+    expect(listVisiblePintDrops(input.venueId)).toHaveLength(2);
+  });
+
   it("preserves a moderator's hide, note and reports when pairing fails", async () => {
     const venueId = "venue-xjf3n0";
     const { price } = await submitCommunityPrice({ venueId, drinkCategory: "beer", priceGbp: 4.2, actor: "profile:test" });

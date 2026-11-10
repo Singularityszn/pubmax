@@ -874,6 +874,16 @@ function createMemoryPairedDrop(
     actor: pairing.actor,
     contributorHandle: drop.handle,
   }, pairing.submittedAt, (price, previous) => {
+    drop.id = oneTapPriceDropId(price.id!, pairing.submittedAt, drop.priceGbp!);
+    const replay = findPintDropsByIds([drop.id]).get(drop.id);
+    if (replay) {
+      if (replay.venueId !== drop.venueId || replay.handle !== drop.handle
+        || replay.priceGbp !== drop.priceGbp || replay.measure !== drop.measure) {
+        throw new Error("Pint Drop id already exists.");
+      }
+      saved = replay;
+      return false;
+    }
     if (previous?.id && previous.priceGbp === drop.priceGbp) {
       const id = oneTapPriceDropId(previous.id, previous.submittedAt, previous.priceGbp);
       const existing = findPintDropsByIds([id]).get(id);
@@ -882,8 +892,6 @@ function createMemoryPairedDrop(
         return false;
       }
     }
-    drop.id = oneTapPriceDropId(price.id!, price.submittedAt, price.priceGbp);
-    if (findPintDropsByIds([drop.id]).has(drop.id)) throw new Error("Pint Drop id already exists.");
     addPintDrop(drop);
     saved = drop;
     created = true;

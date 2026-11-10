@@ -49,8 +49,8 @@ function db(): PostgresSession {
   if (!database) throw new Error("PostgreSQL session unavailable.");
   return database;
 }
-function call(submittedAt = at, pennies = 500): string {
-  const drop = { ...requestDrop, price_gbp: pennies / 100, created_at: submittedAt };
+function call(submittedAt = at, pennies = 500, overrides: Partial<typeof requestDrop> = {}): string {
+  const drop = { ...requestDrop, price_gbp: pennies / 100, created_at: submittedAt, ...overrides };
   return `select public.create_one_tap_price_pair_atomic('${venue}', 'beer', ${pennies}, '${actor}',
     'pair_drinker', '${submittedAt}'::timestamptz, '${JSON.stringify(drop)}'::jsonb)`;
 }
@@ -128,6 +128,36 @@ describe.skipIf(skipReason !== null)("0234 atomic one-tap pairing", () => {
     const repeat = JSON.parse(db().sql(asServiceRole(call("2026-11-10T19:30:06.000Z"))));
     expect(repeat).toMatchObject({ created: false, price: { submittedAt: Date.parse(at) } });
     expect(counts()).toBe("1|1");
+  });
+
+  it("replays the first figure after a same-millisecond correction without replacing its evidence", () => {
+    const first = JSON.parse(db().sql(asServiceRole(call())));
+    db().sql(`update public.pint_drops set price_evidence = 'receipt' where id = '${first.drop.id}'`);
+    const original = JSON.parse(db().sql(`select row_to_json(d) from public.pint_drops d where id = '${first.drop.id}'`));
+    expect(JSON.parse(db().sql(asServiceRole(call(at, 600))))).toMatchObject({ created: true });
+    const priceBefore = db().sql("select row_to_json(p)::text from public.community_prices p");
+    const replay = JSON.parse(db().sql(asServiceRole(call(at, 500, {
+      pint_photo_key: "retry/pint.jpg", venue_photo_key: "retry/venue.jpg", receipt_photo_key: "retry/bill.jpg",
+    }))));
+    expect(replay).toMatchObject({ status: "saved", created: false });
+    expect(replay.drop).toEqual(original);
+    expect(counts()).toBe("1|2");
+    expect(db().sql("select row_to_json(p)::text from public.community_prices p")).toBe(priceBefore);
+    expect(JSON.parse(db().sql(asServiceRole(call("2026-11-10T19:30:07.000Z", 600))))).toMatchObject({ created: true });
+    expect(JSON.parse(db().sql(asServiceRole(call())))).toEqual({ status: "superseded" });
+    expect(counts()).toBe("1|3");
+  });
+
+  it.each([
+    "venue_id = 'another-venue'", "handle = 'another_drinker'", "price_gbp = 7", "measure = 'half'",
+  ])("refuses a conflicting derived id when %s", (change) => {
+    const first = JSON.parse(db().sql(asServiceRole(call())));
+    db().sql(`update public.pint_drops set ${change} where id = '${first.drop.id}'`);
+    db().sql(asServiceRole(call(at, 600)));
+    const before = db().sql("select row_to_json(p)::text from public.community_prices p");
+    expect(db().expectRefusal(asServiceRole(call()))).toContain("Pint Drop id already exists");
+    expect(db().sql("select row_to_json(p)::text from public.community_prices p")).toBe(before);
+    expect(counts()).toBe("1|2");
   });
 
   it.each(["anon", "authenticated"])("refuses the %s browser role", (role) => {

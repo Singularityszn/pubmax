@@ -1224,6 +1224,27 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
     }
   });
 
+  it("keeps the original bill check after a same-millisecond five, six, five replay", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.parse("2026-11-05T19:30:00.000Z"));
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5, measure: "pint" };
+      expect((await POST(post(body, jpegFile("first.jpg")))).status).toBe(201);
+      expect((await POST(post({ ...body, priceGbp: 6 }, jpegFile("correction.jpg")))).status).toBe(201);
+      const originalChecks = [...scheduled()];
+      expect(originalChecks).toHaveLength(2);
+      const originalDrops = structuredClone(listVisiblePintDrops(body.venueId));
+      const replay = await POST(post(body, jpegFile("retry.jpg")));
+      expect(replay.status).toBe(201);
+      expect(await replay.json()).not.toHaveProperty("billCheck");
+      expect(scheduled()).toEqual(originalChecks);
+      expect(listVisiblePintDrops(body.venueId)).toEqual(originalDrops);
+      expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 6 }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("checks a fresh bill after A then B then A and hides only the checked submission", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const startedAt = Date.parse("2026-11-05T19:30:00.000Z");
