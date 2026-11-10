@@ -196,6 +196,7 @@ export async function invokePubPalAskTool(input: {
       tool: toolResult.tool,
       answerHint: spokenHint,
       cards: toolResult.cards,
+      ...(toolResult.tool === "search_venues" || toolResult.tool === "cheapest_pint_near" ? { data: toolResult.data } : {}),
       ...(toolResult.priceEvidence ? { priceEvidence: toolResult.priceEvidence } : {}),
       sources: toolResult.provenance,
       proposals: toolResult.proposals,

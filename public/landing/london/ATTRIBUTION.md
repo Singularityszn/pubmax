@@ -5,9 +5,9 @@ Every file here is an openly licensed photograph, re-encoded by
 carried in code by `lib/landingImagery.ts`, which is what the page prints its
 credit from; this file is the human record beside the bytes.
 
-A file name carries its width, and these files are served with an immutable
-cache header (`__tests__/publicAssetCaching.test.ts`). Replace a photograph
-under a NEW id rather than overwriting one of these names.
+A file name carries its width. The `headers()` rules in
+[`next.config.mjs`](../../../next.config.mjs) own the cache policy.
+Replace a photograph under a new id rather than overwriting one of these names.
 
 Google Places photographs and the chains' own marketing images are deliberately
 absent. The script header says why.

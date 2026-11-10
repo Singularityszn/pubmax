@@ -36,7 +36,7 @@ const authRedirect = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/map", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({
   default: () => null,
 }));
@@ -71,6 +71,7 @@ vi.mock("@/lib/authProviderAvailability", () => ({
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false , microsoft: false },
 }));
 vi.mock("@/lib/authRedirect", () => ({
+  hasPendingAuthAttempt: () => false,
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax:auth-fragment-restored",
   beginCanonicalAuthAttempt: authRedirect.begin,
   cancelAuthAttempt: vi.fn(),

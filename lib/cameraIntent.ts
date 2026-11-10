@@ -1,3 +1,5 @@
+export type CameraIntentOwner = "pal" | "user" | "automatic";
+
 export type CameraIntentKind =
   | "arrival"
   | "city"
@@ -10,7 +12,8 @@ export type CameraIntentKind =
   | "route-recovery"
   | "venue"
   | "landmark"
-  | "area";
+  | "area"
+  | "pal";
 
 type CameraIntentCoordinatorOptions = {
   requestFrame: (callback: FrameRequestCallback) => number;

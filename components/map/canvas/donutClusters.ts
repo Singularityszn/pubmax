@@ -14,6 +14,7 @@ import { CLUSTER_COUNT_BADGE_FILTER, CLUSTER_PRICE_NONE } from "./filters";
 import { formatPinPriceLabel } from "./geojson";
 import { readTokens } from "./tokens";
 import { CLUSTER_FILTER, CLUSTER_MAX_ZOOM } from "./buildScene";
+import type { useMapCamera } from "./useMapCamera";
 
 // M5 — DOM cluster discs for the desktop. Once segmented by price band, now
 // (owner decision 16 Oct 2026) a NEUTRAL disc: "from" over the cheapest figure
@@ -98,7 +99,7 @@ export type DonutClusterSync = {
  *  clicking the bubble it replaced. */
 export function createDonutClusterSync(
   map: maplibregl.Map,
-  cinematic: (options: maplibregl.EaseToOptions, kind?: "cluster" | "venue" | "landmark") => void,
+  cinematic: ReturnType<typeof useMapCamera>["cinematic"],
   { enabled = true }: { enabled?: boolean } = {},
 ): DonutClusterSync {
   // Mobile Safari is especially sensitive to DOM markers being reconciled
@@ -136,7 +137,7 @@ export function createDonutClusterSync(
     source
       .getClusterExpansionZoom(clusterId)
       .then((zoom) => {
-        cinematic({ center: coordinates, zoom, duration: 700 }, "cluster");
+        cinematic({ center: coordinates, zoom, duration: 700 }, "cluster", "user");
       })
       .catch(() => {
         // A cluster can dissolve between the click and this resolving

@@ -225,4 +225,25 @@ describe("ThemeAttribute follows the clock while the page is open", () => {
     await minutes(1);
     expect(html.dataset.theme).toBe("dark");
   });
+
+  it("follows a theme chosen in another tab and then keeps it past the clock", async () => {
+    mountAt(GMT("22:00"));
+    expect(html.dataset.theme).toBe("dark");
+    // Tab B wrote light; this tab hears only the storage event.
+    window.localStorage.setItem(THEME_STORAGE_KEY, "light");
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: THEME_STORAGE_KEY, newValue: "light" }));
+    });
+    expect(html.dataset.theme).toBe("light");
+    expect(html.dataset.nightTheme).toBeUndefined();
+    // Another key, or a cleared value, changes nothing.
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "pubmax-other", newValue: "dark" }));
+      window.dispatchEvent(new StorageEvent("storage", { key: THEME_STORAGE_KEY, newValue: null }));
+    });
+    expect(html.dataset.theme).toBe("light");
+    window.localStorage.removeItem(THEME_STORAGE_KEY);
+    await minutes(5);
+    expect(html.dataset.theme).toBe("light");
+  });
 });

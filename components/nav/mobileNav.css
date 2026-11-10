@@ -148,7 +148,7 @@ body:has(.mapStage):has(.mapPeek):not(:has(.analyticsConsentPrompt)) {
 }
 /* The Pub Pal pill parks above the card, and the column follows it, as it did
    above the bare pill. */
-body:has(.mapStage):has(.mapPeek):has(.palSummon):not(:has(.analyticsConsentPrompt)) {
+body:has(.mapStage):has(.mapPeek):has(.palSummon, .palVoiceBar):not(:has(.analyticsConsentPrompt)) {
   --float-stack-top-map-corner: calc(
     var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
   );
@@ -159,10 +159,14 @@ body:has(.mapStage) {
   --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
 }
 
+body:has(.palVoiceBar) {
+  --pal-summon-h: var(--pal-voice-bar-h, 60px);
+}
+
 /* When a member lifts the map-edge column, its published top edge must move
    with it or the first-visit ask reads a stale berth and lands on Near me. The
    Pal's door stands down beside the Pub Pal pill, so it adds nothing here. */
-body:has(.mapStage):has(.palSummon) {
+body:has(.mapStage):has(.palSummon, .palVoiceBar) {
   --float-stack-top-map-corner: calc(
     var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
   );
@@ -178,7 +182,7 @@ body:has(.mapStage):has(.analyticsConsentPrompt) {
 }
 /* The column follows the Pub Pal pill over the consent berth
    (mobileMapShell.css), so the published edge does too. */
-body:has(.mapStage):has(.analyticsConsentPrompt):has(.palSummon) {
+body:has(.mapStage):has(.analyticsConsentPrompt):has(.palSummon, .palVoiceBar) {
   --float-stack-top-map-corner: calc(
     var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
   );

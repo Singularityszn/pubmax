@@ -22,7 +22,7 @@ const cards = points.map((point) => ({
 const answer = { status: "answered", message: "Four sourced Soho choices.", cards, proposals: [], toolsUsed: ["search_venues"] };
 
 vi.mock("next/dynamic", async () => ({ default: (await import("next/dist/shared/lib/app-dynamic")).default }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/pal", useSearchParams: () => new URLSearchParams() }));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) => createElement("a", { href }, children),
 }));
@@ -132,13 +132,13 @@ describe.each(["typed", "voice"] as const)("%s recommendation map isolation", (c
       await send("Find four pubs in Soho and show them on the map");
     } else {
       const { default: Voice } = await import("@/components/pubpal/PubPalVoiceSession");
-      await act(async () => root.render(createElement(Voice, { palName: "Ripley" })));
+      await act(async () => root.render(createElement(Voice, { palName: "Ripley", panel: host })));
       await act(async () => host.querySelector<HTMLButtonElement>("button")!.click());
       session = voice.startSession.mock.calls[0]![0] as Session;
       voice.status = "connected";
       await act(async () => {
         session!.onConnect();
-        root.render(createElement(Voice, { palName: "Ripley" }));
+        root.render(createElement(Voice, { palName: "Ripley", panel: host }));
       });
       originalComposer = host.querySelector("input");
       await act(async () => {

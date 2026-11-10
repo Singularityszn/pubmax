@@ -2,6 +2,7 @@
 
 // Display contract: docs/CITYMCP_LONDON.md, Runtime API surfaces.
 
+import "./cityStatusBanner.css";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react";
 

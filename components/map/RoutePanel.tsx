@@ -19,11 +19,7 @@ import { buildCrawlIcs, icsFilename } from "@/lib/icsExport";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
-import {
-  curatedCrawlByIdForCity,
-  curatedCrawlsForCity,
-} from "@/lib/cityCuratedCrawls";
-import { cityAwareMapPath, crawlShareMapHref } from "@/lib/curatedCrawls";
+import { cityAwareMapPath, crawlShareMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { downloadIcs } from "@/lib/routePanelIcs";
 import { mapPlanDrinkPresentation, type MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import { drinkLensCoverageNote, type CategoryPriceIndexStatus, type MapLensPrice } from "@/lib/mapExperienceLens";
@@ -62,6 +58,7 @@ type RoutePanelProps = {
   crawlBlurb?: string;
   crawlName?: string;
   crawlId?: string;
+  curatedCrawls: readonly CuratedCrawl[];
   routeMapped: boolean;
   /**
    * Print the stops straight under the head, ahead of the metrics and the
@@ -109,6 +106,7 @@ export default function RoutePanel({
   crawlBlurb,
   crawlName,
   crawlId,
+  curatedCrawls,
   routeMapped,
   stopsFirst = false,
   originDistanceKm,
@@ -161,7 +159,7 @@ export default function RoutePanel({
   // present, else a stable title slug so hand-built routes still track.
   const progressKey = (crawlId || crawlTitle).trim();
   const placeStoryBandId = crawlId
-    ? curatedCrawlByIdForCity(cityId, crawlId)?.placeStoryBandId
+    ? curatedCrawls.find((crawl) => crawl.id === crawlId)?.placeStoryBandId
     : undefined;
   const {
     crawlProgress,
@@ -187,7 +185,7 @@ export default function RoutePanel({
     placeStoryBandId,
     crawlId,
     cityId,
-    crawls: curatedCrawlsForCity(cityId),
+    crawls: curatedCrawls,
     drinkSelection,
   });
 

@@ -25,11 +25,54 @@ let insertFailure: { code: string; message: string; status: number } | null;
 let loseInsertResponse: boolean;
 let failReadAfterInsert: boolean;
 let roundClosed: boolean;
+let creation: {
+  round: Record<string, unknown> | null;
+  members: Record<string, unknown>[];
+  missFirstRead: boolean;
+  failMembership: boolean;
+  failMemberRead: boolean;
+} | null;
+
+function createRoundFixture(state: NonNullable<typeof creation>) {
+  return (url: URL, method: string, init?: RequestInit): Response => {
+    if (url.pathname === "/rest/v1/rounds") {
+      if (method === "POST") {
+        if (state.round) return Response.json({ code: "23505", message: "Duplicate id" }, { status: 409 });
+        state.round = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return Response.json(state.round, { status: 201 });
+      }
+      if (state.missFirstRead) {
+        state.missFirstRead = false;
+        return Response.json(null);
+      }
+      return Response.json(state.round);
+    }
+    if (url.pathname === "/rest/v1/round_members") {
+      if (method === "POST") {
+        if (state.failMembership) return new Response(null, { status: 503 });
+        const member = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        const exists = state.members.some((row) => row.round_id === member.round_id && row.handle === member.handle);
+        if (exists && !new Headers(init?.headers).get("prefer")?.includes("resolution=ignore-duplicates")) {
+          return Response.json({ code: "23505", message: "Duplicate member" }, { status: 409 });
+        }
+        if (!exists) {
+          state.members.push(member);
+        }
+        return new Response(null, { status: 201 });
+      }
+      return state.failMemberRead ? new Response(null, { status: 503 }) : Response.json(state.members);
+    }
+    throw new Error(`Unexpected creation fixture path: ${url.pathname}`);
+  };
+}
 
 const fixtureFetch: typeof fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input));
   if (url.hostname !== "rounds-receipt.test") throw new Error("Unexpected fixture host");
   const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+  if (creation && (url.pathname === "/rest/v1/rounds" || url.pathname === "/rest/v1/round_members")) {
+    return createRoundFixture(creation)(url, method, init);
+  }
   if (url.pathname === "/rest/v1/rounds") {
     if (failReadAfterInsert && rows.length) return new Response(null, { status: 503 });
     return Response.json({
@@ -116,6 +159,7 @@ beforeEach(() => {
   loseInsertResponse = false;
   failReadAfterInsert = false;
   roundClosed = false;
+  creation = null;
   __resetMemoryRounds();
   vi.stubEnv("SUPABASE_URL", "https://rounds-receipt.test");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-key");
@@ -141,6 +185,83 @@ function spend() {
     receipt: new File([PNG], "bill.png", { type: "image/png" }),
   };
 }
+
+it("keeps round and membership creation state across fixture requests", async () => {
+  const state: NonNullable<typeof creation> = {
+    round: null, members: [], missFirstRead: true,
+    failMembership: false, failMemberRead: false,
+  };
+  const request = createRoundFixture(state);
+  const roundUrl = new URL("https://rounds-receipt.test/rest/v1/rounds");
+  const memberUrl = new URL("https://rounds-receipt.test/rest/v1/round_members");
+  const round = { id: ROUND_ID, code: CODE, title: "Friday", created_by_handle: "ken" };
+  const member = { round_id: ROUND_ID, handle: "ken" };
+
+  expect(request(roundUrl, "POST", { body: JSON.stringify(round) }).status).toBe(201);
+  expect(await request(roundUrl, "GET").json()).toBeNull();
+  expect(await request(roundUrl, "GET").json()).toEqual(round);
+  expect(request(roundUrl, "POST", { body: JSON.stringify(round) }).status).toBe(409);
+  expect(request(memberUrl, "POST", { body: JSON.stringify(member) }).status).toBe(201);
+  expect(request(memberUrl, "POST", { body: JSON.stringify(member) }).status).toBe(409);
+  expect(request(memberUrl, "POST", {
+    body: JSON.stringify(member), headers: { prefer: "resolution=ignore-duplicates" },
+  }).status).toBe(201);
+  expect(await request(memberUrl, "GET").json()).toEqual([member]);
+});
+
+it.each(["fresh", "replay", "collision"])("completes creator membership before a %s create succeeds", async (path) => {
+  creation = {
+    round: path === "fresh" ? null : { id: ROUND_ID, code: CODE, title: "Friday", created_by_handle: "ken" },
+    members: [],
+    missFirstRead: path === "collision",
+    failMembership: false,
+    failMemberRead: false,
+  };
+  const input = { id: ROUND_ID, title: "Friday", createdByHandle: "ken" };
+  const result = await roundsStore().create(input);
+  expect(result).toMatchObject({
+    ok: true, created: path === "fresh", state: { members: [{ handle: "ken" }] },
+  });
+  expect(await roundsStore().create(input)).toMatchObject({ ok: true, created: false });
+  expect(creation.members).toEqual([{ round_id: ROUND_ID, handle: "ken" }]);
+});
+
+it.each(["fresh", "replay", "collision"])("refuses an incomplete %s create and lets its retry finish", async (path) => {
+  creation = {
+    round: path === "fresh" ? null : { id: ROUND_ID, code: CODE, title: "Friday", created_by_handle: "ken" },
+    members: [],
+    missFirstRead: path === "collision",
+    failMembership: true,
+    failMemberRead: false,
+  };
+  const input = { id: ROUND_ID, title: "Friday", createdByHandle: "ken" };
+  expect(await roundsStore().create(input)).toEqual({ ok: false, error: "error" });
+  expect(creation.members).toHaveLength(0);
+  creation.failMembership = false;
+  expect(await roundsStore().create(input)).toMatchObject({
+    ok: true, created: false, state: { members: [{ handle: "ken" }] },
+  });
+});
+
+it("refuses a replay whose completed creator membership cannot be read", async () => {
+  creation = {
+    round: { id: ROUND_ID, code: CODE, title: "Friday", created_by_handle: "ken" },
+    members: [], missFirstRead: false, failMembership: false, failMemberRead: true,
+  };
+  expect(await roundsStore().create({ id: ROUND_ID, title: "Friday", createdByHandle: "ken" }))
+    .toEqual({ ok: false, error: "error" });
+});
+
+it("does not add a member when a replay changes the creator or title", async () => {
+  creation = {
+    round: { id: ROUND_ID, code: CODE, title: "Friday", created_by_handle: "ken" },
+    members: [], missFirstRead: false, failMembership: false, failMemberRead: false,
+  };
+  for (const changed of [{ title: "Saturday", createdByHandle: "ken" }, { title: "Friday", createdByHandle: "ale" }]) {
+    expect(await roundsStore().create({ id: ROUND_ID, ...changed })).toEqual({ ok: false, error: "conflict" });
+  }
+  expect(creation.members).toHaveLength(0);
+});
 
 it("retains the uploaded bill key on a Supabase spend and its replay", async () => {
   const store = roundsStore();

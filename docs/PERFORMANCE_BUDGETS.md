@@ -163,9 +163,9 @@ Decoded KB, so parse cost rather than transfer:
 
 Three things this settles.
 
-MapLibre is on `/map` and nowhere else, and Supabase is on every route as the
-same ~341 KB lazily fetched after paint by `ensureSupabaseBrowser`. Entry-point
-isolation is already correct for both.
+In this sweep, MapLibre loaded only on `/map`, and each route loaded the same
+~341 KB Supabase chunk. See the [browser auth loading rule](../lib/authClientTurn.ts)
+for current loading conditions.
 
 `/about` and `/pubs` were carrying 1900 and 1950 KB ceilings against 1081 and
 1092 KB measured. There was no accidental import to split: no MapLibre, no

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, Fragment, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,6 +23,8 @@ const analytics = vi.hoisted(() => ({
 
 const navigation = vi.hoisted(() => ({
   push: vi.fn(),
+  pathname: "/pal",
+  search: "",
 }));
 
 const sounds = vi.hoisted(() => ({
@@ -69,6 +71,8 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: navigation.push }),
+  usePathname: () => navigation.pathname,
+  useSearchParams: () => new URLSearchParams(navigation.search),
 }));
 
 vi.mock("@/components/pubpal/palVoiceSounds", () => ({
@@ -84,12 +88,12 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: requests.authedActionFetch,
 }));
 
+const venuesRead = vi.hoisted(() => ({ read: vi.fn() }));
+
 // The listed pubs a "take me there" or "where is" ask is read against.
 vi.mock("@/lib/venuesSlim", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/venuesSlim")>()),
-  loadSlimVenuesForCity: async () => [
-    { id: "venue-lamb", name: "The Lamb", lat: 0, lng: 0, cheapestPrice: 5.2, borough: "Camden" },
-  ],
+  loadSlimVenuesForCity: venuesRead.read,
 }));
 
 vi.mock("@/lib/analytics", async (importOriginal) => ({
@@ -97,7 +101,9 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
   trackEvent: analytics.trackEvent,
 }));
 
-import PubPalVoice from "@/components/pubpal/PubPalVoice";
+import PubPalVoiceGate from "@/components/pubpal/PubPalVoice";
+import PalVoiceHost from "@/components/pubpal/PalVoiceHost";
+import { revokePalVoiceCall } from "@/lib/palVoiceHost";
 import { ACTIVE_PLAN_KEY, writeActivePlan } from "@/lib/activePlan";
 
 const NIGHT_PLAN_ID = "11111111-1111-4111-8111-111111111111";
@@ -109,9 +115,18 @@ import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
+  PAL_VOICE_START_TIMEOUT_ERROR,
+  PAL_VOICE_START_TIMEOUT_MS,
 } from "@/lib/pubPalVoiceSession";
 import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
+import { applyPalMapCommand, groundPalMapResult, readPalMapState } from "@/lib/palMapCommands";
+import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
+
+// The /pal gate draws a slot and the shell's host draws the call into it.
+function PubPalVoice({ panelVisible = true, ...props }: ComponentProps<typeof PubPalVoiceGate> & { panelVisible?: boolean }) {
+  return createElement(Fragment, null, panelVisible ? createElement(PubPalVoiceGate, props) : null, createElement(PalVoiceHost));
+}
 
 let container: HTMLDivElement;
 let root: Root | null;
@@ -175,7 +190,12 @@ beforeEach(() => {
   voice.sendUserMessage.mockReset();
   requests.authedActionFetch.mockReset();
   analytics.trackEvent.mockReset();
+  venuesRead.read.mockReset().mockResolvedValue([
+    { id: "venue-lamb", name: "The Lamb", lat: 0, lng: 0, cheapestPrice: 5.2, borough: "Camden" },
+  ]);
   navigation.push.mockReset();
+  navigation.pathname = "/pal";
+  navigation.search = "";
   sounds.play.mockReset();
   native.enabled = false;
   native.listeners.clear();
@@ -236,6 +256,22 @@ describe("Pub Pal voice controls", () => {
     await settle();
     expect(container.textContent).not.toContain("Your chosen voice isn't available");
     expect(voice.startSession).toHaveBeenCalledOnce();
+  });
+
+  it.each([true, false])("offers voice only after the probe confirms availability: %s", async (available) => {
+    const probe = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn(() => probe.promise));
+    await act(async () => { root?.render(createElement(PubPalVoice)); });
+    expect(container.querySelector("input")).toBeNull();
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('a[href="/pal/chat"]')).not.toBeNull();
+    await act(async () => { probe.resolve(Response.json({ available })); });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    await settle();
+    expect(container.querySelector("input") !== null).toBe(available);
+    expect(container.querySelector("button") !== null).toBe(available);
+    if (!available) expect(container.querySelector('a[href="/pal/chat"]')).not.toBeNull();
+    expect(getUserMedia).not.toHaveBeenCalled();
   });
 
   it("offers writing immediately and leaves a stalled availability probe after eight seconds", async () => {
@@ -339,6 +375,45 @@ describe("Pub Pal voice controls", () => {
     expect(analytics.trackEvent).not.toHaveBeenCalledWith("voice_started");
     await typeAndSend("Quiet pubs in Soho");
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/pal/chat?ask=Quiet+pubs+in+Soho");
+  });
+
+  it.each(["mute", "delete"] as const)("ends a live call after %s revokes voice", async (action) => {
+    await startLiveSession();
+    await act(async () => {
+      if (action === "delete") revokePalVoiceCall();
+      root?.render(createElement(PubPalVoice, { muted: action === "mute", panelVisible: action !== "delete" }));
+    });
+    await settle();
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(container.querySelector(".palVoiceBar")).toBeNull();
+    expect(requests.authedActionFetch).toHaveBeenLastCalledWith(
+      "/api/pub-pal/voice-token",
+      expect.objectContaining({ body: JSON.stringify({ action: "release", conversationId: "conv_voiceSession1" }) }),
+      { requiresIdentity: true },
+    );
+  });
+
+  it("cancels a pending microphone request when muted", async () => {
+    const permission = deferred<MediaStream>();
+    const stopTrack = vi.fn();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    await act(async () => { root?.render(createElement(PubPalVoice, { muted: true })); });
+    await act(async () => { permission.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream); });
+    await settle();
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(voice.startSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps a cold map free of voice controls and availability requests", async () => {
+    navigation.pathname = "/map";
+    await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
+    await settle();
+    expect(container.childElementCount).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(getUserMedia).not.toHaveBeenCalled();
   });
 
   it("does not probe or offer voice while the Pal is muted", async () => {
@@ -686,12 +761,14 @@ describe("Pub Pal voice controls", () => {
       await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
       await settle();
       const session = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
         onConnect?: () => void;
         onDisconnect?: () => void;
         onMessage?: (message: { role: string; message: string }) => void;
       };
       voice.endSession.mockImplementation(() => session.onDisconnect?.());
       await act(async () => {
+        session.onStatusChange?.({ status: "connected" });
         session.onConnect?.();
         session.onMessage?.({ role: "agent", message: "Evening. Where are we drinking?" });
       });
@@ -776,6 +853,229 @@ describe("Pub Pal voice controls", () => {
       expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
     });
 
+    it("stops the SDK microphone at once when the page hides during SDK startup", async () => {
+      type Stream = { getTracks: () => { stop: () => void }[] };
+      const sdkStop = vi.fn();
+      const lateStop = vi.fn();
+      const late = deferred<Stream>();
+      const retryPermission = deferred<Stream>();
+      const retryProbeStop = vi.fn();
+      const retrySdkStop = vi.fn();
+      const retryGrant = deferred<Response>();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: sdkStop }] })
+        .mockReturnValueOnce(late.promise)
+        .mockReturnValueOnce(retryPermission.promise)
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: retrySdkStop }] });
+      requests.authedActionFetch
+        .mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceStartup1" }))
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      // The SDK opens the microphone itself and cannot be cancelled until its
+      // socket finishes, so endSession only marks the pending start.
+      let sdkInput: Promise<Stream> | undefined;
+      voice.startSession.mockImplementation((options: { onStatusChange?: (event: { status: string }) => void }) => {
+        voice.status = "connecting";
+        options.onStatusChange?.({ status: "connecting" });
+        void navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput.catch(() => undefined);
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      await settle();
+      expect(getUserMedia).toHaveBeenCalledTimes(3);
+
+      hidePage("visibilitychange");
+      expect(sdkStop).toHaveBeenCalledOnce();
+
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(3);
+
+      const session = defined(voice.startSession.mock.calls[0])[0] as { onStatusChange?: (event: { status: string }) => void };
+      voice.status = "disconnected";
+      visibility = "visible";
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        root?.render(createElement(PubPalVoice));
+      });
+      requests.authedActionFetch.mockReturnValueOnce(retryGrant.promise);
+      let retrySdkInput: Promise<Stream> | undefined;
+      voice.startSession.mockImplementation(() => {
+        retrySdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+      });
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+
+      await act(async () => { retryPermission.resolve({ getTracks: () => [{ stop: retryProbeStop }] }); });
+      expect(retryProbeStop).toHaveBeenCalledOnce();
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+
+      await act(async () => {
+        retryGrant.resolve(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_voiceStartup2" }));
+      });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+      await act(async () => { session.onStatusChange?.({ status: "disconnected" }); });
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      await expect(defined(retrySdkInput)).resolves.toBeDefined();
+      await act(async () => { late.resolve({ getTracks: () => [{ stop: lateStop }] }); });
+      expect(lateStop).toHaveBeenCalledOnce();
+      await expect(defined(sdkInput)).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(5);
+      hidePage("visibilitychange");
+      expect(retrySdkStop).toHaveBeenCalledOnce();
+      const retrySession = defined(voice.startSession.mock.calls[1])[0] as { onStatusChange?: (event: { status: string }) => void };
+      act(() => { retrySession.onStatusChange?.({ status: "disconnected" }); });
+      expect(getUserMedia).toHaveBeenCalledTimes(5);
+    });
+
+    it("refuses late SDK input after a cancelled startup reports disconnected", async () => {
+      const sdkStop = vi.fn();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockResolvedValue({ getTracks: () => [{ stop: sdkStop }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/session", conversationId: "conv_lateInput",
+      }));
+      voice.startSession.mockImplementation(() => {
+        void navigator.mediaDevices.getUserMedia({ audio: true });
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      const session = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      expect(sdkStop).toHaveBeenCalledOnce();
+      await act(async () => { session.onStatusChange?.({ status: "disconnected" }); });
+
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      visibility = "visible";
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops an SDK stream that resolves while hidden before the visibility event", async () => {
+      const input = deferred<MediaStream>();
+      const stopTrack = vi.fn();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockReturnValueOnce(input.promise);
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session" }));
+      let sdkInput: Promise<MediaStream> | undefined;
+      voice.startSession.mockImplementation(() => {
+        sdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput.catch(() => undefined);
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      visibility = "hidden";
+      await act(async () => { input.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream); });
+
+      await expect(defined(sdkInput)).rejects.toMatchObject({ name: "AbortError" });
+      expect(stopTrack).toHaveBeenCalledOnce();
+    });
+
+    it.each(["cancel", "timeout", "unmount"] as const)("never starts a waiting retry after %s", async (ending) => {
+      vi.useFakeTimers();
+      getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/first", conversationId: "conv_waitFirst",
+      }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      const first = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      await settle();
+      visibility = "visible";
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/retry", conversationId: "conv_waitRetry",
+      }));
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        container.querySelector<HTMLButtonElement>("button")?.click();
+      });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(voice.startSession).toHaveBeenCalledOnce();
+
+      if (ending === "unmount") unmount();
+      else if (ending === "cancel") {
+        await act(async () => { container.querySelector<HTMLButtonElement>('button[aria-label="Cancel voice startup"]')?.click(); });
+      } else {
+        await act(async () => { await vi.advanceTimersByTimeAsync(PAL_VOICE_START_TIMEOUT_MS); });
+        expect(container.textContent).toContain(PAL_VOICE_START_TIMEOUT_ERROR);
+      }
+      await settle();
+      await act(async () => { first.onStatusChange?.({ status: "disconnected" }); });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.flatMap(([, init]) => {
+        const body = JSON.parse(String((init as RequestInit | undefined)?.body ?? "{}"));
+        return body.action === "release" ? [body.conversationId] : [];
+      });
+      expect(releases).toEqual(["conv_waitFirst", "conv_waitRetry"]);
+    });
+
+    it("allows a new start after unmount between claiming a retry token and starting the SDK", async () => {
+      vi.useFakeTimers();
+      getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/first", conversationId: "conv_claimFirst",
+      }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      const first = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      await settle();
+      visibility = "visible";
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/retry", conversationId: "conv_claimRetry",
+      }));
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        container.querySelector<HTMLButtonElement>("button")?.click();
+      });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(voice.startSession).toHaveBeenCalledOnce();
+
+      await act(async () => {
+        first.onStatusChange?.({ status: "disconnected" });
+        queueMicrotask(() => {
+          root?.unmount();
+          root = null;
+        });
+      });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.flatMap(([, init]) => {
+        const body = JSON.parse(String((init as RequestInit | undefined)?.body ?? "{}"));
+        return body.action === "release" ? [body.conversationId] : [];
+      });
+      expect(releases).toEqual(["conv_claimFirst", "conv_claimRetry"]);
+
+      root = createRoot(container);
+      await mountAvailable();
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/next", conversationId: "conv_claimNext",
+      }));
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      expect(defined(voice.startSession.mock.calls[1])[0]).toMatchObject({
+        signedUrl: "wss://voice.example/next",
+      });
+    });
+
     it("keeps the transcript and offers Carry on when the page returns", async () => {
       await goLive();
       hidePage("visibilitychange");
@@ -847,11 +1147,13 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     const sessionA = defined(voice.startSession.mock.calls[0])[0] as {
+      onStatusChange?: (event: { status: string }) => void;
       onConnect?: () => void;
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
     };
     await act(async () => {
+      sessionA.onStatusChange?.({ status: "connected" });
       sessionA.onConnect?.();
       sessionA.onError?.(new Error("attempt A failed"));
       await Promise.resolve();
@@ -873,6 +1175,8 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+    groundPalMapResult(["venue-lamb"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
 
     await act(async () => {
       sessionA.onDisconnect?.();
@@ -881,6 +1185,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+    expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
 
     await act(async () => {
       vi.advanceTimersByTime(1_000);
@@ -1201,6 +1506,7 @@ describe("Pub Pal voice controls", () => {
 type LiveSession = {
   onConnect?: () => void;
   onDisconnect?: (details?: unknown) => void;
+  onError?: (error: string) => void;
   onMessage?: (message: { role: string; message: string; event_id?: number }) => void;
   onAgentToolRequest?: (event: { tool_call_id: string; event_id: number; tool_name: string }) => void;
   onAgentToolResponse?: (event: { tool_call_id: string; event_id: number; tool_name: string; is_error: boolean; is_called: boolean; full_tool_result: string }) => void;
@@ -1243,14 +1549,32 @@ function transcriptLines(): string[] {
 }
 
 describe("Pub Pal voice transcript", () => {
+  it.each(["stop", "disconnect", "error", "cap"])("forgets map picks after %s while the panel stays mounted", async (ending) => {
+    if (ending === "cap") vi.useFakeTimers();
+    const session = await startLiveSession();
+    groundPalMapResult(["venue-lamb"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
+    await act(async () => {
+      if (ending === "disconnect") session.onDisconnect?.();
+      else if (ending === "error") session.onError?.("Socket failed");
+      else if (ending === "cap") {
+        vi.advanceTimersByTime(PAL_VOICE_MAX_SESSION_SECONDS * 1000);
+      } else container.querySelector<HTMLButtonElement>(".palVoiceActions button")?.click();
+    });
+    expect(readPalMapState().picks).toEqual([]);
+    expect(applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] })).toBe(false);
+  });
+
   it.each(["search_venues", "cheapest_pint_near"])("retains choices until a completed %s replaces them and rejects stale responses", async (replacementTool) => {
     const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    venuesRead.read.mockReturnValue(new Promise(() => {}));
     const session = await startLiveSession();
     const result = (id: string, eventId: number, name: string) => ({
       tool_call_id: id, event_id: eventId, tool_name: "search_venues", is_error: false, is_called: true,
       full_tool_result: JSON.stringify({ result: {
         ok: true, tool: "search_venues", answerHint: "Listed pubs.",
         cards: [{ key: id, venueId: "venue-lamb", title: name, place: "Camden", note: "", price: 5.2, provenance: { kind: "directory", label: "Source read 2 October 2026" } }],
+        data: { venues: [{ id: "venue-lamb", lat: 51.5, lng: -0.1 }] },
       } }),
     });
     await act(async () => {
@@ -1259,6 +1583,7 @@ describe("Pub Pal voice transcript", () => {
       session.onAgentToolResponse?.(result("first", 4, "The Lamb"));
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("Source read 2 October 2026");
     await act(async () => {
       session.onMessage?.({ role: "user", message: "Thanks", event_id: 5 });
@@ -1277,6 +1602,7 @@ describe("Pub Pal voice transcript", () => {
       } }) });
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    expect(readPalMapState().picks).toEqual([]);
     await act(async () => {
       session.onAgentToolRequest?.({ tool_call_id: "second", event_id: 7, tool_name: "search_venues" });
       session.onDisconnect?.();
@@ -1559,24 +1885,61 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-c");
   });
 
-  it("opens nothing when the plan read lands after the person left /pal", async () => {
+  it.each([false, true])("retires a next-stop read on navigation, already on map: %s", async (alreadyOnMap) => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     writeActivePlan({ id: NIGHT_PLAN_ID, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
-    let land: (body: unknown) => void = () => {};
-    planRead.read.mockReturnValue(new Promise((resolve) => { land = resolve; }));
+    const read = deferred<unknown>();
+    planRead.read.mockReturnValueOnce(read.promise);
     const session = await startLiveSession();
+    if (alreadyOnMap) {
+      navigation.pathname = "/map";
+      navigation.search = "sel=venue-a";
+      await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
+    }
+    await act(async () => { session.onMessage?.({ role: "user", message: "What's next?" }); });
+    navigation.pathname = "/map";
+    navigation.search = "sel=venue-manual";
+    await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
     await act(async () => {
-      session.onMessage?.({ role: "user", message: "What's next?" });
-      await Promise.resolve();
+      read.resolve({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-b", venueName: "The Crown", position: 1 }] });
     });
-    await act(async () => root?.unmount());
-    root = null;
-    await act(async () => {
-      land({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-b", venueName: "The Crown", position: 1 }] });
-      await Promise.resolve();
-    });
-    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS * 2); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
     expect(navigation.push).not.toHaveBeenCalled();
+    expect(voice.endSession).not.toHaveBeenCalled();
+    expect(container.querySelector(".palVoiceBar")?.getAttribute("data-live")).toBe("true");
+  });
+
+  it("retires a pub lookup when the live call returns from the map to the Pal", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const session = await startLiveSession();
+    navigation.pathname = "/map";
+    await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
+    const read = deferred<unknown[]>();
+    venuesRead.read.mockReturnValueOnce(read.promise);
+    await act(async () => { session.onMessage?.({ role: "user", message: "Where is The Lamb?" }); });
+    expect(venuesRead.read).toHaveBeenCalledOnce();
+    navigation.pathname = "/pal";
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley" })); });
+    await act(async () => { read.resolve([{ id: "venue-lamb", name: "The Lamb" }]); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(voice.endSession).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="log"]')).not.toBeNull();
+  });
+
+  it("cancels a delayed map redirect after manual navigation and accepts a new ask", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const session = await startLiveSession();
+    await act(async () => { session.onMessage?.({ role: "user", message: "Show me the map" }); });
+    navigation.pathname = "/map";
+    navigation.search = "sel=venue-manual";
+    await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(voice.endSession).not.toHaveBeenCalled();
+    await act(async () => { session.onMessage?.({ role: "user", message: "Where is The Lamb?" }); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-lamb");
   });
 
   it("opens only the stop from the newest ask when two reads land out of order", async () => {

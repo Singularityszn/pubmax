@@ -235,9 +235,9 @@ export function resolveClaims<T>(
  * overwrite. `reviewed: true` records that a human (the owner/moderator) stood
  * behind it at acceptance. Pure: the caller supplies the value, the acceptance
  * time, and a stable publisher (e.g. `operator:<accountId>`). This lives here,
- * NOT in lib/operatorProposals.ts, so the proposal store stays free of any fact
- * import and the fence (proposal store cannot touch trusted data) holds by
- * construction — only the admin acceptance path reaches for this function.
+ * outside lib/operatorProposals.ts, so the proposal module and store cannot
+ * import the trusted fact-resolution engine. Only the admin acceptance path
+ * calls this function.
  */
 export function acceptedProposalFactSource<T>(input: {
   value: T;

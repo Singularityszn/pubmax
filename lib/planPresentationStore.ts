@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isPlanId } from "@/lib/plan";
+import { isPlanTerminal } from "@/lib/planTerminal";
 import { hashPlanMemberToken, planMemberIdentityResult, planStateResult } from "@/lib/planStore";
 import { isPlanPresentation, type PlanPresentationResult } from "@/lib/planPresentation";
 import { selectStore } from "@/lib/storeBackend";
@@ -23,7 +24,7 @@ async function memoryOperation(planId: string, token: unknown, change?: Change):
   if (!read.ok) return { ok: false, error: "error" };
   if (!read.plan) return { ok: false, error: "forbidden" };
   const revision = Number(read.plan.plan.routeRevision ?? 1);
-  const canEdit = identity.identity.role === "host" && !["completed", "abandoned"].includes(read.plan.plan.status ?? "draft");
+  const canEdit = identity.identity.role === "host" && !isPlanTerminal(read.plan.plan.status);
   if (change) {
     if (!canEdit) return { ok: false, error: "forbidden" };
     if (change.expectedRouteRevision !== revision) return { ok: false, error: "conflict" };

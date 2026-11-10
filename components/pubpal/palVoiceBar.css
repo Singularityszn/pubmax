@@ -1,0 +1,115 @@
+/* The voice call off /pal. It takes the Pub Pal pill's berth, so the pill
+   stands down while a call is on screen. */
+.palVoiceBar {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: var(--pal-summon-bottom);
+  z-index: 546;
+  max-width: 480px;
+  margin-inline: auto;
+  min-height: 60px;
+  padding: 8px 8px 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+}
+.palVoiceBar[data-live="true"] {
+  border-color: var(--state-selected-border);
+}
+body:has(.palVoiceBar) .palSummon {
+  display: none;
+}
+.palVoiceBarText {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.palVoiceBarText p {
+  margin: 0;
+}
+.palVoiceBarText [role="status"] {
+  font: 700 var(--text-xs) / 1.3 var(--font-display);
+}
+.palVoiceBarCaption {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.palVoiceBar button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+.palVoiceBar button.palVoiceBarClose {
+  padding: 0;
+}
+@media (min-width: 641px) {
+  .palVoiceBar {
+    bottom: 22px;
+  }
+}
+/* The map pick the Pal is naming, above the call row. */
+.palVoiceBar:has(.palVoiceBarPick) {
+  flex-wrap: wrap;
+}
+.palVoiceBarPick {
+  flex: 1 0 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--state-selected-border);
+  border-radius: var(--radius);
+  background: var(--state-selected-surface);
+}
+.palVoiceBarPick p,
+.palVoiceBarPick a {
+  margin: 0;
+  min-width: 0;
+}
+.palVoiceBarPickNumber {
+  grid-row: span 2;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  font: 700 var(--text-xs) / 1 var(--font-data);
+}
+.palVoiceBarPickTitle {
+  font: 700 var(--text-sm) / 1.3 var(--font-display);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.palVoiceBarPickSource {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}

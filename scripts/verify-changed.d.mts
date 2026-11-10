@@ -19,19 +19,11 @@ export type CheckStep = {
   readonly env?: Record<string, string>;
 };
 
-export declare const FULL_SUITE_FAN_IN: number;
-export declare const FOUNDATIONS: readonly RegExp[];
-
 export declare function importGraph(
   files: readonly string[],
   readText: (path: string) => string,
+  resolverCandidates?: readonly string[],
 ): Map<string, Set<string>>;
-
-export declare function fullSuiteReason(
-  changed: readonly ChangedFile[],
-  importers: ReadonlyMap<string, ReadonlySet<string>>,
-  env?: Record<string, string | undefined>,
-): string | null;
 
 export declare function planChecks(input: {
   changed: readonly ChangedFile[];

@@ -30,6 +30,12 @@ describe("cameraIntentBlocked — the hold after a gesture", () => {
     expect(cameraIntentBlocked("query", JUST_LET_GO(1_000), 1_000 + GESTURE_CAMERA_HOLD_MS - 1)).toBe(true);
   });
 
+  it("keeps a voice answer's framing off a map the reader is still reading", () => {
+    expect(cameraIntentBlocked("pal", JUST_LET_GO(1_000), 1_500)).toBe(true);
+    expect(cameraIntentBlocked("pal", HELD, 1_500)).toBe(true);
+    expect(cameraIntentBlocked("pal", idleGestureCameraState(), 1_500)).toBe(false);
+  });
+
   it("gives the camera back once the hold is spent", () => {
     expect(cameraIntentBlocked("route", JUST_LET_GO(1_000), 1_000 + GESTURE_CAMERA_HOLD_MS)).toBe(false);
     expect(cameraIntentBlocked("query", JUST_LET_GO(1_000), 9_999)).toBe(false);
@@ -53,10 +59,12 @@ describe("cameraIntentBlocked — the hold after a gesture", () => {
 describe("the reactive set is closed", () => {
   it("names exactly the moves no reader asked for", () => {
     // `query` and `route` fire off changed data; `arrival` is the map's own
-    // opening turn (lib/mapArrivalBearing.ts). Nothing else joins this set
-    // without a reason written beside it.
+    // opening turn (lib/mapArrivalBearing.ts); `pal` lands when a voice answer
+    // arrives, seconds after the ask. Nothing else joins this set without a
+    // reason written beside it.
     expect([...REACTIVE_CAMERA_INTENTS].sort()).toEqual([
       "arrival",
+      "pal",
       "query",
       "route",
     ]);

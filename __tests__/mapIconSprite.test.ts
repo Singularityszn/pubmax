@@ -210,10 +210,11 @@ describe("scene icon registration", () => {
     };
   }
 
-  function serveSprites(failedSheet?: typeof SHEETS[number]) {
+  function serveSprites(failedSheet?: typeof SHEETS[number], mainResponseReady?: Promise<void>) {
     const fetch = vi.fn(async (url: string) => {
       const path = new URL(url, "https://pubmaxxing.com").pathname;
       const sheet = path.endsWith("-landmarks.png") ? "landmarks" : "main";
+      if (sheet === "main") await mainResponseReady;
       return sheet === failedSheet
         ? new Response("", { status: 404 })
         : new Response(new Uint8Array(readFileSync(join(ROOT, "public", path))));
@@ -267,10 +268,18 @@ describe("scene icon registration", () => {
   });
 
   it.each([1, 2, 3])("keeps original pixels and image options at map pixel ratio %i across theme swaps", async (pixelRatio) => {
-    const fetch = serveSprites();
+    const mainResponse = Promise.withResolvers<void>();
+    const fetch = serveSprites(undefined, mainResponse.promise);
     performance.mark("pubmax:pins-visible");
-    const { registerSceneIconImages, preloadMapIconSprite } = await loaded();
+    const { registerSceneIconImages, preloadMapIconSprite, resolveMissingMapIcon } = await loaded();
     const map = fakeMap(pixelRatio);
+    preloadMapIconSprite("light");
+    await vi.waitFor(() => {
+      const ready = fakeMap(pixelRatio);
+      resolveMissingMapIcon(ready as never, "lm:clock-tower", "light");
+      expect(ready.images.get("lm:clock-tower")?.image).toHaveProperty("data");
+    });
+    mainResponse.resolve();
     for (const theme of ["light", "dark", "light"] as const) {
       const live = manifest.sheets.main.themes[theme].tokens as IconTokens;
       preloadMapIconSprite(theme);

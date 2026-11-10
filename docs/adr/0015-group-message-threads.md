@@ -63,7 +63,9 @@ already keeps.
 
 `POST /api/messages/[id] { action: "leave" }` is the way out. A group nobody can
 leave is a trap, and a thread whose membership can only grow is worse than one
-that never existed.
+that never existed. Leaving is never refused for size: the three-person floor
+applies to opening a group, and the people who stay keep their thread however
+few they are.
 
 **Adding a member after the fact is NOT in this wave.** It is a different
 question — who may add, whether the newcomer reads the history, what the thread

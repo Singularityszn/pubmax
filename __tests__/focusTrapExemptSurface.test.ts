@@ -3,7 +3,9 @@ import { act, createElement, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 
+import PalVoiceBar from "@/components/pubpal/PalVoiceBar";
 import {
+  type FocusTrapOutsidePolicy,
   FOCUS_TRAP_EXEMPT_ATTRIBUTE,
   inertTargets,
   nextTrapFocus,
@@ -142,13 +144,64 @@ describe("useFocusTrap with an exempt surface", () => {
     if (offsetParent) Object.defineProperty(HTMLElement.prototype, "offsetParent", offsetParent);
   });
 
-  function Trap({ containerRef }: { containerRef: RefObject<HTMLElement | null> }) {
-    useFocusTrap(true, containerRef, "map-surface");
+  function Trap({ containerRef, policy = "map-surface" }: {
+    containerRef: RefObject<HTMLElement | null>;
+    policy?: FocusTrapOutsidePolicy;
+  }) {
+    useFocusTrap(true, containerRef, policy);
     return null;
   }
 
   const nextFrame = () =>
     new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+
+  it.each(["map-surface", "strict-modal"] as const)(
+    "applies %s focus ownership to the real voice bar beside pub details",
+    async (policy) => {
+      (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+        .IS_REACT_ACT_ENVIRONMENT = true;
+      Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+        configurable: true,
+        get() { return (this as HTMLElement).parentElement; },
+      });
+      const { byId } = buildShell();
+      byId("chip").remove();
+      const host = document.createElement("div");
+      document.body.append(host);
+      root = createRoot(host);
+      let ended = false;
+      await act(async () => {
+        root!.render(createElement("div", null,
+          createElement(PalVoiceBar, {
+            palName: "Ripley", lines: [], error: null,
+            live: true, speaking: false, starting: false, endedOutOfSight: false,
+            onEnd: () => { ended = true; }, onCarryOn: () => {}, onClose: () => {},
+          }),
+          createElement(Trap, { containerRef: { current: byId("drawer") }, policy }),
+        ));
+      });
+      const end = [...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "End")!;
+      const inert = (node: HTMLElement): boolean => {
+        for (let cursor: HTMLElement | null = node; cursor; cursor = cursor.parentElement) {
+          if (cursor.inert) return true;
+        }
+        return false;
+      };
+      // End must stay in the drawer's keyboard cycle, but a strict modal owns all focus.
+      expect(inert(end)).toBe(policy === "strict-modal");
+      expect(inert(byId("nav"))).toBe(true);
+      const last = byId("plan");
+      last.focus();
+      last.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+      expect(document.activeElement).toBe(policy === "map-surface" ? end : byId("close"));
+      if (policy === "map-surface") {
+        end.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+        expect(document.activeElement).toBe(byId("close"));
+        await act(async () => end.click());
+        expect(ended).toBe(true);
+      }
+    },
+  );
 
   it.each(["inert", "aria-hidden"])(
     "wraps inside the sheet while an exempt tab bar has %s, then restores its focus cycle",

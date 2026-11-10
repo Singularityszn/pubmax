@@ -22,7 +22,7 @@ const harness = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname, useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
@@ -59,6 +59,7 @@ vi.mock("@/lib/deviceAccountSwitch", () => ({
   activateDeviceAccount: vi.fn(),
 }));
 vi.mock("@/lib/authRedirect", () => ({
+  hasPendingAuthAttempt: () => false,
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax-auth-return-fragment-restored",
   scrubAuthCallback: async () => {
     harness.scrubCallback();

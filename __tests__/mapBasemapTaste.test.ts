@@ -978,7 +978,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
   it("with nothing selected, a reload is a pure clear — no mute is (re)applied", () => {
     const setPaintProperty = vi.fn();
     const map = {
-      getLayer: () => ({ id: "pois-transport-minor" }),
+      getLayer: () => undefined,
       getPaintProperty: () => 0,
       setPaintProperty,
       getStyle: () => ({ layers: [] }),

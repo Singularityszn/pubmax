@@ -14,9 +14,9 @@ import {
   markPresence,
   recentPresence,
   __resetPresence,
-  PRESENCE_TTL_MS,
   type PresenceDTO,
 } from "@/lib/presenceStore";
+import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
 import { defined } from "@/__tests__/helpers/defined";
 
 const HANDLE = "old_ken";
@@ -91,6 +91,13 @@ describe("re-mark refreshes expiry (UPSERT on actor+venue)", () => {
     const originalExpiry = T0 + PRESENCE_TTL_MS;
     const stillLive = await recentPresence(undefined, originalExpiry + 1);
     expect(stillLive).toHaveLength(1);
+  });
+
+  it("moves a person to the pub they marked last: one pub at a time", async () => {
+    await markPresence({ handle: HANDLE, venueId: VENUE, actorHash: ACTOR }, T0);
+    await markPresence({ handle: HANDLE, venueId: "venue-the-other-pub", actorHash: ACTOR }, T0 + 60_000);
+    const rows = await recentPresence(undefined, T0 + 120_000);
+    expect(rows.map((row) => row.venueId)).toEqual(["venue-the-other-pub"]);
   });
 
   it("updates the stored handle on a re-mark", async () => {

@@ -374,12 +374,49 @@ beforeEach(() => {
 });
 
 describe("POST /api/rounds — create", () => {
+  it("returns a retryable 503 for a keyed request without trusted signing", async () => {
+    const originalSecret = process.env.PLAN_IDEMPOTENCY_SECRET;
+    process.env.PLAN_IDEMPOTENCY_SECRET = "short";
+    try {
+      const body = { handle: "ken", title: "Big night" };
+      const result = await create({ ...body, clientRequestId: "round-request-unsigned" });
+      expect(result.status).toBe(503);
+      expect(await result.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+      expect((await create(body)).status).toBe(201);
+    } finally {
+      if (originalSecret === undefined) delete process.env.PLAN_IDEMPOTENCY_SECRET;
+      else process.env.PLAN_IDEMPOTENCY_SECRET = originalSecret;
+    }
+  });
+
   it("creates a Round with the creator as first member (201)", async () => {
     const res = await create({ handle: "ken", title: "Big night" });
     expect(res.status).toBe(201);
     const state = (await res.json()) as RoundState;
     expect(state.round.title).toBe("Big night");
     expect(state.members.map((m) => m.handle)).toEqual(["ken"]);
+  });
+
+  it("answers a retried create with the Round its clientRequestId already started", async () => {
+    const body = { handle: "ken", title: "Big night", clientRequestId: "round-request-0001" };
+    const first = await create(body);
+    expect(first.status).toBe(201);
+    const started = (await first.json()) as RoundState;
+
+    const retry = await create(body);
+    expect(retry.status).toBe(200);
+    expect(((await retry.json()) as RoundState).round.code).toBe(started.round.code);
+
+    const fresh = await create({ ...body, clientRequestId: "round-request-0002" });
+    expect(((await fresh.json()) as RoundState).round.code).not.toBe(started.round.code);
+  });
+
+  it("refuses a clientRequestId resent with a different title (409)", async () => {
+    const key = "round-request-0003";
+    expect((await create({ handle: "ken", title: "Big night", clientRequestId: key })).status).toBe(201);
+    const renamed = await create({ handle: "ken", title: "Quiet one", clientRequestId: key });
+    expect(renamed.status).toBe(409);
+    expect((await renamed.json()).code).toBe("IDEMPOTENCY_CONFLICT");
   });
 
   it("rejects a create with no handle (400)", async () => {

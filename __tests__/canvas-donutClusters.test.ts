@@ -518,6 +518,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     expect(cinematic).toHaveBeenLastCalledWith(
       { center: NEW, zoom: 15, duration: 700 },
       "cluster",
+      "user",
     );
 
     const keydown = defined(listeners.get("keydown"));
@@ -530,6 +531,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       expect(cinematic).toHaveBeenCalledWith(
         { center: NEW, zoom: 15, duration: 700 },
         "cluster",
+        "user",
       );
     }
 

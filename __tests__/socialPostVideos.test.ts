@@ -75,6 +75,9 @@ describe("memory Social video store", () => {
     expect((await store.forPosts(["post-1"], bob)).get("post-1")?.reviewState).toBe("approved");
     expect(await store.playback("post-1", bob)).toMatchObject({ contentType: "video/mp4" });
     expect(await store.heldQueue(10)).toEqual([]);
+    // A stale moderator tab cannot overturn the decision.
+    expect(await store.review("post-1", "rejected")).toBe(false);
+    expect((await store.forPosts(["post-1"], bob)).get("post-1")?.reviewState).toBe("approved");
   });
 
   it("sweeps uploads that expired without a post, and keeps the ones that were posted", async () => {

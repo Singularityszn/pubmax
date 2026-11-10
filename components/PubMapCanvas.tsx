@@ -172,9 +172,13 @@ import {
   syncReaderPositionOnMap,
 } from "@/components/map/canvas/readerPositionProbe";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
+import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
+  palCameraDefaults,
   useMapCamera,
+  useNearbyCameraFraming,
+  useRouteCameraFraming,
   whenBottomSheetSettles,
 } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
@@ -255,6 +259,7 @@ import {
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
 import { BASEMAP_DRAWN_EVENT, markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
 import {
   MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
@@ -284,6 +289,7 @@ type PubMapCanvasProps = {
    */
   nationalBrowse?: boolean;
   route: Venue[];
+  routeRequestToken?: number;
   /**
    * Pals walk together: the crew Pals of the plan whose route this is
    * (lib/crewPals.ts). Empty unless `route` is the active plan's own route.
@@ -496,6 +502,7 @@ type PubMapCanvasProps = {
   queryVenues?: Venue[];
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
+  nearbyRequestToken?: number;
   readerPosition?: MapReaderPosition | null;
   poiHidden?: Record<PoiCategory, boolean>;
   onPoiHiddenChange?: (next: PoiHiddenChange) => void;
@@ -580,7 +587,10 @@ const PHONE_PIN_COMPOSITE_CONFIRM_FRAMES = 2;
 // fallback: sceneSettled=true cleared the hang guard, and no error ever fires.
 // MapLibre's "render" event only fires from a real frame, so its absence for
 // this long after construction is the honest "the map never drew" signal.
-const FIRST_FRAME_TIMEOUT_MS = 10_000;
+// A slow style can delay the first render. Match the shell's readiness ceiling
+// so this guard allows the full style-loading window before blaming rendering.
+// The style hang guard reports loading failures separately.
+const FIRST_FRAME_TIMEOUT_MS = MAP_CANVAS_READINESS_CEILING_MS;
 // How many venues the no-map fallback lists so the venue content stays
 // reachable without a single WebGL frame.
 const FALLBACK_VENUE_COUNT = 6;
@@ -671,6 +681,7 @@ function withPubMapCanvasDefaults({
 }: PubMapCanvasProps) {
   return {
     ...props,
+    ...palCameraDefaults(props),
     venues,
     filteredVenueCount,
     venueListOpen,
@@ -775,6 +786,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     filteredVenueCount,
     venueDataReady,
     route,
+    routeRequestToken,
     crewPals,
     palNextStop,
     selectedVenueId,
@@ -831,6 +843,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     searchRecoveryToken,
     queryVenues = venues,
     userLocation,
+    nearbyRequestToken,
     readerPosition,
     poiHidden: controlledPoiHidden,
     onPoiHiddenChange,
@@ -1457,6 +1470,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
+    fitPalPicks,
   } = useMapCamera({
     mapRef,
     reducedRef,
@@ -1517,11 +1531,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (!initialLandmarkId || !mapReady) return;
     const landmark = landmarkById(initialLandmarkId);
     if (!landmark) return;
-    cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark");
+    cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark", "automatic");
   }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
 
-  // Every deliberate camera move arrives here: the opening-location answer and
-  // the area lane (choose-area pick, "go somewhere else", a map-search select).
+  // Opening-location results and explicit area choices share this entry point.
   // The identity is the SOURCE plus its own counter, because a bare number let
   // one owner's first move look like the other's and swallowed the pick
   // (lib/mapCameraFocus.ts). cinematic honours reduced-motion (it jumps at
@@ -4031,6 +4044,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     reportMapError,
   ]);
 
+  // The voice Pal's picks (palPicks.ts). A tap opens the pick as a pin tap does.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+    return installPalPicks(map, { frame: fitPalPicks, open: (id) => onVenueClickRef.current(id) });
+  }, [mapReady, fitPalPicks]);
+
   // Keep landmark GeoJSON in sync when the city catalog changes (e.g. London → Manchester).
   useEffect(() => {
     if (!mapReady) return;
@@ -4688,27 +4708,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitQueryVenues("search-recovery", searchRecoveryToken);
   }, [searchRecoveryToken, mapReady, fitQueryVenues]);
 
-  // A granted location is a temporary map aid, not a persisted Home Area.
-  // Frame the local pub cloud once, then leave the camera entirely under the
-  // user's control. Active routes own their own framing and take precedence.
-  const didFitUserLocationRef = useRef("");
-  useEffect(() => {
-    if (!mapReady || !userLocation || route.length >= 2 || nearbyMapVenues.length === 0) return;
-    const key = `${userLocation.lat.toFixed(5)},${userLocation.lng.toFixed(5)}`;
-    if (didFitUserLocationRef.current === key) return;
-    didFitUserLocationRef.current = key;
-    fitNearby(userLocation, nearbyMapVenues);
-  }, [mapReady, userLocation, route.length, nearbyMapVenues, fitNearby]);
-  // The camera probe's reading of that same rule: a granted location with pubs
-  // around it that has not been framed yet is a move the map still owes.
-  useEffect(() => {
-    nearbyFramingOwedRef.current =
-      Boolean(userLocation) &&
-      route.length < 2 &&
-      nearbyMapVenues.length > 0 &&
-      didFitUserLocationRef.current !==
-        `${userLocation?.lat.toFixed(5)},${userLocation?.lng.toFixed(5)}`;
-  }, [mapReady, userLocation, route.length, nearbyMapVenues]);
+  useNearbyCameraFraming({
+    mapReady, userLocation, routeLength: route.length, nearbyMapVenues, fitNearby,
+    framingOwedRef: nearbyFramingOwedRef, requestToken: nearbyRequestToken,
+  });
 
   // The reader's dot is a CANVAS layer under the pins (see buildUserLocation),
   // not a DOM marker over them, so a pin the reader is standing on keeps its
@@ -4721,20 +4724,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     syncReaderPositionOnMap(map, readerPositionGeoJSON);
   }, [mapReady, readerPositionGeoJSON]);
 
-  // Frame the crawl only when the route identity changes *materially* — the
-  // ordered list of stop ids. Filters that churn the route array or a mere
-  // selection change produce the same key, so the camera stays put while a user
-  // tunes filters and pans. A curated-crawl load, near-me, or add/remove/reverse
-  // all change the key and refit.
-  // routeKey is the material identity; fitRoute is stable and reads the live
-  // route via ref, so the effect only refits when the ordered stop ids change.
-  const routeKey = route.map((venue) => venue.id).join(">");
-  useEffect(() => {
-    if (!mapReady) return;
-    // An active selection owns the camera — don't let route framing yank out.
-    if (selectedVenueId) return;
-    fitRoute();
-  }, [routeKey, mapReady, fitRoute, selectedVenueId]);
+  useRouteCameraFraming({
+    mapReady, routeKey: route.map((venue) => venue.id).join(">"),
+    selectedVenueId, requestToken: routeRequestToken, fitRoute,
+  });
 
   useEffect(() => {
     const map = mapRef.current;
@@ -4841,7 +4834,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         duration: PUB_SELECT_DURATION_MS,
         easing: easeOutCubic,
         ...(offset ? { offset } : {}),
-      });
+      }, "venue", "user");
     };
 
     const arrival = deepLinkSelectionCamera({
@@ -5188,7 +5181,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         />
       ) : null}
       {softRetry ? (
-        <div className="mapSoftRetry" role="status" data-kind={softRetry.kind}>
+        <div className="mapSoftRetry" role="status" data-kind={softRetry.kind} data-focus-trap-exempt="">
           <span className="mapSoftRetryMessage">{softRetry.message}</span>
           <button
             type="button"
@@ -5225,7 +5218,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           <button
             type="button"
             className="mapRecenterBtn"
-            onClick={() => fitRoute("route-recovery")}
+            onClick={() => fitRoute("user")}
             aria-label="Show whole walk"
             title="Show whole walk"
           >

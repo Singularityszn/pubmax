@@ -44,7 +44,10 @@ admits `public` rows only, so an unlisted crawl's slug never lists.
 `operator_facts` (0217) is a public read by design: anon and authenticated
 hold SELECT on the public columns of a published row only (`withdrawn_at is
 null`), never `account_id`, `proposal_id` or `withdrawn_at`, and no browser
-write. The one writer is the moderator branch of `/api/operator-proposals`.
+write. The moderator branch of `/api/operator-proposals` calls
+`public.decide_operator_proposal(text, text, text)` (0235) through the service role.
+Only `service_role` can execute that function. `PUBLIC`, `anon` and
+`authenticated` have no execute grant.
 
 **Three rules every denied cell is held to.** A refusal answers the honest
 status. It discloses no protected value, asserted over the whole serialized
@@ -117,7 +120,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Pint Drop and structured visit rows at the table, including an anonymous author's handle and moderator notes | denied | denied | denied | n/a |
 | `community_prices.contributor_handle` at the table | denied | denied | denied | n/a |
 | Read Social reports or flagged DMs, resolve a report, review a DM, suspend or reinstate (`/api/admin/social-safety`) | 403 | 403 | 403 | Both an admin credential (`ADMIN_TOKEN` header or admin session) and an active moderator staff role are required. Suspension and reinstatement require a reason. Each state change writes its audit row in the same transaction. |
-| View a flagged DM attachment (`POST /api/admin/social-safety`, `view_message_evidence`) | 403 | 403 | 403 | moderator only; one flagged message; every read audited; photo URL expires after 180 seconds |
+| View a flagged DM attachment (`POST /api/admin/social-safety`, `view_message_evidence`) | 403 | 403 | 403 | Moderator access only. Reported content remains available after an unsend. Each read covers one flagged message and records an audit row. Photo URLs expire after 180 seconds. |
 | View reported content (`POST /api/admin/social-safety`, `view_report_evidence`) | 403 | 403 | 403 | Moderator access only. Only the post, comment or quote named by an open report is available. Evidence includes its full text and, for posts, the primary photo, every carousel photo and video. Parent threads and other items by the author are excluded. Every read writes an audit row. Media URLs expire after 180 seconds. |
 | `social_report_evidence_audit` at the table | denied | denied | denied | RLS on with no policy or browser grant; service role can only select and insert |
 | `message_flag_reviews`, `message_flag_evidence_audit`, `social_account_moderation_audit` at the table | denied | denied | denied | RLS is on with no policy or browser grant. The service role can only select and insert. |
@@ -156,8 +159,12 @@ no side effect, as above.
 | Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
-| `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | participant rows, SELECT only |
-| A message photo (`GET .../photo/[messageId]`) | denied | denied | denied | n/a | n/a | n/a | participant only |
+| `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | Participant rows, SELECT only. Browser reads exclude unsent message rows (0230). |
+| Unsend a message (`action: "unsend"`) | denied | denied, message unchanged | denied | n/a | sender only | denied | Sender only. Other participants are refused. |
+| Delete a chat for yourself (`action: "delete"`) | denied | denied, no mark written | denied | n/a | own inbox only | denied | allowed, for the caller's own inbox only |
+| Leave a group (`action: "leave"`) | denied | denied | denied | n/a | allowed | repeated leave succeeds without restoring membership | Allowed. Direct conversations cannot be left. |
+| `conversation_deletions` and `delete_conversation_for_viewer` at the database | denied | denied | denied | n/a | denied | denied | Denied. Service role only. |
+| A message photo (`GET .../photo/[messageId]`) | denied | denied | denied | n/a | n/a | n/a | Participant only. Unsent photos are refused. |
 | A reported message's attachment | gone from the thread and from the serving door, for its own participants |||||||
 | Photo tag inbox (`GET /api/social/tags`) | 401 | own lane only | own lane only | n/a | n/a | n/a | own lane only |
 | Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
@@ -229,10 +236,8 @@ no side effect, as above.
    nobody's inbox.
 3. **`conversations` and `messages` are no longer deny-all.** Migration 0019
    created them RLS-on with no policy and says so in its own comment; 0066 then
-   granted SELECT to `authenticated` behind two participant policies. The cell
-   asserts the live rule: a participant reads their own thread, an outsider
-   reads nothing, and SELECT is the whole grant, so the route stays the only way
-   a message is written. The 0019 comment is now the older half of the story.
+   granted SELECT to `authenticated` behind two participant policies. The
+   [matrix](#cells-added-for-the-wider-roles) records current access and its exceptions.
 4. **An owner policy filters a statement, it does not error it.** A stranger's
    `update` on somebody's saves succeeded against zero rows. A table cell must
    therefore assert that nothing MOVED rather than that the statement failed.

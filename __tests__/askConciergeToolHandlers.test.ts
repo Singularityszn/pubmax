@@ -4,9 +4,11 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import type { DeskVenueRead } from "@/lib/ask/deskVenues.server";
+import type { Venue } from "@/lib/venues";
 
 const state = {
   venues: [] as ConciergeVenue[],
+  pricedVenues: [] as Venue[],
   prices: { prices: [] as CommunityPrice[], degraded: false },
   whatsOn: { rows: [] as WhatsOnRow[], kindObservedAt: {} },
   whatsOnThrows: false,
@@ -16,6 +18,11 @@ const state = {
 
 vi.mock("@/lib/concierge/venues.server", () => ({
   loadConciergeVenues: vi.fn(async () => state.venues),
+}));
+
+vi.mock("@/lib/venuePriceIndex", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/venuePriceIndex")>(),
+  getPricedVenues: vi.fn(async () => state.pricedVenues),
 }));
 
 vi.mock("@/lib/communityPriceStore", () => ({
@@ -99,6 +106,7 @@ function price(overrides: Partial<CommunityPrice> = {}): CommunityPrice {
 
 beforeEach(() => {
   state.venues = [];
+  state.pricedVenues = [];
   state.prices = { prices: [], degraded: false };
   state.whatsOn = { rows: [], kindObservedAt: {} };
   state.whatsOnThrows = false;
@@ -129,6 +137,22 @@ describe("original-question tool authority", () => {
 });
 
 describe("cheapest_pint_near", () => {
+  it("serialises grounded coordinates even when priced records use different coordinate names", async () => {
+    state.venues = [
+      venue({ id: "priced", name: "The Crown", lat: 51.54, lng: -0.14, cheapestPrice: 4 }),
+      venue({ id: "listed", name: "The Ship", lat: 51.55, lng: -0.15, cheapestPrice: 5 }),
+    ];
+    state.pricedVenues = [{
+      id: "priced", latitude: 51.54, longitude: -0.14, cheapestPrice: 4,
+    } as Venue];
+    const result = await runAskTool("cheapest_pint_near", { area: "Camden" }, ctx());
+    expect(result.cards.map((card) => card.venueId)).toEqual(["priced", "listed"]);
+    expect(JSON.parse(JSON.stringify(result.data)).venues).toEqual([
+      { id: "priced", lat: 51.54, lng: -0.14 },
+      { id: "listed", lat: 51.55, lng: -0.15 },
+    ]);
+  });
+
   it.each([{ area: "Camden" }, { area: "London" }, { venueName: "The Lamb" }])("uses the supplied price clock for %j", async (args) => {
     state.venues = [
       venue({ id: "anchor", name: "The Lamb", cheapestPrice: null }),

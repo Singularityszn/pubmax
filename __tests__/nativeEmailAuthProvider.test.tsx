@@ -25,7 +25,7 @@ vi.mock("@capacitor/app", () => ({ App: {
   addListener: async (_name: string, listener: (event: { url: string }) => void) => { h.listeners.add(listener); return { remove: async () => { h.listeners.delete(listener); } }; },
   getLaunchUrl: async () => h.launchUrl ? { url: h.launchUrl } : null,
 } }));
-vi.mock("next/navigation", () => { const router = { push: h.navigate }; return { useRouter: () => router }; });
+vi.mock("next/navigation", () => { const router = { push: h.navigate }; return { usePathname: () => window.location.pathname, useRouter: () => router }; });
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
@@ -38,12 +38,8 @@ vi.mock("@/lib/nativeAuthSession", async (original) => ({
   authenticateNativeSession: h.authenticate,
   cancelNativeAuthSession: h.cancel,
 }));
-vi.mock("@/lib/authClient", async (original) => ({
-  ...await original<typeof import("@/lib/authClient")>(),
-  createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: h.stopAutoRefresh } }),
-  isAuthConfigured: () => true,
-  getAccessToken: async () => (h.realAuth ? (await h.realAuth.auth.getSession()).data.session : h.session)?.access_token ?? null,
-  ensureSupabaseBrowser: async () => h.realAuth ?? ({ auth: {
+vi.mock("@/lib/authClient", async (original) => {
+  const browser = async () => h.realAuth ?? ({ auth: {
     signInWithOAuth: h.canonicalOAuth, signInWithOtp: h.canonicalEmail, setSession: h.setSession, signOut: h.signOut,
     getSession: h.getSession,
     onAuthStateChange: (callback: typeof h.subscriber) => {
@@ -51,8 +47,16 @@ vi.mock("@/lib/authClient", async (original) => ({
       queueMicrotask(() => callback?.("INITIAL_SESSION", h.session));
       return { data: { subscription: { unsubscribe: () => { h.subscriber = null; } } } };
     },
-  } }),
-}));
+  } });
+  return {
+    ...await original<typeof import("@/lib/authClient")>(),
+    createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: h.stopAutoRefresh } }),
+    isAuthConfigured: () => true,
+    getAccessToken: async () => (h.realAuth ? (await h.realAuth.auth.getSession()).data.session : h.session)?.access_token ?? null,
+    ensureSupabaseBrowser: browser,
+    ensureSupabaseBrowserForSession: browser,
+  };
+});
 vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
   bootstrapAuthSession: h.bootstrap,

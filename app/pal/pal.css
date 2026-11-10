@@ -349,6 +349,7 @@ body:has(.palExperience) {
 .palMemoryList .palSecondary { background: transparent; color: var(--pal-paper); }
 .palMemoryEmpty { min-height: 6rem; padding: 1rem; border: 1px dashed var(--pal-line); border-radius: var(--radius-lg); display: flex; align-items: center; gap: .75rem; color: var(--pal-soft); }
 .palMemoryEmpty p { margin: 0; }
+.palVoiceSlot { display: contents; }
 .palVoice { margin-top: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: var(--radius-lg); background: var(--panel-raised); }
 .palVoiceStatus, .palVoiceHint, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: var(--text-xs); line-height: 1.45; }
 .palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
