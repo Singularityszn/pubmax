@@ -17,6 +17,8 @@ import RoutePanel from "@/components/map/RoutePanel";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import { readCrawlQuest } from "@/lib/crawlCompletion";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -40,6 +42,7 @@ const props = {
   mode: "build" as const, crawlStyle: "balanced" as const, altStyle: "pint" as const,
   onAltStyleChange: vi.fn(), route: [duke], filteredVenues: [duke, dove], builtIds: [duke.id],
   activeVenueId: duke.id, venueSignals: new Map(), routeMapped: false, poisPath: null,
+  curatedCrawls: [],
   onMapRoute: vi.fn(), onHideRoute: vi.fn(), onSelectVenue: vi.fn(), onToggleStop: vi.fn(),
 };
 
@@ -66,6 +69,38 @@ function button(text: string): HTMLButtonElement {
   if (!match) throw new Error(`Missing ${text} button.`);
   return match;
 }
+
+describe("planner city catalogue", () => {
+  it.each(["london", "manchester"] as const)("uses the arriving %s catalogue for completion and sharing", async (cityId) => {
+    const crawl: CuratedCrawl = {
+      id: "catalogue-crawl", name: "Catalogue crawl", blurb: "", crawlStyle: "balanced",
+      venueIds: [duke.id, dove.id], placeStoryBandId: `${cityId}-band`,
+    };
+    const routeProps = { route: [duke, dove], cityId, crawlId: crawl.id };
+    await render(routeProps);
+    await render({ ...routeProps, curatedCrawls: [crawl] });
+    await act(async () => button("Start this crawl").click());
+    await act(async () => button("Mark complete").click());
+
+    expect(readCrawlQuest().placeStoryBandIds).toEqual([`${cityId}-band`]);
+    const link = container.querySelector<HTMLAnchorElement>('[data-testid="crawl-share-open"]')!;
+    const href = new URL(link.href);
+    expect(href.pathname).toBe(cityId === "london" ? "/map" : "/map/manchester");
+    expect(href.searchParams.get("band")).toBe(`${cityId}-band`);
+    expect(href.searchParams.get("crawl")).toBe(crawl.id);
+    expect(href.searchParams.get("pubs")).toBe(`${duke.id},${dove.id}`);
+  });
+
+  it("does not borrow a London band while the city catalogue is empty", async () => {
+    await render({ route: [duke, dove], crawlId: "fleet-street-writers" });
+    await act(async () => button("Start this crawl").click());
+    await act(async () => button("Mark complete").click());
+
+    expect(readCrawlQuest().placeStoryBandIds).toEqual([]);
+    const link = container.querySelector<HTMLAnchorElement>('[data-testid="crawl-share-open"]')!;
+    expect(new URL(link.href).searchParams.has("band")).toBe(false);
+  });
+});
 
 describe("Beer round total price coverage", () => {
   it("labels a partial amount as a known subtotal and names its coverage", async () => {
