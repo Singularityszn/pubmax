@@ -267,6 +267,46 @@ describe("matchGuinndexPub", () => {
     });
   });
 
+  it.each([
+    ["The King's Arms, Woodstock", "Woodstock Arms", false],
+    ["Woodstock Arms", "The King's Arms, Woodstock", false],
+    ["The King's Arms, Woodstock", "Woodstock Arms", true],
+    ["Woodstock Arms", "The King's Arms, Woodstock", true],
+  ])("refuses locality-only name overlap: %s versus %s (curated: %s)", (name, candidateName, curated) => {
+    const candidates = indexCandidates(venueCandidates({
+      baseRows: curated ? [] : [["n34043327", candidateName, "8 Market Street, Woodstock OX20 1SX", 51.84753, -1.35521, ""]],
+      slimRows: curated ? [{ id: "venue-woodstock", name: candidateName, lat: 51.84753, lng: -1.35521 }] : [],
+    }));
+    expect(matchGuinndexPub({
+      name, lat: 51.8479246, lng: -1.3546192, formatted_address: "19 Market St, Woodstock OX20 1SU, UK",
+    }, candidates)).toEqual({ ok: false, reason: "no-venue" });
+  });
+
+  it.each([
+    ["The Old Hat, Ealing", "Old Hat"],
+    ["Old Hat", "The Old Hat, Ealing"],
+    ["Old Hat Ealing", "Old Hat"],
+    ["Old Hat", "Old Hat Ealing"],
+  ])("keeps near-name matches for the same pub: %s versus %s", (name, candidateName) => {
+    const candidates = indexCandidates(venueCandidates({
+      baseRows: [],
+      slimRows: [{ id: "venue-same-pub", name: candidateName, lat: 51.5, lng: -0.1 }],
+    }));
+    expect(matchGuinndexPub({ name, lat: 51.5001, lng: -0.1001 }, candidates))
+      .toMatchObject({ ok: true, venueId: "venue-same-pub" });
+  });
+
+  it("keeps the wider exact-name radius when both names include a locality", () => {
+    const candidates = indexCandidates(venueCandidates({
+      baseRows: [["n1", "The King's Arms, Woodstock", "", 51.5, -0.1, ""]],
+      slimRows: [],
+    }));
+    expect(matchGuinndexPub({ name: "The King's Arms, Woodstock", lat: 51.501, lng: -0.1 }, candidates))
+      .toMatchObject({ ok: true, venueId: "venue-uk-n1" });
+    expect(matchGuinndexPub({ name: "Kings Arms", lat: 51.501, lng: -0.1 }, candidates))
+      .toEqual({ ok: false, reason: "no-venue" });
+  });
+
   it("refuses two pubs of one name side by side", () => {
     expect(matchGuinndexPub({ name: "Red Lion", lat: 51.50002, lng: -0.14002, formatted_address: "London SW1A 1AA, UK" }, grid)).toEqual({
       ok: false,

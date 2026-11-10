@@ -1,15 +1,15 @@
 {
   "source": "Guinndex UK, guinndex.co.uk",
   "sourceId": "guinndex-uk",
-  "readAt": "2026-11-10T06:53:11.367Z",
+  "readAt": "2026-11-10T07:07:13.228Z",
   "counts": {
     "priced": 7365,
-    "matched": 5582,
+    "matched": 5579,
     "notRead": 0,
-    "published": 2549,
+    "published": 2548,
     "london": {
       "priced": 1050,
-      "matched": 884,
+      "matched": 883,
       "notRead": 0,
       "published": 236
     },
@@ -19,13 +19,13 @@
       "not-gbp": 0,
       "implausible-price": 0,
       "closed": 0,
-      "undated": 2984,
+      "undated": 2982,
       "newer-record-disagrees": 26,
       "flagged": 21
     },
     "unmatched": {
       "no-identity": 1,
-      "no-venue": 1777,
+      "no-venue": 1780,
       "ambiguous": 5
     }
   },
@@ -8639,17 +8639,6 @@
       "sourceUrl": "https://guinndex.co.uk/pub/ye-olde-inn-edinburgh",
       "priceGbp": 5.85,
       "observedAt": "2026-04-11T20:22:30.231Z",
-      "drinkLabel": "Guinness",
-      "servingSize": "Pint",
-      "priceSource": "ai_call"
-    },
-    {
-      "venueId": "venue-uk-n34043327",
-      "venueName": "Woodstock Arms",
-      "london": false,
-      "sourceUrl": "https://guinndex.co.uk/pub/the-kings-arms-woodstock-woodstock",
-      "priceGbp": 6.95,
-      "observedAt": "2026-04-05T07:14:16.402Z",
       "drinkLabel": "Guinness",
       "servingSize": "Pint",
       "priceSource": "ai_call"
