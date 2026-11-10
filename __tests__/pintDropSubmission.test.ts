@@ -26,11 +26,4 @@ describe("transitionPintDropSubmission", () => {
     expect(transitionPintDropSubmission(state, { type: "succeeded", ...scope, dropId: "drop-2" })).toBe(state);
     expect(transitionPintDropSubmission(state, { type: "failed", ...scope, message: "Late.", canRetry: true })).toBe(state);
   });
-
-  it("starts a new posting request from any phase on submit", () => {
-    for (const state of [posting, saved, failed]) {
-      expect(transitionPintDropSubmission(state, { type: "submit", requestId: "req-2", accountRevision: 5 }))
-        .toEqual({ phase: "posting", requestId: "req-2", accountRevision: 5 });
-    }
-  });
 });

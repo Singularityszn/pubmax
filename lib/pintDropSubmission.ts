@@ -8,7 +8,6 @@ export type PintDropSubmission =
   | { phase: "saved"; requestId: string; dropId: string };
 
 export type PintDropSubmissionEvent =
-  | { type: "submit"; requestId: string; accountRevision: number }
   | { type: "succeeded"; requestId: string; accountRevision: number; dropId: string }
   | { type: "failed"; requestId: string; accountRevision: number; message: string; canRetry: boolean };
 
@@ -21,8 +20,6 @@ export function transitionPintDropSubmission(
   event: PintDropSubmissionEvent,
 ): PintDropSubmission {
   switch (event.type) {
-    case "submit":
-      return startPintDropSubmission(event.requestId, event.accountRevision);
     case "succeeded":
     case "failed":
       if (
