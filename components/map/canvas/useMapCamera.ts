@@ -422,6 +422,23 @@ export function useMapCamera(refs: CameraRefs) {
     }));
   }, [queryVenuesRef, reducedRef, scheduleCamera, venuesRef]);
 
+  // A voice answer's picks (lib/palMapCommands.ts). The person asked for these
+  // pubs in this call, so the map frames them, but the answer lands seconds
+  // after the ask: `pal` is a reactive intent, and a reader still reading the
+  // map keeps it (lib/mapGestureGuard.ts).
+  const fitPalPicks = useCallback((sequence: number, points: readonly { lng: number; lat: number }[]) => {
+    if (!points.length) return;
+    const bounds = new maplibregl.LngLatBounds();
+    points.forEach((point) => bounds.extend([point.lng, point.lat]));
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
+    scheduleCamera("pal", `pal:${sequence}`, (map) => map.fitBounds(bounds, {
+      padding: routeFitPadding(map, isPhone),
+      maxZoom: 16,
+      duration: reducedRef.current ? 0 : 800,
+      bearing: map.getBearing(),
+    }));
+  }, [reducedRef, scheduleCamera]);
+
   // Near me puts the READER on the map, not a cloud of pubs. A fitBounds over
   // nearby venues centres the cloud, which drops the reader wherever the
   // geometry leaves them — on a phone, under the near-me sheet. `nearMeCameraFrame`
@@ -478,5 +495,6 @@ export function useMapCamera(refs: CameraRefs) {
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
+    fitPalPicks,
   };
 }

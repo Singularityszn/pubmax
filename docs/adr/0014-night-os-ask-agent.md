@@ -128,6 +128,16 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    any shortage of suitable pubs (`palDraftRouteLines`).
    Nothing is saved until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
    `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
+   **Amended 10 Nov 2026 (captain, D2): a live voice call moves the view.**
+   In a voice call the person started, the Pal applies view moves with no
+   Confirm: the camera, numbered picks, the highlight and the browse-only venue
+   sheet (`?sel=`). Every pick comes from the call's newest grounded tool
+   result (`lib/palMapCommands.ts`), so a model's guess never becomes a pin.
+   The camera moves through the `pal` intent, which the gesture guard holds
+   like `query`. Writes still need a tap: a save, a plan, a crowd report or a
+   memory. Typed chat keeps its Confirm buttons. Pins:
+   `__tests__/palMapCommands.test.ts`, `__tests__/mapGestureGuard.test.ts`,
+   `e2e/pal-voice-transcript.spec.ts`.
 4. **Keyless path (map Ask)** - without `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`, `POST /api/ask`
    uses deterministic tools and house-voice templates.
    Decision 2 defines the recorded-answer routing exceptions.

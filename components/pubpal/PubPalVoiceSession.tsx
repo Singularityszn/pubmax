@@ -90,11 +90,13 @@ import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
 import type { PalGenome } from "@/lib/palGenome";
 import { palMapAskTarget, palPubAskVenue } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
+import { loadSlimVenuesForCity, type SlimVenue } from "@/lib/venuesSlim";
 import PalRecommendationMap from "@/components/pal/PalRecommendationMap";
 import PalCardPrice from "@/components/pal/PalCardPrice";
 import type { PalCard } from "@/lib/palChat";
 import { palVoiceToolAnswer } from "@/lib/palVoiceToolAnswer";
+import { applyPalMapCommand, groundPalMapResult, resetPalMap } from "@/lib/palMapCommands";
+import { palRecommendationPoints } from "@/lib/palRecommendationMap";
 import PalMemoryConfirmCard, { type PalMemoryCard } from "@/components/pal/PalMemoryConfirmCard";
 
 type VoiceTokenResponse = {
@@ -190,6 +192,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
   const currentToolCalls = useRef(new Map<string, { id: string; order: number }>());
   const toolRequestOrder = useRef(0);
+  const groundedOrder = useRef(0);
+  const pickVenues = useRef<Promise<SlimVenue[]> | null>(null);
   const lastUserEvent = useRef(0);
   const [mapPending, setMapPending] = useState(false);
   const [mapLabel, setMapLabel] = useState("Opening the map");
@@ -345,6 +349,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     disposedRef.current = false;
     return () => {
       disposedRef.current = true;
+      resetPalMap();
       const attempt = activeAttemptRef.current;
       if (!attempt) {
         startController.cancel();
@@ -530,6 +535,11 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           onAgentToolRequest: (event) => {
             if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current) return;
             currentToolCalls.current.set(event.tool_name, { id: event.tool_call_id, order: ++toolRequestOrder.current });
+            // Warm the pub index during the webhook round trip, so the picks paint at once.
+            if (event.tool_name === "search_venues" || event.tool_name === "cheapest_pint_near") {
+              pickVenues.current ??= loadSlimVenuesForCity(DEFAULT_CITY_ID);
+              pickVenues.current.catch(() => { pickVenues.current = null; });
+            }
           },
           onAgentToolResponse: (event) => {
             const request = currentToolCalls.current.get(event.tool_name);
@@ -538,6 +548,19 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             const answer = palVoiceToolAnswer(event);
             if (answer) {
               const resultKey = answer.tool === "cheapest_pint_near" ? "search_venues" : answer.tool;
+              if (resultKey === "search_venues" && request.order > groundedOrder.current) {
+                // Pins come from this grounded result only (lib/palMapCommands.ts).
+                groundedOrder.current = request.order;
+                performance.mark("pubmax:pal-picks-grounded");
+                const cards = answer.cards;
+                groundPalMapResult(cards.map((card) => card.venueId));
+                pickVenues.current ??= loadSlimVenuesForCity(DEFAULT_CITY_ID);
+                void pickVenues.current.then((venues) => {
+                  if (!ownsAttempt(attempt) || groundedOrder.current !== request.order) return;
+                  const picks = palRecommendationPoints(cards, venues);
+                  if (picks.length) applyPalMapCommand({ kind: "showPicks", picks });
+                }, () => undefined);
+              }
               if (event.tool_name !== "propose_memory") setVoiceResults((current) =>
                 (current[resultKey]?.order ?? -1) > request.order ? current : {
                   ...current,

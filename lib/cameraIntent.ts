@@ -10,7 +10,8 @@ export type CameraIntentKind =
   | "route-recovery"
   | "venue"
   | "landmark"
-  | "area";
+  | "area"
+  | "pal";
 
 type CameraIntentCoordinatorOptions = {
   requestFrame: (callback: FrameRequestCallback) => number;

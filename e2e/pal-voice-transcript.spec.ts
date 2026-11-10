@@ -372,6 +372,84 @@ for (const [width, theme] of [
   });
 }
 
+type PalPicksProbe = { sequence: number; scrim: boolean; picks: { number: number; venueId: string; x: number; y: number }[] };
+type CameraReading = { center: [number, number]; zoom: number; moving: boolean; settling: boolean };
+
+test("390px: a grounded voice answer draws numbered picks on the main map and frames them, unless a finger holds the map", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await openLiveVoice(page);
+  const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find me four pubs in Soho and show them on the map." } });
+  expect(response.ok()).toBe(true);
+  const answer = await response.json() as { answer: string; cards: { venueId: string; title: string }[] };
+  expect(answer.cards).toHaveLength(4);
+  const deliver = (cards: unknown[]) => {
+    eventId += 1;
+    const request = { tool_name: "search_venues", tool_call_id: `search_venues-${eventId}`, tool_type: "webhook", event_id: eventId };
+    socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+    socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+      ...request, is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: { ok: true, tool: "search_venues", answerHint: answer.answer, cards } }),
+    } }));
+  };
+
+  hear(socket, "Show me the map");
+  await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
+  await expectMapLoadingFrameReleased(page);
+  const camera = () => page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
+  const picks = () => page.evaluate(() => (window as unknown as { __pubmaxPalPicks?: () => PalPicksProbe }).__pubmaxPalPicks?.() ?? null);
+  await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }, { timeout: 20_000 }).toBe(true);
+  const before = await camera();
+
+  deliver(answer.cards);
+  await expect.poll(async () => (await picks())?.picks.map((pick) => pick.number), { timeout: 5_000 }).toEqual([1, 2, 3, 4]);
+  const painted = (await picks())!;
+  expect(painted.scrim).toBe(true);
+  expect(painted.picks.map((pick) => pick.venueId)).toEqual(answer.cards.map((card) => card.venueId));
+  const latency = await page.evaluate(() => {
+    const grounded = performance.getEntriesByName("pubmax:pal-picks-grounded").at(-1);
+    const shown = performance.getEntriesByName("pubmax:pal-picks-painted").at(-1);
+    return grounded && shown ? shown.startTime - grounded.startTime : null;
+  });
+  test.info().annotations.push({ type: "result-to-picks-ms", description: String(latency) });
+
+  // The `pal` intent frames the picks: the camera moves off the opening view
+  // and every pick ends up inside the phone's viewport.
+  await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }, { timeout: 10_000 }).toBe(true);
+  const framed = await camera();
+  expect(framed.zoom).toBeGreaterThan(before.zoom);
+  for (const pick of (await picks())!.picks) {
+    expect(pick.x).toBeGreaterThan(0);
+    expect(pick.x).toBeLessThan(390);
+    expect(pick.y).toBeGreaterThan(0);
+    expect(pick.y).toBeLessThan(844);
+  }
+  await mkdir(SHOTS, { recursive: true });
+  await page.screenshot({ path: `${SHOTS}/390-pal-picks-on-map.png` });
+
+  // A finger on the glass keeps the map: a new answer repaints the picks but
+  // its framing stands down (lib/mapGestureGuard.ts).
+  const canvas = page.locator(".mapCanvasWrap canvas").first();
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 3 + 30, { steps: 5 });
+  const held = await camera();
+  deliver(answer.cards.slice(0, 2));
+  await expect.poll(async () => (await picks())?.picks.length, { timeout: 5_000 }).toBe(2);
+  await page.mouse.up();
+  const after = await camera();
+  expect(after.zoom).toBeCloseTo(held.zoom, 5);
+  expect(after.center[0]).toBeCloseTo(held.center[0], 5);
+  expect(after.center[1]).toBeCloseTo(held.center[1], 5);
+
+  // A tap on a pick opens its venue sheet, and the call carries on.
+  const [first] = (await picks())!.picks;
+  await page.getByRole("button", { name: `1. ${answer.cards[0]!.title}`, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`sel=${encodeURIComponent(first!.venueId)}`));
+  await expect(page.getByRole("region", { name: "Voice chat with Ripley" }).getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+});
+
 test("a cold /map loads no ElevenLabs code, even with the shell extras released", async ({ page }) => {
   // Only the SDK's socket handshake carries this event name.
   const scripts: Promise<{ url: string; sdk: boolean }>[] = [];

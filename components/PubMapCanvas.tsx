@@ -172,6 +172,7 @@ import {
   syncReaderPositionOnMap,
 } from "@/components/map/canvas/readerPositionProbe";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
+import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
   useMapCamera,
@@ -1453,6 +1454,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
+    fitPalPicks,
   } = useMapCamera({
     mapRef,
     reducedRef,
@@ -4026,6 +4028,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     publishRenderedState,
     reportMapError,
   ]);
+
+  // The voice Pal's picks (palPicks.ts). A tap opens the pick as a pin tap does.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+    return installPalPicks(map, { frame: fitPalPicks, open: (id) => onVenueClickRef.current(id) });
+  }, [mapReady, fitPalPicks]);
 
   // Keep landmark GeoJSON in sync when the city catalog changes (e.g. London → Manchester).
   useEffect(() => {
