@@ -3635,6 +3635,23 @@ function PlanComposerForm({
     return mapped || errorMessageFrom(body, "The plan could not be created.");
   }
 
+  async function prepareCreateOperation(createPayload: Record<string, unknown>, signal: AbortSignal) {
+    const boundKey = groundingProof ? createOperationKey : null;
+    const attempt = await preparePlanMutationKey("create", createPayload, {
+      signal,
+      boundKey,
+      previous: sentCreateOperation.current,
+    });
+    if (signal.aborted) return null;
+    assertComposerOwnership(ownsAcceptance(requestOwner.current));
+    if (groundingProof && createOperationKey && attempt.key !== createOperationKey) {
+      throw new Error(lockFailureMessage(409, null, createOperationKey));
+    }
+    sentCreateOperation.current = attempt;
+    rememberPlanMutationKey("create", attempt, boundKey);
+    return attempt;
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const lifetimeSignal = formLifetime.current?.signal;
@@ -3661,20 +3678,9 @@ function PlanComposerForm({
         planAnchor,
         context: nightContext,
       });
-      const boundKey = groundingProof ? createOperationKey : null;
-      const attempt = await preparePlanMutationKey("create", createPayload, {
-        signal,
-        boundKey,
-        previous: sentCreateOperation.current,
-      });
-      if (signal.aborted) return;
-      assertComposerOwnership(ownsAcceptance(requestOwner.current));
-      if (groundingProof && createOperationKey && attempt.key !== createOperationKey) {
-        throw new Error(lockFailureMessage(409, null, createOperationKey));
-      }
+      const attempt = await prepareCreateOperation(createPayload, signal);
+      if (!attempt) return;
       const operationKey = attempt.key;
-      sentCreateOperation.current = attempt;
-      rememberPlanMutationKey("create", attempt, boundKey);
       const response = await fetch("/api/plans", {
         signal,
         method: "POST",

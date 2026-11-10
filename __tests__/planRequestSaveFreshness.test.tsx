@@ -1446,7 +1446,7 @@ describe("Lock owns the composer while it runs", () => {
   const storedRoute = () => JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
   const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>("button")]
     .find((candidate) => candidate.textContent?.includes(text));
-  function pendingCreation(generated: ReturnType<typeof generatedProofFixture>) {
+  function pendingCreation(generated: { stops: { venueId: string; venueName: string }[]; groundingProof: string }) {
     let finish!: (response: Response) => void;
     const pending = new Promise<Response>((resolve) => { finish = resolve; });
     fetchMock.mockImplementation(async (input, init) => {
@@ -1471,19 +1471,24 @@ describe("Lock owns the composer while it runs", () => {
     "handles a changed $selector after a lost response, proof bound: $proofBound",
     async ({ proofBound, selector }) => {
       pinClock();
-      const generated = { ...generatedProofFixture(3), ...(proofBound ? {} : { groundingProof: null, operationKey: null }) };
-      fetchMock.mockImplementation(async (input) => Response.json(
-        String(input).includes("/api/plans/generate") ? generated : [],
-      ));
-      await generateFromDescription();
+      if (proofBound) {
+        await generateProofRoute(3);
+      } else {
+        expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+        writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()), localStorage, T0);
+        fetchMock.mockImplementation(async () => Response.json([{ id: "venue-new", name: "New Pub" }]));
+        await mountComposer();
+        await editInput("#plan-title", "Our night");
+      }
       await editInput("#plan-name", "Captain");
       fetchMock.mockImplementation(async (input) => {
         if (String(input) === "/api/plans") throw new TypeError("Response lost");
-        return Response.json([]);
+        return Response.json([{ id: "venue-new", name: "New Pub" }]);
       });
       await act(async () => lockButton().click());
       await vi.waitFor(() => expect(document.querySelector("#plan-composer-error")?.textContent).toContain("Response lost"));
       const firstKey = new Headers(creations()[0]![1]?.headers).get("idempotency-key");
+      expect(firstKey).toEqual(expect.any(String));
       await remountComposer();
       await act(async () => lockButton().click());
       await vi.waitFor(() => expect(creations()).toHaveLength(2));
@@ -1498,6 +1503,9 @@ describe("Lock owns the composer while it runs", () => {
       } else {
         await vi.waitFor(() => expect(creations()).toHaveLength(3));
         const changedKey = new Headers(creations()[2]![1]?.headers).get("idempotency-key");
+        expect(JSON.parse(String(creations()[2]![1]?.body))).toMatchObject({
+          [selector === "#plan-title" ? "title" : "creatorName"]: "Changed request",
+        });
         expect(changedKey).not.toBe(firstKey);
         await vi.waitFor(() => expect(lockButton().disabled).toBe(false));
         await act(async () => lockButton().click());
@@ -1514,7 +1522,8 @@ describe("Lock owns the composer while it runs", () => {
     writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()), localStorage, T0);
     fetchMock.mockImplementation(async () => Response.json([{ id: "venue-new", name: "New Pub" }]));
     await mountComposer();
-    await editInput("#plan-title", "Our night");
+    const originalTitle = "Our night";
+    await editInput("#plan-title", originalTitle);
     await editInput("#plan-name", "Captain");
     const finish = pendingCreation(generatedProofFixture());
     await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
@@ -1523,12 +1532,17 @@ describe("Lock owns the composer while it runs", () => {
     expect(writer).toBeDefined();
     expect(writer.disabled).toBe(true);
     await act(async () => writer.click());
-    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Our night");
-    expect(JSON.parse(String(creations()[0]![1]?.body)).title).toBe("Our night");
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe(originalTitle);
+    expect(JSON.parse(String(creations()[0]![1]?.body)).title).toBe(originalTitle);
     await act(async () => finish(Response.json({ error: "Try again" }, { status: 503 })));
     await vi.waitFor(() => expect(writer.disabled).toBe(false));
+    if (label === "Cheap round") {
+      await act(async () => writer.click());
+      expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe(originalTitle);
+      await editInput("#plan-title", "");
+    }
     await act(async () => writer.click());
-    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).not.toBe("Our night");
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).not.toBe(originalTitle);
   });
 
   it("freezes acceptance release during Lock and allows it after failure", async () => {
