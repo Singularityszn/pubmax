@@ -9,6 +9,8 @@ import type { PalEvalAnswerExpectations } from "@/evals/pal/types";
 import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
 import { runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
+import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
+import * as pintDropStore from "@/lib/pintDropsStore";
 import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import * as ukPriceBundle from "@/lib/ukPriceBundle.server";
 
@@ -43,6 +45,7 @@ function reference(caseDef: typeof dataset.cases[number]): PalEvalAnswerExpectat
 }
 
 beforeEach(() => {
+  __resetPintDrops();
   vi.stubEnv("OPENROUTER_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubGlobal("fetch", vi.fn(() => {
@@ -51,6 +54,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  __resetPintDrops();
   expect(fetch).not.toHaveBeenCalled();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -97,6 +101,63 @@ describe("Pal fail-closed price eval", () => {
     expect(card?.provenance?.label).toContain("Guinndex");
     expect(body.answerHint).toContain("listed pint £6.45");
     expect(body.data).toMatchObject({ zoneEstimate: null });
+  });
+
+  it.each([
+    { visibility: "public", status: "visible", priceGbp: 5.8, estimates: false },
+    { visibility: "anonymous", status: "visible", priceGbp: 5.8, estimates: false },
+    { visibility: "public", status: "visible", priceGbp: null, estimates: true },
+    { visibility: "friends", status: "visible", priceGbp: 5.8, estimates: true },
+    { visibility: "legacy", status: "visible", priceGbp: 5.8, estimates: true },
+    { visibility: "public", status: "hidden", priceGbp: 5.8, estimates: true },
+  ] satisfies Array<Pick<PintDrop, "visibility" | "status" | "priceGbp"> & { estimates: boolean }>)(
+    "public price absence with $visibility, $status and £$priceGbp permits estimates=$estimates",
+    async ({ visibility, status, priceGbp, estimates }) => {
+      addPintDrop({
+        id: "coronet-price-regression", venueId: "venue-60y3sa", handle: "price-reader",
+        drink: "Lager", measure: "pint", priceGbp, passedDownNote: "", era: "",
+        provenance: "contributor", status, visibility, createdAt: new Date(now).toISOString(),
+      });
+      const result = await runAskTool("venue_prices", { venueId: "venue-60y3sa" }, {
+        cityId: "london", query: "How much is a pint at The Coronet?", now, skipModel: true,
+      });
+      expect(result.data).toMatchObject({
+        curatedPrice: null,
+        zoneEstimate: estimates ? { estimateGbp: 5.7, zone: 2, sampleSize: 290 } : null,
+      });
+      expect(result.degraded).toBe(false);
+      const body = await ask("How much is a pint at The Coronet?");
+      expect(body.toolsUsed).toContain("venue_prices");
+      expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.price).toBeNull();
+      if (estimates) {
+        expect(body.answer).toContain("Estimate £5.70");
+      } else {
+        expect(body.answer).not.toContain("£5.70");
+        expect(body.answer).toContain("no listed figure");
+        expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.note).not.toContain("No recorded pint.");
+        expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.note).not.toContain("£5.70");
+        expect(result.priceEvidence).toEqual([]);
+      }
+    },
+  );
+
+  it.each(["factory", "read"])("withholds estimates when the Pint Drop %s is unavailable", async (failure) => {
+    if (failure === "factory") {
+      vi.spyOn(pintDropStore, "pintDropsStore").mockImplementation(() => { throw new Error("Store unavailable"); });
+    } else {
+      vi.spyOn(pintDropStore.memoryPintDropStore, "listVisible").mockRejectedValue(new Error("Read failed"));
+    }
+    const result = await runAskTool("venue_prices", { venueId: "venue-60y3sa" }, {
+      cityId: "london", query: "How much is a pint at The Coronet?", now, skipModel: true,
+    });
+    expect(result.data).toMatchObject({ curatedPrice: null, zoneEstimate: null });
+    expect(result.degraded).toBe(true);
+    expect(result.cards[0]?.note).toContain("couldn't read all recorded pint prices");
+    const body = await ask("How much is a pint at The Coronet?");
+    expect(body.status).toBe("degraded");
+    expect(body.answer).toContain("recorded pint prices are unavailable");
+    expect(body.answer).not.toContain("£5.70");
+    expect(body.cards[0]?.price).toBeNull();
   });
 
   it("keeps the Brownswood's recorded £5.30 pint instead of its £2.60 half-pint mixer", async () => {

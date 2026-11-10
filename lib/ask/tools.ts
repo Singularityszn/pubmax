@@ -13,6 +13,7 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
+import { pintDropsStore } from "@/lib/pintDropsStore";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { walkableDraftAround, walkableDraftRoute } from "@/lib/palPlanDraft";
 import { straightLineWalkableKm } from "@/lib/planRouteOptimizer";
@@ -405,9 +406,20 @@ async function toolVenuePrices(
     : venue;
   const intent = resolveAskPriceIntent(ctx.query);
   const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
+  let pintDropPriceAbsent = false;
+  let pintDropsUnavailable = false;
+  if (recordedPrice === null && !communityRead.degraded && !communityRead.prices.some((price) => price.drinkCategory === "beer") && bundleRead.status !== "unavailable") {
+    try {
+      const drops = await pintDropsStore().listVisible(venue.id);
+      pintDropPriceAbsent = !drops.some((drop) => drop.priceGbp !== null);
+    } catch {
+      pintDropsUnavailable = true;
+    }
+  }
+  const pricesUnavailable = communityRead.degraded || bundleRead.status === "unavailable" || pintDropsUnavailable;
   // A pub with no recorded pint gets its fare zone's estimate, named as one.
   // It is never price evidence and never the card's price.
-  const zoneEstimate = recordedPrice === null && !communityRead.degraded && !communityRead.prices.some((price) => price.drinkCategory === "beer") && bundleRead.status !== "unavailable"
+  const zoneEstimate = pintDropPriceAbsent
     ? zonePriceEstimate(venue.zone, await loadZonePintIndex())
     : null;
 
@@ -417,7 +429,7 @@ async function toolVenuePrices(
       ? "Current recorded pint on the listed index."
       : zoneEstimate
         ? `No recorded pint. ${zoneEstimateNote(zoneEstimate)}`
-        : communityRead.degraded || bundleRead.status === "unavailable"
+        : pricesUnavailable
           ? "I couldn't read all recorded pint prices."
           : "No current recorded pint on the listed index.",
     `${venue.id}:curated`,
@@ -459,7 +471,7 @@ async function toolVenuePrices(
         ? `${venue.name}: listed pint ${formatGbp(recordedPrice)}${communityRead.degraded ? "." : " (no corroborated people-logged figure yet)."}`
         : zoneEstimate
           ? `${venue.name}: no listed pint price. Estimate ${formatGbp(zoneEstimate.priceGbp)}, the middle of ${zoneEstimate.sampleSize} recorded pint prices in ${zoneLabel(zoneEstimate.zone)}. Not a recorded price.`
-          : communityRead.degraded || bundleRead.status === "unavailable"
+          : pricesUnavailable
             ? `${venue.name}: recorded pint prices are unavailable.`
             : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
   const answerHint = `${communityRead.degraded ? "I couldn't read people-logged pint prices. " : ""}${priceAnswer}`;
@@ -489,7 +501,7 @@ async function toolVenuePrices(
     ],
     proposals,
     answerHint,
-    degraded: communityRead.degraded || bundleRead.status === "unavailable",
+    degraded: pricesUnavailable,
   };
 }
 
