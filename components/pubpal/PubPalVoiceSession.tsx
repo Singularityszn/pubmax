@@ -43,6 +43,7 @@ import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
 import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
 import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
+import { usePalMapClientTools } from "@/components/pubpal/usePalMapClientTools";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -252,6 +253,11 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     openMapRef.current = openMap;
     showMapRef.current = showMap;
   }, [openMap, showMap]);
+  usePalMapClientTools({
+    openMap,
+    mapShown: () => onMapRef.current || mapTimerRef.current !== null,
+    tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
+  });
 
   // "Next stop" during a planned night that is on: the map opens on the stop
   // after the one the person reached (their own Night Mode cursor). With no

@@ -102,6 +102,32 @@ describe("Pal picks on the main map", () => {
     expect(readPalMapState().sequence).toBe(sequence);
   });
 
+  it("moves the view to a pick only when the person asked for it by number", () => {
+    groundPalMapResult(["a", "b"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [pick("a"), { ...pick("b"), lat: 51.52, lng: -0.12 }] });
+    applyPalMapCommand({ kind: "focusPick", number: 1 });
+    expect(readPalMapState().view).toBeNull();
+    expect(applyPalMapCommand({ kind: "focusPick", number: 2, move: true })).toBe(true);
+    const { view, sequence } = readPalMapState();
+    expect(view?.points).toEqual([{ lat: 51.52, lng: -0.12 }]);
+    expect(view!.sequence).toBeGreaterThan(sequence);
+    applyPalMapCommand({ kind: "focusPick", number: 1 });
+    expect(readPalMapState().view).toBe(view);
+    expect(applyPalMapCommand({ kind: "focusPick", number: 5, move: true })).toBe(false);
+    expect(readPalMapState().view).toBe(view);
+  });
+
+  it("frames an area by its radius, and a later answer outranks the move", () => {
+    expect(applyPalMapCommand({ kind: "flyToArea", centre: { lat: 51.5, lng: -0.1 }, radiusKm: 1.5 })).toBe(true);
+    const [south, north] = readPalMapState().view!.points;
+    expect(north!.lat - south!.lat).toBeCloseTo(3 / 111.32, 6);
+    expect((south!.lng + north!.lng) / 2).toBeCloseTo(-0.1, 9);
+    expect(north!.lng - south!.lng).toBeGreaterThan(north!.lat - south!.lat);
+    groundPalMapResult(["a"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [pick("a")] });
+    expect(readPalMapState().sequence).toBeGreaterThan(readPalMapState().view!.sequence);
+  });
+
   it("clears the picks and the grounded set when the call is over", () => {
     groundPalMapResult(["a"]);
     applyPalMapCommand({ kind: "showPicks", picks: [pick("a")] });
@@ -111,6 +137,9 @@ describe("Pal picks on the main map", () => {
     unsubscribe();
     expect(heard).toBe(1);
     expect(readPalMapState().picks).toEqual([]);
+    applyPalMapCommand({ kind: "flyToArea", centre: { lat: 51.5, lng: -0.1 }, radiusKm: 1 });
+    resetPalMap();
+    expect(readPalMapState().view).toBeNull();
     expect(applyPalMapCommand({ kind: "showPicks", picks: [pick("a")] })).toBe(false);
   });
 });

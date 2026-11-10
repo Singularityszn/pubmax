@@ -11,7 +11,7 @@ export function resolveExistingTools(liveTools, attachedIds, wantedTools) {
     const matches = liveTools.filter((row) => row?.tool_config?.name === name);
     const attachedMatches = matches.filter((row) => attached.has(row.id));
     const compatible = (row) => row.tool_config.type === wanted.type &&
-      row.tool_config.api_schema?.url === wanted.api_schema.url;
+      row.tool_config.api_schema?.url === wanted.api_schema?.url;
     const candidates = attachedMatches.length ? attachedMatches : matches.filter(compatible);
     if (candidates.length > 1) {
       throw new Error(`Ambiguous tool ${name}: ${candidates.length} ${attachedMatches.length ? "attached" : "compatible workspace"} identities (${candidates.map((row) => row.id).join(", ")}). No update was made.`);

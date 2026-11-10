@@ -11,8 +11,14 @@ export type PalMapPick = PalRecommendationPoint;
 
 export type PalMapCommand =
   | { kind: "showPicks"; picks: readonly PalMapPick[] }
-  | { kind: "focusPick"; number: number | null }
+  /** `move` also brings the pick into view: the person asked for it by number. */
+  | { kind: "focusPick"; number: number | null; move?: boolean }
+  /** The area comes from the closed night-area list, never from the model. */
+  | { kind: "flyToArea"; centre: { lat: number; lng: number }; radiusKm: number }
   | { kind: "clear" };
+
+/** A camera move the person asked for. The map frames these points once. */
+export type PalMapView = { sequence: number; points: readonly { lat: number; lng: number }[] };
 
 export type PalMapState = {
   /** Rises when picks are published or cleared, so readers can identify a new answer. */
@@ -20,10 +26,15 @@ export type PalMapState = {
   picks: readonly PalMapPick[];
   /** The pick the Pal is naming. A change here keeps `sequence`, so the map does not reframe. */
   focused: number | null;
+  /** The newest asked-for move. It shares the counter with `sequence`, so the later of the two wins. */
+  view: PalMapView | null;
 };
 
+const KM_PER_DEGREE = 111.32;
+
 let grounded: ReadonlySet<string> = new Set();
-let state: PalMapState = { sequence: 0, picks: [], focused: null };
+let revision = 0;
+let state: PalMapState = { sequence: 0, picks: [], focused: null, view: null };
 const listeners = new Set<() => void>();
 
 function notify(next: PalMapState): void {
@@ -32,7 +43,11 @@ function notify(next: PalMapState): void {
 }
 
 function publish(picks: readonly PalMapPick[]): void {
-  notify({ sequence: state.sequence + 1, picks, focused: null });
+  notify({ ...state, sequence: ++revision, picks, focused: null });
+}
+
+function moveTo(points: PalMapView["points"]): PalMapView {
+  return { sequence: ++revision, points };
 }
 
 export function readPalMapState(): PalMapState {
@@ -60,8 +75,20 @@ export function applyPalMapCommand(command: PalMapCommand): boolean {
     return true;
   }
   if (command.kind === "focusPick") {
-    if (command.number !== null && !state.picks.some((pick) => pick.number === command.number)) return false;
-    if (command.number !== null || command.number !== state.focused) notify({ ...state, focused: command.number });
+    const pick = state.picks.find((item) => item.number === command.number);
+    if (command.number !== null && !pick) return false;
+    const view = pick && command.move ? moveTo([{ lat: pick.lat, lng: pick.lng }]) : state.view;
+    if (command.number !== null || command.number !== state.focused) notify({ ...state, focused: command.number, view });
+    return true;
+  }
+  if (command.kind === "flyToArea") {
+    const { centre, radiusKm } = command;
+    const lat = radiusKm / KM_PER_DEGREE;
+    const lng = radiusKm / (KM_PER_DEGREE * Math.cos((centre.lat * Math.PI) / 180));
+    notify({ ...state, view: moveTo([
+      { lat: centre.lat - lat, lng: centre.lng - lng },
+      { lat: centre.lat + lat, lng: centre.lng + lng },
+    ]) });
     return true;
   }
   const picks = command.picks.slice(0, PAL_MAP_MAX_PICKS);
@@ -74,5 +101,6 @@ export function applyPalMapCommand(command: PalMapCommand): boolean {
 /** The call is over: forget its grounded pubs and take its picks off the map. */
 export function resetPalMap(): void {
   grounded = new Set();
-  applyPalMapCommand({ kind: "clear" });
+  if (state.picks.length) notify({ sequence: ++revision, picks: [], focused: null, view: null });
+  else if (state.view) notify({ ...state, view: null });
 }

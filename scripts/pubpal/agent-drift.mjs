@@ -54,7 +54,9 @@ function promptDrift(wantedPrompt, livePrompt) {
 }
 
 function toolDrift(name, wantedTool, liveTool, secretId) {
-  if (!liveTool) return [{ path: `tools.${name}`, wanted: "a workspace webhook tool", live: "missing" }];
+  if (!liveTool) return [{ path: `tools.${name}`, wanted: `a workspace ${wantedTool.type} tool`, live: "missing" }];
+  // A client tool runs in the browser: it has no endpoint and no secret.
+  if (!wantedTool.api_schema) return subsetDrift(wantedTool, liveTool.tool_config, `tools.${name}`);
   const { request_headers: wantedHeaders, ...wantedSchema } = wantedTool.api_schema;
   void wantedHeaders;
   const found = subsetDrift(
