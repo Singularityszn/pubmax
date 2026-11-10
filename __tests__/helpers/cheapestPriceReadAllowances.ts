@@ -66,6 +66,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/lastRideRoute.ts": [
     {"owner": "nearestPubsToStation", "count": 2, "reason": "Chooses pubs by distance and carries their ordinary display prices."},
   ],
+  "lib/lazyVenueDetail.ts": [
+    {"owner": "mergeLazyDetailPins", "count": 3, "reason": "Carries a priced slim pin's complete evidence onto an unpriced detail without ranking."},
+  ],
   "lib/lastTrain.server.ts": [
     {"owner": "nearestPubsToStation", "count": 1, "reason": "Chooses pubs by distance and carries their ordinary display prices."},
   ],
@@ -181,6 +184,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "lib/scrapedPubs.server.ts": [
     {"owner": "readScrapedPubs", "count": 1, "reason": "Transports ordinary scraped venue display data."},
+  ],
+  "lib/slimListingPrices.mjs": [
+    {"owner": "applySlimListingPrices", "count": 4, "reason": "Fills only unpriced pins and selects the minimum listing after comparablePint admits its complete evidence."},
   ],
   "lib/slimPins.ts": [
     {"owner": "slimVenueToPin", "count": 1, "reason": "Preserves price and evidence during projection."},

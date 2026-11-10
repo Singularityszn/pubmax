@@ -186,10 +186,15 @@ Legacy rows without a stated measure retain their pint default unless their text
 `lib/comparableVenuePint.ts` selects evidence for the figure being compared.
 Existing contributor and sourced-update precedence stays in place. Those figures use their own source and observation time.
 
-For baseline figures, full price rows take precedence over flat slim fields when full rows exist.
+For baseline figures, full price rows take precedence over flat slim fields when at least one row has a non-null price.
 `lib/legacyPriceEvidence.mjs` selects the first row carrying that minimum figure and reads its serving, publisher, and latest valid observation together.
 A different row at the same price cannot supply missing evidence.
-Slim-only records use their flat evidence. The slim builder preserves refused serving text so readers can reject the same figure.
+Records without priced rows use their flat evidence, including listing prices carried through detail loading and map resume.
+The slim builder preserves refused serving text so readers can reject the same figure.
+
+`lib/slimListingPrices.mjs` fills unpriced London slim records from eligible `listing-site` beer rows with an explicit pint serving.
+Each selected listing retains its drink, measure, publisher and observation day. Existing prices remain unchanged.
+The builder and validator share this projection. `__tests__/comparablePintProducer.test.ts` covers eligibility, detail loading and map resume through the shared comparable-price reader.
 
 A refused figure cannot rank. Its venue and ordinary price display remain available. Last Orders can retain hours without a qualifying price.
 Named routes also apply this policy to the selected pint in the stop list, Pint Line and receipt.
