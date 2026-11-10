@@ -16,6 +16,7 @@ import {
   normaliseCuisineTags,
 } from "@/lib/cuisineTags";
 import { pinsToSlimVenues, slimVenueToPin } from "@/lib/slimPins";
+import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import { CITIES } from "@/lib/cities";
 import { loadSlimVenuesFromPathResult, SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 import { offlineCache } from "@/lib/offlineCache";
@@ -156,7 +157,8 @@ function matchingIdsFromSlim(filters: Filters): string[] {
 }
 
 function matchingIdsFromFull(filters: Filters): string[] {
-  return Array.from(fullVenuesById.values())
+  const pins = slim.filter((row) => fullVenuesById.has(row.id)).map(slimVenueToPin);
+  return mergeLazyDetailPins(pins, fullVenuesById)
     .filter((venue) => filterVenues([venue], filters).length > 0)
     .map((venue) => venue.id)
     .sort();

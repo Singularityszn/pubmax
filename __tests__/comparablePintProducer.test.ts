@@ -17,6 +17,7 @@ import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { priceRowReadDay } from "@/lib/priceReadDay.mjs";
 import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
 import { DAY_MS } from "@/lib/dayMs";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("selected serving evidence in the published price packs", () => {
   const listing: UkPriceBundleRow = {
@@ -49,16 +50,16 @@ describe("selected serving evidence in the published price packs", () => {
     expect(detail.cheapestPrice).toBeNull();
     expect(detail.prices.length).toBeGreaterThan(0);
     expect(detail.prices.every(({ price_gbp }) => price_gbp == null)).toBe(true);
-    const [hydrated] = mergeLazyDetailPins([pin], new Map([[row.id, detail]]));
+    const hydrated = defined(mergeLazyDetailPins([pin], new Map([[row.id, detail]]))[0]);
     expect(hydrated).toMatchObject({
       cheapestPrice: 6.45, cheapestPint: "Guinness", measure: "pint",
       priceSource: "Guinndex", priceObservedAt: "2026-11-07",
     });
     expect(comparableVenuePint(hydrated, null, false, listingNow)).toBe(6.45);
-    const snapshot = pinsToSlimVenues([hydrated]);
-    expect(snapshot[0]).toMatchObject(row);
-    expect(comparableVenuePint(slimVenueToPin(snapshot[0]), null, false, listingNow)).toBe(6.45);
-    const [resumed] = mergeLazyDetailPins([slimVenueToPin(snapshot[0])], new Map([[row.id, detail]]));
+    const snapshot = defined(pinsToSlimVenues([hydrated])[0]);
+    expect(snapshot).toMatchObject(row);
+    expect(comparableVenuePint(slimVenueToPin(snapshot), null, false, listingNow)).toBe(6.45);
+    const resumed = defined(mergeLazyDetailPins([slimVenueToPin(snapshot)], new Map([[row.id, detail]]))[0]);
     expect(comparableVenuePint(resumed, null, false, listingNow)).toBe(6.45);
   });
 
