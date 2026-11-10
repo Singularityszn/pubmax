@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -77,27 +75,6 @@ afterEach(() => {
 });
 
 describe("Plan Completion", () => {
-  it("pins the durable RPC to the canonical host and an in-route arrival", () => {
-    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260717071841_plan_completion_arrival_ending_selection.sql"), "utf8");
-    expect(sql).toContain("order by joined_at, id limit 1");
-    expect(sql).toContain("actor_id <> host_id");
-    expect(sql).toContain("stop.position = action.stop_position");
-    expect(sql).toContain("candidate.created_at <= completion.completed_at");
-    expect(sql.match(/action\.created_at <= p_completed_at/g)).toHaveLength(2);
-    expect(sql).toContain("on delete no action");
-    expect(sql).toContain("deferrable initially deferred");
-    expect(sql).toContain("p_ending_selection jsonb");
-    expect(sql).toContain("terminal_venue_id, ending_selection");
-    expect(sql).toContain("qualifying_arrival_action_id, qualifying_arrival_stop_position");
-    expect(sql).toContain("uuid, text, integer, uuid, uuid, text, text, jsonb, timestamptz");
-    const shapeConstraint = /add constraint plan_completions_qualifying_arrival_shape check \([\s\S]*?\)\s+not valid;/i.exec(sql);
-    expect(shapeConstraint).not.toBeNull();
-    const validateIndex = sql.indexOf("validate constraint plan_completions_qualifying_arrival_shape");
-    expect(validateIndex).toBeGreaterThan((shapeConstraint?.index ?? -1) + (shapeConstraint?.[0].length ?? 0));
-    expect(sql).not.toContain("on delete set null");
-    expect(sql).not.toContain("on delete cascade");
-  });
-
   it("completes against the expected canonical route revision exactly once and redacts actor ids", async () => {
     const created = await createPlan();
     const id = created.plan.plan.id;

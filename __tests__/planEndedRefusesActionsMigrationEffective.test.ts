@@ -17,6 +17,8 @@ const PLAN = "a2310000-0000-4000-8000-000000000001";
 const HOST = "a2310000-0000-4000-8000-000000000002";
 const HOST_HASH = "a".repeat(64);
 const ARRIVAL = "a2310000-0000-4000-8000-000000000003";
+const GUEST = "a2310000-0000-4000-8000-000000000004";
+const GUEST_HASH = "b".repeat(64);
 
 const hex = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -29,15 +31,17 @@ function act(key: string, actionId = `a2310000-0000-4000-8000-1${String(++action
 }
 
 let completionCount = 0;
-function complete(): string {
+function complete(tokenHash = HOST_HASH, arity: 8 | 9 = 9): string {
   const n = String(++completionCount).padStart(11, "0");
-  return db().sql(asServiceRole(`select public.complete_plan_atomic('${PLAN}','${HOST_HASH}',1,'a2310000-0000-4000-8000-2${n}','a2310000-0000-4000-8000-3${n}','get_home',null,
-    '{"kind":"get_home","optionId":"walk","evidenceSnapshot":{"label":"Walk home"}}'::jsonb,now())`));
+  const selection = arity === 9 ? `'{"kind":"get_home","optionId":"walk","evidenceSnapshot":{"label":"Walk home"}}'::jsonb,` : "";
+  return db().sql(asServiceRole(`select public.complete_plan_atomic('${PLAN}','${tokenHash}',1,'a2310000-0000-4000-8000-2${n}','a2310000-0000-4000-8000-3${n}','get_home',null,
+    ${selection}now())`));
 }
 
 function seed(status: string) {
   db().sql(`delete from public.plan_completions where plan_id='${PLAN}';
     delete from public.plan_actions where plan_id='${PLAN}' and id<>'${ARRIVAL}';
+    update public.plan_actions set type='arrived', stop_position=0, created_at=now()-interval '1 hour' where id='${ARRIVAL}';
     update public.plans set status='${status}', ending=null where id='${PLAN}';`);
 }
 
@@ -49,7 +53,8 @@ beforeAll(async () => {
     for (const file of readdirSync(directory).filter((entry) => entry.endsWith(".sql") && entry < name).sort()) db().applyFile(join(directory, file));
     db().sql(`insert into public.plans(id,title,start_time,status) values ('${PLAN}','Ended night',now(),'active');
       insert into public.plan_crew_members(id,plan_id,name,token_hash,can_collaborate,joined_at)
-        values ('${HOST}','${PLAN}','Host','${HOST_HASH}',true,now());
+        values ('${HOST}','${PLAN}','Host','${HOST_HASH}',true,now()),
+          ('${GUEST}','${PLAN}','Guest','${GUEST_HASH}',true,now()+interval '1 second');
       insert into public.plan_stops(plan_id,venue_id,venue_name,position) values
         ('${PLAN}','venue-a','Venue A',0), ('${PLAN}','venue-b','Venue B',1);
       insert into public.plan_actions(id,plan_id,actor_member_id,type,stop_position,created_at,idempotency_key_hash,request_hash)
@@ -102,6 +107,58 @@ describe.skipIf(skipReason !== null)("0231 an ended Plan refuses actions and com
     seed("active");
     expect(complete()).toBe("completed");
     expect(complete()).toBe("already_completed");
+  });
+
+  describe.each([8, 9] as const)("completion RPC with %i arguments", (arity) => {
+    it("refuses a collaborating guest and lets the canonical host complete", () => {
+      expect(complete(GUEST_HASH, arity)).toBe("forbidden");
+      expect(db().sql(`select count(*) from public.plan_completions where plan_id='${PLAN}'`)).toBe("0");
+      expect(db().sql(`select count(*) from public.plan_actions where plan_id='${PLAN}' and type='ending'`)).toBe("0");
+      expect(db().sql(`select status from public.plans where id='${PLAN}'`)).toBe("active");
+      expect(complete(HOST_HASH, arity)).toBe("completed");
+      expect(db().sql(`select actor_member_id from public.plan_completions where plan_id='${PLAN}'`)).toBe(HOST);
+    });
+
+    it.each([
+      ["off-route arrival", "stop_position=7"],
+      ["future arrival", "created_at=now()+interval '1 hour'"],
+      ["skipped stop", "type='skipped'"],
+    ])("refuses completion with only a %s", (_label, change) => {
+      db().sql(`update public.plan_actions set ${change} where id='${ARRIVAL}'`);
+      expect(complete(HOST_HASH, arity)).toBe("arrival_required");
+      expect(db().sql(`select count(*) from public.plan_completions where plan_id='${PLAN}'`)).toBe("0");
+      expect(db().sql(`select count(*) from public.plan_actions where plan_id='${PLAN}' and type='ending'`)).toBe("0");
+      expect(db().sql(`select status from public.plans where id='${PLAN}'`)).toBe("active");
+    });
+
+    it("persists the earliest qualifying arrival and protects its reference", () => {
+      db().sql(`insert into public.plan_actions(id,plan_id,actor_member_id,type,stop_position,created_at) values
+        ('a2310000-0000-4000-8000-000000000005','${PLAN}','${HOST}','arrived',7,now()-interval '2 hours'),
+        ('a2310000-0000-4000-8000-000000000006','${PLAN}','${HOST}','arrived',1,now()+interval '1 hour'),
+        ('a2310000-0000-4000-8000-000000000007','${PLAN}','${HOST}','skipped',1,now()-interval '2 hours'),
+        ('a2310000-0000-4000-8000-000000000008','${PLAN}','${HOST}','arrived',1,now()-interval '30 minutes');`);
+      expect(complete(HOST_HASH, arity)).toBe("completed");
+      const stored = JSON.parse(db().sql(`select row_to_json(completion) from public.plan_completions completion where plan_id='${PLAN}'`));
+      expect(stored).toMatchObject({
+        actor_member_id: HOST,
+        route_revision: 1,
+        ending: "get_home",
+        qualifying_arrival_action_id: ARRIVAL,
+        qualifying_arrival_stop_position: 0,
+        route_snapshot: [
+          { venueId: "venue-a", venueName: "Venue A", position: 0 },
+          { venueId: "venue-b", venueName: "Venue B", position: 1 },
+        ],
+      });
+      if (arity === 9) expect(stored.ending_selection).toEqual({ kind: "get_home", optionId: "walk", evidenceSnapshot: { label: "Walk home" } });
+      expect(db().sql(`select (completion.qualifying_arrival_at = action.created_at and completion.qualifying_arrival_at <= completion.completed_at)::text
+        from public.plan_completions completion join public.plan_actions action on action.id=completion.qualifying_arrival_action_id where completion.plan_id='${PLAN}'`)).toBe("true");
+      expect(db().expectRefusal(`update public.plan_completions set qualifying_arrival_at=null where plan_id='${PLAN}'`)).toContain("23514");
+      expect(db().expectRefusal(`delete from public.plan_actions where id='${ARRIVAL}'`)).toContain("23503");
+      expect(db().sql(`select count(*) from public.plan_completions where plan_id='${PLAN}'`)).toBe("1");
+      db().sql(`begin; delete from public.plan_actions where id='${ARRIVAL}'; delete from public.plan_completions where plan_id='${PLAN}'; rollback;`);
+      expect(db().sql(`select qualifying_arrival_action_id from public.plan_completions where plan_id='${PLAN}'`)).toBe(ARRIVAL);
+    });
   });
 
   it("rollback restores the old answers", () => {
