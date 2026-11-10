@@ -77,8 +77,11 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
      The Pint Drop composer then prints `BILL_READING_RECEIPT_LINE`.
      A paired pint repeat inside the six-second duplicate window schedules no check for the new photo.
      The existing drop keeps its own photo and check.
-     A paired drop's identity includes the community row ID, submission time and submitted price.
-     Both backends return the stored drop for an identical ID, venue, account and price, and report whether this request created it.
+     `lib/oneTapPriceDropId.ts` derives a paired drop's ID from the community row ID, submission time and submitted price.
+     Both backends match the ID, venue, handle, price and measure before returning a stored drop as a replay.
+     An accepted replay returns that drop's figure and original date without replacing the current community observation.
+     The older-observation refusal in the [pairing policy](#what-a-community-price-is-allowed-to-move-is-a-policy-not-an-implementation-deta) still applies.
+     Both backends report whether this request created the drop.
      Only the creator schedules a bill check. A duplicate success never rolls back the paired community price.
      The Round diary uses `scheduleBillChecks` to read one photo for all promoted observations that become the current community prices.
      A Round retry reads the stored spend's original photo, not the retry's attachment.
