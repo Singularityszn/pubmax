@@ -35,7 +35,7 @@
 // client that may open a Realtime socket. The server service-role client
 // (lib/supabase.ts) must NEVER be used for subscriptions.
 
-import { ensureSupabaseBrowser, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { ensureSupabaseBrowserForSession, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { PINT_DROPS_LIVE_EVENT, PINT_DROPS_LIVE_TOPIC } from "@/lib/pintDropsTopics";
 import { type StopVisibleInterval, visibleInterval } from "@/lib/visiblePolling";
@@ -247,7 +247,7 @@ function subscribePintDropSignal(
   startPolling();
   const ready = getSupabaseBrowser();
   if (ready) initialize(ready);
-  else void ensureSupabaseBrowser().then((loaded) => {
+  else void ensureSupabaseBrowserForSession().then((loaded) => {
     if (loaded) initialize(loaded);
   }).catch(fallBackToPolling);
 

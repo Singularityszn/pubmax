@@ -46,7 +46,7 @@
 // polled for ever when the chunk had not landed yet; this one AWAITS the client
 // so a cold open still upgrades to realtime.
 
-import { ensureSupabaseBrowser, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { ensureSupabaseBrowserForSession, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
 
 /** A zero-argument nudge — deliberately carries NO payload (see header). */
@@ -274,7 +274,7 @@ function subscribeBroadcast(
     // The chunk is still loading. Poll meanwhile, and upgrade when it lands
     // rather than polling for the life of the page.
     timer.setCadence(cadence.fallbackMs);
-    void ensureSupabaseBrowser()
+    void ensureSupabaseBrowserForSession()
       .then((loaded) => {
         if (disposed) return;
         if (loaded) attach(loaded);

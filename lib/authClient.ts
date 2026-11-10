@@ -28,6 +28,12 @@ import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
 let clientPromise: Promise<SupabaseClient | null> | undefined;
 let cached: SupabaseClient | null | undefined;
+// Resolves with the first client any caller builds. Work that only a signed-in
+// reader has waits on it instead of loading supabase-js itself.
+let announceClient: (client: SupabaseClient) => void = () => {};
+const clientBuilt = new Promise<SupabaseClient>((resolve) => {
+  announceClient = resolve;
+});
 
 type NativeInstallation = { auth: SupabaseClient["auth"]; session: Session; current: () => boolean; settled: boolean };
 let nativeInstallation: NativeInstallation | null = null;
@@ -155,6 +161,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
         flowType: "implicit",
       },
     });
+    announceClient(cached);
     return cached;
   })();
 }
@@ -194,8 +201,33 @@ export function ensureSupabaseBrowser(): Promise<SupabaseClient | null> {
 export function getSupabaseBrowser(): SupabaseClient | null {
   if (typeof window === "undefined") return null;
   if (cached !== undefined) return cached;
-  void ensureSupabaseBrowser();
+  void ensureSupabaseBrowserForSession();
   return null;
+}
+
+function windowLocalStorage(): Pick<Storage, "getItem"> | null {
+  try {
+    return window.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** True when no session is stored and no caller has started the client. */
+function signedOutBeforeClient(): boolean {
+  return cached === undefined && !clientPromise && !hasStoredBrowserSession(windowLocalStorage());
+}
+
+/**
+ * The browser client for work that only a signed-in reader has, such as a
+ * private realtime channel. With a stored session it loads the client like
+ * ensureSupabaseBrowser. With none it does not load supabase-js: it resolves
+ * when another caller builds the client (AuthProvider, after the map's pins,
+ * lib/authClientTurn.ts), so a later sign-in still reaches the caller.
+ */
+export function ensureSupabaseBrowserForSession(): Promise<SupabaseClient | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  return signedOutBeforeClient() ? clientBuilt : ensureSupabaseBrowser();
 }
 
 /**
@@ -244,6 +276,9 @@ export function isAuthConfigured(): boolean {
  * an anonymous request or requires a retry or refusal.
  */
 export async function getAccessToken(): Promise<string | null> {
+  // No stored session means the client would read none: answer anonymous
+  // without loading supabase-js.
+  if (typeof window !== "undefined" && signedOutBeforeClient()) return null;
   const accountSignal = readProviderAccountSignal();
   const supabase = await ensureSupabaseBrowser();
   if (!supabase) return null;
