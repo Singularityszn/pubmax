@@ -113,6 +113,49 @@ describe.skipIf(skipReason !== null)("0233 set_crew_status", () => {
     expect(db().sql(asServiceRole(`select id from public.social_crews where id='${CREW}' for update nowait`))).toBe(CREW);
   });
 
+  it.each(["active", "left", "removed"])("waits for the crew before locking the Plan when membership becomes %s", async (state) => {
+    const owner = spawn(db().psql, [...db().databaseArgs, "-X", "-qAt"], { stdio: ["pipe", "pipe", "pipe"] });
+    let output = "";
+    let stderr = "";
+    owner.stderr.on("data", (chunk) => { stderr += String(chunk); });
+    const finished = new Promise<void>((resolve, reject) => {
+      owner.once("error", reject);
+      owner.once("close", (code) => code === 0 ? resolve() : reject(new Error(stderr)));
+    });
+    void finished.catch(() => {});
+    const ready = new Promise<void>((resolve, reject) => {
+      owner.stdout.on("data", (chunk) => {
+        output += String(chunk);
+        if (output.split(/\r?\n/).includes("CREW_LOCKED")) resolve();
+      });
+      owner.once("error", reject);
+      owner.once("close", () => reject(new Error(`Owner exited before release: ${stderr}`)));
+    });
+    owner.stdin.write(`begin;
+      select id from public.social_crews where id='${CREW}' for update;
+      update public.social_crew_members set state='${state}', ended_at=${state === "active" ? "null" : "now()"}
+        where crew_id='${CREW}' and social_account_id='${MATE}';
+      \\echo CREW_LOCKED
+    `);
+    let arrival: Promise<string> | undefined;
+    try {
+      await ready;
+      arrival = db().sqlAsync(`set application_name='crew_status_lock_order';
+        ${asServiceRole(`select public.set_crew_status('${CREW_PLAN}','here',null,'${MATE_SEAT}','${MATE}')`)}`);
+      void arrival.catch(() => {});
+      await expect.poll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
+        where application_name='crew_status_lock_order' and wait_event_type='Lock'
+          and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
+      expect(db().sql(`select id from public.plans where id='${CREW_PLAN}' for update nowait`)).toBe(CREW_PLAN);
+    } finally {
+      owner.stdin.end("commit;\n");
+      await finished;
+      await arrival;
+    }
+    expect(await arrival).toBe(state === "active" ? "ok" : "not_found");
+    expect(seat(MATE_SEAT)).toBe(state === "active" ? "here" : "in");
+  });
+
   it.each(["completed", "abandoned"])("refuses Here once the Plan is %s and writes nothing", (status) => {
     db().sql(`update public.plans set status='${status}' where id in ('${PLAN}','${CREW_PLAN}')`);
     expect(byToken(GUEST_HASH)).toBe("closed");

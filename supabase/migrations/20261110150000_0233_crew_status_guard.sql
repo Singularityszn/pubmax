@@ -25,6 +25,10 @@ begin
   end if;
   if (p_token_hash is null) = (p_seat_id is null or p_account_id is null) then return 'invalid'; end if;
 
+  if p_token_hash is null then
+    perform 1 from public.social_crews where plan_id = p_plan_id for share;
+  end if;
+
   select * into v_plan from public.plans where id = p_plan_id for share;
   if not found then return 'not_found'; end if;
 
@@ -38,7 +42,6 @@ begin
     for update;
     if not found then return 'forbidden'; end if;
   else
-    perform 1 from public.social_crews where plan_id = p_plan_id for share;
     select seat.id into v_seat_id
     from public.plan_crew_members seat
     join public.social_crews crew on crew.plan_id = seat.plan_id
