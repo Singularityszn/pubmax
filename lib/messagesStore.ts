@@ -25,6 +25,7 @@ import {
   messagePhotoServePath,
   messagePhotoServingKey,
   type MessageAttachment,
+  type MessageAttachmentKind,
   type MessageAttachmentWrite,
 } from "@/lib/messageAttachments";
 import {
@@ -1579,7 +1580,7 @@ type MemoryMessage = {
   readAt: string | null;
   flaggedAt: string | null;
   flaggedBy: string | null;
-  attachmentKind: string | null;
+  attachmentKind: MessageAttachmentKind | null;
   attachmentObjectKey: string | null;
   attachmentWidth: number | null;
   attachmentHeight: number | null;
