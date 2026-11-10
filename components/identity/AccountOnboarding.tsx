@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
+import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
@@ -46,6 +47,11 @@ type Availability =
   | "taken"
   | "reserved"
   | "invalid";
+
+type AccountOnboardingProps = {
+  authBannedNotice?: boolean;
+  onDismissAuthBannedNotice?: () => void;
+};
 
 type AccountOnboardingFormProps = {
   dialogRef?: RefObject<HTMLElement | null>;
@@ -258,10 +264,12 @@ function suggestedHandle(): string {
 function AccountOnboardingForUser({
   auth,
   identityResolved,
+  authBannedNotice,
+  onDismissAuthBannedNotice,
 }: {
   auth: AccountAuthSnapshot;
   identityResolved: boolean;
-}): React.JSX.Element | null {
+} & AccountOnboardingProps): React.JSX.Element | null {
   const { user, signOut, switchAccount } = useAuth();
   const deviceAccounts = useDeviceAccounts();
   const [status, setStatus] = useState<
@@ -548,14 +556,23 @@ function AccountOnboardingForUser({
     ],
   );
 
-  if (status === "loading" || status === "complete") return null;
+  const bannedNotice = authBannedNotice ? (
+    <AuthAccountBannedNotice
+      className={status === "needed" ? "accountOnboardingError" : undefined}
+      onDismiss={onDismissAuthBannedNotice}
+    />
+  ) : null;
+  if (status === "loading" || status === "complete") return bannedNotice;
   if (status === "unavailable") {
     return (
-      <AccountOnboardingLoadError
-        error={statusError}
-        offline={typeof window !== "undefined" && window.navigator?.onLine === false}
-        onRetry={retryStatus}
-      />
+      <>
+        {bannedNotice}
+        <AccountOnboardingLoadError
+          error={statusError}
+          offline={typeof window !== "undefined" && window.navigator?.onLine === false}
+          onRetry={retryStatus}
+        />
+      </>
     );
   }
   return (
@@ -569,6 +586,7 @@ function AccountOnboardingForUser({
       error={error}
       accountActions={
         <div className="accountOnboardingAccount">
+          {bannedNotice}
           {user?.email ? <p className="accountOnboardingPrivacy">Signed in as {user.email}</p> : null}
           <AccountDeviceControls
             handle={null}
@@ -597,7 +615,10 @@ function AccountOnboardingForUser({
   );
 }
 
-export default function AccountOnboarding(): React.JSX.Element | null {
+export default function AccountOnboarding({
+  authBannedNotice = false,
+  onDismissAuthBannedNotice,
+}: AccountOnboardingProps = {}): React.JSX.Element | null {
   const { user, loading, session, identityResolved } = useAuth();
   const sessionAccessToken = session?.access_token ?? null;
   const sessionUserId = session?.user.id ?? null;
@@ -612,13 +633,15 @@ export default function AccountOnboarding(): React.JSX.Element | null {
     [sessionAccessToken, sessionUserId, user?.id],
   );
   if (loading || !user || !auth || typeof document === "undefined") {
-    return null;
+    return authBannedNotice ? <AuthAccountBannedNotice onDismiss={onDismissAuthBannedNotice} /> : null;
   }
   return createPortal(
     <AccountOnboardingForUser
       key={user.id}
       auth={auth}
       identityResolved={identityResolved}
+      authBannedNotice={authBannedNotice}
+      onDismissAuthBannedNotice={onDismissAuthBannedNotice}
     />,
     document.body,
   );
