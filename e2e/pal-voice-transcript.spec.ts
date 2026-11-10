@@ -185,7 +185,8 @@ test.describe("phone voice map tap targets", () => {
 });
 
 for (const width of [390, 1440]) {
-  test(`${width}px: real SDK tool events show four mapped pubs and require a tap before keeping a voice memory`, async ({ page }) => {
+  const mapAsk = width === 390 ? "spoken" : "typed";
+  test(`${width}px: real SDK tool events show four mapped pubs, confirm memory, and open /map from a ${mapAsk} ask`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 1000 });
     const socket = await openLiveVoice(page, true);
@@ -259,13 +260,30 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("status").filter({ hasText: "Saved: Cask ale" })).toBeVisible();
     expect(writes).toBe(1);
     await expect(page.locator(".palMemoryList")).toContainText("Cask ale");
+    await expect(map).toBeVisible();
+    if (mapAsk === "spoken") {
+      hear(socket, "Show me the map");
+    } else {
+      await page.locator(".palVoice input").fill("Show me the map");
+      await page.getByRole("button", { name: "Send message", exact: true }).click();
+    }
+    await expect(page).toHaveURL(/\/map(?:\?|$)/);
+    const bar = page.getByRole("region", { name: "Voice chat with Ripley" });
+    await expect(bar).toBeVisible();
+    say(socket, "Your recommended pubs are on the map.");
+    await expect(bar).toContainText("Your recommended pubs are on the map.");
     await page.getByRole("button", { name: "End", exact: true }).click();
+    await page.goto("/pal");
     await page.reload();
     await expect(page.locator(".palMemoryList")).toContainText("Cask ale");
   });
 }
 
-for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"]] as const) {
+for (const [width, theme] of [
+  [390, "light"], [390, "dark"],
+  [768, "light"], [768, "dark"],
+  [1440, "light"], [1440, "dark"],
+] as const) {
   test(`${width}px ${theme}: "show me the map" opens /map and the same voice call carries on there`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
@@ -306,17 +324,16 @@ for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"]] as
       () => head.evaluate((element) => Number.parseFloat(getComputedStyle(element).getPropertyValue("--pal-lift")) || 0),
       { timeout: 5_000, intervals: [50] },
     ).toBeGreaterThan(0.5);
-    await head.screenshot({ path: `${SHOTS}/${width}-0-head-speaking.png` });
+    await head.screenshot({ path: `${SHOTS}/${width}-${theme}-0-head-speaking.png` });
     const log = page.getByRole("log", { name: "Voice chat transcript" });
     await expect(log.locator(".palVoiceLine--pal")).toContainText("Tell me the night you want");
     await expect(page.locator(".palVoice")).toHaveAttribute("data-mode", "speaking");
-    await page.waitForTimeout(500);
-    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-1-pal-speaking.png` });
+    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-${theme}-1-pal-speaking.png` });
 
     await expect(page.locator(".palVoice")).toHaveAttribute("data-mode", "listening", { timeout: 10_000 });
     hear(socket, "cheap pints near", true);
     await expect(log.locator(".palVoiceLine--live")).toContainText("cheap pints near");
-    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-2-hearing-you.png` });
+    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-${theme}-2-hearing-you.png` });
 
     hear(socket, "Cheap pints near Soho for four of us");
     // The fake microphone plays a steady tone, so the live "hearing you" row
@@ -328,8 +345,8 @@ for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"]] as
     hear(socket, "Show me the map");
     const mapCard = page.locator(".palVoiceMapCard");
     await expect(mapCard).toContainText("Opening the map");
-    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-3-opening-map.png` });
-    await page.screenshot({ path: `${SHOTS}/${width}-4-page.png`, fullPage: width === 390 });
+    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-${theme}-3-opening-map.png` });
+    await page.screenshot({ path: `${SHOTS}/${width}-${theme}-4-page.png`, fullPage: width === 390 });
     await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
 
     // The call lives in the shell, so the move to /map keeps the same socket.

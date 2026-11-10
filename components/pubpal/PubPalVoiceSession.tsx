@@ -186,7 +186,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
   const currentToolCalls = useRef(new Map<string, { id: string; order: number }>());
   const toolRequestOrder = useRef(0);
-  const resultsRef = useRef<HTMLDivElement>(null);
   const lastUserEvent = useRef(0);
   const [mapPending, setMapPending] = useState(false);
   const [mapLabel, setMapLabel] = useState("Opening the map");
@@ -237,18 +236,9 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       stayHere();
       return true;
     }
-    if (recommendationCards.some((card) => card.venueId)) {
-      const map = resultsRef.current?.querySelector<HTMLElement>(".palChatMap");
-      if (map) {
-        stayHere();
-        map.focus({ preventScroll: true });
-        map.scrollIntoView({ block: "center" });
-        return true;
-      }
-    }
     openMap();
     return false;
-  }, [onMapRef, recommendationCards, stayHere, openMap]);
+  }, [onMapRef, stayHere, openMap]);
   const showMapRef = useRef(showMap);
   useEffect(() => {
     openMapRef.current = openMap;
@@ -737,7 +727,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         onStayHere={stayHere}
       />
       {voiceCards.some((card) => card.venueId) ? (
-        <div className="palVoiceResults" ref={resultsRef}>
+        <div className="palVoiceResults">
           <PalRecommendationMap cards={recommendationCards} />
           <ul aria-label="Pubs from the voice answer">
             {voiceCards.filter((card) => card.venueId).map((card) => (
