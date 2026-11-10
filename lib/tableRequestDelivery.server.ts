@@ -15,7 +15,8 @@ import { createHash } from "crypto";
 // contact rides as the email's Reply-To (when they chose email) so the pub
 // replies to them directly, and it is never logged.
 
-import { selectEmailProvider, type EmailProvider } from "@/lib/emailProvider";
+import { normalizeEmail } from "@/lib/emailAddress";
+import { noopEmailProvider, selectEmailProvider, type EmailProvider } from "@/lib/emailProvider";
 import { log } from "@/lib/log";
 import { operatorAccountAddress } from "@/lib/operatorAccountAddress.server";
 import { tableRequestOperatorEmail, type TableRequestFields } from "@/lib/tableRequests";
@@ -41,6 +42,7 @@ export type TableRequestDeliveryDeps = {
 
 /** At most this many operators are emailed for one request. */
 const MAX_OPERATOR_RECIPIENTS = 3;
+const MAX_PENDING_RETRY_AGE_MS = 23 * 60 * 60 * 1000;
 
 const DEFAULT_DEPS: TableRequestDeliveryDeps = {
   verifiedOperatorAccountIds: (venueId) => venueOperatorsStore().verifiedOperatorAccountIds(venueId),
@@ -61,7 +63,7 @@ async function operatorAddresses(
   }
   const addresses = (
     await Promise.all(operators.map((id) => deps.operatorAddress(id).catch(() => null)))
-  ).filter((address): address is string => Boolean(address));
+  ).map(normalizeEmail).filter(Boolean);
   return { operators: operators.length, addresses: [...new Set(addresses)] };
 }
 
@@ -73,6 +75,24 @@ async function discardQuietly(store: TableRequestsStore, id: string): Promise<vo
       error: err instanceof Error ? err.message : String(err),
     });
   }
+}
+
+async function reconcileNotSent(
+  store: TableRequestsStore,
+  requestId: string | undefined,
+  requesterUserId: string,
+  reason: TableRequestNotSentReason,
+): Promise<TableRequestDeliveryOutcome> {
+  if (requestId) {
+    try {
+      const stored = await store.findForRequester(requestId, requesterUserId);
+      if (stored?.delivery === "emailed") return { outcome: "sent" };
+      if (stored) return { outcome: "retryable" };
+    } catch {
+      return { outcome: "retryable" };
+    }
+  }
+  return { outcome: "not_sent", reason };
 }
 
 /** One stable UUID per account and retry key. */
@@ -91,13 +111,12 @@ export async function deliverTableRequest(
 ): Promise<TableRequestDeliveryOutcome> {
   const keyedId = requestKey ? tableRequestIdForKey(fields.requesterUserId, requestKey) : undefined;
   let store: TableRequestsStore;
-  let pendingRetry = false;
+  const startedAt = Date.now();
   try {
     store = deps.store();
     if (keyedId) {
       const stored = await store.findForRequester(keyedId, fields.requesterUserId);
       if (stored?.delivery === "emailed") return { outcome: "sent" };
-      pendingRetry = stored !== null;
     }
   } catch (err) {
     log("error", "table_request.store_failed", {
@@ -106,10 +125,18 @@ export async function deliverTableRequest(
     return { outcome: "retryable" };
   }
 
+  const emailProvider = deps.emailProvider();
+  if (emailProvider === noopEmailProvider) {
+    return reconcileNotSent(store, keyedId, fields.requesterUserId, "email_not_sent");
+  }
+
   const { operators, addresses } = await operatorAddresses(fields.venueId, deps);
-  if (pendingRetry && (operators === 0 || addresses.length === 0)) return { outcome: "retryable" };
-  if (operators === 0) return { outcome: "not_sent", reason: "no_operator" };
-  if (addresses.length === 0) return { outcome: "not_sent", reason: "no_operator_address" };
+  if (operators === 0 || addresses.length === 0) {
+    return reconcileNotSent(
+      store, keyedId, fields.requesterUserId,
+      operators === 0 ? "no_operator" : "no_operator_address",
+    );
+  }
 
   let requestId: string;
   try {
@@ -118,6 +145,10 @@ export async function deliverTableRequest(
     const stored = await store.create(fields, now, keyedId);
     requestId = stored.id;
     if (stored.delivery === "emailed") return { outcome: "sent" };
+    const age = now + Math.max(0, Date.now() - startedAt) - Date.parse(stored.createdAt);
+    if (!Number.isFinite(age) || age < 0 || age >= MAX_PENDING_RETRY_AGE_MS) {
+      return { outcome: "retryable" };
+    }
   } catch (err) {
     log("error", "table_request.store_failed", {
       error: err instanceof Error ? err.message : String(err),
@@ -126,16 +157,15 @@ export async function deliverTableRequest(
   }
 
   const message = tableRequestOperatorEmail(venueName, fields);
-  const results = await deps
-    .emailProvider()
+  const results = await emailProvider
     .send(
-      addresses.map((to, index) => ({
+      addresses.map((to) => ({
         to,
         subject: message.subject,
         text: message.text,
         html: message.html,
         ...(fields.contactKind === "email" ? { replyTo: fields.contactValue } : {}),
-        idempotencyKey: `table-request:${requestId}:${index}`,
+        idempotencyKey: `table-request:${requestId}:${createHash("sha256").update(to).digest("hex")}`,
       })),
     )
     .catch(() => []);
