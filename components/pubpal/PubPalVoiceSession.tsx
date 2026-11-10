@@ -65,6 +65,7 @@ import {
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
   palVoiceLineDropped,
+  requestPalVoiceMicrophone,
   type PalVoiceMicrophoneHold,
 } from "@/lib/pubPalVoiceSession";
 import {
@@ -446,7 +447,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new PubPalVoiceStartError("Can't reach your microphone. Type instead.");
         }
-        return navigator.mediaDevices.getUserMedia({ audio: true });
+        return requestPalVoiceMicrophone({ audio: true });
       },
       issueGrant: async () => {
         const response = await authedActionFetch("/api/pub-pal/voice-token", {

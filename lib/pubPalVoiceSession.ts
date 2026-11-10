@@ -76,7 +76,17 @@ export type PalVoiceMicrophoneHold = {
   release: () => void;
 };
 
-let restoreCurrentHold: (() => void) | null = null;
+type MicrophoneHoldState = {
+  released: boolean;
+  streams: Set<VoiceProbeStream>;
+};
+
+let installedMicrophone: {
+  mediaDevices: MediaDevices;
+  original: MediaDevices["getUserMedia"];
+  ownMethod: boolean;
+} | null = null;
+let microphoneHolds: MicrophoneHoldState[] = [];
 
 function startupCancelled(): DOMException {
   return new DOMException("Voice startup was cancelled.", "AbortError");
@@ -86,51 +96,68 @@ function startupCancelled(): DOMException {
  * Holds the microphone streams that the ElevenLabs SDK opens during one voice
  * startup. The SDK cannot cancel its startup, so `release()` is the only way
  * to close that microphone before the socket finishes. After release, a new
- * request fails, and the SDK abandons its startup. A new hold restores the
- * previous one, so a startup that never ends cannot block the next start.
+ * request fails unless a newer SDK startup has begun. Released holds keep
+ * that protection until they settle. App permission probes use
+ * `requestPalVoiceMicrophone()` to bypass the SDK holds.
  */
 export function createPalVoiceMicrophoneHold(): PalVoiceMicrophoneHold {
-  restoreCurrentHold?.();
-  const streams = new Set<VoiceProbeStream>();
-  let released = false;
-  let restore = (): void => undefined;
+  const state: MicrophoneHoldState = { released: false, streams: new Set() };
 
   return {
     begin: () => {
       const mediaDevices = navigator.mediaDevices;
-      if (released || !mediaDevices?.getUserMedia) return;
-      restoreCurrentHold?.();
-      const ownMethod = Object.prototype.hasOwnProperty.call(mediaDevices, "getUserMedia");
+      if (state.released || !mediaDevices?.getUserMedia) return;
+      if (installedMicrophone && installedMicrophone.mediaDevices !== mediaDevices) {
+        installedMicrophone = null;
+        microphoneHolds = [];
+      }
+      if (microphoneHolds.includes(state)) return;
+      microphoneHolds.push(state);
+      if (installedMicrophone) return;
       const original = mediaDevices.getUserMedia;
-      const held: MediaDevices["getUserMedia"] = async (constraints) => {
-        if (released) throw startupCancelled();
+      installedMicrophone = {
+        mediaDevices,
+        original,
+        ownMethod: Object.prototype.hasOwnProperty.call(mediaDevices, "getUserMedia"),
+      };
+      const holds = microphoneHolds;
+      mediaDevices.getUserMedia = async (constraints) => {
+        const hold = holds.findLast((candidate) => !candidate.released);
+        if (!hold) throw startupCancelled();
         const stream = await original.call(mediaDevices, constraints);
-        if (released) {
+        if (hold.released) {
           stopTracks(stream);
           throw startupCancelled();
         }
-        streams.add(stream);
+        hold.streams.add(stream);
         return stream;
       };
-      restore = () => {
-        if (restoreCurrentHold === restore) restoreCurrentHold = null;
-        if (mediaDevices.getUserMedia !== held) return;
-        if (ownMethod) mediaDevices.getUserMedia = original;
-        else Reflect.deleteProperty(mediaDevices, "getUserMedia");
-      };
-      mediaDevices.getUserMedia = held;
-      restoreCurrentHold = restore;
     },
     settle: () => {
-      restore();
-      streams.clear();
+      state.streams.clear();
+      const index = microphoneHolds.indexOf(state);
+      if (index === -1) return;
+      microphoneHolds.splice(index, 1);
+      if (microphoneHolds.length || !installedMicrophone) return;
+      const { mediaDevices, original, ownMethod } = installedMicrophone;
+      if (ownMethod) mediaDevices.getUserMedia = original;
+      else Reflect.deleteProperty(mediaDevices, "getUserMedia");
+      installedMicrophone = null;
     },
     release: () => {
-      released = true;
-      for (const stream of streams) stopTracks(stream);
-      streams.clear();
+      state.released = true;
+      for (const stream of state.streams) stopTracks(stream);
+      state.streams.clear();
     },
   };
+}
+
+export function requestPalVoiceMicrophone(constraints: MediaStreamConstraints): Promise<MediaStream> {
+  const mediaDevices = navigator.mediaDevices;
+  const original = installedMicrophone?.mediaDevices === mediaDevices
+    ? installedMicrophone.original
+    : mediaDevices.getUserMedia;
+  return original.call(mediaDevices, constraints);
 }
 
 export function createPubPalVoiceStartController() {

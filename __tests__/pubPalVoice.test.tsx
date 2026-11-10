@@ -852,10 +852,16 @@ describe("Pub Pal voice controls", () => {
       const sdkStop = vi.fn();
       const lateStop = vi.fn();
       const late = deferred<Stream>();
+      const retryPermission = deferred<Stream>();
+      const retryProbeStop = vi.fn();
+      const retrySdkStop = vi.fn();
+      const retryGrant = deferred<Response>();
       getUserMedia
         .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
         .mockResolvedValueOnce({ getTracks: () => [{ stop: sdkStop }] })
-        .mockReturnValueOnce(late.promise);
+        .mockReturnValueOnce(late.promise)
+        .mockReturnValueOnce(retryPermission.promise)
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: retrySdkStop }] });
       requests.authedActionFetch
         .mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceStartup1" }))
         .mockResolvedValue(new Response(null, { status: 204 }));
@@ -884,6 +890,40 @@ describe("Pub Pal voice controls", () => {
       expect(getUserMedia).toHaveBeenCalledTimes(3);
 
       const session = defined(voice.startSession.mock.calls[0])[0] as { onStatusChange?: (event: { status: string }) => void };
+      voice.status = "disconnected";
+      visibility = "visible";
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        root?.render(createElement(PubPalVoice));
+      });
+      requests.authedActionFetch.mockReturnValueOnce(retryGrant.promise);
+      let retrySdkInput: Promise<Stream> | undefined;
+      voice.startSession.mockImplementation(() => {
+        retrySdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+      });
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+
+      await act(async () => { retryPermission.resolve({ getTracks: () => [{ stop: retryProbeStop }] }); });
+      expect(retryProbeStop).toHaveBeenCalledOnce();
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+
+      await act(async () => {
+        retryGrant.resolve(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_voiceStartup2" }));
+      });
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      await expect(defined(retrySdkInput)).resolves.toBeDefined();
+      expect(getUserMedia).toHaveBeenCalledTimes(5);
+      hidePage("visibilitychange");
+      expect(retrySdkStop).toHaveBeenCalledOnce();
+      const retrySession = defined(voice.startSession.mock.calls[1])[0] as { onStatusChange?: (event: { status: string }) => void };
+      act(() => { retrySession.onStatusChange?.({ status: "disconnected" }); });
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(5);
       act(() => { session.onStatusChange?.({ status: "disconnected" }); });
       expect(navigator.mediaDevices.getUserMedia).toBe(getUserMedia);
     });
