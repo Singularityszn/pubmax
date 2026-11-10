@@ -91,4 +91,23 @@ describe("a signed-out reader opening the map", () => {
 
     await vi.waitFor(() => expect(h.loads).toBe(1));
   });
+
+  it.each([429, 503, "timeout"] as const)("keeps auth unresolved until pins when the resume probe fails with %s", async (failure) => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input) === "/api/auth/session") {
+        if (failure === "timeout") throw new DOMException("Request timed out", "TimeoutError");
+        return new Response("{}", { status: failure });
+      }
+      return new Response("{}", { status: 200 });
+    });
+    await mount();
+
+    expect(h.loads).toBe(0);
+    expect(container.textContent).toBe("loading:unresolved");
+
+    await act(async () => { window.dispatchEvent(new Event(PINS_VISIBLE_EVENT)); });
+
+    await vi.waitFor(() => expect(container.textContent).toBe("settled:unavailable"));
+    expect(h.loads).toBe(1);
+  });
 });

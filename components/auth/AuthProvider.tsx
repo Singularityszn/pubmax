@@ -684,7 +684,7 @@ export function AuthProvider({
       pendingSignIn: hasPendingAuthAttempt(browserLocalStorage()),
       pinsVisible: performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0,
       callback: callbackCapture.then((captured) => Boolean(captured?.attempt)),
-      durableSession: () => readResumeHint().then((hint) => hint.status !== "absent"),
+      durableSession: () => readResumeHint().then((hint) => hint.status === "present"),
       clientBuilt: ensureSupabaseBrowserForSession,
     });
     // No stored session, no durable cookie and no callback is a signed-out
