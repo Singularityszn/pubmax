@@ -3226,8 +3226,8 @@ export default function PubMap({
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
   const pinPriceStandings = useMemo(
-    () => zoneEstimatePinStandings(canvasVenues, venueSignals, zoneIndex),
-    [canvasVenues, venueSignals, zoneIndex],
+    () => favoritePint ? null : zoneEstimatePinStandings(canvasVenues, venueSignals, zoneIndex),
+    [canvasVenues, venueSignals, zoneIndex, favoritePint],
   );
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));

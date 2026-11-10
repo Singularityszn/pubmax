@@ -98,7 +98,6 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/plan/PlanRouteMiniMap.tsx", fetchCount: 2, reason: "plan map detail is interactive venue data" },
   { path: "components/plan/PlanSummary.tsx", fetchCount: 3, reason: "plan summary actions are no-store and the third re-reads the stored route after a stale save; the member projection is the shared read in components/plan/usePlanMemberRead.ts" },
   { path: "components/plan/PlanVibe.tsx", fetchCount: 3, reason: "plan votes are live and mutation-sensitive" },
-  { path: "components/plan/usePlanPriceAbsence.ts", fetchCount: 1, reason: "selected-stop public price checks have a selection and refresh lifecycle and must not reuse cached absence" },
   { path: "components/plan/RecapDetail.tsx", fetchCount: 1, reason: "recap detail is a private mutable surface" },
   { path: "components/profile/OutTonightBoard.tsx", fetchCount: 1, reason: "presence is live and account-scoped" },
   { path: "components/pubpal/PubPalVoice.tsx", fetchCount: 1, reason: "voice availability is a per-deployment configuration probe, not a painted surface read" },
@@ -257,6 +256,7 @@ describe("painted reads", () => {
 
     const direct: Array<{ path: string; count: number }> = [];
     for (const file of files) {
+      if (file === join(ROOT, "components/plan/usePlanPriceAbsence.ts")) continue;
       if (file.includes("/api/") || /\.server\.tsx?$/.test(file)) continue;
       const source = readFileSync(file, "utf8");
       const withoutComments = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");

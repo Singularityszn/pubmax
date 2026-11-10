@@ -175,6 +175,38 @@ describe("PlanStopList", () => {
     expect(host!.textContent).not.toContain("est. £4.95");
   });
 
+  it.each([true, false])("replaces cached absence on refresh when a public price exists: %s", async (hasPrice) => {
+    const props = await mount(unpricedStopProps);
+    expect(host!.textContent).toContain("est. £4.95");
+    const answers: Array<(value: Response) => void> = [];
+    vi.mocked(fetch).mockImplementation(() => new Promise<Response>((done) => { answers.push(done); }));
+
+    await act(async () => root!.render(createElement(PlanStopList, { ...props, refreshKey: 1 })));
+    expect(host!.textContent).not.toContain("est. £4.95");
+
+    await act(async () => {
+      for (const answer of answers) answer(Response.json({
+        drops: hasPrice ? [{ priceGbp: 5.8 }] : [], prices: [],
+      }));
+    });
+    expect(host!.textContent?.includes("est. £4.95")).toBe(!hasPrice);
+  });
+
+  it("ignores a previous refresh's absence when its response arrives late", async () => {
+    const answers: Array<(value: Response) => void> = [];
+    vi.mocked(fetch).mockImplementation(() => new Promise<Response>((done) => { answers.push(done); }));
+    const props = await mount(unpricedStopProps);
+    vi.mocked(fetch).mockImplementation(async () => Response.json({ drops: [{ priceGbp: 5.8 }], prices: [] }));
+
+    await act(async () => root!.render(createElement(PlanStopList, { ...props, refreshKey: 1 })));
+    expect(host!.textContent).not.toContain("est. £4.95");
+
+    await act(async () => {
+      for (const answer of answers) answer(Response.json({ drops: [], prices: [] }));
+    });
+    expect(host!.textContent).not.toContain("est. £4.95");
+  });
+
   it("keeps the current estimate when a removed stop's read completes", async () => {
     const answers: Array<(value: Response) => void> = [];
     vi.mocked(fetch).mockImplementation(() => new Promise<Response>((done) => { answers.push(done); }));
