@@ -416,6 +416,8 @@ startup. If the page hides or the native app goes to the background during SDK
 startup, the app stops those streams at once. It also refuses new microphone
 requests until startup ends. The SDK can still finish its connection. The app
 then closes the late session.
+If you start again, the app waits for the cancelled startup to finish before
+the SDK starts again. The startup timeout also limits this wait.
 
 `components/pubpal/usePageLeft.ts` detects document hiding, `pagehide`, and native
 `pause`. It ignores native foreground inactivity, which can include permission

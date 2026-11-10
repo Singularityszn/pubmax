@@ -464,7 +464,12 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         return { ...body, signedUrl: body.signedUrl };
       },
-      connect: (grant) => {
+      connect: async (grant) => {
+        if (!ownsAttempt(attempt)) {
+          void finalizeSession(attempt);
+          return;
+        }
+        await attempt.microphone.begin();
         if (!ownsAttempt(attempt)) {
           void finalizeSession(attempt);
           return;
@@ -475,7 +480,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
         attempt.sdkStartupPending = true;
-        attempt.microphone.begin();
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
