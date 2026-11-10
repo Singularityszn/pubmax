@@ -22,6 +22,8 @@ describe("A1 intentional raw price-read contract", () => {
     ["rows.map(({ cheapestPrice }) => cheapestPrice)", 1],
     ['rows.map(({ ["cheapestPrice"]: price }) => price)', 1],
     ["rows.map(({ ['cheapestPrice']: price }) => price)", 1],
+    [String.raw`rows.map(v => v.ch\u0065apestPrice)`, 1],
+    [String.raw`rows.map(v => v["cheapest\x50rice"])`, 1],
   ])("requires review for a new raw consumer: %s", (body, count) => {
     expect(unreviewedPriceReads(`export function rank(rows) { return ${body}; }`, "new.ts")).toEqual([{ owner: "rank", count }]);
   });

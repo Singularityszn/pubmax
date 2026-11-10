@@ -1,8 +1,9 @@
+import { once } from "node:events";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { loadWhatsOnTonight, type LoadTonightOpts } from "@/components/map/useWhatsOnTonight";
-import { clearSurfaceCache, readSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { clearSurfaceCache, readSurfaceSnapshot, SURFACE_CACHE_RETRY_BACKOFF_MS } from "@/lib/surfaceDataCache";
 
 let server: Server;
 let origin: string;
@@ -29,6 +30,7 @@ afterEach(async () => {
   clearSurfaceCache();
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -88,17 +90,31 @@ it("keeps the unfinished body alive while another caller still needs the shared 
 });
 
 it("times out unfinished bodies after headers and reports an outage after the bounded retry", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const firstHeaders = Promise.withResolvers<void>();
+  const retryHeaders = Promise.withResolvers<void>();
   let receivedHeaders = 0;
   const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
     const response = await fetch(`${origin}${input}`, init);
     receivedHeaders += 1;
+    (receivedHeaders === 1 ? firstHeaders : retryHeaders).resolve();
     return response;
   });
-  const result = await loadWhatsOnTonight({ fetchImpl, timeoutMs: 200 });
+  const pending = loadWhatsOnTonight({ fetchImpl, timeoutMs: 200 });
+  await firstHeaders.promise;
+  const firstClosed = once(responses[0]!, "close");
+  await vi.advanceTimersByTimeAsync(200);
+  await firstClosed;
+  await vi.advanceTimersByTimeAsync(SURFACE_CACHE_RETRY_BACKOFF_MS);
+  await retryHeaders.promise;
+  const retryClosed = once(responses[1]!, "close");
+  await vi.advanceTimersByTimeAsync(200);
+  await retryClosed;
+  const result = await pending;
   expect(result.status).toBe("error");
   expect(result.rows).toEqual([]);
   expect(receivedHeaders).toBe(2);
   expect(fetchImpl).toHaveBeenCalledTimes(2);
-  await vi.waitFor(() => expect(closedBodies).toBe(2));
+  expect(closedBodies).toBe(2);
   expect(readSurfaceSnapshot("/api/whats-on?window=tonight&limit=60")).toBeUndefined();
 });
