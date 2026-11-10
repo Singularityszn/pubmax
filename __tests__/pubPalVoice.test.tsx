@@ -847,6 +847,47 @@ describe("Pub Pal voice controls", () => {
       expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
     });
 
+    it("stops the SDK microphone at once when the page hides during SDK startup", async () => {
+      type Stream = { getTracks: () => { stop: () => void }[] };
+      const sdkStop = vi.fn();
+      const lateStop = vi.fn();
+      const late = deferred<Stream>();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: sdkStop }] })
+        .mockReturnValueOnce(late.promise);
+      requests.authedActionFetch
+        .mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceStartup1" }))
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      // The SDK opens the microphone itself and cannot be cancelled until its
+      // socket finishes, so endSession only marks the pending start.
+      let sdkInput: Promise<Stream> | undefined;
+      voice.startSession.mockImplementation((options: { onStatusChange?: (event: { status: string }) => void }) => {
+        voice.status = "connecting";
+        options.onStatusChange?.({ status: "connecting" });
+        void navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput.catch(() => undefined);
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      await settle();
+      expect(getUserMedia).toHaveBeenCalledTimes(3);
+
+      hidePage("visibilitychange");
+      expect(sdkStop).toHaveBeenCalledOnce();
+
+      await act(async () => { late.resolve({ getTracks: () => [{ stop: lateStop }] }); });
+      expect(lateStop).toHaveBeenCalledOnce();
+      await expect(defined(sdkInput)).rejects.toMatchObject({ name: "AbortError" });
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(3);
+
+      const session = defined(voice.startSession.mock.calls[0])[0] as { onStatusChange?: (event: { status: string }) => void };
+      act(() => { session.onStatusChange?.({ status: "disconnected" }); });
+      expect(navigator.mediaDevices.getUserMedia).toBe(getUserMedia);
+    });
+
     it("keeps the transcript and offers Carry on when the page returns", async () => {
       await goLive();
       hidePage("visibilitychange");
