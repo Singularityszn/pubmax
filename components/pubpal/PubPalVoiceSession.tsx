@@ -113,7 +113,6 @@ type VoiceSessionAttempt = {
   released: boolean;
   conversationId: string | null;
   sdkSessionStarted: boolean;
-  sdkStartupPending: boolean;
   microphone: PalVoiceMicrophoneHold;
   connectedAt: number | null;
   capTimer: number | null;
@@ -330,7 +329,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     clearStartupTimer(attempt);
     attempt.requestAbort.abort();
     attempt.microphone.release();
-    if (!attempt.sdkStartupPending) attempt.microphone.settle();
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
       attempt.voiceEndReported = true;
       trackEvent("voice_ended", { reason: attempt.voiceEndReason ?? "disconnect" });
@@ -418,7 +416,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       released: false,
       conversationId: null,
       sdkSessionStarted: false,
-      sdkStartupPending: false,
       microphone: createPalVoiceMicrophoneHold(),
       connectedAt: null,
       capTimer: null,
@@ -479,7 +476,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
-        attempt.sdkStartupPending = true;
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
@@ -489,8 +485,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onStatusChange: ({ status: next }) => {
             if (next !== "connected" && next !== "disconnected") return;
-            attempt.sdkStartupPending = false;
-            attempt.microphone.settle();
+            attempt.microphone.reportStartupFinished();
           },
           onMessage: ({ role, message, event_id }) => {
             if (!ownsAttempt(attempt)) return;

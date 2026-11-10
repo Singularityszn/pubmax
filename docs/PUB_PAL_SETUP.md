@@ -411,13 +411,17 @@ cancels the startup attempt while microphone permission is pending. If permissio
 then arrives, the app stops the returned stream without requesting a voice grant.
 
 The pinned ElevenLabs SDK cannot cancel startup once its connection is in
-progress. The app holds each microphone stream that the SDK opens during
-startup. If the page hides or the native app goes to the background during SDK
-startup, the app stops those streams at once. It also refuses new microphone
-requests until startup ends. The SDK can still finish its connection. The app
-then closes the late session.
-If you start again, the app waits for the cancelled startup to finish before
-the SDK starts again. The startup timeout also limits this wait.
+progress. The app keeps a microphone guard installed for the life of the page.
+Each SDK microphone request uses the startup token that is current when the
+request begins. Cancelling that token stops its held streams at once.
+The guard refuses requests with a cancelled token. It also stops streams that
+resolve after cancellation or while the page is hidden. SDK status changes do
+not remove this guard. The app's own permission probe bypasses the guard.
+
+If you start again, the app waits until the previous SDK startup reports
+connected or disconnected. The startup timeout also limits this wait.
+A new SDK startup becomes the current token. The SDK can still finish an old
+connection. The app then closes the late session.
 
 `components/pubpal/usePageLeft.ts` detects document hiding, `pagehide`, and native
 `pause`. It ignores native foreground inactivity, which can include permission
