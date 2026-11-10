@@ -1,22 +1,18 @@
 // Operator facts store - dual backend (process-memory + Supabase
 // public.operator_facts, migration 0217).
 //
-// This store holds what a moderator's ACCEPTANCE of a verified operator's
-// proposal publishes: one fact per proposal, keyed on the proposal id, so a
-// second accept of the same proposal republishes the one row rather than
-// adding a twin. A later decline WITHDRAWS it, and a withdrawn fact is never
-// read. The only writer is the moderator branch of
-// app/api/operator-proposals/route.ts; browser roles may read the public
-// columns of a published row and write nothing (0217).
+// Moderation coordinates these facts through operatorProposalsStore.decide.
+// The decision contract is documented in
+// docs/WRITE_SURFACE_CERTIFICATION.md#appapioperator-proposals--reviewed-operator-proposals-route-69.
+// Browser permissions are documented in docs/security/PERMISSION_MATRIX.md.
 //
 // It NEVER writes a venue fact, a price, hours or a pin. Nothing that ranks,
 // colours or orders a venue may import this module
 // (__tests__/operatorFactsFence.test.ts).
 //
-// Reads are fail-soft. A HARD durable publish failure THROWS so the route
-// answers 503 rather than a fake success. A missing table in production is
-// refused on the publish path (onMissingDurableWrite); a withdrawal from a
-// table that does not exist has nothing to take down.
+// Reads are fail-soft. A hard durable publish failure throws to the caller.
+// A missing production table is refused on the publish path
+// (onMissingDurableWrite). A missing table holds no fact to withdraw.
 
 import "server-only";
 
@@ -189,14 +185,13 @@ export const supabaseOperatorFactsStore: OperatorFactsStore = {
           migrationHint: MIGRATION_HINT,
           fallback: async () => memoryOperatorFactsStore.publish(proposal, now),
         }),
-      // No onError: a hard write failure THROWS so the route answers 503.
+      // Publish failures propagate to the caller.
       run: async () => {
         const fact = operatorFactFromProposal(proposal, {
           id: randomUUID(),
           publishedAt: new Date(now).toISOString(),
         });
-        // One row per proposal: a second accept republishes it in place and
-        // keeps the row's own id (the id column is not in the upsert).
+        // The upsert omits the id column to preserve the existing row's id.
         const { data, error } = await admin()
           .from(TABLE)
           .upsert(toRow(fact), { onConflict: "proposal_id" })

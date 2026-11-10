@@ -5,10 +5,8 @@
 //   POST { action: "decline", id, note? }              → 200 { ok }              (moderator)
 //   GET  ?status=pending|accepted|declined             → 200 { proposals }       (moderator)
 //
-// One OperatorProposalStore interface, two implementations
-// (lib/operatorProposalsStore): Supabase (public.operator_proposals) when env
-// keys exist, process-memory otherwise, with a fail-soft-to-memory degradation
-// until migration 0047 lands.
+// Moderation storage, status guards and failure responses are documented in
+// docs/WRITE_SURFACE_CERTIFICATION.md#appapioperator-proposals--reviewed-operator-proposals-route-69.
 //
 // Boundaries (write-surface certification): the CREATE path is ACCOUNT + a narrow
 // CAPABILITY — account_id is the VERIFIED Supabase uid (callerAuthIdentity), and

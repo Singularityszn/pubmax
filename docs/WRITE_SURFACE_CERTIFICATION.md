@@ -1140,29 +1140,38 @@ commit.
   `operator-proposal:${accountId}:${hashIp(clientIp)}`, budget 20 — 429
   `{ retryable: true }` on exceed. This is the rate_limit-class boundary; the
   route also carries the moderator class (accept/decline).
-- **Moderation + the admin acceptance seam (boundary):** `accept` / `decline`
-  require the admin token (`isModerator`). TRUSTED DATA IS UNTOUCHED — a proposal
-  NEVER writes a venue fact. Only the `accept` branch (the admin acceptance seam)
-  materialises an accepted payload into served evidence, and even then only as a
-  `FactSource` of authority `operator` (rank 0, `factClaims.
-  acceptedProposalFactSource`): additive, attributed, and exposed as a CONFLICT if
-  it disagrees with the observed corpus, never a silent overwrite. A fence test
-  (`__tests__/operatorProposalFence.test.ts`) asserts the proposal store/module
-  import NO venue-fact module — the acceptance route is the sole bridge.
-- **Published fact:** the `accept` branch also publishes ONE operator fact
-  (`lib/operatorFactsStore.ts`, migration 0217, unique per proposal) BEFORE it
-  stamps the status, so a failed publish leaves the proposal pending and answers
-  503; a failed stamp withdraws the fact. `decline` withdraws any published fact
-  first. The fact is shown as "From the pub" and changes no rank, pin colour,
-  price band or order (`__tests__/operatorFactsFence.test.ts`).
+- **Moderation:** `accept` and `decline` require the admin token (`isModerator`).
+  `operatorProposalsStore().decide` accepts only a `pending` proposal.
+  It declines a `pending` or `accepted` proposal, so a moderator can undo acceptance.
+  Other transitions return 409 `CONFLICT` without changing the proposal or its fact.
+  A missing proposal returns 404 `NOT_FOUND`.
+- **Atomic publication:** the durable store calls `decide_operator_proposal`
+  (migration 0227). The function locks the proposal row and checks its status.
+  It publishes one operator fact on acceptance, or withdraws the fact on decline,
+  and stamps the decision in the same transaction.
+  A failed publication, withdrawal or status write rolls back the transaction.
+  Concurrent decisions cannot withdraw a winning acceptance as compensation.
+  The memory backend performs the decision without yielding between the guard and writes.
+  Regression coverage is in `__tests__/operatorProposalsRoute.test.ts` and
+  `__tests__/operatorFactsMigrationEffective.test.ts`.
+- **Trusted evidence:** the acceptance route converts the accepted payload through
+  `factClaims.acceptedProposalFactSource` into authority `operator` (rank 0).
+  This is attributed evidence. A disagreement with observed data appears as a conflict.
+  The proposal module and store cannot import trusted venue-data modules
+  (`__tests__/operatorProposalFence.test.ts`). The store can import operator-fact storage.
+  [The operator-fact display rule](rules/lib-venues-areas-listings-and-nights.md)
+  owns placement and ranking constraints.
 - **Freeze stance:** NOT under the SOCIAL freeze (venue-business content), same
   exemption as route 68.
-- **Rollback / kill:** durable rows live in `public.operator_proposals` (migration
-  0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
-  safe reset. Fails soft to process-memory until 0048 lands
-  (`lib/operatorProposalsStore.ts`); a hard write failure answers 503. Published
-  facts live in `public.operator_facts` (0217); its rollback drops the table and
-  keeps every proposal's review status.
+- **Storage and rollback:** proposals live in `public.operator_proposals` (0048).
+  Published facts live in `public.operator_facts` (0217).
+  [The permission matrix](security/PERMISSION_MATRIX.md) owns browser and service-role access.
+  A keyless process uses memory. With Supabase configured, creation and reads
+  retain their schema-miss fallback, but moderation requires the durable RPC.
+  A missing RPC or failed durable decision returns retryable 503 `STORE_UNAVAILABLE`.
+  The 0227 rollback removes only the function and preserves proposals and facts.
+  Moderation then remains unavailable until the function returns or compatible code is deployed.
+  The 0217 rollback drops the fact table and preserves proposal review statuses.
 
 ### `app/api/price-submit` - community price and venue-signal submissions (route 70)
 
