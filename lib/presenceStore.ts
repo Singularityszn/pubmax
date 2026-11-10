@@ -84,6 +84,9 @@ function memoryMark(input: PresenceInput, now: number): void {
   const handle = clean(input.handle, HANDLE_MAX);
   const venueId = clean(input.venueId, MAX_VENUE_ID);
   if (!handle || !venueId || !input.actorHash) return;
+  for (const [actorHash, row] of memoryRows) {
+    if (row.handle === handle && actorHash !== input.actorHash) memoryRows.delete(actorHash);
+  }
   // One row per actor: re-marking is a refresh (new expiry, latest handle), and
   // a mark at another pub replaces the old one. Nobody is at two pubs at once.
   memoryRows.set(input.actorHash, {
@@ -149,6 +152,8 @@ const supabasePresenceStore: PresenceStore = {
     const at = new Date(now).toISOString();
     const expiresAt = new Date(now + PRESENCE_TTL_MS).toISOString();
     const admin = requireSupabaseAdmin();
+    const reconciled = await admin.from(TABLE).delete().eq("handle", handle).neq("actor_hash", input.actorHash);
+    if (reconciled.error) throw new Error(reconciled.error.message);
     // One pub per person: leave any other pub first (0229 makes it a unique key).
     const left = await admin.from(TABLE).delete().eq("actor_hash", input.actorHash).neq("venue_id", venueId);
     if (left.error) throw new Error(left.error.message);

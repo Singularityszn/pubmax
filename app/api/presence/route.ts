@@ -8,11 +8,6 @@
 // lib/presenceAudience.server.ts owns the audience rule. Without an authorised
 // audience, only enabled keyless demo rows can remain.
 //
-// The actor is derived server-side (hashActor of the hashed client IP) — the
-// body is never trusted for identity, and no raw IP or actor id is stored. Writes
-// are rate-limited (isLimited) exactly like the other write paths. Presence is
-// opt-in (a deliberate tap) — there is NO auto-tracking and NO GPS.
-//
 // The reader NEVER 500s: a GET failure falls through to 200 { presence: [] } so
 // the "Live tonight" strip degrades to nothing rather than a broken band.
 
@@ -57,11 +52,10 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
-  // Identity is server-derived from the hashed client IP — never the body. The
-  // raw IP is hashed (hashIp) then folded into a stable actor hash (hashActor),
-  // so the actor_hash column can't be correlated back to a device or address.
   const ipHash = hashIp(clientIp(request));
-  const actorHash = hashActor(`presence:${ownership.handle.toLowerCase()}:${ipHash}`);
+  const actorHash = hashActor(ownership.callerUserId
+    ? `presence:user:${ownership.callerUserId}`
+    : `presence:handle:${ownership.handle}`);
 
   // Rate-limit the tap: durable key = handle + hashed IP; in-memory backstop
   // keyed on handle alone (same shape as the pint-drops write path).

@@ -10,10 +10,10 @@ const rollback = join(directory, "rollback/20261110100000_0229_presence_one_pub_
 let session: PostgresSession | null = null;
 function db() { if (!session) throw new Error("No test cluster"); return session; }
 
-function mark(actor: string, venue: string, minutesAgo: number): "ok" | "refused" {
+function mark(actor: string, venue: string, minutesAgo: number, handle = actor): "ok" | "refused" {
   try {
     db().sql(`insert into public.pub_presence(handle, venue_id, actor_hash, created_at)
-      values ('${actor}', '${venue}', '${actor}', now() - interval '${minutesAgo} minutes')`);
+      values ('${handle}', '${venue}', '${actor}', now() - interval '${minutesAgo} minutes')`);
     return "ok";
   } catch {
     return "refused";
@@ -34,6 +34,7 @@ describe.skipIf(skipReason !== null)("0229 one pub per person", () => {
   it("lets one person be live at two pubs before the migration", () => {
     expect(mark("ann", "venue-crown", 30)).toBe("ok");
     expect(mark("ann", "venue-anchor", 5)).toBe("ok");
+    expect(mark("ann-mobile", "venue-new", 1, "ann")).toBe("ok");
     expect(mark("bob", "venue-crown", 10)).toBe("ok");
   });
 
@@ -41,7 +42,7 @@ describe.skipIf(skipReason !== null)("0229 one pub per person", () => {
     db().applyFile(join(directory, name));
     db().applyFile(join(directory, name));
     expect(db().sql("select string_agg(actor_hash || ':' || venue_id, ',' order by actor_hash) from public.pub_presence"))
-      .toBe("ann:venue-anchor,bob:venue-crown");
+      .toBe("ann-mobile:venue-new,bob:venue-crown");
     expect(mark("bob", "venue-anchor", 0)).toBe("refused");
     // The server's refresh upsert on (actor_hash, venue_id) still works.
     db().sql(`insert into public.pub_presence(handle, venue_id, actor_hash) values ('bob', 'venue-crown', 'bob')
