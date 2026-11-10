@@ -22,7 +22,7 @@ export type CheckStep = {
 export declare function importGraph(
   files: readonly string[],
   readText: (path: string) => string,
-  deletedFiles?: readonly string[],
+  resolverCandidates?: readonly string[],
 ): Map<string, Set<string>>;
 
 export declare function planChecks(input: {

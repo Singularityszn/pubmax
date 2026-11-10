@@ -7,7 +7,7 @@
 // unit test on every PR.
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -98,6 +98,82 @@ describe("the whole suite runs locally only on request", () => {
       const output = JSON.parse(readFileSync(report, "utf8"));
       expect(result.status, `${result.stdout}\n${result.stderr}\n${JSON.stringify(output)}`).toBe(0);
       expect(output.numPassedTests).toBe(1);
+      expect(output.testResults.map((suite: { name: string }) => suite.name)).toEqual([
+        join(fixture, "__tests__/related.test.ts"),
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it("fails the CLI when a package change breaks a transitive test, without running unrelated tests", () => {
+    const fixture = mkdtempSync(join(ROOT, ".verify-changed-"));
+    try {
+      for (const directory of ["__tests__", "lib", "scripts/rls", "scripts/ci", "node_modules/.bin"]) {
+        mkdirSync(join(fixture, directory), { recursive: true });
+      }
+      for (const file of ["scripts/verify-changed.mjs", "scripts/rls/postgresSuites.mjs"]) {
+        copyFileSync(join(ROOT, file), join(fixture, file));
+      }
+      // These external gates are outside this regression. Git and Vitest execute normally.
+      for (const file of ["scripts/resilient-audit.mjs", "scripts/ci/install-script-allowlist.mjs"]) {
+        writeFileSync(join(fixture, file), "");
+      }
+      symlinkSync(join(ROOT, "node_modules/vitest"), join(fixture, "node_modules/vitest"), "dir");
+      symlinkSync(join(ROOT, "node_modules/vitest/vitest.mjs"), join(fixture, "node_modules/.bin/vitest"));
+      const pkg = { type: "module", version: "1.0.0", scripts: { deadcode: "node scripts/resilient-audit.mjs" } };
+      writeFileSync(join(fixture, "package.json"), JSON.stringify(pkg));
+      writeFileSync(join(fixture, ".gitignore"), "node_modules/\nresults.json\n");
+      writeFileSync(join(fixture, "vitest.config.mts"), `
+        import config from ${JSON.stringify(join(ROOT, "vitest.config.mts"))};
+        export default {
+          test: {
+            ...config.test,
+            setupFiles: [],
+            globalSetup: [],
+            environment: "node",
+            include: ["__tests__/*.test.ts"],
+            reporters: ["json"],
+            outputFile: "results.json",
+          },
+        };
+      `);
+      writeFileSync(join(fixture, "lib/packageVersion.mjs"), `
+        import pkg from "../package.json";
+        export default pkg.version;
+      `);
+      writeFileSync(join(fixture, "__tests__/related.test.ts"), `
+        import { expect, test } from "vitest";
+        import version from "../lib/packageVersion.mjs";
+        test("retains the supported package version", () => expect(version).toBe("1.0.0"));
+      `);
+      writeFileSync(join(fixture, "__tests__/unrelated.test.ts"), `
+        import { test } from "vitest";
+        test("must remain outside the local scope", () => { throw new Error("Unrelated test executed"); });
+      `);
+      const git = (...args: string[]) => {
+        const result = spawnSync("git", ["-c", "core.hooksPath=/dev/null", ...args], {
+          cwd: fixture,
+          encoding: "utf8",
+        });
+        expect(result.status, result.stderr).toBe(0);
+        return result.stdout.trim();
+      };
+      git("init", "-q");
+      git("add", ".");
+      git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "base");
+      const base = git("rev-parse", "HEAD");
+      writeFileSync(join(fixture, "package.json"), JSON.stringify({ ...pkg, version: "2.0.0" }));
+      const result = spawnSync(process.execPath, ["scripts/verify-changed.mjs"], {
+        cwd: fixture,
+        env: { ...process.env, PUBMAX_VERIFY_BASE: base, PUBMAX_VERIFY_FULL: "0" },
+        encoding: "utf8",
+      });
+      const diagnostics = `${result.stdout}\n${result.stderr}`;
+      // A broken version assertion must fail the command. The sentinel must stay unexecuted.
+      expect(result.status, diagnostics).toBe(1);
+      const output = JSON.parse(readFileSync(join(fixture, "results.json"), "utf8"));
+      expect(output.numFailedTests).toBe(1);
       expect(output.testResults.map((suite: { name: string }) => suite.name)).toEqual([
         join(fixture, "__tests__/related.test.ts"),
       ]);
