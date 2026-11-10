@@ -8,6 +8,11 @@ const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
 
+const navigationState = vi.hoisted(() => ({ pathname: "/login" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => navigationState.pathname,
+}));
+
 const deviceState = vi.hoisted(() => ({
   records: [] as Array<{ userId: string; refreshToken: string; email: string; handle: string | null; lastActiveAt: number }>,
 }));
@@ -66,6 +71,7 @@ function settleOnboarding(): Promise<void> {
 }
 
 beforeEach(() => {
+  navigationState.pathname = "/login";
   authState.current = {
     user: { id: "user-a" },
     session: { user: { id: "user-a" }, access_token: "token-a" },
@@ -97,6 +103,31 @@ afterEach(async () => {
 });
 
 describe("AccountOnboarding cold-open identity race", () => {
+  it("releases the guidelines page and restores the unfinished claim on return", async () => {
+    requestState.responses = [Response.json({ complete: false })];
+    authState.current.identityResolved = true;
+    const render = () => root?.render(createElement(AccountOnboarding, { authBannedNotice: true }));
+    await commit(render);
+    await settleOnboarding();
+    const input = document.querySelector<HTMLInputElement>('[role="dialog"] input')!;
+    await commit(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "unfinished_handle");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    // T1 requires the public rules to remain readable before a handle is claimed.
+    navigationState.pathname = "/terms";
+    await commit(render);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(readStrictModalFocusTrap()).toBe(false);
+
+    navigationState.pathname = "/login";
+    await commit(render);
+    expect(document.querySelector<HTMLInputElement>('[role="dialog"] input')?.value).toBe("unfinished_handle");
+    expect(readStrictModalFocusTrap()).toBe(true);
+    expect(requestState.calls).toEqual(["/api/identity/onboarding"]);
+  });
+
   it("lets an unclaimed account sign out inside the mandatory modal without claiming", async () => {
     requestState.responses = [Response.json({ complete: false })];
     authState.current.identityResolved = true;

@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -16,6 +17,7 @@ import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import { AUTH_ACCOUNT_BANNED_TERMS_PATH } from "@/lib/authAccountBan";
 import {
   accountBoundFetch,
   captureAccountAuth,
@@ -270,6 +272,7 @@ function AccountOnboardingForUser({
   auth: AccountAuthSnapshot;
   identityResolved: boolean;
 } & AccountOnboardingProps): React.JSX.Element | null {
+  const readingGuidelines = usePathname() === AUTH_ACCOUNT_BANNED_TERMS_PATH;
   const { user, signOut, switchAccount } = useAuth();
   const deviceAccounts = useDeviceAccounts();
   const [status, setStatus] = useState<
@@ -397,7 +400,7 @@ function AccountOnboardingForUser({
 
   useReconnectRecovery(status === "unavailable", retryStatus);
 
-  const onboardingVisible = status === "needed";
+  const onboardingVisible = status === "needed" && !readingGuidelines;
   useFocusTrap(onboardingVisible, dialogRef, "strict-modal");
   useEffect(() => {
     if (!onboardingVisible) return;
@@ -556,9 +559,11 @@ function AccountOnboardingForUser({
     ],
   );
 
+  if (readingGuidelines) return null;
+
   const bannedNotice = authBannedNotice ? (
     <AuthAccountBannedNotice
-      className={status === "needed" ? "accountOnboardingError" : undefined}
+      className={status === "needed" ? "authCallbackNotice authCallbackNotice--inline" : undefined}
       onDismiss={onDismissAuthBannedNotice}
     />
   ) : null;
