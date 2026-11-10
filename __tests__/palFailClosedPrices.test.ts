@@ -8,16 +8,29 @@ import { offlineFetch } from "@/evals/pal/offlineFetch";
 import type { PalEvalAnswerExpectations } from "@/evals/pal/types";
 import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
 import { runAsk } from "@/lib/ask/runAsk";
+import { zonePintIndexFromSlimPayload, zonePriceEstimate } from "@/lib/zonePriceEstimate";
 
 const now = Date.parse(dataset.now);
 const index = loadPalEvalVenueIndex();
+const slimPayload = JSON.parse(readFileSync(join(process.cwd(), "public/data/venues_slim.json"), "utf8")) as {
+  rows: Array<{ id: string; zone?: number }>;
+};
+const zoneIndex = zonePintIndexFromSlimPayload(slimPayload, dataset.now);
+
+/** The one figure an unknown price may quote: the venue's own zone estimate. */
+function zoneEstimateGbp(venueId: string): number | undefined {
+  const row = slimPayload.rows.find((candidate) => candidate.id === venueId);
+  return zonePriceEstimate(row?.zone, zoneIndex)?.priceGbp;
+}
 
 function ask(query: string) {
   return runAsk({ query, cityId: "london", now, skipModel: true, fetchImpl: offlineFetch });
 }
 
 function reference(caseDef: typeof dataset.cases[number]): PalEvalAnswerExpectations {
-  if (caseDef.value === null) return { priceAnswer: { venueId: caseDef.venueId, value: null } };
+  if (caseDef.value === null) {
+    return { priceAnswer: { venueId: caseDef.venueId, value: null, estimateGbp: zoneEstimateGbp(caseDef.venueId) } };
+  }
   if (!caseDef.source) throw new Error(`Missing price source for ${caseDef.id}`);
   return { priceAnswer: { venueId: caseDef.venueId, value: caseDef.value, source: caseDef.source } };
 }
@@ -64,16 +77,23 @@ describe("Pal fail-closed price eval", () => {
 
   it("rejects an invented price in the answer even when the card leaves it unknown", async () => {
     const body = await ask("How much is a pint at The Coronet?");
-    expect(body.answer).toContain("no listed figure");
+    const estimateGbp = zoneEstimateGbp("venue-60y3sa");
+    expect(estimateGbp).toBeDefined();
+    expect(body.answer).toContain("no listed pint price");
+    expect(body.answer).toContain(`Estimate £${estimateGbp?.toFixed(2)}`);
     expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.price).toBeNull();
 
-    const outcome = gradePalCase({
-      ...body,
-      answer: "The Coronet: a pint costs £4.50.",
-    }, {
-      priceAnswer: { venueId: "venue-60y3sa", value: null },
-    }, index);
-    expect(outcome.pass).toBe(false);
+    // A figure other than the zone estimate is invented, and so is the zone
+    // estimate itself once the answer stops calling it one.
+    for (const answer of [
+      "The Coronet: no listed pint price. Estimate £4.50.",
+      `The Coronet: no listed pint price. A pint costs £${estimateGbp?.toFixed(2)}.`,
+    ]) {
+      const outcome = gradePalCase({ ...body, answer }, {
+        priceAnswer: { venueId: "venue-60y3sa", value: null, estimateGbp },
+      }, index);
+      expect(outcome.pass, answer).toBe(false);
+    }
   });
 
   it.each(["£4.50", "GBP 4.50", "4.50 pounds", "450p", "4.50"])(

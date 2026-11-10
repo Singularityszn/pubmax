@@ -25,6 +25,9 @@ import {
 } from "@/lib/venuePriceLane";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue } from "@/lib/venues";
+import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
+import { zoneEstimatePinStandings } from "@/lib/zonePriceEstimate";
+import { computeZonePintIndex, MIN_PRICED_VENUES } from "@/lib/zones";
 
 const boroughData = vi.hoisted(() => ({ venues: [] as Venue[] }));
 
@@ -413,6 +416,69 @@ describe("the bundle lanes", () => {
     // gets back is the one it always had.
     expect(venueBundlePrices(makeVenue())).toEqual({});
     expect(venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null)?.lane).toBe("baseline");
+  });
+});
+
+// London pint prices move by fare zone, not pub by pub,
+// so a pub with no recorded price reads its zone's middle recorded price. It is
+// the lowest lane, and only the published index may produce one.
+describe("the fare-zone estimate", () => {
+  const PRICED_ZONE_2 = Array.from({ length: MIN_PRICED_VENUES }, (_, index) => ({
+    zone: 2,
+    cheapestPrice: 5 + index / 10,
+  }));
+  const PUBLISHED = {
+    ...computeZonePintIndex([...PRICED_ZONE_2, { zone: 3, cheapestPrice: 4 }]),
+    computedAt: "2026-11-10T00:00:00.000Z",
+  };
+
+  it("gives an unpriced pub its zone's middle recorded price, labelled an estimate", () => {
+    const lane = venuePriceLane(makeVenue({ zone: 2 }), null, null, venueBundlePrices(makeVenue({ zone: 2 }), PUBLISHED));
+    expect(lane).toEqual({
+      lane: "estimate",
+      estimate: { priceGbp: 5.45, basis: "zone_median", sampleSize: 10, computedAt: PUBLISHED.computedAt, zone: 2 },
+    });
+    expect(priceStandingFigure(priceStandingFor({ estimate: lane?.lane === "estimate" ? lane.estimate : null }))).toBe("est. £5.45");
+  });
+
+  it("never displaces a recorded price", () => {
+    const priced = makeVenue({ zone: 2, cheapestPrice: 6.2 });
+    expect(venuePriceLane(priced, null, null, venueBundlePrices(priced, PUBLISHED))?.lane).toBe("baseline");
+    expect(venuePriceLane(makeVenue({ zone: 2 }), 5.9, null, venueBundlePrices(makeVenue({ zone: 2 }), PUBLISHED))?.lane)
+      .toBe("contributor");
+  });
+
+  it("estimates nothing from a thin zone, an unknown zone, a non-pub or a client roll-up", () => {
+    const rollUp = { ...PUBLISHED, computedAt: undefined };
+    expect(venueBundlePrices(makeVenue({ zone: 3 }), PUBLISHED)).toEqual({});
+    expect(venueBundlePrices(makeVenue(), PUBLISHED)).toEqual({});
+    expect(venueBundlePrices(makeVenue({ zone: 2, kind: "bar" }), PUBLISHED)).toEqual({});
+    expect(venueBundlePrices(makeVenue({ zone: 2 }), rollUp)).toEqual({});
+  });
+
+  it("replaces the borough baseline estimate, so a pub prints one estimate everywhere", () => {
+    const borough = { priceGbp: 6.63, basis: "regional_baseline:westminster", sampleSize: 40, computedAt: "2026-10-05T00:00:00.000Z" };
+    const chain = { ...borough, basis: "chain_menu" };
+    const withBundle = (estimate: typeof borough) =>
+      ({ ...makeVenue({ zone: 2 }), bundlePrices: { estimate } }) as Venue;
+    expect(venueBundlePrices(withBundle(borough), PUBLISHED).estimate).toMatchObject({ basis: "zone_median", priceGbp: 5.45 });
+    expect(venueBundlePrices(withBundle(chain), PUBLISHED).estimate).toEqual(chain);
+  });
+
+  it("puts an estimate on a pin only when the pin holds no price and no drop", () => {
+    const pins = [
+      makeVenue({ id: "bare", zone: 2 }),
+      makeVenue({ id: "listed", zone: 2, cheapestPrice: 6.2 }),
+      makeVenue({ id: "logged", zone: 2 }),
+      makeVenue({ id: "reported", zone: 2 }),
+    ];
+    const signals = new Map([
+      ["logged", { latestContributorPrice: 5.9 }],
+      ["reported", { latestContributorPrice: null, pintTrust: "provisional" }],
+    ]);
+    const standings = zoneEstimatePinStandings(pins, signals, PUBLISHED);
+    expect([...(standings?.keys() ?? [])]).toEqual(["bare"]);
+    expect(standings?.get("bare")?.standing).toBe("estimate");
   });
 });
 

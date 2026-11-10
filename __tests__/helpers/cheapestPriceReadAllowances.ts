@@ -12,7 +12,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/ask/tools.ts": [
     {"owner": "venueCard", "count": 3, "reason": "Prints a selected venue and its receipt."},
     {"owner": "toolSearchVenues", "count": 1, "reason": "Transports results after the pint policy and budget filter."},
-    {"owner": "toolVenuePrices", "count": 6, "reason": "Displays the requested venue record and corroborated reports."},
+    {"owner": "toolVenuePrices", "count": 7, "reason": "Displays the requested venue record and corroborated reports, and asks for a zone estimate only when no pint is recorded."},
     {"owner": "toolProposePlan", "count": 1, "reason": "Transports stops after the shared concierge ranker."},
   ],
   "lib/boroughNeighbourhoodLinks.ts": [
@@ -229,8 +229,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/wildPriceGlass.ts": [
     {"owner": "boroughMedians", "count": 1, "reason": "Computes area medians outside cheapest-answer scope."},
   ],
-  "lib/zonePintIndex.server.ts": [
-    {"owner": "load", "count": 1, "reason": "Transports ordinary zone statistics inputs."},
+  "lib/zonePriceEstimate.ts": [
+    {"owner": "zonePintIndexFromSlimPayload", "count": 1, "reason": "Transports ordinary zone statistics inputs."},
+    {"owner": "zoneEstimatePinStandings", "count": 1, "reason": "Gives an estimate only to a pin with no recorded price, without ranking."},
   ],
   "lib/zones.ts": [
     {"owner": "computeZonePintIndex", "count": 1, "reason": "Computes zone medians outside cheapest-answer scope."},

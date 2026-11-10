@@ -15,7 +15,7 @@ describe("planVenueOptions", () => {
       }),
     ).toEqual([
       { id: "pub", name: "Wrapped Arms" },
-      { id: "lion", name: "Red Lion", borough: "Westminster", lat: 51.5, lng: -0.1 },
+      { id: "lion", name: "Red Lion", borough: "Westminster", lat: 51.5, lng: -0.1, zone: 1 },
     ]);
   });
 
