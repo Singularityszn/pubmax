@@ -532,6 +532,19 @@ The [README](../README.md#features) owns user instructions.
 The [permission matrix](security/PERMISSION_MATRIX.md#cells) owns the private read and host-write permissions.
 The routes resolve member capabilities through [the shared capability reader](../lib/planMemberCapability.ts).
 
+#### Crew status
+
+`POST /api/plans/:id/presence` and open-crawl arrival use the service-role-only `set_crew_status` RPC in Supabase.
+The RPC rejects revoked seats and, for account-bound seats, requires active social membership for the same Plan, seat and account.
+Legacy token access cannot update a social crew's Plan.
+After authority checks, a completed or abandoned Plan refuses every crew-status write without changing the seat.
+An ending Plan still accepts status writes.
+
+The private Plan endpoint returns `409 PLAN_CLOSED` with `retryable: false` when the Plan has ended.
+Open-crawl arrival returns `409 SOCIAL_CREW_CONFLICT` for the same refusal.
+The memory Plan store also refuses status writes on completed or abandoned Plans.
+The [arrival contract](WRITE_SURFACE_CERTIFICATION.md#appapisocialcrewscrewidarrival-route-89) owns the open-crawl request and time window.
+
 #### Grounded route proposals
 
 `POST /api/plans/:id/proposals` accepts `groundingProof` and `operationKey` alongside the existing proposal fields.

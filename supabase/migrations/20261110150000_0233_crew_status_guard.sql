@@ -25,6 +25,8 @@ begin
   end if;
   if (p_token_hash is null) = (p_seat_id is null or p_account_id is null) then return 'invalid'; end if;
 
+  -- Lock the crew before the Plan, matching transfer, leave and removal.
+  -- Retain the crew lock through the write to serialise membership changes.
   if p_token_hash is null then
     perform 1 from public.social_crews where plan_id = p_plan_id for share;
   end if;

@@ -197,6 +197,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   After the crew returns, choose the status again to save it. The failed action is not sent again automatically.
   A signed-out browser cannot restore lost access through an account. Open the host's invite link to join again.
 
+  Crew-status changes, including **Here** on an open crawl, follow the [Plan status limits](docs/API_CONTRACTS_THE_LOCAL.md#crew-status).
+
   If Night mode refuses an arrival or skip after a route change, follow the [route-change notice](docs/API_CONTRACTS_THE_LOCAL.md#5-post-apiplansidactions--record-a-stop-action).
 
   A saved Plan needs at least two stops in one city to offer a walking route. **See the walking route** and the main **Map** link then open the saved stops. Unsaved edits do not change that destination. Each stop's **Open on the map** link keeps the walk and selects that pub. **Show whole walk** restores the route view on phones and desktop after you move the map or search elsewhere. If street routing is unavailable, dashed lines show stop order only.

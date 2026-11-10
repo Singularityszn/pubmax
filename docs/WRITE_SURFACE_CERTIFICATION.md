@@ -529,7 +529,8 @@ membership and updates only the seat bound to that account. It reads authority
 again before minting the existing arrival receipts. Private and friends crews
 return 404. No Plan capability or account ID is returned. Arrival opens at London
 midnight on the scheduled date and closes 12 hours after the start.
-Marking Here is idempotent without a receipt key. The endpoint cannot undo an arrival.
+The [crew-status contract](API_CONTRACTS_THE_LOCAL.md#crew-status) also applies at the database write.
+Within these guards, marking Here is idempotent without a receipt key. The endpoint cannot undo an arrival.
 The [arrival metric](analytics/METRICS.md#33-the-host-loop-and-hosted-night-arrivals)
 owns receipt counting and deduplication rules.
 
