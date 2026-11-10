@@ -1,7 +1,6 @@
 -- 0227: a status and its timestamp cannot contradict (state machine ship SM-12).
 --
--- Each pair below has one writer path today, and every writer already keeps
--- the pair together. These CHECKs make that a database rule:
+-- These CHECKs enforce each pair for every database writer:
 --   social_post_videos      held iff reviewed_at is null
 --   venue_submissions       pending iff reviewed_at is null
 --   wanteds                 open iff fulfilled_at is null
