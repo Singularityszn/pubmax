@@ -53,7 +53,7 @@ function promptDrift(wantedPrompt, livePrompt) {
   ];
 }
 
-function toolDrift(name, wantedTool, liveTool, secretId) {
+export function toolDrift(name, wantedTool, liveTool, secretId) {
   if (!liveTool) return [{ path: `tools.${name}`, wanted: `a workspace ${wantedTool.type} tool`, live: "missing" }];
   // A client tool runs in the browser: it has no endpoint and no secret.
   if (!wantedTool.api_schema) return subsetDrift(wantedTool, liveTool.tool_config, `tools.${name}`);

@@ -257,6 +257,10 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     openMap,
     mapShown: () => onMapRef.current || mapTimerRef.current !== null,
     tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
+    callLive: () => {
+      const attempt = activeAttemptRef.current;
+      return attempt ? () => ownsAttempt(attempt) : null;
+    },
   });
 
   // "Next stop" during a planned night that is on: the map opens on the stop
@@ -340,6 +344,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (activeAttemptRef.current === attempt) {
       resetPalMap();
       currentToolCalls.current.clear();
+      // A map the call was still opening stays closed once the call ends.
+      stayHere();
     }
     clearStartupTimer(attempt);
     attempt.requestAbort.abort();
@@ -354,7 +360,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (!attempt.releaseRequired) return;
     attempt.released = true;
     void releaseVoiceSession(attempt.conversationId);
-  }, [clearCapTimer, clearStartupTimer]);
+  }, [clearCapTimer, clearStartupTimer, stayHere]);
 
   useEffect(() => {
     disposedRef.current = false;

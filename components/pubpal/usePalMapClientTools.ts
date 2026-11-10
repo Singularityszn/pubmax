@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useConversationClientTool } from "@elevenlabs/react";
 
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { palMapToolAction } from "@/lib/palMapClientToolCall";
+import { createPalMapToolOrder, palMapToolAction } from "@/lib/palMapClientToolCall";
 import { applyPalMapCommand, readPalMapState } from "@/lib/palMapCommands";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -14,6 +15,8 @@ type MapDoor = {
   mapShown: () => boolean;
   /** Tell the agent what the map did, without interrupting it. */
   tell: (update: string) => void;
+  /** The current call's liveness check, or null with no call. */
+  callLive: () => (() => boolean) | null;
 };
 
 /**
@@ -21,11 +24,16 @@ type MapDoor = {
  * view. The agent does not wait for them, so a refusal reaches it as a
  * contextual update. Must render inside the call's ConversationProvider.
  */
-export function usePalMapClientTools({ openMap, mapShown, tell }: MapDoor): void {
+export function usePalMapClientTools({ openMap, mapShown, tell, callLive }: MapDoor): void {
+  const [begin] = useState(createPalMapToolOrder);
   const run = async (tool: string, params: unknown): Promise<string> => {
+    // A call that ended, or a newer map request, retires this one before it moves anything.
+    const current = begin(callLive());
+    if (!current()) return "The map request was dropped.";
     const areas = tool === "map_fly_to_area"
       ? (await import("@/lib/nightAreas")).getNightAreasForCity(DEFAULT_CITY_ID)
       : [];
+    if (!current()) return "The map request was dropped.";
     const action = palMapToolAction(tool, params, { picks: readPalMapState().picks, areas });
     switch (action.kind) {
       case "refused":

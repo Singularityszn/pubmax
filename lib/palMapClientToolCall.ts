@@ -22,8 +22,7 @@ function normalize(text: string): string {
 }
 
 function pickNumber(value: unknown): number | null {
-  const number = typeof value === "string" && /^\s*\d+\s*$/.test(value) ? Number(value) : value;
-  return typeof number === "number" && Number.isInteger(number) && number >= 1 && number <= PAL_MAP_MAX_PICKS ? number : null;
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= PAL_MAP_MAX_PICKS ? value : null;
 }
 
 function picksOnScreen(count: number): string {
@@ -65,4 +64,17 @@ export function palMapToolAction(
     return { kind: "refused", update: "The map could not find that area. It knows London areas such as Soho, Camden and Peckham." };
   }
   return { kind: "refused", update: "The map has no such tool." };
+}
+
+/**
+ * A tool call may act only while its voice call is live and no later map tool
+ * call has started. `begin` takes the call's own liveness check and returns
+ * the check this tool call must pass before each effect.
+ */
+export function createPalMapToolOrder(): (callLive: (() => boolean) | null) => () => boolean {
+  let latest = 0;
+  return (callLive) => {
+    const ticket = ++latest;
+    return () => ticket === latest && Boolean(callLive?.());
+  };
 }

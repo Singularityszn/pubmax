@@ -10,8 +10,10 @@ export function resolveExistingTools(liveTools, attachedIds, wantedTools) {
   for (const [name, wanted] of Object.entries(wantedTools)) {
     const matches = liveTools.filter((row) => row?.tool_config?.name === name);
     const attachedMatches = matches.filter((row) => attached.has(row.id));
-    const compatible = (row) => row.tool_config.type === wanted.type &&
-      row.tool_config.api_schema?.url === wanted.api_schema?.url;
+    // An unattached webhook at this URL is ours. A client tool has no URL to
+    // prove that, so only an attached one is reused, never another agent's.
+    const compatible = (row) => row.tool_config.type === wanted.type && wanted.type === "webhook" &&
+      row.tool_config.api_schema?.url === wanted.api_schema.url;
     const candidates = attachedMatches.length ? attachedMatches : matches.filter(compatible);
     if (candidates.length > 1) {
       throw new Error(`Ambiguous tool ${name}: ${candidates.length} ${attachedMatches.length ? "attached" : "compatible workspace"} identities (${candidates.map((row) => row.id).join(", ")}). No update was made.`);

@@ -1162,3 +1162,19 @@ for (const [width, theme] of [[390, "light"], [1440, "dark"]] as const) {
     await page.getByRole("button", { name: "End", exact: true }).click();
   });
 }
+
+test("ending the call drops a map move the agent asked for that is still on its way", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await openLiveVoice(page);
+  await page.clock.install();
+  const id = ++eventId;
+  socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+    tool_name: "map_fly_to_area", tool_call_id: `fly-${id}`, parameters: { area: "Camden" }, event_id: id,
+  } }));
+  // The map opens PAL_VOICE_MAP_DELAY_MS after the request. End the call inside that wait.
+  await expect(page.locator(".palVoiceMapCard")).toContainText("Opening Camden");
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await page.clock.fastForward(3_000);
+  await expect(page).toHaveURL(/\/pal$/);
+  await expect(page.locator(".palVoiceMapCard")).toHaveCount(0);
+});

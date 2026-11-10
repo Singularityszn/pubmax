@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { getNightAreasForCity } from "@/lib/nightAreas";
-import { palAreaNamed, palMapToolAction } from "@/lib/palMapClientToolCall";
+import { createPalMapToolOrder, palAreaNamed, palMapToolAction } from "@/lib/palMapClientToolCall";
 import { PAL_MAP_CLIENT_TOOL_NAMES } from "@/lib/palMapClientTools.mjs";
 import type { PalMapPick } from "@/lib/palMapCommands";
 
@@ -17,9 +17,9 @@ describe("voice map client tool calls", () => {
     expect(palMapToolAction("map_delete_pub", {}, { picks })).toMatchObject({ kind: "refused" });
   });
 
-  it("takes a pick by its number on the map, written as a number or a digit string", () => {
+  it("takes a pick by its whole number on the map", () => {
     expect(palMapToolAction("map_focus_pick", { number: 2 }, { picks })).toEqual({ kind: "focusPick", pick: picks[1] });
-    expect(palMapToolAction("map_open_pick_sheet", { number: "3" }, { picks })).toEqual({ kind: "openPickSheet", pick: picks[2] });
+    expect(palMapToolAction("map_open_pick_sheet", { number: 3 }, { picks })).toEqual({ kind: "openPickSheet", pick: picks[2] });
   });
 
   it("refuses a pick that is not on the map and says what is", () => {
@@ -29,7 +29,7 @@ describe("voice map client tool calls", () => {
     expect(palMapToolAction("map_open_pick_sheet", { number: 1 }, { picks: [] })).toEqual({
       kind: "refused", update: "The map could not show pick 1. No picks are on the map yet.",
     });
-    for (const number of [0, 7, 2.5, "two", null, undefined]) {
+    for (const number of [0, 7, 2.5, "2", "two", null, undefined]) {
       expect(palMapToolAction("map_focus_pick", { number }, { picks })).toEqual({
         kind: "refused", update: "The map could not show that pick. 3 picks are on the map.",
       });
@@ -47,5 +47,18 @@ describe("voice map client tool calls", () => {
     for (const area of ["Atlantis", "", "Manchester city centre", 42]) {
       expect(palMapToolAction("map_fly_to_area", { area }, { picks, areas: london })).toMatchObject({ kind: "refused" });
     }
+  });
+
+  it("lets a tool call act only while its call is live and no later tool call has started", () => {
+    const begin = createPalMapToolOrder();
+    let live = true;
+    const first = begin(() => live);
+    expect(first()).toBe(true);
+    const second = begin(() => live);
+    expect(first()).toBe(false);
+    expect(second()).toBe(true);
+    live = false;
+    expect(second()).toBe(false);
+    expect(begin(null)()).toBe(false);
   });
 });
