@@ -58,7 +58,7 @@ const fakeSupabase = {
 
 vi.mock("@/lib/authClient", () => ({
   getSupabaseBrowser: () => clientReady ? fakeSupabase : null,
-  ensureSupabaseBrowser: () => loadClient(),
+  ensureSupabaseBrowserForSession: () => loadClient(),
   isAuthConfigured: () => true,
 }));
 

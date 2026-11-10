@@ -1133,34 +1133,150 @@ describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", 
     const note = await post({ venueId: "note-pub", handle: "reg", passedDownNote: "my old local" });
     expect(note.status).toBe(201);
   });
+});
 
-  it("answers the SAME refusal when the pre-check misses and the store refuses (0141)", async () => {
-    expect((await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.5 })).status).toBe(201);
+describe("POST /api/pint-drops — a retry resends its first clientRequestId", () => {
+  const KEY = "client-request-0001";
 
-    const soft = await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.6 });
-    expect(soft.status).toBe(409);
-    const softBody = await soft.json();
-
-    // The pre-check is fail-open by design, and that is the hole a concurrent
-    // burst walks through: every request in flight reads "no price yet" before
-    // any row lands. Make the lookup fail and the HARD guard has to answer -
-    // the unique index on the Supabase backend, its mirror here - and it has to
-    // answer with the same sentence and the same status, because the drinker
-    // did the same thing either way.
-    const precheck = vi
-      .spyOn(memoryPintDropStore, "hasPricedDropToday")
-      .mockRejectedValue(new Error("lookup unavailable"));
+  it("replays when the first save lands after the replay lookup misses", async () => {
+    const body = { venueId: "racing-retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY };
+    const first = await post(body);
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+    const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
     try {
-      const hard = await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.7 });
-      expect(hard.status).toBe(409);
-      expect(await hard.json()).toEqual(softBody);
+      const retry = await post(body);
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).drop.id).toBe(saved.id);
+      expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
     } finally {
-      precheck.mockRestore();
+      lookup.mockRestore();
     }
+  });
 
-    // And the refusal kept the first observation rather than stacking a second.
-    const drops = (await (await get("burst-pub")).json()).drops as Array<{ priceGbp: number }>;
-    expect(drops.map((row) => row.priceGbp)).toEqual([4.5]);
+  it("returns a retryable 503 for a keyed request without trusted signing", async () => {
+    const originalSecret = process.env.PLAN_IDEMPOTENCY_SECRET;
+    process.env.PLAN_IDEMPOTENCY_SECRET = "short";
+    try {
+      const body = { venueId: "unsigned-retry-pub", handle: "reg", passedDownNote: "Old local" };
+      const keyed = await post({ ...body, clientRequestId: KEY });
+      expect(keyed.status).toBe(503);
+      expect(await keyed.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+      expect((await (await get(body.venueId)).json()).drops).toHaveLength(0);
+      expect((await post(body)).status).toBe(201);
+    } finally {
+      if (originalSecret === undefined) delete process.env.PLAN_IDEMPOTENCY_SECRET;
+      else process.env.PLAN_IDEMPOTENCY_SECRET = originalSecret;
+    }
+  });
+
+  it("answers a priced retry with the drop it already saved, not the daily cap", async () => {
+    const first = await post({ venueId: "retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+
+    const retry = await post({ venueId: "retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(retry.status).toBe(200);
+    expect(((await retry.json()).drop as { id: string }).id).toBe(saved.id);
+
+    const drops = (await (await get("retry-pub")).json()).drops as Array<{ id: string }>;
+    expect(drops.map((row) => row.id)).toEqual([saved.id]);
+  });
+
+  it("replays the account's saved price after its handle changes", async () => {
+    const body = { venueId: "rename-retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY };
+    const first = await post(body);
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+    const retry = await post({ ...body, handle: "renamed" });
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).drop.id).toBe(saved.id);
+    expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
+  });
+
+  it("caps a new keyed price after a different key already saved one", async () => {
+    const body = { venueId: "keyed-cap-pub", handle: "reg", priceGbp: 4.5 };
+    expect((await post({ ...body, clientRequestId: KEY })).status).toBe(201);
+    const next = await post({ ...body, clientRequestId: "client-request-0002" });
+    expect(next.status).toBe(409);
+    expect((await next.json()).code).toBe("CONFLICT");
+    expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
+  });
+
+  it("stores a retried note once", async () => {
+    const note = { venueId: "retry-note-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+    expect((await post(note)).status).toBe(201);
+    expect((await post(note)).status).toBe(200);
+    expect((await (await get("retry-note-pub")).json()).drops).toHaveLength(1);
+  });
+
+  it("refuses changed note text on the early replay path and after a missed lookup", async () => {
+    const note = { venueId: "changed-note-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+    expect((await post(note)).status).toBe(201);
+    const changed = { ...note, passedDownNote: "a different memory" };
+    const early = await post(changed);
+    expect(early.status).toBe(409);
+    expect((await early.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
+    try {
+      const late = await post(changed);
+      expect(late.status).toBe(409);
+      expect((await late.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      const saved = (await (await get(note.venueId)).json()).drops;
+      expect(saved).toHaveLength(1);
+      expect(saved[0].passedDownNote).toBe(note.passedDownNote);
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it.each(["pint_photo", "venue_photo", "receipt_photo"])(
+    "refuses added or removed %s on early and late replay paths", async (slot) => {
+      const note = { venueId: "photo-retry-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+      const submit = (attached: boolean) => {
+        const form = new FormData();
+        for (const [key, value] of Object.entries(note)) form.set(key, value);
+        if (attached) form.set(slot, jpegFile("photo.jpg"));
+        return POST(new Request(URL_BASE, { method: "POST", body: form }));
+      };
+      expect((await submit(false)).status).toBe(201);
+      const added = await submit(true);
+      expect(added.status).toBe(409);
+      expect((await added.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
+      try {
+        const late = await submit(true);
+        expect(late.status).toBe(409);
+        expect((await late.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      } finally {
+        lookup.mockRestore();
+      }
+      note.clientRequestId = "client-request-0002";
+      expect((await submit(true)).status).toBe(201);
+      expect((await submit(true)).status).toBe(200);
+      const removed = await submit(false);
+      expect(removed.status).toBe(409);
+      expect((await removed.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      expect((await (await get(note.venueId)).json()).drops).toHaveLength(2);
+    },
+  );
+
+  it("refuses a key resent for a different pub", async () => {
+    expect((await post({ venueId: "retry-pub-a", handle: "reg", priceGbp: 4.5, clientRequestId: KEY })).status).toBe(201);
+    const moved = await post({ venueId: "retry-pub-b", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(moved.status).toBe(409);
+    expect((await moved.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    expect((await (await get("retry-pub-b")).json()).drops).toHaveLength(0);
+  });
+
+  it("keeps two accounts' equal keys apart", async () => {
+    await memoryAdultSelfAssertionStore.record("account-reg");
+    await memoryAdultSelfAssertionStore.record("account-other");
+    gateActor.userId = "account-reg";
+    expect((await post({ venueId: "retry-shared", handle: "reg", priceGbp: 4.5, clientRequestId: KEY })).status).toBe(201);
+    gateActor.userId = "account-other";
+    expect((await post({ venueId: "retry-shared", handle: "other", priceGbp: 4.6, clientRequestId: KEY })).status).toBe(201);
+    expect((await (await get("retry-shared")).json()).drops).toHaveLength(2);
   });
 });
 

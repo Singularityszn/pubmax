@@ -22,6 +22,8 @@
  *       → stale-while-revalidate (versioned, bounded)
  *   tiles.openfreemap.org + /_next/static/*
  *       → stale-while-revalidate, trimmed FIFO/LRU-ish at MAX_SWR_ENTRIES
+ *   /vendor/maplibre/<version>/, /map-icons/?v=, /landing/map-opening/?v=
+ *       → stale-while-revalidate, trimmed at MAX_MAP_ASSET_ENTRIES
  *   navigations
  *       → navigation preload (else fetch), network-first
  *         → shelved shell after a timeout, only while within its revalidate window
@@ -92,6 +94,8 @@ try {
 // so trimming from the front is a cheap LRU-ish FIFO cap.
 const MAX_SWR_ENTRIES = 200;
 const MAX_TILE_ENTRIES = 150;
+// A handful of files per MapLibre version or redrawn picture: room for a few.
+const MAX_MAP_ASSET_ENTRIES = 24;
 const MAX_DATA_ENTRIES = 350;
 
 const TILE_HOST = "tiles.openfreemap.org";
@@ -542,6 +546,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // The map engine and its pictures at URLs that name their own content: the
+  // MapLibre worker under its version directory, and the icon atlases and
+  // opening pictures under a ?v= hash of their bytes. Such a URL never
+  // changes, so a return visit draws them without a round trip even after the
+  // browser's own cache has let them go.
+  if (isVersionedMapAsset(url)) {
+    event.respondWith(
+      staleWhileRevalidate(
+        event,
+        request,
+        SWR_CACHE,
+        MAX_MAP_ASSET_ENTRIES,
+        (candidate) => isVersionedMapAsset(new URL(candidate.url)),
+      ),
+    );
+    return;
+  }
+
   // Map tiles / glyphs / sprites + Next's hashed static assets:
   // stale-while-revalidate with a capped cache.
   if (url.hostname === TILE_HOST || (sameOrigin && url.pathname.startsWith("/_next/static/"))) {
@@ -560,6 +582,16 @@ self.addEventListener("fetch", (event) => {
   }
   // Everything else: untouched.
 });
+
+function isVersionedMapAsset(url) {
+  if (url.origin !== self.location.origin) return false;
+  if (/^\/vendor\/maplibre\/\d+\.\d+\.\d+[^/]*\//.test(url.pathname)) return true;
+  return (
+    (url.pathname.startsWith("/map-icons/") ||
+      url.pathname.startsWith("/landing/map-opening/")) &&
+    Boolean(url.searchParams.get("v"))
+  );
+}
 
 function isCacheable(response) {
   if (!response || !response.ok || (response.type !== "basic" && response.type !== "cors")) {

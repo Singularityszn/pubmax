@@ -1,5 +1,6 @@
 "use client";
 
+import "./citySuggestBanner.css";
 import Link from "next/link";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
@@ -10,7 +11,7 @@ import {
 } from "@/lib/cities";
 import { discardBody } from "@/lib/responseBody";
 import { writePreferredCity } from "@/lib/cityPreference";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { resolveLocateMapDestination } from "@/lib/locateMapDestination";
 import {
   dismissCitySuggest,

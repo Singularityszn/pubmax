@@ -41,8 +41,8 @@ function scored(author: string, handle: string, venue: string, rating: string, a
   postSeq += 1;
   const id = `30000000-0000-4000-8000-${String(postSeq).padStart(12, "0")}`;
   db().sql(
-    "insert into public.social_posts (id, author_profile_id, author_handle, kind, visibility, body, venue_id, comment_policy, moderation_state, created_at) " +
-      `values ('${id}', '${author}', '${handle}', 'standard', '${visibility}', 'Pint', '${venue}', 'open', 'approved', '${at}');`,
+    "insert into public.social_posts (id, author_profile_id, author_handle, kind, visibility, body, venue_id, comment_policy, moderation_state, created_at, moderated_at) " +
+      `values ('${id}', '${author}', '${handle}', 'standard', '${visibility}', 'Pint', '${venue}', 'open', 'approved', '${at}', '${at}');`,
   );
   db().sql(asServiceRole(`select public.attach_social_post_review('${id}', '${author}', ${rating});`));
   db().sql(`update public.social_post_reviews set updated_at = '${at}' where post_id = '${id}';`);

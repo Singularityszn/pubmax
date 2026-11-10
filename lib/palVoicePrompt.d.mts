@@ -8,6 +8,8 @@ export const PAL_VOICE_SESSION_SUMMARY_RULE: string;
 export const PAL_VOICE_BEST_MATE_RULE: string;
 export const PAL_VOICE_TASTE_RULE: string;
 export const PAL_VOICE_QUICK_PICK_OR_PLAN_RULE: string;
+export const PAL_VOICE_SHORT_ANSWER_RULE: string;
+export const PAL_VOICE_MAP_TOOLS_RULE: string;
 export const PAL_TYPED_TOOL_TURN_RULE: string;
 export function pubPalAgentSystemPrompt(maxSessionSeconds: number): string;
 export function pubPalTypedChatSystemPrompt(): string;

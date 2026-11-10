@@ -68,6 +68,7 @@ const read = (file) => JSON.parse(readFileSync(file, "utf8"));
 // "The King's Ford" and "The Kings Ford" are one name, so the apostrophe goes
 // before the shared normaliser splits on it.
 const identityName = (name) => normalizeVenueIdentityName(String(name ?? "").replace(/['‘’`]/g, ""));
+const nearIdentityName = (name) => identityName(String(name ?? "").split(",")[0]);
 
 class StopRun extends Error {}
 
@@ -226,7 +227,7 @@ export function indexCandidates(candidates) {
     const norm = identityName(candidate.name);
     if (!norm) continue;
     const key = cellKey(candidate.lat, candidate.lng);
-    const entry = { ...candidate, norm, outward: postcodeOutward(candidate.address) };
+    const entry = { ...candidate, norm, nearNorm: nearIdentityName(candidate.name), outward: postcodeOutward(candidate.address) };
     const bucket = grid.get(key);
     if (bucket) bucket.push(entry);
     else grid.set(key, [entry]);
@@ -240,12 +241,15 @@ export function indexCandidates(candidates) {
  * A SHARED NAME IS NOT A MATCH. The venue must sit close to the point Guinndex
  * gives, its name must be the same pub's name, a postcode district both state
  * must agree, and no second venue may fit nearly as well.
+ * Locality text after a comma cannot establish pub identity in a near-name
+ * match.
  */
 export function matchGuinndexPub(pub, grid) {
   const lat = Number(pub?.lat);
   const lng = Number(pub?.lng);
   const norm = identityName(pub?.name);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !norm) return { ok: false, reason: "no-identity" };
+  const nearNorm = nearIdentityName(pub?.name);
   const outward = postcodeOutward(pub?.formatted_address);
   const baseLat = Math.floor(lat / CELL);
   const baseLng = Math.floor(lng / CELL);
@@ -256,7 +260,7 @@ export function matchGuinndexPub(pub, grid) {
         const metres = haversineMeters(lat, lng, candidate.lat, candidate.lng);
         const same = candidate.norm === norm;
         if (metres > (same ? SAME_NAME_MATCH_METERS : NEAR_NAME_MATCH_METERS)) continue;
-        if (!same && !namesLikelySamePub(norm, candidate.norm)) continue;
+        if (!same && (!namesLikelySamePub(norm, candidate.norm) || !namesLikelySamePub(nearNorm, candidate.nearNorm))) continue;
         if (outward && candidate.outward && outward !== candidate.outward) continue;
         fits.push({ candidate, metres, same });
       }

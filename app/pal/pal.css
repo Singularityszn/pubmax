@@ -508,6 +508,10 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
   .palPortrait:not(.isCompact) .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
 }
 
+/* Onboarding is a focused flow: the floating "Tonight" pill would cover its
+   rows, and the plan stays one tap away once the steps are done. */
+body:has(.palOnboarding) .nightPill { display: none; }
+
 @media (max-width: 900px) {
   body:has(.palOnboarding) .mobileTabBar { display: none; }
   /* House tab-bar + pill clearance: bind the bottom pad to the shared --tabbar-h

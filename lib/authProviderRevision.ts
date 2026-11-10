@@ -33,7 +33,7 @@ export type SupabaseAuthSettlement =
  * Decide when Supabase may publish an authentication answer.
  *
  * A null INITIAL_SESSION event is only an event-stream marker. Durable resume
- * may still restore an account, so it must leave the provider unresolved.
+ * may still restore an account, so it must preserve the provider's state.
  * A timeout is not an authentication answer. It may leave a bound account
  * unchanged or publish unavailable, but it may never claim signed out.
  */
@@ -43,7 +43,7 @@ export function resolveSupabaseAuthState(
   currentUserId: string | null,
 ): ProviderAuthState | null {
   if (hasSession) return "authenticated";
-  if (settlement === "initial-session") return "unresolved";
+  if (settlement === "initial-session") return null;
   if (settlement === "timeout") {
     return currentUserId !== null ? null : "unavailable";
   }

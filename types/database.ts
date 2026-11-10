@@ -332,6 +332,32 @@ export type Database = {
         };
         Relationships: [];
       };
+      conversation_deletions: {
+        Row: {
+          conversation_id: string;
+          handle: string;
+          deleted_at: string;
+        };
+        Insert: {
+          conversation_id: string;
+          handle: string;
+          deleted_at?: string;
+        };
+        Update: {
+          conversation_id?: string;
+          handle?: string;
+          deleted_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversation_deletions_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       conversation_members: {
         Row: {
           conversation_id: string;
@@ -1030,6 +1056,7 @@ export type Database = {
           attachment_plan_id: string | null;
           attachment_poll_question: string | null;
           attachment_poll_options: Json | null;
+          unsent_at: string | null;
         };
         Insert: {
           id?: string;
@@ -1052,6 +1079,7 @@ export type Database = {
           attachment_plan_id?: string | null;
           attachment_poll_question?: string | null;
           attachment_poll_options?: Json | null;
+          unsent_at?: string | null;
         };
         Update: {
           id?: string;
@@ -1074,6 +1102,7 @@ export type Database = {
           attachment_plan_id?: string | null;
           attachment_poll_question?: string | null;
           attachment_poll_options?: Json | null;
+          unsent_at?: string | null;
         };
         Relationships: [
           {
@@ -7835,6 +7864,18 @@ export type Database = {
         };
         Returns: Json;
       };
+      create_one_tap_price_pair_atomic: {
+        Args: {
+          p_venue_id: string | null;
+          p_drink_category: string | null;
+          p_price_pennies: number | null;
+          p_actor: string | null;
+          p_contributor_handle: string | null;
+          p_submitted_at: string | null;
+          p_drop: Json;
+        };
+        Returns: Json;
+      };
       create_plan_atomic: {
         Args: {
           p_id: string | null;
@@ -8089,6 +8130,14 @@ export type Database = {
           object_key: string;
         }[];
       };
+      decide_operator_proposal: {
+        Args: {
+          p_id: string | null;
+          p_status: string | null;
+          p_note?: string | null;
+        };
+        Returns: Json;
+      };
       decide_plan_route_proposal_atomic: {
         Args: {
           p_plan_id: string | null;
@@ -8110,6 +8159,14 @@ export type Database = {
           p_payload_digest: string | null;
         };
         Returns: Json;
+      };
+      delete_conversation_for_viewer: {
+        Args: {
+          p_conversation_id: string | null;
+          p_handle: string | null;
+          p_deleted_at: string | null;
+        };
+        Returns: string;
       };
       edit_social_post: {
         Args: {
@@ -9372,6 +9429,16 @@ export type Database = {
           p_payload_digest: string | null;
         };
         Returns: Json;
+      };
+      set_crew_status: {
+        Args: {
+          p_plan_id: string | null;
+          p_status: string | null;
+          p_token_hash?: string | null;
+          p_seat_id?: string | null;
+          p_account_id?: string | null;
+        };
+        Returns: string;
       };
       set_social_account_suspension_admin: {
         Args: {

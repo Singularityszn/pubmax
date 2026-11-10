@@ -158,7 +158,7 @@ describe("PlanComposer rendered UI", () => {
 
     const html409 = renderToStaticMarkup(createElement(PlanComposerErrorNotice, { message: copy409 as string }));
     expect(html409).toContain('role="alert"');
-    expect(html409).toMatch(/already locked/i);
+    expect(html409).toMatch(/refresh|regenerate/i);
   });
 
   it("never claims an earlier route in the error notice when no route is on screen", () => {

@@ -8,8 +8,8 @@
 //
 // Since 16 October 2026 that command is CHANGE-SCOPED (`verify:no-mistakes:changed`,
 // scripts/verify-changed.mjs): the full unit suite runs once, in the CI unit
-// shards, and the local step falls back to the full `npm run verify` only when
-// the change touches a shared foundation. __tests__/verifyChanged.test.ts pins
+// shards, and the local step runs the full `npm run verify` only when
+// PUBMAX_VERIFY_FULL=1 is set or no merge-base exists. __tests__/verifyChanged.test.ts pins
 // the plan; this file pins how the pipeline reaches it.
 //
 // THREE facts about the tool shape this fence. (1) A run worktree holds tracked
@@ -85,9 +85,9 @@ describe("the no-mistakes repository test command", () => {
     expect(expanded).not.toContain("node scripts/run-coverage.mjs");
   });
 
-  it("falls back to the pre-push merge bar, which reaches the unit suite and never the browser suite", () => {
+  it("runs the pre-push merge bar on request, which reaches the unit suite and never the browser suite", () => {
     const fallback = checkSteps({
-      full: "package.json is a shared foundation",
+      full: "PUBMAX_VERIFY_FULL=1 is set",
       lint: [],
       typecheck: [],
       tests: [],

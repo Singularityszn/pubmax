@@ -11,7 +11,7 @@ export type ComparablePintVenue = Pick<Venue, "cheapestPrice"> & Partial<Pick<Ve
 >> & { prices?: readonly LegacyPriceEvidenceRow[]; sourcedPrice?: { sourceLabel: string; observedAt: string } | null };
 
 export function selectedVenuePintEvidence(venue: ComparablePintVenue, now?: number) {
-  return venue.prices?.length
+  return venue.prices?.some(({ price_gbp }) => price_gbp != null)
     ? legacyCheapestPriceEvidence(venue.prices, venue.cheapestPrice, now)
     : {
         priceSource: venue.priceSource,

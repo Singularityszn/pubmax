@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { getCity, parseCityId } from "@/lib/cities";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import {
   cityMapOgAlt,
   cityMapOgDescription,
   cityMapOgImageUrl,
   cityMapOgTitle,
-  cityMapShareUrl,
   firstSearchParam,
   stopCountFromPubsParam,
 } from "@/lib/cityShare";

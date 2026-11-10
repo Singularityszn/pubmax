@@ -732,9 +732,9 @@ of the day. A stored choice from the theme control always wins. The rule is
 own copy of the two times, held to the module by
 `__tests__/themeNight.test.tsx`). `components/ThemeAttribute.tsx` asks again
 every minute and when a tab comes back, so an open page turns dark at 21:30
-and light at 04:00. A tap on the theme control is the reader's choice even
-when storage refuses to keep it, and the night rule stands down for the rest
-of that page's life. `html[data-night-theme="1"]` marks a page that is dark
+and returns to the OS appearance at 04:00. The [Appearance guide](../README.md#features)
+owns manual choices, persistence and tab synchronisation.
+`html[data-night-theme="1"]` marks a page that is dark
 because of the night rule rather than a choice.
 
 Both themes flip from the same token names — `app/theme.css` only

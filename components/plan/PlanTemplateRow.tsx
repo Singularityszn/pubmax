@@ -15,7 +15,7 @@ const readInSeason = () => christmasCrawlInSeason(new Date());
 const serverInSeason = () => false;
 
 /** The starting-point templates, with a seasonal one leading in its window. */
-export default function PlanTemplateRow({ onPick }: { onPick: (template: PlanTemplate) => void }) {
+export default function PlanTemplateRow({ onPick, disabled = false }: { onPick: (template: PlanTemplate) => void; disabled?: boolean }) {
   const inSeason = useSyncExternalStore(noSubscription, readInSeason, serverInSeason);
   return (
     <div className="planComposer__templateRow">
@@ -23,6 +23,7 @@ export default function PlanTemplateRow({ onPick }: { onPick: (template: PlanTem
         <button
           key={template.id}
           type="button"
+          disabled={disabled}
           className="planComposer__template"
           title={template.blurb}
           onClick={() => onPick(template)}

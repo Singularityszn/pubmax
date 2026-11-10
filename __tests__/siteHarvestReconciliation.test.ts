@@ -118,7 +118,7 @@ type Reconciliation = {
   bundleWithdrawals?: Array<{
     decidedOn: string;
     rule: string;
-    reason: "source-page-names-another-branch" | "insufficient-pint-evidence";
+    reason: "source-page-names-another-branch" | "insufficient-pint-evidence" | "truncated-menu-price";
     note: string;
     /** How many later publications were recorded when this was decided. */
     afterLaterPublications: number;
@@ -582,7 +582,7 @@ describe("site-harvest withdrawal reconciliation", () => {
         if (withdrawal.reason === "source-page-names-another-branch") {
           expect(pageNamesAnotherBranch(identity.sourceUrl ?? "", { name: ledgerRow.name ?? null })).toBe(true);
         } else {
-          expect(withdrawal.reason).toBe("insufficient-pint-evidence");
+          expect(["insufficient-pint-evidence", "truncated-menu-price"]).toContain(withdrawal.reason);
           expect(isCategoryQuarantined({
             venueId: defined(ledgerRow.venueId),
             name: ledgerRow.name ?? null,

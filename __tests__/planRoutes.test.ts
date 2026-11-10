@@ -18,7 +18,7 @@ import { GET as SESSION, POST as EXCHANGE_SESSION } from "@/app/api/plans/[id]/s
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { PLAN_MEMBER_SESSION_MAX_AGE_SECONDS } from "@/lib/planMemberCapability";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
-import { __resetMemoryPlans } from "@/lib/planStore";
+import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import type { PlanState } from "@/lib/plan";
 
@@ -257,6 +257,22 @@ describe("Plan public HTTP contract", () => {
     expect(joined.memberToken).toMatch(/^[a-f0-9]{64}$/);
     expect(joined.role).toBe("guest");
     expect(JSON.stringify(joined.plan)).not.toContain(joined.memberToken);
+  });
+
+  it.each(["abandoned", "completed"] as const)("refuses a crew status once the Plan is %s and keeps the old one", async (status) => {
+    const { body } = await createPlan();
+    const id = body.plan.plan.id;
+    const post = () => PRESENCE(new Request(`${URL}/${id}/presence`, {
+      method: "POST", body: JSON.stringify({ memberToken: body.memberToken, status: "here" }),
+    }), ctx(id));
+    for (const step of status === "completed" ? ["ready", "active", "completed"] as const : ["abandoned"] as const) {
+      expect(await memoryPlanStore.update(id, body.memberToken, { status: step })).toMatchObject({ ok: true });
+    }
+    const response = await post();
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "PLAN_CLOSED", retryable: false });
+    const plan = await memoryPlanStore.get(id);
+    expect(plan?.crew[0]?.status).toBe("in");
   });
 
   it("requires actual member authority for presence when the token is missing", async () => {

@@ -4,6 +4,7 @@
 // chips over POST /api/ask. Venue taps and confirmed proposals apply through
 // parent callbacks — never silent Plan or memory writes.
 
+import "./mapConciergeAsk.css";
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, X } from "lucide-react";

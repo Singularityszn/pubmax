@@ -1,5 +1,5 @@
 import { expect, test, type Page, type WebSocketRoute } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
@@ -44,6 +44,19 @@ function say(socket: WebSocketRoute, text: string): void {
   socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: eventId } }));
   for (let chunk = 0; chunk < 3; chunk += 1) {
     socket.send(JSON.stringify({ type: "audio", audio_event: { audio_base_64: toneChunk(), event_id: eventId } }));
+  }
+}
+
+/** One Pal line in three audio chunks, each with the provider's character timing. */
+function sayAligned(socket: WebSocketRoute, text: string): void {
+  eventId += 1;
+  socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: eventId } }));
+  const chars = [...text];
+  const size = Math.ceil(chars.length / 3);
+  for (let start = 0; start < chars.length; start += size) {
+    const part = chars.slice(start, start + size);
+    const alignment = { chars: part, char_start_times_ms: part.map((_, index) => index * 20), char_durations_ms: part.map(() => 20) };
+    socket.send(JSON.stringify({ type: "audio", audio_event: { audio_base_64: toneChunk(), event_id: eventId, alignment } }));
   }
 }
 
@@ -113,7 +126,14 @@ async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?:
     }));
   });
   await seedSignedIn(page, "A");
-  await page.goto("/pal");
+  const identityReady = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/identity/handle/current" && response.status() === 200,
+  );
+  await page.reload();
+  await identityReady;
+  await expect(page.getByRole("button", { name: "Account options for Karan", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /^Pub Pal(?:,.*)?$/ }).first().click();
+  await expect(page).toHaveURL(/\/pal$/);
   const start = page.getByRole("button", { name: "Start voice chat", exact: true });
   await expect(start).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".palVoiceEmpty")).toContainText("the conversation shows up here");
@@ -369,6 +389,138 @@ for (const [width, theme] of [
     await expect(bar).toBeHidden();
     await expect.poll(() => socketClosed).toBe(true);
     await expect.poll(() => releases).toBe(1);
+  });
+}
+
+type PalPicksProbe = { sequence: number; scrim: boolean; speaking: number | null; picks: { number: number; venueId: string; x: number; y: number }[] };
+type CameraReading = { center: [number, number]; zoom: number; moving: boolean; settling: boolean };
+
+for (const width of [390, 1440]) {
+  test(`${width}px: a grounded voice answer draws numbered picks on the main map and frames them, unless a finger holds the map`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 844 });
+    const socket = await openLiveVoice(page);
+    const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find me four pubs in Soho and show them on the map." } });
+    expect(response.ok()).toBe(true);
+    const answer = await response.json() as { answer: string; cards: { venueId: string; title: string; provenance: { label: string } }[] };
+    expect(answer.cards).toHaveLength(4);
+    const index = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { rows: { id: string; lat: number; lng: number }[] };
+    const deliver = (cards: unknown[]) => {
+      eventId += 1;
+      const request = { tool_name: "search_venues", tool_call_id: `search_venues-${eventId}`, tool_type: "webhook", event_id: eventId };
+      socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+      socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+        ...request, is_error: false, is_called: true,
+        full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: { ok: true, tool: "search_venues", answerHint: answer.answer, cards,
+          data: { venues: index.rows.filter((venue) => answer.cards.some((card) => card.venueId === venue.id)).map(({ id, lat, lng }) => ({ id, lat, lng })) },
+        } }),
+      } }));
+    };
+
+    hear(socket, "Show me the map");
+    await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
+    await expectMapLoadingFrameReleased(page);
+    await expect.poll(() => page.evaluate(() => Boolean(
+      (window as unknown as { __pubmaxMapCamera?: unknown }).__pubmaxMapCamera,
+    ))).toBe(true);
+    const camera = () => page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
+    const picks = () => page.evaluate(() => (window as unknown as { __pubmaxPalPicks?: () => PalPicksProbe }).__pubmaxPalPicks?.() ?? null);
+    await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }, { timeout: 20_000 }).toBe(true);
+    const before = await camera();
+
+    deliver(answer.cards);
+    await expect.poll(async () => (await picks())?.picks.map((pick) => pick.number), { timeout: 5_000 }).toEqual([1, 2, 3, 4]);
+    const painted = (await picks())!;
+    expect(painted.scrim).toBe(true);
+    expect(painted.picks.map((pick) => pick.venueId)).toEqual(answer.cards.map((card) => card.venueId));
+    const latency = await page.evaluate(() => {
+      const grounded = performance.getEntriesByName("pubmax:pal-picks-grounded").at(-1);
+      const shown = performance.getEntriesByName("pubmax:pal-picks-painted").at(-1);
+      return grounded && shown ? shown.startTime - grounded.startTime : null;
+    });
+    test.info().annotations.push({ type: "result-to-picks-ms", description: String(latency) });
+    test.info().annotations.push({ type: "result-to-picks-target-ms", description: "300" });
+    expect(latency).not.toBeNull();
+    expect(latency!).toBeGreaterThanOrEqual(0);
+    expect(latency!, "300 ms target, with the approved 600 ms timing ceiling").toBeLessThanOrEqual(600);
+
+    // The `pal` intent frames the picks: the camera moves off the opening view
+    // and every pick ends up inside the phone's viewport.
+    await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }, { timeout: 10_000 }).toBe(true);
+    const framed = await camera();
+    expect(framed.zoom).toBeGreaterThan(before.zoom);
+    for (const pick of (await picks())!.picks) {
+      expect(pick.x).toBeGreaterThan(0);
+      expect(pick.x).toBeLessThan(width);
+      expect(pick.y).toBeGreaterThan(0);
+      expect(pick.y).toBeLessThan(844);
+    }
+    await mkdir(SHOTS, { recursive: true });
+    await page.screenshot({ path: `${SHOTS}/${width}-pal-picks-on-map.png` });
+
+    if (width === 1440) {
+      const canvas = page.locator(".mapCanvasWrap canvas").first();
+      await canvas.press("Shift+-");
+      await expect.poll(async () => (await camera()).zoom).toBeLessThan(framed.zoom - 1.9);
+      await canvas.press("Shift+-");
+      await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }).toBe(true);
+      await canvas.press("Shift+-");
+      await expect(page.locator(".donut-cluster-marker").first()).toBeVisible();
+      await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }).toBe(true);
+      await expect(page.locator(".donut-cluster-marker").first()).toHaveCSS("opacity", "0.45");
+    }
+
+    // A finger on the glass keeps the map: a new answer repaints the picks but
+    // its framing stands down (lib/mapGestureGuard.ts).
+    const canvas = page.locator(".mapCanvasWrap canvas").first();
+    const box = (await canvas.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 3 + 30, { steps: 5 });
+    const held = await camera();
+    deliver(answer.cards.slice(0, 2));
+    await expect.poll(async () => (await picks())?.picks.length, { timeout: 5_000 }).toBe(2);
+    await page.mouse.up();
+    const after = await camera();
+    expect(after.zoom).toBeCloseTo(held.zoom, 5);
+    expect(after.center[0]).toBeCloseTo(held.center[0], 5);
+    expect(after.center[1]).toBeCloseTo(held.center[1], 5);
+
+    deliver([]);
+    await expect.poll(async () => (await picks())?.picks.length).toBe(0);
+    expect((await picks())?.scrim).toBe(false);
+    await expect(page.locator(".palPicksActive")).toHaveCount(0);
+    deliver(answer.cards);
+    await expect.poll(async () => (await picks())?.picks.length).toBe(4);
+
+    // The pick the Pal names pulses as its name plays, with its price card.
+    // The camera keeps the answer's framing, and talking over the Pal stops it.
+    const { sequence } = (await picks())!;
+    const named = answer.cards[1]!;
+    const card = page.locator(".palVoiceBarPick");
+    sayAligned(socket, `Second, ${named.title}, on the map now.`);
+    await expect.poll(async () => (await picks())?.speaking, { timeout: 5_000 }).toBe(2);
+    expect((await picks())!.sequence).toBe(sequence);
+    await expect(card).toContainText(named.title);
+    await expect(card).toContainText(named.provenance.label);
+    await page.screenshot({ path: `${SHOTS}/${width}-pal-pick-named.png` });
+    const namedMarker = page.getByRole("button", { name: `2. ${named.title}`, exact: true });
+    await namedMarker.evaluate((button) => button.getAnimations().forEach((animation) => animation.finish()));
+    sayAligned(socket, `Again, ${named.title}.`);
+    await expect.poll(() => namedMarker.evaluate((button) =>
+      button.getAnimations().some((animation) => animation.playState === "running"),
+    )).toBe(true);
+    expect((await picks())!.sequence).toBe(sequence);
+    eventId += 1;
+    socket.send(JSON.stringify({ type: "interruption", interruption_event: { event_id: eventId } }));
+    await expect.poll(async () => (await picks())?.speaking).toBeNull();
+    await expect(card).toHaveCount(0);
+
+    // A tap on a pick opens its venue sheet, and the call carries on.
+    const [first] = (await picks())!.picks;
+    await page.getByRole("button", { name: `1. ${answer.cards[0]!.title}`, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`sel=${encodeURIComponent(first!.venueId)}`));
+    await expect(page.getByRole("region", { name: "Voice chat with Ripley" }).getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
   });
 }
 
@@ -770,4 +922,296 @@ test("an unavailable voice deployment offers writing without downloading the SDK
   await test.info().attach("unavailable-voice-network", { body: JSON.stringify(loaded, null, 2), contentType: "application/json" });
   await page.locator(".palVoice--offline").getByRole("link", { name: "Ask in writing", exact: true }).click();
   await expect(page).toHaveURL(/\/pal\/chat$/);
+});
+
+// The acceptance oracle is step 6: playback selects the named pick, preserves
+// its price receipt, repeats each occurrence, and stops on interruption.
+for (const [width, theme, reducedMotion] of [
+  [390, "light", "no-preference"],
+  [768, "dark", "reduce"],
+  [1440, "dark", "no-preference"],
+] as const) {
+  test(`step 6 playback boundaries at ${width}px with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await storeThemeChoice(page, theme);
+    await page.emulateMedia({ reducedMotion });
+    const socket = await openLiveVoice(page);
+    const venues = [
+      { id: "venue-1t8siin", lat: 51.5139, lng: -0.132474 },
+      { id: "venue-1ozggok", lat: 51.51118, lng: -0.13631 },
+    ];
+    // Disposable provider receipts, never written to a server or shared store.
+    const cards = ["The Crown & Two Chairmen", "The Crown"].map((title, index) => ({
+      key: `step6-${index}`, venueId: venues[index]!.id, title, place: "Soho",
+      note: "Disposable browser fixture", price: index === 0 ? 5.20 : 6.40,
+      provenance: { kind: "directory", label: "Disposable menu fixture. Recorded 10 Nov 2026.", url: "https://example.test/menu" },
+    }));
+    const deliver = () => {
+      const request = { tool_name: "search_venues", tool_call_id: `step6-${++eventId}`, tool_type: "webhook", event_id: eventId };
+      socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+      socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+        ...request, is_error: false, is_called: true,
+        full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: {
+          ok: true, tool: "search_venues", answerHint: "Two disposable test recommendations.", cards, data: { venues },
+        } }),
+      } }));
+    };
+    const startReply = (text: string) => {
+      const id = ++eventId;
+      socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: id } }));
+      return id;
+    };
+    const audio = (id: number, text: string, stepMs = 10) => {
+      const chars = [...text];
+      socket.send(JSON.stringify({ type: "audio", audio_event: {
+        audio_base_64: toneChunk(), event_id: id,
+        alignment: { chars, char_start_times_ms: chars.map((_, i) => i * stepMs), char_durations_ms: chars.map(() => stepMs) },
+      } }));
+    };
+    const marker = (number: number) => page.getByRole("button", { name: `${number}. ${cards[number - 1]!.title}`, exact: true });
+    const focused = () => page.locator(".palPick[data-speaking]");
+    const card = page.locator(".palVoiceBarPick");
+    if (width === 390) {
+      deliver();
+      const opening = startReply("The Crown and Two Chairmen.");
+      audio(opening, "The Crown and Two Chairmen.");
+      const status = page.getByRole("status").filter({ hasText: /Pal is (talking|listening)/ });
+      await expect(status).toContainText("talking");
+      await expect(status).toContainText("listening");
+      await page.getByRole("list", { name: "Pubs from the voice answer" }).getByRole("link", { name: cards[0]!.title, exact: true }).click();
+      await expect(page).toHaveURL(/\/map(?:\?|$)/);
+      await expect(marker(1)).toHaveAttribute("data-speaking", "");
+      await expect(card).toContainText("£5.20");
+      await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "Pub detail", exact: true })).toBeHidden();
+      await expect(card).toBeVisible();
+      await card.click({ trial: true });
+
+    } else {
+      hear(socket, "Show me the map");
+      await expect(page).toHaveURL(/\/map(?:\?|$)/);
+      deliver();
+    }
+    await expectMapLoadingFrameReleased(page);
+    if (width === 390) {
+      await expect(marker(1)).toHaveAttribute("data-speaking", "");
+      await page.screenshot({ path: `${SHOTS}/step6-390-focused-before-map-install.png` });
+      socket.send(JSON.stringify({ type: "interruption", interruption_event: { event_id: ++eventId } }));
+      await expect(focused()).toHaveCount(0);
+    }
+    await expect(marker(1)).toBeVisible();
+    await expect(marker(2)).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const map = (window as unknown as { __pubmaxMapCamera?: { read: () => CameraReading } }).__pubmaxMapCamera?.read();
+      return map && !map.moving && !map.settling;
+    })).toBe(true);
+    const camera = await page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
+
+    // Receiving text alone cannot trigger the visual cue before audio plays.
+    const id = startReply("The Crown and Two Chairmen. The Crown. The Crown and Two Chairmen.");
+    await expect(page.locator(".palVoiceBarCaption")).toContainText("Two Chairmen");
+    await expect(focused()).toHaveCount(0);
+    audio(id, "The Crown and Two Chairmen. ");
+    await expect(marker(1)).toHaveAttribute("data-speaking", "");
+    await expect(marker(2)).not.toHaveAttribute("data-speaking", "");
+    await expect(card).toContainText("The Crown & Two Chairmen");
+    await expect(card).toContainText("£5.20");
+    await expect(card).toContainText("Disposable menu fixture. Recorded 10 Nov 2026.");
+    await expect(card.getByRole("link")).toHaveAttribute("href", "https://example.test/menu");
+    const style = await marker(1).evaluate(button => ({ animation: getComputedStyle(button).animationName, ring: getComputedStyle(button).boxShadow }));
+    expect(style.animation).toBe(reducedMotion === "reduce" ? "none" : "palPickPulse");
+    expect(style.ring).not.toBe("none");
+    await page.screenshot({ path: `${SHOTS}/step6-${width}-${theme}-${reducedMotion}.png` });
+
+    // Every repeated occurrence in one reply must replace the previous card.
+    audio(id, "The Crown. ");
+    await expect(marker(2)).toHaveAttribute("data-speaking", "");
+    await expect(card).toContainText("£6.40");
+    audio(id, "The Crown and Two Chairmen. ");
+    await expect(marker(1)).toHaveAttribute("data-speaking", "");
+    await expect(card).toContainText("£5.20");
+    if (reducedMotion === "no-preference") {
+      await marker(1).evaluate(button => button.getAnimations().forEach(animation => animation.finish()));
+      audio(id, "The Crown and Two Chairmen. ");
+      await expect.poll(() => marker(1).evaluate(button => button.getAnimations().some(animation => animation.playState === "running"))).toBe(true);
+    }
+    const after = await page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
+    expect(after.center).toEqual(camera.center);
+    expect(after.zoom).toBe(camera.zoom);
+
+    // A later chunk corrects a shorter reference at the same spoken position.
+    const split = startReply("The Crown and Two Chairmen.");
+    audio(split, "The Crown ");
+    await expect(marker(2)).toHaveAttribute("data-speaking", "");
+    audio(split, "and Two Chairmen.");
+    await expect(marker(1)).toHaveAttribute("data-speaking", "");
+    await expect(card).toContainText("The Crown & Two Chairmen");
+    await page.screenshot({ path: `${SHOTS}/step6-${width}-split-corrected.png` });
+
+    // Interrupt while a later mention in the current audio chunk is pending.
+    const pending = startReply("The Crown. Then The Crown and Two Chairmen.");
+    audio(pending, "The Crown. Then The Crown and Two Chairmen.", 30);
+    await page.waitForFunction(() => document.querySelector('.palPick[data-speaking]')?.getAttribute("aria-label") === "2. The Crown");
+    socket.send(JSON.stringify({ type: "interruption", interruption_event: { event_id: ++eventId } }));
+    await expect(focused()).toHaveCount(0);
+    await expect(card).toHaveCount(0);
+    // A stale aligned audio event must be discarded by the real SDK.
+    audio(pending, "The Crown and Two Chairmen.");
+    const recovery = startReply("We can find somewhere else.");
+    audio(recovery, "We can find somewhere else.");
+    await expect(page.locator(".palVoiceBar").getByRole("status")).toContainText("talking");
+    await expect(page.locator(".palVoiceBar").getByRole("status")).toContainText("listening");
+    await expect(focused()).toHaveCount(0);
+    await expect(card).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/step6-${width}-interrupted.png` });
+    await testInfo.attach("step6-provider-and-rendered-state", { body: JSON.stringify({ browserVersion: page.context().browser()?.version(), width, theme, reducedMotion, cards, style, camera, after, interruptedFocus: await focused().count() }), contentType: "application/json" });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+  });
+}
+
+// Step 7: the agent's map client tools move only the view. A pick number the
+// map does not show goes back to the agent as a contextual update.
+for (const [width, theme] of [[390, "light"], [1440, "dark"]] as const) {
+  test(`${width}px ${theme}: the agent's map tools fly to an area, focus, open and clear picks, and refuse a pick not on the map`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    await storeThemeChoice(page, theme);
+    const socket = await openLiveVoice(page);
+    const sent: { type?: string; text?: string; tool_call_id?: string; is_error?: boolean }[] = [];
+    socket.onMessage((message) => { sent.push(JSON.parse(String(message))); });
+    const venues = [
+      { id: "venue-1t8siin", lat: 51.5139, lng: -0.132474 },
+      { id: "venue-1ozggok", lat: 51.51118, lng: -0.13631 },
+    ];
+    // Disposable provider receipts, never written to a server or shared store.
+    const cards = ["The Crown & Two Chairmen", "The Crown"].map((title, index) => ({
+      key: `step7-${index}`, venueId: venues[index]!.id, title, place: "Soho",
+      note: "Disposable browser fixture", price: index === 0 ? 5.20 : 6.40,
+      provenance: { kind: "directory", label: "Disposable menu fixture. Recorded 10 Nov 2026.", url: "https://example.test/menu" },
+    }));
+    const request = { tool_name: "search_venues", tool_call_id: `step7-${++eventId}`, tool_type: "webhook", event_id: eventId };
+    socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+    socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+      ...request, is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: {
+        ok: true, tool: "search_venues", answerHint: "Two disposable test recommendations.", cards, data: { venues },
+      } }),
+    } }));
+    const call = (tool_name: string, parameters: Record<string, unknown>) => {
+      const id = ++eventId;
+      const tool_call_id = `${tool_name}-${id}`;
+      socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: { tool_name, tool_call_id, parameters, event_id: id } }));
+      return tool_call_id;
+    };
+    const answered = (id: string) => expect.poll(() => sent.find((event) => event.type === "client_tool_result" && event.tool_call_id === id)?.is_error).toBe(false);
+    const camera = () => page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
+    const settled = () => expect.poll(async () => {
+      const reading = await page.evaluate(() => (window as unknown as { __pubmaxMapCamera?: { read: () => CameraReading } }).__pubmaxMapCamera?.read());
+      return Boolean(reading && !reading.moving && !reading.settling);
+    }, { timeout: 20_000 }).toBe(true);
+    const picks = () => page.evaluate(() => (window as unknown as { __pubmaxPalPicks?: () => PalPicksProbe }).__pubmaxPalPicks?.() ?? null);
+
+    // From /pal, "take me to Camden" opens the map framed on Camden, not on the picks.
+    await answered(call("map_fly_to_area", { area: "Camden" }));
+    await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
+    await expectMapLoadingFrameReleased(page);
+    await expect.poll(async () => (await picks())?.picks.length, { timeout: 10_000 }).toBe(2);
+    await settled();
+    // The fit pads for the top bar and the voice bar, so the centre sits near
+    // Camden's (51.539, -0.143), not on it, and well away from the Soho picks.
+    const camden = await camera();
+    expect(Math.abs(camden.center[1] - 51.539)).toBeLessThan(0.01);
+    expect(Math.abs(camden.center[0] + 0.143)).toBeLessThan(0.01);
+    await page.screenshot({ path: `${SHOTS}/step7-${width}-${theme}-fly-to-camden.png` });
+
+    // "The second one": pick 2 pulses, its card shows, and the map moves to it.
+    await answered(call("map_focus_pick", { number: 2 }));
+    await expect(page.getByRole("button", { name: `2. ${cards[1]!.title}`, exact: true })).toHaveAttribute("data-speaking", "");
+    await expect(page.locator(".palVoiceBarPick")).toContainText("£6.40");
+    await settled();
+    const focused = await camera();
+    expect(focused.zoom).toBeGreaterThan(camden.zoom + 1);
+    expect(Math.abs(focused.center[1] - venues[1]!.lat)).toBeLessThan(0.0015);
+    expect(Math.abs(focused.center[0] - venues[1]!.lng)).toBeLessThan(0.0015);
+    const second = (await picks())!.picks.find((pick) => pick.number === 2)!;
+    expect(second.x).toBeGreaterThan(0);
+    expect(second.x).toBeLessThan(width);
+    expect(second.y).toBeGreaterThan(0);
+    expect(second.y).toBeLessThan(844);
+    await page.screenshot({ path: `${SHOTS}/step7-${width}-${theme}-focus-pick-2.png` });
+
+    // A pick the map does not show changes nothing and tells the agent what it has.
+    await answered(call("map_focus_pick", { number: 5 }));
+    await expect.poll(() => sent.filter((event) => event.type === "contextual_update").map((event) => event.text))
+      .toEqual(["The map could not show pick 5. 2 picks are on the map."]);
+    expect((await picks())?.speaking).toBe(2);
+
+    // "Open it": the pick's browse-only sheet opens and the call carries on.
+    await answered(call("map_open_pick_sheet", { number: 1 }));
+    await expect(page).toHaveURL(new RegExp(`sel=${venues[0]!.id}`), { timeout: 10_000 });
+    await expect(page.getByRole("dialog").getByRole("heading", { name: cards[0]!.title })).toBeVisible();
+    await page.screenshot({ path: `${SHOTS}/step7-${width}-${theme}-open-pick-1.png` });
+    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+
+    // "Clear the map": the picks and the fade go.
+    await answered(call("map_clear", {}));
+    await expect.poll(async () => (await picks())?.picks.length).toBe(0);
+    await expect(page.locator(".palPicksActive")).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Voice chat with Ripley" }).getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+    await testInfo.attach("step7-socket-from-browser", { body: JSON.stringify(sent.filter((event) => event.type !== "user_audio_chunk")), contentType: "application/json" });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+  });
+}
+
+test("ending the call drops a map move the agent asked for that is still on its way", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await openLiveVoice(page);
+  await page.clock.install();
+  const id = ++eventId;
+  socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+    tool_name: "map_fly_to_area", tool_call_id: `fly-${id}`, parameters: { area: "Camden" }, event_id: id,
+  } }));
+  // The map opens PAL_VOICE_MAP_DELAY_MS after the request. End the call inside that wait.
+  await expect(page.locator(".palVoiceMapCard")).toContainText("Opening Camden");
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await page.clock.fastForward(3_000);
+  await expect(page).toHaveURL(/\/pal$/);
+  await expect(page.locator(".palVoiceMapCard")).toHaveCount(0);
+});
+
+test("a newer map tool call retires a map trip still on its way", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await openLiveVoice(page);
+  const venues = [
+    { id: "venue-1t8siin", lat: 51.5139, lng: -0.132474 },
+    { id: "venue-1ozggok", lat: 51.51118, lng: -0.13631 },
+  ];
+  // Disposable provider receipts, never written to a server or shared store.
+  const cards = ["The Crown & Two Chairmen", "The Crown"].map((title, index) => ({
+    key: `retire-${index}`, venueId: venues[index]!.id, title, place: "Soho",
+    note: "Disposable browser fixture", price: index === 0 ? 5.20 : 6.40,
+    provenance: { kind: "directory", label: "Disposable menu fixture. Recorded 10 Nov 2026.", url: "https://example.test/menu" },
+  }));
+  const request = { tool_name: "search_venues", tool_call_id: `retire-${++eventId}`, tool_type: "webhook", event_id: eventId };
+  socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+  socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+    ...request, is_error: false, is_called: true,
+    full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: {
+      ok: true, tool: "search_venues", answerHint: "Two disposable test recommendations.", cards, data: { venues },
+    } }),
+  } }));
+  await expect(page.getByRole("list", { name: "Pubs from the voice answer" })).toBeVisible();
+  const call = (tool_name: string, parameters: Record<string, unknown>) => {
+    const id = ++eventId;
+    socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: { tool_name, tool_call_id: `${tool_name}-${id}`, parameters, event_id: id } }));
+  };
+  await page.clock.install();
+  call("map_open_pick_sheet", { number: 1 });
+  await expect(page.locator(".palVoiceMapCard")).toContainText(`Opening ${cards[0]!.title}`);
+  call("map_focus_pick", { number: 2 });
+  await expect(page.locator(".palVoiceMapCard")).toContainText(`Showing ${cards[1]!.title}`);
+  await page.clock.runFor(3_000);
+  await page.clock.resume();
+  await expect(page).toHaveURL(/\/map(?:\?|$)/);
+  expect(new URL(page.url()).searchParams.get("sel")).toBeNull();
+  await expect(page.getByRole("button", { name: `2. ${cards[1]!.title}`, exact: true })).toHaveAttribute("data-speaking", "");
 });

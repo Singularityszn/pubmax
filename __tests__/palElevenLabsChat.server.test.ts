@@ -55,6 +55,8 @@ const wsState = vi.hoisted(() => ({
   replyScript: null as ScriptedEvent[] | null,
   /** False until the mock sends a tool response, as the webhook fills the store first. */
   storeFilled: true,
+  /** Client tool results the server sent back to the agent. */
+  toolResults: [] as Array<{ tool_call_id?: string; result?: string; is_error?: boolean }>,
 }));
 
 class MockElevenLabsWebSocket {
@@ -103,6 +105,10 @@ class MockElevenLabsWebSocket {
     const payload = JSON.parse(raw) as { type?: string; text?: string };
     if (payload.type === "conversation_initiation_client_data") {
       wsState.lastInitPayload = payload;
+      return;
+    }
+    if (payload.type === "client_tool_result") {
+      wsState.toolResults.push(payload as (typeof wsState.toolResults)[number]);
       return;
     }
     if (payload.type === "user_message") {
@@ -212,6 +218,7 @@ describe("runPalElevenLabsChatTurn", () => {
     wsState.userMessageCount = 0;
     wsState.repeatMetadata = false;
     wsState.replyScript = null;
+    wsState.toolResults = [];
     wsState.storeFilled = true;
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
@@ -941,6 +948,30 @@ describe("runPalElevenLabsChatTurn", () => {
         "agent_tool_response",
       ]),
     );
+  });
+
+  it("answers a voice-only map tool call with an error, so the typed reply goes on in words", async () => {
+    const mapCall = { type: "client_tool_call", client_tool_call: { tool_name: "map_focus_pick", tool_call_id: "map_1", parameters: { number: 2 }, event_id: 2 } };
+    wsState.replyScript = [
+      { afterMs: 0, event: mapCall },
+      { afterMs: 20, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Show me the second one on the map",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    const init = wsState.lastInitPayload as { conversation_config_override?: { conversation?: { client_events?: string[] } } };
+    expect(init?.conversation_config_override?.conversation?.client_events).toContain("client_tool_call");
+    expect(wsState.toolResults).toEqual([{
+      type: "client_tool_result",
+      tool_call_id: "map_1",
+      result: "The map only works in a voice call. Answer in words.",
+      is_error: true,
+    }]);
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
   });
 
   it("answers a turn that asks for no tool on its first reply, without waiting for the turn end", async () => {

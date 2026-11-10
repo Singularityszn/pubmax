@@ -1195,6 +1195,36 @@ describe("service worker map cache", () => {
     await expect(Promise.all(event.lifetime)).resolves.toEqual([undefined]);
   });
 
+  it.each([
+    "https://pubmaxxing.com/vendor/maplibre/6.16.0/maplibre-gl-worker.mjs",
+    "https://pubmaxxing.com/map-icons/dark.png?v=8310af911d5c",
+    "https://pubmaxxing.com/landing/map-opening/london-dark.webp?v=aff74aeabdd9",
+  ])("answers the content-named map asset %s from its kept copy", async (url) => {
+    const kept = fakeResponse("cors");
+    const { listeners, doFetch } = workerHarness({
+      cached: kept,
+      response: fakeResponse("cors"),
+    });
+
+    const event = dispatchFetch(listeners.get("fetch")!, new Request(url));
+
+    await expect(event.response).resolves.toBe(kept);
+    expect(doFetch).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    "https://pubmaxxing.com/vendor/maplibre/maplibre-gl-worker.mjs",
+    "https://pubmaxxing.com/map-icons/dark.png",
+    "https://pubmaxxing.com/landing/map-opening/london-dark.webp",
+    "https://pubmaxxing.com/landing/hero-thames-1600.avif?v=1",
+  ])("leaves the unversioned asset %s to the network", (url) => {
+    const { listeners } = workerHarness({ response: fakeResponse("cors") });
+
+    const event = dispatchFetch(listeners.get("fetch")!, new Request(url));
+
+    expect(event.response).toBeNull();
+  });
+
   it("intercepts cross-origin OpenFreeMap reads", () => {
     const { listeners } = workerHarness({ response: fakeResponse("cors") });
 

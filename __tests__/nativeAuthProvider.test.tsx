@@ -12,9 +12,11 @@ const h = vi.hoisted(() => ({
   authenticate: vi.fn(), setSession: vi.fn(), signOut: vi.fn(), cancel: vi.fn(), openBrowser: vi.fn(),
   clearPersistedSession: vi.fn(async () => {}),
   session: null as Session | null,
+  bootstrapOffline: false,
+  clientOffline: false,
   subscriber: null as null | ((event: string, session: Session | null) => void),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.navigate }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname, useRouter: () => ({ push: h.navigate }) }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
@@ -27,11 +29,10 @@ vi.mock("@/lib/nativeAuthSession", async (original) => ({
   authenticateNativeSession: h.authenticate,
   cancelNativeAuthSession: h.cancel,
 }));
-vi.mock("@/lib/authClient", async (original) => ({
-  ...await original<typeof import("@/lib/authClient")>(),
-  createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
-  isAuthConfigured: () => true,
-  ensureSupabaseBrowser: async () => ({ auth: {
+vi.mock("@/lib/authClient", async (original) => {
+  // This suite drives native account events, not load timing: the fake client
+  // is ready for every caller, so AuthProvider subscribes at once.
+  const browser = async () => ({ auth: {
     signInWithOAuth: h.canonicalOAuth, setSession: h.setSession, signOut: h.signOut,
     getSession: h.getSession,
     onAuthStateChange: (callback: typeof h.subscriber) => {
@@ -39,11 +40,22 @@ vi.mock("@/lib/authClient", async (original) => ({
       queueMicrotask(() => callback?.("INITIAL_SESSION", h.session));
       return { data: { subscription: { unsubscribe: () => { h.subscriber = null; } } } };
     },
-  } }),
-}));
+  } });
+  return {
+    ...await original<typeof import("@/lib/authClient")>(),
+    createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
+    isAuthConfigured: () => true,
+    ensureSupabaseBrowser: vi.fn(async () => {
+      if (h.clientOffline) throw new Error("offline");
+      return browser();
+    }),
+    ensureSupabaseBrowserForSession: browser,
+  };
+});
 vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
-  bootstrapAuthSession: async () => h.session ? ({ status: "local", session: h.session }) : ({ status: "none" }),
+  bootstrapAuthSession: vi.fn(async () => h.bootstrapOffline ? ({ status: "unavailable" })
+    : h.session ? ({ status: "local", session: h.session }) : ({ status: "none" })),
 }));
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: true, apple: true, microsoft: true }),
@@ -62,12 +74,15 @@ vi.mock("@/lib/identityClient", () => ({
   resolveCanonicalIdentity: async () => null,
 }));
 vi.mock("@/lib/authSessionResumeClient", () => ({
+  fetchResumeHint: async () => ({ status: h.bootstrapOffline ? "unavailable" : "absent" }),
   clearPersistedSession: h.clearPersistedSession, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));
 import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { ensureSupabaseBrowser } from "@/lib/authClient";
+import { bootstrapAuthSession } from "@/lib/authSessionBootstrap";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
-import { readProviderAccountSignal, setProviderAuthState } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal, readProviderAuthState, setProviderAuthState } from "@/lib/authProviderRevision";
 import { PLAN_HOST_NAME_KEY, readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
 import { liveLocationRequest, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
 import { memoryPlanStore } from "@/lib/planStore";
@@ -89,7 +104,7 @@ let container: HTMLDivElement;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks();
-  h.platform = "ios"; h.session = null; h.available = true;
+  h.platform = "ios"; h.session = null; h.available = true; h.bootstrapOffline = false; h.clientOffline = false;
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.getSession.mockImplementation(async () => ({ data: { session: h.session }, error: null }));
@@ -406,6 +421,92 @@ describe("AuthProvider's installed iPhone OAuth consumer", () => {
     expect(h.nativeOAuth).not.toHaveBeenCalled();
     expect(h.setSession).not.toHaveBeenCalled();
     expect(container.textContent).toBe("original");
+  });
+
+  it.each([
+    ["client", "online"], ["client", "visible"], ["client", "focus"],
+    ["session", "online"], ["session", "visible"], ["session", "focus"],
+    ["session retry", "online"], ["session retry", "visible"], ["session retry", "focus"],
+  ])("retains %s recovery from %s while the attempt is pending", async (stage, event) => {
+    await act(async () => root.unmount());
+    setProviderAuthState("supabase", "unresolved");
+    h.bootstrapOffline = stage === "session retry";
+    let failBootstrap!: (error: Error) => void;
+    const pendingBootstrap = new Promise<never>((_resolve, reject) => { failBootstrap = reject; });
+    if (stage === "client") {
+      vi.mocked(ensureSupabaseBrowser).mockImplementationOnce(() => new Promise(() => {}));
+    } else if (stage === "session") {
+      vi.mocked(bootstrapAuthSession).mockReturnValueOnce(pendingBootstrap);
+    }
+    root = createRoot(container);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    try {
+      await act(async () => {
+        root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe)));
+      });
+      if (stage === "session retry") {
+        expect(readProviderAuthState("supabase")).toBe("unavailable");
+        vi.mocked(bootstrapAuthSession).mockReturnValueOnce(pendingBootstrap);
+        await act(async () => { window.dispatchEvent(new Event("focus")); });
+        h.bootstrapOffline = false;
+      }
+      await act(async () => {
+        if (event === "visible") document.dispatchEvent(new Event("visibilitychange"));
+        else window.dispatchEvent(new Event(event));
+        await vi.runAllTimersAsync();
+      });
+      if (stage !== "client") {
+        expect(readProviderAuthState("supabase")).toBe("unavailable");
+        await act(async () => { failBootstrap(new Error("offline resume read")); });
+      }
+      expect(readProviderAuthState("supabase")).toBe("signed-out");
+      await act(async () => { expect(await actions.signInWithApple()).toEqual({ error: null }); });
+      expect(container.textContent).toBe("replacement");
+      expect(h.authenticate).toHaveBeenCalledTimes(1);
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ["client", "online"], ["client", "visible"], ["client", "focus"],
+    ["session", "online"], ["session", "visible"], ["session", "focus"],
+  ])("recovers native sign-in after an offline %s boot on %s", async (stage, event) => {
+    await act(async () => root.unmount());
+    setProviderAuthState("supabase", "unresolved");
+    h.clientOffline = stage === "client";
+    h.bootstrapOffline = stage === "session";
+    root = createRoot(container);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const wake = () => {
+      if (event === "visible") document.dispatchEvent(new Event("visibilitychange"));
+      else window.dispatchEvent(new Event(event));
+    };
+    try {
+      await act(async () => {
+        root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe)));
+      });
+      await act(async () => { await vi.runAllTimersAsync(); });
+      expect(readProviderAuthState("supabase")).toBe("unavailable");
+      await act(async () => { wake(); await vi.runAllTimersAsync(); });
+      expect(readProviderAuthState("supabase")).toBe("unavailable");
+
+      h.clientOffline = false;
+      h.bootstrapOffline = false;
+      await act(async () => { expect((await actions.signInWithApple()).error).toMatch(/could not be confirmed/); });
+      expect(h.authenticate).not.toHaveBeenCalled();
+      await act(async () => { wake(); await vi.runAllTimersAsync(); });
+      expect(readProviderAuthState("supabase")).toBe("signed-out");
+      await act(async () => { expect(await actions.signInWithApple()).toEqual({ error: null }); });
+      expect(container.textContent).toBe("replacement");
+      expect(h.authenticate).toHaveBeenCalledTimes(1);
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it("keeps the signed-out state when the user cancels the native session", async () => {

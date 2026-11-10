@@ -4,12 +4,14 @@ import { describe, expect, it } from "vitest";
 import { PAL_RECALL_MEMORIES_TOOL } from "@/lib/palConfirmedMemories.server";
 import { PAL_PROPOSE_MEMORY_TOOL } from "@/lib/palMemoryProposal.server";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
+import { PAL_MAP_CLIENT_TOOL_NAMES } from "@/lib/palMapClientTools.mjs";
 import {
   PAL_VOICE_BEST_MATE_RULE,
   PAL_VOICE_PRE_TOOL_LINE_RULE,
   PAL_VOICE_QUICK_PICK_OR_PLAN_RULE,
   PAL_VOICE_TASTE_RULE,
   pubPalAgentSystemPrompt,
+  pubPalTypedChatSystemPrompt,
 } from "@/lib/palVoicePrompt.mjs";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import {
@@ -93,6 +95,20 @@ describe("Pub Pal voice prompt register", () => {
     expect(agentConfig.toolNames).toContain("propose_plan");
     // The Safe Night register still wins over the warmer one.
     expect(prompt.indexOf(PAL_VOICE_GET_HOME_REGISTER_INTRO)).toBeGreaterThan(prompt.indexOf(PAL_VOICE_BEST_MATE_RULE));
+  });
+
+  it("gives voice, and only voice, the short-answer rule and the map tools it is given", () => {
+    const voice = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
+    const typed = pubPalTypedChatSystemPrompt();
+    // The step 7 clauses, written out here rather than read from the rule constants.
+    for (const clause of ["say at most two names and one price", "then say the rest are on the map", "under 25 words unless the person asked for a plan"]) {
+      expect(voice).toContain(clause);
+      expect(typed).not.toContain(clause);
+    }
+    for (const tool of PAL_MAP_CLIENT_TOOL_NAMES) {
+      expect(voice).toContain(tool);
+      expect(typed).not.toContain(tool);
+    }
   });
 
   it("leaves no dynamic slot a voice browser could fill inside the system prompt", () => {

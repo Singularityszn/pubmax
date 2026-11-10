@@ -1,14 +1,13 @@
 // THE LOCAL NO-MISTAKES GATE IS CHANGE-SCOPED; THE FULL SUITE RUNS ONCE, IN CI.
 //
-// Owner decision, 16 October 2026: the local pipeline ran the whole unit suite
-// through `npm run coverage` (about 40 minutes on an 8 GB MacBook Air) and
-// GitHub CI then ran it again. `scripts/verify-changed.mjs` now plans the local
-// run from the diff against the merge-base with origin/main, and falls back to
-// the full `npm run verify` when the change touches a shared foundation.
-// These cases pin that plan: what escalates to the full suite, what is linted,
-// typechecked and tested, and that CI still runs every unit test on every PR.
+// `scripts/verify-changed.mjs` plans the local run from the diff against the
+// merge-base with origin/main. It runs the full `npm run verify` only when
+// PUBMAX_VERIFY_FULL=1 is set or no merge-base exists. These cases pin that
+// plan: what is linted, typechecked and tested, and that CI still runs every
+// unit test on every PR.
 
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -16,9 +15,7 @@ import { parse } from "yaml";
 
 import { POSTGRES_BACKED_SUITES } from "../scripts/rls/postgresSuites.mjs";
 import {
-  FULL_SUITE_FAN_IN,
   checkSteps,
-  fullSuiteReason,
   importGraph,
   planChecks,
   type ChangedFile,
@@ -30,11 +27,6 @@ const ROOT = process.cwd();
 
 const modified = (...paths: string[]): ChangedFile[] => paths.map((path) => ({ path, status: "M" }));
 
-/** A graph in which `target` is imported directly by `count` distinct modules. */
-function fanIn(target: string, count: number): Map<string, Set<string>> {
-  return new Map([[target, new Set(Array.from({ length: count }, (_, i) => `app/r${i}/page.tsx`))]]);
-}
-
 function plan(changed: ChangedFile[], options: Partial<Parameters<typeof planChecks>[0]> = {}) {
   return planChecks({
     changed,
@@ -45,47 +37,195 @@ function plan(changed: ChangedFile[], options: Partial<Parameters<typeof planChe
   });
 }
 
-describe("the full-suite escalation", () => {
+describe("the whole suite runs locally only on request", () => {
   it.each([
     "package.json",
-    "package-lock.json",
     "vitest.config.mts",
-    "vitest.setup.ts",
     "tsconfig.json",
-    "tsconfig.build.json",
     "eslint.config.mjs",
-    "next.config.mjs",
     "__tests__/helpers/defined.ts",
     "scripts/verify-changed.mjs",
     "scripts/run-with-restored-bundled-data.mjs",
-  ])("runs the whole merge bar when %s changes", (path) => {
-    expect(fullSuiteReason(modified(path), new Map())).toContain(path);
+  ])("keeps a change to %s scoped and leaves the whole suite to CI", (path) => {
+    const scoped = plan(modified(path));
+    expect(scoped.full).toBeNull();
+    expect(checkSteps(scoped).map((step) => step.label)).not.toContain("full merge bar");
   });
 
-  it(`runs the whole merge bar for a module more than ${FULL_SUITE_FAN_IN} modules import`, () => {
+  it.each(["package.json", "vitest.config.mts"])("executes only related tests for a change to %s", (path) => {
+    const fixture = mkdtempSync(join(ROOT, ".verify-changed-"));
+    try {
+      mkdirSync(join(fixture, "__tests__"));
+      mkdirSync(join(fixture, "node_modules"));
+      symlinkSync(join(ROOT, "node_modules/vitest"), join(fixture, "node_modules/vitest"), "dir");
+      writeFileSync(join(fixture, "package.json"), JSON.stringify({ type: "module" }));
+      writeFileSync(join(fixture, "vitest.config.mts"), `
+        import config from ${JSON.stringify(join(ROOT, "vitest.config.mts"))};
+        export default {
+          test: {
+            ...config.test,
+            setupFiles: [],
+            globalSetup: [],
+            environment: "node",
+            include: ["__tests__/*.test.ts"],
+          },
+        };
+      `);
+      writeFileSync(join(fixture, "__tests__/related.test.ts"), `
+        import { expect, test } from "vitest";
+        import value from "../${path}";
+        test("checks the changed input", () => expect(value).toBeDefined());
+      `);
+      writeFileSync(join(fixture, "__tests__/unrelated.test.ts"), `
+        import { test } from "vitest";
+        test("must remain outside the local scope", () => { throw new Error("Unrelated test executed"); });
+      `);
+      const testFiles = ["__tests__/related.test.ts", "__tests__/unrelated.test.ts"];
+      const readText = (file: string) => readFileSync(join(fixture, file), "utf8");
+      const scoped = plan(modified(path), {
+        importers: importGraph([path, ...testFiles], readText),
+        testFiles,
+        readText,
+      });
+      const step = defined(checkSteps(scoped).find((step) => step.label === "unit tests (related)"));
+      const report = join(fixture, "results.json");
+      const result = spawnSync(join(ROOT, step.command), [...step.args, "--reporter=json", `--outputFile=${report}`], {
+        cwd: fixture,
+        env: { ...process.env, ...step.env },
+        encoding: "utf8",
+      });
+      // The captain's scope decision requires one related test and excludes the failing sentinel.
+      const output = JSON.parse(readFileSync(report, "utf8"));
+      expect(result.status, `${result.stdout}\n${result.stderr}\n${JSON.stringify(output)}`).toBe(0);
+      expect(output.numPassedTests).toBe(1);
+      expect(output.testResults.map((suite: { name: string }) => suite.name)).toEqual([
+        join(fixture, "__tests__/related.test.ts"),
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it("fails the CLI when a package change breaks a transitive test, without running unrelated tests", () => {
+    const fixture = mkdtempSync(join(ROOT, ".verify-changed-"));
+    try {
+      for (const directory of ["__tests__", "lib", "scripts/rls", "scripts/ci", "node_modules/.bin"]) {
+        mkdirSync(join(fixture, directory), { recursive: true });
+      }
+      for (const file of ["scripts/verify-changed.mjs", "scripts/rls/postgresSuites.mjs"]) {
+        copyFileSync(join(ROOT, file), join(fixture, file));
+      }
+      // These external gates are outside this regression. Git and Vitest execute normally.
+      for (const file of ["scripts/resilient-audit.mjs", "scripts/ci/install-script-allowlist.mjs"]) {
+        writeFileSync(join(fixture, file), "");
+      }
+      symlinkSync(join(ROOT, "node_modules/vitest"), join(fixture, "node_modules/vitest"), "dir");
+      symlinkSync(join(ROOT, "node_modules/vitest/vitest.mjs"), join(fixture, "node_modules/.bin/vitest"));
+      const pkg = { type: "module", version: "1.0.0", scripts: { deadcode: "node scripts/resilient-audit.mjs" } };
+      writeFileSync(join(fixture, "package.json"), JSON.stringify(pkg));
+      writeFileSync(join(fixture, ".gitignore"), "node_modules/\nresults.json\n");
+      writeFileSync(join(fixture, "vitest.config.mts"), `
+        import config from ${JSON.stringify(join(ROOT, "vitest.config.mts"))};
+        export default {
+          test: {
+            ...config.test,
+            setupFiles: [],
+            globalSetup: [],
+            environment: "node",
+            include: ["__tests__/*.test.ts"],
+            reporters: ["json"],
+            outputFile: "results.json",
+          },
+        };
+      `);
+      writeFileSync(join(fixture, "lib/packageVersion.mjs"), `
+        import pkg from "../package.json";
+        export default pkg.version;
+      `);
+      writeFileSync(join(fixture, "__tests__/related.test.ts"), `
+        import { expect, test } from "vitest";
+        import version from "../lib/packageVersion.mjs";
+        test("retains the supported package version", () => expect(version).toBe("1.0.0"));
+      `);
+      writeFileSync(join(fixture, "__tests__/unrelated.test.ts"), `
+        import { test } from "vitest";
+        test("must remain outside the local scope", () => { throw new Error("Unrelated test executed"); });
+      `);
+      const git = (...args: string[]) => {
+        const result = spawnSync("git", ["-c", "core.hooksPath=/dev/null", ...args], {
+          cwd: fixture,
+          encoding: "utf8",
+        });
+        expect(result.status, result.stderr).toBe(0);
+        return result.stdout.trim();
+      };
+      git("init", "-q");
+      git("add", ".");
+      git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "base");
+      const base = git("rev-parse", "HEAD");
+      writeFileSync(join(fixture, "package.json"), JSON.stringify({ ...pkg, version: "2.0.0" }));
+      const result = spawnSync(process.execPath, ["scripts/verify-changed.mjs"], {
+        cwd: fixture,
+        env: { ...process.env, PUBMAX_VERIFY_BASE: base, PUBMAX_VERIFY_FULL: "0" },
+        encoding: "utf8",
+      });
+      const diagnostics = `${result.stdout}\n${result.stderr}`;
+      // A broken version assertion must fail the command. The sentinel must stay unexecuted.
+      expect(result.status, diagnostics).toBe(1);
+      const output = JSON.parse(readFileSync(join(fixture, "results.json"), "utf8"));
+      expect(output.numFailedTests).toBe(1);
+      expect(output.testResults.map((suite: { name: string }) => suite.name)).toEqual([
+        join(fixture, "__tests__/related.test.ts"),
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it("tests what relates to a module that many modules import, instead of the whole suite", () => {
     const hub = "lib/supabase.ts";
-    expect(fullSuiteReason(modified(hub), fanIn(hub, FULL_SUITE_FAN_IN + 1))).toContain(hub);
-    expect(fullSuiteReason(modified(hub), fanIn(hub, FULL_SUITE_FAN_IN))).toBeNull();
+    const importers = new Map([[hub, new Set(Array.from({ length: 500 }, (_, i) => `app/r${i}/page.tsx`))]]);
+    const scoped = plan(modified(hub), { importers });
+    expect(scoped.full).toBeNull();
+    expect(scoped.tests).toEqual([hub]);
   });
 
-  it("runs the whole merge bar when a source module is deleted, because nothing resolves to it", () => {
-    expect(fullSuiteReason([{ path: "lib/oldThing.ts", status: "D" }], new Map())).toContain(
-      "lib/oldThing.ts",
-    );
-    // A deleted doc or test file is imported by nothing.
-    expect(fullSuiteReason([{ path: "docs/old.md", status: "D" }], new Map())).toBeNull();
-    expect(fullSuiteReason([{ path: "__tests__/old.test.ts", status: "D" }], new Map())).toBeNull();
+  it.each([
+    ["lib/oldThing.ts", 'import "@/lib/oldThing";'],
+    ["lib/oldThing.tsx", 'import "../lib/oldThing";'],
+    ["lib/oldThing.mts", 'import "../lib/oldThing.mjs";'],
+    ["lib/oldThing.mjs", 'const thing = import("../lib/oldThing.mjs");'],
+    ["lib/oldThing.js", 'require("../lib/oldThing.js");'],
+    ["lib/oldThing.cjs", 'vi.mock("@/lib/oldThing.cjs");'],
+    ["lib/oldThing/index.ts", 'import "../lib/oldThing";'],
+    ["lib/oldThing/index.tsx", 'import "@/lib/oldThing";'],
+    ["lib/oldThing/index.mjs", 'import "../lib/oldThing";'],
+    ["lib/oldThing/index.js", 'import "@/lib/oldThing";'],
+    ["__tests__/helpers/postgres.ts", 'import "@/__tests__/helpers/postgres";'],
+  ])("selects surviving dependants of the absent deleted module %s through %s", (target, statement) => {
+    const suite = defined(POSTGRES_BACKED_SUITES[0]);
+    const sources: Record<string, string> = {
+      "components/Thing.tsx": statement,
+      "__tests__/oldThing.test.ts": statement,
+      "scripts/thing.mjs": statement,
+      [suite]: 'import "../components/Thing";',
+    };
+    const readText = (path: string) => defined(sources[path]);
+    const importers = importGraph(Object.keys(sources), readText, [target]);
+    const scoped = plan([{ path: target, status: "D" }], {
+      importers,
+      testFiles: Object.keys(sources),
+      readText,
+    });
+    expect(scoped.full).toBeNull();
+    expect(scoped.typecheck).toEqual(["__tests__/oldThing.test.ts", "components/Thing.tsx"]);
+    expect(scoped.tests).toEqual(["__tests__/oldThing.test.ts", "components/Thing.tsx", "scripts/thing.mjs"]);
+    expect(scoped.rls).toBe(true);
   });
 
-  it("can be forced with PUBMAX_VERIFY_FULL=1", () => {
-    expect(fullSuiteReason(modified("lib/x.ts"), new Map(), { PUBMAX_VERIFY_FULL: "1" })).toContain(
-      "PUBMAX_VERIFY_FULL",
-    );
-  });
-
-  it("plans npm run verify and nothing else on escalation", () => {
-    const full = plan(modified("package.json"));
-    expect(full.full).not.toBeNull();
+  it("runs npm run verify and nothing else when PUBMAX_VERIFY_FULL=1 is set", () => {
+    const full = plan(modified("lib/x.ts"), { env: { PUBMAX_VERIFY_FULL: "1" } });
+    expect(full.full).toContain("PUBMAX_VERIFY_FULL");
     expect(checkSteps(full).map((step) => [step.command, ...step.args].join(" "))).toEqual([
       "npm run verify",
     ]);

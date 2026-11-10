@@ -220,7 +220,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
   });
 
-  it("starts a real SDK retry after cancelling an unresolved client startup", async () => {
+  it("waits for a cancelled client startup before a real SDK retry", async () => {
     client.startSession
       .mockImplementationOnce((options) => {
         options.onStatusChange?.({ status: "connecting" });
@@ -242,6 +242,13 @@ describe("Pub Pal startup with the installed React SDK", () => {
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
     expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("Wine at The Lamb");
     await click("Start voice chat");
+    expect(client.startSession).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      defined(client.startSession.mock.calls[0])[0].onStatusChange?.({ status: "disconnected" });
+      rejectPendingStartup?.(new DOMException("Fixture startup stopped", "NotAllowedError"));
+      rejectPendingStartup = null;
+    });
+    await settle();
 
     expect(client.startSession).toHaveBeenCalledTimes(2);
     expect(container.textContent).toContain("Pal is listening");
@@ -275,13 +282,21 @@ describe("Pub Pal startup with the installed React SDK", () => {
       .toBe("Find a quiet pub");
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
     await click("Start voice chat");
+    expect(client.startSession).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      defined(client.startSession.mock.calls[0])[0].onStatusChange?.({ status: "disconnected" });
+      rejectPendingStartup?.(new DOMException("Fixture startup stopped", "NotAllowedError"));
+      rejectPendingStartup = null;
+    });
+    await settle();
+
     expect(client.startSession).toHaveBeenCalledTimes(2);
     expect(container.textContent).toContain("Pal is listening");
     expect(issuedGrants).toBe(2);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("keeps the retry connected when the cancelled SDK startup resolves late", async () => {
+  it("connects the waiting retry when the cancelled SDK startup resolves late", async () => {
     let resolveOld: ((conversation: FakeConversation) => void) | undefined;
     let oldOptions: FakeSessionOptions | undefined;
     client.startSession
@@ -298,7 +313,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
     await click("Start voice chat");
     await click("Cancel");
     await click("Start voice chat");
-    expect(client.startSession).toHaveBeenCalledTimes(2);
+    expect(client.startSession).toHaveBeenCalledTimes(1);
 
     const old = fakeConversation(defined(oldOptions), "conv_sdkfixture01");
     await act(async () => {
@@ -311,6 +326,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
     await settle();
 
     expect(old.endSession).toHaveBeenCalled();
+    expect(client.startSession).toHaveBeenCalledTimes(2);
     expect(container.textContent).toContain("Pal is listening");
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
     await click("End");

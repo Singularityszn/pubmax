@@ -42,6 +42,8 @@ import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
 import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
+import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
+import { usePalMapClientTools } from "@/components/pubpal/usePalMapClientTools";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -57,6 +59,7 @@ import {
 } from "@/lib/elevenlabsWorkletAssets";
 import {
   createPubPalVoiceStartController,
+  createPalVoiceMicrophoneHold,
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
@@ -64,6 +67,8 @@ import {
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
   palVoiceLineDropped,
+  requestPalVoiceMicrophone,
+  type PalVoiceMicrophoneHold,
 } from "@/lib/pubPalVoiceSession";
 import {
   appendPalVoiceLine,
@@ -92,6 +97,7 @@ import PalRecommendationMap from "@/components/pal/PalRecommendationMap";
 import PalCardPrice from "@/components/pal/PalCardPrice";
 import type { PalCard } from "@/lib/palChat";
 import { palVoiceToolAnswer } from "@/lib/palVoiceToolAnswer";
+import { applyPalMapCommand, groundPalMapResult, resetPalMap } from "@/lib/palMapCommands";
 import PalMemoryConfirmCard, { type PalMemoryCard } from "@/components/pal/PalMemoryConfirmCard";
 
 type VoiceTokenResponse = {
@@ -110,6 +116,7 @@ type VoiceSessionAttempt = {
   released: boolean;
   conversationId: string | null;
   sdkSessionStarted: boolean;
+  microphone: PalVoiceMicrophoneHold;
   connectedAt: number | null;
   capTimer: number | null;
   startupTimer: number | null;
@@ -184,8 +191,11 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return { voiceCards: cards, recommendationCards: voiceResults.search_venues?.cards ?? cards };
   }, [voiceResults]);
   const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
+  const pickSpeech = usePalPickSpeech();
+  const focusedPick = usePalFocusedCard(recommendationCards);
   const currentToolCalls = useRef(new Map<string, { id: string; order: number }>());
   const toolRequestOrder = useRef(0);
+  const groundedOrder = useRef(0);
   const lastUserEvent = useRef(0);
   const [mapPending, setMapPending] = useState(false);
   const [mapLabel, setMapLabel] = useState("Opening the map");
@@ -216,7 +226,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   // The person asked for the map in their own words. The call lives in the
   // shell (PalVoiceHost), so it carries on as the voice bar on /map.
-  const openMap = useCallback((href: string = PAL_VOICE_MAP_HREF, label = "Opening the map"): void => {
+  // `stillWanted` lets a newer request retire this one before the map opens.
+  const openMap = useCallback((href: string = PAL_VOICE_MAP_HREF, label = "Opening the map", stillWanted?: () => boolean): void => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
     setMapLabel(label);
     setMapPending(true);
@@ -225,6 +236,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     mapTimerRef.current = window.setTimeout(() => {
       mapTimerRef.current = null;
       setMapPending(false);
+      if (stillWanted && !stillWanted()) return;
       router.push(href as Route);
     }, PAL_VOICE_MAP_DELAY_MS);
   }, [router]);
@@ -243,6 +255,19 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     openMapRef.current = openMap;
     showMapRef.current = showMap;
   }, [openMap, showMap]);
+  usePalMapClientTools({
+    openMap,
+    onMap: () => onMapRef.current,
+    mapOpening: () => mapTimerRef.current !== null,
+    tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
+    // A tool call also gives way to anything the person did since it began:
+    // a new line, a pub they picked, or a page they moved to (stayHere).
+    callLive: () => {
+      const attempt = activeAttemptRef.current;
+      const navigation = nextStopRequestRef.current;
+      return attempt ? () => ownsAttempt(attempt) && nextStopRequestRef.current === navigation : null;
+    },
+  });
 
   // "Next stop" during a planned night that is on: the map opens on the stop
   // after the one the person reached (their own Night Mode cursor). With no
@@ -322,8 +347,15 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   }, []);
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
+    if (activeAttemptRef.current === attempt) {
+      resetPalMap();
+      currentToolCalls.current.clear();
+      // A map the call was still opening stays closed once the call ends.
+      stayHere();
+    }
     clearStartupTimer(attempt);
     attempt.requestAbort.abort();
+    attempt.microphone.release();
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
       attempt.voiceEndReported = true;
       trackEvent("voice_ended", { reason: attempt.voiceEndReason ?? "disconnect" });
@@ -334,7 +366,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (!attempt.releaseRequired) return;
     attempt.released = true;
     void releaseVoiceSession(attempt.conversationId);
-  }, [clearCapTimer, clearStartupTimer]);
+  }, [clearCapTimer, clearStartupTimer, stayHere]);
 
   useEffect(() => {
     disposedRef.current = false;
@@ -390,7 +422,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (attempt) void stop(attempt);
   }, [stop]);
 
-  // See docs/PUB_PAL_SETUP.md#voice-interruptions for the SDK startup limit.
+  // See docs/PUB_PAL_SETUP.md#voice-interruptions for leaving during SDK startup.
   usePageLeft(useCallback((): void => {
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
@@ -401,6 +433,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const start = async () => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
+    resetPalMap();
     currentToolCalls.current.clear();
     lastUserEvent.current = 0;
     setVoiceResults({});
@@ -411,6 +444,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       released: false,
       conversationId: null,
       sdkSessionStarted: false,
+      microphone: createPalVoiceMicrophoneHold(),
       connectedAt: null,
       capTimer: null,
       startupTimer: null,
@@ -438,7 +472,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new PubPalVoiceStartError("Can't reach your microphone. Type instead.");
         }
-        return navigator.mediaDevices.getUserMedia({ audio: true });
+        return requestPalVoiceMicrophone({ audio: true });
       },
       issueGrant: async () => {
         const response = await authedActionFetch("/api/pub-pal/voice-token", {
@@ -455,8 +489,14 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         return { ...body, signedUrl: body.signedUrl };
       },
-      connect: (grant) => {
+      connect: async (grant) => {
         if (!ownsAttempt(attempt)) {
+          void finalizeSession(attempt);
+          return;
+        }
+        await attempt.microphone.begin();
+        if (!ownsAttempt(attempt)) {
+          attempt.microphone.reportStartupFinished();
           void finalizeSession(attempt);
           return;
         }
@@ -472,6 +512,10 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           useWakeLock: true,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
+          onStatusChange: ({ status: next }) => {
+            if (next !== "connected" && next !== "disconnected") return;
+            attempt.microphone.reportStartupFinished();
+          },
           onMessage: ({ role, message, event_id }) => {
             if (!ownsAttempt(attempt)) return;
             const content = message.trim();
@@ -484,6 +528,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             if (typeof event_id === "number" && event_id < lastUserEvent.current) return;
             setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", content)));
             if (typeof event_id === "number") lastUserEvent.current = event_id;
+            pickSpeech.stop();
             setTentative("");
             setAwaitingPal(true);
             nextStopRequestRef.current += 1;
@@ -511,6 +556,12 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             const heard = tentativeUserTranscriptFrom(event);
             if (heard !== null) setTentative(heard);
           },
+          onAudioAlignmentPlayback: (event) => {
+            if (ownsAttempt(attempt)) pickSpeech.play(event);
+          },
+          onInterruption: () => {
+            if (ownsAttempt(attempt)) pickSpeech.stop();
+          },
           onAgentToolRequest: (event) => {
             if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current) return;
             currentToolCalls.current.set(event.tool_name, { id: event.tool_call_id, order: ++toolRequestOrder.current });
@@ -519,9 +570,17 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             const request = currentToolCalls.current.get(event.tool_name);
             if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current
               || request?.id !== event.tool_call_id) return;
+            const receivedAt = performance.now();
             const answer = palVoiceToolAnswer(event);
             if (answer) {
               const resultKey = answer.tool === "cheapest_pint_near" ? "search_venues" : answer.tool;
+              if (resultKey === "search_venues" && request.order > groundedOrder.current) {
+                // Pins come from this grounded result only (lib/palMapCommands.ts).
+                groundedOrder.current = request.order;
+                performance.mark("pubmax:pal-picks-grounded", { startTime: receivedAt });
+                groundPalMapResult(answer.cards.map((card) => card.venueId));
+                applyPalMapCommand({ kind: "showPicks", picks: answer.picks });
+              }
               if (event.tool_name !== "propose_memory") setVoiceResults((current) =>
                 (current[resultKey]?.order ?? -1) > request.order ? current : {
                   ...current,
@@ -689,7 +748,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   if (!panel) {
     return (
       <PalVoiceBar palName={palName} appearance={appearance} genome={genome} lines={lines}
-        error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
+        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
         onEnd={stopCurrentAttempt} onCarryOn={() => { void start(); }}
         onClose={() => { setEndedOutOfSight(false); setError(null); }} />
     );

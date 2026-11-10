@@ -15,11 +15,10 @@ export function usePresence(venue: Venue) {
   const currentUserId = user?.id ?? null;
   // "I'm here tonight" presence (PRD §1.5 / §5.1 — the tonight loop). Opt-in: it
   // only ever fires from a deliberate tap of this button — NO auto-tracking, NO
-  // GPS. Identity is the viewer's self-asserted handle (localStorage
-  // `pubmax_handle`, the same one the composer uses); with none set we point them
-  // to claim one rather than posting anonymously. Local, per-venue state only —
-  // setState fires from the click handler (never an effect), plus the
-  // React-recommended "reset on prop change during render" below (no effect).
+  // GPS. The button reads localStorage.pubmax_handle and asks for a handle when
+  // none is set. app/api/presence/route.ts owns identity and permission checks.
+  // State is local to this venue. setState runs in the click handler and the
+  // React "reset on prop change during render" pattern below.
   const [presenceState, setPresenceState] = useState<PresenceState>("idle");
   // The panel isn't remounted when the selected pub changes (PubMap keeps one
   // VenueInspector), so a stale "You're here" would linger on the next venue.

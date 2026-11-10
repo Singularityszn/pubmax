@@ -608,7 +608,7 @@ describe("composer template + lifecycle helpers", () => {
 
   it("maps 422 and 409 lock responses to honest recovery copy", () => {
     expect(composerLockErrorFromResponse(422)).toMatch(/refresh|regenerate/i);
-    expect(composerLockErrorFromResponse(409)).toMatch(/already locked/i);
+    expect(composerLockErrorFromResponse(409)).toBe(composerLockErrorFromResponse(422));
     expect(composerLockErrorFromResponse(500)).toBeNull();
   });
 

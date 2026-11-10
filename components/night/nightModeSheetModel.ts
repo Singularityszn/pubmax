@@ -1,5 +1,5 @@
 import { clampStopIndex } from "@/lib/activePlan";
-import type { CrewMemberDTO } from "@/lib/crew";
+import { crewPresence, type CrewMemberDTO } from "@/lib/crew";
 import { haversineKm } from "@/lib/haversine";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import type { PlanState, PlanStopDTO } from "@/lib/plan";
@@ -42,11 +42,6 @@ export type NightModeSheetRouteModel = {
   currentTrain: LastTrainSlim | null;
   arrived: CrewMemberDTO[];
 };
-
-const ARRIVED: ReadonlySet<CrewMemberDTO["status"]> = new Set([
-  "here",
-  "on_the_way",
-]);
 
 export function rankKeepGoingExtensions(
   coords: readonly VenueCoord[],
@@ -120,9 +115,10 @@ export function deriveNightModeSheetRouteModel({
     currentCoord && lastTrain?.venueId === currentCoord.id
       ? lastTrain.data
       : null;
-  const arrived = (plan?.crew ?? []).filter((member) =>
-    ARRIVED.has(member.status),
-  );
+  const arrived = (plan?.crew ?? []).filter((member) => {
+    const presence = crewPresence(member.status);
+    return presence.arrived || presence.arriving;
+  });
 
   return {
     stops,
