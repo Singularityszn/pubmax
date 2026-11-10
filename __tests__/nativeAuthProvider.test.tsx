@@ -74,7 +74,7 @@ vi.mock("@/lib/identityClient", () => ({
   resolveCanonicalIdentity: async () => null,
 }));
 vi.mock("@/lib/authSessionResumeClient", () => ({
-  fetchResumeHint: async () => ({ status: "absent" }),
+  fetchResumeHint: async () => ({ status: h.bootstrapOffline ? "unavailable" : "absent" }),
   clearPersistedSession: h.clearPersistedSession, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));

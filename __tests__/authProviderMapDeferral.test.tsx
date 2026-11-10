@@ -51,6 +51,7 @@ vi.mock("@/lib/authProviderAvailability", () => ({
 
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { beginAuthAttempt } from "@/lib/authRedirect";
 import SignInButton from "@/components/auth/SignInButton";
 
 function Probe() {
@@ -180,6 +181,47 @@ describe("a signed-out reader opening the map", () => {
 
     await vi.waitFor(() => expect(container.textContent).toBe("settled:unavailable"));
     expect(h.loads).toBe(1);
+  });
+
+  it.each([
+    ["online", false], ["visible", false], ["focus", false],
+    ["online", true], ["visible", true], ["focus", true],
+  ] as const)("handles %s recovery before pins with a pending sign-in of %s", async (event, pending) => {
+    vi.mocked(fetch).mockImplementation(async () => new Response("{}", { status: 503 }));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const wake = async () => {
+      await act(async () => {
+        if (event === "visible") document.dispatchEvent(new Event("visibilitychange"));
+        else window.dispatchEvent(new Event(event));
+        await vi.runAllTimersAsync();
+      });
+    };
+    try {
+      await mount();
+      expect(container.textContent).toBe("loading:unresolved");
+      expect(h.loads).toBe(0);
+      if (pending) {
+        expect(beginAuthAttempt(window.location.href, undefined, {
+          persistentStorage: localStorage, tabStorage: sessionStorage, cryptoProvider: crypto,
+        }).ok).toBe(true);
+      }
+      await wake();
+      if (pending) {
+        // A pending sign-in permits recovery to load the SDK before pins.
+        expect(h.loads).toBe(1);
+        expect(container.textContent).toBe("settled:unavailable");
+        vi.mocked(fetch).mockImplementation(async () => Response.json({ hint: null }));
+        await wake();
+        expect(container.textContent).toBe("settled:signed-out");
+      } else {
+        expect(h.loads).toBe(0);
+        expect(container.textContent).toBe("loading:unresolved");
+      }
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it.each(["/", "/tonight", "/mapping"])("settles unresolved auth after leaving the map for %s", async (pathname) => {

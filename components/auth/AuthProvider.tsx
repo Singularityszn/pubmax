@@ -1054,6 +1054,7 @@ export function AuthProvider({
 
     const retryBootstrap = () => {
       if (!active) return;
+      if (hasPendingAuthAttempt(browserLocalStorage())) clientTurn.releaseForSignIn();
       if (clientLoadInFlight || sessionRestoreInFlight.current) {
         bootstrapRetryPending = true;
         return;

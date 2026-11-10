@@ -26,6 +26,7 @@ export type AuthClientTurn = {
   /** True when this turn initially defers client loading. */
   waiting: boolean;
   updatePathname: (pathname: string) => void;
+  releaseForSignIn: () => void;
   /** Cancels future releases when the provider unmounts. */
   cancel: () => void;
 };
@@ -50,7 +51,7 @@ export function authClientTurn(
     input.pinsVisible ||
     !MAP_PATH.test(win.location.pathname)
   ) {
-    return { ready: Promise.resolve(), waiting: false, updatePathname: () => {}, cancel: () => {} };
+    return { ready: Promise.resolve(), waiting: false, updatePathname: () => {}, releaseForSignIn: () => {}, cancel: () => {} };
   }
   let release: () => void = () => {};
   let open = true;
@@ -80,6 +81,7 @@ export function authClientTurn(
   return {
     ready,
     waiting: true,
+    releaseForSignIn: go,
     updatePathname: (pathname) => {
       if (!MAP_PATH.test(pathname)) go();
     },
