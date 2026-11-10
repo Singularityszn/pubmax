@@ -1,3 +1,4 @@
+import "@/components/map/logIntentFallback.css";
 import { X } from "lucide-react";
 import { useState } from "react";
 
