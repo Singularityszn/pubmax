@@ -43,7 +43,7 @@ export type PalRecommendationPoint = {
   number: number;
 };
 
-/** Locate only this answer's pubs, by identity in the published index. */
+/** Locate only this answer's pubs, by identity in the supplied venue records. */
 export function palRecommendationPoints(
   cards: readonly PalCard[],
   venues: readonly Pick<SlimVenue, "id" | "lat" | "lng">[],
