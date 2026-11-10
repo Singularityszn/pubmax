@@ -67,7 +67,7 @@ schema change is required.
 
 The send captures `readProviderAccountSignal()` before reading photo bytes and passes that signal to both POST formats. An account change during the read cannot send the previous account's draft with the new account's credentials.
 
-The thread route forwards the key to `messagesStore.send` for JSON and multipart sends. A duplicate returns the committed message. For photos, removing the redundant upload is best-effort, so cleanup failure does not turn a committed replay into a failed send. Database deduplication requires migration `0149`. The store's compatibility fallback sends without duplicate protection when the key column is absent. Regression coverage lives in `__tests__/messageThreadRequests.test.tsx` and `__tests__/messageAttachmentsRoute.test.ts`.
+The thread route forwards the key to the `send` method in `lib/messagesStore.ts` for JSON and multipart sends. A duplicate returns the committed message. For photos, removing the redundant upload is best-effort, so cleanup failure does not turn a committed replay into a failed send. Database deduplication requires migration `0149`. The store's compatibility fallback sends without duplicate protection when the key column is absent. Regression coverage lives in `__tests__/messageThreadRequests.test.tsx` and `__tests__/messageAttachmentsRoute.test.ts`.
 
 <a id="the-voice-token-route-spends-a-deployment-wide-ceiling-after-an-account-s-minutes"></a>
 
