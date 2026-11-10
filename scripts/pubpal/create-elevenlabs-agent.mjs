@@ -311,8 +311,8 @@ async function mainToolIds(apiKey, currentAgent, liveTools, baseUrl, secret) {
 }
 
 /**
- * A branch run writes only the branch and tools no other branch uses. Main's
- * tools and the workspace secret stay as they are (scripts/pubpal/branch-tools.mjs).
+ * A branch run preserves Main's tools and the workspace secret. Tools absent
+ * from Main may still be shared with other branches (scripts/pubpal/branch-tools.mjs).
  */
 async function branchToolIds(apiKey, agentId, currentAgent, liveTools, baseUrl, branchId) {
   if (!currentAgent) fail("--branch-id needs an existing agent.");

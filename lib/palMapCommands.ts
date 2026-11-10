@@ -24,7 +24,7 @@ export type PalMapState = {
   /** Rises when picks are published or cleared, so readers can identify a new answer. */
   sequence: number;
   picks: readonly PalMapPick[];
-  /** The pick the Pal is naming. A change here keeps `sequence`, so the map does not reframe. */
+  /** The focused pick. A focus change reframes only when the command requests `move`. */
   focused: number | null;
   /** The newest asked-for move. It shares the counter with `sequence`, so the later of the two wins. */
   view: PalMapView | null;
