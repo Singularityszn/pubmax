@@ -1436,6 +1436,97 @@ function lockButton(): HTMLButtonElement {
     .find((button) => button.textContent === "Lock it in")!;
 }
 
+// One Lock at a time owns the composer. While it runs the route cannot change
+// under it, and a Lock the server refuses for its route or key leaves a route
+// that must be refreshed, never one that sends the same refusal again.
+describe("Lock owns the composer while it runs", () => {
+  const creations = () => fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans");
+  const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+  const displayedStops = () => [...document.querySelectorAll(".planStop__name")].map((node) => node.textContent);
+  const storedRoute = () => JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>("button")]
+    .find((candidate) => candidate.textContent?.includes(text));
+  function pendingCreation(generated: ReturnType<typeof generatedProofFixture>) {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/plans") return pending;
+      if (init?.method === "PATCH") return Response.json({});
+      return Response.json(String(input).includes("/api/plans/generate") ? generated : []);
+    });
+    return finish;
+  }
+  const created = (stops: { venueId: string; venueName: string }[]) => Response.json({
+    created: true, grounded: true, memberToken: "lock-host",
+    plan: { plan: { id: "lock-plan", status: "draft" }, stops },
+  });
+  async function lockableRoute() {
+    pinClock();
+    const generated = await generateProofRoute(3);
+    await vi.waitFor(() => expect(displayedStops()).toEqual(["Pub A", "Pub B", "Pub C"]));
+    return generated;
+  }
+
+  it("freezes stop edits, and the Lock creates the route on screen", async () => {
+    const generated = await lockableRoute();
+    const finish = pendingCreation(generated);
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+
+    const remove = document.querySelector<HTMLButtonElement>("[aria-label='Remove stop 2']")!;
+    expect(remove.closest("fieldset")?.disabled).toBe(true);
+    await act(async () => remove.click());
+    await settle();
+    expect(displayedStops()).toEqual(["Pub A", "Pub B", "Pub C"]);
+    expect(storedRoute()).toMatchObject({ routeStale: false, createOperationKey: "proof-operation" });
+
+    await act(async () => finish(created(generated.stops)));
+    await settle();
+    const sent = JSON.parse(String(creations()[0]![1]?.body));
+    expect(sent.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(["venue-a", "venue-b", "venue-c"]);
+  });
+
+  it("refuses a new route while a Lock runs", async () => {
+    const generated = await lockableRoute();
+    const finish = pendingCreation(generated);
+    fetchMock.mockClear();
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+    expect(button("Tune details")?.disabled).toBe(true);
+    await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
+    expect(creations()).toHaveLength(1);
+    expect(generations()).toHaveLength(0);
+    await act(async () => finish(created(generated.stops)));
+    await settle();
+  });
+
+  it.each([
+    { status: 422, body: { error: { code: "PLAN_ANCHOR_REQUIRED", message: "Include the accepted pub for this route." } } },
+    { status: 409, body: { error: { code: "PLAN_IDEMPOTENCY_CONFLICT", message: "That request key was already used for a different Plan." } } },
+  ])("a $status Lock leaves a route to refresh, and the refreshed route locks with its own key", async ({ status, body }) => {
+    const generated = await lockableRoute();
+    fetchMock.mockImplementation(async (input) => (String(input) === "/api/plans"
+      ? Response.json(body, { status })
+      : Response.json(String(input).includes("/api/plans/generate") ? generated : [])));
+    fetchMock.mockClear();
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(document.querySelector("#plan-route-stale-title")).not.toBeNull());
+    expect(storedRoute()).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null });
+    await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
+    expect(creations()).toHaveLength(1);
+
+    const fresh = { ...generated, operationKey: "fresh-operation", groundingProof: `${generated.groundingProof}.fresh` };
+    fetchMock.mockImplementation(async (input) => (String(input) === "/api/plans"
+      ? created(fresh.stops)
+      : Response.json(String(input).includes("/api/plans/generate") ? fresh : [])));
+    await act(async () => button("Regenerate route")!.click());
+    await vi.waitFor(() => expect(document.querySelector("#plan-route-stale-title")).toBeNull());
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(2));
+    expect(new Headers(creations()[1]![1]?.headers).get("idempotency-key")).toBe("fresh-operation");
+  });
+});
+
 // The accepted preview contract separates saved candidates from permission to lock.
 // A later exact-time edit must preserve the candidates' date without a false warning.
 it.each(["saved", "rejected", "discarded"] as const)(
