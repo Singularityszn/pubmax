@@ -30,6 +30,7 @@ import {
 	type NightArea,
 } from "@/lib/nightAreas";
 import { planDietaryNeeds, type NightContext } from "@/lib/nightPlanning";
+import { nightAreaBoundaryContains } from "@/lib/nightAreaGeometry";
 import {
 	canAffectRoute,
 	claimsForEntity,
@@ -581,6 +582,7 @@ export async function preparePlanGeneration(
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm
+			&& nightAreaBoundaryContains(area.boundary, [venue.lng, venue.lat])
 			&& venue.promoted !== true
 			// A plan may be shared with people who have never met: never send
 			// them to a members', students' or staff bar. Swap options and the

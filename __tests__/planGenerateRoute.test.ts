@@ -39,6 +39,53 @@ import type { LngLat } from "@/lib/walkRoute";
 describe("POST /api/plans/generate", () => {
   installPlanGenerateRouteHooks();
 
+  it.each([
+    { query: "Cheap pints in Soho for 3" },
+    { context: { nightArea: "piccadilly-soho", groupSize: 3 } },
+    { intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+  ])("keeps Soho stops, alternatives and extra stops inside its four boundary streets: %j", async (input) => {
+    const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+    const venues = await actual.loadConciergeVenues("london");
+    const sohoNames = ["The Dog & Duck", "Coach & Horses", "The Crown & Two Chairmen", "The Nellie Dean", "Shakespeares Head (Soho)"];
+    const soho = venues.filter(({ name }) => sohoNames.includes(name));
+    expect(soho).toHaveLength(5);
+    const hercules = venues.find(({ name }) => name === "Hercules Pillars")!;
+    expect(hercules).toBeDefined();
+    const neighbours = [
+      hercules,
+      generatedVenue("north", { lat: 51.518, lng: -0.134, cheapestPrice: 1 }),
+      generatedVenue("south", { lat: 51.511, lng: -0.1305, cheapestPrice: 1 }),
+      generatedVenue("west", { lat: 51.513, lng: -0.144, cheapestPrice: 1 }),
+    ];
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho, ...neighbours]);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops).toHaveLength(3);
+    const extensions = body.endingRecommendations.find((ending: { kind: string }) => ending.kind === "keep_going").options as { id: string }[];
+    const offeredIds = [
+      ...body.stops,
+      ...body.stops.flatMap((stop: { alternatives: { venueId: string }[] }) => stop.alternatives),
+    ].map((venue: { venueId: string }) => venue.venueId).concat(extensions.map(({ id }) => id));
+    expect(body.stops.flatMap((stop: { alternatives: unknown[] }) => stop.alternatives).length).toBeGreaterThan(0);
+    if (!Object.hasOwn(input, "intake")) expect(extensions.length).toBeGreaterThan(0);
+    for (const id of offeredIds) expect(soho.map(({ id }) => id)).toContain(id);
+
+    if ("query" in input) {
+      loadConciergeVenuesMock.mockResolvedValueOnce([...soho.slice(0, 2), ...neighbours]);
+      const shortfall = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      expect(shortfall.status).toBe(422);
+      expect(await shortfall.json()).toMatchObject({
+        code: "GROUNDED_VENUES_INSUFFICIENT",
+        details: { availableVenueCount: 2, requestedStopCount: 3 },
+      });
+    }
+  });
+
   it.each(drinkRatePhrases(5).flatMap(drinkRateInputs))(
     "enforces every accepted drink price through preparation and selection: %j", async ({ total, ...input }) => {
       const now = PLAN_GENERATION_TEST_NOW;
