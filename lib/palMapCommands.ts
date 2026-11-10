@@ -11,21 +11,28 @@ export type PalMapPick = PalRecommendationPoint;
 
 export type PalMapCommand =
   | { kind: "showPicks"; picks: readonly PalMapPick[] }
+  | { kind: "focusPick"; number: number | null }
   | { kind: "clear" };
 
 export type PalMapState = {
-  /** Rises on every accepted command, so a reader can tell a new answer from a repaint. */
+  /** Rises when picks are published or cleared, so readers can identify a new answer. */
   sequence: number;
   picks: readonly PalMapPick[];
+  /** The pick the Pal is naming. A change here keeps `sequence`, so the map does not reframe. */
+  focused: number | null;
 };
 
 let grounded: ReadonlySet<string> = new Set();
-let state: PalMapState = { sequence: 0, picks: [] };
+let state: PalMapState = { sequence: 0, picks: [], focused: null };
 const listeners = new Set<() => void>();
 
-function publish(picks: readonly PalMapPick[]): void {
-  state = { sequence: state.sequence + 1, picks };
+function notify(next: PalMapState): void {
+  state = next;
   for (const listener of listeners) listener();
+}
+
+function publish(picks: readonly PalMapPick[]): void {
+  notify({ sequence: state.sequence + 1, picks, focused: null });
 }
 
 export function readPalMapState(): PalMapState {
@@ -50,6 +57,11 @@ export function groundPalMapResult(venueIds: readonly string[]): void {
 export function applyPalMapCommand(command: PalMapCommand): boolean {
   if (command.kind === "clear") {
     if (state.picks.length) publish([]);
+    return true;
+  }
+  if (command.kind === "focusPick") {
+    if (command.number !== null && !state.picks.some((pick) => pick.number === command.number)) return false;
+    if (command.number !== null || command.number !== state.focused) notify({ ...state, focused: command.number });
     return true;
   }
   const picks = command.picks.slice(0, PAL_MAP_MAX_PICKS);

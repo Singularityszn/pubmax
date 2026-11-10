@@ -4,7 +4,9 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { usePathname } from "next/navigation";
 import { Mic, MicOff, X } from "lucide-react";
 
+import PalCardPrice from "@/components/pal/PalCardPrice";
 import { PubPalAvatar } from "@/components/pubpal/PubPalAvatar";
+import type { PalCard } from "@/lib/palChat";
 import type { PubPalAppearance } from "@/lib/pubPal";
 import type { PalGenome } from "@/lib/palGenome";
 import type { PalVoiceLine } from "@/lib/palVoiceTranscript";
@@ -40,6 +42,7 @@ export default function PalVoiceBar({
   appearance,
   genome,
   lines,
+  pick = null,
   error,
   live,
   speaking,
@@ -53,6 +56,8 @@ export default function PalVoiceBar({
   appearance?: PubPalAppearance;
   genome?: PalGenome;
   lines: PalVoiceLine[];
+  /** The map pick the Pal is naming, with its price and where the price came from. */
+  pick?: { number: number; card: PalCard } | null;
   error: string | null;
   live: boolean;
   speaking: boolean;
@@ -86,6 +91,16 @@ export default function PalVoiceBar({
   const caption = error ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
   return (
     <section ref={barRef} className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-focus-trap-exempt="" data-live={live ? "true" : undefined}>
+      {pick ? (
+        <div className="palVoiceBarPick">
+          <span className="palVoiceBarPickNumber" aria-hidden="true">{pick.number}</span>
+          <p className="palVoiceBarPickTitle">{pick.card.title}</p>
+          <PalCardPrice card={pick.card} className="palVoiceBarPickPrice" />
+          {pick.card.provenance.url
+            ? <a className="palVoiceBarPickSource" href={pick.card.provenance.url} target="_blank" rel="noreferrer noopener">{pick.card.provenance.label}</a>
+            : <p className="palVoiceBarPickSource">{pick.card.provenance.label}</p>}
+        </div>
+      ) : null}
       {appearance ? <PubPalAvatar appearance={appearance} name={palName} compact genome={genome} /> : null}
       <div className="palVoiceBarText">
         <p role="status">{status}</p>

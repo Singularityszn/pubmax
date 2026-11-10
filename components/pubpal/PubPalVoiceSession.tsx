@@ -42,6 +42,7 @@ import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
 import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
+import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -189,6 +190,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return { voiceCards: cards, recommendationCards: voiceResults.search_venues?.cards ?? cards };
   }, [voiceResults]);
   const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
+  const pickSpeech = usePalPickSpeech();
+  const focusedPick = usePalFocusedCard(recommendationCards);
   const currentToolCalls = useRef(new Map<string, { id: string; order: number }>());
   const toolRequestOrder = useRef(0);
   const groundedOrder = useRef(0);
@@ -507,6 +510,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             if (typeof event_id === "number" && event_id < lastUserEvent.current) return;
             setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", content)));
             if (typeof event_id === "number") lastUserEvent.current = event_id;
+            pickSpeech.stop();
             setTentative("");
             setAwaitingPal(true);
             nextStopRequestRef.current += 1;
@@ -533,6 +537,12 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             if (!ownsAttempt(attempt)) return;
             const heard = tentativeUserTranscriptFrom(event);
             if (heard !== null) setTentative(heard);
+          },
+          onAudioAlignmentPlayback: (event) => {
+            if (ownsAttempt(attempt)) pickSpeech.play(event);
+          },
+          onInterruption: () => {
+            if (ownsAttempt(attempt)) pickSpeech.stop();
           },
           onAgentToolRequest: (event) => {
             if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current) return;
@@ -720,7 +730,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   if (!panel) {
     return (
       <PalVoiceBar palName={palName} appearance={appearance} genome={genome} lines={lines}
-        error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
+        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
         onEnd={stopCurrentAttempt} onCarryOn={() => { void start(); }}
         onClose={() => { setEndedOutOfSight(false); setError(null); }} />
     );

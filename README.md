@@ -177,6 +177,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Grounded voice results also show numbered picks on the main map and dim the other pins. Tap a pick to open its pub. The map frames the picks unless you hold or move it. [ADR 0014](docs/adr/0014-night-os-ask-agent.md#decision) defines voice view moves and actions that still need confirmation.
 
+  As the Pal names a pick during audio playback, its marker pulses and the map voice bar shows its returned price card. The card keeps the recorded price, source and date. Each repeated mention restarts the pulse without reframing the map. Talking over the Pal stops the pulses and clears the card. With reduced motion, a ring replaces the pulse.
+
   The [voice interruption guide](docs/PUB_PAL_SETUP.md#voice-interruptions) explains navigation between `/pal` and `/map`, map voice controls, screen lock, background calls, **Carry on**, and SDK startup.
 
   Memory cards in text and voice need your confirmation. Approved past-night reports can retain your stated visits, drinks and spending. Recorded pint prices never establish your bill. Correct or delete memories on your Pal page.

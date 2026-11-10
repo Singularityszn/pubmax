@@ -237,8 +237,11 @@ Voice uses the same opening builder in its first-message override.
    as the answer. `npm run pubpal:agent -- --check` reports whether the live
    agent matches this config.
    Voice also needs `agent_tool_response_full_payload` to show the actual
-   returned pub cards, their fitted map and memory-confirmation cards. The
-   browser uses the tool result, never pub names or prices parsed from speech.
+   returned pub cards, their fitted map and memory-confirmation cards.
+   The browser uses the tool result for pub identities, coordinates and prices.
+   `onAudioAlignmentPlayback` supplies character timing when each audio chunk starts and skips interrupted chunks.
+   `lib/palPickSpeech.ts` matches that played text against existing pick names, without creating new picks or price facts.
+   The [Pub Pal feature guide](../README.md#features) owns the visible pick and price-card behaviour.
    For `search_venues` and `cheapest_pint_near`, the webhook forwards `result.data`.
    Returned pub coordinates use `venues` records with `id`, `lat` and `lng`.
    This includes the named-pub opening-hours variant of `search_venues`, even when current hours are unknown.
