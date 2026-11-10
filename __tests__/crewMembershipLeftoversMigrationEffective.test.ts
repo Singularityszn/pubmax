@@ -125,13 +125,23 @@ describe.skipIf(skipReason !== null)("0232 crew membership closes its leftovers"
     expect(bobSeat()).toBe("in:false");
   });
 
-  it("rollback restores the old answers", () => {
-    db().applyFile(join(directory, rollback));
-    const invitation = invite();
+  it("rollback keeps ended seats until fresh acceptance and restores the old answers", () => {
     activate();
     markHere();
-    expect(invitationState(invitation)).toBe("pending");
+    expect(leave()).toMatchObject({ ok: true, code: "left" });
+    expect(bobSeat()).toBe("here:true");
+    db().applyFile(join(directory, rollback));
+    expect(bobSeat()).toBe("here:true");
+    const invitation = invite();
     expect(accept(invitation)).toMatchObject({ ok: true, code: "accepted" });
+    expect(bobSeat()).toBe("in:false");
+
+    reset();
+    const stale = invite();
+    activate();
+    markHere();
+    expect(invitationState(stale)).toBe("pending");
+    expect(accept(stale)).toMatchObject({ ok: true, code: "accepted" });
     expect(bobSeat()).toBe("in:false");
   });
 });

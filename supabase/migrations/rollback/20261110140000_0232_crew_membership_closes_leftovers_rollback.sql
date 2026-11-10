@@ -1,6 +1,7 @@
 -- Rollback 0232: crew membership changes stop closing invitations and seats.
--- It drops the trigger and restores the 0208 body of _activate_social_crew_member.
--- It does not reopen the invitations or seats that 0232 or its trigger closed.
+-- It drops the trigger and restores the 0208 activation body, except authorised
+-- reactivation still clears seat revocation when membership becomes active.
+-- Rollback alone does not reopen invitations or seats closed by 0232.
 begin;
 
 drop trigger if exists social_crew_members_close_leftovers on public.social_crew_members;
@@ -64,6 +65,7 @@ begin
     set social_account_id=p_account,
         user_id=coalesce(user_id,v_user),
         status='in',
+        membership_revoked_at=case when v_member.state<>'active' then null else membership_revoked_at end,
         can_collaborate=true,
         updated_at=now()
     where id=v_plan_member.id;
