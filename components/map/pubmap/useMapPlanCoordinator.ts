@@ -34,6 +34,11 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
   const [mode, setMode] = useState<CrawlMode>(initial.mode);
   const [builtIds, setBuiltIds] = useState<string[]>(initial.builtIds);
   const [routeMapped, setRouteMapped] = useState(initial.routeMapped);
+  const [routeRequestToken, setRouteRequestToken] = useState(0);
+  const mapRoute = useCallback(() => {
+    setRouteMapped(true);
+    setRouteRequestToken((token) => token + 1);
+  }, []);
   const [planningOpen, setPlanningOpen] = useState(initial.planningOpen);
   const [plannedNightArea, setPlannedNightArea] = useState<NightAreaSlug | null>(initial.nightArea);
   const [walkRequest, setWalkRequest] = useState<WalkRequest>({ count: 0, selectedVenueId: "" });
@@ -81,9 +86,9 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
   const activateGeneratedPlan = useCallback((nightArea: NightAreaSlug | null, venueIds: string[]) => {
     setMode("build");
     setBuiltIds(venueIds);
-    setRouteMapped(true);
+    mapRoute();
     setPlannedNightArea(nightArea);
-  }, []);
+  }, [mapRoute]);
 
   return {
     mode,
@@ -92,6 +97,8 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
     setBuiltIds,
     routeMapped,
     setRouteMapped,
+    mapRoute,
+    routeRequestToken,
     planningOpen,
     setPlanningOpen,
     plannedNightArea,

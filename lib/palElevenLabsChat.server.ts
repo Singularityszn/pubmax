@@ -120,11 +120,24 @@ type AgentResponseEvent = {
   text_response_part?: { type?: string; text?: string };
   agent_tool_request?: { tool_call_id?: string; tool_name?: string };
   agent_tool_response?: { tool_call_id?: string; tool_name?: string };
+  client_tool_call?: { tool_call_id?: string; tool_name?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
     conversation_id?: string;
   };
 };
+
+/** Typed chat has no map, so a voice-only map tool call gets this error back. */
+const NO_MAP_IN_TYPED_CHAT = "The map only works in a voice call. Answer in words.";
+
+function typedChatMapToolCallId(raw: string): string | null {
+  try {
+    const payload = JSON.parse(raw) as AgentResponseEvent;
+    return payload.type === "client_tool_call" ? payload.client_tool_call?.tool_call_id ?? "" : null;
+  } catch {
+    return null;
+  }
+}
 
 export type PalElevenLabsChatInput = {
   query: string;
@@ -545,6 +558,7 @@ export async function runPalElevenLabsChatTurn(
                 "agent_response_complete",
                 "agent_tool_request",
                 "agent_tool_response",
+                "client_tool_call",
                 "conversation_initiation_metadata",
                 "ping",
               ],
@@ -665,6 +679,15 @@ export async function runPalElevenLabsChatTurn(
         if (!eligible) return;
         armSettle(TURN_END_SETTLE_MS);
       }
+    });
+
+    // The map client tools are voice only (lib/palMapClientTools.mjs). The
+    // shared agent still has them, so a typed turn hears that they failed.
+    ws.addEventListener("message", (event) => {
+      if (settled) return;
+      const toolCallId = typedChatMapToolCallId(String(event.data));
+      if (toolCallId === null) return;
+      ws.send(JSON.stringify({ type: "client_tool_result", tool_call_id: toolCallId, result: NO_MAP_IN_TYPED_CHAT, is_error: true }));
     });
 
     ws.addEventListener("error", () => {

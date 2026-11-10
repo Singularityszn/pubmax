@@ -95,6 +95,7 @@ describe("landmark interactions", () => {
     expect(cinematic).toHaveBeenCalledWith(
       expect.objectContaining({ center: bigBen.coordinates, zoom: 13 }),
       "landmark",
+      "user",
     );
   });
 });

@@ -8,6 +8,8 @@ vi.mock("@/lib/venueDetailIndex", () => ({ lookupVenueDetail: io.detail }));
 vi.mock("@/lib/planRouteEvidence.server", () => ({ planOpeningSchedulesForVenues: io.schedules }));
 
 import { runAsk } from "@/lib/ask/runAsk";
+import { runAskTool } from "@/lib/ask/tools";
+import { palVoiceToolAnswer } from "@/lib/palVoiceToolAnswer";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { GENERIC_MAP_COMMANDS, priceMapMetadataRequests, serviceBesideMap } from "./fixtures/askMapCommands";
 
@@ -31,6 +33,24 @@ afterEach(() => {
 });
 
 describe("recorded opening-hours sources", () => {
+  it.each([true, false])("plots the named pub from the hours payload when hours are known: %s", async (known) => {
+    if (known) io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });
+    const result = await runAskTool("search_venues", {}, {
+      cityId: "london", query: "What are the opening hours of Example Arms?", now, skipModel: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.data).toMatchObject({
+      venueId: "venue-example", hours: known ? ["Thursday 12:00 to 23:00"] : null,
+    });
+    const answer = palVoiceToolAnswer({
+      tool_name: "search_venues", is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ result }),
+    });
+    expect(answer?.picks).toEqual([
+      { venueId: "venue-example", name: "Example Arms", lat: 51.5, lng: -0.1, number: 1 },
+    ]);
+  });
+
   it.each(priceMapMetadataRequests("What are the opening hours at The Harp?"))(
     "keeps the recorded hours subject beside map price metadata: %s", async (query) => {
       io.venues.mockResolvedValue([{ id: "venue-harp", name: "The Harp", area: "Westminster", lat: 51.5, lng: -0.1 }]);

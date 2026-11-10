@@ -1,9 +1,8 @@
 // "Ask the pub for a table" (launch plan 1 Nov 2026, section 7 item 3).
 //
-//   POST { venueId, name, partySize, date, time, note?, contact: { kind, value } }
-//        -> 201 { outcome: "sent" }       emailed to the pub's verified operator
-//        -> 200 { outcome: "not_sent" }   PUBMAXX sent nothing; the sheet hands
-//                                         the person the pub's own address
+//   POST delivery and retry contract:
+//   docs/rules/lib-shared-seams-stores-http-freshness-brand.md
+//   #a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent
 //   GET  ?venueId=<id>
 //        -> 200 { status, requests }      the pub's verified operator alone
 //
@@ -35,7 +34,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { deliverTableRequest } from "@/lib/tableRequestDelivery.server";
-import { toOperatorTableRequest, validateTableRequest } from "@/lib/tableRequests";
+import { tableRequestKey, toOperatorTableRequest, validateTableRequest } from "@/lib/tableRequests";
 import { tableRequestsStore } from "@/lib/tableRequestsStore";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -154,12 +153,23 @@ export async function POST(request: Request): Promise<Response> {
   const venueKey = `table-request-venue:${pub.venueId}`;
   if (await isLimited(venueKey, venueKey, VENUE_HOURLY_LIMIT, HOUR_MS)) return rateLimited();
 
-  const delivery = await deliverTableRequest({ ...validation.fields, venueId: pub.venueId }, pub.name);
+  const delivery = await deliverTableRequest(
+    { ...validation.fields, venueId: pub.venueId },
+    pub.name,
+    undefined,
+    undefined,
+    tableRequestKey(body.requestKey),
+  );
   log("info", "table_request.answered", {
     route: "POST /api/table-requests",
     outcome: delivery.outcome,
     ...(delivery.outcome === "not_sent" ? { reason: delivery.reason } : {}),
   });
+  if (delivery.outcome === "retryable") {
+    return publicApiError("We could not confirm delivery. Try again.", "DELIVERY_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
   return delivery.outcome === "sent"
     ? jsonNoStore({ outcome: "sent" }, { status: 201 })
     : jsonNoStore({ outcome: "not_sent" }, { status: 200 });

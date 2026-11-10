@@ -143,6 +143,8 @@ export type MessageDTO = {
   read: boolean;
   flagged: boolean;
   attachment?: MessageAttachment;
+  /** Its sender took it back. The body is empty and nothing rides with it. */
+  unsent?: true;
 };
 
 // The inbox row: one per conversation, with the OTHER participant + a preview of
@@ -276,12 +278,24 @@ export function threadIdentityFromInboxRow(row: ConversationDTO): ThreadIdentity
 }
 
 /** The other participant's handle for the thread avatar on a direct or group row. */
-export function otherHandleFromThreadIdentity(
+function otherHandleFromThreadIdentity(
   identity: ThreadIdentity,
   viewer: string,
 ): string {
   const me = normalizeHandle(viewer);
   return identity.members.find((handle) => normalizeHandle(handle) !== me) ?? "";
+}
+
+export function otherHandleFromThreadRead(
+  identity: ThreadIdentity | null,
+  messages: ReadonlyArray<{ senderHandle: string }>,
+  viewer: string,
+): string {
+  if (identity) {
+    return identity.kind !== "group" ? otherHandleFromThreadIdentity(identity, viewer) : "";
+  }
+  const me = normalizeHandle(viewer);
+  return messages.find((message) => normalizeHandle(message.senderHandle) !== me)?.senderHandle ?? "";
 }
 
 /**

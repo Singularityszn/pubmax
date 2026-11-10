@@ -73,12 +73,11 @@ pinned by `__tests__/migrationVersions.test.ts`; never rename an applied file
 to repair them. New work reserves `0138` for price-trust reconciliation.
 Update this reservation when each migration lands.
 
-`0139` withdraws `public.create_one_tap_price_pair` (#1292). The function is
-live in production, no app code calls it, and it cannot report the drinker's
-own figure: it builds the Pint Drop from whatever row the newer-wins shared
-upsert returns, so a stored newer price makes the drop report a figure nobody
-submitted. The honest lane is already the live two-phase write in
-`app/api/price-submit/route.ts`. `0132` stays in the ledger as the record of
+`0139` withdraws `public.create_one_tap_price_pair` (#1292), whose newer-wins
+result could substitute a stored price for the drinker's figure.
+The [community-price policy](rules/lib-prices-trust-and-drinks.md#what-a-community-price-is-allowed-to-move-is-a-policy-not-an-implementation-deta)
+owns the replacement pairing contract and its migration deployment prerequisite.
+`0132` stays in the ledger as the record of
 what production ran; `0139` records the withdrawal, and its rollback restores
 `0132`'s exact body. Before applying, run this read-only query to see whether
 any drop needs a look first, and note that no column separates a pair-written
@@ -474,7 +473,7 @@ Vercel, project `chengdu`, Settings, Environment Variables, filter Production: `
 |---|---|---|
 | `NEXT_PUBLIC_DEMO_CONTENT` | Unset, empty or `off`. Never `on`. | `on` shows seeded Pint Drops and presence counts to the public (`lib/demoContent.ts`). If the row is marked Sensitive, you cannot read it: delete the row, because unset means off. |
 | `NEXT_PUBLIC_DEMO_DRINKS` | Unset or empty | `on` shows seeded menus beside real prices. |
-| `RESEND_API_KEY` | The Resend API key, Sensitive, Production only | Without it, "Ask the pub for a table" sends nothing and says so. |
+| `RESEND_API_KEY` | The Resend API key, Sensitive, Production only | The [table request rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent) define delivery outcomes when this key is absent. |
 | `EMAIL_FROM` | A sender on a domain verified in Resend, as a bare address or `Name <address>` | Resend refuses any other sender. |
 | `PUBMAX_ALERT_WEBHOOK_URL` | The https Discord or Slack incoming-webhook URL, Sensitive | The app posts error-level events there (`lib/alertSink.ts`). Unset is silent. See 8.6.2. |
 | `NEXT_PUBLIC_SITE_URL` | `https://pubmaxxing.com` | The sign-in callback must return to the apex. |

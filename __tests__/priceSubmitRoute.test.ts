@@ -112,13 +112,13 @@ vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
     writeOneTapPintDrop: async (
       input: Parameters<typeof actual.writeOneTapPintDrop>[0],
       photos?: Parameters<typeof actual.writeOneTapPintDrop>[1],
-      duplicate?: Parameters<typeof actual.writeOneTapPintDrop>[2],
+      pairing?: Parameters<typeof actual.writeOneTapPintDrop>[2],
     ) => {
       if (oneTapState.forcedOutcome !== undefined) {
         await oneTapState.beforeOutcome?.();
         return oneTapState.forcedOutcome;
       }
-      return actual.writeOneTapPintDrop(input, photos, duplicate);
+      return actual.writeOneTapPintDrop(input, photos, pairing);
     },
   };
 });
@@ -138,7 +138,6 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
     ...actual,
-    moderateCommunityPrice: vi.fn(actual.moderateCommunityPrice),
     readCommunityPrices: async (venueId: string, now?: number) =>
       readBackState.override ?? actual.readCommunityPrices(venueId, now),
     readCommunityPricesWithStatus: async (venueId: string, now?: number) =>
@@ -154,7 +153,6 @@ import { POST as moderateBillCheck } from "@/app/api/admin/bill-checks/route";
 import {
   __resetCommunityPrices,
   memoryCommunityPriceStore,
-  moderateCommunityPrice,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
 import {
@@ -301,14 +299,7 @@ beforeEach(async () => {
   __resetMemoryAdultSelfAssertions();
   __resetPintDrops();
   await authorizeContributor("user-default", "default_contributor");
-  const actualCommunityPriceStore =
-    await vi.importActual<typeof import("@/lib/communityPriceStore")>(
-      "@/lib/communityPriceStore",
-    );
-  vi.mocked(moderateCommunityPrice).mockReset();
-  vi.mocked(moderateCommunityPrice).mockImplementation(
-    actualCommunityPriceStore.moderateCommunityPrice,
-  );
+
 });
 
 afterEach(async () => {
@@ -391,7 +382,7 @@ describe("POST /api/price-submit", () => {
     expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.5 }]);
   });
 
-  it("hides the community price when the paired visit report write fails", async () => {
+  it("removes the community price when the paired visit report write fails", async () => {
     oneTapState.forcedOutcome = {
       ok: false,
       kind: "storage",
@@ -404,7 +395,26 @@ describe("POST /api/price-submit", () => {
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
-  it("reverses trust that lands before a failed Pint Drop pairing rolls its price back", async () => {
+  it("a failed pairing does not hide the same person's next price at that pub", async () => {
+    const venueId = "venue-xjf3n0";
+    const start = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(start);
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+    expect((await POST(post({ venueId, drinkCategory: "beer", priceGbp: 5 }))).status).toBe(503);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+
+    oneTapState.forcedOutcome = undefined;
+    clock.mockReturnValue(start + 24 * 60 * 60 * 1000);
+    expect((await POST(post({ venueId, drinkCategory: "beer", priceGbp: 5.2 }))).status).toBe(201);
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 5.2 }]);
+    expect(await memoryCommunityPriceStore.listForReview()).toEqual([]);
+  });
+
+  it("cannot earn trust for a pairing that fails", async () => {
     const venueId = "venue-xjf3n0";
     expect(
       (await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }))).status,
@@ -414,7 +424,7 @@ describe("POST /api/price-submit", () => {
       expect(await syncTrustAfterPriceWrite(venueId, "beer")).toEqual({
         status: "synced",
       });
-      expect((await priceTrustEventStore().liveEventsFor(venueId, "beer")).events).toHaveLength(1);
+      expect((await priceTrustEventStore().liveEventsFor(venueId, "beer")).events).toEqual([]);
     };
     oneTapState.forcedOutcome = {
       ok: false,
@@ -439,64 +449,20 @@ describe("POST /api/price-submit", () => {
     });
   });
 
-  it("keeps failed hidden-state trust cleanup queued and reports pairing repair required", async () => {
-    const venueId = "venue-xjf3n0";
-    expect(
-      (await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }))).status,
-    ).toBe(201);
-    await authorizeContributor("user-second", "second_contributor");
-    const store = priceTrustEventStore();
-    oneTapState.beforeOutcome = async () => {
-      expect(await syncTrustAfterPriceWrite(venueId, "beer")).toEqual({
-        status: "synced",
-      });
-      vi.spyOn(store, "ackReconciliation").mockResolvedValue({
-        acknowledged: false,
-        failed: true,
-      });
-    };
-    oneTapState.forcedOutcome = {
-      ok: false,
-      kind: "storage",
-      message: "Could not save your pint drop right now.",
-    };
-
-    const response = await POST(
-      post({ venueId, drinkCategory: "beer", priceGbp: 4.3 }),
-    );
-
-    expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({
-      code: "PAIRING_REPAIR_REQUIRED",
-      error: "Could not finish that price log. Try again.",
-      retryable: true,
-    });
-    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
-    expect((await store.liveEventsFor(venueId, "beer")).events).toEqual([]);
-    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
-    expect(await readPriceTrustImpact("user-default")).toMatchObject({
-      lifetimeTrustUnlocks: 0,
-    });
-    expect(await readPriceTrustImpact("user-second")).toMatchObject({
-      lifetimeTrustUnlocks: 0,
-    });
-  });
-
   it("never reports success when the price and Pint Drop split", async () => {
     oneTapState.forcedOutcome = {
       ok: false,
       kind: "storage",
       message: "Could not save your pint drop right now.",
     };
-    vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
     const venueId = "venue-xjf3n0";
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({
-      code: "PAIRING_REPAIR_REQUIRED",
+      code: "UNAVAILABLE",
       retryable: true,
     });
-    expect(await readCommunityPrices(venueId)).toHaveLength(1);
+    expect(await readCommunityPrices(venueId)).toHaveLength(0);
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
@@ -942,7 +908,6 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       expect(scheduled()).toHaveLength(1);
       expect(scheduled()[0]).toMatchObject({ pintDropId: defined(drops[0]).id });
       expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5.5 }]);
-      expect(moderateCommunityPrice).not.toHaveBeenCalled();
     } finally {
       createSpy.mockRestore();
       vi.useRealTimers();
@@ -952,6 +917,7 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
   it("keeps the creator's stored photos and community price after concurrent identical submissions", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(Date.parse("2026-11-05T19:30:00.000Z"));
+    const memoryCreate = memoryPintDropStore.create;
     const rows = new Map<string, Record<string, unknown>>();
     const objects = new Map<string, ArrayBuffer>();
     const uploads: string[] = [];
@@ -960,16 +926,20 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       global: { fetch: async (input, init) => {
         const request = new Request(input, init);
         const url = new URL(request.url);
-        if (url.pathname === "/rest/v1/pint_drops") {
-          if (request.method === "POST") {
-            const row = await request.json() as Record<string, unknown>;
-            const id = String(row.id);
-            if (rows.has(id)) return Response.json({ code: "23505", message: 'duplicate key violates "pint_drops_pkey"' }, { status: 409 });
-            rows.set(id, row);
-            return new Response(null, { status: 201 });
-          }
-          const row = rows.get(url.searchParams.get("id")?.replace(/^eq\./, "") ?? "");
-          return Response.json(row ? [row] : []);
+        if (url.pathname === "/rest/v1/rpc/create_one_tap_price_pair_atomic") {
+          const args = await request.json();
+          const row = args.p_drop;
+          const result = await memoryCreate({
+            id: row.id, venueId: row.venue_id, handle: row.handle,
+            drink: row.drink, measure: row.measure, priceGbp: row.price_gbp,
+            passedDownNote: row.passed_down_note, era: row.era,
+            visibility: row.visibility, provenance: row.provenance, status: row.status,
+            createdAt: row.created_at, authorityKey: row.authority_key,
+          }, { pint: null, venue: null, receipt: null }, {
+            communityPrice: { actor: args.p_actor, submittedAt: Date.parse(args.p_submitted_at) },
+          });
+          if (result.created) rows.set(result.id, { ...row, id: result.id });
+          return Response.json({ status: "saved", created: result.created, price: result.communityPrice, drop: rows.get(result.id) });
         }
         if (url.pathname.startsWith("/storage/v1/object/sign/pint-drops/")) {
           return Response.json({ signedURL: `${url.pathname}?token=test` });
@@ -1028,7 +998,6 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       const pixels = await sharp(Buffer.from(defined(objects.get(String(stored.receipt_photo_key))))).raw().toBuffer();
       expect(defined(pixels[0]) > defined(pixels[2])).toBe(bill.name === "red.jpg");
       expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5.5 }]);
-      expect(moderateCommunityPrice).not.toHaveBeenCalled();
     } finally {
       createSpy.mockRestore();
       adminSpy.mockRestore();
@@ -1064,7 +1033,6 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       const prices = await readCommunityPrices(body.venueId);
       expect(prices).toHaveLength(1);
       expect([5.5, 6.5]).toContain(defined(prices[0]).priceGbp);
-      expect(moderateCommunityPrice).not.toHaveBeenCalled();
     } finally {
       createSpy.mockRestore();
       vi.useRealTimers();
@@ -1125,17 +1093,10 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
     }, Date.now() + 60_000);
     expect(newer.price?.priceGbp).toBe(newerPrice);
     const response = await POST(post(body));
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(drinkCategory === "beer" ? 503 : 201);
     expect(await readCommunityPrices(body.venueId)).toEqual([expect.objectContaining({ priceGbp: newerPrice })]);
-    if (drinkCategory === "beer") {
-      expect(scheduled()).toEqual([expect.objectContaining({
-        priceGbp: 5.5, pintDropId: listVisiblePintDrops(body.venueId)[0]?.id,
-      })]);
-      expect(scheduled()[0]).not.toHaveProperty("communityPriceId");
-      expect(scheduled()[0]).not.toHaveProperty("communityPriceSubmittedAt");
-    } else {
-      expect(billChecks.schedule).not.toHaveBeenCalled();
-    }
+    expect(billChecks.schedule).not.toHaveBeenCalled();
+    expect(listVisiblePintDrops(body.venueId)).toEqual([]);
   });
 
   it("reads nothing, and says nothing about reading, on a keyless deployment", async () => {
@@ -1258,6 +1219,49 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       expect(run).toMatchObject({ communityPriceSubmittedAt: startedAt + 1_000, photo: expect.objectContaining({ name: "new-bill.jpg" }) });
       expect(run.pintDropId).not.toBe(direct.id);
       expect(listVisiblePintDrops(body.venueId).some((drop) => drop.id === run.pintDropId)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the original bill check after a same-millisecond five, six, five replay", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.parse("2026-11-05T19:30:00.000Z"));
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 5, measure: "pint" };
+      expect((await POST(post(body, jpegFile("first.jpg")))).status).toBe(201);
+      expect((await POST(post({ ...body, priceGbp: 6 }, jpegFile("correction.jpg")))).status).toBe(201);
+      const originalChecks = [...scheduled()];
+      expect(originalChecks).toHaveLength(2);
+      const originalDrops = structuredClone(listVisiblePintDrops(body.venueId));
+      const replay = await POST(post(body, jpegFile("retry.jpg")));
+      expect(replay.status).toBe(201);
+      const result = await replay.json();
+      expect(result).not.toHaveProperty("billCheck");
+      expect(result).toMatchObject({ price: { priceGbp: 5, submittedAt: Date.parse("2026-11-05T19:30:00.000Z") } });
+      expect(scheduled()).toEqual(originalChecks);
+      expect(listVisiblePintDrops(body.venueId)).toEqual(originalDrops);
+      expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 6 }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the replay date when another reporter has a newer matching figure", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const startedAt = Date.parse("2026-11-05T19:30:00.000Z");
+    vi.setSystemTime(startedAt);
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer" as const, priceGbp: 5, measure: "pint" };
+      expect((await POST(post(body))).status).toBe(201);
+      await memoryCommunityPriceStore.submit({ ...body, actor: "profile:another", contributorHandle: "another" }, startedAt + 500);
+      vi.setSystemTime(startedAt + 1_000);
+      const response = await POST(post(body));
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ price: { priceGbp: 5, submittedAt: startedAt } });
+      expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5, submittedAt: startedAt + 500 }]);
+      expect(listVisiblePintDrops(body.venueId)).toHaveLength(1);
+      expect(scheduled()).toHaveLength(1);
     } finally {
       vi.useRealTimers();
     }

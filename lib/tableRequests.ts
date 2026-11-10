@@ -13,14 +13,9 @@
 // IT CHANGES NOTHING ELSE. A request is never read by what ranks, colours,
 // bands or orders a venue (__tests__/tableRequestFence.test.ts).
 //
-// Two ways out, and the reader is told which one ran:
-//   1. The pub has a verified operator, and an email to that operator was
-//      SENT: the request is stored for the operator panel and the person reads
-//      "Sent to the pub".
-//   2. Anything else (no operator, no email on file, no email keys, a send
-//      that failed): PUBMAXX sent nothing, and the sheet hands the person a
-//      prefilled email to the pub's own published address, or its phone, and
-//      says plainly that PUBMAXX did not send it.
+// Delivery outcomes and retries are documented in
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md
+// #a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent.
 
 import { isValidEmail, normalizeEmail } from "@/lib/emailAddress";
 import { londonCalendarDate } from "@/lib/privateIdentity";
@@ -89,8 +84,7 @@ export type OperatorTableRequest = {
  * What the account export carries for a request the account sent: its own
  * name, crew, day, time, note and the contact it gave, and where the request
  * got to. A stored request is `pending` until its email goes and `emailed`
- * once it went; one that was not sent was discarded and is not stored, so it
- * is not here either. Nothing about the operator it went to.
+ * once it went. Nothing about the operator it went to.
  */
 export type TableRequestOwnerFields = {
   id: string;
@@ -137,6 +131,11 @@ export function toOperatorTableRequest(request: TableRequest): OperatorTableRequ
 }
 
 // ── Words ────────────────────────────────────────────────────────────────────
+
+/** A retry key the form mints once per payload. Absent or malformed means none. */
+export function tableRequestKey(value: unknown): string | null {
+  return typeof value === "string" && /^[A-Za-z0-9-]{16,128}$/.test(value) ? value : null;
+}
 
 export const TABLE_REQUEST_ACTION_LABEL = "Ask for a table";
 export const TABLE_REQUEST_SEND_LABEL = "Send request";

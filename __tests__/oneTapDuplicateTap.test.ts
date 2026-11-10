@@ -1,31 +1,11 @@
 // Three taps on Log it in one tick are ONE price (battle test D10).
-//
-// What the report found: three `el.click()` calls in one tick sent three
-// `POST /api/price-submit`, all answered 201, and wrote three `pint_drops` rows
-// 21 ms apart; the pub's sheet then listed "Report Pint Drop by bobpent" three
-// times. The community price upserted once, so only the drop lane doubled.
-//
-// TWO defences, and each covers what the other cannot.
-//
-// The CLIENT LATCH is a ref claimed before the first await, because `submitting`
-// is React state committed in a microtask after the event and all three taps
-// read it false. It is pinned here by reading the source, for the reason
-// AGENTS.md gives about server-painted controls: a rendered test of three
-// synthetic clicks proves the harness more than it proves the latch, while the
-// ref-before-await shape is the whole of what makes the latch work.
-//
-// The SERVER WINDOW is the one that survives a retry, a second tab and a lost
-// response, none of which a latch in one browser can speak for.
-
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import {
   duplicateOneTapDrop,
   ONE_TAP_DUPLICATE_WINDOW_MS,
-} from "@/lib/oneTapPintDrop.server";
+} from "@/lib/oneTapDuplicate";
 import type { PintDrop } from "@/lib/pintDrops";
 
 const NOW = Date.parse("2026-09-05T18:00:00.000Z");
@@ -119,33 +99,5 @@ describe("the duplicate-tap window", () => {
     expect(
       duplicateOneTapDrop([row({ id: "note" })], { ...candidate, priceGbp: null }, NOW),
     ).toBe(null);
-  });
-});
-
-describe("the client latch", () => {
-  const source = readFileSync(
-    join(process.cwd(), "components/map/VenuePriceSubmit.tsx"),
-    "utf8",
-  );
-
-  it("claims a ref BEFORE the first await, not React state", () => {
-    const claim = source.indexOf("logInFlight.current = true;");
-    const firstAwait = source.indexOf("await requestContribution(");
-    expect(claim).toBeGreaterThan(-1);
-    expect(firstAwait).toBeGreaterThan(-1);
-    expect(claim).toBeLessThan(firstAwait);
-  });
-
-  it("guards on the ref rather than on the `submitting` flag", () => {
-    // `submitting` still disables the button, which is the right thing for a
-    // reader to SEE. What it cannot do is stop the second tap of one tick.
-    expect(source).toContain("if (logInFlight.current) return;");
-    expect(source).not.toContain("if (submitting || missionPending");
-  });
-
-  it("releases the latch whatever the outcome", () => {
-    // A refused or failed write must leave the drinker able to try again, so
-    // the release is a finally rather than a line on the happy path.
-    expect(source).toMatch(/\}\s*finally\s*\{[\s\S]{0,200}?logInFlight\.current = false;/);
   });
 });

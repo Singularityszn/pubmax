@@ -12,7 +12,7 @@ Routes, pages, documents and the request edge: `app/`, `proxy.ts` and `next.conf
 - **A static asset never runs the proxy.** `lib/staticAssetPrefixes.mjs` is the one list of public folders the matcher skips.
 - **The host redirect is for readers.** `proxy.ts` sends `*.vercel.app` to `pubmaxxing.com`, but never redirects `/api`, because the cron dispatcher does not follow redirects.
 - **Auth.** A moderator page refuses the whole document. A password is created behind a session. An account leaves in two phases: the storage API removes the files, then the database trigger removes the rows.
-- **The daily price cap has two enforcers.** The route pre-check gives the normal refusal. A unique index on `price_day` is the hard guard against a concurrent burst.
+- **Daily price cap:** see the [API contract](../docs/rules/app-api-contract-and-rate-limits.md#the-daily-price-cap-has-two-enforcers-and-it-is-a-route-s-rule-rather-than-the-t).
 - **Pages show grounded evidence.** A landing or shared card shows only a figure it holds, with its source and its day.
 
 ## Detail

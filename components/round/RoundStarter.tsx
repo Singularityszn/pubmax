@@ -88,6 +88,10 @@ export default function RoundStarter({
   );
   const roundOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
   const stateOwnerRef = useRef<string | null>(null);
+  // One start attempt's key. A tap after a lost answer resends it, so the
+  // server answers with the Round the first tap started. Changed details are
+  // a new attempt.
+  const startAttemptRef = useRef<{ payload: string; key: string } | null>(null);
   const stay = stayOnMap ?? compact;
   const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
@@ -102,6 +106,7 @@ export default function RoundStarter({
     void Promise.resolve().then(() => {
       if (!active) return;
       if (ownerChanged) {
+        startAttemptRef.current = null;
         setBusy(false);
         setError(null);
         setStartedCode(null);
@@ -146,6 +151,11 @@ export default function RoundStarter({
       setError("Your sign-in changed. Try again.");
       return;
     }
+    const payload = JSON.stringify([clean, defaultTitle ?? "", seedStops?.map((stop) => stop.id) ?? []]);
+    if (startAttemptRef.current?.payload !== payload) {
+      startAttemptRef.current = { payload, key: crypto.randomUUID() };
+    }
+    const clientRequestId = startAttemptRef.current.key;
     setBusy(true);
     setError(null);
     const completion = await runRoundMutationForCurrentUser(
@@ -157,6 +167,7 @@ export default function RoundStarter({
           identity: roundIdentity,
           title: defaultTitle,
           seedStops,
+          clientRequestId,
         }),
     );
     if (!completion.current) return;
@@ -168,6 +179,7 @@ export default function RoundStarter({
       return;
     }
 
+    startAttemptRef.current = null;
     writeRoundAnonymousHandle(roundIdentity, clean, localStorageSafe());
     writeActiveRoundCode(result.code);
 

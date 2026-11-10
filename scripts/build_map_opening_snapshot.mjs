@@ -42,6 +42,7 @@ import sharp from "sharp";
 import ts from "typescript";
 
 import { MAP_STYLES } from "../components/map/canvas/tokens.ts";
+import { MAPLIBRE_VERSION } from "../lib/maplibreVendor.mjs";
 import { MAP_OPENING_PREVIEW_CAMERA } from "../lib/mapOpeningPreview.ts";
 import {
   MAP_OPENING_SNAPSHOT_MARGIN_PX,
@@ -68,7 +69,7 @@ const QUALITIES = [72, 66, 60, 54, 48, 42, 38];
 /** A page that loads the app's global CSS and little else. */
 const TOKEN_PAGE = "/privacy";
 const MODULE_PREFIX = "/__map-opening-snapshot/";
-const WORKER_URL = "/vendor/maplibre/maplibre-gl-worker.mjs";
+const WORKER_URL = `/vendor/maplibre/${MAPLIBRE_VERSION}/maplibre-gl-worker.mjs`;
 
 function argument(name) {
   const prefix = `--${name}=`;

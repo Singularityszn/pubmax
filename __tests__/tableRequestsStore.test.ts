@@ -13,6 +13,7 @@ const db = vi.hoisted(() => ({
   rows: [] as Row[],
   schemaMiss: false,
   failWrites: false,
+  failReads: false,
   production: false,
 }));
 
@@ -37,6 +38,9 @@ vi.mock("@/lib/supabase", () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
       if (state.op === "insert") {
         if (db.failWrites) return { data: null, error: { message: "insert boom" } };
+        if (db.rows.some((row) => row.id === state.row?.id)) {
+          return { data: null, error: { code: "23505", message: "duplicate primary key" } };
+        }
         db.rows.push({ ...(state.row ?? {}) });
         return { data: null, error: null };
       }
@@ -51,7 +55,7 @@ vi.mock("@/lib/supabase", () => {
         db.rows = db.rows.filter((r) => !rows.includes(r));
         return { data: rows.map((r) => ({ id: r.id })), error: null };
       }
-      return { data: rows, error: null };
+      return db.failReads ? { data: null, error: { message: "read boom" } } : { data: rows, error: null };
     };
 
     const q: Record<string, unknown> = {
@@ -80,6 +84,10 @@ vi.mock("@/lib/supabase", () => {
       },
       order: () => q,
       limit: () => q,
+      maybeSingle() {
+        const result = run();
+        return Promise.resolve({ ...result, data: result.data?.[0] ?? null });
+      },
       then(resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) {
         return Promise.resolve(run()).then(resolve, reject);
       },
@@ -123,6 +131,7 @@ beforeEach(() => {
   db.rows = [];
   db.schemaMiss = false;
   db.failWrites = false;
+  db.failReads = false;
   db.production = false;
   __resetTableRequests();
 });
@@ -157,6 +166,23 @@ describe.each([
     expect((await store.listEmailedForVenue("venue-crown")).requests).toEqual([]);
   });
 
+  it("reads an exact attempt only for its requester", async () => {
+    const request = await store.create(fields(), NOW);
+    expect(await store.findForRequester(request.id, fields().requesterUserId)).toEqual(request);
+    expect(await store.findForRequester(request.id, "another-account")).toBeNull();
+    expect(await store.findForRequester("missing", fields().requesterUserId)).toBeNull();
+  });
+
+  it("preserves one pending row and its completed result across keyed retries", async () => {
+    const request = await store.create(fields(), NOW);
+    expect(await store.create(fields(), NOW + 1000, request.id)).toEqual(request);
+    expect((await store.listForRequester(fields().requesterUserId)).requests).toHaveLength(1);
+    await store.markEmailed(request.id, NOW + 2000);
+    const replay = await store.create(fields(), NOW + 3000, request.id);
+    expect(replay).toMatchObject({ id: request.id, delivery: "emailed", deliveredAt: new Date(NOW + 2000).toISOString() });
+    expect(await store.findForRequester(request.id, fields().requesterUserId)).toEqual(replay);
+  });
+
   it("reads the requester's own requests, pending and emailed, newest first, and nobody else's", async () => {
     const pending = await store.create(fields(), NOW);
     const emailed = await store.create(fields({ venueId: "venue-other" }), NOW + 60_000);
@@ -182,6 +208,13 @@ describe.each([
 });
 
 describe("the Supabase table requests store on a bad day", () => {
+  it("refuses to treat a failed attempt read as a missing attempt", async () => {
+    const request = await supabaseTableRequestsStore.create(fields(), NOW);
+    db.failReads = true;
+    await expect(supabaseTableRequestsStore.findForRequester(request.id, fields().requesterUserId))
+      .rejects.toThrow("read boom");
+  });
+
   it("writes the row it was given, columns named for the migration", async () => {
     await supabaseTableRequestsStore.create(fields({ note: "Birthday" }), NOW);
     expect(db.rows[0]).toMatchObject({
@@ -234,6 +267,7 @@ describe("the Supabase table requests store on a bad day", () => {
   it("falls back to memory when the table is missing outside production", async () => {
     db.schemaMiss = true;
     const request = await supabaseTableRequestsStore.create(fields(), NOW);
+    expect(await supabaseTableRequestsStore.findForRequester(request.id, fields().requesterUserId)).toEqual(request);
     expect(await supabaseTableRequestsStore.markEmailed(request.id, NOW)).toBe(true);
     const read = await supabaseTableRequestsStore.listEmailedForVenue("venue-crown");
     expect(read.requests.map((r) => r.id)).toEqual([request.id]);
@@ -243,5 +277,7 @@ describe("the Supabase table requests store on a bad day", () => {
     db.schemaMiss = true;
     db.production = true;
     await expect(supabaseTableRequestsStore.create(fields(), NOW)).rejects.toThrow(/apply migration 0219/);
+    await expect(supabaseTableRequestsStore.findForRequester("missing", fields().requesterUserId))
+      .rejects.toThrow(/apply migration 0219/);
   });
 });

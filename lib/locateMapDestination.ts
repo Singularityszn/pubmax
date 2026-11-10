@@ -1,7 +1,7 @@
 // Resolve a locate fix to a map destination: curated city first, else uncovered place.
 
 import { getCity, type CityId } from "@/lib/cities";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { nearestEnabledCity } from "@/lib/nearestCity";
 import { nearestUkPlace } from "@/lib/nearestUkPlace";

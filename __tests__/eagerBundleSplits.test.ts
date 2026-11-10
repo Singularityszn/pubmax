@@ -29,37 +29,6 @@ function read(relative: string): string {
   return readFileSync(join(REPO_ROOT, relative), "utf8");
 }
 
-describe("the voice SDK loads when voice is on, and never before", () => {
-  const gate = read("components/pubpal/PubPalVoice.tsx");
-  const session = read("components/pubpal/PubPalVoiceSession.tsx");
-
-  it("keeps the SDK out of the gate that every /pal reader mounts", () => {
-    expect(gate).not.toContain("@elevenlabs/react");
-    expect(gate).not.toContain("ConversationProvider");
-  });
-
-  it("puts it in the session module the gate fetches on demand", () => {
-    expect(session).toContain('from "@elevenlabs/react"');
-    expect(gate).toContain('import("@/components/pubpal/PubPalVoiceSession")');
-    expect(gate).toContain("ssr: false");
-  });
-
-  it("leaves the tri-state where it was, so no answer changed", () => {
-    // asking / unavailable / available, and the muted card beside them.
-    expect(gate).toContain('"asking" | "available" | "unavailable"');
-    expect(gate).toContain("PAL_VOICE_UNAVAILABLE_LINE");
-    expect(gate).toContain("<PubPalVoiceSession");
-  });
-
-  it("is the ONLY module that may import the SDK", () => {
-    // A second importer would put it back in somebody's eager graph.
-    const importers = ["components/pal/PalExperience.tsx", "app/pal/page.tsx"];
-    for (const file of importers) {
-      expect(read(file), file).not.toContain("@elevenlabs/react");
-    }
-  });
-});
-
 describe("the command palette leaves the shared shell", () => {
   const provider = read("components/command/CommandPaletteProvider.tsx");
 

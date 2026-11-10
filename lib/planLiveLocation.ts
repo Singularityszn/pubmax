@@ -1,4 +1,4 @@
-import { ACTIVE_PLAN_POST_MS, ACTIVE_PLAN_PRE_MS } from "@/lib/activePlan";
+import { ACTIVE_PLAN_POST_MS, ACTIVE_PLAN_PRE_MS, LIVE_LOCATION_CUTOFF_HOUR } from "@/lib/nightWindows";
 
 /** One crew member's latest shared fix. Never a history. */
 export type PlanLiveLocationPerson = {
@@ -30,7 +30,6 @@ export const LIVE_LOCATION_HEARTBEAT_MS = 60_000;
 /** A dot older than this says when it was last seen. */
 export const LIVE_LOCATION_STALE_MS = 3 * 60_000;
 const MAX_ACCURACY_M = 10_000;
-const SIX_AM_HOUR = 6;
 
 export function cleanLiveLocationFix(input: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown }): PlanLiveLocationFix | null {
   const { latitude, longitude, accuracyM } = input;
@@ -59,8 +58,8 @@ export function planLiveLocationEndsAtMs(startTime: string): number | null {
   const start = Date.parse(startTime);
   if (!Number.isFinite(start)) return null;
   const local = londonParts(start - ACTIVE_PLAN_PRE_MS);
-  const dayOffset = local.hour < SIX_AM_HOUR ? 0 : 1;
-  const sixWall = Date.UTC(local.year, local.month - 1, local.day + dayOffset, SIX_AM_HOUR);
+  const dayOffset = local.hour < LIVE_LOCATION_CUTOFF_HOUR ? 0 : 1;
+  const sixWall = Date.UTC(local.year, local.month - 1, local.day + dayOffset, LIVE_LOCATION_CUTOFF_HOUR);
   const sixAm = sixWall - londonParts(sixWall).offsetMs;
   return Math.min(start + ACTIVE_PLAN_POST_MS, sixAm);
 }

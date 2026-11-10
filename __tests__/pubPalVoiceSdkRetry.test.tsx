@@ -33,7 +33,7 @@ vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) =>
     createElement("a", { href }, children),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }), usePathname: () => "/pal", useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: requests.authedActionFetch }));
 // jsdom cannot play audio; the cues are proved in pubPalVoice.test.tsx.
 vi.mock("@/components/pubpal/palVoiceSounds", () => ({ playPalVoiceSound: vi.fn() }));
@@ -185,7 +185,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
         return conversation;
       })
       .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
     await click("Start voice chat");
     await writeDraft("Find a quiet pub");
     await click("End");
@@ -207,7 +207,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
 
   it("connects through the real provider while keeping client transport and audio fake", async () => {
     client.startSession.mockImplementation(async (options) => connectFake(options, "conv_sdkfixture01"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
 
     await click("Start voice chat");
 
@@ -220,7 +220,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
   });
 
-  it("starts a real SDK retry after cancelling an unresolved client startup", async () => {
+  it("waits for a cancelled client startup before a real SDK retry", async () => {
     client.startSession
       .mockImplementationOnce((options) => {
         options.onStatusChange?.({ status: "connecting" });
@@ -229,7 +229,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
         });
       })
       .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
     await writeDraft("Wine at The Lamb");
     await click("Start voice chat");
     expect(client.startSession).toHaveBeenCalledTimes(1);
@@ -242,6 +242,13 @@ describe("Pub Pal startup with the installed React SDK", () => {
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
     expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("Wine at The Lamb");
     await click("Start voice chat");
+    expect(client.startSession).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      defined(client.startSession.mock.calls[0])[0].onStatusChange?.({ status: "disconnected" });
+      rejectPendingStartup?.(new DOMException("Fixture startup stopped", "NotAllowedError"));
+      rejectPendingStartup = null;
+    });
+    await settle();
 
     expect(client.startSession).toHaveBeenCalledTimes(2);
     expect(container.textContent).toContain("Pal is listening");
@@ -260,7 +267,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
         });
       })
       .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
     await writeDraft("Find a quiet pub");
     await click("Start voice chat");
 
@@ -275,13 +282,21 @@ describe("Pub Pal startup with the installed React SDK", () => {
       .toBe("Find a quiet pub");
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
     await click("Start voice chat");
+    expect(client.startSession).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      defined(client.startSession.mock.calls[0])[0].onStatusChange?.({ status: "disconnected" });
+      rejectPendingStartup?.(new DOMException("Fixture startup stopped", "NotAllowedError"));
+      rejectPendingStartup = null;
+    });
+    await settle();
+
     expect(client.startSession).toHaveBeenCalledTimes(2);
     expect(container.textContent).toContain("Pal is listening");
     expect(issuedGrants).toBe(2);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("keeps the retry connected when the cancelled SDK startup resolves late", async () => {
+  it("connects the waiting retry when the cancelled SDK startup resolves late", async () => {
     let resolveOld: ((conversation: FakeConversation) => void) | undefined;
     let oldOptions: FakeSessionOptions | undefined;
     client.startSession
@@ -294,11 +309,11 @@ describe("Pub Pal startup with the installed React SDK", () => {
         });
       })
       .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
     await click("Start voice chat");
     await click("Cancel");
     await click("Start voice chat");
-    expect(client.startSession).toHaveBeenCalledTimes(2);
+    expect(client.startSession).toHaveBeenCalledTimes(1);
 
     const old = fakeConversation(defined(oldOptions), "conv_sdkfixture01");
     await act(async () => {
@@ -311,6 +326,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
     await settle();
 
     expect(old.endSession).toHaveBeenCalled();
+    expect(client.startSession).toHaveBeenCalledTimes(2);
     expect(container.textContent).toContain("Pal is listening");
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
     await click("End");

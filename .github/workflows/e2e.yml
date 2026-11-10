@@ -11,10 +11,9 @@ on:
   merge_group:
   push:
     branches: [main]
-  schedule:
-    # The evening schedule reduces overlap with daytime pull-request checks.
-    # See docs/CI_RUNBOOK.md, "Timeouts and job shape", for the delay evidence.
-    - cron: "17 20 * * *"
+  # The nightly full suite has no `schedule`: GitHub started it hours late, in
+  # the working day. A launchd timer on the Mac Studio dispatches it on main
+  # at a quiet hour (docs/CI_RUNBOOK.md, "The nightly full suite").
   workflow_dispatch:
 
 permissions:
@@ -27,8 +26,8 @@ concurrency:
   # behind it, because GitHub keeps one waiting run per group and cancels the
   # older one. The newest main commit holds every older one, so main is
   # still tested.
-  # The schedule and a dispatch each get a group of their own, so GitHub
-  # never drops one while it waits. Other labels get separate, non-cancelling runs.
+  # A dispatch gets a group of its own, so GitHub never drops one while it
+  # waits. Other labels get separate, non-cancelling runs.
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && 'main-push' || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'layout-pins') }}
 
@@ -267,9 +266,8 @@ jobs:
     # 2026). Other label events skip every job. Unlabelled pull request pushes
     # and main pushes do not start them. The pool has three places. The
     # layout scope above still skips them for a pull request with no screen
-    # code. The nightly and a dispatch skip them: the full suite below runs
-    # every one of these specs on the same commit, and the three jobs would
-    # hold the pool while the full suite waits for them.
+    # code. A dispatch skips them to avoid duplicate runs on the Mac pool.
+    # docs/CI_RUNBOOK.md, "The nightly full suite", owns quarantine exclusions.
     needs: [change-scope]
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
@@ -456,7 +454,7 @@ jobs:
 
   full-suite:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Full browser suite (${{ matrix.shard }}/8)
-    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'workflow_dispatch') }}
     runs-on: pubmax-mac
     timeout-minutes: 45
     # The hosted macOS runners gave Playwright one worker. Two shards of about
@@ -512,6 +510,8 @@ jobs:
       # One worker, the count a hosted macOS runner gave it. Left unset, the
       # Mac pool's 18 cores would start 9 against one production server, and
       # four already killed that server on this rig.
+      # e2e/full-suite-quarantine.txt leaves out each known-red test until its
+      # tracking issue is fixed, so a new failure turns the run red.
       - name: Run full browser shard
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
@@ -528,13 +528,14 @@ jobs:
           --project=chromium
           --workers=1
           --shard=${{ matrix.shard }}/8
+          --test-list-invert=e2e/full-suite-quarantine.txt
 
       - name: Gate the full browser shard
         run: node scripts/assert-playwright-gate.mjs playwright-default-${{ matrix.shard }}.json
 
   full-suite-gl:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Full browser suite (WebGL and keyless)
-    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'workflow_dispatch') }}
     runs-on: pubmax-mac
     timeout-minutes: 45
     # Every project the Chromium shards above do not run: the SwiftShader map
@@ -589,6 +590,7 @@ jobs:
           --project=chromium-sw-gl
           --project=chromium-no-gl
           --workers=1
+          --test-list-invert=e2e/full-suite-quarantine.txt
 
       - name: Gate the WebGL and keyless run
         run: node scripts/assert-playwright-gate.mjs playwright-default-gl.json
@@ -597,9 +599,11 @@ jobs:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Report a nightly full-suite failure
     # alert-on-failure.yml requires a webhook secret, so this job reports
     # without one. It checks out nothing and runs no repository code.
-    # docs/CI_RUNBOOK.md, "Timeouts and job shape", owns the reporting policy.
+    # docs/CI_RUNBOOK.md, "The nightly full suite", owns the reporting policy.
+    # The nightly is a dispatch on main. A dispatch on any other branch is a
+    # check of that branch, so it reports nothing here.
     needs: [full-suite, full-suite-gl]
-    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (always() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -617,7 +621,7 @@ jobs:
           set -euo pipefail
           title="Nightly full browser suite failed"
           body="$(printf '%s\n\n- Run: %s\n- Commit: %s\n- Full browser suite (n/8): %s\n- Full browser suite (WebGL and keyless): %s\n' \
-            "The scheduled full browser suite did not pass." \
+            "The nightly full browser suite did not pass." \
             "$RUN_URL" "$HEAD_SHA" "$SHARDS_RESULT" "$GL_RESULT")"
           number="$(gh issue list --state open --search "in:title \"$title\"" --json number,title --limit 20 \
             | jq -r --arg t "$title" '[.[] | select(.title == $t)][0].number // empty')"

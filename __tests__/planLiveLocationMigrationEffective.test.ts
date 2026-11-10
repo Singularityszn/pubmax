@@ -46,6 +46,28 @@ function call(operation: string, hash: string | null, options: { plan?: string; 
 
 const tapTime = () => db().sql("select clock_timestamp()::text");
 
+function blockedQuery(statement: string) {
+  const reader = spawn(db().psql, [...db().databaseArgs, "-q", "-t", "-A", "-c", `
+    set client_min_messages=log;
+    set log_lock_waits=on;
+    ${statement}`], { env: { ...process.env, LC_ALL: "C" }, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "";
+  let stderr = "";
+  reader.stdout.on("data", (chunk) => { stdout += String(chunk); });
+  const result = new Promise<string>((resolve, reject) => {
+    reader.once("error", reject);
+    reader.once("close", (code) => code === 0 ? resolve(stdout.trim()) : reject(new Error(stderr)));
+  });
+  const blocked = new Promise<void>((resolve, reject) => {
+    reader.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+      if (/still waiting for .* after [\d.]+ ms/.test(stderr)) resolve();
+    });
+    void result.then(() => reject(new Error("Reader completed before waiting for the writer.")), reject);
+  });
+  return { blocked, result };
+}
+
 function seed(start = "now() + interval '3 hours'") {
   db().sql(`delete from public.plan_live_locations;
     delete from public.plan_live_location_stops;
@@ -420,12 +442,10 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     let response: Promise<string> | undefined;
     try {
       await ready;
-      response = db().sqlAsync(asServiceRole(`set application_name='live-location-block-reader';
+      const reader = blockedQuery(asServiceRole(`
         select public.plan_live_location('${CREW_PLAN}', null, '${MATE_ACCOUNT}', '${operation}', 51.5, -0.13, 12, '${startAt}')::text`));
-      await vi.waitFor(async () => {
-        expect(await db().sqlAsync(`select count(*) from pg_stat_activity
-          where application_name='live-location-block-reader' and wait_event_type='Lock'`)).toBe("1");
-      });
+      response = reader.result;
+      await reader.blocked;
       writer.stdin.end(`select public.set_social_block('${blocker}', '${blocked}', true);
         select public.plan_live_location('${CREW_PLAN}', null, '${OWNER_ACCOUNT}', 'share', 52, -0.13, 12);
         commit;\n`);
@@ -469,12 +489,10 @@ describe.skipIf(skipReason !== null)("0226 live location database boundary", () 
     let response: Promise<string> | undefined;
     try {
       await ready;
-      response = db().sqlAsync(asServiceRole(`set application_name='live-location-transfer-reader';
+      const reader = blockedQuery(asServiceRole(`
         select public.plan_live_location('${CREW_PLAN}', null, '${OWNER_ACCOUNT}', '${operation}', 51.5, -0.13, 12)::text`));
-      await vi.waitFor(async () => {
-        expect(await db().sqlAsync(`select count(*) from pg_stat_activity
-          where application_name='live-location-transfer-reader' and wait_event_type='Lock'`)).toBe("1");
-      });
+      response = reader.result;
+      await reader.blocked;
       writer.stdin.end("commit;\n");
       await finished;
       expect(JSON.parse(await response)).toEqual(operation === "stop"

@@ -2312,6 +2312,74 @@ describe("private conversation: write", () => {
   });
 });
 
+describe("private conversation: taking words back", () => {
+  it("only the sender unsends, and nobody else moves a word", async () => {
+    const before = truth(
+      `select body || '|' || coalesce(unsent_at::text, '') from public.messages where id = '${ALICE_MESSAGE}'`,
+    );
+    for (const [bearer, handle] of [
+      [undefined, "alicepm"],
+      [BEARER_BOB, "bobpm"],
+      [BEARER_DAVE, "davepm"],
+      [BEARER_CAROL, "alicepm"],
+    ] as const) {
+      const response = await defined(handlers.writeThread)(
+        request(`/api/messages/${CONVERSATION_ID}`, {
+          bearer,
+          body: { action: "unsend", handle, messageId: ALICE_MESSAGE },
+        }),
+        context({ id: CONVERSATION_ID }),
+      );
+      expect(response.status, `${handle}`).toBeGreaterThanOrEqual(400);
+      expectNoDisclosure(await readJson(response));
+    }
+    expect(
+      truth(
+        `select body || '|' || coalesce(unsent_at::text, '') from public.messages where id = '${ALICE_MESSAGE}'`,
+      ),
+    ).toBe(before);
+  });
+
+  it("only a participant deletes a chat, and an outsider writes no mark", async () => {
+    for (const [bearer, handle] of [
+      [undefined, "alicepm"],
+      [BEARER_DAVE, "davepm"],
+      [BEARER_CAROL, "alicepm"],
+    ] as const) {
+      const response = await defined(handlers.writeThread)(
+        request(`/api/messages/${CONVERSATION_ID}`, {
+          bearer,
+          body: { action: "delete", handle },
+        }),
+        context({ id: CONVERSATION_ID }),
+      );
+      expect(response.status, `${handle}`).toBeGreaterThanOrEqual(400);
+    }
+    expect(truth("select count(*) from public.conversation_deletions")).toBe("0");
+  });
+
+  it("at the table: nobody's delete marks are any browser's to read or write", () => {
+    expect(visibleRows("anon", null, "select count(*) from public.conversation_deletions")).toBe(0);
+    for (const sub of [ALICE, BOB, CAROL, DAVE]) {
+      const read = attemptAsRole(
+        "authenticated",
+        sub,
+        "select count(*) from public.conversation_deletions",
+      );
+      expect(read.ok).toBe(false);
+      expect(read.err).toMatch(/permission denied/i);
+    }
+    const written = attemptAsRole(
+      "authenticated",
+      ALICE,
+      `insert into public.conversation_deletions (conversation_id, handle)
+         values ('${CONVERSATION_ID}', 'alicepm')`,
+    );
+    expect(written.ok).toBe(false);
+    expect(truth("select count(*) from public.conversation_deletions")).toBe("0");
+  });
+});
+
 describe("message attachment: the photo's own door", () => {
   it("the object key never reaches an outsider, whatever they assert", async () => {
     // The bucket in front of this cluster holds no bytes, so a participant's

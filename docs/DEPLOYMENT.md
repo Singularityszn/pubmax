@@ -74,7 +74,7 @@ Voice and the ElevenLabs typed path need the agent values below.
 
 | Var | Purpose |
 |---|---|
-| `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
+| `PLAN_IDEMPOTENCY_SECRET` | Trusted signing configuration and consumers are defined in [`.env.example`](../.env.example). |
 | `EXA_API_KEY` | Powers the scheduled signals-ingestion job (docs/plans/sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
 | `SEARCH_PROVIDER` | **Server-only** `exa` (default) or `tavily` selector for `/api/cron/enrich-city-pubs`. `exa` may fall back to a configured Tavily key. `tavily` uses only Tavily, so one environment change can switch providers without a code change. |
 | `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel request-context OIDC is also accepted automatically. No separate Exa key is used by this path. |
@@ -97,7 +97,7 @@ storage backend; it never relaxes signing. `playwright.config.ts` injects a fres
 production-style browser-test run, keeping it out of the command and argv.
 Plan generation, creation, and completion return retryable
 `PLAN_SIGNING_UNAVAILABLE` (503) before mutation when that boundary is
-misconfigured.
+misconfigured. Keyed Pint Drop and Round creation follow the [API retry contract](rules/app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation).
 
 ### Vercel-injected (do not set by hand)
 
@@ -633,7 +633,7 @@ product code:
 
 | Check source | What it means | Fix path |
 |---|---|---|
-| First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. Push browser checks do not include the full scheduled suite. | Read failed job logs. Keep skipped checks separate from successful checks. |
+| First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. The [CI runbook](CI_RUNBOOK.md#the-nightly-full-suite) owns full browser coverage and exclusions. | Read failed job logs. Keep skipped checks separate from successful checks. |
 | `Vercel` | The `chengdu` project's Ignored Build Step can cancel a deployment while GitHub reports success with the description `Canceled by Ignored Build Step`. Production and preview outcomes can differ. | Check each deployment's state, source, target and commit. Require `READY`, then verify the SHA and deployment ID through `/api/version`. A cancelled build proves neither compilation nor deployment. The captain approves any build-policy change. |
 | `Supabase Preview` | Supabase GitHub integration. | If it says `Remote migration versions not found in local migrations directory`, sync migration history: pull/export the missing remote migrations or repair the Supabase migration table so remote and `supabase/migrations/` agree. Do not delete local migrations to make this pass. |
 | GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | Investigate the runner or account. Do not infer a product failure or a Vercel build result. Run `npm run ci` locally for the full local gate. |

@@ -81,7 +81,7 @@
   .appShell .mapStage .maplibregl-ctrl-top-right {
     top: max(
       calc(
-        var(--map-overlay-top) + var(--map-camera-stack-height) +
+        var(--map-camera-stack-top) + var(--map-camera-stack-height) +
           var(--map-chrome-gap)
       ),
       calc(
@@ -125,10 +125,11 @@
    the corner beside the nav from 1372, which the drawer now reaches since the
    toolbar docks at 88px. While a pub is open the column moves to the drawer's
    published left edge, under the toolbar's published berth, in the map lane
-   the drawer leaves. */
+   the drawer leaves. The column's top is published for the status rail,
+   which docks under it (mapBannerStaging.css). */
 @media (min-width: 1024px) {
-  .appShell.detail-open .mapStage .maplibregl-ctrl-top-right {
-    top: max(
+  .appShell.detail-open {
+    --map-zoom-column-top: max(
       calc(
         var(--map-overlay-top) + var(--map-camera-stack-height, 0px) +
           var(--map-chrome-gap, 6px)
@@ -138,6 +139,10 @@
           var(--map-chrome-gap, 6px)
       )
     );
+  }
+
+  .appShell.detail-open .mapStage .maplibregl-ctrl-top-right {
+    top: var(--map-zoom-column-top);
     right: calc(var(--desktop-venue-drawer-width) + var(--map-chrome-inset, 10px));
   }
 }
@@ -871,15 +876,22 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   }
 }
 
-/* The tablet zoom column clears the arrival card's actual occupied berth.
-   Without a card, -12px cancels its top gap so the existing max terms win. */
-@media (min-width: 641px) and (max-width: 900px) {
-  .appShell:not(.detail-open) .mapStage .maplibregl-ctrl-top-right {
-    top: max(
-      calc(var(--map-overlay-top) + var(--map-camera-stack-height) + var(--map-chrome-gap)),
-      calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap)),
+/* The first-visit ask is centred under the toolbar, and on a narrow stage
+   (below 1024px, or beside the list up to about 1390px) it runs under the
+   camera stack's corner: "Show whole walk" covered "Choose an area", and the
+   ask covered "Zoom in". The stack starts under the ask's actual occupied
+   berth, and the zoom column, which reads the stack's top, follows it down.
+   Without a card, -12px cancels the gap so the overlay top wins. */
+@media (min-width: 641px) {
+  .appShell {
+    --map-camera-stack-top: max(
+      var(--map-overlay-top),
       calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + 12px + var(--map-arrival-occupied-height, -12px) + var(--map-chrome-gap))
     );
+  }
+
+  .appShell:not(.detail-open) .mapStage .mapCameraControls {
+    top: var(--map-camera-stack-top);
   }
 }
 

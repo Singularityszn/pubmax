@@ -258,8 +258,9 @@ Count events with `guestsArrived = 4+`.
 
 The receipt window starts at London midnight on the plan's scheduled date.
 `crewArrivedEventToken` in `lib/verifiedAnalytics.server.ts` defines its expiry.
-Status writes can report arrivals throughout this window, beyond the scheduled evening.
-Outside this window, private Plan status writes still succeed but carry no arrival receipts.
+The [crew-status guards](../API_CONTRACTS_THE_LOCAL.md#crew-status) apply throughout this window and beyond it.
+Successful status writes within the window can report arrivals beyond the scheduled evening.
+Outside this window, successful private Plan status writes carry no arrival receipts.
 Open-crawl writes use the shorter window in the
 [arrival API contract](../WRITE_SURFACE_CERTIFICATION.md#appapisocialcrewscrewidarrival-route-89).
 

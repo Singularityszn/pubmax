@@ -2,9 +2,10 @@ import { isAskToolName } from "@/lib/ask/types";
 import type { PalAnswer } from "@/lib/palChat";
 import type { AskProposal } from "@/lib/ask/types";
 import { palChatResultFromBody } from "@/lib/palChatClient";
+import { palRecommendationPoints, type PalRecommendationPoint } from "@/lib/palRecommendationMap";
 
 /** Read display facts from the webhook result, never from the agent's speech. */
-export function palVoiceToolAnswer(event: unknown): (PalAnswer & { proposals: AskProposal[]; tool: string }) | null {
+export function palVoiceToolAnswer(event: unknown): (PalAnswer & { proposals: AskProposal[]; tool: string; picks: PalRecommendationPoint[] }) | null {
   if (!event || typeof event !== "object") return null;
   const value = event as Record<string, unknown>;
   if (typeof value.tool_name !== "string" || (!isAskToolName(value.tool_name) && value.tool_name !== "propose_memory")
@@ -22,7 +23,17 @@ export function palVoiceToolAnswer(event: unknown): (PalAnswer & { proposals: As
     if (body.requestedTool !== undefined && body.requestedTool !== value.tool_name) return null;
     if (!Array.isArray(memory ? result.proposals : result.cards)) return null;
     const answer = palChatResultFromBody({ answer: result.answerHint, cards: memory ? [] : result.cards, proposals: memory ? result.proposals : [], status: "ready" });
-    return answer.status === "error" ? null : { ...answer, tool: result.tool };
+    if (answer.status === "error") return null;
+    const data = result.data as { venues?: unknown } | null | undefined;
+    const venues = Array.isArray(data?.venues) ? data.venues.flatMap((row: unknown) => {
+      if (!row || typeof row !== "object") return [];
+      const venue = row as Record<string, unknown>;
+      return typeof venue.id === "string" && typeof venue.lat === "number" && typeof venue.lng === "number"
+        ? [{ id: venue.id, lat: venue.lat, lng: venue.lng }] : [];
+    }) : [];
+    const picks = result.tool === "search_venues" || result.tool === "cheapest_pint_near"
+      ? palRecommendationPoints(answer.cards, venues) : [];
+    return { ...answer, tool: result.tool, picks };
   } catch {
     return null;
   }

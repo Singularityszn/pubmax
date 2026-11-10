@@ -66,7 +66,7 @@ export function transitionSubmission(state: SubmissionState, event: SubmissionEv
 10. **Server stores.** The memory and Supabase backends import the same transition table. A Supabase write is compare-and-set on the from-state (`.in("state", allowedFrom)`). Zero rows means `conflict`, never success. Precedent: `nextState` and `setState` in `lib/pintDropWithTagsStore.ts`.
 11. **Database.**
     - Every status column has a value CHECK.
-    - A timestamp that follows a status has a pair CHECK. Add it `NOT VALID`, count production rows read-only, then `VALIDATE`.
+    - A timestamp that follows a status has a pair CHECK. Count production violations read-only before applying the migration. Add it `NOT VALID`, then `VALIDATE`.
     - A lifecycle with more than one writer (several routes, a cron job, a trigger) changes state only through a guarded security definer RPC that checks the from-state and the expected revision.
     - When SQL copies a TS table, a PostgreSQL-harness parity test holds them equal.
 12. **Tests.**

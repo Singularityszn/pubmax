@@ -16,7 +16,6 @@ import {
   cleanGroupTitle,
   GROUP_EMPTY_NAME,
   GROUP_MAX_MEMBERS,
-  GROUP_MEMBER_FLOOR_LINE,
   GROUP_MIN_MEMBERS,
   GROUP_TITLE_MAX,
   groupMemberCountLine,
@@ -208,21 +207,26 @@ describe("the store opens a group whole and lets anybody leave", () => {
     });
   });
 
-  it("lets a member leave, and refuses at the floor", async () => {
+  it("lets any member leave, however few are left, and never twice", async () => {
     const opened = await memoryMessagesStore.openGroupConversation(
       "ken",
-      ["ken", "sam", "jen", "ali"],
+      ["ken", "sam", "jen"],
       null,
     );
     const id = opened.status === "opened" ? opened.conversationId : "";
-    await expect(memoryMessagesStore.leaveGroupConversation(id, "ali")).resolves.toBe("left");
+    await expect(memoryMessagesStore.leaveGroupConversation(id, "jen")).resolves.toBe("left");
     // The words stay; the way in does not.
-    await expect(memoryMessagesStore.listMessages(id, "ali")).resolves.toBeNull();
-    const inbox = await memoryMessagesStore.listConversations("ali");
+    await expect(memoryMessagesStore.listMessages(id, "jen")).resolves.toBeNull();
+    const inbox = await memoryMessagesStore.listConversations("jen");
     expect(inbox.conversations).toHaveLength(0);
-    // THREE LEFT IS THE FLOOR: the last three are a DM with extra steps.
-    await expect(memoryMessagesStore.leaveGroupConversation(id, "jen")).resolves.toBe("floor");
-    expect(GROUP_MEMBER_FLOOR_LINE).toMatch(/one to one/i);
+    // A small group is no trap: the last two may go as well.
+    await expect(memoryMessagesStore.leaveGroupConversation(id, "sam")).resolves.toBe("left");
+    await expect(memoryMessagesStore.membership(id)).resolves.toMatchObject({
+      handles: ["ken"],
+    });
+    // A second leave is the same answer, and it gives nobody a seat back.
+    await expect(memoryMessagesStore.leaveGroupConversation(id, "jen")).resolves.toBe("left");
+    await expect(memoryMessagesStore.listMessages(id, "jen")).resolves.toBeNull();
   });
 
   it("refuses to let anybody leave a DIRECT conversation", async () => {
