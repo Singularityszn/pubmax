@@ -126,10 +126,11 @@
    the corner beside the nav from 1372, which the drawer now reaches since the
    toolbar docks at 88px. While a pub is open the column moves to the drawer's
    published left edge, under the toolbar's published berth, in the map lane
-   the drawer leaves. */
+   the drawer leaves. The column's top is published for the status rail,
+   which docks under it (mapBannerStaging.css). */
 @media (min-width: 1024px) {
-  .appShell.detail-open .mapStage .maplibregl-ctrl-top-right {
-    top: max(
+  .appShell.detail-open {
+    --map-zoom-column-top: max(
       calc(
         var(--map-overlay-top) + var(--map-camera-stack-height, 0px) +
           var(--map-chrome-gap, 6px)
@@ -139,6 +140,10 @@
           var(--map-chrome-gap, 6px)
       )
     );
+  }
+
+  .appShell.detail-open .mapStage .maplibregl-ctrl-top-right {
+    top: var(--map-zoom-column-top);
     right: calc(var(--desktop-venue-drawer-width) + var(--map-chrome-inset, 10px));
   }
 }

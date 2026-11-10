@@ -4,10 +4,14 @@
 .appShell {
   --city-status-desktop-gap: 82px;
   --city-status-desktop-height: 58px;
-  --city-status-desktop-top: calc(
-    var(--map-top-clearance, 0px) +
-    var(--map-toolbar-resting-height, 181px) +
-    var(--city-status-desktop-gap)
+  /* A control that shares the lane can set a floor under itself. */
+  --city-status-desktop-top: max(
+    calc(
+      var(--map-top-clearance, 0px) +
+      var(--map-toolbar-resting-height, 181px) +
+      var(--city-status-desktop-gap)
+    ),
+    var(--city-status-desktop-floor, 0px)
   );
   /* The bottom of one desktop pill: the 44px .cityStatusBannerLink, the
      banner's 6px padding and its 1px border on each side. */

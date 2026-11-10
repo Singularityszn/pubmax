@@ -186,19 +186,13 @@
   }
 
   /* The zoom column stands at the drawer's left edge (mapToolbar.css), level
-     with the status rail. Centred on the whole lane, a long headline covered
-     "Zoom out". The rail's lane ends before the column instead: 46px of
-     buttons plus MapLibre's own 10px control margin. */
-  .appShell.detail-open .cityStatusStack {
-    left: 16px;
-    right: calc(
-      var(--desktop-venue-drawer-width) + var(--map-chrome-inset, 10px) + 56px +
-        var(--map-chrome-gap, 6px)
+     with the status rail, and a long headline covered "Zoom out". The rail
+     docks under the column instead: MapLibre's own 10px control margin and
+     the 90px pair. The lane keeps its full width for the headline. */
+  .appShell.detail-open {
+    --city-status-desktop-floor: calc(
+      var(--map-zoom-column-top) + 100px + var(--map-chrome-gap, 6px)
     );
-    width: auto;
-    max-width: 460px;
-    margin-inline: auto;
-    transform: none;
   }
 
   /* The basemap retry notice is centred on the stage's foot, so the drawer
