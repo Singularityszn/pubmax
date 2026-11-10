@@ -21,6 +21,9 @@ function query(table: keyof typeof fixture.rows) {
     select() {
       return builder;
     },
+    update() {
+      return builder;
+    },
     eq(column: string, value: unknown) {
       rows = rows.filter((row) => row[column] === value);
       return builder;
@@ -157,6 +160,18 @@ describe("legacy Plan boundary for Social Crews", () => {
         evidenceSnapshot: { label: "Tube", confidence: "high" },
       },
     })).resolves.toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("refuses a crew status write from a revoked seat, even if its token still matched", async () => {
+    defined(fixture.rows.plans[0]).social_owner_account_id = null;
+    const seat = defined(fixture.rows.plan_crew_members[0]);
+    seat.token_hash = hashPlanMemberToken("seat-token");
+    seat.membership_revoked_at = null;
+    await expect(supabasePlanStore.updatePresence(PLAN_ID, "seat-token", "here"))
+      .resolves.toMatchObject({ ok: true });
+    seat.membership_revoked_at = "2026-08-05T20:00:00.000Z";
+    await expect(supabasePlanStore.updatePresence(PLAN_ID, "seat-token", "here"))
+      .resolves.toEqual({ ok: false, error: "forbidden" });
   });
 
   it("routes legacy status and context changes through one atomic RPC", async () => {

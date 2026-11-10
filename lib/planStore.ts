@@ -445,7 +445,9 @@ export const supabasePlanStore: PlanStore = {
     try {
       const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
         .update({ status: rawStatus, updated_at: new Date().toISOString() })
-        .eq("plan_id", id).eq("token_hash", hashPlanMemberToken(rawToken)).select("id").maybeSingle();
+        .eq("plan_id", id).eq("token_hash", hashPlanMemberToken(rawToken))
+        .is("membership_revoked_at", null)
+        .select("id").maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return { ok: false, error: "forbidden" };
       const plan = await this.get(id);
