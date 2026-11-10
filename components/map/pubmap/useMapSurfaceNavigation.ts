@@ -11,6 +11,7 @@ import {
 
 import {
   mapSurfaceOpenTransition,
+  readEntriesAboveRoot,
   readMapSurfaceHistory,
   stampMapSurfaceHistory,
 } from "@/lib/mapSurfaceHistory";
@@ -68,12 +69,18 @@ function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean 
 
 /** The one owned param a landmark arrival carries (`/map?landmark=<id>`). */
 const LANDMARK_PARAM = "landmark";
+/** A planner arrival (`/map?plan=1`). Only an entry that shows the planner keeps it. */
+const PLANNER_PARAM = "plan";
 
-function withoutLandmarkParam(pathname: string, search: string, hash: string): string {
+function withoutParams(pathname: string, search: string, hash: string, names: readonly string[]): string {
   const params = new URLSearchParams(search);
-  params.delete(LANDMARK_PARAM);
+  for (const name of names) params.delete(name);
   const query = params.toString();
   return `${pathname}${query ? `?${query}` : ""}${hash}`;
+}
+
+function withoutLandmarkParam(pathname: string, search: string, hash: string): string {
+  return withoutParams(pathname, search, hash, [LANDMARK_PARAM]);
 }
 
 function selectedVenueId(stack: SurfaceStack<MapSurfaceState>): string {
@@ -174,10 +181,12 @@ export function useMapSurfaceNavigation({
       if (typeof window === "undefined") return;
       const transition = mapSurfaceOpenTransition(stackRef.current, entry);
       publishStack(transition.stack);
+      const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
       const state = stampMapSurfaceHistory(
         window.history.state,
         transition.stack,
         selectedVenueId(transition.stack),
+        transition.kind === "push" ? above + 1 : above,
       );
       const url = urlForStack(transition.stack, selectionHintRef.current);
       if (transition.kind === "push") {
@@ -268,7 +277,7 @@ export function useMapSurfaceNavigation({
     window.history.replaceState(
       stampMapSurfaceHistory(window.history.state, root, ""),
       "",
-      currentBrowserUrl(),
+      shown?.id === "planner" ? withoutParams(pathname, search, hash, [PLANNER_PARAM]) : currentBrowserUrl(),
     );
     if (shown) open(shown);
     flushPendingOpens();
@@ -329,9 +338,10 @@ export function useMapSurfaceNavigation({
         const { pathname, search, hash } = window.location;
         const selectionFree = new URL(cleanMapUrl(pathname, search, hash), window.location.origin);
         // A landed trail with no story open carries no `?landmark=` either.
-        const cleanUrl = next.some((entry) => entry.id === "landmark")
-          ? `${selectionFree.pathname}${selectionFree.search}${selectionFree.hash}`
-          : withoutLandmarkParam(selectionFree.pathname, selectionFree.search, selectionFree.hash);
+        const cleanUrl = withoutParams(selectionFree.pathname, selectionFree.search, selectionFree.hash, [
+          ...(next.some((entry) => entry.id === "landmark") ? [] : [LANDMARK_PARAM]),
+          ...(next.some((entry) => entry.id === "planner") ? [] : [PLANNER_PARAM]),
+        ]);
         if (currentBrowserUrl() !== cleanUrl) {
           window.history.replaceState(event.state, "", cleanUrl);
         }
@@ -397,7 +407,8 @@ export function useMapSurfaceNavigation({
           : held;
         if (next !== held) publishStack(next);
         window.history.replaceState(
-          stampMapSurfaceHistory(window.history.state, next, resolution.venueId),
+          stampMapSurfaceHistory(window.history.state, next, resolution.venueId,
+            readEntriesAboveRoot(window.history.state) ?? next.length),
           "",
           canonicalUrl,
         );
@@ -405,7 +416,8 @@ export function useMapSurfaceNavigation({
         return;
       }
       window.history.replaceState(
-        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
+        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held),
+          readEntriesAboveRoot(window.history.state) ?? held.length),
         "",
         cleanMapUrl(pathname, search, hash),
       );
@@ -425,7 +437,8 @@ export function useMapSurfaceNavigation({
       const { pathname, search, hash } = window.location;
       if (new URLSearchParams(search).get("sel") !== venueId) return;
       window.history.replaceState(
-        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
+        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held),
+          readEntriesAboveRoot(window.history.state) ?? held.length),
         "",
         cleanMapUrl(pathname, search, hash),
       );
@@ -439,19 +452,28 @@ export function useMapSurfaceNavigation({
     pendingHomeRef.current = held;
     publishStack(ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
     onHomeRef.current();
-    if (typeof window !== "undefined") window.history.go(-held.length);
+    if (typeof window === "undefined") return;
+    const above = readEntriesAboveRoot(window.history.state) ?? held.length;
+    if (above > 0) window.history.go(-above);
   }, [publishStack]);
+
+  /** Close `id` through Back when it is the top entry, otherwise with `close`. */
+  const leave = useCallback((id: MapSurfaceId, close: () => void) => {
+    if (currentSurface(stackRef.current)?.id === id) back();
+    else close();
+  }, [back]);
 
   return useMemo(
     () => ({
       backLabel: backActionLabel(stack),
       back,
       home,
+      leave,
       open,
       rejectSelection,
       resolveSelection,
       holdsSurface: (id: MapSurfaceId) => stack.some((entry) => entry.id === id),
     }),
-    [back, home, open, rejectSelection, resolveSelection, stack],
+    [back, home, leave, open, rejectSelection, resolveSelection, stack],
   );
 }

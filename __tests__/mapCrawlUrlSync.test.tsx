@@ -9,7 +9,7 @@ import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/m
 import { seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 import { curatedCrawlHydrationFromSeed } from "@/lib/mapSeedCrawl";
 import { buildMapSeed } from "@/lib/pubMap";
-import { stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
+import { readMapSurfaceHistory, stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { initialFilters, type Filters } from "@/lib/venues";
 
 function mapState(
@@ -442,6 +442,29 @@ describe("crawl URL after Map history traversal", () => {
 
     expect(window.location.pathname).toBe("/map/bristol");
     expect(window.location.search).toBe("?q=Soho&max=6&drink=wine&zone=3");
+  });
+
+  it("lands Home on the root after a parent was reopened over a shorter trail", async () => {
+    window.history.replaceState({ root: true }, "", "/map?q=Soho");
+    await act(async () => {
+      root.render(createElement(HistoryHarness, { query: "Soho" }));
+    });
+    const planner = { id: "planner" as const, title: "Plan", state: EMPTY_MAP_SURFACE_STATE };
+    act(() => openHistorySurface(planner));
+    act(() => openHistorySurface({ id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE }));
+    // The planner again: the trail is two deep, but three entries sit above the root.
+    act(() => openHistorySurface(planner));
+
+    vi.useRealTimers();
+    const landed = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    await act(async () => {
+      closeHistorySurfaces();
+      await landed;
+    });
+
+    expect(readMapSurfaceHistory(window.history.state)).toEqual([]);
   });
 
   it("keeps category and filters when Home unwinds multiple sheets", async () => {
