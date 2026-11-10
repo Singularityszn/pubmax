@@ -25,7 +25,7 @@ vi.mock("@capacitor/app", () => ({ App: {
   addListener: async (_name: string, listener: (event: { url: string }) => void) => { h.listeners.add(listener); return { remove: async () => { h.listeners.delete(listener); } }; },
   getLaunchUrl: async () => h.launchUrl ? { url: h.launchUrl } : null,
 } }));
-vi.mock("next/navigation", () => { const router = { push: h.navigate }; return { useRouter: () => router }; });
+vi.mock("next/navigation", () => { const router = { push: h.navigate }; return { usePathname: () => window.location.pathname, useRouter: () => router }; });
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));

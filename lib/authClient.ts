@@ -232,8 +232,7 @@ export function ensureSupabaseBrowserForSession(): Promise<SupabaseClient | null
 
 /**
  * True when this browser stores a Supabase session for the configured project,
- * read without loading supabase-js. When the storage cannot be read, the answer
- * is true, so a session that may exist is restored at once.
+ * read without loading supabase-js.
  */
 export function hasStoredBrowserSession(storage: Pick<Storage, "getItem"> | null): boolean {
   const config = resolveSupabaseConfig(
@@ -245,11 +244,11 @@ export function hasStoredBrowserSession(storage: Pick<Storage, "getItem"> | null
     },
   );
   if (!config) return false;
-  if (!storage) return true;
+  if (!storage) return false;
   try {
     return storage.getItem(browserSessionStorageKey(config.url)) !== null;
   } catch {
-    return true;
+    return false;
   }
 }
 

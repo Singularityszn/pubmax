@@ -16,7 +16,7 @@ const h = vi.hoisted(() => ({
   clientOffline: false,
   subscriber: null as null | ((event: string, session: Session | null) => void),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.navigate }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname, useRouter: () => ({ push: h.navigate }) }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));

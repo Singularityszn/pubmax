@@ -22,6 +22,7 @@ export type AuthClientTurn = {
   ready: Promise<void>;
   /** True when the client waits for the pins: no stored session and no sign-in under way. */
   waiting: boolean;
+  updatePathname: (pathname: string) => void;
   /** Drops the listener. `ready` then never resolves. */
   cancel: () => void;
 };
@@ -46,7 +47,7 @@ export function authClientTurn(
     input.pinsVisible ||
     !MAP_PATH.test(win.location.pathname)
   ) {
-    return { ready: Promise.resolve(), waiting: false, cancel: () => {} };
+    return { ready: Promise.resolve(), waiting: false, updatePathname: () => {}, cancel: () => {} };
   }
   let release: () => void = () => {};
   let open = true;
@@ -73,5 +74,12 @@ export function authClientTurn(
   goWhen(input.callback);
   goWhen(input.durableSession());
   goWhen(input.clientBuilt().then(() => true));
-  return { ready, waiting: true, cancel };
+  return {
+    ready,
+    waiting: true,
+    updatePathname: (pathname) => {
+      if (!MAP_PATH.test(pathname)) go();
+    },
+    cancel,
+  };
 }

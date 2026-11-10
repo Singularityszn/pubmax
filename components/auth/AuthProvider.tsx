@@ -24,7 +24,7 @@ import {
 } from "react";
 import type { Route } from "next";
 import nextDynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
@@ -58,7 +58,7 @@ import {
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
 import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, ensureSupabaseBrowserForSession, finishNativeSessionInstallation, hasStoredBrowserSession, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
-import { authClientTurn } from "@/lib/authClientTurn";
+import { authClientTurn, type AuthClientTurn } from "@/lib/authClientTurn";
 import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
@@ -345,6 +345,8 @@ export function AuthProvider({
   clerkIntegrationConfigured: boolean;
 }): React.JSX.Element {
   const router = useRouter();
+  const pathname = usePathname();
+  const pendingClientTurn = useRef<AuthClientTurn | null>(null);
   const accountRevision = useSyncExternalStore(
     subscribeProviderIdentityRevision,
     readProviderIdentityRevision,
@@ -687,6 +689,7 @@ export function AuthProvider({
       durableSession: () => readResumeHint().then((hint) => hint.status === "present"),
       clientBuilt: ensureSupabaseBrowserForSession,
     });
+    pendingClientTurn.current = clientTurn;
     // No stored session, no durable cookie and no callback is a signed-out
     // reader. Say so now, so the sign-in invitation shows before the pins
     // although the client loads after them. The bootstrap repeats the answer.
@@ -1070,6 +1073,7 @@ export function AuthProvider({
     return () => {
       active = false;
       bootstrapRetryPending = false;
+      pendingClientTurn.current = null;
       clientTurn.cancel();
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
@@ -1079,6 +1083,10 @@ export function AuthProvider({
       publishAuthEvent.current = null;
     };
   }, [configured, updateSession]);
+
+  useEffect(() => {
+    if (pathname !== null) pendingClientTurn.current?.updatePathname(pathname);
+  }, [pathname]);
 
   const cancelPendingNativeAuth = useCallback((preserveEmailReceipt = false) => {
     if (!preserveEmailReceipt && typeof window !== "undefined") {

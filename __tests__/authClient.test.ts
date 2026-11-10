@@ -250,8 +250,8 @@ describe("hasStoredBrowserSession", () => {
 
     expect(hasStoredBrowserSession({ getItem: (key) => stored.get(key) ?? null })).toBe(true);
     expect(hasStoredBrowserSession({ getItem: () => null })).toBe(false);
-    expect(hasStoredBrowserSession({ getItem: () => { throw new Error("blocked"); } })).toBe(true);
-    expect(hasStoredBrowserSession(null)).toBe(true);
+    expect(hasStoredBrowserSession({ getItem: () => { throw new Error("blocked"); } })).toBe(false);
+    expect(hasStoredBrowserSession(null)).toBe(false);
     expect(createClient).not.toHaveBeenCalled();
   });
 
@@ -286,6 +286,29 @@ describe("a signed-out browser", () => {
     createClient.mockReturnValue(client);
     const { ensureSupabaseBrowser, ensureSupabaseBrowserForSession } = await loadAuthClient();
 
+    let delivered: unknown = "pending";
+    void ensureSupabaseBrowserForSession().then((value) => { delivered = value; });
+    await Promise.resolve();
+    expect(delivered).toBe("pending");
+    expect(createClient).not.toHaveBeenCalled();
+
+    await expect(ensureSupabaseBrowser()).resolves.toBe(client);
+    await vi.waitFor(() => expect(delivered).toBe(client));
+  });
+
+  it.each(["missing", "blocked getter", "blocked read"])("defers passive clients with %s storage until an explicit load", async (failure) => {
+    browserWith({});
+    Object.defineProperty(window, "localStorage", failure === "blocked getter" ? {
+      get: () => { throw new Error("blocked"); },
+    } : {
+      value: failure === "missing" ? null : { getItem: () => { throw new Error("blocked"); } },
+    });
+    const client = { auth: { getSession: vi.fn() } };
+    createClient.mockReturnValue(client);
+    const { ensureSupabaseBrowser, ensureSupabaseBrowserForSession, getAccessToken, getSupabaseBrowser } = await loadAuthClient();
+
+    await expect(getAccessToken()).resolves.toBeNull();
+    expect(getSupabaseBrowser()).toBeNull();
     let delivered: unknown = "pending";
     void ensureSupabaseBrowserForSession().then((value) => { delivered = value; });
     await Promise.resolve();

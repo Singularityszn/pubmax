@@ -36,7 +36,7 @@ const authRedirect = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/map", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({
   default: () => null,
 }));

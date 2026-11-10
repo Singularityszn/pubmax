@@ -110,11 +110,22 @@ describe("when the browser auth client may load", () => {
     expect(asked).toBe(1);
   });
 
+  it.each(["/", "/tonight", "/mapping"])("releases the map wait when navigation reaches %s", async (pathname) => {
+    const turn = authClientTurn(fakeWindow("/map"), SIGNED_OUT);
+
+    turn.updatePathname("/map/manchester");
+    expect(await settled(turn.ready)).toBe(false);
+
+    turn.updatePathname(pathname);
+    expect(await settled(turn.ready)).toBe(true);
+  });
+
   it("never loads after the provider has gone", async () => {
     const win = fakeWindow("/map");
     const turn = authClientTurn(win, SIGNED_OUT);
 
     turn.cancel();
+    turn.updatePathname("/");
     win.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
     expect(await settled(turn.ready)).toBe(false);
   });
