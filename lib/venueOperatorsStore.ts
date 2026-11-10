@@ -9,10 +9,7 @@
 // production fails closed: missing-schema and hard write failures THROW so the
 // route answers 503 (never a fake success). Reads remain fail-soft.
 //
-// Idempotent by construction: ONE claim per (accountId, venueId). A re-claim for
-// the same pair UPDATES the existing row (refreshes the evidence, resets a
-// rejected/revoked claim back to pending for another review) rather than stacking
-// a second row. A verified claim is never reopened: the re-claim returns it as is.
+// VenueOperatorStore.claim defines the claim and re-claim contract.
 
 import "server-only";
 
@@ -258,7 +255,6 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
         };
         const { error } = await admin().from(TABLE).insert(toRow(claim));
         if (error) {
-          // A race inserted the pair between our select and insert — reopen it.
           if (isUniqueViolation(error)) {
             const raced = await selectByPair(fields.accountId, fields.venueId);
             if (raced) {

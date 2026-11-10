@@ -1097,9 +1097,8 @@ commit.
   in migration 0048 mirror the allowlists.
 - **Auth stance (ACCOUNT — the CREATE boundary):** `account_id` is the VERIFIED
   Supabase uid from the bearer JWT (`callerAuthIdentity`), never a body value; an
-  anonymous caller is 401. Idempotent per `(account_id, venue_id)` — a re-claim
-  UPDATES in place and reopens the row to `pending`, so table growth is bounded by
-  distinct account×venue pairs.
+  anonymous caller is 401. The [`VenueOperatorStore.claim` contract](../lib/venueOperatorsStore.ts)
+  owns claim uniqueness and re-claim behaviour.
 - **Rate limit (boundary):** durable per-account + hashed-IP `isLimited` with key
   `venue-operator-claim:${accountId}:${hashIp(clientIp)}` (raw IP never keyed),
   budget 10 — an operator may run a few pubs. 429 `{ code: "RATE_LIMITED",
