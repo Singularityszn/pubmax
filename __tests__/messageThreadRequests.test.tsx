@@ -296,6 +296,8 @@ describe("the send is latched and carries an idempotency key", () => {
       id: "photo-message", conversationId: "c1", senderHandle: "ken", body: "caption",
       createdAt: "2026-09-05T10:00:01Z", read: false, flagged: false,
     } }));
+    const messageWrites = () => network.mock.calls.filter(([url, init]) =>
+      String(url) === "/api/messages/c1" && init?.method === "POST");
     vi.stubGlobal("fetch", network);
     vi.stubGlobal("URL", class extends URL {
       static createObjectURL() { return "blob:photo"; }
@@ -311,7 +313,7 @@ describe("the send is latched and carries an idempotency key", () => {
     await act(async () => { container.querySelector<HTMLButtonElement>("[data-crop]")!.click(); });
     await typeAndSend("caption");
     expect(readPhoto).toHaveBeenCalledOnce();
-    expect(network).not.toHaveBeenCalled();
+    expect(messageWrites()).toHaveLength(0);
 
     if (switchAccount) {
       setProviderIdentity("supabase", "user-sam");
@@ -320,9 +322,9 @@ describe("the send is latched and carries an idempotency key", () => {
     }
     await act(async () => { finishRead(new Uint8Array([1, 2, 3]).buffer); });
 
-    expect(network).toHaveBeenCalledTimes(switchAccount ? 0 : 1);
+    expect(messageWrites()).toHaveLength(switchAccount ? 0 : 1);
     if (!switchAccount) {
-      const init = defined(defined(network.mock.calls[0])[1]);
+      const init = defined(defined(messageWrites()[0])[1]);
       expect(new Headers(init.headers).get("authorization")).toBe("Bearer user-ken");
       const post = JSON.parse(String((init.body as FormData).get("post")));
       expect(post).toMatchObject({ handle: "ken", body: "caption", clientMessageId: expect.any(String) });

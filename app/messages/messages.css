@@ -1027,7 +1027,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 /* The mobile chooser follows the map's shared bottom-sheet material and
    geometry. Its content is the only message-specific layer. */
 .messageAttachSheet {
-  display: none;
+  display: flex;
   background: var(--ink-deep);
   color: var(--color-on-inverse);
 }
@@ -1580,14 +1580,54 @@ html[data-theme="dark"] .messageBubblePhoto {
   }
 
   .messageAttachSheet {
-    display: flex;
     transition: transform var(--duration-slow) var(--ease-drawer);
   }
 }
 
 @media (min-width: 641px) {
-  .messageAttachSheetPortal {
+  .mobileSheetPortal.messageAttachSheetPortal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-overlay-top);
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+  }
+
+  .messageAttachSheetPortal .mobileSheetScrim {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: color-mix(in srgb, var(--ink-deep) 32%, transparent);
+  }
+
+  .messageAttachSheet {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    flex-direction: column;
+    width: 376px;
+    max-width: 100%;
+    max-height: calc(100dvh - 2 * var(--space-4));
+    padding: var(--space-4);
+    border: 1px solid var(--sheet-material-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .messageAttachSheetHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .messageAttachSheetHeader .mobileSharedSheetGrab {
     display: none;
+  }
+
+  .messageAttachSheetBody {
+    min-height: 0;
+    overflow-y: auto;
   }
 }
 
