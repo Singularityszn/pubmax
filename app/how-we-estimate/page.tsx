@@ -15,6 +15,7 @@ import {
 } from "@/lib/priceTier";
 import { MIN_ESTIMATE_SAMPLE } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
+import { MIN_PRICED_VENUES } from "@/lib/zones";
 
 import "../legal.css";
 
@@ -139,6 +140,13 @@ export default function HowWeEstimatePage() {
         <p className="legalBody">
           A basis needs at least {MIN_ESTIMATE_SAMPLE} published prices behind
           it. With fewer prices, we show no estimate.
+        </p>
+        <p className="legalBody">
+          <strong>London pubs.</strong>{" "}In London a pint costs about the same
+          across one fare zone. A London pub with no recorded price takes the
+          middle recorded pint price of the pubs in its zone. A zone needs at
+          least {MIN_PRICED_VENUES} recorded prices before we use it. An area
+          price page also shows the middle price of the pubs it lists.
         </p>
       </section>
 

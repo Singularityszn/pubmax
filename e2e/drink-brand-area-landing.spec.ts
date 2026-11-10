@@ -361,6 +361,18 @@ async function assertLandingContract(
   }
   await expect(fromPrice).toHaveText(`From ${CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.priceLabel}`);
 
+  // A pub here with no listed price reads the area estimate: the middle of the
+  // listed prices, every one of them on the page, and never a plain figure.
+  const middle = Math.floor(prices.length / 2);
+  const areaMedian = prices.length % 2 ? prices[middle]! : (prices[middle - 1]! + prices[middle]!) / 2;
+  const estimate = page.locator(".drinkBrandDirectory__estimate");
+  await expect(estimate).toBeVisible();
+  await expect(estimate.locator("strong")).toHaveText(`est. £${areaMedian.toFixed(2)}`);
+  await expect(estimate).toContainText(`the middle of the ${CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues} listed prices`);
+  await expect(estimate.getByRole("link", { name: "How we estimate", exact: true }))
+    .toHaveAttribute("href", "/how-we-estimate");
+  await expectHorizontallyInsideViewport(page, estimate, `${viewportName}px ${theme} area estimate`);
+
   const firstRow = rows.first();
   const firstVenue = firstRow.locator(".drinkBrandDirectory__venue");
   const firstContribution = firstRow.getByRole("link", { name: "Log this price", exact: true });

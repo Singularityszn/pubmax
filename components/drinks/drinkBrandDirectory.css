@@ -33,7 +33,8 @@
   line-height: var(--leading-normal);
 }
 
-.drinkBrandDirectory__context a {
+.drinkBrandDirectory__context a,
+.drinkBrandDirectory__estimate a {
   color: var(--ink);
   font-weight: 650;
   text-decoration-color: currentColor;
@@ -126,7 +127,8 @@
   }
 }
 
-.drinkBrandDirectory__summary {
+.drinkBrandDirectory__summary,
+.drinkBrandDirectory__estimate {
   max-width: 55ch;
   margin: 10px 0 0;
   color: var(--ink-soft);
@@ -401,7 +403,8 @@
     font-size: clamp(2.25rem, 13vw, 3.45rem);
   }
 
-  .drinkBrandDirectory__summary {
+  .drinkBrandDirectory__summary,
+  .drinkBrandDirectory__estimate {
     font-size: var(--text-sm);
   }
 

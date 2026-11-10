@@ -15,6 +15,12 @@ import {
   type MapSelectableVenueIds,
   type PricedLandingRow,
 } from "@/lib/pricedLanding";
+import {
+  HOW_WE_ESTIMATE_HREF,
+  HOW_WE_ESTIMATE_LABEL,
+  priceStandingFigure,
+  priceStandingFor,
+} from "@/lib/priceTier";
 import { formatPrice } from "@/lib/venues";
 
 // The map opens on a PUB, never on `?q=<area name>`: `q` is a free-text venue
@@ -81,6 +87,14 @@ export default function DrinkBrandAreaLandingContent({
             {arrival.label}
           </Link>
         </div>
+        {landing.areaEstimate ? (
+          <p className="drinkBrandDirectory__estimate">
+            No listed price at a pub here? Expect about{" "}
+            <strong>{priceStandingFigure(priceStandingFor({ estimate: landing.areaEstimate }))}</strong>
+            , the middle of the {landing.areaEstimate.sampleSize} listed prices.{" "}
+            <Link href={HOW_WE_ESTIMATE_HREF}>{HOW_WE_ESTIMATE_LABEL}</Link>
+          </p>
+        ) : null}
         <LandingPhoto
           resolved={landingPhotoFor({ areaSlug: landing.areaSlug })}
           variant="band"

@@ -150,7 +150,13 @@ function gradePrice(
   const amounts = [...text.matchAll(/(?:£\s*|\bGBP\s*)(\d+(?:\.\d+)?)|\b(\d+(?:\.\d+)?)\s*(?:pounds?|quid|GBP)\b|\b(\d+)\s*(?:pence|p)\b|\b(\d+\.\d{1,2})\b/gi)]
     .map((match) => match[3] ? Number(match[3]) / 100 : Number(match[1] ?? match[2] ?? match[4]));
   if (reference.value === null) {
-    push(checks, "unknown_price_empty", body.cards.every((card) => card.price === null) && amounts.length === 0,
+    // A recorded price is still unknown. The one figure an answer may quote is
+    // the venue's own zone estimate, and only while it calls it an estimate.
+    const estimate = reference.estimateGbp;
+    const quotesOnlyEstimate = estimate !== undefined && /\bestimate\b/i.test(body.answer)
+      && amounts.every((amount) => Math.abs(amount - estimate) <= tolerance);
+    push(checks, "unknown_price_empty",
+      body.cards.every((card) => card.price === null) && (amounts.length === 0 || quotesOnlyEstimate),
       `prices=${body.cards.map((card) => card.price).join(",")} amounts=${amounts.join(",")}`);
     push(checks, "unknown_price_disclosed", disclosesMissingRecord(body.answer, "price", index.namesById.get(reference.venueId) ?? []), body.answer);
   } else {

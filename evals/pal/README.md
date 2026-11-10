@@ -25,7 +25,8 @@ before it runs the real keyless `runAsk` path. Global network access fails the t
 
 The `priceAnswer` expectation checks prices in the answer and card text as well
 as structured card prices. Unknown prices require a complete absence statement
-about the requested price. Known prices require the recorded value and publisher
+about the requested price. An unknown price may quote one figure, the venue's
+fare-zone estimate, and only when the answer calls it an estimate. Known prices require the recorded value and publisher
 on the same card.
 Replay tests insert invented prices, remove sources, and omit the known value.
 Run this subset with `npx vitest run __tests__/palFailClosedPrices.test.ts`.

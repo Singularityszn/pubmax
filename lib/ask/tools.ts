@@ -22,6 +22,9 @@ import {
   type ConciergeVenue,
 } from "@/lib/concierge/rank";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { zoneEstimateNote, zonePriceEstimate } from "@/lib/zonePriceEstimate";
+import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
+import { zoneLabel } from "@/lib/zones";
 import {
   buildWhatsOnAnswer,
   detectWhatsOnIntent,
@@ -386,18 +389,25 @@ async function toolVenuePrices(
     };
   }
 
+  const communityRead = await readCommunityPricesWithStatus(venue.id);
+  const intent = resolveAskPriceIntent(ctx.query);
+  const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
+  // A pub with no recorded pint gets its fare zone's estimate, named as one.
+  // It is never price evidence and never the card's price.
+  const zoneEstimate = venue.cheapestPrice == null && trusted.length === 0
+    ? zonePriceEstimate(venue.zone, await loadZonePintIndex())
+    : null;
+
   const curatedCard = venueCard(
     venue,
     venue.cheapestPrice != null
       ? "Current recorded pint on the listed index."
-      : "No current recorded pint on the listed index.",
+      : zoneEstimate
+        ? `No recorded pint. ${zoneEstimateNote(zoneEstimate)}`
+        : "No current recorded pint on the listed index.",
     `${venue.id}:curated`,
     ctx.now,
   );
-
-  const communityRead = await readCommunityPricesWithStatus(venue.id);
-  const intent = resolveAskPriceIntent(ctx.query);
-  const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
   const communityCards: AskCard[] = trusted.map((p, index) => ({
     key: `${venue.id}:c-${index}`,
     venueId: venue.id,
@@ -432,7 +442,9 @@ async function toolVenuePrices(
       ? `${venue.name}: ${trusted.length} corroborated people-logged figure${trusted.length === 1 ? "" : "s"} plus the listed index.`
       : venue.cheapestPrice != null
         ? `${venue.name}: listed pint ${formatGbp(venue.cheapestPrice)} (no corroborated people-logged figure yet).`
-        : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
+        : zoneEstimate
+          ? `${venue.name}: no listed pint price. Estimate ${formatGbp(zoneEstimate.priceGbp)}, the middle of ${zoneEstimate.sampleSize} recorded pint prices in ${zoneLabel(zoneEstimate.zone)}. Not a recorded price.`
+          : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
 
   return {
     ok: true,
@@ -440,6 +452,9 @@ async function toolVenuePrices(
     data: {
       venueId: venue.id,
       curatedPrice: venue.cheapestPrice,
+      zoneEstimate: zoneEstimate
+        ? { estimateGbp: zoneEstimate.priceGbp, zone: zoneEstimate.zone, sampleSize: zoneEstimate.sampleSize }
+        : null,
       communityDegraded: communityRead.degraded,
       trustedCommunity: trusted.map((p) => ({
         drinkCategory: p.drinkCategory,

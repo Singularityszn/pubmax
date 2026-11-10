@@ -98,6 +98,12 @@ export type ZonePintIndex = {
   cheapest: ZonePintIndexRow | null;
   /** Dearest − cheapest median across publishable zones — the "zone tax". */
   taxGbp: number | null;
+  /**
+   * When the published index was read from the shipped prices. Absent on a
+   * roll-up of whatever the client has loaded, which estimates nothing
+   * (lib/zonePriceEstimate.ts).
+   */
+  computedAt?: string;
 };
 
 /**

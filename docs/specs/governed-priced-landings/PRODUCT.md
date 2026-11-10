@@ -16,9 +16,8 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 - A London Night Area has a page when it holds **15** priced pubs
   (`PRICED_LANDING_PUBLICATION_FLOORS.area`). Each pub counts once, at its own
   cheapest listed pint. Only pub venue kinds, only finite positive prices.
-- The floor is the ONLY gate. A price list is not a route, so the route
-  readiness review (`nightAreaPublishesPrices`) that gates the brand-by-area
-  pairs does not gate this page. `lib/areaLanding.ts` owns the rule.
+- The floor is the ONLY gate. A price list is not a route, so no route
+  readiness review gates this page. `lib/areaLanding.ts` owns the rule.
 - The page prints the ranked list, publisher per row, count, the area's
   stations from `transportAnchors`, and its published brand-by-area pairs.
   Its headline price and metadata carry that price row's source-read date.
@@ -68,9 +67,10 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
   15 priced pubs of any pint. A brand-by-area page
   needs 10, AND its brand's own London page must publish: that page is its
   parent crumb, so a pair without one would link a reader to a 404.
-- A brand-by-area page also requires `nightAreaPublishesPrices` to accept the area.
-  No area currently qualifies under the [catalogue review policy](../../API_CONTRACTS_THE_LOCAL.md#24-nightarea-catalogue), so no brand-by-area pair publishes.
-  London brand pages, ordinary area pages, and map visibility retain their separate rules.
+- A brand-by-area page needs no area review. Prices move by area, not pub by
+  pub, so the page also prints the area estimate: the middle of the listed
+  prices it ranks, labelled `est.` and linked to `/how-we-estimate`. It is
+  never a row and never ranks.
 - One pub counts once, at its own cheapest matching row.
 - Only pub venue kinds, only finite positive prices.
 - Ranked cheapest first, then pub name, then pub id. At most 20 rows printed.

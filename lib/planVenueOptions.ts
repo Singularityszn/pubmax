@@ -1,6 +1,7 @@
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { toZoneId } from "@/lib/zones";
 
 export type PlanVenueOption = {
   id: string;
@@ -9,6 +10,8 @@ export type PlanVenueOption = {
   borough?: string;
   lat?: number;
   lng?: number;
+  /** Nearest-station fare zone, for the stop card's zone estimate. */
+  zone?: number;
 };
 
 export function planVenueOptions(value: unknown): PlanVenueOption[] {
@@ -33,6 +36,10 @@ export function planVenueOptions(value: unknown): PlanVenueOption[] {
       && Math.abs(row.lat) <= 90 && Math.abs(row.lng) <= 180
         ? { lat: row.lat, lng: row.lng }
         : {};
-    return [{ id, name, ...(address ? { address } : {}), ...(borough ? { borough } : {}), ...coordinates }];
+    const zone = toZoneId(row.zone);
+    return [{
+      id, name, ...(address ? { address } : {}), ...(borough ? { borough } : {}), ...coordinates,
+      ...(zone !== null ? { zone } : {}),
+    }];
   });
 }

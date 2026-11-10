@@ -461,6 +461,7 @@ import {
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
 import { publishedOrLoadedZoneIndex, type ZonePintIndex } from "@/lib/zones";
+import { zoneEstimatePinStandings } from "@/lib/zonePriceEstimate";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import {
   useCoffeePilotCafes,
@@ -3235,6 +3236,10 @@ export default function PubMap({
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (filters.query.trim() ? searchPickedVenueId : "")),
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
+  const pinPriceStandings = useMemo(
+    () => zoneEstimatePinStandings(canvasVenues, venueSignals, zoneIndex),
+    [canvasVenues, venueSignals, zoneIndex],
+  );
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
     return canvasVenues.filter((venue) => matchingIds.has(venue.id));
@@ -3406,6 +3411,7 @@ export default function PubMap({
             drinkIndexStatus,
             mapListSortMode,
             venueSignals,
+            zoneIndex,
           ),
     [
       activeLensNoun,
@@ -3416,6 +3422,7 @@ export default function PubMap({
       mapVenueListVenues,
       mapViewport.center,
       venueSignals,
+      zoneIndex,
     ],
   );
   const mapPeek = useMapPeek({
@@ -6002,7 +6009,7 @@ export default function PubMap({
     // scroll below printed the figure (#1426 follow-up). A null lane is the only thing
     // this chip may word as an absence (lib/venuePriceLane.ts).
     const peekDropSignal = dropSignals.get(selectedVenue.id);
-    const peekBundle = venueBundlePrices(selectedVenue);
+    const peekBundle = venueBundlePrices(selectedVenue, zoneIndex);
     // ONE builder for the three drop-lane inputs, shared with the sheet below,
     // so an unchecked figure is named and unbanded on both (decision 9).
     const peekDropLanes = dropLaneInputsFor(peekDropSignal);
@@ -6745,6 +6752,7 @@ export default function PubMap({
         lensPrices={activeLensPrices}
         lensNoun={activeLensNoun}
         lensStatus={drinkIndexStatus}
+        zoneIndex={zoneIndex}
         viewportCenter={mapViewport.center}
         reader={userLocation}
         loaded={
@@ -6989,6 +6997,7 @@ export default function PubMap({
         whatsOnByVenue={whatsOnTonight.summary}
         provisionalVenueIds={provisionalVenueIds}
         lensPrices={activeLensPrices}
+        priceStandings={pinPriceStandings}
         ukBaseSuspended={mapFiltersSuspendUkBasePubs(effectiveMapFilters)}
         spoonsValue={spoonsValueLane}
         lensNoun={activeLensNoun?.toLowerCase() ?? null}

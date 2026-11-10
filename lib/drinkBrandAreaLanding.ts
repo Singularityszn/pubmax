@@ -10,12 +10,13 @@ import { NIGHT_AREAS, type NightArea, type NightAreaSlug } from "@/lib/nightArea
 import {
   PRICED_LANDING_PUBLICATION_FLOORS,
   assignVenueToNightArea,
-  nightAreaPublishesPrices,
   publishablePricedRows,
   type PricedLandingCandidate,
   type PricedLandingRow,
 } from "@/lib/pricedLanding";
 import type { Venue } from "@/lib/venues";
+import type { EstimatedPriceInput } from "@/lib/priceTier";
+import { median } from "@/lib/zones";
 
 export const DRINK_BRAND_AREA_PUBLICATION_FLOOR =
   PRICED_LANDING_PUBLICATION_FLOORS["drink-brand-area"];
@@ -28,6 +29,13 @@ export type DrinkBrandAreaLanding = {
   /** The oldest read among the rows the page prints; null when any of them records none. */
   collectedAt: string | null;
   totalPricedVenues: number;
+  /**
+   * What a pub here with no recorded price for this brand most likely charges:
+   * the middle of every recorded price in the area, dated by the newest read it
+   * rests on. Null when no price records a read, because an undated estimate
+   * cannot say when it was true.
+   */
+  areaEstimate: EstimatedPriceInput | null;
   rows: [PricedLandingRow, ...PricedLandingRow[]];
 };
 
@@ -58,13 +66,16 @@ function publishedBrandAreaLanding(
   venues: readonly Venue[],
   areas: readonly NightArea[],
 ): DrinkBrandAreaLanding | null {
-  if (!nightAreaPublishesPrices(area)) return null;
-
-  const published = publishablePricedRows(
-    "drink-brand-area",
-    areaBrandCandidates(area, brand, venues, areas),
-  );
+  const candidates = areaBrandCandidates(area, brand, venues, areas);
+  const published = publishablePricedRows("drink-brand-area", candidates);
   if (!published) return null;
+  // One candidate per pub by construction, so the median counts each pub once.
+  const areaMedian = median(candidates.map((candidate) => candidate.priceGbp));
+  const newestRead = candidates
+    .map((candidate) => candidate.observedAt ?? "")
+    .filter((read) => Number.isFinite(Date.parse(read)))
+    .sort()
+    .at(-1);
 
   return {
     areaSlug: area.slug,
@@ -73,6 +84,14 @@ function publishedBrandAreaLanding(
     brandLabel: brand.label,
     collectedAt: oldestPintRead(published.rows.map((row) => row.observedAt)),
     totalPricedVenues: published.totalPricedVenues,
+    areaEstimate: areaMedian !== null && newestRead
+      ? {
+          priceGbp: areaMedian,
+          basis: "area_median",
+          sampleSize: published.totalPricedVenues,
+          computedAt: newestRead,
+        }
+      : null,
     rows: published.rows,
   };
 }

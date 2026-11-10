@@ -21,6 +21,8 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import type { VenueDropReadStatus } from "@/lib/venueDropRead";
+import { withZoneEstimate } from "@/lib/zonePriceEstimate";
+import type { ZonePintIndex } from "@/lib/zones";
 
 /**
  * The ONE line a provisional price prints. Captain decision 2026-09-04 (issue
@@ -278,6 +280,15 @@ export function venuePriceLane(
   return null;
 }
 
+/** The modelled figure a surface shows: the decided lane's own, else the bundle's. */
+export function venuePriceLaneEstimate(
+  lane: VenuePriceLane | null,
+  bundle: VenueBundlePrices,
+): EstimatedPriceInput | null {
+  if (lane?.lane === "estimate") return lane.estimate;
+  return bundle.estimate ?? null;
+}
+
 /** A venue carrying whatever the UK price bundle holds about it. */
 type VenueWithBundlePrices = Venue & { bundlePrices?: VenueBundlePrices | null };
 
@@ -286,8 +297,12 @@ type VenueWithBundlePrices = Venue & { bundlePrices?: VenueBundlePrices | null }
  * `venueSourcedPrice` is derived. Absent reads as an empty answer rather than
  * as "no price": the bundle may simply not have been asked on this surface.
  */
-export function venueBundlePrices(venue: Venue): VenueBundlePrices {
-  return (venue as VenueWithBundlePrices).bundlePrices ?? {};
+export function venueBundlePrices(
+  venue: Venue,
+  zoneIndex?: ZonePintIndex | null,
+): VenueBundlePrices {
+  const bundle = (venue as VenueWithBundlePrices).bundlePrices ?? {};
+  return isPubVenueKind(venue.kind) ? withZoneEstimate(bundle, venue.zone, zoneIndex) : bundle;
 }
 
 /** The sourced-price lane input both callers derive the same way. */

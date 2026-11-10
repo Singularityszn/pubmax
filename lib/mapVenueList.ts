@@ -13,6 +13,10 @@ import {
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
+import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
+import { zonePriceEstimate } from "@/lib/zonePriceEstimate";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import type { ZonePintIndex } from "@/lib/zones";
 
 type MapVenueListVenueSignals = ReadonlyMap<
   string,
@@ -159,9 +163,13 @@ export function mapVenueListLensPrice(
 function mapVenueListPintPriceLabel(
   venue: Venue,
   venueSignals: MapVenueListVenueSignals | null,
+  zoneIndex: ZonePintIndex | null,
 ): string {
   const price = mapVenueListPintPrice(venue, venueSignals);
-  return price !== null ? formatGbp(price) : "Price TBD";
+  if (price !== null) return formatGbp(price);
+  // A pub with no recorded price reads its zone estimate, "est." and all.
+  const estimate = isPubVenueKind(venue.kind) ? zonePriceEstimate(venue.zone, zoneIndex) : null;
+  return (estimate && priceStandingFigure(priceStandingFor({ estimate }))) ?? "Price TBD";
 }
 
 /**
@@ -201,6 +209,7 @@ export function buildMapVenueListModel(
   lensStatus: CategoryPriceIndexStatus = "ready",
   sortMode: MapVenueListSortMode = "nearest",
   venueSignals: MapVenueListVenueSignals | null = null,
+  zoneIndex: ZonePintIndex | null = null,
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -224,7 +233,7 @@ export function buildMapVenueListModel(
           const pint = hasPintPriceSemantics(item) ? mapVenueListPintPrice(item, venueSignals) : null;
           return {
             ...row,
-            priceLabel: mapVenueListPintPriceLabel(item, venueSignals),
+            priceLabel: mapVenueListPintPriceLabel(item, venueSignals, zoneIndex),
             priceBand: priceBand(pint, priceBandAreaForVenue(item.id)),
           };
         })
