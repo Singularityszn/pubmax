@@ -25,11 +25,12 @@ vi.mock("@/lib/supabase", () => {
       op: "select" | "insert" | "update" | null;
       insertRow: Row | null;
       patch: Row | null;
-      filters: { col: string; value: unknown }[];
+      filters: { col: string; value?: unknown; values?: readonly unknown[] }[];
       single: boolean;
     } = { op: null, insertRow: null, patch: null, filters: [], single: false };
 
-    const matches = (r: Row) => state.filters.every((f) => r[f.col] === f.value);
+    const matches = (r: Row) =>
+      state.filters.every((f) => (f.values ? f.values.includes(r[f.col]) : r[f.col] === f.value));
 
     const result = () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
@@ -61,6 +62,10 @@ vi.mock("@/lib/supabase", () => {
       update(patch: Row) {
         state.op = "update";
         state.patch = patch;
+        return q;
+      },
+      in(col: string, values: readonly unknown[]) {
+        state.filters.push({ col, values });
         return q;
       },
       eq(col: string, value: unknown) {

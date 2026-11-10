@@ -143,6 +143,24 @@ describe("POST /api/operator-proposals (moderator accept/decline)", () => {
     expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(0);
   });
 
+  it("lets a decline undo an accept, but refuses a stale accept or a second decline", async () => {
+    auth.identity = { id: "acct-1", email: null };
+    await verifyOperator("acct-1", "v1");
+    const created = await POST(req(correction));
+    const { proposal } = (await created.json()) as { proposal: { id: string } };
+    expect((await POST(withAdmin(req({ action: "accept", id: proposal.id })))).status).toBe(200);
+    // A second accept from a stale tab must not withdraw the published fact.
+    expect((await POST(withAdmin(req({ action: "accept", id: proposal.id })))).status).toBe(409);
+    expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(1);
+    // The moderator's undo still works.
+    expect((await POST(withAdmin(req({ action: "decline", id: proposal.id })))).status).toBe(200);
+    expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(0);
+    // A stale tab cannot accept the declined proposal back, or decline it twice.
+    expect((await POST(withAdmin(req({ action: "accept", id: proposal.id })))).status).toBe(409);
+    expect((await POST(withAdmin(req({ action: "decline", id: proposal.id })))).status).toBe(409);
+    expect(await memoryOperatorProposalStore.listAcceptedForVenue("v1")).toHaveLength(0);
+  });
+
   it("404s accept against an unknown id", async () => {
     expect((await POST(withAdmin(req({ action: "accept", id: "nope" })))).status).toBe(404);
   });

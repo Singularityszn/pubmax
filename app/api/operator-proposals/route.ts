@@ -90,8 +90,9 @@ export async function POST(request: Request): Promise<Response> {
         // that fails leaves the proposal as it was and answers 503.
         await operatorFactsStore().withdraw(id);
         const done = await store.setStatus(id, "declined", note);
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
+        if (done) return jsonNoStore({ ok: true }, { status: 200 });
+        return (await store.getById(id))
+          ? publicApiError("This proposal was already declined.", "CONFLICT", 409)
           : publicApiError("Proposal not found.", "NOT_FOUND", 404);
       }
 
@@ -103,6 +104,11 @@ export async function POST(request: Request): Promise<Response> {
       // surface folds it in and exposes any disagreement as a conflict.
       const proposal = await store.getById(id);
       if (!proposal) return publicApiError("Proposal not found.", "NOT_FOUND", 404);
+      // Only a pending proposal is accepted. Publishing for a decided one would
+      // withdraw the fact a real accept already published.
+      if (proposal.status !== "pending") {
+        return publicApiError("This proposal was already decided.", "CONFLICT", 409);
+      }
 
       const acceptedAt = Date.now();
       // Publish first: a publish that fails THROWS (503) with the proposal

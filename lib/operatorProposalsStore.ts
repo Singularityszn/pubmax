@@ -43,8 +43,9 @@ export type OperatorProposalStore = {
   /** Fetch one proposal by id (the acceptance path needs the payload). Fail-soft
    *  (null). */
   getById(id: string): Promise<OperatorProposal | null>;
-  /** Moderator decision: set the status + stamp the review. False = unknown id.
-   *  THROWS on a hard failure. */
+  /** Moderator decision: set the status + stamp the review. False = unknown id,
+   *  or a proposal whose status does not allow it (accept needs pending; decline
+   *  needs pending or accepted). THROWS on a hard failure. */
   setStatus(id: string, status: OperatorProposalStatus, note?: string): Promise<boolean>;
 };
 
@@ -91,13 +92,22 @@ export const memoryOperatorProposalStore: OperatorProposalStore = {
 
   async setStatus(id, status, note) {
     const hit = byId.get(id);
-    if (!hit) return false;
+    if (!hit || !decidableFrom(status).includes(hit.status)) return false;
     hit.status = status;
     hit.reviewedAt = new Date().toISOString();
     if (note) hit.reviewerNote = note;
     return true;
   },
 };
+
+/**
+ * The states a decision may move from. Accept takes only a pending proposal, so
+ * a stale tab cannot accept a declined one. Decline also takes an accepted one:
+ * that is the moderator's undo, and a second decline changes nothing.
+ */
+function decidableFrom(status: OperatorProposalStatus): readonly OperatorProposalStatus[] {
+  return status === "accepted" ? ["pending"] : status === "declined" ? ["pending", "accepted"] : [];
+}
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
@@ -231,6 +241,7 @@ export const supabaseOperatorProposalStore: OperatorProposalStore = {
             ...(note ? { reviewer_note: note } : {}),
           })
           .eq("id", id)
+          .in("status", decidableFrom(status))
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
