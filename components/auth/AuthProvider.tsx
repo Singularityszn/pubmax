@@ -644,7 +644,8 @@ export function AuthProvider({
 
     let active = true;
     let subscription: { unsubscribe: () => void } | null = null;
-    let stopBootstrapRetry: (() => void) | null = null;
+    let clientLoadInFlight = true;
+    let retrySessionBootstrap: (() => void) | null = null;
     // Session restoration is additive; it must never hold the anonymous app or
     // Pub Pal onboarding behind an infinite loading screen when the provider is
     // slow, blocked, or temporarily unavailable. This fail-soft boundary also
@@ -674,7 +675,7 @@ export function AuthProvider({
     // confident sign-out. An unhandled rejection here used to leave the 20
     // second ceiling to settle it, and every page in the tab then painted its
     // signed-out variant over an intact session (lib/authClientLoad.ts).
-    void loadAuthClientWithRetry(ensureSupabaseBrowser, {
+    const loadClient = () => loadAuthClientWithRetry(ensureSupabaseBrowser, {
       delay: (ms) =>
         new Promise<void>((resolve) => {
           window.setTimeout(resolve, ms);
@@ -911,7 +912,7 @@ export function AuthProvider({
         setSessionLoading(false);
       };
 
-      void (async () => {
+      return (async () => {
         await Promise.resolve();
         const captured = await callbackCapture;
         if (!active) return;
@@ -979,11 +980,7 @@ export function AuthProvider({
         }
         if (!active) return;
         publishBootstrappedSession(bootstrapped);
-        // An offline boot leaves the state unavailable, and native sign-in
-        // refuses that state. Ask again when the network or the app comes back.
-        stopBootstrapRetry = subscribeToReconnectRecovery(() => {
-          if (!active || sessionRestoreInFlight.current) return;
-          if (readProviderAuthState("supabase") !== "unavailable") return;
+        retrySessionBootstrap = () => {
           sessionRestoreInFlight.current = true;
           const retry = bootstrapAuthSession(supabase.auth).catch(() => ({ status: "unavailable" } as const));
           sessionBootstrapInFlight.current = retry;
@@ -991,7 +988,7 @@ export function AuthProvider({
             sessionRestoreInFlight.current = false;
             if (active) publishBootstrappedSession(retried);
           });
-        });
+        };
         if (confirmation && captured) {
           const prepared = confirmation;
           setAuthCallbackConfirmation({
@@ -1004,13 +1001,29 @@ export function AuthProvider({
           });
         }
       })();
+    }).finally(() => {
+      clientLoadInFlight = false;
     });
+
+    const retryBootstrap = () => {
+      if (!active || clientLoadInFlight || sessionRestoreInFlight.current) return;
+      if (readProviderAuthState("supabase") !== "unavailable") return;
+      if (retrySessionBootstrap) retrySessionBootstrap();
+      else {
+        clientLoadInFlight = true;
+        void loadClient();
+      }
+    };
+    const stopBootstrapRetry = subscribeToReconnectRecovery(retryBootstrap);
+    window.addEventListener("focus", retryBootstrap);
+    void loadClient();
 
     return () => {
       active = false;
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
-      stopBootstrapRetry?.();
+      stopBootstrapRetry();
+      window.removeEventListener("focus", retryBootstrap);
       subscription?.unsubscribe();
       publishAuthEvent.current = null;
     };
