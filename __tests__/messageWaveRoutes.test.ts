@@ -45,7 +45,7 @@ import { POST as POST_INBOX, GET as GET_INBOX } from "@/app/api/messages/route";
 import { GET as GET_THREAD, POST as POST_THREAD } from "@/app/api/messages/[id]/route";
 import { GROUP_LEFT_LINE } from "@/lib/messageGroupThread";
 import { MESSAGE_UNSENT_LINE } from "@/lib/messageRemovals";
-import { __resetMemoryMessages } from "@/lib/messagesStore";
+import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 // Messaging asks the one adult gate, so every seeded account has answered it.
@@ -246,6 +246,7 @@ type ThreadMessage = {
   senderHandle: string;
   body: string;
   unsent?: boolean;
+  read: boolean;
   attachment?: unknown;
 };
 
@@ -378,13 +379,13 @@ describe("unsending a message", () => {
   });
 });
 
-describe("deleting a chat", () => {
-  async function openDirect(): Promise<string> {
-    asUser("user-ken");
-    const opened = await postInbox({ action: "open", handle: "ken", other: "sam" });
-    return ((await opened.json()) as { conversationId: string }).conversationId;
-  }
+async function openDirect(): Promise<string> {
+  asUser("user-ken");
+  const opened = await postInbox({ action: "open", handle: "ken", other: "sam" });
+  return ((await opened.json()) as { conversationId: string }).conversationId;
+}
 
+describe("deleting a chat", () => {
   it("takes it out of the deleter's inbox and nobody else's", async () => {
     const id = await openDirect();
     await sendAs(id, "ken", { body: "pint?" });
@@ -579,4 +580,38 @@ describe("the three new attachment kinds, through the send door", () => {
     expect(attachment).not.toContain("sam");
     expect(attachment).not.toContain("voter");
   });
+});
+
+it.each(["direct", "group"] as const)("marks only restored %s history as read for the deleter", async (kind) => {
+  const id = kind === "direct"
+    ? await openDirect()
+    : ((await (await openGroup(["sam", "jen"])).json()) as { conversationId: string }).conversationId;
+  await sendAs(id, "sam", { body: "before deletion" });
+  asUser("user-ken");
+  await postThread(id, { action: "delete", handle: "ken" });
+  await sendAs(id, "sam", { body: "after deletion" });
+  await readMessages(id, "ken");
+  const senderView = await readMessages(id, "sam");
+  expect(senderView.map((message) => ({ body: message.body, read: message.read }))).toEqual([
+    { body: "before deletion", read: false },
+    { body: "after deletion", read: true },
+  ]);
+});
+
+it("does not move a memory deletion mark backwards when the clock retreats", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2030-01-01T19:00:00Z"));
+    const id = (await memoryMessagesStore.openConversation("ken", "sam"))!;
+    await memoryMessagesStore.send(id, "sam", "old");
+    vi.setSystemTime(new Date("2030-01-01T22:00:00Z"));
+    await memoryMessagesStore.deleteConversationForViewer(id, "ken");
+    vi.setSystemTime(new Date("2030-01-01T20:00:00Z"));
+    await memoryMessagesStore.deleteConversationForViewer(id, "ken");
+    vi.setSystemTime(new Date("2030-01-01T21:00:00Z"));
+    await memoryMessagesStore.send(id, "sam", "still before the original deletion");
+    await expect(memoryMessagesStore.listMessages(id, "ken")).resolves.toEqual([]);
+  } finally {
+    vi.useRealTimers();
+  }
 });

@@ -13,7 +13,7 @@ vi.mock("server-only", () => ({}));
 
 type Recorded = {
   table: string;
-  op: "select" | "update" | "insert" | "upsert" | "delete";
+  op: "select" | "update" | "insert" | "upsert" | "delete" | "rpc";
   filters: Array<[string, ...unknown[]]>;
   limit?: number;
   single?: boolean;
@@ -61,7 +61,7 @@ function builder(table: string) {
     query.op = "delete";
     return chain;
   };
-  for (const name of ["eq", "neq", "is", "in", "or", "order", "gt", "not"]) chain[name] = record(name);
+  for (const name of ["eq", "neq", "is", "in", "or", "order", "gt", "not", "range"]) chain[name] = record(name);
   chain.limit = (n: number) => {
     query.limit = n;
     return chain;
@@ -81,7 +81,14 @@ function builder(table: string) {
   return chain;
 }
 
-const fakeAdmin = { from: (table: string) => builder(table) };
+const fakeAdmin = {
+  from: (table: string) => builder(table),
+  rpc: (name: string, args: Record<string, unknown>) => {
+    const query: Recorded = { table: name, op: "rpc", filters: [["rpc", args]] };
+    state.queries.push(query);
+    return Promise.resolve(state.answer(query));
+  },
+};
 
 vi.mock("@/lib/supabase", () => ({
   requireSupabaseAdmin: () => fakeAdmin,
@@ -451,12 +458,12 @@ describe("taking words back", () => {
     await expect(supabaseMessagesStore.deleteConversationForViewer(C1, "ken")).resolves.toBe(
       "deleted",
     );
-    const upsert = state.queries.find((q) => q.op === "upsert");
-    expect(upsert?.table).toBe("conversation_deletions");
-    expect(filterValue(upsert!, "upsert")?.[0]).toEqual({
-      conversation_id: C1,
-      handle: "ken",
-      deleted_at: newest,
+    const write = state.queries.find((q) => q.op === "rpc");
+    expect(write?.table).toBe("delete_conversation_for_viewer");
+    expect(filterValue(write!, "rpc")?.[0]).toEqual({
+      p_conversation_id: C1,
+      p_handle: "ken",
+      p_deleted_at: newest,
     });
   });
 
@@ -476,5 +483,97 @@ describe("taking words back", () => {
     };
     const thread = await supabaseMessagesStore.listMessages(C1, "ken");
     expect(thread?.map((m) => m.body)).toEqual(["after"]);
+  });
+});
+
+
+describe("removal privacy on durable reads", () => {
+  it.each([1, 2])("returns no inbox projection when deletion read %i fails", async (failedRead) => {
+    let deletionReads = 0;
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: [{ id: C1, handle_a: "ken", handle_b: "sam", last_message_at: "2026-11-10T20:00:00Z" }], error: null };
+      if (q.table === "conversation_deletions") {
+        deletionReads += 1;
+        return deletionReads === failedRead
+          ? { data: null, error: { message: "connection reset" } }
+          : { data: [], error: null };
+      }
+      if (q.table === "messages") return { data: [{ conversation_id: C1, body: "deleted secret", sender_handle: "sam" }], error: null };
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.listConversations("ken")).resolves.toEqual({ conversations: [], status: "degraded" });
+  });
+
+  it.each(["direct", "group"])("replenishes the %s inbox after 100 deleted chats", async (kind) => {
+    const rows = Array.from({ length: 201 }, (_, i) => ({
+      id: `chat-${i}`,
+      handle_a: "ken",
+      handle_b: "sam",
+      kind,
+      last_message_at: new Date(Date.UTC(2026, 0, 1, 0, 300 - i)).toISOString(),
+    }));
+    const deleted = new Set(rows.slice(0, 100).map((row) => row.id));
+    state.answer = (q) => {
+      if (q.table === "conversation_members") {
+        const batch = filterValue(q, "in");
+        if (batch) return { data: (batch[1] as string[]).flatMap((id) => ["ken", "sam", "jen"].map((handle) => ({ conversation_id: id, handle }))), error: null };
+        if (kind === "direct") return { data: [], error: null };
+        const [start, end] = filterValue(q, "range") as number[];
+        return { data: rows.slice(start, end! + 1).map((row) => ({ conversation_id: row.id })), error: null };
+      }
+      if (q.table === "conversations") {
+        const ids = filterValue(q, "in")?.[1] as string[] | undefined;
+        if (ids) return { data: rows.filter((row) => ids.includes(row.id)), error: null };
+        if (kind === "group") return { data: [], error: null };
+        const [start, end] = filterValue(q, "range") as number[];
+        return { data: rows.slice(start, end! + 1), error: null };
+      }
+      if (q.table === "conversation_deletions") {
+        const ids = filterValue(q, "in")?.[1] as string[];
+        return { data: ids.filter((id) => deleted.has(id)).map((id) => ({ conversation_id: id, deleted_at: "2027-01-01T00:00:00Z" })), error: null };
+      }
+      return { data: [], error: null };
+    };
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+    expect(inbox.status).toBe("ready");
+    expect(inbox.conversations.map((row) => row.id)).toEqual(rows.slice(100, 200).map((row) => row.id));
+  });
+
+  it("keeps deleted history unread when a new message restores the thread", async () => {
+    const mark = "2026-11-10T20:00:00Z";
+    const rows = [
+      { id: "hidden", created_at: "2026-11-10T19:00:00Z", read_at: null },
+      { id: "visible", created_at: "2026-11-10T21:00:00Z", read_at: null },
+    ] as Array<{ id: string; created_at: string; read_at: string | null }>;
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: { handle_a: "ken", handle_b: "sam" }, error: null };
+      if (q.table === "conversation_deletions") return { data: { deleted_at: mark }, error: null };
+      if (q.op === "update") {
+        const after = filterValue(q, "gt")?.[1] as string | undefined;
+        const updated = rows.filter((row) => !after || row.created_at > after);
+        for (const row of updated) row.read_at = "2026-11-10T22:00:00Z";
+        return { data: updated, error: null };
+      }
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.markRead(C1, "ken")).resolves.toBe(1);
+    expect(rows[0]?.read_at).toBeNull();
+    expect(rows[1]?.read_at).not.toBeNull();
+  });
+
+  it("fails closed before 0230 and reads unsend state after the migration without restarting", async () => {
+    let migrated = false;
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: { handle_a: "ken", handle_b: "sam" }, error: null };
+      if (q.table === "conversation_deletions") return { data: null, error: null };
+      const selected = String(filterValue(q, "select")?.[0]);
+      if (!migrated && selected.includes("unsent_at")) {
+        return { data: null, error: { code: "42703", message: 'column "unsent_at" does not exist' } };
+      }
+      return { data: [{ id: "retained", conversation_id: C1, sender_handle: "sam", body: "retained evidence", created_at: "2026-11-10T20:00:00Z", ...(selected.includes("unsent_at") ? { unsent_at: "2026-11-10T21:00:00Z" } : {}) }], error: null };
+    };
+    await expect(supabaseMessagesStore.listMessages(C1, "ken")).rejects.toThrow();
+    migrated = true;
+    await expect(supabaseMessagesStore.listMessages(C1, "ken")).resolves.toMatchObject([{ body: "", unsent: true }]);
   });
 });

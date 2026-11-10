@@ -70,6 +70,8 @@ beforeAll(async () => {
   for (const path of PREREQUISITES) session.applyFile(path);
   session.sql(
     [
+      `insert into auth.users (id) values ('${KEN}');`,
+      `insert into public.profiles (id, user_id, handle) values ('${KEN}', '${KEN}', 'ken');`,
       "insert into public.conversations (id, handle_a, handle_b, created_at, last_message_at) values",
       `  ('${DM}'::uuid, 'ken', 'sam', '${AT}', '${AT}'),`,
       `  ('${OTHER_DM}'::uuid, 'jen', 'ken', '${AT}', '${AT}');`,
@@ -93,6 +95,12 @@ describe.skipIf(skipReason !== null)("0230 unsend and chat delete", () => {
     );
     expect(said.ok).toBe(false);
     expect(said.said).toMatch(/messages_content_chk/);
+  });
+
+  it("BEFORE the migration a participant can read the reported message", () => {
+    expect(count(asBrowserRole("authenticated", KEN,
+      `select body from public.messages where id = '${REPORTED}';`,
+    ))).toBe("something nasty");
   });
 
   it("applies cleanly, and again with no change", () => {
@@ -129,6 +137,55 @@ describe.skipIf(skipReason !== null)("0230 unsend and chat delete", () => {
     expect(count(`select body from public.messages where id = '${REPORTED}'::uuid;`)).toBe(
       "something nasty",
     );
+  });
+
+  it("hides retained unsent content from browser participants in direct and group chats", async () => {
+    const session = requireDatabase();
+    const group = "99999999-0000-4000-8000-000000000003";
+    const message = "aaaaaaaa-0000-4000-8000-000000000003";
+    session.sql(`
+      insert into public.conversations (id, handle_a, handle_b, kind)
+        values ('${group}', 'jen', 'sam', 'group');
+      insert into public.conversation_members (conversation_id, handle, role)
+        values ('${group}', 'ken', 'member'), ('${group}', 'jen', 'owner'), ('${group}', 'sam', 'member');
+      insert into public.messages (id, conversation_id, sender_handle, body, attachment_kind, attachment_venue_id, flagged_at)
+        values ('${message}', '${group}', 'jen', 'group evidence', 'venue', 'retained-venue', '${AT}');
+    `);
+    expect(count(asBrowserRole("authenticated", KEN,
+      `select body from public.messages where id = '${message}';`,
+    ))).toBe("group evidence");
+    session.sql(asServiceRole(`update public.messages set unsent_at = '${AT}' where id = '${message}';`));
+    for (const id of [REPORTED, message]) {
+      expect(count(asBrowserRole("authenticated", KEN,
+        `select count(*) from public.messages where id = '${id}';`,
+      ))).toBe("0");
+      const anonymous = await session.attempt(asBrowserRole("anon", null,
+        `select * from public.messages where id = '${id}';`,
+      ));
+      expect(anonymous.ok).toBe(false);
+      expect(anonymous.said).toMatch(/permission denied/);
+      expect(count(asServiceRole(`select count(*) from public.messages where id = '${id}' and body <> '';`))).toBe("1");
+    }
+    expect(count(asServiceRole(`select attachment_venue_id from public.messages where id = '${message}';`))).toBe("retained-venue");
+  });
+
+  it("preserves the maximum deletion mark when requests complete out of order", async () => {
+    const session = requireDatabase();
+    const call = (at: string) => asServiceRole(
+      `select public.delete_conversation_for_viewer('${DM}', 'ken', '${at}');`,
+    );
+    session.sql(call("2026-11-10 22:00:00+00"));
+    session.sql(call("2026-11-10 21:00:00+00"));
+    expect(count(`select deleted_at = '2026-11-10 22:00:00+00' from public.conversation_deletions where conversation_id = '${DM}' and handle = 'ken';`)).toBe("t");
+    await session.concurrent([call("2026-11-10 23:00:00+00"), call("2026-11-10 20:00:00+00")]);
+    expect(count(`select deleted_at = '2026-11-10 23:00:00+00' from public.conversation_deletions where conversation_id = '${DM}' and handle = 'ken';`)).toBe("t");
+    for (const role of ["anon", "authenticated"] as const) {
+      const result = await session.attempt(asBrowserRole(role, role === "anon" ? null : KEN,
+        `select public.delete_conversation_for_viewer('${DM}', 'ken', '${AT}');`,
+      ));
+      expect(result.ok).toBe(false);
+      expect(result.said).toMatch(/permission denied/);
+    }
   });
 
   it("still refuses a message that is nothing and was never unsent", async () => {
@@ -186,6 +243,10 @@ describe.skipIf(skipReason !== null)("0230 unsend and chat delete", () => {
     const session = requireDatabase();
     session.applyFile(ROLLBACK);
     expect(count("select to_regclass('public.conversation_deletions') is null;")).toBe("t");
+    expect(count("select to_regprocedure('public.delete_conversation_for_viewer(uuid,text,timestamptz)') is null;")).toBe("t");
+    expect(count(asBrowserRole("authenticated", KEN,
+      `select body from public.messages where id = '${REPORTED}';`,
+    ))).toBe("something nasty");
     expect(count(`select count(*)::int from public.messages where id = '${PLAIN}'::uuid;`)).toBe(
       "0",
     );

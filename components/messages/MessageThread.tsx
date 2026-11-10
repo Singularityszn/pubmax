@@ -383,6 +383,10 @@ export default function MessageThread({
    * conversation or reader raises it past every read already sent.
    */
   const readFloorRef = useRef(0);
+  const removalEpochRef = useRef(0);
+  useLayoutEffect(() => () => {
+    removalEpochRef.current += 1;
+  }, [accountRevision, conversationId]);
   const conversationIdRef = useRef(conversationId);
   /** Whether the inbox has already been asked to name THIS empty thread. */
   const askedInboxForNameRef = useRef(false);
@@ -395,6 +399,8 @@ export default function MessageThread({
     setOutbox([]);
     setRevealedId(null);
     setConfirming(null);
+    setRemoving(false);
+    setRemovalError("");
     setIdentity(null);
     setOtherHandle("");
     setMessages([]);
@@ -403,6 +409,9 @@ export default function MessageThread({
   }, [conversationId]);
   useLayoutEffect(() => {
     accountRevisionRef.current = accountRevision;
+    setConfirming(null);
+    setRemoving(false);
+    setRemovalError("");
   }, [accountRevision]);
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -872,6 +881,13 @@ export default function MessageThread({
     const pendingRemoval = confirming;
     const h = normalizeHandle(authHandle ?? "") || readHandle();
     if (!pendingRemoval || !user || !h) return;
+    const requestRevision = accountRevision;
+    const removalEpoch = removalEpochRef.current;
+    const stillCurrent = () =>
+      removalEpochRef.current === removalEpoch &&
+      conversationIdRef.current === conversationId &&
+      accountRevisionRef.current === requestRevision;
+    if (!stillCurrent()) return;
     const failedLine =
       pendingRemoval.kind === "unsend"
         ? MESSAGE_UNSEND_FAILED_LINE
@@ -894,12 +910,18 @@ export default function MessageThread({
         },
         { requiresIdentity: true },
       );
+      if (!stillCurrent()) {
+        discardBody(res);
+        return;
+      }
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => null);
+        if (!stillCurrent()) return;
         setRemovalError(offlineOrMessage(errorMessageFrom(body, failedLine)));
         return;
       }
       discardBody(res);
+      readFloorRef.current = requestGenerationRef.current + 1;
       setConfirming(null);
       if (pendingRemoval.kind === "unsend") {
         const unsentId = pendingRemoval.messageId;
@@ -920,11 +942,11 @@ export default function MessageThread({
       // way back, the same shape every other finished state here takes.
       setState(pendingRemoval.kind === "delete" ? "deleted" : "left");
     } catch {
-      setRemovalError(offlineOrMessage(failedLine));
+      if (stillCurrent()) setRemovalError(offlineOrMessage(failedLine));
     } finally {
-      setRemoving(false);
+      if (stillCurrent()) setRemoving(false);
     }
-  }, [confirming, conversationId, user, authHandle]);
+  }, [confirming, conversationId, user, authHandle, accountRevision]);
 
   const ask = useCallback((removal: PendingRemoval) => {
     setRemovalError("");

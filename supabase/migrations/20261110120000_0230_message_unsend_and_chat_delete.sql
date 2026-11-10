@@ -19,10 +19,6 @@
 -- roles hold no privilege on it; the server route writes it with the service
 -- role after its own member check.
 --
--- The deploy may run ahead of this apply. Before it, the app reads threads
--- without `unsent_at`, refuses an unsend and a chat delete with a retryable
--- 503, and treats every chat as never deleted.
-
 begin;
 
 alter table public.messages
@@ -45,6 +41,14 @@ alter table public.messages
     or (char_length(body) = 0 and attachment_kind is null)
   );
 
+drop policy if exists messages_unsent_browser_guard on public.messages;
+create policy messages_unsent_browser_guard
+  on public.messages
+  as restrictive
+  for select
+  to anon, authenticated
+  using (unsent_at is null);
+
 create table if not exists public.conversation_deletions (
   conversation_id uuid not null references public.conversations (id) on delete cascade,
   handle          text not null,
@@ -64,5 +68,26 @@ alter table public.conversation_deletions
 alter table public.conversation_deletions enable row level security;
 revoke all on table public.conversation_deletions from public, anon, authenticated;
 grant select, insert, update, delete on table public.conversation_deletions to service_role;
+
+create or replace function public.delete_conversation_for_viewer(
+  p_conversation_id uuid,
+  p_handle text,
+  p_deleted_at timestamptz
+)
+returns timestamptz
+language sql
+set search_path = ''
+as $$
+  insert into public.conversation_deletions (conversation_id, handle, deleted_at)
+  values (p_conversation_id, p_handle, p_deleted_at)
+  on conflict (conversation_id, handle) do update
+    set deleted_at = greatest(public.conversation_deletions.deleted_at, excluded.deleted_at)
+  returning deleted_at;
+$$;
+
+revoke all on function public.delete_conversation_for_viewer(uuid, text, timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.delete_conversation_for_viewer(uuid, text, timestamptz)
+  to service_role;
 
 commit;

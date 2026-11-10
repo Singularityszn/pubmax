@@ -9,7 +9,9 @@
 
 begin;
 
+drop function if exists public.delete_conversation_for_viewer(uuid, text, timestamptz);
 drop table if exists public.conversation_deletions;
+drop policy if exists messages_unsent_browser_guard on public.messages;
 
 delete from public.messages
  where unsent_at is not null

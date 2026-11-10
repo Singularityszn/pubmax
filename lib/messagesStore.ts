@@ -318,36 +318,9 @@ const MESSAGE_COLUMNS_WIDE = `${MESSAGE_COLUMNS_BASE}, ${WIDE_ATTACHMENT_COLUMNS
  */
 let wideAttachmentColumns = true;
 
-/**
- * The same latch for migration 0230's `unsent_at`. Before the apply no row can
- * be unsent, so a read without the column is still the whole truth; only the
- * unsend itself is refused until the column is there.
- */
-let unsentColumn = true;
-
 function messageColumns(): string {
   const columns = wideAttachmentColumns ? MESSAGE_COLUMNS_WIDE : MESSAGE_COLUMNS_BASE;
-  return unsentColumn ? `${columns}, unsent_at` : columns;
-}
-
-function isMissingUnsentColumn(
-  error: { code?: string; message?: string } | null | undefined,
-): boolean {
-  if (!error) return false;
-  const code = error.code ?? "";
-  if (code !== "42703" && code !== "PGRST204") return false;
-  return (error.message ?? "").toLowerCase().includes("unsent_at");
-}
-
-/** Latch whichever additive message column a read just missed. */
-function dropMissingMessageColumn(
-  error: { code?: string; message?: string } | null | undefined,
-): boolean {
-  if (dropToBaseAttachmentColumns(error)) return true;
-  if (!unsentColumn || !isMissingUnsentColumn(error)) return false;
-  unsentColumn = false;
-  console.warn("[messages] unsent_at missing - nothing can be unsent yet (apply migration 0230)");
-  return true;
+  return `${columns}, unsent_at`;
 }
 
 function isMissingWideAttachmentColumn(
@@ -760,10 +733,9 @@ async function readInboxUnread(
   return { byConversation, degraded };
 }
 
-/** What an inbox row needs of its last message, through the unsent latch. */
 function inboxLastColumns(): string {
   const columns = "conversation_id, sender_handle, body, attachment_kind, created_at";
-  return unsentColumn ? `${columns}, unsent_at` : columns;
+  return `${columns}, unsent_at`;
 }
 
 /** Every chat this viewer deleted, among the inbox's conversations. */
@@ -798,15 +770,12 @@ async function readInboxRecent(ids: readonly string[]): Promise<InboxRecent> {
   const window = ids.length * INBOX_LAST_MESSAGE_WINDOW;
   let rows: Array<Record<string, unknown>>;
   try {
-    const read = () =>
-      admin()
-        .from(MESSAGES)
-        .select(inboxLastColumns())
-        .in("conversation_id", ids)
-        .order("created_at", { ascending: false })
-        .limit(window);
-    const first = await read();
-    const { data, error } = dropMissingMessageColumn(first.error) ? await read() : first;
+    const { data, error } = await admin()
+      .from(MESSAGES)
+      .select(inboxLastColumns())
+      .in("conversation_id", ids)
+      .order("created_at", { ascending: false })
+      .limit(window);
     if (error) throw new Error(error.message);
     rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
   } catch (err) {
@@ -999,8 +968,6 @@ export const supabaseMessagesStore: MessagesStore = {
     try {
       const membership = await loadMembership(conversationId);
       if (!membership || !isMember(membership, me)) return UNSEND_NOT_FOUND;
-      // Before 0230 there is no column to mark it with. Refused, never faked.
-      if (!unsentColumn) return { status: "unavailable" };
       const read = await admin()
         .from(MESSAGES)
         .select("id, sender_handle, attachment_kind, unsent_at")
@@ -1008,7 +975,6 @@ export const supabaseMessagesStore: MessagesStore = {
         .eq("id", id)
         .limit(1)
         .maybeSingle();
-      if (dropMissingMessageColumn(read.error)) return { status: "unavailable" };
       if (read.error) throw new Error(read.error.message);
       const row = read.data as Record<string, unknown> | null;
       // ONLY THE SENDER, and the refusal is the one an unknown id gets.
@@ -1085,12 +1051,11 @@ export const supabaseMessagesStore: MessagesStore = {
       // the database cannot leave the last line of a deleted chat behind.
       const newestAt = (newest.data as { created_at?: unknown } | null)?.created_at;
       const deletedAt = deleteMarkFor(typeof newestAt === "string" ? newestAt : null);
-      const { error } = await admin()
-        .from(CONVERSATION_DELETIONS)
-        .upsert(
-          { conversation_id: conversationId, handle: me, deleted_at: deletedAt },
-          { onConflict: "conversation_id,handle" },
-        );
+      const { error } = await admin().rpc("delete_conversation_for_viewer", {
+        p_conversation_id: conversationId,
+        p_handle: me,
+        p_deleted_at: deletedAt,
+      });
       if (error) throw new Error(error.message);
       return "deleted";
     } catch (err) {
@@ -1135,12 +1100,7 @@ export const supabaseMessagesStore: MessagesStore = {
 
       let inserted = await insertRow();
 
-      // Migration 0156 or 0230 has not landed. A message with no new-kind
-      // column in it is still a message, so the process drops to the older
-      // read list and this write is retried; a write that NEEDED one of those
-      // columns was refused above and never reaches here. Each latch moves at
-      // most once, so this ends.
-      while (dropMissingMessageColumn(inserted.error)) {
+      while (dropToBaseAttachmentColumns(inserted.error)) {
         inserted = await insertRow();
       }
 
@@ -1201,7 +1161,7 @@ export const supabaseMessagesStore: MessagesStore = {
         .eq("id", messageId)
         .limit(1)
         .maybeSingle();
-      if (dropMissingMessageColumn(selected.error)) {
+      if (dropToBaseAttachmentColumns(selected.error)) {
         selected = await admin()
           .from(MESSAGES)
           .select(messageColumns())
@@ -1274,7 +1234,7 @@ export const supabaseMessagesStore: MessagesStore = {
         readDirectConversationRows(me),
         readGroupConversationIds(me),
       ]);
-      const groups = await readGroupConversationRows(groupIds);
+      const groups = await readGroupConversationRows(groupIds, me);
       groupMembership = await readGroupMembershipBatch(groups);
       // DEDUPED BY ID, because two lanes read one table: a row that somehow
       // answered both must be ONE inbox row, or a reader meets the same thread
@@ -1287,8 +1247,7 @@ export const supabaseMessagesStore: MessagesStore = {
       rows = [...byId.values()]
         .sort((a, b) =>
           String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
-        )
-        .slice(0, MAX_CONVERSATIONS);
+        );
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("listConversations", err);
@@ -1315,6 +1274,8 @@ export const supabaseMessagesStore: MessagesStore = {
       readInboxRecent(ids),
       deletionsRead,
     ]);
+
+    if (deletions.degraded) return { conversations: [], status: "degraded" };
 
     const lastByConversation = recent.lastByConversation;
     if (recent.windowFull) {
@@ -1353,9 +1314,9 @@ export const supabaseMessagesStore: MessagesStore = {
       const last = lastByConversation.get(id);
       return afterDeleteMark(last ? last.created_at : row.last_message_at, mark);
     });
-    if (visible.length === 0 && !deletions.degraded) return READY_EMPTY_INBOX;
+    if (visible.length === 0) return READY_EMPTY_INBOX;
 
-    const conversations = visible.map((row) => {
+    const conversations = visible.slice(0, MAX_CONVERSATIONS).map((row) => {
       const id = String(row.id);
       const last = lastByConversation.get(id);
       const counted = unread.byConversation.get(id);
@@ -1373,8 +1334,7 @@ export const supabaseMessagesStore: MessagesStore = {
     });
     return {
       conversations,
-      status:
-        unread.degraded || recent.degraded || deletions.degraded ? "degraded" : "ready",
+      status: unread.degraded || recent.degraded ? "degraded" : "ready",
     };
   },
 
@@ -1403,7 +1363,7 @@ export const supabaseMessagesStore: MessagesStore = {
       // COURTESY CHECK: a non-participant (or unknown conversation) gets null →
       // the route turns that into a 404. Never return another thread.
       if (!membership || !isMember(membership, me)) return null;
-      const selected = dropMissingMessageColumn(firstRead.error)
+      const selected = dropToBaseAttachmentColumns(firstRead.error)
         ? await readRows()
         : firstRead;
       if (selected.error) throw new Error(selected.error.message);
@@ -1437,13 +1397,15 @@ export const supabaseMessagesStore: MessagesStore = {
     try {
       const membership = await loadMembership(conversationId);
       if (!membership || !isMember(membership, me)) return 0;
-      const { data, error } = await admin()
+      const deleteMark = await loadDeleteMark(conversationId, me);
+      let query = admin()
         .from(MESSAGES)
         .update({ read_at: new Date().toISOString() })
         .eq("conversation_id", conversationId)
         .neq("sender_handle", me)
-        .is("read_at", null)
-        .select("id");
+        .is("read_at", null);
+      if (deleteMark) query = query.gt("created_at", deleteMark);
+      const { data, error } = await query.select("id");
       if (error) throw new Error(error.message);
       return Array.isArray(data) ? data.length : 0;
     } catch (err) {
@@ -1526,7 +1488,7 @@ export const supabaseMessagesStore: MessagesStore = {
           .limit(1)
           .maybeSingle();
       const first = await readRow();
-      const { data, error } = dropMissingMessageColumn(first.error)
+      const { data, error } = dropToBaseAttachmentColumns(first.error)
         ? await readRow()
         : first;
       if (error) throw new Error(error.message);
@@ -1661,21 +1623,24 @@ async function membershipForRow(
 async function readDirectConversationRows(
   me: string,
 ): Promise<Array<Record<string, unknown>>> {
-  const read = () =>
-    admin()
-      .from(CONVERSATIONS)
-      .select(conversationColumns())
-      .or(`handle_a.eq.${me},handle_b.eq.${me}`)
-      .order("last_message_at", { ascending: false })
-      .limit(MAX_CONVERSATIONS);
-  const first = await read();
-  const { data, error } = dropToBaseConversationColumns(first.error) ? await read() : first;
-  if (error) throw new Error(error.message);
-  // Only a direct row may come back on the pair lane, and a pre-0155 database
-  // has no kind at all, which reads as direct exactly as it should.
-  return ((data ?? []) as unknown as Array<Record<string, unknown>>).filter(
-    (row) => row.kind !== "group",
-  );
+  const visible: Array<Record<string, unknown>> = [];
+  for (let offset = 0; visible.length < MAX_CONVERSATIONS; offset += MAX_CONVERSATIONS) {
+    const read = () =>
+      admin()
+        .from(CONVERSATIONS)
+        .select(conversationColumns())
+        .or(`handle_a.eq.${me},handle_b.eq.${me}`)
+        .order("last_message_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(offset, offset + MAX_CONVERSATIONS - 1);
+    const first = await read();
+    const { data, error } = dropToBaseConversationColumns(first.error) ? await read() : first;
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    visible.push(...(await visibleConversationRows(rows.filter((row) => row.kind !== "group"), me)));
+    if (rows.length < MAX_CONVERSATIONS) break;
+  }
+  return visible.slice(0, MAX_CONVERSATIONS);
 }
 
 /**
@@ -1685,16 +1650,20 @@ async function readDirectConversationRows(
  */
 async function readGroupConversationIds(me: string): Promise<string[]> {
   try {
-    const { data, error } = await admin()
-      .from(CONVERSATION_MEMBERS)
-      .select("conversation_id")
-      .eq("handle", me)
-      .is("left_at", null)
-      .limit(MAX_CONVERSATIONS);
-    if (error) throw new Error(error.message);
-    return ((data ?? []) as Array<Record<string, unknown>>)
-      .map((row) => String(row.conversation_id ?? ""))
-      .filter((id) => id.length > 0);
+    const ids: string[] = [];
+    for (let offset = 0; ; offset += MAX_CONVERSATIONS) {
+      const { data, error } = await admin()
+        .from(CONVERSATION_MEMBERS)
+        .select("conversation_id")
+        .eq("handle", me)
+        .is("left_at", null)
+        .order("conversation_id", { ascending: true })
+        .range(offset, offset + MAX_CONVERSATIONS - 1);
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as Array<Record<string, unknown>>;
+      ids.push(...rows.map((row) => String(row.conversation_id ?? "")).filter(Boolean));
+      if (rows.length < MAX_CONVERSATIONS) return ids;
+    }
   } catch (err) {
     if (!isMissingGroupSchema(err)) {
       console.error(
@@ -1706,26 +1675,42 @@ async function readGroupConversationIds(me: string): Promise<string[]> {
   }
 }
 
+async function visibleConversationRows(
+  rows: Array<Record<string, unknown>>,
+  me: string,
+): Promise<Array<Record<string, unknown>>> {
+  if (rows.length === 0) return rows;
+  const deletions = await readInboxDeletions(rows.map((row) => String(row.id)), me);
+  if (deletions.degraded) throw new MessageReadUnavailableError();
+  return rows.filter((row) =>
+    afterDeleteMark(row.last_message_at, deletions.byConversation.get(String(row.id))),
+  );
+}
+
 async function readGroupConversationRows(
   ids: readonly string[],
+  me: string,
 ): Promise<Array<Record<string, unknown>>> {
-  if (ids.length === 0) return [];
-  try {
-    const { data, error } = await admin()
-      .from(CONVERSATIONS)
-      .select(conversationColumns())
-      .in("id", [...ids])
-      .order("last_message_at", { ascending: false })
-      .limit(MAX_CONVERSATIONS);
-    if (error) throw new Error(error.message);
-    return (data ?? []) as unknown as Array<Record<string, unknown>>;
-  } catch (err) {
-    console.error(
-      "[messages] inbox group rows failed:",
-      err instanceof Error ? err.message : err,
-    );
-    return [];
+  const visible: Array<Record<string, unknown>> = [];
+  for (let offset = 0; offset < ids.length; offset += MAX_CONVERSATIONS) {
+    let rows: Array<Record<string, unknown>>;
+    try {
+      const { data, error } = await admin()
+        .from(CONVERSATIONS)
+        .select(conversationColumns())
+        .in("id", ids.slice(offset, offset + MAX_CONVERSATIONS))
+        .order("last_message_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      rows = (data ?? []) as Array<Record<string, unknown>>;
+    } catch (err) {
+      console.error("[messages] inbox group rows failed:", err instanceof Error ? err.message : err);
+      return [];
+    }
+    visible.push(...(await visibleConversationRows(rows, me)));
   }
+  return visible.sort((a, b) =>
+    String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
+  ).slice(0, MAX_CONVERSATIONS);
 }
 
 /** Every group row's live membership, in ONE read rather than one per row. */
@@ -1881,7 +1866,7 @@ async function loadByClientMessageId(
       .limit(1)
       .maybeSingle();
   const first = await read();
-  const { data, error } = dropMissingMessageColumn(first.error) ? await read() : first;
+  const { data, error } = dropToBaseAttachmentColumns(first.error) ? await read() : first;
   if (error) throw new Error(error.message);
   return data ? rowToMessageDTO(data as unknown as Record<string, unknown>) : null;
 }
@@ -2159,7 +2144,9 @@ export const memoryMessagesStore: MessagesStore = {
       null,
     );
     const marks = memDeletions.get(conversationId) ?? new Map<string, string>();
-    marks.set(me, deleteMarkFor(newest));
+    const next = deleteMarkFor(newest);
+    const previous = marks.get(me);
+    marks.set(me, previous && !afterDeleteMark(next, previous) ? previous : next);
     memDeletions.set(conversationId, marks);
     return "deleted";
   },
@@ -2281,7 +2268,7 @@ export const memoryMessagesStore: MessagesStore = {
     if (!membership || !isMember(membership, me)) return 0;
     const now = new Date().toISOString();
     let marked = 0;
-    for (const m of memMessages.get(conversationId) ?? []) {
+    for (const m of memVisibleMessages(conversationId, me)) {
       if (m.readAt == null && m.senderHandle !== me) {
         m.readAt = now;
         marked += 1;
