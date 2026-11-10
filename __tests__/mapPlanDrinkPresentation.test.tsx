@@ -137,15 +137,19 @@ describe("planner city catalogue", () => {
     expect(container.querySelector('[data-testid="crawl-celebration"]')).toBeNull();
   });
 
-  it("keeps the celebration on route growth and clears it when the route becomes too short", async () => {
-    const routeProps = { route: [duke, dove], crawlId: "current-crawl" };
+  it.each([
+    ["grows", 5],
+    ["shrinks", 3],
+    ["becomes too short", 1],
+  ] as const)("clears the celebration when the route %s", async (_change, stopCount) => {
+    const stops = [duke, dove, ...["third-stop", "fourth-stop", "fifth-stop"].map((id) => ({ ...duke, id }))];
+    const routeProps = { route: stops.slice(0, 4), crawlName: "Suggested crawl" };
     await render(routeProps);
     await act(async () => button("Start this crawl").click());
     await act(async () => button("Mark complete").click());
-    await render({ ...routeProps, route: [duke, dove, { ...duke, id: "third-stop" }] });
     expect(container.querySelector('[data-testid="crawl-celebration"]')).not.toBeNull();
 
-    await render({ ...routeProps, route: [duke] });
+    await render({ ...routeProps, route: stops.slice(0, stopCount) });
     expect(container.querySelector('[data-testid="crawl-celebration"]')).toBeNull();
     await render(routeProps);
     expect(container.querySelector('[data-testid="crawl-celebration"]')).toBeNull();

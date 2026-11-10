@@ -44,14 +44,20 @@ export function useCrawlProgress(
       setCelebratingCrawlKey(null);
       return;
     }
-    const ack = acknowledgeCrawlCompletion(progressKey, { placeStoryBandId });
-    setCelebratingCrawlKey((current) => ack.celebrate || current === progressKey ? progressKey : null);
-  }, [progressKey, placeStoryBandId]);
+    const ack = acknowledgeCrawlCompletion(progressKey);
+    setCelebratingCrawlKey(ack.celebrate ? progressKey : null);
+  }, [progressKey]);
 
   useEffect(() => {
     const entry = progressKey && route.length >= 2 ? readCrawl(progressKey) : null;
     applyCompletionAck(entry);
   }, [progressKey, route.length, applyCompletionAck]);
+
+  useEffect(() => {
+    if (progressKey && placeStoryBandId && isComplete(crawlProgress)) {
+      acknowledgeCrawlCompletion(progressKey, { placeStoryBandId });
+    }
+  }, [progressKey, placeStoryBandId, crawlProgress]);
 
   function handleStartCrawl() {
     if (!progressKey || route.length < 2) return;
