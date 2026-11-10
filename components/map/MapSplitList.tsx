@@ -40,6 +40,7 @@ import type { UkBasePub, UkBaseStreamStatus } from "@/lib/ukBasePubs";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import type { Venue } from "@/lib/venues";
+import type { ZonePintIndex } from "@/lib/zones";
 
 import "./mapSplitList.css";
 
@@ -181,6 +182,7 @@ export default function MapSplitList({
   lensPrices = null,
   lensNoun = null,
   lensStatus = "ready",
+  zoneIndex = null,
   viewportCenter,
   reader,
   loaded,
@@ -202,6 +204,8 @@ export default function MapSplitList({
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
   lensNoun?: string | null;
   lensStatus?: CategoryPriceIndexStatus;
+  /** The published fare-zone medians (lib/zonePriceEstimate.ts). */
+  zoneIndex?: ZonePintIndex | null;
   viewportCenter: [number, number] | null;
   reader: Point | null;
   /** The venue index and the view's projection have both landed for this city. */
@@ -269,11 +273,12 @@ export default function MapSplitList({
         lensPrices,
         lensNoun,
         lensStatus,
+        zoneIndex,
         viewportCenter: shownView ? shownView.viewportCenter : settled.viewportCenter,
         reader,
         sort,
       }),
-    [dropSignals, lensNoun, lensPrices, lensStatus, reader, settled, shownView, sort, venues],
+    [dropSignals, lensNoun, lensPrices, lensStatus, reader, settled, shownView, sort, venues, zoneIndex],
   );
 
   // A new view starts at its first page again.

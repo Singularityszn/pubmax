@@ -6,13 +6,14 @@ import { isIndependentAskTool, isVenueDiscoveryAsk, isVenueHoursQuestion, resolv
 import { isGenericMapAsk } from "@/lib/ask/routingPolicy";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
-import { comparablePint } from "@/lib/comparablePint.mjs";
+import { comparablePint, isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
 import {
   drivesMap,
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
+import { pintDropsStore } from "@/lib/pintDropsStore";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { walkableDraftAround, walkableDraftRoute } from "@/lib/palPlanDraft";
 import { straightLineWalkableKm } from "@/lib/planRouteOptimizer";
@@ -22,6 +23,12 @@ import {
   type ConciergeVenue,
 } from "@/lib/concierge/rank";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { zoneEstimateNote, zonePriceEstimate } from "@/lib/zonePriceEstimate";
+import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
+import { zoneLabel } from "@/lib/zones";
+import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { venuePriceLane, venuePriceLaneObservedGbp } from "@/lib/venuePriceLane";
 import {
   buildWhatsOnAnswer,
   detectWhatsOnIntent,
@@ -387,18 +394,48 @@ async function toolVenuePrices(
     };
   }
 
+  const communityRead = await readCommunityPricesWithStatus(venue.id);
+  const bundleRead = await ukPriceBundleRowsFor(venue.id);
+  const bundle = bundlePricesForCategory(bundleRead.rows.filter((row) =>
+    isComparablePintServing({ cheapestPint: row.drinkLabel }) &&
+    isComparablePintServing({ cheapestPint: row.servingSize }),
+  ), BUNDLE_DEFAULT_CATEGORY);
+  const lane = venuePriceLane({ cheapestPrice: venue.cheapestPrice }, null, null, bundle, null, null, null, ctx.now);
+  const recordedPrice = lane ? venuePriceLaneObservedGbp(lane) : null;
+  const recordedVenue = lane?.lane === "listed"
+    ? { ...venue, cheapestPrice: recordedPrice, priceSource: lane.listed.publisher ?? "Published menu", priceObservedAt: lane.listed.observedAt }
+    : venue;
+  const intent = resolveAskPriceIntent(ctx.query);
+  const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
+  let pintDropPriceAbsent = false;
+  let pintDropsUnavailable = false;
+  if (recordedPrice === null && !communityRead.degraded && !communityRead.prices.some((price) => price.drinkCategory === "beer") && bundleRead.status !== "unavailable") {
+    try {
+      const drops = await pintDropsStore().listVisible(venue.id);
+      pintDropPriceAbsent = !drops.some((drop) => drop.priceGbp !== null);
+    } catch {
+      pintDropsUnavailable = true;
+    }
+  }
+  const pricesUnavailable = communityRead.degraded || bundleRead.status === "unavailable" || pintDropsUnavailable;
+  // A pub with no recorded pint gets its fare zone's estimate, named as one.
+  // It is never price evidence and never the card's price.
+  const zoneEstimate = pintDropPriceAbsent
+    ? zonePriceEstimate(venue.zone, await loadZonePintIndex())
+    : null;
+
   const curatedCard = venueCard(
-    venue,
-    venue.cheapestPrice != null
+    recordedVenue,
+    recordedPrice !== null
       ? "Current recorded pint on the listed index."
-      : "No current recorded pint on the listed index.",
+      : zoneEstimate
+        ? `No recorded pint. ${zoneEstimateNote(zoneEstimate)}`
+        : pricesUnavailable
+          ? "I couldn't read all recorded pint prices."
+          : "No current recorded pint on the listed index.",
     `${venue.id}:curated`,
     ctx.now,
   );
-
-  const communityRead = await readCommunityPricesWithStatus(venue.id);
-  const intent = resolveAskPriceIntent(ctx.query);
-  const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
   const communityCards: AskCard[] = trusted.map((p, index) => ({
     key: `${venue.id}:c-${index}`,
     venueId: venue.id,
@@ -428,19 +465,27 @@ async function toolVenuePrices(
     },
   ];
 
-  const answerHint =
+  const priceAnswer =
     trusted.length > 0
       ? `${venue.name}: ${trusted.length} corroborated people-logged figure${trusted.length === 1 ? "" : "s"} plus the listed index.`
-      : venue.cheapestPrice != null
-        ? `${venue.name}: listed pint ${formatGbp(venue.cheapestPrice)} (no corroborated people-logged figure yet).`
-        : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
+      : recordedPrice !== null
+        ? `${venue.name}: listed pint ${formatGbp(recordedPrice)}${communityRead.degraded ? "." : " (no corroborated people-logged figure yet)."}`
+        : zoneEstimate
+          ? `${venue.name}: no listed pint price. Estimate ${formatGbp(zoneEstimate.priceGbp)}, the middle of ${zoneEstimate.sampleSize} recorded pint prices in ${zoneLabel(zoneEstimate.zone)}. Not a recorded price.`
+          : pricesUnavailable
+            ? `${venue.name}: recorded pint prices are unavailable.`
+            : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
+  const answerHint = `${communityRead.degraded ? "I couldn't read people-logged pint prices. " : ""}${priceAnswer}`;
 
   return {
     ok: true,
     tool: "venue_prices",
     data: {
       venueId: venue.id,
-      curatedPrice: venue.cheapestPrice,
+      curatedPrice: recordedPrice,
+      zoneEstimate: zoneEstimate
+        ? { estimateGbp: zoneEstimate.priceGbp, zone: zoneEstimate.zone, sampleSize: zoneEstimate.sampleSize }
+        : null,
       communityDegraded: communityRead.degraded,
       trustedCommunity: trusted.map((p) => ({
         drinkCategory: p.drinkCategory,
@@ -453,11 +498,11 @@ async function toolVenuePrices(
     cards,
     priceEvidence: [
       ...trusted.map((price, index) => communityCategoryEvidence(`${venue.id}:c-${index}`, venue.id, price)),
-      ...(venue.cheapestPrice != null ? [listedPintEvidence(`${venue.id}:curated`, venue.id, venue.cheapestPrice)] : []),
+      ...(recordedPrice !== null ? [listedPintEvidence(`${venue.id}:curated`, venue.id, recordedPrice)] : []),
     ],
     proposals,
     answerHint,
-    degraded: communityRead.degraded,
+    degraded: pricesUnavailable,
   };
 }
 

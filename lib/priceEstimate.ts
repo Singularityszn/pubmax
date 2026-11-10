@@ -1,4 +1,4 @@
-// The estimate engine: how a pub with no published price still gets a figure,
+// The baseline estimate engine: how a pub with no published price gets a figure,
 // and what that figure is allowed to say about itself.
 //
 // THE RULE IS THAT AN ESTIMATE NAMES ITS OWN EVIDENCE. Every estimate carries
@@ -17,14 +17,14 @@
 // postcode area.
 //
 // NOTHING HERE IS AN OBSERVATION. An estimate may never enter the Pint Index,
-// the pin price label, the cheapest-pint buckets or any current-price merge:
+// the cheapest-pint buckets or any current-price merge.
 // `standingCarriesAuthority` in lib/priceTier.ts is the gate, and it answers
 // false for every estimate. This is the same fence lib/priceHistory.ts wears,
-// for the same reason.
+// for the same reason. Pin labels retain the estimate standing and "est." prefix.
 
 import type { EstimatedPriceInput } from "@/lib/priceTier";
 
-/** The two things an estimate may be modelled from. A third needs its own method. */
+/** The baseline engine's bases. London zone estimates use lib/zonePriceEstimate.ts. */
 export const ESTIMATE_BASES = ["chain_menu", "regional_baseline"] as const;
 type EstimateBasis = (typeof ESTIMATE_BASES)[number];
 

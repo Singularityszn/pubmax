@@ -5,13 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-// The downstream tests simulate a future review decision. The production
-// review policy remains fail-closed and is checked separately.
-vi.mock("@/lib/nightAreas", async (importOriginal) => {
-  const { simulatedNightAreas } = await import("./helpers/simulatedNightAreaReview");
-  return simulatedNightAreas(importOriginal);
-});
-
 
 vi.mock("next/og", () => ({
   ImageResponse: class ImageResponse {
@@ -146,6 +139,7 @@ describe("governed drink brand by Night Area landing page", () => {
       brandLabel: "Guinness",
       collectedAt: "2026-07-03T12:00:00.000Z",
       totalPricedVenues: 10,
+      areaEstimate: null,
       rows: [
         {
           rank: 1,
@@ -200,6 +194,7 @@ describe("governed drink brand by Night Area landing page", () => {
       brandLabel: "Guinness",
       collectedAt: "2026-07-03T12:00:00.000Z",
       totalPricedVenues: 10,
+      areaEstimate: null,
       rows: [
         {
           rank: 1,
@@ -293,6 +288,7 @@ describe("governed drink brand by Night Area landing page", () => {
       brandLabel: "Guinness",
       collectedAt: "2026-07-03T12:00:00.000Z",
       totalPricedVenues: 21,
+      areaEstimate: null,
       rows: rows as [typeof rows[number], ...typeof rows],
     };
 

@@ -210,6 +210,9 @@ async function assertLandingContract(page: Page): Promise<void> {
   const areaLinks = areaNav.getByRole("link");
   expect(await areaLinks.count()).toBeGreaterThan(0);
   await expect(areaLinks.first()).toHaveAttribute("href", /\/area\/[^/]+\/drink\/guinness$/);
+  // Area pages publish on the floor alone again, so Victoria's pair is back.
+  await expect(areaNav.getByRole("link", { name: "Victoria", exact: true }))
+    .toHaveAttribute("href", "/area/victoria/drink/guinness");
 
   const rows = page.locator(".drinkBrandDirectory__row");
   await expect(rows).toHaveCount(20);

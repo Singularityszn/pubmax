@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { PlanAnchorMetadata, PlanStopDTO } from "@/lib/plan";
-import { planRouteReady } from "@/lib/plan";
-import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
+import { canTransitionPlannedNight, planRouteReady } from "@/lib/plan";
+import { __resetMemoryPlans, memoryPlanStore, recoverMemoryPlanMembership } from "@/lib/planStore";
 import { defined } from "@/__tests__/helpers/defined";
 
 const ANCHOR_ONLY: PlanAnchorMetadata = { venueId: "venue-a", source: "near", outcome: "anchor-only" };
@@ -221,5 +221,144 @@ describe("grounded one-Stop Plan lifecycle", () => {
     if (!guest.ok) throw new Error(guest.error);
     const swap = await memoryPlanStore.addAction(id, guest.memberToken, { type: "swapped", stopPosition: 0, idempotencyKey: "swap-key-1" });
     expect(swap).toEqual({ ok: false, error: "forbidden" });
+  });
+});
+
+const WALK_HOME = {
+  expectedRouteRevision: 1,
+  ending: "get_home",
+  endingSelection: { kind: "get_home", optionId: "walk", evidenceSnapshot: { label: "Walk home", confidence: "high" } },
+} as const;
+
+describe("characterisation: memory store lifecycle", () => {
+  beforeEach(() => __resetMemoryPlans());
+  afterEach(() => __resetMemoryPlans());
+
+  it("accepts table transitions for status updates and refuses the rest as invalid", async () => {
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const token = created.memberToken;
+    expect(await memoryPlanStore.update(id, token, { status: "active" })).toEqual({ ok: false, error: "invalid" });
+    expect(await memoryPlanStore.update(id, token, { status: "completed" })).toEqual({ ok: false, error: "invalid" });
+    const ready = await memoryPlanStore.update(id, token, { status: "ready" });
+    expect(ready.ok && ready.plan.plan.status).toBe("ready");
+    const backToDraft = await memoryPlanStore.update(id, token, { status: "draft" });
+    expect(backToDraft.ok && backToDraft.plan.plan.status).toBe("draft");
+    await memoryPlanStore.update(id, token, { status: "ready" });
+    const active = await memoryPlanStore.update(id, token, { status: "active" });
+    expect(active.ok && active.plan.plan.status).toBe("active");
+    const ending = await memoryPlanStore.update(id, token, { status: "ending" });
+    expect(ending.ok && ending.plan.plan.status).toBe("ending");
+    const resumed = await memoryPlanStore.update(id, token, { status: "active" });
+    expect(resumed.ok && resumed.plan.plan.status).toBe("active");
+    expect(await memoryPlanStore.update(id, token, { status: "draft" })).toEqual({ ok: false, error: "invalid" });
+  });
+
+  it("refuses a status update from a guest as forbidden", async () => {
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const guest = await memoryPlanStore.join(id, "Guest", { collaborationAuthorized: true, idempotencyKey: "join-status-1" });
+    if (!guest.ok) throw new Error(guest.error);
+    expect(await memoryPlanStore.update(id, guest.memberToken, { status: "ready" })).toEqual({ ok: false, error: "forbidden" });
+    expect((await memoryPlanStore.get(id))?.plan.status).toBe("draft");
+  });
+
+  it("moves a draft Plan to active on the first arrival", async () => {
+    const created = await createAnchorOnly();
+    const arrived = await memoryPlanStore.addAction(created.plan.plan.id, created.memberToken, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-draft-1" });
+    if (!arrived.ok) throw new Error(arrived.error);
+    expect(arrived.plan.plan.status).toBe("active");
+    expect(arrived.plan.actions).toHaveLength(1);
+  });
+
+  it("refuses to complete without an arrival, then completes once and replays", async () => {
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const token = created.memberToken;
+    expect(await memoryPlanStore.complete(id, token, WALK_HOME)).toEqual({ ok: false, error: "arrival_required" });
+    await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-complete-1" });
+    const first = await memoryPlanStore.complete(id, token, WALK_HOME);
+    if (!first.ok) throw new Error(first.error);
+    expect(first.created).toBe(true);
+    expect(first.plan.plan.status).toBe("completed");
+    expect(first.plan.ending).toBe("get_home");
+    const replay = await memoryPlanStore.complete(id, token, WALK_HOME);
+    if (!replay.ok) throw new Error(replay.error);
+    expect(replay.created).toBe(false);
+    expect(replay.completion.id).toBe(first.completion.id);
+    expect(await memoryPlanStore.update(id, token, { status: "abandoned" })).toEqual({ ok: false, error: "invalid" });
+  });
+
+  it("refuses a new arrival on a completed Plan as closed", async () => {
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const token = created.memberToken;
+    await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-before-end" });
+    const completion = await memoryPlanStore.complete(id, token, WALK_HOME);
+    expect(completion.ok).toBe(true);
+    expect(await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-after-end" }))
+      .toEqual({ ok: false, error: "closed" });
+    const plan = await memoryPlanStore.get(id);
+    expect(plan?.plan.status).toBe("completed");
+    expect(plan?.actions?.filter((action) => action.type === "arrived")).toHaveLength(1);
+  });
+
+  it("today: a status update marks a Plan completed with no completion record", async () => {
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const token = created.memberToken;
+    await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-status-complete" });
+    const completed = await memoryPlanStore.update(id, token, { status: "completed" });
+    expect(completed.ok && completed.plan.plan.status).toBe("completed");
+    expect(await memoryPlanStore.getCompletion(id)).toBeNull();
+  });
+
+  it("abandons a draft and then refuses status changes and route edits", async () => {
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const token = created.memberToken;
+    const abandoned = await memoryPlanStore.update(id, token, { status: "abandoned" });
+    expect(abandoned.ok && abandoned.plan.plan.status).toBe("abandoned");
+    expect(await memoryPlanStore.update(id, token, { status: "ready" })).toEqual({ ok: false, error: "invalid" });
+    expect(await memoryPlanStore.update(id, token, { status: "active" })).toEqual({ ok: false, error: "invalid" });
+    expect(await memoryPlanStore.update(id, token, { stops: routeStops(), expectedRouteRevision: 1, groundedUpgrade: true }))
+      .toEqual({ ok: false, error: "invalid" });
+  });
+
+  it("refuses an arrival and completion on an abandoned Plan as closed (R1)", async () => {
+    expect(canTransitionPlannedNight("abandoned", "completed")).toBe(false);
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const token = created.memberToken;
+    const abandoned = await memoryPlanStore.update(id, token, { status: "abandoned" });
+    expect(abandoned.ok && abandoned.plan.plan.status).toBe("abandoned");
+    expect(await memoryPlanStore.addAction(id, token, { type: "arrived", stopPosition: 0, idempotencyKey: "arrive-abandoned-1" }))
+      .toEqual({ ok: false, error: "closed" });
+    expect(await memoryPlanStore.complete(id, token, WALK_HOME)).toEqual({ ok: false, error: "closed" });
+    expect((await memoryPlanStore.get(id))?.plan.status).toBe("abandoned");
+  });
+
+  it("writes crew status for a member token and refuses a stranger", async () => {
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const guest = await memoryPlanStore.join(id, "Guest", { collaborationAuthorized: true, idempotencyKey: "join-presence-1" });
+    if (!guest.ok) throw new Error(guest.error);
+    const here = await memoryPlanStore.updatePresence(id, guest.memberToken, "here");
+    if (!here.ok) throw new Error(here.error);
+    expect(here.plan.crew.find((member) => member.name === "Guest")?.status).toBe("here");
+    expect(await memoryPlanStore.updatePresence(id, "stranger-token", "here")).toEqual({ ok: false, error: "forbidden" });
+    expect(await memoryPlanStore.updatePresence(id, guest.memberToken, "asleep")).toEqual({ ok: false, error: "invalid" });
+  });
+
+  it("refuses crew status from a rotated-out token and accepts the replacement", async () => {
+    const created = await createAnchorOnly();
+    const id = created.plan.plan.id;
+    const guest = await memoryPlanStore.join(id, "Guest", { collaborationAuthorized: true, idempotencyKey: "join-rotate-1", userId: "guest-account" });
+    if (!guest.ok) throw new Error(guest.error);
+    expect(recoverMemoryPlanMembership(id, "guest-account", "replacement-token")).not.toBeNull();
+    expect(await memoryPlanStore.updatePresence(id, guest.memberToken, "running_late")).toEqual({ ok: false, error: "forbidden" });
+    const late = await memoryPlanStore.updatePresence(id, "replacement-token", "running_late");
+    if (!late.ok) throw new Error(late.error);
+    expect(late.plan.crew.find((member) => member.name === "Guest")?.status).toBe("running_late");
   });
 });

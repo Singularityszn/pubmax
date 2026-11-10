@@ -42,6 +42,8 @@ export type ConciergeVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  /** Nearest-station fare zone, for a zone estimate when no pint is recorded. */
+  zone?: number;
   priceSource?: string;
   priceObservedAt?: string;
   anchorLabel?: string;

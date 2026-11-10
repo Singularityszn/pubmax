@@ -1740,9 +1740,6 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   /* One track the list's width, so a Find a pub field cannot widen it. */
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
-  /* Remove sits beside a card only when the list itself has room for it. */
-  container-type: inline-size;
-  container-name: plan-stops;
 }
 /* Holds the cards' room while their chunk loads, so nothing under them jumps. */
 .planStops__placeholder {
@@ -1928,7 +1925,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   touch-action: manipulation;
 }
 
-/* Only a mouse in a narrow list needs More (see the pointer rules below). */
+/* A mouse uses More to reveal Remove (see the pointer rules below). */
 .planStops .planStop__more {
   display: none;
 }
@@ -1966,52 +1963,10 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   transform: translate3d(calc(var(--stop-tray) * -1), 0, 0);
 }
 
-/* A mouse has no swipe. In a list wide enough that the card keeps its full
-   name, Remove is a plain button beside the card. In a narrower list it stays
-   behind the card, and the card's More button slides the card over to show it. */
+/* A mouse has no swipe, so More slides the card over to show Remove. */
 @media (hover: hover) and (pointer: fine) {
   .planStops .planStop__more {
     display: grid;
-  }
-  @container plan-stops (min-width: 520px) {
-    .planStops .planStop > .planStop__card {
-      display: flex;
-      align-items: stretch;
-      gap: var(--space-2);
-    }
-    .planStop__surface {
-      flex: 1;
-      min-width: 0;
-    }
-    .planStops .planStop__more {
-      display: none;
-    }
-    .planStops .planStop__remove {
-      position: static;
-      width: auto;
-      padding: 0 var(--space-3);
-      border: 1px solid var(--line);
-      background: transparent;
-      color: var(--ink-soft);
-      opacity: 1;
-      align-self: center;
-      min-height: var(--control-height);
-      border-radius: var(--control-radius);
-    }
-    /* Remove is already in view here, so the card never slides off to show it. */
-    .planStops .planStop[data-revealed="true"] .planStop__surface,
-    .planStops .planStop:has(.planStop__remove:focus-visible) .planStop__surface {
-      transform: none;
-    }
-    .planStops .planStop__remove:hover:not(:disabled) {
-      color: var(--color-negative);
-      border-color: color-mix(in srgb, var(--color-negative) 45%, var(--line));
-    }
-    /* A held pub's Remove is in view but refused, so it reads like its Swap. */
-    .planStops .planStop__remove:disabled {
-      opacity: 0.48;
-      cursor: not-allowed;
-    }
   }
   .planStop__surface {
     cursor: grab;

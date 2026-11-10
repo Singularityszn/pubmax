@@ -12,7 +12,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/ask/tools.ts": [
     {"owner": "venueCard", "count": 3, "reason": "Prints a selected venue and its receipt."},
     {"owner": "toolSearchVenues", "count": 1, "reason": "Transports results after the pint policy and budget filter."},
-    {"owner": "toolVenuePrices", "count": 6, "reason": "Displays the requested venue record and corroborated reports."},
+    {"owner": "toolVenuePrices", "count": 1, "reason": "Displays the requested venue record and corroborated reports, and asks for a zone estimate only when no pint is recorded."},
     {"owner": "toolProposePlan", "count": 1, "reason": "Transports stops after the shared concierge ranker."},
   ],
   "lib/boroughNeighbourhoodLinks.ts": [
@@ -235,8 +235,14 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/wildPriceGlass.ts": [
     {"owner": "boroughMedians", "count": 1, "reason": "Computes area medians outside cheapest-answer scope."},
   ],
-  "lib/zonePintIndex.server.ts": [
-    {"owner": "load", "count": 1, "reason": "Transports ordinary zone statistics inputs."},
+  "lib/zonePriceEstimate.ts": [
+    {"owner": "zonePintIndexFromSlimPayload", "count": 1, "reason": "Transports ordinary zone statistics inputs."},
+  ],
+  "lib/planVenueOptions.ts": [
+    {"owner": "planVenueOptions", "count": 1, "reason": "Preserves recorded-price availability so a chosen pub cannot receive a zone estimate."},
+  ],
+  "lib/slimPayload.ts": [
+    {"owner": "rowsFromSlimPayload", "count": 1, "reason": "Restores recorded-price availability from the slim transport without ranking prices."},
   ],
   "lib/zones.ts": [
     {"owner": "computeZonePintIndex", "count": 1, "reason": "Computes zone medians outside cheapest-answer scope."},
@@ -334,6 +340,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "scripts/build_price_bands.mjs": [
     {"owner": "readCityPintPrices", "count": 4, "reason": "Computes ordinary price band statistics outside cheapest-answer scope."},
+  ],
+  "scripts/build_slim_index.mjs": [
+    {"owner": "slimBundlePriceCoverage", "count": 1, "reason": "Publishes bundle-price availability for unpriced slim rows without ranking prices."},
   ],
   "scripts/lib/slimShards.mjs": [
     {"owner": "pricedRatio", "count": 2, "reason": "Measures shard coverage without ranking."},

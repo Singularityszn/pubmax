@@ -1524,6 +1524,13 @@ export function AuthProvider({
     [startNativeEmail],
   );
 
+  const activateRememberedAccount = useCallback(async (userId: string) => {
+    const outcome = await activateDeviceAccount(userId, browserDeviceAccountSwitchDeps());
+    emitDeviceAccountSessionsChanged();
+    if (outcome.status === "needs_sign_in" && outcome.banned) setAuthBannedNotice(true);
+    return outcome;
+  }, []);
+
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
       const departing = sessionTransitions.current.currentUserId();
@@ -1536,7 +1543,9 @@ export function AuthProvider({
       if (!supabase) return;
       // The provider can finish a refresh before SIGNED_OUT clears the session.
       // Clear device data after that final event, before another account takes over.
-      await supabase.auth.signOut();
+      // Local scope: signing out here ends this device's session, not the
+      // account's sessions on its other devices.
+      await supabase.auth.signOut({ scope: "local" });
       // Explicit sign-out is the one place the durable resume cookie dies too —
       // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // AWAITED, because an account sign-out may hand the device straight to the
@@ -1567,9 +1576,9 @@ export function AuthProvider({
         departing,
       );
       if (!next) return;
-      await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
+      await activateRememberedAccount(next.userId);
     },
-    [cancelPendingNativeAuth, updateSession],
+    [activateRememberedAccount, cancelPendingNativeAuth, updateSession],
   );
 
   const switchAccount = useCallback(
@@ -1578,15 +1587,11 @@ export function AuthProvider({
       if (userId === sessionTransitions.current.currentUserId()) {
         return { status: "switched", userId };
       }
-      const outcome = await activateDeviceAccount(
-        userId,
-        browserDeviceAccountSwitchDeps(),
-      );
-      emitDeviceAccountSessionsChanged();
+      const outcome = await activateRememberedAccount(userId);
       if (outcome.status === "switched") trackEvent("account_switched");
       return outcome;
     },
-    [cancelPendingNativeAuth],
+    [activateRememberedAccount, cancelPendingNativeAuth],
   );
 
   useEffect(() => {
@@ -1702,7 +1707,7 @@ export function AuthProvider({
     <AuthContext.Provider value={value}>
       {children}
       {authBannedNotice ? (
-        <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
+        session?.user ? null : <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
       ) : authCallbackConfirmation ? (
         <div className="authCallbackNotice authCallbackNotice--confirm" role="alert">
           <span>
@@ -1745,7 +1750,12 @@ export function AuthProvider({
           it names the person and retires itself. Both it and the handle claim
           render nothing without a user, so neither is fetched without one. */}
       {session?.user ? <ArrivalWelcome /> : null}
-      {session?.user ? <AccountOnboarding /> : null}
+      {session?.user ? (
+        <AccountOnboarding
+          authBannedNotice={authBannedNotice}
+          onDismissAuthBannedNotice={() => setAuthBannedNotice(false)}
+        />
+      ) : null}
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
       <IdentityNudge />

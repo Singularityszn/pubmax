@@ -1,9 +1,8 @@
 // The area root page, /area/{slug}: the cheapest listed pints in one London
 // Night Area (SEO audit #2126, finding 17; captain, 30 Oct 2026). It publishes
 // when the area holds PRICED_LANDING_PUBLICATION_FLOORS.area priced pubs, and
-// on that floor alone: a price list is not a route, so the route-readiness
-// review (`nightAreaPublishesPrices`) that gates the brand-by-area pairs does
-// not gate it. Everything else follows the governed landing contract in
+// on that floor alone: a price list is not a route, so no route-readiness
+// review gates it. Everything else follows the governed landing contract in
 // docs/specs/governed-priced-landings/PRODUCT.md: rows come from the exact
 // price row that owns them, one pub counts once at its cheapest row, and an
 // area below the floor has no page.

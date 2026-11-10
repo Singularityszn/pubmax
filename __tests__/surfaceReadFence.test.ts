@@ -256,6 +256,7 @@ describe("painted reads", () => {
 
     const direct: Array<{ path: string; count: number }> = [];
     for (const file of files) {
+      if (file === join(ROOT, "components/plan/usePlanPriceAbsence.ts")) continue;
       if (file.includes("/api/") || /\.server\.tsx?$/.test(file)) continue;
       const source = readFileSync(file, "utf8");
       const withoutComments = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");

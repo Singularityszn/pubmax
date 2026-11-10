@@ -43,6 +43,7 @@ import {
 } from "@/lib/venuePriceLane";
 import { filterVenues, formatPrice, initialFilters, type Filters, type Venue } from "@/lib/venues";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
+import type { ZonePintIndex } from "@/lib/zones";
 
 /** The list waits this long after the map settles before it re-reads the view. */
 export const MAP_SPLIT_LIST_DEBOUNCE_MS = 250;
@@ -194,6 +195,7 @@ export function mapSplitListPrice(
     noun: string | null;
     status: CategoryPriceIndexStatus;
   } = { prices: null, noun: null, status: "ready" },
+  zoneIndex: ZonePintIndex | null = null,
 ): MapSplitListPrice {
   if (lens.prices !== null) {
     const lensPrice = lens.prices.get(venue.id) ?? null;
@@ -219,7 +221,7 @@ export function mapSplitListPrice(
     };
   }
 
-  const bundle = venueBundlePrices(venue);
+  const bundle = venueBundlePrices(venue, zoneIndex);
   const dropLanes = dropLaneInputsFor(signal);
   const lane = venuePriceLane(
     venue,
@@ -361,6 +363,8 @@ export type MapSplitListInput = {
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
   lensNoun?: string | null;
   lensStatus?: CategoryPriceIndexStatus;
+  /** The published fare-zone medians, so an unpriced pub reads its zone estimate. */
+  zoneIndex?: ZonePintIndex | null;
   /** The middle of the map, [lng, lat]. */
   viewportCenter: [number, number] | null;
   /** Where the reader is, when they have shared it. */
@@ -399,7 +403,7 @@ export function buildMapSplitListGroups(input: MapSplitListInput): MapSplitListG
     group: "venue",
     distanceKm: distanceFrom(origin, venue.longitude, venue.latitude),
     walkMinutes: walkFrom(reader, venue.longitude, venue.latitude),
-    price: mapSplitListPrice(venue, input.dropSignals.get(venue.id), lens),
+    price: mapSplitListPrice(venue, input.dropSignals.get(venue.id), lens, input.zoneIndex ?? null),
     unpricedLabel: null,
     venue,
     basePub: null,

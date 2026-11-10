@@ -34,6 +34,7 @@ import { buildMapVenueListModel, mapVenueListCheapest } from "@/lib/mapVenueList
 import { buildLogNearbyCandidates } from "@/lib/mapLogIntent";
 import { deriveMapRenderedState } from "@/lib/mapRenderedState";
 import { priceBucket } from "@/lib/communityPrice";
+import { planVenueOptions } from "@/lib/planVenueOptions";
 import { nearSavingLine, rankNearMe, venueToPricedPoint } from "@/lib/nearMeAnswer";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
@@ -101,6 +102,35 @@ function serveSlimPayload(payload: unknown) {
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
 }
+
+it("keeps recorded-price availability through the published slim loader", async () => {
+  const source = slim.find((row) => row.id === "venue-10x17k9")!;
+  const unread = { ...source, id: "unread" };
+  delete unread.hasRecordedPrice;
+  serveSlimPayload({ rows: [
+    { ...source, id: "known-listed", hasRecordedPrice: true },
+    { ...source, id: "known-empty", hasRecordedPrice: false },
+    unread,
+  ] });
+  const loaded = await loadSlimVenuesFromPathResult("/data/price-availability-contract.json");
+  expect(loaded.rows.map((row) => slimVenueToPin(row).hasRecordedPrice)).toEqual([true, false, undefined]);
+});
+
+it.each([true, false, undefined])("reads bundle availability beside the full index only after a successful read: %s", async (bundlePricesChecked) => {
+  const source = { ...slim.find((row) => row.id === "venue-10x17k9")! };
+  delete source.hasRecordedPrice;
+  const payload = { bundlePricesChecked, recordedPintVenueIds: ["listed"], rows: [
+    { ...source, id: "listed", cheapestPrice: null },
+    { ...source, id: "empty", cheapestPrice: null },
+    { ...source, id: "priced", cheapestPrice: 5.5 },
+  ] };
+  serveSlimPayload(payload);
+  const loaded = await loadSlimVenuesFromPathResult(`/data/sidecar-availability-${bundlePricesChecked}.json`);
+  const listed = bundlePricesChecked === true ? true : undefined;
+  const empty = bundlePricesChecked === true ? false : undefined;
+  expect(loaded.rows.map((row) => slimVenueToPin(row).hasRecordedPrice)).toEqual([listed, empty, undefined]);
+  expect(planVenueOptions(payload).map((row) => row.hasRecordedPrice)).toEqual([listed, empty, true]);
+});
 
 it("keeps the two Coach and Horses streets through the published slim loader and pin conversion", async () => {
   serveSlimPayload(slimPayload);
@@ -483,6 +513,7 @@ describe("venues_slim.json", () => {
                 "zone",
                 "locality",
                 "priceSource",
+                "hasRecordedPrice",
                 "cheapestPint",
                 "measure",
                 // The day the cheapest figure was last read (lib/priceReadDay.mjs).

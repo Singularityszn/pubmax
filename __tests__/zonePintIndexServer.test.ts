@@ -41,6 +41,48 @@ describe("loadZonePintIndex", () => {
     );
   });
 
+  it("passes checked bundle availability to the map beside the published medians", async () => {
+    readFile.mockResolvedValue(JSON.stringify({
+      bundlePricesChecked: true,
+      recordedPintVenueIds: ["listed"],
+      rows: [...rows("pub", 10, 5),
+        { id: "listed", zone: 1, cheapestPrice: null },
+        { id: "empty", zone: 1, cheapestPrice: null },
+      ],
+    }));
+    const index = await (await freshLoader())();
+    expect(index?.recordedPintVenueIds).toEqual(["listed"]);
+    expect(index?.rows.find((row) => row.zone === 1)?.medianGbp).toBe(5);
+  });
+
+  it.each([
+    { cheapestPint: "BOTTLED BEER" },
+    { cheapestPint: "Lager can" },
+    { cheapestPint: "Lager 330 ml" },
+    { cheapestPint: "Half-pint lager" },
+    { measure: "half" },
+    { measure: "other" },
+  ])("excludes non-pint servings from the sample and median: %j", async (serving) => {
+    const result = await zoneOne([
+      ...[4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((cheapestPrice) => ({
+        zone: 1, cheapestPrice, kind: "pub", measure: "pint", cheapestPint: "Lager",
+      })),
+      ...rows("pub", 10, 1).map((row) => ({ ...row, ...serving })),
+    ]);
+    expect(result).toEqual({ zone: 1, pricedCount: 10, enough: true, medianGbp: 8.5 });
+  });
+
+  it("does not let a bottled price qualify nine pints for publication", async () => {
+    readFile.mockResolvedValue(JSON.stringify({ rows: [
+      ...rows("pub", 9, 5),
+      { zone: 1, cheapestPrice: 7.5, kind: "pub", cheapestPint: "BOTTLED BEER" },
+    ] }));
+    const index = await (await freshLoader())();
+    expect(index?.rows.find((row) => row.zone === 1)).toEqual({
+      zone: 1, pricedCount: 9, enough: false, medianGbp: null,
+    });
+  });
+
   it("keeps a kind this build does not hold out of the median", async () => {
     // A slim row carrying a kind added by a later build must not be read as a
     // legacy pub row and priced into the zone median.

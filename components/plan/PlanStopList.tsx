@@ -7,6 +7,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DraftStop } from "@/components/plan/PlanComposer";
 import PlanPintPriceCaption from "@/components/plan/PlanPintPriceCaption";
 import { useStopGestures } from "@/components/plan/useStopGestures";
+import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
 import { categoryLabel } from "@/lib/drinks";
 import { UNRESOLVED_ACCEPTED_STOP_LABEL } from "@/lib/planComposerHandoff";
 import { matchingPlanPintPriceEvidence } from "@/lib/planPintPrice";
@@ -21,15 +22,39 @@ import {
 import { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { PlanVenueOption } from "@/lib/planVenueOptions";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
+import { zonePriceEstimate } from "@/lib/zonePriceEstimate";
+import { zoneLabel, type ZonePintIndex } from "@/lib/zones";
+
+type StopZoneEstimate = { stamp: { text: string; bandClass: string }; label: string } | null;
 
 /** What a card prints on its price stamp, and whether a pint band may colour it. */
-function stampFor(stop: DraftStop, pintServingKnown: boolean): { text: string; bandClass: string } | null {
+function stampFor(
+  stop: DraftStop,
+  pintServingKnown: boolean,
+  estimate: StopZoneEstimate,
+): { text: string; bandClass: string } | null {
   const drink = stop.selectedDrinkPriceEvidence;
   if (drink) return { text: formatPenceFixed(drink.pence), bandClass: "" };
   const pence = stop.estimatedPintPricePence;
-  if (typeof pence !== "number" || pence <= 0) return null;
+  if (typeof pence !== "number" || pence <= 0) return estimate?.stamp ?? null;
   const band = pintServingKnown ? priceBand(pence / 100, priceBandAreaForVenue(stop.venueId)) : null;
   return { text: formatPenceFixed(pence), bandClass: priceBandClass(band) };
+}
+
+/**
+ * A stop with no price of its own reads its fare zone's estimate. It never
+ * wears a band and never joins a total, because nobody recorded it here.
+ */
+function stopZoneEstimate(
+  stop: DraftStop,
+  venue: PlanVenueOption | undefined,
+  zoneIndex: ZonePintIndex | null,
+): StopZoneEstimate {
+  if (stop.selectedDrinkPriceEvidence || typeof stop.estimatedPintPricePence === "number" || venue?.hasRecordedPrice !== false) return null;
+  const estimate = zonePriceEstimate(venue?.zone, zoneIndex);
+  const text = estimate ? priceStandingFigure(priceStandingFor({ estimate })) : null;
+  return estimate && text ? { stamp: { text, bandClass: "" }, label: `${zoneLabel(estimate.zone)} estimate` } : null;
 }
 
 /**
@@ -38,13 +63,18 @@ function stampFor(stop: DraftStop, pintServingKnown: boolean): { text: string; b
  * from the area centre); a pub the reader picked or swapped in carries none and
  * may sit anywhere in the city.
  */
-function metaFor(stop: DraftStop, areaName: string | null, pintServingKnown: boolean): string {
+function metaFor(
+  stop: DraftStop,
+  areaName: string | null,
+  pintServingKnown: boolean,
+  estimate: StopZoneEstimate,
+): string {
   const drink = stop.selectedDrinkPriceEvidence;
   const priceLabel = pintServingKnown
     ? priceKindLabel(stop.priceKind)
     : stop.priceKind === "listed" ? "Listed price" : stop.priceKind === "estimated" ? "Estimated price" : null;
   const trust = drink ? `${categoryLabel(drink.category)} price` : priceLabel;
-  return [stop.reason ? areaName : null, trust].filter(Boolean).join(" · ");
+  return [stop.reason ? areaName : null, trust, estimate?.label].filter(Boolean).join(" · ");
 }
 
 type FinderOption = { value: string; venue: PlanVenueOption };
@@ -133,6 +163,8 @@ export type PlanStopListProps = {
   heldVenueId: string | null;
   measured: MeasuredLegMinutes;
   venues: readonly PlanVenueOption[];
+  /** The fare-zone medians, or null when the plan is not priced in pints. */
+  zoneIndex?: ZonePintIndex | null;
   canAdd: boolean;
   /** Counts up each time a new route arrives, so the cards cross-fade to it. */
   refreshKey: number;
@@ -160,6 +192,7 @@ export default function PlanStopList({
   heldVenueId,
   measured,
   venues,
+  zoneIndex = null,
   canAdd,
   refreshKey,
   removable,
@@ -203,6 +236,11 @@ export default function PlanStopList({
     refreshKey,
   });
   const options = useMemo(() => finderOptions(venues), [venues]);
+  const venueById = useMemo(() => new Map(venues.map((venue) => [venue.id, venue])), [venues]);
+  const estimateVenueIds = useMemo(() => [...new Set(stops
+    .filter((stop) => stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex))
+    .map((stop) => stop.venueId))], [stops, venueById, zoneIndex]);
+  const publicPriceAbsent = usePlanPriceAbsence(estimateVenueIds, refreshKey);
   const byValue = useMemo(
     () => new Map(options.map((option) => [option.value.toLocaleLowerCase(), option.venue])),
     [options],
@@ -248,9 +286,11 @@ export default function PlanStopList({
             stop.venueId, stop.estimatedPintPricePence, stop.priceKind, stop.pintPriceEvidence,
           );
           const pintServingKnown = pintEvidence?.serving === "pint";
-          const stamp = stampFor(stop, pintServingKnown);
+          const estimate = publicPriceAbsent.has(stop.venueId)
+            ? stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex) : null;
+          const stamp = stampFor(stop, pintServingKnown, estimate);
           const drinkLine = selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence);
-          const meta = metaFor(stop, areaName, pintServingKnown);
+          const meta = metaFor(stop, areaName, pintServingKnown, estimate);
           const lifted = gestures.liftedIndex === index;
           const movable = index >= lowest && stops.length - lowest > 1;
           const canDelete = removable && !removeDisabled(stop, index);
@@ -313,7 +353,7 @@ export default function PlanStopList({
                       </Link>
                       {meta ? <span className="planStop__meta">{meta}</span> : null}
                       {drinkLine ? <small className="planComposer__stopReason">{drinkLine}</small> : null}
-                      {stamp && !stop.selectedDrinkPriceEvidence ? (
+                      {stamp && !estimate && !stop.selectedDrinkPriceEvidence ? (
                         <small className="planComposer__stopReason">
                           <PlanPintPriceCaption evidence={pintEvidence} />
                         </small>

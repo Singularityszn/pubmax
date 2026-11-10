@@ -112,3 +112,19 @@ describe("surface stack", () => {
     );
   });
 });
+
+describe("characterisation: surface stack open, back, home and reorder", () => {
+  it("today: reopening a lower surface drops every surface above it, with its state", () => {
+    let stack = openSurface(ROOT_SURFACE_STACK as SurfaceStack<Held>, area);
+    stack = openSurface(stack, nearMe);
+    stack = openSurface(stack, venue);
+    stack = openSurface(stack, { ...area, state: { tab: "dearest" } });
+    expect(stack).toEqual([{ ...area, state: { tab: "dearest" } }]);
+    expect(backSurface(stack)).toEqual([]);
+  });
+
+  it("today: Back at the top level and Home both return the shared root stack", () => {
+    expect(backSurface(ROOT_SURFACE_STACK)).toBe(ROOT_SURFACE_STACK);
+    expect(homeSurface()).toBe(ROOT_SURFACE_STACK);
+  });
+});

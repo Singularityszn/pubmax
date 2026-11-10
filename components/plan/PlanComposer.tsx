@@ -81,6 +81,8 @@ import {
 } from "@/lib/planVenueOptions";
 import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { zonePintIndexFromSlimPayload } from "@/lib/zonePriceEstimate";
+import type { ZonePintIndex } from "@/lib/zones";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import {
@@ -2406,6 +2408,7 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
+  const [zoneIndex, setZoneIndex] = useState<ZonePintIndex | null>(null);
   const [venueIndexRead, setVenueIndexRead] = useState(0);
   const [venueIndexStatus, setVenueIndexStatus] = useState<"reading" | "read" | "failed">("reading");
   const pathname = usePathname();
@@ -2847,6 +2850,7 @@ function PlanComposerForm({
         if (!active) return;
         const nextVenues = planVenueOptions(rows);
         setVenues(nextVenues);
+        setZoneIndex(zonePintIndexFromSlimPayload(rows, new Date().toISOString()));
         setVenueIndexStatus("read");
         const acceptedVenueId = liveHeldVenueId.current;
         if (!acceptedVenueId) return;
@@ -4080,6 +4084,7 @@ function PlanComposerForm({
         heldVenueId={heldVenueId}
         measured={measured}
         venues={venues}
+        zoneIndex={nightContext && !planUsesPintPrices(nightContext) ? null : zoneIndex}
         canAdd={stops.length < MAX_PLAN_STOP_COUNT}
         refreshKey={routeRevealTick}
         removable={stops.length > 1}

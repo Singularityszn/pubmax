@@ -858,3 +858,36 @@ describe("report_occupancy", () => {
     expect(result.answerHint).toBe("Is The Lamb empty, some seats, or full?");
   });
 });
+
+
+describe("venue_prices read availability", () => {
+  it.each([false, true])("requires a complete community read before estimating when degraded=%s", async (degraded) => {
+    state.venues = [venue({ id: "unpriced-test-pub", name: "Unpriced Arms", cheapestPrice: null, zone: 2 })];
+    state.prices = { prices: [], degraded };
+    const result = await runAskTool("venue_prices", { venueId: "unpriced-test-pub" }, ctx());
+    expect(result.data).toMatchObject({
+      communityDegraded: degraded,
+      zoneEstimate: degraded ? null : { estimateGbp: 5.75, zone: 2, sampleSize: 301 },
+    });
+    if (degraded) {
+      expect(result.degraded).toBe(true);
+      expect(result.answerHint).toContain("couldn't read");
+      expect(result.answerHint).not.toContain("no corroborated");
+      expect(result.cards[0]?.note).toContain("couldn't read");
+      expect(result.cards[0]?.note).not.toContain("No recorded pint");
+    } else {
+      expect(result.answerHint).toContain("Estimate £5.75");
+    }
+  });
+
+  it("retains recorded prices when a community read fails", async () => {
+    state.venues = [venue({ id: "priced-test-pub", name: "Listed Arms", cheapestPrice: 5, zone: 2 })];
+    state.prices = { prices: [], degraded: true };
+    const result = await runAskTool("venue_prices", { venueId: "priced-test-pub" }, ctx());
+    expect(result.data).toMatchObject({ curatedPrice: 5, zoneEstimate: null });
+    expect(result.cards[0]?.price).toBe(5);
+    expect(result.answerHint).toContain("couldn't read");
+    expect(result.answerHint).toContain("listed pint £5.00");
+    expect(result.answerHint).not.toContain("no corroborated");
+  });
+});

@@ -183,6 +183,15 @@
   transform: translateX(-50%);
 }
 
+.authCallbackNotice--inline {
+  position: static;
+  display: grid;
+  justify-items: start;
+  width: auto;
+  box-shadow: none;
+  transform: none;
+}
+
 /* Success path for attempt-less token sign-in confirmation (not an error). */
 .authCallbackNotice--ok {
   border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
