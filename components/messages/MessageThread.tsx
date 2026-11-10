@@ -56,6 +56,11 @@ import {
   groupMemberCountLine,
 } from "@/lib/messageGroupThread";
 import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
+import {
+  messageSendPayload,
+  retainedMessageSendKey,
+  type MessageSendAttempt,
+} from "@/lib/messageSendAttempt";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
   linkifyMentions,
@@ -380,7 +385,7 @@ export default function MessageThread({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   /** Claimed before the first await in `send`; see the note there. */
   const sendInFlightRef = useRef(false);
-  const unsentKeyRef = useRef<{ key: string; payload: string; photo: Uint8Array | null } | null>(null);
+  const unsentKeyRef = useRef<MessageSendAttempt | null>(null);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
@@ -698,22 +703,12 @@ export default function MessageThread({
     sendInFlightRef.current = true;
     const sentPending = pending;
     const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
-    const post = {
-      action: "send",
-      handle: h,
-      body: bodyText,
-      ...(sentPending?.kind === "venue" ? { venueId: sentPending.venue.id } : {}),
-      ...(sentPending?.kind === "contact" ? { contactHandle: sentPending.handle } : {}),
-      ...(sentPending?.kind === "event" ? { planId: sentPending.planId } : {}),
-      ...(sentPending?.kind === "poll"
-        ? { poll: { question: sentPending.poll.question, options: sentPending.poll.options } }
-        : {}),
-    };
-    const payload = JSON.stringify({
+    const { post, payload } = messageSendPayload({
       conversationId,
       senderId: user.id,
-      post,
-      photoType: sentPending?.kind === "photo" ? sentPending.file.type : null,
+      handle: h,
+      body: bodyText,
+      attachment: sentPending,
     });
     setSending(true);
     setError("");
@@ -740,12 +735,8 @@ export default function MessageThread({
     };
     try {
       const photo = sentPending?.kind === "photo" ? new Uint8Array(await sentPending.file.arrayBuffer()) : null;
-      const unsent = unsentKeyRef.current;
-      const samePhoto = unsent?.photo === null
-        ? photo === null
-        : photo !== null && unsent?.photo?.length === photo.length && unsent.photo.every((byte, index) => byte === photo[index]);
       const clientMessageId =
-        unsent && unsent.payload === payload && samePhoto ? unsent.key : newClientMessageId();
+        retainedMessageSendKey(unsentKeyRef.current, payload, photo) ?? newClientMessageId();
       unsentKeyRef.current = { key: clientMessageId, payload, photo };
       const address = `/api/messages/${encodeURIComponent(conversationId)}`;
       const keyedPost = { ...post, clientMessageId };
