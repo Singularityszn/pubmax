@@ -17,6 +17,8 @@ import Screen from "@/components/ui/screen";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { getAnonId } from "@/lib/anonId";
+import { readProviderAccountRevision } from "@/lib/authProviderRevision";
+import { startPintDropSubmission, transitionPintDropSubmission } from "@/lib/pintDropSubmission";
 import type { CheckIn } from "@/lib/checkIn";
 import {
   applyFeedFilter,
@@ -668,8 +670,10 @@ export default function FeedPageClient({
     [actorId],
   );
 
+  const retriesInFlight = useRef(new Set<string>());
   const retryOptimisticPost = useCallback(async (clientRequestId: string) => {
     if (typeof window === "undefined") return;
+    if (retriesInFlight.current.has(clientRequestId)) return;
     const writeLocalEntries = (entries: ReturnType<typeof readOptimisticSpills>) => {
       writeOptimisticSpills(window.localStorage, entries);
       emitOptimisticSpillChange();
@@ -687,10 +691,14 @@ export default function FeedPageClient({
       return;
     }
 
-    writeLocalEntries(markOptimisticSpillRetrying(stored, clientRequestId));
+    const submittedAccountRevision = readProviderAccountRevision();
+    let submission = startPintDropSubmission(clientRequestId, submittedAccountRevision);
+    retriesInFlight.current.add(clientRequestId);
 
     try {
+      writeLocalEntries(markOptimisticSpillRetrying(stored, clientRequestId));
       const body = await buildOptimisticSpillRetryFormData(entry.retry);
+      if (submittedAccountRevision !== readProviderAccountRevision()) return;
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = (await response.json().catch(() => ({}))) as {
         drop?: PintDropDTO;
@@ -699,6 +707,11 @@ export default function FeedPageClient({
       if (!response.ok || !data.drop) {
         throw new Error(errorMessageFrom(data, "Could not save that Spill."));
       }
+      submission = transitionPintDropSubmission(submission, {
+        type: "succeeded", requestId: clientRequestId,
+        accountRevision: readProviderAccountRevision(), dropId: data.drop.id,
+      });
+      if (submission.phase !== "saved") return;
       const reconciledDrop: PintDropDTO = {
         ...data.drop,
         venueName: entry.retry.venueName,
@@ -720,9 +733,16 @@ export default function FeedPageClient({
         err instanceof Error && err.message.trim()
           ? err.message
           : "Network or storage error. Try again.";
+      submission = transitionPintDropSubmission(submission, {
+        type: "failed", requestId: clientRequestId,
+        accountRevision: readProviderAccountRevision(), message, canRetry: true,
+      });
+      if (submission.phase !== "failed") return;
       writeLocalEntries(
-        failOptimisticSpill(readOptimisticSpills(window.localStorage), clientRequestId, message),
+        failOptimisticSpill(readOptimisticSpills(window.localStorage), clientRequestId, submission.message),
       );
+    } finally {
+      retriesInFlight.current.delete(clientRequestId);
     }
   }, []);
 

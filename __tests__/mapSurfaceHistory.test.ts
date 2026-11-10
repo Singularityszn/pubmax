@@ -1,13 +1,22 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   MAP_SURFACE_HISTORY_KEY,
   mapSurfaceOpenTransition,
+  readEntriesAboveRoot,
   readMapSurfaceHistory,
   stampMapSurfaceHistory,
 } from "@/lib/mapSurfaceHistory";
-import type { SurfaceStack } from "@/lib/surfaceStack";
+import { backSurface, openSurface, type SurfaceEntry, type SurfaceStack } from "@/lib/surfaceStack";
 import { mergeCrawlUrlSearch } from "@/components/map/useCrawlUrl";
+import {
+  EMPTY_MAP_SURFACE_STATE,
+  useMapSurfaceNavigation,
+  type MapSurfaceState,
+} from "@/components/map/pubmap/useMapSurfaceNavigation";
 
 type Held = { venueId: string; tab: string };
 
@@ -145,5 +154,125 @@ describe("Map surface open decision", () => {
       kind: "push",
       stack: [venue, planner],
     });
+  });
+});
+
+describe("characterisation: map surface open, back, home and reorder", () => {
+  let root: Root;
+  let container: HTMLDivElement;
+  let navigation: ReturnType<typeof useMapSurfaceNavigation>;
+  const onRestore = vi.fn();
+  const onHome = vi.fn();
+
+  function Harness() {
+    navigation = useMapSurfaceNavigation({
+      arrivalSearch: "",
+      surfaceId: "none",
+      surfaceTitle: "",
+      surfaceState: EMPTY_MAP_SURFACE_STATE,
+      selectionHint: "",
+      onRestore,
+      onHome,
+      onSurfaceClose: () => {},
+    });
+    return null;
+  }
+
+  function openSurfaces(...entries: SurfaceEntry<Held>[]) {
+    act(() => {
+      for (const entry of entries) {
+        navigation.open({
+          ...entry,
+          state: {
+            ...EMPTY_MAP_SURFACE_STATE,
+            venueId: entry.state?.venueId ?? "",
+            venueTab: entry.state?.tab ?? "",
+          },
+        });
+      }
+    });
+  }
+
+  function trail() {
+    return readMapSurfaceHistory<MapSurfaceState>(window.history.state);
+  }
+
+  async function traverse(action: () => void) {
+    await act(async () => {
+      const landed = new Promise<void>((resolve) => {
+        window.addEventListener("popstate", () => resolve(), { once: true });
+      });
+      action();
+      await landed;
+    });
+  }
+
+  beforeEach(async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    onRestore.mockClear();
+    onHome.mockClear();
+    window.history.replaceState(null, "", "/map");
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => { root.render(createElement(Harness)); });
+  });
+
+  afterEach(async () => {
+    await act(async () => { root.unmount(); });
+    container.remove();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("today: open pushes one entry per new surface and replaces a reopened top", () => {
+    const push = vi.spyOn(window.history, "pushState");
+    const replace = vi.spyOn(window.history, "replaceState");
+    openSurfaces(planner, venue, { ...venue, state: { venueId: "venue-harp", tab: "overview" } });
+    expect(push).toHaveBeenCalledTimes(2);
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(trail()?.map((entry) => entry.id)).toEqual(["planner", "venue"]);
+    expect(trail()?.at(-1)?.state?.venueId).toBe("venue-harp");
+    expect(readEntriesAboveRoot(window.history.state)).toBe(2);
+  });
+
+  it("today: Back restores the planner after opening a venue", async () => {
+    openSurfaces(planner, venue);
+    await traverse(() => navigation.back());
+    expect(trail()?.map((entry) => entry.id)).toEqual(["planner"]);
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "planner" }));
+  });
+
+  it("today: reorder pushes a browser entry, so stack depth 2 sits on 3 entries above root (R3)", () => {
+    const push = vi.spyOn(window.history, "pushState");
+    openSurfaces(planner, venue, planner);
+    expect(push).toHaveBeenCalledTimes(3);
+    expect(trail()?.map((entry) => entry.id)).toEqual(["venue", "planner"]);
+    expect(readEntriesAboveRoot(window.history.state)).toBe(3);
+    expect(openSurface([planner, venue], planner)).toEqual([planner]);
+  });
+
+  it.each([
+    { label: "ordinary opens", entries: [planner, venue] },
+    { label: "a reorder", entries: [planner, venue, planner] },
+  ])("today: Home returns to the map root after $label", async ({ entries }) => {
+    openSurfaces(...entries);
+    await traverse(() => navigation.home());
+    expect(trail()).toEqual([]);
+    expect(readEntriesAboveRoot(window.history.state)).toBe(0);
+    expect(window.location.pathname + window.location.search).toBe("/map");
+    expect(onHome).toHaveBeenCalledTimes(1);
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    expect(navigation.holdsSurface("planner")).toBe(false);
+    expect(navigation.holdsSurface("venue")).toBe(false);
+  });
+
+  it("today: Back after a reorder restores the pre-reorder trail, not backSurface (R3)", async () => {
+    openSurfaces(planner, venue, planner);
+    await traverse(() => navigation.back());
+    expect(trail()?.map((entry) => entry.id)).toEqual(["planner", "venue"]);
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "venue" }));
+    expect(readEntriesAboveRoot(window.history.state)).toBe(2);
+    expect(backSurface([venue, planner])).toEqual([venue]);
   });
 });
