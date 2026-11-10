@@ -63,9 +63,9 @@ beforeAll(async () => {
       `values ('${FIRST_MEDIA}', '${GEN}', '${ALICE}', 'social/${FIRST_MEDIA}/${GEN}/image.jpg', '${SHA}', 800, 1000, 1234);`,
   );
   db().sql(
-    "insert into public.social_posts (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, photo_media_id, photo_alt_text, moderation_state) " +
-      `values ('${POST}', '${ALICE}', 'alice', 'standard', 'friends', 'Snug crawl', 'open', '${FIRST_MEDIA}', 'The front bar', 'approved'), ` +
-      `('${NO_PHOTO_POST}', '${ALICE}', 'alice', 'standard', 'friends', 'Words only', 'open', null, null, 'approved');`,
+    "insert into public.social_posts (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, photo_media_id, photo_alt_text, moderation_state, moderated_at) " +
+      `values ('${POST}', '${ALICE}', 'alice', 'standard', 'friends', 'Snug crawl', 'open', '${FIRST_MEDIA}', 'The front bar', 'approved', now()), ` +
+      `('${NO_PHOTO_POST}', '${ALICE}', 'alice', 'standard', 'friends', 'Words only', 'open', null, null, 'approved', now());`,
   );
 }, 300_000);
 
