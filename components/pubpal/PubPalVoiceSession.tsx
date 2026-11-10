@@ -57,6 +57,7 @@ import {
 } from "@/lib/elevenlabsWorkletAssets";
 import {
   createPubPalVoiceStartController,
+  createPalVoiceMicrophoneHold,
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
@@ -64,6 +65,7 @@ import {
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
   palVoiceLineDropped,
+  type PalVoiceMicrophoneHold,
 } from "@/lib/pubPalVoiceSession";
 import {
   appendPalVoiceLine,
@@ -110,6 +112,8 @@ type VoiceSessionAttempt = {
   released: boolean;
   conversationId: string | null;
   sdkSessionStarted: boolean;
+  sdkStartupPending: boolean;
+  microphone: PalVoiceMicrophoneHold;
   connectedAt: number | null;
   capTimer: number | null;
   startupTimer: number | null;
@@ -324,6 +328,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     clearStartupTimer(attempt);
     attempt.requestAbort.abort();
+    attempt.microphone.release();
+    if (!attempt.sdkStartupPending) attempt.microphone.settle();
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
       attempt.voiceEndReported = true;
       trackEvent("voice_ended", { reason: attempt.voiceEndReason ?? "disconnect" });
@@ -390,7 +396,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (attempt) void stop(attempt);
   }, [stop]);
 
-  // See docs/PUB_PAL_SETUP.md#voice-interruptions for the SDK startup limit.
+  // See docs/PUB_PAL_SETUP.md#voice-interruptions for leaving during SDK startup.
   usePageLeft(useCallback((): void => {
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
@@ -411,6 +417,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       released: false,
       conversationId: null,
       sdkSessionStarted: false,
+      sdkStartupPending: false,
+      microphone: createPalVoiceMicrophoneHold(),
       connectedAt: null,
       capTimer: null,
       startupTimer: null,
@@ -465,6 +473,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
+        attempt.sdkStartupPending = true;
+        attempt.microphone.begin();
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
@@ -472,6 +482,11 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           useWakeLock: true,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
+          onStatusChange: ({ status: next }) => {
+            if (next !== "connected" && next !== "disconnected") return;
+            attempt.sdkStartupPending = false;
+            attempt.microphone.settle();
+          },
           onMessage: ({ role, message, event_id }) => {
             if (!ownsAttempt(attempt)) return;
             const content = message.trim();

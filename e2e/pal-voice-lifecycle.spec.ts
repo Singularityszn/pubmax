@@ -1,4 +1,4 @@
-import { chromium, expect, test, type Page, type WebSocketRoute } from "@playwright/test";
+import { chromium, expect, test, type BrowserContext, type Page, type WebSocketRoute } from "@playwright/test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
@@ -186,42 +186,63 @@ test("background while the first microphone request is pending cancels without a
   await app.save("pending-permission-background");
 });
 
-test("background during SDK startup closes late connection after the documented SDK limit", async ({ page, context }) => {
-  await context.grantPermissions(["microphone"]);
-  const app = await setup(page, true); app.hold();
-  await app.start();
-  await expect.poll(app.pending).toBe(true);
-  await nativeEvent(page, "pause");
-  app.finish();
-  await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeEnabled();
-  await stopped(page);
-  await expect.poll(app.releases).toBe(1);
-  await expect.poll(app.closed).toBe(1);
-  await app.save("sdk-start-background");
-});
-
-
-test("a real browser tab hide ends the call and returning offers Carry on without restarting", async () => {
-  // Playwright forces focus and visibility on its managed pages. A disposable
-  // Chrome process with noDefaults keeps the browser's real tab visibility.
+// Playwright forces focus and visibility on its managed pages. A disposable
+// Chrome process with noDefaults keeps the browser's real tab visibility.
+async function inRealTab(name: string, port: number, run: (page: Page, context: BrowserContext) => Promise<void>) {
   const launcher = await chromium.launchServer({ channel: test.info().project.use.channel, headless: true });
   const executable = launcher.process().spawnfile;
   await launcher.close();
-  const profile = `${process.cwd()}/artifacts/pal-lifecycle-chrome-profile`;
-  const child = spawn(executable, ["--headless=new", "--remote-debugging-port=32168", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--use-fake-device-for-media-stream", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  const profile = `${process.cwd()}/artifacts/pal-lifecycle-chrome-profile-${name}`;
+  const child = spawn(executable, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--use-fake-device-for-media-stream", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
-  let context: ReturnType<NonNullable<typeof browser>["contexts"]>[number] | undefined;
   try {
     await new Promise<void>((resolve, reject) => {
       child.stderr.on("data", data => { if (String(data).includes("DevTools listening on")) resolve(); });
       child.on("error", reject);
       child.on("exit", code => reject(new Error(`Disposable Chrome exited ${code}`)));
     });
-    browser = await chromium.connectOverCDP("http://127.0.0.1:32168", { noDefaults: true });
-    context = browser.contexts()[0];
+    browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true });
+    const context = browser.contexts()[0];
     const page = context.pages()[0];
     await page.setViewportSize({ width: 390, height: 950 });
     await context.grantPermissions(["microphone"], { origin: String(test.info().project.use.baseURL) });
+    await run(page, context);
+  } finally {
+    await browser?.close();
+    const exited = new Promise<void>(resolve => { if (child.exitCode !== null) resolve(); else child.once("exit", () => resolve()); });
+    child.kill("SIGTERM");
+    await exited;
+    await rm(profile, { recursive: true, force: true });
+  }
+}
+
+test("390px: a page frozen during SDK startup stops the microphone before the socket finishes", async () => {
+  await inRealTab("frozen", 32169, async (page, context) => {
+    const app = await setup(page); app.hold();
+    await app.start();
+    await expect.poll(app.pending).toBe(true);
+    const microphoneCalls = await page.evaluate(() => window.lifecycleProbe.microphoneCalls);
+    await expect.poll(() => page.evaluate(() => window.lifecycleProbe.tracks.some(track => track.readyState === "live"))).toBe(true);
+    await page.screenshot({ path: `${evidence}/sdk-start-connecting.png`, fullPage: true });
+    const session = await context.newCDPSession(page);
+    await session.send("Page.setWebLifecycleState", { state: "frozen" });
+    await session.send("Page.setWebLifecycleState", { state: "active" });
+    await stopped(page);
+    expect(app.pending()).toBe(true);
+    expect(app.closed()).toBe(0);
+    await app.save("sdk-start-frozen");
+    app.finish();
+    await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeEnabled();
+    await expect.poll(app.closed).toBe(1);
+    await expect.poll(app.releases).toBe(1);
+    await stopped(page);
+    expect(await page.evaluate(() => window.lifecycleProbe.microphoneCalls)).toBe(microphoneCalls);
+    await app.save("sdk-start-finished");
+  });
+});
+
+test("a real browser tab hide ends the call and returning offers Carry on without restarting", async () => {
+  await inRealTab("tab", 32168, async (page, context) => {
     const app = await setup(page);
     await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
     await app.start(); await app.connected();
@@ -251,11 +272,5 @@ test("a real browser tab hide ends the call and returning offers Carry on withou
     await stopped(page);
     await expect.poll(app.releases).toBe(2);
     await app.save("real-tab-background");
-  } finally {
-    await browser?.close();
-    const exited = new Promise<void>(resolve => { if (child.exitCode !== null) resolve(); else child.once("exit", () => resolve()); });
-    child.kill("SIGTERM");
-    await exited;
-    await rm(profile, { recursive: true, force: true });
-  }
+  });
 });

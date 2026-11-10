@@ -391,8 +391,8 @@ can be retried. Repeated taps while voice starts use the same attempt.
 Client navigation between `/pal` and `/map`, including `/map/` subroutes, keeps
 the same call and socket open. `PalVoiceHost` holds the session in the root
 shell. On the map, `PalVoiceBar` shows the call status and newest transcript line.
-**End** stops a live call. **Cancel** stops a pending startup attempt, subject
-to the SDK limit below. Returning to `/pal` restores the full transcript panel
+**End** stops a live call. **Cancel** stops a pending startup attempt,
+and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
 without starting another call. A cold `/map` loads no ElevenLabs SDK.
 
 A connected call ends when you navigate outside these routes, reload or close
@@ -411,9 +411,11 @@ cancels the startup attempt while microphone permission is pending. If permissio
 then arrives, the app stops the returned stream without requesting a voice grant.
 
 The pinned ElevenLabs SDK cannot cancel startup once its connection is in
-progress. Its microphone and audio output can remain active until startup
-finishes. The app then closes the late session.
-This limit also applies if you lock the screen during SDK startup.
+progress. The app holds each microphone stream that the SDK opens during
+startup. If the page hides or the native app goes to the background during SDK
+startup, the app stops those streams at once. It also refuses new microphone
+requests until startup ends. The SDK can still finish its connection. The app
+then closes the late session.
 
 `components/pubpal/usePageLeft.ts` detects document hiding, `pagehide`, and native
 `pause`. It ignores native foreground inactivity, which can include permission
