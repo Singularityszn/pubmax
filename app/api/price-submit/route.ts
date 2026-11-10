@@ -53,6 +53,7 @@ import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   submitCategoryLabel,
   validateCommunityPrice,
+  type CommunityPrice,
 } from "@/lib/communityPrice";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { validateCommunityVenueSignal } from "@/lib/communityVenueSignals";
@@ -297,17 +298,13 @@ export async function POST(request: Request): Promise<Response> {
       verifiedAccountId: contributor.accountId,
     }, pintDropPhotos, { actor: contributor.actor, submittedAt })
     : null;
-  if (observation && !observation.ok) return failedPairingResponse(observation);
-  const { price, failed } = observation?.ok
-    ? { price: observation.price, failed: false }
-    : await submitCommunityPrice({
-      ...submission,
-      actor: contributor.actor,
-      contributorHandle: contributor.handle,
-    }, submittedAt);
-  if (failed || !price) {
-    return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
-  }
+  const written = await priceSubmissionResult(observation, {
+    ...submission,
+    actor: contributor.actor,
+    contributorHandle: contributor.handle,
+  }, submittedAt);
+  if (!written.ok) return written.response;
+  const { price } = written;
   // Pint Drops are a pint-priced surface: pin colour, cheapest-pint buckets,
   // the Confirmed standing and the Pint Index all read this lane on the
   // assumption every row in it is a beer price. Pairing a non-beer submission
@@ -451,6 +448,26 @@ function scheduleSubmitBillCheck(
     ...(subject.pintDropId ? { pintDropId: subject.pintDropId } : {}),
   });
   return "reading";
+}
+
+async function priceSubmissionResult(
+  observation: Awaited<ReturnType<typeof writeOneTapPintDrop>> | null,
+  submission: Parameters<typeof submitCommunityPrice>[0],
+  submittedAt: number,
+): Promise<{ ok: true; price: CommunityPrice } | { ok: false; response: Response }> {
+  if (observation && !observation.ok) {
+    return { ok: false, response: failedPairingResponse(observation) };
+  }
+  const { price, failed } = observation?.ok
+    ? { price: observation.price, failed: false }
+    : await submitCommunityPrice(submission, submittedAt);
+  if (failed || !price) {
+    return {
+      ok: false,
+      response: publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true }),
+    };
+  }
+  return { ok: true, price };
 }
 
 function failedPairingResponse(
