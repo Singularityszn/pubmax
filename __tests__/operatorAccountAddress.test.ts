@@ -26,6 +26,20 @@ it.each(["error", "throw", "client"])("preserves an unavailable Auth lookup: %s"
   await expect(operatorAccountAddress("operator-1")).rejects.toThrow();
 });
 
+it("returns no address when Auth confirms the operator account was deleted", async () => {
+  auth.getUserById.mockResolvedValue({
+    data: { user: null },
+    error: { code: "user_not_found", status: 404, message: "User not found" },
+  });
+  await expect(operatorAccountAddress("operator-1")).resolves.toBeNull();
+});
+
+it.each(["unexpected_failure", undefined])("preserves an unconfirmed absence with error code %s", async (code) => {
+  const error = { code, status: 404, message: "User not found" };
+  auth.getUserById.mockResolvedValue({ data: { user: null }, error });
+  await expect(operatorAccountAddress("operator-1")).rejects.toBe(error);
+});
+
 it.each([" landlord@example.com ", "", undefined])("returns the account address or confirmed absence: %s", async (email) => {
   auth.getUserById.mockResolvedValue({ data: { user: { email } }, error: null });
   expect(await operatorAccountAddress("operator-1")).toBe(email ? "landlord@example.com" : null);

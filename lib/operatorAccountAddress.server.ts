@@ -17,6 +17,7 @@ export async function operatorAccountAddress(accountId: string): Promise<string 
   const supabase = getSupabaseAdmin();
   if (!supabase) throw new Error("Operator account lookup unavailable");
   const { data, error } = await supabase.auth.admin.getUserById(accountId);
+  if (error?.code === "user_not_found") return null;
   if (error) throw error;
   const email = data.user?.email?.trim();
   return email ? email : null;
