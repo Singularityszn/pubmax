@@ -84,6 +84,7 @@ import {
   duplicateOneTapDrop,
   revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
+  type FailedPairingPrice,
   type OneTapPintDropInput,
 } from "@/lib/oneTapPintDrop.server";
 import { readVenuePintTrust, runSecondReporterPass } from "@/lib/pintDropConfirm.server";
@@ -339,7 +340,7 @@ export async function POST(request: Request): Promise<Response> {
         verifiedAccountId: contributor.accountId,
       },
       pintDropPhotos,
-      { actor: contributor.actor, priceId: price.id, duplicateDrop },
+      { actor: contributor.actor, ownPrice: ownedPrice(price, contributor.actor, submittedAt, submission.priceGbp), duplicateDrop },
     );
     if (!pairing.ok) return pairing.response;
     pairedDropId = pairing.pintDropId;
@@ -476,17 +477,28 @@ async function submitPriceObservation(
   };
 }
 
+/** The stored price, when it is still the observation this request wrote. */
+function ownedPrice(
+  price: { id?: string; submittedAt: number; priceGbp: number },
+  actor: string,
+  submittedAt: number,
+  priceGbp: number,
+): FailedPairingPrice | undefined {
+  if (!price.id || price.submittedAt !== submittedAt || price.priceGbp !== priceGbp) return undefined;
+  return { id: price.id, actor, submittedAt, priceGbp };
+}
+
 async function pairSubmittedPintDrop(
   input: OneTapPintDropInput,
   photos: PintDropPhotos,
-  context: { actor: string; priceId?: string; duplicateDrop: PintDrop | null },
+  context: { actor: string; ownPrice?: FailedPairingPrice; duplicateDrop: PintDrop | null },
 ) {
   const pintDrop = await writeOneTapPintDrop(input, photos, context.duplicateDrop);
   if (!pintDrop.ok) {
     return {
       ok: false as const,
       response: await failedPairingResponse(pintDrop, {
-        priceId: context.priceId,
+        ownPrice: context.ownPrice,
         venueId: input.venueId,
         drinkCategory: input.drinkCategory,
       }),
@@ -572,16 +584,20 @@ function scheduleSubmitBillCheck(
  */
 async function failedPairingResponse(
   outcome: Extract<Awaited<ReturnType<typeof writeOneTapPintDrop>>, { ok: false }>,
-  context: { priceId?: string; venueId: string; drinkCategory: DrinkCategory },
+  context: { ownPrice?: FailedPairingPrice; venueId: string; drinkCategory: DrinkCategory },
 ): Promise<Response> {
-  const reverted = await revertOneTapCommunityPricePairing(context.priceId);
+  const reverted = await revertOneTapCommunityPricePairing(context.ownPrice);
   if (reverted) {
     if (outcome.kind === "invalid_photo") {
       return publicApiError(outcome.message, "INVALID_REQUEST", 400);
     }
     return publicApiError(outcome.message, "UNAVAILABLE", 503, { retryable: true });
   }
-  log("error", "one_tap_pint_drop.pairing_repair_required", context);
+  log("error", "one_tap_pint_drop.pairing_repair_required", {
+    priceId: context.ownPrice?.id,
+    venueId: context.venueId,
+    drinkCategory: context.drinkCategory,
+  });
   return publicApiError(
     "Could not finish that price log. Try again.",
     "PAIRING_REPAIR_REQUIRED",

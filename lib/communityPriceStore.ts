@@ -198,6 +198,8 @@ export type ModeratorCommunityPrice = ModeratorObservationBase &
 /** The id a stored venue id names now, so rows under a former id group with the venue. */
 type CanonicalVenueId = (venueId: string) => string;
 
+export type FailedPairingObservation = { actor: string; submittedAt: number; priceGbp: number };
+
 export type CommunityPriceStore = {
   /**
    * Record an observation and return it as stored. NEVER throws; a durable
@@ -277,6 +279,13 @@ export type CommunityPriceStore = {
    * no delete. False = unknown id. NEVER throws.
    */
   moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
+  /**
+   * Remove one observation that a failed one-tap pairing hid. It removes the
+   * row only while it still holds that exact observation, is hidden and carries
+   * the pairing note, so a moderator's hide and any later write are never
+   * touched. True = removed. NEVER throws.
+   */
+  withdrawFailedPairing(id: string, expected: FailedPairingObservation, note: string): Promise<boolean>;
   moderateWithState(
     id: string,
     hidden: boolean,
@@ -1199,6 +1208,20 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return true;
   },
 
+  async withdrawFailedPairing(id, expected, note) {
+    for (const [venueId, rows] of venues) {
+      const index = rows.findIndex((row) => row.id === id);
+      if (index < 0) continue;
+      const row = rows[index]!;
+      if (row.actor !== expected.actor || row.submittedAt !== expected.submittedAt || row.priceGbp !== expected.priceGbp
+        || row.roundSource !== null || !row.hidden || row.moderatorNote !== cleanReason(note)) return false;
+      rows.splice(index, 1);
+      if (rows.length === 0) venues.delete(venueId);
+      return true;
+    }
+    return false;
+  },
+
   async moderateWithState(id, hidden, note, expected) {
     const row = findMemoryRow(id);
     if (!row) return { status: "not-found", changed: false };
@@ -1862,6 +1885,31 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
+  async withdrawFailedPairing(id, expected, note) {
+    if (!id) return false;
+    return guard<boolean>({
+      context: "withdraw-failed-pairing",
+      onSchemaMiss: async () => false,
+      message: "failed pairing withdrawal failed",
+      onError: () => false,
+      run: async () => {
+        const { data, error } = await admin()
+          .from("community_prices")
+          .delete()
+          .eq("id", id)
+          .eq("actor", expected.actor)
+          .eq("submitted_at", new Date(expected.submittedAt).toISOString())
+          .eq("price_pennies", Math.round(expected.priceGbp * 100))
+          .is("round_spend_id", null)
+          .not("hidden_at", "is", null)
+          .eq("moderator_note", cleanReason(note) ?? "")
+          .select("id");
+        if (error) throw new Error(error.message);
+        return Array.isArray(data) && data.length === 1;
+      },
+    });
+  },
+
   async moderateWithState(id, hidden, note, expected) {
     if (!id) return { status: "not-found", changed: false };
     return guard<ModerationStateResult>({
@@ -2309,6 +2357,17 @@ export function moderateCommunityPrice(
 ): Promise<boolean> {
   return droppingCategoryIndexMemo(() =>
     communityPriceStore().moderate(id, hidden, note),
+  );
+}
+
+/** Remove an observation a failed one-tap pairing hid. See the store method. */
+export function withdrawFailedPairingPrice(
+  id: string,
+  expected: FailedPairingObservation,
+  note: string,
+): Promise<boolean> {
+  return droppingCategoryIndexMemo(() =>
+    communityPriceStore().withdrawFailedPairing(id, expected, note),
   );
 }
 

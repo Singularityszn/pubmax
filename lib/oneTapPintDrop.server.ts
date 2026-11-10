@@ -3,7 +3,12 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { submitCategoryLabel } from "@/lib/communityPrice";
-import { moderateCommunityPrice } from "@/lib/communityPriceStore";
+import {
+  findCommunityPriceObservation,
+  moderateCommunityPrice,
+  withdrawFailedPairingPrice,
+  type FailedPairingObservation,
+} from "@/lib/communityPriceStore";
 import type { DrinkCategory } from "@/lib/drinks";
 import { log } from "@/lib/log";
 import {
@@ -170,16 +175,37 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
   };
 }
 
+/** The community price observation one request wrote, as that request saw it stored. */
+export type FailedPairingPrice = FailedPairingObservation & { id: string };
+
+const FAILED_PAIRING_NOTE = "one-tap pairing failed";
+
+/**
+ * Undo the community price a failed pairing wrote, and nothing else. A row a
+ * later write took over is left alone. The row is hidden first so price trust
+ * reverses any credit it gave, and then removed, so the same person's next
+ * price at that pub is not born hidden.
+ */
 export async function revertOneTapCommunityPricePairing(
-  priceId: string | undefined,
+  price: FailedPairingPrice | undefined,
 ): Promise<boolean> {
-  if (!priceId) return true;
-  const note = "one-tap pairing failed";
+  if (!price) return true;
+  const found = await findCommunityPriceObservation(price.id);
+  if (found.degraded) return false;
+  const stored = found.observation;
+  if (!stored || stored.actor !== price.actor || stored.submittedAt !== price.submittedAt
+    || stored.priceGbp !== price.priceGbp) return true;
+  const priceId = price.id;
+  const note = FAILED_PAIRING_NOTE;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       if (await moderateCommunityPrice(priceId, true, note)) {
         const trust = await reconcilePriceTrustForObservation(priceId);
-        return trust.status === "synced";
+        if (trust.status !== "synced") return false;
+        if (!await withdrawFailedPairingPrice(priceId, price, note)) {
+          log("warn", "one_tap_pint_drop.price_pairing_withdraw_failed", { priceId });
+        }
+        return true;
       }
     } catch (err) {
       log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
