@@ -55,7 +55,6 @@
      while the stack is a column, one row once it is a row. */
   .appShell {
     --map-camera-stack-height: 94px;
-    --map-camera-stack-top: var(--map-overlay-top);
   }
 
   /* AND IT CLEARS THE TOOLBAR'S OWN PUBLISHED BERTH, NOT THE CAMERA STACK
@@ -877,12 +876,13 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   }
 }
 
-/* Below 1024px the first-visit ask runs under the camera stack's corner, so
-   "Show whole walk" covered "Choose an area". The stack starts under the ask's
-   actual occupied berth, and the zoom column, which reads the stack's top,
-   follows it down. Without a card, -12px cancels the gap so the overlay top
-   wins. */
-@media (min-width: 641px) and (max-width: 1023px) {
+/* The first-visit ask is centred under the toolbar, and on a narrow stage
+   (below 1024px, or beside the list up to about 1390px) it runs under the
+   camera stack's corner: "Show whole walk" covered "Choose an area", and the
+   ask covered "Zoom in". The stack starts under the ask's actual occupied
+   berth, and the zoom column, which reads the stack's top, follows it down.
+   Without a card, -12px cancels the gap so the overlay top wins. */
+@media (min-width: 641px) {
   .appShell {
     --map-camera-stack-top: max(
       var(--map-overlay-top),

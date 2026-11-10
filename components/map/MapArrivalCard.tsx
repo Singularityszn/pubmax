@@ -50,7 +50,7 @@ export default function MapArrivalCard({
     const node = cardRef.current;
     const shell = node?.closest<HTMLElement>(".appShell");
     if (!node || !shell) return;
-    const tablet = window.matchMedia("(min-width: 641px) and (max-width: 1023px)");
+    const docked = window.matchMedia("(min-width: 641px)");
     const property = "--map-arrival-occupied-height";
     let published = "";
     const clear = () => {
@@ -59,7 +59,7 @@ export default function MapArrivalCard({
     };
     const sync = () => {
       const height = node.getBoundingClientRect().height;
-      if (!tablet.matches || node.getClientRects().length === 0 || height <= 0) {
+      if (!docked.matches || node.getClientRects().length === 0 || height <= 0) {
         clear();
         return;
       }
@@ -69,10 +69,10 @@ export default function MapArrivalCard({
     sync();
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
     observer?.observe(node);
-    tablet.addEventListener("change", sync);
+    docked.addEventListener("change", sync);
     return () => {
       observer?.disconnect();
-      tablet.removeEventListener("change", sync);
+      docked.removeEventListener("change", sync);
       clear();
     };
   }, []);
