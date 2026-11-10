@@ -9,10 +9,7 @@
 // production fails closed: missing-schema and hard write failures THROW so the
 // route answers 503 (never a fake success). Reads remain fail-soft.
 //
-// Idempotent by construction: ONE claim per (accountId, venueId). A re-claim for
-// the same pair UPDATES the existing row (refreshes the evidence, resets a
-// rejected/revoked claim back to pending for another review) rather than stacking
-// a second row.
+// VenueOperatorStore.claim defines the claim and re-claim contract.
 
 import "server-only";
 
@@ -41,7 +38,8 @@ const TABLE = "venue_operators";
 export type VenueOperatorStore = {
   /**
    * File (or refresh) a claim, upserting on (accountId, venueId). A re-claim for
-   * the same pair updates the evidence and returns the state to `pending`.
+   * the same pair updates the evidence and returns the state to `pending`,
+   * except a verified claim, which is returned unchanged.
    * Returns the caller-safe DTO. THROWS on a hard storage failure (route → 503).
    */
   claim(fields: OperatorClaimFields, now?: number): Promise<OperatorClaimDTO>;
@@ -86,6 +84,7 @@ async function memoryUpsert(fields: OperatorClaimFields, now: number): Promise<O
   const existingId = await memoryClaimIdForPair(fields.accountId, fields.venueId);
   if (existingId) {
     const prev = byId.get(existingId)!;
+    if (prev.verificationState === "verified") return prev;
     // Refresh the evidence and re-open for review; keep the id + createdAt.
     const updated: OperatorClaim = {
       ...prev,
@@ -198,8 +197,8 @@ async function selectByPair(accountId: string, venueId: string): Promise<Operato
   return row ? fromRow(row) : null;
 }
 
-async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<void> {
-  const { error } = await admin()
+async function reopenExisting(existing: OperatorClaim, fields: OperatorClaimFields): Promise<OperatorClaimDTO> {
+  const { data, error } = await admin()
     .from(TABLE)
     .update({
       evidence_kind: fields.evidenceKind,
@@ -208,9 +207,25 @@ async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<
       reviewed_at: null,
       reviewer_note: null,
     })
-    .eq("id", id);
+    .eq("id", existing.id)
+    .in("verification_state", REOPENABLE_STATES)
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!(data ?? []).length) {
+    const current = await selectByPair(fields.accountId, fields.venueId);
+    return toOperatorClaimDTO(current ?? existing);
+  }
+  return toOperatorClaimDTO({
+    ...existing,
+    evidenceKind: fields.evidenceKind,
+    evidenceNote: fields.evidenceNote,
+    verificationState: "pending",
+    reviewedAt: undefined,
+    reviewerNote: undefined,
+  });
 }
+
+const REOPENABLE_STATES: readonly OperatorVerificationState[] = ["pending", "rejected", "revoked"];
 
 export const supabaseVenueOperatorStore: VenueOperatorStore = {
   async claim(fields, now = Date.now()) {
@@ -227,15 +242,7 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
       run: async () => {
         const existing = await selectByPair(fields.accountId, fields.venueId);
         if (existing) {
-          await reopenExisting(existing.id, fields);
-          return toOperatorClaimDTO({
-            ...existing,
-            evidenceKind: fields.evidenceKind,
-            evidenceNote: fields.evidenceNote,
-            verificationState: "pending",
-            reviewedAt: undefined,
-            reviewerNote: undefined,
-          });
+          return reopenExisting(existing, fields);
         }
         const claim: OperatorClaim = {
           id: randomUUID(),
@@ -248,19 +255,10 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
         };
         const { error } = await admin().from(TABLE).insert(toRow(claim));
         if (error) {
-          // A race inserted the pair between our select and insert — reopen it.
           if (isUniqueViolation(error)) {
             const raced = await selectByPair(fields.accountId, fields.venueId);
             if (raced) {
-              await reopenExisting(raced.id, fields);
-              return toOperatorClaimDTO({
-                ...raced,
-                evidenceKind: fields.evidenceKind,
-                evidenceNote: fields.evidenceNote,
-                verificationState: "pending",
-                reviewedAt: undefined,
-                reviewerNote: undefined,
-              });
+              return reopenExisting(raced, fields);
             }
           }
           throw new Error(error.message);
