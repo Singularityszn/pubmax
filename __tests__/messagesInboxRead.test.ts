@@ -13,7 +13,7 @@ vi.mock("server-only", () => ({}));
 
 type Recorded = {
   table: string;
-  op: "select" | "update" | "insert" | "upsert";
+  op: "select" | "update" | "insert" | "upsert" | "delete";
   filters: Array<[string, ...unknown[]]>;
   limit?: number;
   single?: boolean;
@@ -57,7 +57,11 @@ function builder(table: string) {
     query.filters.push(["upsert", ...args]);
     return chain;
   };
-  for (const name of ["eq", "neq", "is", "in", "or", "order"]) chain[name] = record(name);
+  chain.delete = () => {
+    query.op = "delete";
+    return chain;
+  };
+  for (const name of ["eq", "neq", "is", "in", "or", "order", "gt", "not"]) chain[name] = record(name);
   chain.limit = (n: number) => {
     query.limit = n;
     return chain;
@@ -91,6 +95,7 @@ import {
   supabaseMessagesStore,
 } from "@/lib/messagesStore";
 import { defined } from "@/__tests__/helpers/defined";
+import { messagePhotoServingKey } from "@/lib/messageAttachments";
 
 const C1 = "11111111-1111-4111-8111-111111111111";
 const C2 = "22222222-2222-4222-8222-222222222222";
@@ -215,8 +220,10 @@ describe("thread read", () => {
 
     const thread = await supabaseMessagesStore.listMessages(C1, "ken");
 
+    // The reader's own delete mark rides in the same parallel round trip.
     expect(state.queries.map((q) => `${q.table}:${q.op}`)).toEqual([
       "conversations:select",
+      "conversation_deletions:select",
       "messages:select",
     ]);
     expect(thread?.map((m) => m.body)).toEqual(["one", "two"]);
@@ -376,5 +383,98 @@ describe("inbox read is honest about what it could not do", () => {
       conversations: [],
       status: "degraded",
     });
+  });
+});
+
+describe("taking words back", () => {
+  const pairAnswer = { handle_a: "ken", handle_b: "sam" };
+  const M = "33333333-3333-4333-8333-333333333333";
+
+  function unsendAnswers(wipeMatches: boolean) {
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: pairAnswer, error: null };
+      if (q.table === "messages" && q.op === "select") {
+        return {
+          data: { id: M, sender_handle: "ken", attachment_kind: "photo", unsent_at: null },
+          error: null,
+        };
+      }
+      if (q.table === "messages" && q.op === "update") {
+        const guarded = q.filters.some((f) => f[0] === "is" && f[1] === "flagged_at");
+        return { data: guarded && !wipeMatches ? [] : [{ id: M }], error: null };
+      }
+      return { data: [], error: null };
+    };
+  }
+
+  it("wipes an unreported message and names the photo bytes to delete", async () => {
+    unsendAnswers(true);
+    const outcome = await supabaseMessagesStore.unsendMessage(C1, M, "ken");
+    expect(outcome).toMatchObject({
+      status: "unsent",
+      photoObjectKey: messagePhotoServingKey(C1, M),
+    });
+    const updates = state.queries.filter((q) => q.op === "update");
+    expect(updates).toHaveLength(1);
+    expect(filterValue(updates[0]!, "update")?.[0]).toMatchObject({
+      body: "",
+      attachment_kind: null,
+      attachment_object_key: null,
+    });
+  });
+
+  it("keeps a reported message's content and bytes, marking it alone", async () => {
+    // The guarded wipe matched nothing: a report landed first.
+    unsendAnswers(false);
+    const outcome = await supabaseMessagesStore.unsendMessage(C1, M, "ken");
+    expect(outcome).toMatchObject({ status: "unsent", photoObjectKey: null });
+    const updates = state.queries.filter((q) => q.op === "update");
+    expect(updates).toHaveLength(2);
+    expect(Object.keys(filterValue(updates[1]!, "update")?.[0] as object)).toEqual(["unsent_at"]);
+  });
+
+  it("refuses somebody else's message without writing anything", async () => {
+    unsendAnswers(true);
+    await expect(supabaseMessagesStore.unsendMessage(C1, M, "sam")).resolves.toEqual({
+      status: "not-found",
+    });
+    expect(state.queries.some((q) => q.op !== "select")).toBe(false);
+  });
+
+  it("marks a delete no earlier than the newest message, to the microsecond", async () => {
+    const newest = "2999-01-01 00:00:00.123456+00";
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: pairAnswer, error: null };
+      if (q.table === "messages") return { data: { created_at: newest }, error: null };
+      return { data: null, error: null };
+    };
+    await expect(supabaseMessagesStore.deleteConversationForViewer(C1, "ken")).resolves.toBe(
+      "deleted",
+    );
+    const upsert = state.queries.find((q) => q.op === "upsert");
+    expect(upsert?.table).toBe("conversation_deletions");
+    expect(filterValue(upsert!, "upsert")?.[0]).toEqual({
+      conversation_id: C1,
+      handle: "ken",
+      deleted_at: newest,
+    });
+  });
+
+  it("reads nothing at or before the delete mark, to the microsecond", async () => {
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: pairAnswer, error: null };
+      if (q.table === "conversation_deletions") {
+        return { data: { deleted_at: "2026-09-05 10:00:00.0004+00" }, error: null };
+      }
+      return {
+        data: [
+          { id: "m2", conversation_id: C1, sender_handle: "sam", body: "after", created_at: "2026-09-05T10:00:00.000401+00:00" },
+          { id: "m1", conversation_id: C1, sender_handle: "sam", body: "same instant", created_at: "2026-09-05T10:00:00.0004+00:00" },
+        ],
+        error: null,
+      };
+    };
+    const thread = await supabaseMessagesStore.listMessages(C1, "ken");
+    expect(thread?.map((m) => m.body)).toEqual(["after"]);
   });
 });

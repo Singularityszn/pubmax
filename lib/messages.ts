@@ -143,6 +143,8 @@ export type MessageDTO = {
   read: boolean;
   flagged: boolean;
   attachment?: MessageAttachment;
+  /** Its sender took it back. The body is empty and nothing rides with it. */
+  unsent?: true;
 };
 
 // The inbox row: one per conversation, with the OTHER participant + a preview of

@@ -3,6 +3,9 @@
 //   POST { action:"send",   handle, body, venueId? }   → { message }
 //   POST multipart { post: <send json>, photo: <file> }→ { message }
 //   POST { action:"report", handle, messageId }        → { flagged: boolean }
+//   POST { action:"unsend", handle, messageId }        → { unsent: true, messageId }
+//   POST { action:"delete", handle }                   → { deleted: true }
+//   POST { action:"leave",  handle }                   → { left: true, line }
 //
 // Wave I2: requires a signed-in linked actor (401 without JWT). Linked-handle
 // ownership still collapses 403 → 404 so the endpoint never confirms a private
@@ -29,10 +32,7 @@ import {
   type MessageAttachmentWrite,
 } from "@/lib/messageAttachments";
 import { requireLinkedActor } from "@/lib/messageAuth";
-import {
-  GROUP_LEFT_LINE,
-  GROUP_MEMBER_FLOOR_LINE,
-} from "@/lib/messageGroupThread";
+import { GROUP_LEFT_LINE } from "@/lib/messageGroupThread";
 import {
   cleanPollOptions,
   cleanPollQuestion,
@@ -55,6 +55,7 @@ import {
   type StagedMessagePhoto,
 } from "@/lib/messagePhotoMedia.server";
 import { messagePhotoRouteDeps } from "@/lib/messagePhotoRoute.server";
+import { CHAT_DELETE_FAILED_LINE, MESSAGE_UNSEND_FAILED_LINE } from "@/lib/messageRemovals";
 import { attachMessageAttachmentCards } from "@/lib/messageAttachmentCards.server";
 import type { ConversationMembership, MessageDTO } from "@/lib/messages";
 import { MessageReadUnavailableError, messagesStore } from "@/lib/messagesStore";
@@ -86,6 +87,14 @@ const VOTE_LIMIT = 60;
 const VOTE_WINDOW_MS = 60_000;
 
 type Ctx = { params: Promise<{ id: string }> };
+
+/** What every action past the ownership gate is handed. */
+type ThreadActionInput = {
+  conversationId: string;
+  handle: string;
+  body: Record<string, unknown>;
+  store: ReturnType<typeof messagesStore>;
+};
 
 function photoError(error: unknown): Response {
   if (error instanceof MessagePhotoError) {
@@ -277,15 +286,13 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     return jsonNoStore({ flagged }, { status: 200 });
   }
 
-  // ANSWERING A POLL IS NOT SENDING A MESSAGE, and LEAVING A GROUP is not
-  // either: a tap on a poll button and a departure both write a row nobody
-  // reads as words, so neither takes the send budget or the social freeze.
-  // Both are still WRITES, so each takes a limiter of its own.
-  if (!multipart && (action === "vote" || action === "leave")) {
-    return action === "vote"
-      ? voteOnPoll(request, { conversationId: id, handle, body, store })
-      : leaveGroup(request, { conversationId: id, handle, store });
-  }
+  // ANSWERING A POLL IS NOT SENDING A MESSAGE, and neither is leaving a group,
+  // unsending a message or deleting a chat: none of them adds words anybody
+  // reads, so none takes the send budget or the social freeze (taking your own
+  // words back stays open under a freeze). Each is still a WRITE, so each takes
+  // a limiter of its own.
+  const quietWrite = multipart || !action ? undefined : QUIET_WRITES.get(action);
+  if (quietWrite) return quietWrite(request, { conversationId: id, handle, body, store });
 
   if (action !== "send") {
     return publicApiError("Unknown action.", "INVALID_REQUEST", 400);
@@ -420,15 +427,7 @@ function readSendAttachment(
  * outsider, a message that is not a poll and an option the ballot does not
  * carry, so it says nothing about which of them it was.
  */
-async function voteOnPoll(
-  request: Request,
-  input: {
-    conversationId: string;
-    handle: string;
-    body: Record<string, unknown>;
-    store: ReturnType<typeof messagesStore>;
-  },
-): Promise<Response> {
+async function voteOnPoll(request: Request, input: ThreadActionInput): Promise<Response> {
   const { conversationId, handle, body, store } = input;
   const messageId = readString(body.messageId);
   if (!messageId) return publicApiError("Missing message id.", "INVALID_REQUEST", 400);
@@ -449,14 +448,7 @@ async function voteOnPoll(
  * gets: half of two people's record of talking to each other is not the
  * leaver's to take away.
  */
-async function leaveGroup(
-  request: Request,
-  input: {
-    conversationId: string;
-    handle: string;
-    store: ReturnType<typeof messagesStore>;
-  },
-): Promise<Response> {
+async function leaveGroup(request: Request, input: ThreadActionInput): Promise<Response> {
   const { conversationId, handle, store } = input;
   const key = `msg-leave:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
@@ -466,9 +458,6 @@ async function leaveGroup(
   }
   const outcome = await store.leaveGroupConversation(conversationId, handle);
   if (outcome === "left") return jsonNoStore({ left: true, line: GROUP_LEFT_LINE });
-  if (outcome === "floor") {
-    return publicApiError(GROUP_MEMBER_FLOOR_LINE, "GROUP_MEMBER_FLOOR", 409);
-  }
   if (outcome === "unavailable") {
     return publicApiError("Couldn't leave that group just now.", "UNAVAILABLE", 503, {
       retryable: true,
@@ -476,6 +465,75 @@ async function leaveGroup(
   }
   return publicApiError("Conversation not found.", "NOT_FOUND", 404);
 }
+
+/**
+ * Unsending one message, for everybody in the thread. ONE refusal covers an
+ * unknown id, an outsider and somebody else's message, so it never says which.
+ * A photo's bytes are deleted once the row no longer points at them; a delete
+ * that fails leaves bytes nothing can serve, so it is logged, not refused.
+ */
+async function unsendMessage(request: Request, input: ThreadActionInput): Promise<Response> {
+  const { conversationId, handle, body, store } = input;
+  const messageId = readString(body.messageId);
+  if (!messageId) return publicApiError("Missing message id.", "INVALID_REQUEST", 400);
+  const key = `msg-unsend:${handle}:${hashIp(clientIp(request))}`;
+  if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+  const outcome = await store.unsendMessage(conversationId, messageId, handle);
+  if (outcome.status === "not-found") {
+    return publicApiError("Message not found.", "NOT_FOUND", 404);
+  }
+  if (outcome.status === "unavailable") {
+    return publicApiError(MESSAGE_UNSEND_FAILED_LINE, "UNAVAILABLE", 503, { retryable: true });
+  }
+  if (outcome.photoObjectKey) {
+    try {
+      await messagePhotoRouteDeps().storage.remove([outcome.photoObjectKey]);
+    } catch (error) {
+      log("warn", "message_photo.unsend_cleanup_failed", {
+        conversationId,
+        objectPath: outcome.photoObjectKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  signalSent(conversationId, outcome.membership);
+  return jsonNoStore({ unsent: true, messageId });
+}
+
+/**
+ * Deleting a chat from the caller's own inbox. Nobody else is told: the other
+ * people in it keep it exactly as it was.
+ */
+async function deleteChat(request: Request, input: ThreadActionInput): Promise<Response> {
+  const { conversationId, handle, store } = input;
+  const key = `msg-delete:${handle}:${hashIp(clientIp(request))}`;
+  if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+  const outcome = await store.deleteConversationForViewer(conversationId, handle);
+  if (outcome === "deleted") return jsonNoStore({ deleted: true });
+  if (outcome === "unavailable") {
+    return publicApiError(CHAT_DELETE_FAILED_LINE, "UNAVAILABLE", 503, { retryable: true });
+  }
+  return publicApiError("Conversation not found.", "NOT_FOUND", 404);
+}
+
+/** The writes that add no words, by action. See the note in POST. */
+const QUIET_WRITES: ReadonlyMap<
+  string,
+  (request: Request, input: ThreadActionInput) => Promise<Response>
+> = new Map([
+  ["vote", voteOnPoll],
+  ["leave", leaveGroup],
+  ["unsend", unsendMessage],
+  ["delete", deleteChat],
+]);
 
 /**
  * The row is stored; tell every open surface. Never a reason to fail the send:

@@ -24,10 +24,12 @@
 //    thread does not need to tell somebody they are in it. A title that cleans
 //    to nothing is no title, never a blank heading.
 //
-// 4. ANYBODY MAY LEAVE. A thread whose membership can only grow is worse than
-//    one that never existed, so leaving is part of the vocabulary rather than a
-//    follow-up: `GROUP_LEFT_LINE` is what a leaver is told and
-//    `GROUP_MEMBER_FLOOR_LINE` is what stops the last few being stranded.
+// 4. ANYBODY MAY LEAVE, AT ANY SIZE. A thread whose membership can only grow
+//    is worse than one that never existed, and a floor on leaving would make a
+//    group of three a trap. The three-person floor is for OPENING a group
+//    (rule 2); the ones who stay keep their thread, and a group with nobody
+//    else left in it says so (`GROUP_EMPTY_NAME`). `GROUP_LEFT_LINE` is what a
+//    leaver is told.
 
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { cleanText } from "@/lib/textClean";
@@ -167,11 +169,8 @@ export const GROUP_MEMBER_UNKNOWN_LINE = "We couldn't find one of those handles.
 export const GROUP_LEAVE_LABEL = "Leave group";
 export const GROUP_LEFT_LINE = "You've left this group.";
 export const GROUP_LEAVE_FAILED_LINE = "Couldn't leave that group. Try again.";
-/**
- * The last two people in a group are a DM with extra steps, so leaving is
- * refused there rather than silently leaving one person talking to a wall.
- */
-export const GROUP_MEMBER_FLOOR_LINE =
-  "A group needs three people. Message them one to one instead.";
+export const GROUP_LEAVE_CONFIRM_TITLE = "Leave this group?";
+export const GROUP_LEAVE_CONFIRM_LINE =
+  "You stop getting its messages. What you said stays for the others.";
 
 export const GROUP_EMPTY_THREAD_LINE = "Say something. Everybody here sees it.";

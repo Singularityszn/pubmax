@@ -25,4 +25,5 @@ export const CHAT_DELETE_LABEL = "Delete chat";
 export const CHAT_DELETE_CONFIRM_TITLE = "Delete this chat?";
 export const CHAT_DELETE_CONFIRM_LINE =
   "It goes from your inbox only. Anyone else in it keeps it, and a new message brings it back.";
+export const CHAT_DELETED_LINE = "Chat deleted.";
 export const CHAT_DELETE_FAILED_LINE = "Couldn't delete that chat. Try again.";

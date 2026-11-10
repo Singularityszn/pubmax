@@ -1609,28 +1609,6 @@ html[data-theme="dark"] .messageBubblePhoto {
   white-space: nowrap;
 }
 
-/* The one thing a group head offers besides its name. Quiet, because leaving is
-   not the thing a reader came here to do. */
-.threadLeaveBtn {
-  margin-left: auto;
-  min-height: 44px;
-  padding: 0 0.75rem;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .threadLeaveBtn:hover {
-    background: var(--panel);
-    color: var(--ink);
-  }
-}
-
 /* Recipient picker uses explicit public matches, never guessed handles. */
 .messagesNewGroupOpen,
 .messagesNewGroupCancel {

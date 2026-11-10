@@ -157,6 +157,9 @@ no side effect, as above.
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
 | `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | participant rows, SELECT only |
+| Unsend a message (`action: "unsend"`) | denied | denied, message unchanged | denied | n/a | n/a | n/a | sender only; the other participant is refused |
+| Delete a chat for yourself (`action: "delete"`) | denied | denied, no mark written | denied | n/a | n/a | n/a | allowed, for the caller's own inbox only |
+| `conversation_deletions` at the table | denied | denied | denied | n/a | n/a | n/a | denied; the route writes it |
 | A message photo (`GET .../photo/[messageId]`) | denied | denied | denied | n/a | n/a | n/a | participant only |
 | A reported message's attachment | gone from the thread and from the serving door, for its own participants |||||||
 | Photo tag inbox (`GET /api/social/tags`) | 401 | own lane only | own lane only | n/a | n/a | n/a | own lane only |

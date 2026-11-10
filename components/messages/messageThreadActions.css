@@ -1,0 +1,192 @@
+/* What a thread lets a person take away: the head's menu (delete the chat,
+   leave a group), the confirm every removal asks, and the line an unsent
+   message leaves behind. Kept out of app/messages/messages.css, which is
+   already past the size a stylesheet should be. */
+
+.threadMenu {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.threadMenuToggle {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.threadMenuToggle[aria-expanded="true"] {
+  background: var(--panel);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .threadMenuToggle:hover {
+    background: var(--panel);
+  }
+}
+
+.threadMenuToggle:focus-visible,
+.threadMenuItem:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.threadMenuList {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.threadMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: none;
+  border-radius: calc(var(--radius) - 0.25rem);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .threadMenuItem:hover {
+    background: var(--panel);
+  }
+}
+
+/* ── the confirm ──────────────────────────────────────────────────────────── */
+/* A sheet from the foot on a phone, above the tab bar's lane; a centred card
+   from 641px. The same stacking the crop step uses. */
+.messageConfirmOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-tabbar) + 10);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding:
+    0.75rem
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px))
+    max(0.75rem, env(safe-area-inset-left, 0px));
+  background: rgb(0 0 0 / 45%);
+}
+
+@media (max-width: 640px) {
+  .messageConfirmOverlay {
+    padding-bottom: calc(
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 0.75rem
+    );
+  }
+}
+
+@media (min-width: 641px) {
+  .messageConfirmOverlay {
+    align-items: center;
+  }
+}
+
+.messageConfirmCard {
+  width: min(100%, 24rem);
+  padding: 1.1rem 1.1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+
+.messageConfirmCard:focus {
+  outline: none;
+}
+
+.messageConfirmTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.messageConfirmLine {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.messageConfirmError {
+  margin: 0.6rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--brick);
+}
+
+.messageConfirmActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.messageConfirmActions > .uiButton {
+  flex: 1 1 8rem;
+  min-height: 44px;
+}
+
+/* ── an unsent message ───────────────────────────────────────────────────── */
+/* An outline, never a fill: nothing is in it, and a filled bubble would read as
+   a message somebody could still open. */
+.messageUnsent {
+  display: inline-block;
+  padding: 0.45rem 0.8rem;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.messageUnsendBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.15rem;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-2xs);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .messageUnsendBtn:hover {
+    color: var(--ink);
+  }
+}
