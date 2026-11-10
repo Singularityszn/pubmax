@@ -75,7 +75,7 @@ import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
-  otherHandleFromThreadIdentity,
+  otherHandleFromThreadRead,
   threadHeaderPrimaryLine,
   threadCardHandle,
   threadHeaderSecondaryLine,
@@ -565,29 +565,18 @@ export default function MessageThread({
         // so its head keeps drawing from the group's own name.
         const identityFromRead = threadIdentityFromWire(body.conversation);
         let nextIdentity: ThreadIdentity | null = identityFromRead;
-        let nextOther =
-          identityFromRead && identityFromRead.kind !== "group"
-            ? otherHandleFromThreadIdentity(identityFromRead, h)
-            : "";
-        if (!identityFromRead) {
-          const me = normalizeHandle(h);
-          const theirs = next.find(
-            (message) => normalizeHandle(message.senderHandle) !== me,
-          );
-          if (theirs) {
-            nextOther = theirs.senderHandle;
-          } else if (next.length === 0 && !askedInboxForNameRef.current) {
-            // ONE read of the inbox per thread, and only for an empty one with
-            // no membership: it names the head and nothing else leans on it, so
-            // it may never fail a thread read that already succeeded, and a
-            // request that never landed is asked again on the next refresh.
-            const named = await nameFromInboxRow(h, conversationId);
-            if (!stillCurrent()) return;
-            if (named) {
-              askedInboxForNameRef.current = true;
-              nextIdentity = named.identity;
-              if (named.identity?.kind !== "group") nextOther = named.otherHandle;
-            }
+        let nextOther = otherHandleFromThreadRead(identityFromRead, next, h);
+        if (!identityFromRead && next.length === 0 && !askedInboxForNameRef.current) {
+          // ONE read of the inbox per thread, and only for an empty one with
+          // no membership: it names the head and nothing else leans on it, so
+          // it may never fail a thread read that already succeeded, and a
+          // request that never landed is asked again on the next refresh.
+          const named = await nameFromInboxRow(h, conversationId);
+          if (!stillCurrent()) return;
+          if (named) {
+            askedInboxForNameRef.current = true;
+            nextIdentity = named.identity;
+            if (named.identity?.kind !== "group") nextOther = named.otherHandle;
           }
         }
         if (!stillCurrent()) return;

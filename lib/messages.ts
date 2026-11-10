@@ -286,6 +286,18 @@ export function otherHandleFromThreadIdentity(
   return identity.members.find((handle) => normalizeHandle(handle) !== me) ?? "";
 }
 
+export function otherHandleFromThreadRead(
+  identity: ThreadIdentity | null,
+  messages: ReadonlyArray<{ senderHandle: string }>,
+  viewer: string,
+): string {
+  if (identity) {
+    return identity.kind !== "group" ? otherHandleFromThreadIdentity(identity, viewer) : "";
+  }
+  const me = normalizeHandle(viewer);
+  return messages.find((message) => normalizeHandle(message.senderHandle) !== me)?.senderHandle ?? "";
+}
+
 /**
  * The primary line under the thread back control. Null means the neutral
  * "Conversation" fallback until a name is known.
