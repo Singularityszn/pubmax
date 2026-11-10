@@ -92,10 +92,10 @@ vi.mock("@/lib/venueIndex", () => ({
 }));
 
 vi.mock("@/lib/operatorAccountAddress.server", () => ({
-  operatorAccountAddress: async (accountId: string) => {
+  operatorAccountAddress: vi.fn(async (accountId: string) => {
     if (state.addressUnavailable) throw new Error("Auth unavailable");
     return state.addresses.get(accountId) ?? null;
-  },
+  }),
 }));
 
 vi.mock("@/lib/emailProvider", async (importOriginal) => {
@@ -430,7 +430,7 @@ describe("POST /api/table-requests: the two ways out", () => {
         lookupStarted.resolve();
         return failedLookup.promise;
       })
-      : vi.spyOn(operatorAccounts, "operatorAccountAddress").mockImplementationOnce(() => {
+      : vi.mocked(operatorAccounts.operatorAccountAddress).mockImplementationOnce(() => {
         lookupStarted.resolve();
         return failedLookup.promise;
       });
@@ -474,7 +474,7 @@ describe("POST /api/table-requests: the two ways out", () => {
           return [OPERATOR];
         })
         .mockRejectedValueOnce(new Error("store unavailable"))
-      : vi.spyOn(operatorAccounts, "operatorAccountAddress")
+      : vi.mocked(operatorAccounts.operatorAccountAddress)
         .mockImplementationOnce(async () => {
           lookupStarted.resolve();
           await originalLookup.promise;
@@ -505,7 +505,7 @@ describe("POST /api/table-requests: the two ways out", () => {
   it("does not send to a partial audience when another address lookup is unavailable", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
     await verifyOperator(STRANGER, "venue-crown");
-    const address = vi.spyOn(operatorAccounts, "operatorAccountAddress")
+    const address = vi.mocked(operatorAccounts.operatorAccountAddress)
       .mockImplementation(async (id) => {
         if (id === STRANGER) throw new Error("Auth unavailable");
         return OPERATOR_ADDRESS;
