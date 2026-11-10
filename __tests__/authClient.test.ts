@@ -240,3 +240,25 @@ describe("getAccessToken", () => {
     await expect(getAccessToken()).resolves.toBeNull();
   });
 });
+
+describe("hasStoredBrowserSession", () => {
+  it("reads a stored session without loading supabase-js", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const { hasStoredBrowserSession } = await loadAuthClient();
+    const stored = new Map([["sb-example-auth-token", "{}"]]);
+
+    expect(hasStoredBrowserSession({ getItem: (key) => stored.get(key) ?? null })).toBe(true);
+    expect(hasStoredBrowserSession({ getItem: () => null })).toBe(false);
+    expect(hasStoredBrowserSession({ getItem: () => { throw new Error("blocked"); } })).toBe(true);
+    expect(hasStoredBrowserSession(null)).toBe(true);
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("reports no stored session when browser auth is not configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    const { hasStoredBrowserSession } = await loadAuthClient();
+
+    expect(hasStoredBrowserSession({ getItem: () => "{}" })).toBe(false);
+  });
+});
