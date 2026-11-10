@@ -41,8 +41,9 @@ describe("POST /api/plans/generate", () => {
 
   it.each([
     { query: "Cheap pints in Soho for 3" },
-    { context: { nightArea: "piccadilly-soho", groupSize: 3 } },
+    { query: "Cheap pints in Soho for 3", context: { groupSize: 3 } },
     { intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { query: "Cheap pints in Piccadilly for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
   ])("keeps Soho stops, alternatives and extra stops inside its four boundary streets: %j", async (input) => {
     const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
     const venues = await actual.loadConciergeVenues("london");
@@ -84,6 +85,28 @@ describe("POST /api/plans/generate", () => {
         details: { availableVenueCount: 2, requestedStopCount: 3 },
       });
     }
+  });
+
+  it.each([
+    { query: "Cheap pints in Piccadilly for 3" },
+    { query: "Cheap pints in Piccadilly & Soho for 3" },
+    { context: { nightArea: "piccadilly-soho", groupSize: 3 } },
+    { query: "Cheap pints in Soho for 3", context: { nightArea: "piccadilly-soho", groupSize: 3 } },
+  ])("preserves Piccadilly and combined-area candidates: %j", async (input) => {
+    const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+    const venues = await actual.loadConciergeVenues("london");
+    const threeCrowns = venues.find(({ name }) => name === "Three Crowns (Picaddilly)")!;
+    expect(threeCrowns).toMatchObject({ lat: 51.5086, lng: -0.135065 });
+    const soho = venues.filter(({ name }) => ["The Dog & Duck", "Coach & Horses"].includes(name));
+    expect(soho).toHaveLength(2);
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho, threeCrowns]);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.stops).toHaveLength(3);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toContain(threeCrowns.id);
   });
 
   it.each(drinkRatePhrases(5).flatMap(drinkRateInputs))(
