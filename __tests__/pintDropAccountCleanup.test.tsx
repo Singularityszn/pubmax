@@ -284,7 +284,7 @@ it("keeps a same-account transport failure retryable without retrying automatica
 it.each(["owner-change", "tab-departure", "sign-out"])(
   "discards a mounted typed baseline and late dictation on %s",
   async (transition) => {
-    let recognition: SpeechRecognitionLike | undefined;
+    const recognitions: SpeechRecognitionLike[] = [];
     const stop = vi.fn();
     vi.stubGlobal("SpeechRecognition", class implements SpeechRecognitionLike {
       lang = "";
@@ -295,7 +295,7 @@ it.each(["owner-change", "tab-departure", "sign-out"])(
       onend: SpeechRecognitionLike["onend"] = null;
       start() {}
       stop = stop;
-      constructor() { recognition = this; }
+      constructor() { recognitions.push(this); }
     });
     localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
     await act(async () => { root.render(createElement(Probe, { composer: true })); });
@@ -308,7 +308,7 @@ it.each(["owner-change", "tab-departure", "sign-out"])(
     await act(async () => {
       defined(container.querySelector<HTMLButtonElement>('[aria-label="Add note by voice"]') ?? undefined).click();
     });
-    const deliver = defined(defined(recognition).onresult ?? undefined);
+    const deliver = defined(defined(recognitions[0]).onresult ?? undefined);
     const speech = { resultIndex: 0, results: [{ 0: { transcript: "A's dictated words" }, isFinal: true }] };
     await act(async () => { deliver(speech); });
     expect(drops.dropForm.note).toBe("A's private typed note A's dictated words");
