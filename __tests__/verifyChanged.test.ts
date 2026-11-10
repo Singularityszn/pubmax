@@ -6,7 +6,8 @@
 // plan: what is linted, typechecked and tested, and that CI still runs every
 // unit test on every PR.
 
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -49,6 +50,60 @@ describe("the whole suite runs locally only on request", () => {
     const scoped = plan(modified(path));
     expect(scoped.full).toBeNull();
     expect(checkSteps(scoped).map((step) => step.label)).not.toContain("full merge bar");
+  });
+
+  it.each(["package.json", "vitest.config.mts"])("executes only related tests for a change to %s", (path) => {
+    const fixture = mkdtempSync(join(ROOT, ".verify-changed-"));
+    try {
+      mkdirSync(join(fixture, "__tests__"));
+      mkdirSync(join(fixture, "node_modules"));
+      symlinkSync(join(ROOT, "node_modules/vitest"), join(fixture, "node_modules/vitest"), "dir");
+      writeFileSync(join(fixture, "package.json"), JSON.stringify({ type: "module" }));
+      writeFileSync(join(fixture, "vitest.config.mts"), `
+        import config from ${JSON.stringify(join(ROOT, "vitest.config.mts"))};
+        export default {
+          test: {
+            ...config.test,
+            setupFiles: [],
+            globalSetup: [],
+            environment: "node",
+            include: ["__tests__/*.test.ts"],
+          },
+        };
+      `);
+      writeFileSync(join(fixture, "__tests__/related.test.ts"), `
+        import { expect, test } from "vitest";
+        import value from "../${path}";
+        test("checks the changed input", () => expect(value).toBeDefined());
+      `);
+      writeFileSync(join(fixture, "__tests__/unrelated.test.ts"), `
+        import { test } from "vitest";
+        test("must remain outside the local scope", () => { throw new Error("Unrelated test executed"); });
+      `);
+      const testFiles = ["__tests__/related.test.ts", "__tests__/unrelated.test.ts"];
+      const readText = (file: string) => readFileSync(join(fixture, file), "utf8");
+      const scoped = plan(modified(path), {
+        importers: importGraph([path, ...testFiles], readText),
+        testFiles,
+        readText,
+      });
+      const step = defined(checkSteps(scoped).find((step) => step.label === "unit tests (related)"));
+      const report = join(fixture, "results.json");
+      const result = spawnSync(join(ROOT, step.command), [...step.args, "--reporter=json", `--outputFile=${report}`], {
+        cwd: fixture,
+        env: { ...process.env, ...step.env },
+        encoding: "utf8",
+      });
+      // The captain's scope decision requires one related test and excludes the failing sentinel.
+      const output = JSON.parse(readFileSync(report, "utf8"));
+      expect(result.status, `${result.stdout}\n${result.stderr}\n${JSON.stringify(output)}`).toBe(0);
+      expect(output.numPassedTests).toBe(1);
+      expect(output.testResults.map((suite: { name: string }) => suite.name)).toEqual([
+        join(fixture, "__tests__/related.test.ts"),
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   it("tests what relates to a module that many modules import, instead of the whole suite", () => {

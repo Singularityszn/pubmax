@@ -137,11 +137,16 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
     }
   }
 
+  // Vitest treats package and runner config paths as requests to run every test.
+  const related = present.flatMap((path) =>
+    /(?:^|\/)(?:package\.json|(?:vitest|vite)\.config\.[^/]+)$/.test(path) ? importersOf(path) : [path],
+  );
+
   return {
     full: env.PUBMAX_VERIFY_FULL === "1" ? "PUBMAX_VERIFY_FULL=1 is set" : null,
     lint: sorted(present.filter((path) => LINTED.test(path))),
     typecheck: sorted(typecheck),
-    tests: sorted([...present, ...named, ...orphaned].filter((path) => !postgres.has(path) && !deleted.has(path))),
+    tests: sorted([...related, ...named, ...orphaned].filter((path) => !postgres.has(path) && !deleted.has(path))),
     rls:
       touches(RLS_INPUTS) ||
       paths.some((path) => postgres.has(path)) ||
