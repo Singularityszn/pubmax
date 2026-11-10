@@ -332,6 +332,32 @@ export type Database = {
         };
         Relationships: [];
       };
+      conversation_deletions: {
+        Row: {
+          conversation_id: string;
+          handle: string;
+          deleted_at: string;
+        };
+        Insert: {
+          conversation_id: string;
+          handle: string;
+          deleted_at?: string;
+        };
+        Update: {
+          conversation_id?: string;
+          handle?: string;
+          deleted_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversation_deletions_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       conversation_members: {
         Row: {
           conversation_id: string;
@@ -1030,6 +1056,7 @@ export type Database = {
           attachment_plan_id: string | null;
           attachment_poll_question: string | null;
           attachment_poll_options: Json | null;
+          unsent_at: string | null;
         };
         Insert: {
           id?: string;
@@ -1052,6 +1079,7 @@ export type Database = {
           attachment_plan_id?: string | null;
           attachment_poll_question?: string | null;
           attachment_poll_options?: Json | null;
+          unsent_at?: string | null;
         };
         Update: {
           id?: string;
@@ -1074,6 +1102,7 @@ export type Database = {
           attachment_plan_id?: string | null;
           attachment_poll_question?: string | null;
           attachment_poll_options?: Json | null;
+          unsent_at?: string | null;
         };
         Relationships: [
           {
@@ -8110,6 +8139,14 @@ export type Database = {
           p_payload_digest: string | null;
         };
         Returns: Json;
+      };
+      delete_conversation_for_viewer: {
+        Args: {
+          p_conversation_id: string | null;
+          p_handle: string | null;
+          p_deleted_at: string | null;
+        };
+        Returns: string;
       };
       edit_social_post: {
         Args: {
