@@ -165,8 +165,8 @@ begin
       'id', v_price.id,
       'venueId', p_venue_id,
       'drinkCategory', p_drink_category,
-      'priceGbp', v_price.price_pennies::numeric / 100,
-      'submittedAt', (extract(epoch from v_price.submitted_at) * 1000)::bigint,
+      'priceGbp', v_drop.price_gbp,
+      'submittedAt', (extract(epoch from v_drop.created_at) * 1000)::bigint,
       'source', 'community'
     )
   );

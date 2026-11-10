@@ -955,7 +955,7 @@ function priceContributionRecord(
 export function submitMemoryCommunityPrice(
   input: CommunityPriceWrite,
   now: number,
-  commitPair?: (price: CommunityPrice, previous: CommunityPrice | null) => boolean,
+  commitPair?: (price: CommunityPrice, previous: CommunityPrice | null) => CommunityPrice | null,
 ): CommunityPriceWriteResult {
   const key = normalize(input);
   if (!key) return { price: null };
@@ -1034,9 +1034,8 @@ export function submitMemoryCommunityPrice(
     // a row that still exists, exactly as the durable upsert does.
     stored.id = replaced.id;
   }
-  if (commitPair && !commitPair(published(stored), replaced ? published(replaced) : null)) {
-    return { price: replaced ? published(replaced) : null };
-  }
+  const replayPrice = commitPair?.(published(stored), replaced ? published(replaced) : null);
+  if (replayPrice) return { price: replayPrice };
   if (
     replaced?.roundSource &&
     !sameRoundPriceSource(replaced.roundSource, roundSource) &&

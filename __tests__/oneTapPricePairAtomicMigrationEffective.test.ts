@@ -139,10 +139,14 @@ describe.skipIf(skipReason !== null)("0234 atomic one-tap pairing", () => {
     const replay = JSON.parse(db().sql(asServiceRole(call(at, 500, {
       pint_photo_key: "retry/pint.jpg", venue_photo_key: "retry/venue.jpg", receipt_photo_key: "retry/bill.jpg",
     }))));
-    expect(replay).toMatchObject({ status: "saved", created: false });
+    expect(replay).toMatchObject({
+      status: "saved", created: false,
+      price: { id: first.price.id, priceGbp: 5, submittedAt: Date.parse(at) },
+    });
     expect(replay.drop).toEqual(original);
     expect(counts()).toBe("1|2");
     expect(db().sql("select row_to_json(p)::text from public.community_prices p")).toBe(priceBefore);
+    expect(db().sql("select price_pennies from public.community_prices")).toBe("600");
     expect(JSON.parse(db().sql(asServiceRole(call("2026-11-10T19:30:07.000Z", 600))))).toMatchObject({ created: true });
     expect(JSON.parse(db().sql(asServiceRole(call())))).toEqual({ status: "superseded" });
     expect(counts()).toBe("1|3");

@@ -389,8 +389,10 @@ export async function POST(request: Request): Promise<Response> {
       ...(pintTrust ? { pintTrust } : {}),
       ...(billCheck ? { billCheck } : {}),
       price:
-        record ??
-        {
+        record ? {
+          ...record,
+          ...(observation?.ok && !observation.created ? price : {}),
+        } : {
           ...price,
           corroborations: 1,
           ...(categoryRow?.mapCandidate ? { mapCandidate: categoryRow.mapCandidate } : {}),

@@ -882,20 +882,20 @@ function createMemoryPairedDrop(
         throw new Error("Pint Drop id already exists.");
       }
       saved = replay;
-      return false;
-    }
-    if (previous?.id && previous.priceGbp === drop.priceGbp) {
+    } else if (previous?.id && previous.priceGbp === drop.priceGbp) {
       const id = oneTapPriceDropId(previous.id, previous.submittedAt, previous.priceGbp);
       const existing = findPintDropsByIds([id]).get(id);
       if (existing && duplicateOneTapDrop([existing], drop, pairing.submittedAt)) {
         saved = existing;
-        return false;
       }
+    }
+    if (saved) {
+      return { ...price, priceGbp: saved.priceGbp!, submittedAt: Date.parse(saved.createdAt) };
     }
     addPintDrop(drop);
     saved = drop;
     created = true;
-    return true;
+    return null;
   });
   if (!saved || !result.price) throw new OneTapPriceSupersededError();
   resetCommunityPriceCategoryIndexMemo();

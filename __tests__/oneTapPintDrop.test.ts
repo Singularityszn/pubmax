@@ -140,7 +140,9 @@ describe("writeOneTapPintDrop", () => {
     const priceBefore = await readCommunityPrices(input.venueId);
     expect(await writeOneTapPintDrop(input, undefined, pairing)).toMatchObject({
       ok: true, created: false, drop: { id: first.drop.id, priceGbp: 5, priceEvidence: "receipt" },
+      price: { id: first.price?.id, priceGbp: 5, submittedAt: now },
     });
+    expect(priceBefore).toMatchObject([{ priceGbp: 6 }]);
     expect(listVisiblePintDrops(input.venueId)).toHaveLength(2);
     expect(listVisiblePintDrops(input.venueId)).toEqual(expect.arrayContaining(original));
     expect(await readCommunityPrices(input.venueId)).toEqual(priceBefore);

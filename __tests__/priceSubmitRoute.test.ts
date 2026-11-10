@@ -1236,10 +1236,32 @@ describe("POST /api/price-submit hands its bill to the bill check", () => {
       const originalDrops = structuredClone(listVisiblePintDrops(body.venueId));
       const replay = await POST(post(body, jpegFile("retry.jpg")));
       expect(replay.status).toBe(201);
-      expect(await replay.json()).not.toHaveProperty("billCheck");
+      const result = await replay.json();
+      expect(result).not.toHaveProperty("billCheck");
+      expect(result).toMatchObject({ price: { priceGbp: 5, submittedAt: Date.parse("2026-11-05T19:30:00.000Z") } });
       expect(scheduled()).toEqual(originalChecks);
       expect(listVisiblePintDrops(body.venueId)).toEqual(originalDrops);
       expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 6 }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the replay date when another reporter has a newer matching figure", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const startedAt = Date.parse("2026-11-05T19:30:00.000Z");
+    vi.setSystemTime(startedAt);
+    try {
+      const body = { venueId: "venue-xjf3n0", drinkCategory: "beer" as const, priceGbp: 5, measure: "pint" };
+      expect((await POST(post(body))).status).toBe(201);
+      await memoryCommunityPriceStore.submit({ ...body, actor: "profile:another", contributorHandle: "another" }, startedAt + 500);
+      vi.setSystemTime(startedAt + 1_000);
+      const response = await POST(post(body));
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ price: { priceGbp: 5, submittedAt: startedAt } });
+      expect(await readCommunityPrices(body.venueId)).toMatchObject([{ priceGbp: 5, submittedAt: startedAt + 500 }]);
+      expect(listVisiblePintDrops(body.venueId)).toHaveLength(1);
+      expect(scheduled()).toHaveLength(1);
     } finally {
       vi.useRealTimers();
     }
