@@ -45,8 +45,6 @@
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
-import { createHash } from "node:crypto";
-
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -67,7 +65,6 @@ import {
   type DrinkMeasure,
 } from "@/lib/drinkMeasure";
 import {
-  listCommunityPriceObservations,
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
   readCommunityPricesWithStatus,
@@ -77,15 +74,9 @@ import {
   reportCommunityPrice,
   submitCommunityPrice,
   submitCommunityVenueSignal,
-  type CommunityPriceWrite,
-  type CommunityPriceWriteResult,
 } from "@/lib/communityPriceStore";
 import {
-  duplicateOneTapDrop,
-  revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
-  type FailedPairingPrice,
-  type OneTapPintDropInput,
 } from "@/lib/oneTapPintDrop.server";
 import { readVenuePintTrust, runSecondReporterPass } from "@/lib/pintDropConfirm.server";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
@@ -95,10 +86,9 @@ import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { receiptPhotoRefusal } from "@/lib/receiptPhoto.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
-import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
+import { type PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
-import { isLimited, type PintDrop } from "@/lib/pintDrops";
-import { log } from "@/lib/log";
+import { isLimited } from "@/lib/pintDrops";
 import {
   isUkBaseId,
   MAX_PROVISIONAL_BASE_VENUE_IDS,
@@ -296,11 +286,25 @@ export async function POST(request: Request): Promise<Response> {
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
   const submittedAt = Date.now();
-  const { price, failed, duplicateDrop, dropId } = await submitPriceObservation({
-    ...submission,
-    actor: contributor.actor,
-    contributorHandle: contributor.handle,
-  }, submittedAt);
+  const observation = pairsPintDrop
+    ? await writeOneTapPintDrop({
+      venueId: submission.venueId,
+      handle: contributor.handle,
+      drinkCategory: submission.drinkCategory,
+      priceGbp: submission.priceGbp,
+      measure,
+      measureLabel,
+      verifiedAccountId: contributor.accountId,
+    }, pintDropPhotos, { actor: contributor.actor, submittedAt })
+    : null;
+  if (observation && !observation.ok) return failedPairingResponse(observation);
+  const { price, failed } = observation?.ok
+    ? { price: observation.price, failed: false }
+    : await submitCommunityPrice({
+      ...submission,
+      actor: contributor.actor,
+      contributorHandle: contributor.handle,
+    }, submittedAt);
   if (failed || !price) {
     return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
   }
@@ -325,28 +329,16 @@ export async function POST(request: Request): Promise<Response> {
   // rows it names exist (captain 5 Nov 2026). Read after the answer.
   let pairedDropId: string | undefined;
   let pairedDropCreated = false;
-  if (pairsPintDrop) {
-    const pairing = await pairSubmittedPintDrop(
-      {
-        id: dropId,
-        venueId: submission.venueId,
-        handle: contributor.handle,
-        drinkCategory: submission.drinkCategory,
-        priceGbp: submission.priceGbp,
-        // STATED by the drinker on the chips above the price field, never
-        // asserted here. Reaching this line means the answer was `pint`.
-        measure,
-        measureLabel,
-        verifiedAccountId: contributor.accountId,
-      },
-      pintDropPhotos,
-      { actor: contributor.actor, ownPrice: ownedPrice(price, contributor.actor, submittedAt, submission.priceGbp), duplicateDrop },
+  if (observation?.ok) {
+    pairedDropId = observation.drop.id;
+    pairedDropCreated = observation.created;
+    void qualifyCheapPintForOwnerActor(contributor.actor);
+    confirmationOutcome = await runSecondReporterPass(
+      submission.venueId,
+      Date.now(),
+      pintDropAuthorityKey(submission.venueId, contributor.accountId),
     );
-    if (!pairing.ok) return pairing.response;
-    pairedDropId = pairing.pintDropId;
-    pairedDropCreated = pairing.created;
-    confirmationOutcome = pairing.confirmationOutcome;
-    pintTrust = pairing.pintTrust;
+    pintTrust = await readVenuePintTrust(submission.venueId);
   }
 
   const billCheck = scheduleCommunityPriceBillCheck({
@@ -411,118 +403,6 @@ export async function POST(request: Request): Promise<Response> {
   );
 }
 
-function observationDropId(id: string, submittedAt: number, priceGbp: number): string {
-  const hash = createHash("sha1")
-    .update(Buffer.from(id.replaceAll("-", ""), "hex"))
-    .update(`${submittedAt}:${priceGbp}`)
-    .digest();
-  hash.writeUInt8((hash.readUInt8(6) & 0x0f) | 0x50, 6);
-  hash.writeUInt8((hash.readUInt8(8) & 0x3f) | 0x80, 8);
-  const hex = hash.toString("hex", 0, 16);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
-async function submitPriceObservation(
-  input: CommunityPriceWrite & { contributorHandle: string },
-  now: number,
-): Promise<CommunityPriceWriteResult & { duplicateDrop: PintDrop | null; dropId?: string }> {
-  if (input.drinkCategory === "beer") {
-    let recent;
-    try {
-      recent = await pintDropsStore().listConfirmationCandidates(input.venueId);
-    } catch {
-      return { price: null, failed: true, duplicateDrop: null };
-    }
-    const duplicate = duplicateOneTapDrop(recent, {
-      venueId: input.venueId,
-      handle: input.contributorHandle,
-      priceGbp: input.priceGbp,
-      measure: "pint",
-    }, now);
-    if (duplicate) {
-      const { observations, degraded } = await listCommunityPriceObservations(
-        input.venueId,
-        input.drinkCategory,
-      );
-      if (degraded) return { price: null, failed: true, duplicateDrop: null };
-      const original = observations.find((row) =>
-        row.actor === input.actor &&
-        row.priceGbp === input.priceGbp &&
-        duplicate.id === observationDropId(row.id, row.submittedAt, row.priceGbp),
-      );
-      if (original) {
-        return {
-          duplicateDrop: duplicate,
-          dropId: duplicate.id,
-          price: {
-            id: original.id,
-            venueId: original.venueId,
-            drinkCategory: original.drinkCategory,
-            priceGbp: original.priceGbp,
-            submittedAt: original.submittedAt,
-            source: "community",
-          },
-        };
-      }
-    }
-  }
-  const result = await submitCommunityPrice(input, now);
-  const { price } = result;
-  return {
-    ...result,
-    duplicateDrop: null,
-    ...(price?.id && price.submittedAt === now && price.priceGbp === input.priceGbp
-      ? { dropId: observationDropId(price.id, price.submittedAt, price.priceGbp) }
-      : {}),
-  };
-}
-
-/** The stored price, when it is still the observation this request wrote. */
-function ownedPrice(
-  price: { id?: string; submittedAt: number; priceGbp: number },
-  actor: string,
-  submittedAt: number,
-  priceGbp: number,
-): FailedPairingPrice | undefined {
-  if (!price.id || price.submittedAt !== submittedAt || price.priceGbp !== priceGbp) return undefined;
-  return { id: price.id, actor, submittedAt, priceGbp };
-}
-
-async function pairSubmittedPintDrop(
-  input: OneTapPintDropInput,
-  photos: PintDropPhotos,
-  context: { actor: string; ownPrice?: FailedPairingPrice; duplicateDrop: PintDrop | null },
-) {
-  const pintDrop = await writeOneTapPintDrop(input, photos, context.duplicateDrop);
-  if (!pintDrop.ok) {
-    return {
-      ok: false as const,
-      response: await failedPairingResponse(pintDrop, {
-        ownPrice: context.ownPrice,
-        venueId: input.venueId,
-        drinkCategory: input.drinkCategory,
-      }),
-    };
-  }
-  const pintDropId = pintDrop.drop.id;
-  void qualifyCheapPintForOwnerActor(context.actor);
-  // Confirm the paired observation with the same account authority as its row.
-  const confirmationOutcome = await runSecondReporterPass(
-    input.venueId,
-    Date.now(),
-    pintDropAuthorityKey(input.venueId, input.verifiedAccountId),
-  );
-  // Read trust after confirmation, so the response uses the resulting state.
-  const pintTrust = await readVenuePintTrust(input.venueId);
-  return {
-    ok: true as const,
-    pintDropId,
-    created: pintDrop.created,
-    confirmationOutcome,
-    pintTrust,
-  };
-}
-
 function scheduleCommunityPriceBillCheck(input: {
   receipt: File | null;
   submission: { venueId: string; priceGbp: number; drinkCategory: DrinkCategory };
@@ -573,37 +453,13 @@ function scheduleSubmitBillCheck(
   return "reading";
 }
 
-/**
- * A PAIRED PINT DROP THAT DID NOT LAND, answered honestly.
- *
- * The community price has already been written by the time this runs, so the
- * pairing is reverted first: a price standing with no drop beside it is a
- * figure the drop lanes cannot see. A revert that itself fails is its own
- * refusal (`PAIRING_REPAIR_REQUIRED`), because the two rows are then out of
- * step and only a person can put them back.
- */
-async function failedPairingResponse(
+function failedPairingResponse(
   outcome: Extract<Awaited<ReturnType<typeof writeOneTapPintDrop>>, { ok: false }>,
-  context: { ownPrice?: FailedPairingPrice; venueId: string; drinkCategory: DrinkCategory },
-): Promise<Response> {
-  const reverted = await revertOneTapCommunityPricePairing(context.ownPrice);
-  if (reverted) {
-    if (outcome.kind === "invalid_photo") {
-      return publicApiError(outcome.message, "INVALID_REQUEST", 400);
-    }
-    return publicApiError(outcome.message, "UNAVAILABLE", 503, { retryable: true });
+): Response {
+  if (outcome.kind === "invalid_photo") {
+    return publicApiError(outcome.message, "INVALID_REQUEST", 400);
   }
-  log("error", "one_tap_pint_drop.pairing_repair_required", {
-    priceId: context.ownPrice?.id,
-    venueId: context.venueId,
-    drinkCategory: context.drinkCategory,
-  });
-  return publicApiError(
-    "Could not finish that price log. Try again.",
-    "PAIRING_REPAIR_REQUIRED",
-    503,
-    { retryable: true },
-  );
+  return publicApiError(outcome.message, "UNAVAILABLE", 503, { retryable: true });
 }
 
 /**

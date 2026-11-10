@@ -10,6 +10,10 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import sharp from "sharp";
 
+import { oneTapPriceDropId } from "@/lib/oneTapPriceDropId";
+import { duplicateOneTapDrop } from "@/lib/oneTapDuplicate";
+import { submitMemoryCommunityPrice, resetCommunityPriceCategoryIndexMemo } from "@/lib/communityPriceStore";
+import type { CommunityPrice } from "@/lib/communityPrice";
 import { COMMUNITY_PRICE_MAX_AGE_MS, isWithinMaxAge } from "@/lib/communityPrice";
 import { cleanVenueId } from "@/lib/cleanVenueId";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
@@ -165,6 +169,7 @@ export type PintDropPhotos = {
  */
 type PintDropCreateOptions = {
   readonly underDailyPriceCap?: boolean;
+  readonly communityPrice?: { actor: string; submittedAt: number };
 };
 
 /** The one seam the API route talks to. Both implementations below. */
@@ -178,7 +183,7 @@ export type PintDropStore = {
     drop: PintDrop,
     photos: PintDropPhotos,
     options?: PintDropCreateOptions,
-  ): Promise<PintDropDTO & { created: boolean }>;
+  ): Promise<PintDropDTO & { created: boolean; communityPrice?: CommunityPrice }>;
   /**
    * The drop a keyed create already wrote under `drop.id`, answered as
    * `create` would answer it. "conflict" when that id holds another drop.
@@ -849,6 +854,13 @@ async function durableCreatedDrop(id: string): Promise<PersistableDrop | undefin
   return data ? fromRow(data) : undefined;
 }
 
+export class OneTapPriceSupersededError extends Error {
+  constructor() {
+    super("A newer price observation is already stored.");
+    this.name = "OneTapPriceSupersededError";
+  }
+}
+
 export const memoryPintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const covered = new Set<string>();
@@ -866,6 +878,36 @@ export const memoryPintDropStore: PintDropStore = {
     // a priced drop is `unchecked`, whatever the caller's object said, until
     // the bill check reads its bill (lib/pintDropReceipt.ts).
     const drop = withEarnedEvidence(input);
+    if (options?.communityPrice) {
+      const pairing = options.communityPrice;
+      let saved: PintDrop | null = null;
+      let created = false;
+      const result = submitMemoryCommunityPrice({
+        venueId: drop.venueId,
+        drinkCategory: "beer",
+        priceGbp: drop.priceGbp!,
+        actor: pairing.actor,
+        contributorHandle: drop.handle,
+      }, pairing.submittedAt, (price, previous) => {
+        if (previous?.id && previous.priceGbp === drop.priceGbp) {
+          const id = oneTapPriceDropId(previous.id, previous.submittedAt, previous.priceGbp);
+          const existing = findPintDropsByIds([id]).get(id);
+          if (existing && duplicateOneTapDrop([existing], drop, pairing.submittedAt)) {
+            saved = existing;
+            return false;
+          }
+        }
+        drop.id = oneTapPriceDropId(price.id!, price.submittedAt, price.priceGbp);
+        if (findPintDropsByIds([drop.id]).has(drop.id)) throw new Error("Pint Drop id already exists.");
+        addPintDrop(drop);
+        saved = drop;
+        created = true;
+        return true;
+      });
+      if (!saved || !result.price) throw new OneTapPriceSupersededError();
+      resetCommunityPriceCategoryIndexMemo();
+      return { ...toDTO(saved), created, communityPrice: result.price };
+    }
     const cappedVenueIds = dailyCapDay(drop, options) !== null ? await storedVenueIds(drop.venueId) : [];
     const existing = replayBeforeCap(
       findPintDropsByIds([drop.id]).get(drop.id),
@@ -1342,6 +1384,29 @@ export const supabasePintDropStore: PintDropStore = {
             error: err instanceof Error ? err.message : String(err),
           });
         }
+      }
+      if (options?.communityPrice) {
+        const { data, error } = await admin().rpc("create_one_tap_price_pair_atomic", {
+          p_venue_id: drop.venueId,
+          p_drink_category: "beer",
+          p_price_pennies: Math.round(drop.priceGbp! * 100),
+          p_actor: options.communityPrice.actor,
+          p_contributor_handle: drop.handle,
+          p_submitted_at: new Date(options.communityPrice.submittedAt).toISOString(),
+          p_drop: toRow(persistable),
+        });
+        if (error) throw new Error(error.message);
+        if (data?.status === "superseded") throw new OneTapPriceSupersededError();
+        if (data?.status !== "saved" || !data.drop || !data.price || typeof data.created !== "boolean") {
+          throw new Error("Could not save the price and Pint Drop.");
+        }
+        if (!data.created) await deletePhotos(uploaded);
+        resetCommunityPriceCategoryIndexMemo();
+        return {
+          ...await toDTOWithPhotos(fromRow(data.drop)),
+          created: data.created,
+          communityPrice: data.price as CommunityPrice,
+        };
       }
       let row = toRow(persistable, dailyCapDay(drop, options));
       // Every insert, including schema fallbacks, can race with the first save.

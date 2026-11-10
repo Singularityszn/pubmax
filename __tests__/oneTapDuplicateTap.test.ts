@@ -25,7 +25,7 @@ import { describe, expect, it } from "vitest";
 import {
   duplicateOneTapDrop,
   ONE_TAP_DUPLICATE_WINDOW_MS,
-} from "@/lib/oneTapPintDrop.server";
+} from "@/lib/oneTapDuplicate";
 import type { PintDrop } from "@/lib/pintDrops";
 
 const NOW = Date.parse("2026-09-05T18:00:00.000Z");

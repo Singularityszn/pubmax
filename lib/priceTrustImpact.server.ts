@@ -401,11 +401,16 @@ async function proveCurrentPriceTrustInvariant(
   return TRUST_SYNCED;
 }
 
-export async function reversePriceTrustForObservation(
+async function syncTrustAfterPriceHiddenWithBudget(
   observationId: string,
-  now: number = Date.now(),
+  now: number,
+  budget: PriceTrustReconciliationBudget,
 ): Promise<PriceTrustReconciliation> {
   try {
+    const found = await findCommunityPriceObservation(observationId);
+    if (found.degraded) return TRUST_UNAVAILABLE;
+    if (!found.observation || !found.observation.hidden) return TRUST_SYNCED;
+    const { venueId, drinkCategory } = found.observation;
     const covering = await priceTrustEventStore().liveEventsCovering(observationId);
     if (covering.degraded) return TRUST_UNAVAILABLE;
     for (const event of covering.events) {
@@ -425,25 +430,6 @@ export async function reversePriceTrustForObservation(
         return TRUST_UNAVAILABLE;
       }
     }
-    return TRUST_SYNCED;
-  } catch (error) {
-    console.warn(`${STORE_TAG} reversal failed`, error);
-    return TRUST_UNAVAILABLE;
-  }
-}
-
-async function syncTrustAfterPriceHiddenWithBudget(
-  observationId: string,
-  now: number,
-  budget: PriceTrustReconciliationBudget,
-): Promise<PriceTrustReconciliation> {
-  try {
-    const found = await findCommunityPriceObservation(observationId);
-    if (found.degraded) return TRUST_UNAVAILABLE;
-    if (!found.observation || !found.observation.hidden) return TRUST_SYNCED;
-    const { venueId, drinkCategory } = found.observation;
-    const reversed = await reversePriceTrustForObservation(observationId, now);
-    if (reversed.status === "unavailable") return reversed;
     const listed = await listCommunityPriceObservations(venueId, drinkCategory);
     if (listed.degraded) return TRUST_UNAVAILABLE;
     const current = await findCommunityPriceObservation(observationId);

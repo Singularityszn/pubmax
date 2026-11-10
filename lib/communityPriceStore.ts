@@ -198,13 +198,6 @@ export type ModeratorCommunityPrice = ModeratorObservationBase &
 /** The id a stored venue id names now, so rows under a former id group with the venue. */
 type CanonicalVenueId = (venueId: string) => string;
 
-export type FailedPairingObservation = { actor: string; submittedAt: number; priceGbp: number };
-
-export type FailedPairingWithdrawal =
-  | { status: "removed"; venueId: string; drinkCategory: DrinkCategory }
-  | { status: "unchanged" }
-  | { status: "unavailable" };
-
 export type CommunityPriceStore = {
   /**
    * Record an observation and return it as stored. NEVER throws; a durable
@@ -284,7 +277,6 @@ export type CommunityPriceStore = {
    * no delete. False = unknown id. NEVER throws.
    */
   moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
-  withdrawFailedPairing(id: string, expected: FailedPairingObservation): Promise<FailedPairingWithdrawal>;
   moderateWithState(
     id: string,
     hidden: boolean,
@@ -960,105 +952,116 @@ function priceContributionRecord(
   };
 }
 
+export function submitMemoryCommunityPrice(
+  input: CommunityPriceWrite,
+  now: number,
+  commitPair?: (price: CommunityPrice, previous: CommunityPrice | null) => boolean,
+): CommunityPriceWriteResult {
+  const key = normalize(input);
+  if (!key) return { price: null };
+  const roundSource = cleanRoundPriceSource(input.roundSource);
+  const stored: StoredPrice = {
+    ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
+    id: randomUUID(),
+    actor: input.actor ?? null,
+    contributorHandle: normalizeHandle(input.contributorHandle) || null,
+    roundSource,
+    hidden: false,
+    reportCount: 0,
+  };
+  const rows = venues.get(key.venueId) ?? [];
+  if (roundSource) {
+    if (!stored.actor) return { price: null };
+    const sourceStatus = roundPriceSourceStatus(
+      roundSource,
+      stored.actor,
+      stored.venueId,
+      stored.drinkCategory,
+    );
+    if (sourceStatus === "promoted") {
+      const owned = rows.find(
+        (row) =>
+          row.actor === stored.actor &&
+          row.drinkCategory === stored.drinkCategory &&
+          sameRoundPriceSource(row.roundSource, roundSource),
+      );
+      return owned
+        ? { price: published(owned), sourceBecameOwner: true }
+        : { price: null };
+    }
+    if (sourceStatus !== "ready") return { price: null };
+  }
+  // One live observation per (venue, category, actor): a contributor correcting
+  // its own entry replaces it rather than stacking a second row, so one
+  // person can't weight a venue's community price twice.
+  const isOwnEarlier = (row: StoredPrice) =>
+    row.drinkCategory === stored.drinkCategory &&
+    row.actor !== null &&
+    row.actor === stored.actor;
+  const replaced = rows.find(isOwnEarlier);
+  if (replaced && replaced.submittedAt > stored.submittedAt) {
+    const sourceBecameOwner = sameRoundPriceSource(
+      replaced.roundSource,
+      roundSource,
+    );
+    if (roundSource && stored.actor) {
+      if (sourceBecameOwner) {
+        markRoundPriceSourcePromoted(roundSource, stored.actor);
+      } else {
+        markRoundPriceSourceSuperseded(roundSource, stored.actor);
+      }
+    }
+    return {
+      price: published(replaced),
+      ...(roundSource ? { sourceBecameOwner } : {}),
+    };
+  }
+  const kept = rows.filter((row) => !isOwnEarlier(row));
+  // Moderation survives the correction. The durable backend's upsert writes
+  // only the price columns, so `hidden_at` and the report metadata stay put
+  // there; the memory backend has to carry them across deliberately, or a
+  // hidden submitter could wash their price simply by logging it again -
+  // and the two backends would disagree about whether that works.
+  if (replaced) {
+    stored.hidden = replaced.hidden;
+    stored.reportCount = replaced.reportCount;
+    stored.reportedAt = replaced.reportedAt;
+    stored.reportReason = replaced.reportReason;
+    stored.moderatorNote = replaced.moderatorNote;
+    stored.moderatedAt = replaced.moderatedAt;
+    stored.reporters = replaced.reporters;
+    // Keeping the id keeps a moderator's outstanding queue entry pointing at
+    // a row that still exists, exactly as the durable upsert does.
+    stored.id = replaced.id;
+  }
+  if (commitPair && !commitPair(published(stored), replaced ? published(replaced) : null)) {
+    return { price: replaced ? published(replaced) : null };
+  }
+  if (
+    replaced?.roundSource &&
+    !sameRoundPriceSource(replaced.roundSource, roundSource) &&
+    replaced.actor
+  ) {
+    markRoundPriceSourceSuperseded(
+      replaced.roundSource,
+      replaced.actor,
+    );
+  }
+  kept.push(stored);
+  venues.set(key.venueId, kept);
+  if (roundSource && stored.actor) {
+    markRoundPriceSourcePromoted(roundSource, stored.actor);
+  }
+  evictIfNeeded();
+  return {
+    price: published(stored),
+    ...(roundSource ? { sourceBecameOwner: true } : {}),
+  };
+}
+
 export const memoryCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
-    const key = normalize(input);
-    if (!key) return { price: null };
-    const roundSource = cleanRoundPriceSource(input.roundSource);
-    const stored: StoredPrice = {
-      ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
-      id: randomUUID(),
-      actor: input.actor ?? null,
-      contributorHandle: normalizeHandle(input.contributorHandle) || null,
-      roundSource,
-      hidden: false,
-      reportCount: 0,
-    };
-    const rows = venues.get(key.venueId) ?? [];
-    if (roundSource) {
-      if (!stored.actor) return { price: null };
-      const sourceStatus = roundPriceSourceStatus(
-        roundSource,
-        stored.actor,
-        stored.venueId,
-        stored.drinkCategory,
-      );
-      if (sourceStatus === "promoted") {
-        const owned = rows.find(
-          (row) =>
-            row.actor === stored.actor &&
-            row.drinkCategory === stored.drinkCategory &&
-            sameRoundPriceSource(row.roundSource, roundSource),
-        );
-        return owned
-          ? { price: published(owned), sourceBecameOwner: true }
-          : { price: null };
-      }
-      if (sourceStatus !== "ready") return { price: null };
-    }
-    // One live observation per (venue, category, actor): a contributor correcting
-    // its own entry replaces it rather than stacking a second row, so one
-    // person can't weight a venue's community price twice.
-    const isOwnEarlier = (row: StoredPrice) =>
-      row.drinkCategory === stored.drinkCategory &&
-      row.actor !== null &&
-      row.actor === stored.actor;
-    const replaced = rows.find(isOwnEarlier);
-    if (replaced && replaced.submittedAt > stored.submittedAt) {
-      const sourceBecameOwner = sameRoundPriceSource(
-        replaced.roundSource,
-        roundSource,
-      );
-      if (roundSource && stored.actor) {
-        if (sourceBecameOwner) {
-          markRoundPriceSourcePromoted(roundSource, stored.actor);
-        } else {
-          markRoundPriceSourceSuperseded(roundSource, stored.actor);
-        }
-      }
-      return {
-        price: published(replaced),
-        ...(roundSource ? { sourceBecameOwner } : {}),
-      };
-    }
-    const kept = rows.filter((row) => !isOwnEarlier(row));
-    // Moderation survives the correction. The durable backend's upsert writes
-    // only the price columns, so `hidden_at` and the report metadata stay put
-    // there; the memory backend has to carry them across deliberately, or a
-    // hidden submitter could wash their price simply by logging it again -
-    // and the two backends would disagree about whether that works.
-    if (replaced) {
-      if (
-        replaced.roundSource &&
-        !sameRoundPriceSource(replaced.roundSource, roundSource) &&
-        replaced.actor
-      ) {
-        markRoundPriceSourceSuperseded(
-          replaced.roundSource,
-          replaced.actor,
-        );
-      }
-      stored.hidden = replaced.hidden;
-      stored.reportCount = replaced.reportCount;
-      stored.reportedAt = replaced.reportedAt;
-      stored.reportReason = replaced.reportReason;
-      stored.moderatorNote = replaced.moderatorNote;
-      stored.moderatedAt = replaced.moderatedAt;
-      stored.reporters = replaced.reporters;
-      // Keeping the id keeps a moderator's outstanding queue entry pointing at
-      // a row that still exists, exactly as the durable upsert does.
-      stored.id = replaced.id;
-    }
-    kept.push(stored);
-    venues.set(key.venueId, kept);
-    if (roundSource && stored.actor) {
-      markRoundPriceSourcePromoted(roundSource, stored.actor);
-    }
-    evictIfNeeded();
-    return {
-      price: published(stored),
-      ...(roundSource ? { sourceBecameOwner: true } : {}),
-    };
+    return submitMemoryCommunityPrice(input, now);
   },
 
   async submitSignal(input, now = Date.now()) {
@@ -1205,20 +1208,6 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     const cleaned = cleanReason(note);
     if (cleaned) row.moderatorNote = cleaned;
     return true;
-  },
-
-  async withdrawFailedPairing(id, expected) {
-    for (const [venueId, rows] of venues) {
-      const index = rows.findIndex((row) => row.id === id);
-      if (index < 0) continue;
-      const row = rows[index]!;
-      if (row.actor !== expected.actor || row.submittedAt !== expected.submittedAt || row.priceGbp !== expected.priceGbp
-        || row.roundSource !== null || row.hidden) return { status: "unchanged" };
-      rows.splice(index, 1);
-      if (rows.length === 0) venues.delete(venueId);
-      return { status: "removed", venueId: row.venueId, drinkCategory: row.drinkCategory };
-    }
-    return { status: "unchanged" };
   },
 
   async moderateWithState(id, hidden, note, expected) {
@@ -1884,36 +1873,6 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async withdrawFailedPairing(id, expected) {
-    if (!id) return { status: "unchanged" };
-    return guard<FailedPairingWithdrawal>({
-      context: "withdraw-failed-pairing",
-      onSchemaMiss: async () => ({ status: "unavailable" }),
-      message: "failed pairing withdrawal failed",
-      onError: () => ({ status: "unavailable" }),
-      run: async () => {
-        const { data, error } = await admin()
-          .from("community_prices")
-          .delete()
-          .eq("id", id)
-          .eq("actor", expected.actor)
-          .eq("submitted_at", new Date(expected.submittedAt).toISOString())
-          .eq("price_pennies", Math.round(expected.priceGbp * 100))
-          .is("round_spend_id", null)
-          .is("hidden_at", null)
-          .select("venue_id,drink_category");
-        if (error) throw new Error(error.message);
-        if (!Array.isArray(data)) return { status: "unavailable" };
-        if (data.length === 0) return { status: "unchanged" };
-        const row = data[0];
-        if (data.length !== 1 || typeof row.venue_id !== "string" || !isDrinkCategory(row.drink_category)) {
-          return { status: "unavailable" };
-        }
-        return { status: "removed", venueId: row.venue_id, drinkCategory: row.drink_category };
-      },
-    });
-  },
-
   async moderateWithState(id, hidden, note, expected) {
     if (!id) return { status: "not-found", changed: false };
     return guard<ModerationStateResult>({
@@ -2361,15 +2320,6 @@ export function moderateCommunityPrice(
 ): Promise<boolean> {
   return droppingCategoryIndexMemo(() =>
     communityPriceStore().moderate(id, hidden, note),
-  );
-}
-
-export function withdrawFailedPairingPrice(
-  id: string,
-  expected: FailedPairingObservation,
-): Promise<FailedPairingWithdrawal> {
-  return droppingCategoryIndexMemo(() =>
-    communityPriceStore().withdrawFailedPairing(id, expected),
   );
 }
 

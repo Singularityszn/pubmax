@@ -17,7 +17,6 @@ import {
   findCommunityPriceObservation,
   moderateCommunityPrice,
   submitCommunityPrice,
-  withdrawFailedPairingPrice,
 } from "@/lib/communityPriceStore";
 import {
   __resetMemoryIdentityHandles,
@@ -35,7 +34,6 @@ import {
   MAX_PRICE_TRUST_ATTEMPTS,
   readPriceTrustImpact,
   reconcilePriceTrustForObservation,
-  reversePriceTrustForObservation,
   syncTrustAfterPriceHidden,
   syncTrustAfterPriceRestored,
   syncTrustAfterPriceWrite,
@@ -97,32 +95,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-});
-
-describe("trust reversal after withdrawal", () => {
-  it("reverses every covering event after its observation was deleted", async () => {
-    const profileA = await onboard(USER_A, "alice_pint");
-    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW);
-    const store = priceTrustEventStore();
-    for (const fingerprint of ["first-unlock", "second-unlock"]) {
-      const result = await store.recordUnlock({
-        fingerprint, venueId: VENUE, category: "beer", observationIds: [observationId],
-        userIds: [USER_A], now: NOW,
-      });
-      expect(result.event).toBeTruthy();
-      expect(result.failed).not.toBe(true);
-    }
-    expect((await store.liveEventsCovering(observationId)).events).toHaveLength(2);
-    expect(await withdrawFailedPairingPrice(observationId, {
-      actor: `profile:${profileA}`, submittedAt: NOW, priceGbp: 4.2,
-    })).toMatchObject({ status: "removed" });
-    expect((await findCommunityPriceObservation(observationId)).observation).toBeNull();
-
-    expect(await reversePriceTrustForObservation(observationId, NOW)).toEqual({ status: "synced" });
-
-    expect((await store.liveEventsCovering(observationId)).events).toEqual([]);
-    expect(await readPriceTrustImpact(USER_A, NOW)).toMatchObject({ lifetimeTrustUnlocks: 0 });
-  });
 });
 
 describe("syncTrustAfterPriceWrite", () => {

@@ -6,24 +6,15 @@ import {
   memoryCommunityPriceStore,
   moderateCommunityPrice,
   reportCommunityPrice,
-  withdrawFailedPairingPrice,
   readCommunityPrices,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 import {
-  revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
 } from "@/lib/oneTapPintDrop.server";
+import * as dropMemory from "@/lib/pintDrops";
 import { __resetPintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
 import { PhotoRefusalError, UNREADABLE_PHOTO_REFUSAL } from "@/lib/pintDropsStore";
-
-vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
-  return {
-    ...actual,
-    withdrawFailedPairingPrice: vi.fn(actual.withdrawFailedPairingPrice),
-  };
-});
 
 // The store stays the real in-memory one until a test scripts a failure, so
 // every existing case here keeps exercising the write it was written for.
@@ -45,16 +36,7 @@ beforeEach(async () => {
   storeFailure.error = null;
   __resetCommunityPrices();
   __resetPintDrops();
-  vi.mocked(withdrawFailedPairingPrice).mockReset();
-  const actual = await vi.importActual<typeof import("@/lib/communityPriceStore")>(
-    "@/lib/communityPriceStore",
-  );
-  vi.mocked(withdrawFailedPairingPrice).mockImplementation(actual.withdrawFailedPairingPrice);
 });
-
-function observationOf(price: Awaited<ReturnType<typeof submitCommunityPrice>>["price"]) {
-  return { id: price!.id!, actor: "profile:test", submittedAt: price!.submittedAt, priceGbp: price!.priceGbp };
-}
 
 describe("writeOneTapPintDrop", () => {
   it("creates a visible visit report for a priced pint", async () => {
@@ -107,111 +89,67 @@ describe("writeOneTapPintDrop", () => {
     expect(outcome.drop.authorityKey).not.toContain("account-a");
   });
 
-  it("removes a community price when pairing revert runs", async () => {
-    const venueId = "venue-xjf3n0";
-    const { price } = await submitCommunityPrice({
-      venueId,
-      drinkCategory: "beer",
-      priceGbp: 4.2,
-      actor: "profile:test",
-      contributorHandle: "karan",
-    });
-    expect(price?.id).toBeTruthy();
-    expect(await readCommunityPrices(venueId)).toHaveLength(1);
-
-    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
-    expect(await readCommunityPrices(venueId)).toEqual([]);
+  it("commits both records with the request figure", async () => {
+    const now = Date.now();
+    const outcome = await writeOneTapPintDrop({
+      venueId: "venue-xjf3n0", handle: "karan", drinkCategory: "beer",
+      priceGbp: 4.2, measure: "pint",
+    }, undefined, { actor: "profile:test", submittedAt: now });
+    expect(outcome).toMatchObject({ ok: true, created: true, price: { priceGbp: 4.2, submittedAt: now } });
+    expect(await readCommunityPrices("venue-xjf3n0")).toMatchObject([{ priceGbp: 4.2 }]);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toMatchObject([{ priceGbp: 4.2, measure: "pint", priceEvidence: "unchecked" }]);
   });
 
-  it("leaves a price alone when the stored row is no longer this request's observation", async () => {
-    const venueId = "venue-xjf3n0";
-    const { price } = await submitCommunityPrice({
-      venueId,
-      drinkCategory: "beer",
-      priceGbp: 4.2,
-      actor: "profile:test",
-      contributorHandle: "karan",
+  it("leaves no observation when drop persistence fails inside the memory pair", async () => {
+    const persist = vi.spyOn(dropMemory, "addPintDrop").mockImplementationOnce(() => {
+      throw new Error("Drop persistence failed");
     });
-    expect(await revertOneTapCommunityPricePairing({
-      id: price!.id!, actor: "profile:test", submittedAt: price!.submittedAt - 60_000, priceGbp: 4.2,
-    })).toBe(true);
-    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
+    try {
+      const outcome = await writeOneTapPintDrop({
+        venueId: "venue-xjf3n0", handle: "karan", drinkCategory: "beer", priceGbp: 4.2, measure: "pint",
+      }, undefined, { actor: "profile:test", submittedAt: Date.now() });
+      expect(outcome).toMatchObject({ ok: false, kind: "storage" });
+      expect(await readCommunityPrices("venue-xjf3n0")).toEqual([]);
+      expect(listVisiblePintDrops("venue-xjf3n0")).toEqual([]);
+    } finally {
+      persist.mockRestore();
+    }
   });
 
-  it("preserves a moderator's hide, note and report metadata", async () => {
+  it("refuses an older request without minting a drop from the newer price", async () => {
+    const now = Date.now();
+    await submitCommunityPrice({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 8, actor: "profile:test" }, now + 1000);
+    const outcome = await writeOneTapPintDrop({
+      venueId: "venue-xjf3n0", handle: "karan", drinkCategory: "beer", priceGbp: 5, measure: "pint",
+    }, undefined, { actor: "profile:test", submittedAt: now });
+    expect(outcome).toMatchObject({ ok: false, kind: "superseded" });
+    expect(await readCommunityPrices("venue-xjf3n0")).toMatchObject([{ priceGbp: 8 }]);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toEqual([]);
+  });
+
+  it("preserves a moderator's hide, note and reports when pairing fails", async () => {
     const venueId = "venue-xjf3n0";
-    const { price } = await submitCommunityPrice({
-      venueId, drinkCategory: "beer", priceGbp: 4.2, actor: "profile:test",
-    });
+    const { price } = await submitCommunityPrice({ venueId, drinkCategory: "beer", priceGbp: 4.2, actor: "profile:test" });
     await reportCommunityPrice(price!.id!, "Wrong price", "reporter");
     await moderateCommunityPrice(price!.id!, true, "Moderator decision");
     const before = await memoryCommunityPriceStore.listForReview();
-    expect(before).toMatchObject([{
-      hidden: true, moderatorNote: "Moderator decision", reportCount: 1, reportReason: "Wrong price",
-    }]);
-
-    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
-
+    storeFailure.error = new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
+    const outcome = await writeOneTapPintDrop({
+      venueId, handle: "karan", drinkCategory: "beer", priceGbp: 4.5, measure: "pint",
+    }, undefined, { actor: "profile:test", submittedAt: Date.now() });
+    expect(outcome).toMatchObject({ ok: false, kind: "invalid_photo" });
     expect(await memoryCommunityPriceStore.listForReview()).toEqual(before);
     expect(await readCommunityPrices(venueId)).toEqual([]);
-    await submitCommunityPrice({
-      venueId, drinkCategory: "beer", priceGbp: 4.5, actor: "profile:test",
-    });
-    expect(await readCommunityPrices(venueId)).toEqual([]);
   });
 
-  it.each([
-    { delay: 1, priceGbp: 4.2 },
-    { delay: 0, priceGbp: 4.5 },
-  ])("preserves a later write with delay $delay and price $priceGbp", async ({ delay, priceGbp }) => {
-    const venueId = "venue-xjf3n0";
-    const input = { venueId, drinkCategory: "beer" as const, priceGbp: 4.2, actor: "profile:test" };
+  it("leaves a successful same-millisecond pair intact when another photo fails", async () => {
     const now = Date.now();
-    const { price } = await submitCommunityPrice(input, now);
-    const later = await submitCommunityPrice({ ...input, priceGbp }, now + delay);
-    expect(later.price!.id).toBe(price!.id);
-
-    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
-
-    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp, submittedAt: now + delay }]);
-    expect(await memoryCommunityPriceStore.listForReview()).toEqual([]);
-  });
-
-  it("retries an unavailable withdrawal once", async () => {
-    const venueId = "venue-xjf3n0";
-    const { price } = await submitCommunityPrice({
-      venueId,
-      drinkCategory: "beer",
-      priceGbp: 4.2,
-      actor: "profile:test",
-      contributorHandle: "karan",
-    });
-    const actual = await vi.importActual<typeof import("@/lib/communityPriceStore")>(
-      "@/lib/communityPriceStore",
-    );
-    vi.mocked(withdrawFailedPairingPrice)
-      .mockResolvedValueOnce({ status: "unavailable" })
-      .mockImplementation(actual.withdrawFailedPairingPrice);
-
-    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(true);
-    expect(vi.mocked(withdrawFailedPairingPrice)).toHaveBeenCalledTimes(2);
-    expect(await readCommunityPrices(venueId)).toEqual([]);
-  });
-
-  it("returns false when withdrawal never lands", async () => {
-    const venueId = "venue-xjf3n0";
-    const { price } = await submitCommunityPrice({
-      venueId,
-      drinkCategory: "beer",
-      priceGbp: 4.2,
-      actor: "profile:test",
-      contributorHandle: "karan",
-    });
-    vi.mocked(withdrawFailedPairingPrice).mockResolvedValue({ status: "unavailable" });
-
-    expect(await revertOneTapCommunityPricePairing(observationOf(price))).toBe(false);
-    expect(vi.mocked(withdrawFailedPairingPrice)).toHaveBeenCalledTimes(2);
-    expect(await readCommunityPrices(venueId)).toHaveLength(1);
+    const input = { venueId: "venue-xjf3n0", handle: "karan", drinkCategory: "beer" as const, priceGbp: 4.2, measure: "pint" as const };
+    expect(await writeOneTapPintDrop(input, undefined, { actor: "profile:test", submittedAt: now })).toMatchObject({ ok: true });
+    storeFailure.error = new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
+    expect(await writeOneTapPintDrop(input, undefined, { actor: "profile:test", submittedAt: now })).toMatchObject({ ok: false });
+    expect(await readCommunityPrices(input.venueId)).toMatchObject([{ priceGbp: 4.2 }]);
+    expect(listVisiblePintDrops(input.venueId)).toHaveLength(1);
   });
 
   it("creates a matching Pint Drop for each accepted price observation", async () => {
