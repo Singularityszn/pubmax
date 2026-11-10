@@ -1467,6 +1467,70 @@ describe("Lock owns the composer while it runs", () => {
     return generated;
   }
 
+  it.each([true, false].flatMap((proofBound) => ["#plan-title", "#plan-name"].map((selector) => ({ proofBound, selector }))))(
+    "handles a changed $selector after a lost response, proof bound: $proofBound",
+    async ({ proofBound, selector }) => {
+      pinClock();
+      const generated = { ...generatedProofFixture(3), ...(proofBound ? {} : { groundingProof: null, operationKey: null }) };
+      fetchMock.mockImplementation(async (input) => Response.json(
+        String(input).includes("/api/plans/generate") ? generated : [],
+      ));
+      await generateFromDescription();
+      await editInput("#plan-name", "Captain");
+      fetchMock.mockImplementation(async (input) => {
+        if (String(input) === "/api/plans") throw new TypeError("Response lost");
+        return Response.json([]);
+      });
+      await act(async () => lockButton().click());
+      await vi.waitFor(() => expect(document.querySelector("#plan-composer-error")?.textContent).toContain("Response lost"));
+      const firstKey = new Headers(creations()[0]![1]?.headers).get("idempotency-key");
+      await remountComposer();
+      await act(async () => lockButton().click());
+      await vi.waitFor(() => expect(creations()).toHaveLength(2));
+      expect(new Headers(creations()[1]![1]?.headers).get("idempotency-key")).toBe(firstKey);
+      await vi.waitFor(() => expect(lockButton().disabled).toBe(false));
+      await editInput(selector, "Changed request");
+      await act(async () => lockButton().click());
+      if (proofBound) {
+        await vi.waitFor(() => expect(document.querySelector("#plan-route-stale-title")).not.toBeNull());
+        expect(creations()).toHaveLength(2);
+        expect(storedRoute()).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null });
+      } else {
+        await vi.waitFor(() => expect(creations()).toHaveLength(3));
+        const changedKey = new Headers(creations()[2]![1]?.headers).get("idempotency-key");
+        expect(changedKey).not.toBe(firstKey);
+        await vi.waitFor(() => expect(lockButton().disabled).toBe(false));
+        await act(async () => lockButton().click());
+        await vi.waitFor(() => expect(creations()).toHaveLength(4));
+        expect(new Headers(creations()[3]![1]?.headers).get("idempotency-key")).toBe(changedKey);
+      }
+    },
+  );
+
+  it.each(["Plan with the usual lot", "Cheap round"])("freezes the %s title writer during Lock", async (label) => {
+    pinClock();
+    rememberLastCrew(["Sam", "Alex"], "private-test-crew");
+    expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()), localStorage, T0);
+    fetchMock.mockImplementation(async () => Response.json([{ id: "venue-new", name: "New Pub" }]));
+    await mountComposer();
+    await editInput("#plan-title", "Our night");
+    await editInput("#plan-name", "Captain");
+    const finish = pendingCreation(generatedProofFixture());
+    await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+    const writer = button(label)!;
+    expect(writer).toBeDefined();
+    expect(writer.disabled).toBe(true);
+    await act(async () => writer.click());
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Our night");
+    expect(JSON.parse(String(creations()[0]![1]?.body)).title).toBe("Our night");
+    await act(async () => finish(Response.json({ error: "Try again" }, { status: 503 })));
+    await vi.waitFor(() => expect(writer.disabled).toBe(false));
+    await act(async () => writer.click());
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).not.toBe("Our night");
+  });
+
   it("freezes stop edits, and the Lock creates the route on screen", async () => {
     const generated = await lockableRoute();
     const finish = pendingCreation(generated);

@@ -137,7 +137,7 @@ import { writePlanCapability } from "@/lib/planSessionCapability";
 import { planReportLine, rememberPlanReportLine } from "@/lib/planReportLine";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
-import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
+import { clearPersistentPlanMutationKey, preparePlanMutationKey, rememberPlanMutationKey, type StoredMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
@@ -2659,6 +2659,7 @@ function PlanComposerForm({
 
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
+  const sentCreateOperation = useRef<StoredMutationKey | null>(null);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
   const [successfulGeneration, setSuccessfulGeneration] = useState(0);
   useLayoutEffect(() => {
@@ -3656,9 +3657,20 @@ function PlanComposerForm({
         planAnchor,
         context: nightContext,
       });
-      const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload, signal);
+      const boundKey = groundingProof ? createOperationKey : null;
+      const attempt = await preparePlanMutationKey("create", createPayload, {
+        signal,
+        boundKey,
+        previous: sentCreateOperation.current,
+      });
       if (signal.aborted) return;
       assertComposerOwnership(ownsAcceptance(requestOwner.current));
+      if (groundingProof && createOperationKey && attempt.key !== createOperationKey) {
+        throw new Error(lockFailureMessage(409, null, createOperationKey));
+      }
+      const operationKey = attempt.key;
+      sentCreateOperation.current = attempt;
+      rememberPlanMutationKey("create", attempt, boundKey);
       const response = await fetch("/api/plans", {
         signal,
         method: "POST",
@@ -3893,7 +3905,9 @@ function PlanComposerForm({
           <button
             type="button"
             className="planComposer__template"
+            disabled={submitting}
             onClick={() => {
+              if (activityRef.current === "locking") return;
               pendingDraftSave.current = true;
               setTitle("Usual lot · tonight");
               setConciergeNote(`Re-invite ${usualLot.names.join(", ")} after you lock it in.`);
@@ -3906,7 +3920,9 @@ function PlanComposerForm({
       {/* The row reads London's date itself, so a seasonal template leads it
           in its window and is absent outside it (lib/planTemplates.ts). */}
       <PlanTemplateRow
+        disabled={submitting}
         onPick={(template) => {
+          if (activityRef.current === "locking") return;
           pendingDraftSave.current = true;
           const merged = mergePlanTemplateFields({
             title,
@@ -3998,7 +4014,7 @@ function PlanComposerForm({
     <>
       <div className="planComposer__field planComposer__field--wide">
         <label htmlFor="plan-title">Name the night</label>
-        <input id="plan-title" type="text" maxLength={80} disabled={submitting} value={title} onChange={(event) => { pendingDraftSave.current = true; setTitle(event.target.value); }} />
+        <input id="plan-title" type="text" maxLength={80} disabled={submitting} value={title} onChange={(event) => { if (activityRef.current === "locking") return; pendingDraftSave.current = true; setTitle(event.target.value); }} />
       </div>
       {nameInLockBar ? null : nameField}
       <div className="planComposer__field">
