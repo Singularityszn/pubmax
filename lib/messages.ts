@@ -278,7 +278,7 @@ export function threadIdentityFromInboxRow(row: ConversationDTO): ThreadIdentity
 }
 
 /** The other participant's handle for the thread avatar on a direct or group row. */
-export function otherHandleFromThreadIdentity(
+function otherHandleFromThreadIdentity(
   identity: ThreadIdentity,
   viewer: string,
 ): string {

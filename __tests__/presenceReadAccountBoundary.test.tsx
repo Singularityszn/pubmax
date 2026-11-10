@@ -13,7 +13,7 @@ const provider = vi.hoisted(() => ({
 }));
 const requests = vi.hoisted(() => ({ presence: vi.fn(), round: vi.fn() }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => provider.router }));
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname, useRouter: () => provider.router }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
