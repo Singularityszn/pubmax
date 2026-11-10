@@ -35,7 +35,7 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
   return typeof message === "string" && /could not find the function/i.test(message);
 }
 
-export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "account_conflict" | "error";
+export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "closed" | "account_conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
 export type MemoryPlanInviteMembershipResult =
@@ -443,11 +443,14 @@ export const supabasePlanStore: PlanStore = {
     if (!lookup.ok) return { ok: false, error: "error" };
     if (!lookup.plan) return { ok: false, error: "not_found" };
     try {
-      const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
-        .update({ status: rawStatus, updated_at: new Date().toISOString() })
-        .eq("plan_id", id).eq("token_hash", hashPlanMemberToken(rawToken)).select("id").maybeSingle();
+      const { data, error } = await requireSupabaseAdmin().rpc("set_crew_status", {
+        p_plan_id: id,
+        p_status: rawStatus,
+        p_token_hash: hashPlanMemberToken(rawToken),
+      });
       if (error) throw new Error(error.message);
-      if (!data) return { ok: false, error: "forbidden" };
+      if (data === "forbidden" || data === "not_found" || data === "closed" || data === "invalid") return { ok: false, error: data };
+      if (data !== "ok") return { ok: false, error: "error" };
       const plan = await this.get(id);
       return plan ? { ok: true, plan } : { ok: false, error: "error" };
     } catch (error) {
@@ -821,6 +824,7 @@ export const memoryPlanStore: PlanStore = {
     if (!plan) return { ok: false, error: "not_found" };
     const member = plan.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
     if (!member) return { ok: false, error: "forbidden" };
+    if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     member.status = rawStatus;
     member.updatedAt = stamp();
     return { ok: true, plan: publicState(plan) };

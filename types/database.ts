@@ -9373,6 +9373,16 @@ export type Database = {
         };
         Returns: Json;
       };
+      set_crew_status: {
+        Args: {
+          p_plan_id: string | null;
+          p_status: string | null;
+          p_token_hash?: string | null;
+          p_seat_id?: string | null;
+          p_account_id?: string | null;
+        };
+        Returns: string;
+      };
       set_social_account_suspension_admin: {
         Args: {
           p_staff_role_id: string | null;
