@@ -6,7 +6,7 @@ import { isIndependentAskTool, isVenueDiscoveryAsk, isVenueHoursQuestion, resolv
 import { isGenericMapAsk } from "@/lib/ask/routingPolicy";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
-import { comparablePint } from "@/lib/comparablePint.mjs";
+import { comparablePint, isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
 import {
   drivesMap,
@@ -394,7 +394,10 @@ async function toolVenuePrices(
 
   const communityRead = await readCommunityPricesWithStatus(venue.id);
   const bundleRead = await ukPriceBundleRowsFor(venue.id);
-  const bundle = bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  const bundle = bundlePricesForCategory(bundleRead.rows.filter((row) =>
+    isComparablePintServing({ cheapestPint: row.drinkLabel }) &&
+    isComparablePintServing({ cheapestPint: row.servingSize }),
+  ), BUNDLE_DEFAULT_CATEGORY);
   const lane = venuePriceLane({ cheapestPrice: venue.cheapestPrice }, null, null, bundle, null, null, null, ctx.now);
   const recordedPrice = lane ? venuePriceLaneObservedGbp(lane) : null;
   const recordedVenue = lane?.lane === "listed"

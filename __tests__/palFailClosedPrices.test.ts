@@ -9,6 +9,8 @@ import type { PalEvalAnswerExpectations } from "@/evals/pal/types";
 import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
 import { runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
+import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
+import * as ukPriceBundle from "@/lib/ukPriceBundle.server";
 
 const now = Date.parse(dataset.now);
 const index = loadPalEvalVenueIndex();
@@ -50,6 +52,7 @@ beforeEach(() => {
 
 afterEach(() => {
   expect(fetch).not.toHaveBeenCalled();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -94,6 +97,40 @@ describe("Pal fail-closed price eval", () => {
     expect(card?.provenance?.label).toContain("Guinndex");
     expect(body.answerHint).toContain("listed pint £6.45");
     expect(body.data).toMatchObject({ zoneEstimate: null });
+  });
+
+  it("keeps the Brownswood's recorded £5.30 pint instead of its £2.60 half-pint mixer", async () => {
+    const body = await ask("How much is a pint at The Brownswood?");
+    expect(body.toolsUsed).toContain("venue_prices");
+    expect(body.cards.find((card) => card.venueId === "venue-1vse4lh")?.price).toBe(5.3);
+    expect(body.answer).toContain("listed pint £5.30");
+    expect(body.answer).not.toContain("£2.60");
+  });
+
+  it.each([
+    { drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-", servingSize: undefined, expected: 5.3 },
+    { drinkLabel: "Lager", servingSize: "half pint", expected: 5.3 },
+    { drinkLabel: "Bottled lager", servingSize: "568ml", expected: 5.3 },
+    { drinkLabel: "Lager", servingSize: "330ml", expected: 5.3 },
+    { drinkLabel: "Lager half", servingSize: "568ml", expected: 5.3 },
+    { drinkLabel: "Lager", servingSize: "pint", expected: 2.6 },
+    { drinkLabel: "Lager", servingSize: "568ml", expected: 2.6 },
+    { drinkLabel: undefined, servingSize: undefined, expected: 2.6 },
+  ])("uses £$expected for bundle label $drinkLabel and serving $servingSize", async ({ drinkLabel, servingSize, expected }) => {
+    const row: UkPriceBundleRow = {
+      venueId: "venue-1vse4lh", name: "The Brownswood", category: "beer", priceGbp: 2.6,
+      lane: "site-harvest", standing: "listed", sourceUrl: "https://thebrownswood.co.uk/drinks-menu/",
+      publisher: "thebrownswood.co.uk", observedAt: "2026-09-21", basis: null, sampleSize: null,
+      drinkLabel, servingSize,
+    };
+    vi.spyOn(ukPriceBundle, "ukPriceBundleRowsFor").mockResolvedValue({ status: "ready", rows: [row] });
+    const body = await runAskTool("venue_prices", { venueId: row.venueId }, {
+      cityId: "london", query: "How much is a pint at The Brownswood?", now, skipModel: true, fetchImpl: offlineFetch,
+    });
+    expect(body.cards.find((card) => card.venueId === row.venueId)?.price).toBe(expected);
+    expect(body.answerHint).toContain(`listed pint £${expected.toFixed(2)}`);
+    expect(body.data).toMatchObject({ curatedPrice: expected, zoneEstimate: null });
+    expect(body.priceEvidence).toMatchObject([{ kind: "listed-pint", priceGbp: expected, serving: "pint" }]);
   });
 
   it("rejects an invented price in the answer even when the card leaves it unknown", async () => {
