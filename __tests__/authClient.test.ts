@@ -262,3 +262,51 @@ describe("hasStoredBrowserSession", () => {
     expect(hasStoredBrowserSession({ getItem: () => "{}" })).toBe(false);
   });
 });
+
+describe("a signed-out browser", () => {
+  function browserWith(stored: Record<string, string>) {
+    const items = new Map(Object.entries(stored));
+    vi.stubGlobal("window", { localStorage: { getItem: (key: string) => items.get(key) ?? null } });
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+  }
+
+  it("answers anonymous for an access token without loading supabase-js", async () => {
+    browserWith({});
+    const { getAccessToken, getSupabaseBrowser } = await loadAuthClient();
+
+    await expect(getAccessToken()).resolves.toBeNull();
+    expect(getSupabaseBrowser()).toBeNull();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("gives session-only work the client once another caller loads it", async () => {
+    browserWith({});
+    const client = { auth: { getSession: vi.fn() } };
+    createClient.mockReturnValue(client);
+    const { ensureSupabaseBrowser, ensureSupabaseBrowserForSession } = await loadAuthClient();
+
+    let delivered: unknown = "pending";
+    void ensureSupabaseBrowserForSession().then((value) => { delivered = value; });
+    await Promise.resolve();
+    expect(delivered).toBe("pending");
+    expect(createClient).not.toHaveBeenCalled();
+
+    await expect(ensureSupabaseBrowser()).resolves.toBe(client);
+    await vi.waitFor(() => expect(delivered).toBe(client));
+  });
+
+  it("still loads at once for a stored session", async () => {
+    browserWith({ "sb-example-auth-token": "{}" });
+    const getSession = vi.fn().mockResolvedValue({ data: { session: { access_token: "jwt-token", user: { id: "account-a" } } } });
+    const client = { auth: { getSession } };
+    createClient.mockReturnValue(client);
+    const { setProviderIdentity } = await import("@/lib/authProviderRevision");
+    setProviderIdentity("supabase", "account-a");
+    const { ensureSupabaseBrowserForSession, getAccessToken } = await loadAuthClient();
+
+    await expect(ensureSupabaseBrowserForSession()).resolves.toBe(client);
+    await expect(getAccessToken()).resolves.toBe("jwt-token");
+  });
+});
+
