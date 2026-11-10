@@ -33,6 +33,7 @@ vi.mock("@/lib/authClient", async (original) => ({
   ...await original<typeof import("@/lib/authClient")>(),
   createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
   isAuthConfigured: () => true,
+  hasStoredBrowserSession: () => h.session !== null,
   ensureSupabaseBrowser: vi.fn(async () => {
     if (h.clientOffline) throw new Error("offline");
     return { auth: {

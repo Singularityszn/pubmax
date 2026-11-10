@@ -30,6 +30,8 @@ vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => null, isNativeApp
 vi.mock("@/lib/authClient", async (original) => ({
   ...await original<typeof import("@/lib/authClient")>(),
   isAuthConfigured: () => true,
+  // A signed-in browser stores its session, so the client loads at once.
+  hasStoredBrowserSession: () => h.session !== null,
   ensureSupabaseBrowser: async () => ({ auth: {
     setSession: h.setSession,
     signOut: h.signOut,

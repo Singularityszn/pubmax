@@ -84,6 +84,10 @@ export async function installNativeSession(
   }
 }
 
+function browserSessionStorageKey(url: string): string {
+  return `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;
+}
+
 function buildBrowserClient(): Promise<SupabaseClient | null> {
   return (async () => {
     const config = resolveSupabaseConfig(
@@ -97,7 +101,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     if (!config) return null;
 
     const { createClient } = await (modulePromise ??= import("@supabase/supabase-js"));
-    const storageKey = `sb-${new URL(config.url).hostname.split(".")[0]}-auth-token`;
+    const storageKey = browserSessionStorageKey(config.url);
     let storage: Storage | null = null;
     try {
       const candidate = window.localStorage;
@@ -192,6 +196,29 @@ export function getSupabaseBrowser(): SupabaseClient | null {
   if (cached !== undefined) return cached;
   void ensureSupabaseBrowser();
   return null;
+}
+
+/**
+ * True when this browser stores a Supabase session for the configured project,
+ * read without loading supabase-js. When the storage cannot be read, the answer
+ * is true, so a session that may exist is restored at once.
+ */
+export function hasStoredBrowserSession(storage: Pick<Storage, "getItem"> | null): boolean {
+  const config = resolveSupabaseConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    {
+      expectedKeyRole: "publishable",
+      allowUnknownKeyRole: process.env.NODE_ENV !== "production",
+    },
+  );
+  if (!config) return false;
+  if (!storage) return true;
+  try {
+    return storage.getItem(browserSessionStorageKey(config.url)) !== null;
+  } catch {
+    return true;
+  }
 }
 
 /** True when the public Supabase env is present (browser sign-in can be shown). */

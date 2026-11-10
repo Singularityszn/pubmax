@@ -57,7 +57,9 @@ import {
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
+import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, hasStoredBrowserSession, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
+import { authClientTurn } from "@/lib/authClientTurn";
+import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -656,16 +658,28 @@ export function AuthProvider({
     // event can still hydrate the session after this boundary. All setState
     // calls below run from async callbacks or event handlers — never the
     // effect body — so react-hooks/set-state-in-effect stays clean.
-    const loadingTimeout = window.setTimeout(() => {
-      if (!active) return;
-      const timeoutAuthState = resolveSupabaseAuthState(
-        "timeout",
-        sessionTransitions.current.currentUserId() !== null,
-        sessionTransitions.current.currentUserId(),
-      );
-      if (timeoutAuthState) setProviderAuthState("supabase", timeoutAuthState);
-      setSessionLoading(false);
-    }, AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
+    let loadingTimeout: number | undefined;
+    const armLoadingTimeout = () => {
+      loadingTimeout = window.setTimeout(() => {
+        if (!active) return;
+        const timeoutAuthState = resolveSupabaseAuthState(
+          "timeout",
+          sessionTransitions.current.currentUserId() !== null,
+          sessionTransitions.current.currentUserId(),
+        );
+        if (timeoutAuthState) setProviderAuthState("supabase", timeoutAuthState);
+        setSessionLoading(false);
+      }, AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
+    };
+
+    // A signed-out reader opening the map loads the client after the pins
+    // (lib/authClientTurn.ts). The ceiling above starts when the load does.
+    const clientTurn = authClientTurn(window, {
+      storedSession: hasStoredBrowserSession(browserLocalStorage()),
+      nativeShell: nativePlatform() !== null,
+      pinsVisible: performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0,
+      callback: callbackCapture.then((captured) => Boolean(captured?.attempt)),
+    });
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
     // subscribe and restore. Everything client-dependent runs after it resolves.
@@ -676,13 +690,17 @@ export function AuthProvider({
     // confident sign-out. An unhandled rejection here used to leave the 20
     // second ceiling to settle it, and every page in the tab then painted its
     // signed-out variant over an intact session (lib/authClientLoad.ts).
-    const loadClient = () => loadAuthClientWithRetry(ensureSupabaseBrowser, {
-      delay: (ms) =>
-        new Promise<void>((resolve) => {
-          window.setTimeout(resolve, ms);
-        }),
+    const loadClient = () => clientTurn.ready.then(() => {
+      if (!active) return null;
+      armLoadingTimeout();
+      return loadAuthClientWithRetry(ensureSupabaseBrowser, {
+        delay: (ms) =>
+          new Promise<void>((resolve) => {
+            window.setTimeout(resolve, ms);
+          }),
+      });
     }).then((outcome) => {
-      if (!active) return;
+      if (!active || !outcome) return;
 
       if (outcome.status === "unavailable") {
         // Say nothing about the viewer and stop the ceiling from saying it for
@@ -1029,6 +1047,7 @@ export function AuthProvider({
     return () => {
       active = false;
       bootstrapRetryPending = false;
+      clientTurn.cancel();
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
       stopBootstrapRetry();
