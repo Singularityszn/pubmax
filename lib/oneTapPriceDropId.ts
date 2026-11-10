@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHash } from "node:crypto";
 
 export function oneTapPriceDropId(id: string, submittedAt: number, priceGbp: number): string {

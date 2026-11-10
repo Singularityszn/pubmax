@@ -1,3 +1,5 @@
+import "server-only";
+
 import { cleanDrinkMeasure } from "@/lib/drinkMeasure";
 import { normalizeViewerHandle, type PintDrop } from "@/lib/pintDrops";
 

@@ -8,7 +8,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
   A paired Pint Drop carries the drinker's request figure, measure and evidence.
   `app/api/price-submit/route.ts` sends beer pint submissions through `writeOneTapPintDrop` to the store's atomic pairing option.
-  Migration `0234` supplies `public.create_one_tap_price_pair_atomic`, executable only by `service_role`.
+  Migration `0234` supplies `create_one_tap_price_pair_atomic`, executable only by `service_role`.
   It calls `upsert_attributed_community_price_if_newer` and inserts the Pint Drop in one transaction.
   A failed insert rolls back the price write, including any replacement of an existing observation.
   The memory backend commits both records together through `submitMemoryCommunityPrice`.
