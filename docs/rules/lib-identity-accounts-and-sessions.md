@@ -16,6 +16,8 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
   Cleanup resets the mounted Pint Drop composer and stops dictation. Old draft effects and speech callbacks cannot restore the previous account's note. Mounted price mission consumers discard previous dismissals and pending results. Signed-in consumers request a fresh answer. Regression coverage: `__tests__/pintDropAccountCleanup.test.tsx`, `__tests__/venueOverviewBlockedStorage.test.tsx` and `e2e/account-private-drafts.spec.ts`.
 
+  Explicit sign-out uses Supabase's `local` scope to end only this device's active session. The account stays signed in on other devices.
+
   Explicit sign-out clears local artifacts and the stamp before awaiting provider sign-out or cookie removal. Account changes and explicit sign-out remove a mirrored Night Profile. A Night Profile typed on this device stays. Readers must check the live session before displaying account-owned data.
 
   `/plan` keys its mounted form on `useLiveAccountGeneration` in `components/auth/useLiveAccountGeneration.ts`. When the live account departs, the form mounts again with empty recovered inputs. `liveAccountDeparted` defines the shared departure condition. Signing in from signed out preserves the mounted form, as does a refresh for the same account. A departure removes `query`, `describe` and `occasion` from the address. For the rest of its lifetime, the mounted composer ignores stored recovery and URL prefills.
