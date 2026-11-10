@@ -28,7 +28,7 @@ export function createPalPickSpeech() {
   const processed = new Set<string>();
 
   return {
-    /** The picks whose names begin inside this chunk, and when, after the chunk starts. */
+    /** New name occurrences use chunk timing. Names completed across chunks cue immediately. */
     play({ event_id, alignment }: PalPlaybackAlignment, picks: readonly PickName[]): PalPickCue[] {
       if (event_id !== eventId) {
         eventId = event_id;

@@ -15,7 +15,7 @@ export type PalMapCommand =
   | { kind: "clear" };
 
 export type PalMapState = {
-  /** Rises on every accepted command, so a reader can tell a new answer from a repaint. */
+  /** Rises when picks are published or cleared, so readers can identify a new answer. */
   sequence: number;
   picks: readonly PalMapPick[];
   /** The pick the Pal is naming. A change here keeps `sequence`, so the map does not reframe. */

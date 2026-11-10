@@ -923,3 +923,148 @@ test("an unavailable voice deployment offers writing without downloading the SDK
   await page.locator(".palVoice--offline").getByRole("link", { name: "Ask in writing", exact: true }).click();
   await expect(page).toHaveURL(/\/pal\/chat$/);
 });
+
+// The acceptance oracle is step 6: playback selects the named pick, preserves
+// its price receipt, repeats each occurrence, and stops on interruption.
+for (const [width, theme, reducedMotion] of [
+  [390, "light", "no-preference"],
+  [768, "dark", "reduce"],
+  [1440, "dark", "no-preference"],
+] as const) {
+  test(`step 6 playback boundaries at ${width}px with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await storeThemeChoice(page, theme);
+    await page.emulateMedia({ reducedMotion });
+    const socket = await openLiveVoice(page);
+    const venues = [
+      { id: "venue-1t8siin", lat: 51.5139, lng: -0.132474 },
+      { id: "venue-1ozggok", lat: 51.51118, lng: -0.13631 },
+    ];
+    // Disposable provider receipts, never written to a server or shared store.
+    const cards = ["The Crown & Two Chairmen", "The Crown"].map((title, index) => ({
+      key: `step6-${index}`, venueId: venues[index]!.id, title, place: "Soho",
+      note: "Disposable browser fixture", price: index === 0 ? 5.20 : 6.40,
+      provenance: { kind: "directory", label: "Disposable menu fixture. Recorded 10 Nov 2026.", url: "https://example.test/menu" },
+    }));
+    const deliver = () => {
+      const request = { tool_name: "search_venues", tool_call_id: `step6-${++eventId}`, tool_type: "webhook", event_id: eventId };
+      socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+      socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+        ...request, is_error: false, is_called: true,
+        full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: {
+          ok: true, tool: "search_venues", answerHint: "Two disposable test recommendations.", cards, data: { venues },
+        } }),
+      } }));
+    };
+    const startReply = (text: string) => {
+      const id = ++eventId;
+      socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: id } }));
+      return id;
+    };
+    const audio = (id: number, text: string, stepMs = 10) => {
+      const chars = [...text];
+      socket.send(JSON.stringify({ type: "audio", audio_event: {
+        audio_base_64: toneChunk(), event_id: id,
+        alignment: { chars, char_start_times_ms: chars.map((_, i) => i * stepMs), char_durations_ms: chars.map(() => stepMs) },
+      } }));
+    };
+    const marker = (number: number) => page.getByRole("button", { name: `${number}. ${cards[number - 1]!.title}`, exact: true });
+    const focused = () => page.locator(".palPick[data-speaking]");
+    const card = page.locator(".palVoiceBarPick");
+    if (width === 390) {
+      deliver();
+      const opening = startReply("The Crown and Two Chairmen.");
+      audio(opening, "The Crown and Two Chairmen.");
+      const status = page.getByRole("status").filter({ hasText: /Pal is (talking|listening)/ });
+      await expect(status).toContainText("talking");
+      await expect(status).toContainText("listening");
+      await page.getByRole("list", { name: "Pubs from the voice answer" }).getByRole("link", { name: cards[0]!.title, exact: true }).click();
+      await expect(page).toHaveURL(/\/map(?:\?|$)/);
+      await expect(marker(1)).toHaveAttribute("data-speaking", "");
+      await expect(card).toContainText("£5.20");
+      await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "Pub detail", exact: true })).toBeHidden();
+      await expect(card).toBeVisible();
+      await card.click({ trial: true });
+
+    } else {
+      hear(socket, "Show me the map");
+      await expect(page).toHaveURL(/\/map(?:\?|$)/);
+      deliver();
+    }
+    await expectMapLoadingFrameReleased(page);
+    if (width === 390) {
+      await expect(marker(1)).toHaveAttribute("data-speaking", "");
+      await page.screenshot({ path: `${SHOTS}/step6-390-focused-before-map-install.png` });
+      socket.send(JSON.stringify({ type: "interruption", interruption_event: { event_id: ++eventId } }));
+      await expect(focused()).toHaveCount(0);
+    }
+    await expect(marker(1)).toBeVisible();
+    await expect(marker(2)).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const map = (window as unknown as { __pubmaxMapCamera?: { read: () => CameraReading } }).__pubmaxMapCamera?.read();
+      return map && !map.moving && !map.settling;
+    })).toBe(true);
+    const camera = await page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
+
+    // Receiving text alone cannot trigger the visual cue before audio plays.
+    const id = startReply("The Crown and Two Chairmen. The Crown. The Crown and Two Chairmen.");
+    await expect(page.locator(".palVoiceBarCaption")).toContainText("Two Chairmen");
+    await expect(focused()).toHaveCount(0);
+    audio(id, "The Crown and Two Chairmen. ");
+    await expect(marker(1)).toHaveAttribute("data-speaking", "");
+    await expect(marker(2)).not.toHaveAttribute("data-speaking", "");
+    await expect(card).toContainText("The Crown & Two Chairmen");
+    await expect(card).toContainText("£5.20");
+    await expect(card).toContainText("Disposable menu fixture. Recorded 10 Nov 2026.");
+    await expect(card.getByRole("link")).toHaveAttribute("href", "https://example.test/menu");
+    const style = await marker(1).evaluate(button => ({ animation: getComputedStyle(button).animationName, ring: getComputedStyle(button).boxShadow }));
+    expect(style.animation).toBe(reducedMotion === "reduce" ? "none" : "palPickPulse");
+    expect(style.ring).not.toBe("none");
+    await page.screenshot({ path: `${SHOTS}/step6-${width}-${theme}-${reducedMotion}.png` });
+
+    // Every repeated occurrence in one reply must replace the previous card.
+    audio(id, "The Crown. ");
+    await expect(marker(2)).toHaveAttribute("data-speaking", "");
+    await expect(card).toContainText("£6.40");
+    audio(id, "The Crown and Two Chairmen. ");
+    await expect(marker(1)).toHaveAttribute("data-speaking", "");
+    await expect(card).toContainText("£5.20");
+    if (reducedMotion === "no-preference") {
+      await marker(1).evaluate(button => button.getAnimations().forEach(animation => animation.finish()));
+      audio(id, "The Crown and Two Chairmen. ");
+      await expect.poll(() => marker(1).evaluate(button => button.getAnimations().some(animation => animation.playState === "running"))).toBe(true);
+    }
+    const after = await page.evaluate(() => (window as unknown as { __pubmaxMapCamera: { read: () => CameraReading } }).__pubmaxMapCamera.read());
+    expect(after.center).toEqual(camera.center);
+    expect(after.zoom).toBe(camera.zoom);
+
+    // A later chunk corrects a shorter reference at the same spoken position.
+    const split = startReply("The Crown and Two Chairmen.");
+    audio(split, "The Crown ");
+    await expect(marker(2)).toHaveAttribute("data-speaking", "");
+    audio(split, "and Two Chairmen.");
+    await expect(marker(1)).toHaveAttribute("data-speaking", "");
+    await expect(card).toContainText("The Crown & Two Chairmen");
+    await page.screenshot({ path: `${SHOTS}/step6-${width}-split-corrected.png` });
+
+    // Interrupt while a later mention in the current audio chunk is pending.
+    const pending = startReply("The Crown. Then The Crown and Two Chairmen.");
+    audio(pending, "The Crown. Then The Crown and Two Chairmen.", 30);
+    await page.waitForFunction(() => document.querySelector('.palPick[data-speaking]')?.getAttribute("aria-label") === "2. The Crown");
+    socket.send(JSON.stringify({ type: "interruption", interruption_event: { event_id: ++eventId } }));
+    await expect(focused()).toHaveCount(0);
+    await expect(card).toHaveCount(0);
+    // A stale aligned audio event must be discarded by the real SDK.
+    audio(pending, "The Crown and Two Chairmen.");
+    const recovery = startReply("We can find somewhere else.");
+    audio(recovery, "We can find somewhere else.");
+    await expect(page.locator(".palVoiceBar").getByRole("status")).toContainText("talking");
+    await expect(page.locator(".palVoiceBar").getByRole("status")).toContainText("listening");
+    await expect(focused()).toHaveCount(0);
+    await expect(card).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/step6-${width}-interrupted.png` });
+    await testInfo.attach("step6-provider-and-rendered-state", { body: JSON.stringify({ browserVersion: page.context().browser()?.version(), width, theme, reducedMotion, cards, style, camera, after, interruptedFocus: await focused().count() }), contentType: "application/json" });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+  });
+}
