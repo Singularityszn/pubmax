@@ -5,7 +5,16 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ loads: 0, hint: null as unknown }));
+const h = vi.hoisted(() => ({
+  loads: 0,
+  hint: null as unknown,
+  built: Promise.resolve() as Promise<unknown>,
+  announceClient: () => {},
+  sessionRead: Promise.resolve({ data: { session: null }, error: null }),
+  initialEvent: null as null | ((event: string, session: null) => void),
+  emitInitial: true,
+  signInWithOtp: vi.fn(async () => ({ error: null })),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => window.location.pathname }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
@@ -15,10 +24,13 @@ vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => null, isNativeApp
 vi.mock("@/lib/authClient", async (original) => {
   const browser = async () => {
     h.loads += 1;
+    h.announceClient();
     return { auth: {
-      getSession: async () => ({ data: { session: null }, error: null }),
+      getSession: () => h.sessionRead,
+      signInWithOtp: h.signInWithOtp,
       onAuthStateChange: (callback: (event: string, session: null) => void) => {
-        queueMicrotask(() => callback("INITIAL_SESSION", null));
+        h.initialEvent = callback;
+        if (h.emitInitial) queueMicrotask(() => callback("INITIAL_SESSION", null));
         return { data: { subscription: { unsubscribe: () => {} } } };
       },
     } };
@@ -27,16 +39,19 @@ vi.mock("@/lib/authClient", async (original) => {
     ...await original<typeof import("@/lib/authClient")>(),
     isAuthConfigured: () => true,
     ensureSupabaseBrowser: browser,
+    ensureSupabaseBrowserForSession: () => h.built,
   };
 });
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: true, apple: true, microsoft: true }),
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false, microsoft: false },
   guardSocialAuthProvider: async (_provider: string, start: () => Promise<unknown>) => ({ result: await start() }),
+  hasSocialAuthProviders: (providers: Record<string, boolean>) => Object.values(providers).some(Boolean),
 }));
 
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import SignInButton from "@/components/auth/SignInButton";
 
 function Probe() {
   const auth = useAuth();
@@ -55,6 +70,11 @@ beforeEach(async () => {
   window.history.replaceState(null, "", "/map");
   h.loads = 0;
   h.hint = null;
+  h.built = new Promise((resolve) => { h.announceClient = () => resolve(null); });
+  h.sessionRead = Promise.resolve({ data: { session: null }, error: null });
+  h.initialEvent = null;
+  h.emitInitial = true;
+  h.signInWithOtp.mockClear();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     if (String(input) === "/api/auth/session") return new Response(JSON.stringify({ hint: h.hint }), { status: 200 });
     return new Response("{}", { status: 200 });
@@ -74,6 +94,37 @@ async function mount() {
 }
 
 describe("a signed-out reader opening the map", () => {
+  it("retains the desktop email confirmation through deferred client initialisation", async () => {
+    let finishSessionRead!: () => void;
+    h.sessionRead = new Promise((resolve) => {
+      finishSessionRead = () => resolve({ data: { session: null }, error: null });
+    });
+    h.emitInitial = false;
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton, { compact: true })));
+    });
+    expect(h.loads).toBe(0);
+    await act(async () => container.querySelector<HTMLButtonElement>(".authCompactTrigger")!.click());
+    const input = container.querySelector<HTMLInputElement>("input[type=email]")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "reader@example.test");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const form = container.querySelector("form")!;
+    await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+    expect(h.signInWithOtp).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain("Link sent");
+
+    await act(async () => { h.initialEvent!("INITIAL_SESSION", null); });
+    expect(container.querySelector("form")).toBe(form);
+    expect(container.textContent).toContain("Link sent");
+
+    await act(async () => { finishSessionRead(); });
+    expect(container.querySelector("form")).toBe(form);
+    expect(input.value).toBe("reader@example.test");
+    expect(container.textContent).toContain("Link sent");
+  });
+
   it("is answered signed out before the pins without loading supabase-js", async () => {
     await mount();
 
