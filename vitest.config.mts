@@ -5,6 +5,7 @@ import { defineConfig } from "vitest/config";
 import { BaseSequencer, type TestSpecification } from "vitest/node";
 import { fileURLToPath } from "url";
 
+import { MAPLIBRE_VERSION } from "./lib/maplibreVendor.mjs";
 import { balancedShard, type ShardDurations } from "./scripts/ci/vitestShardBalance.mjs";
 
 // BALANCED SHARDS. `--shard=N/3` in CI cut the file list by a hash of each
@@ -42,6 +43,8 @@ export default defineConfig({
     environment: "node",
     env: {
       PLAN_IDEMPOTENCY_SECRET: VITEST_PLAN_SIGNING_SECRET,
+      // next.config.mjs inlines this for the browser.
+      NEXT_PUBLIC_MAPLIBRE_VERSION: MAPLIBRE_VERSION,
     },
     // Strips Vercel deployment env vars (VERCEL_ENV, VERCEL) so build-pipeline
     // test runs don't masquerade as production runtimes — see vitest.setup.ts.

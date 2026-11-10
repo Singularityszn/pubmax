@@ -12,6 +12,7 @@ import {
 import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS, PAL_MASCOT_TALK } from "./lib/palMascotAssets.mjs";
 import { cdnEdgeHeaderRules } from "./lib/cdnDocumentEdge.mjs";
 import { cdnDocumentContentSecurityPolicy } from "./lib/contentSecurityPolicy.mjs";
+import { MAPLIBRE_VERSION } from "./lib/maplibreVendor.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
@@ -280,6 +281,8 @@ const nextConfig = {
   env: {
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,
+    // Names the MapLibre worker directory (lib/maplibreWorkerAssets.ts).
+    NEXT_PUBLIC_MAPLIBRE_VERSION: MAPLIBRE_VERSION,
     // Inlined at build time and read back by app/api/version. Next replaces a
     // STATIC `process.env.NAME` member expression with the literal, so the
     // route must read these by name and never through a variable key.
@@ -468,6 +471,23 @@ const nextConfig = {
       // them at fixed URLs, and the canvas asks with a ?v= of the PNG's own
       // hash, so a redrawn atlas is a new URL to every browser.
       cacheRule("/map-icons/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // A URL that names its own content never changes, so the browser keeps
+      // it for a year. The MapLibre worker directory names the MapLibre
+      // version (lib/maplibreVendor.mjs). The canvas asks for an icon atlas,
+      // and the map document for its opening picture, with ?v= set to a hash
+      // of the file's bytes. The same path without ?v= keeps the hour above.
+      cacheRule(
+        "/vendor/maplibre/:version(\\d+\\.\\d+\\.\\d+[^/]*)/:file*",
+        HASHED_STATIC_CACHE_CONTROL,
+      ),
+      {
+        ...cacheRule("/map-icons/:path*", HASHED_STATIC_CACHE_CONTROL),
+        has: [{ type: "query", key: "v" }],
+      },
+      {
+        ...cacheRule("/landing/map-opening/:path*", HASHED_STATIC_CACHE_CONTROL),
+        has: [{ type: "query", key: "v" }],
+      },
       cacheRule(
         "/pal/:asset(" + palMascotAssetPattern + ")",
         UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,
