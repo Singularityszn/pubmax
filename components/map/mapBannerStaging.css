@@ -185,6 +185,22 @@
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
   }
 
+  /* The zoom column stands at the drawer's left edge (mapToolbar.css), level
+     with the status rail. Centred on the whole lane, a long headline covered
+     "Zoom out". The rail's lane ends before the column instead: 46px of
+     buttons plus MapLibre's own 10px control margin. */
+  .appShell.detail-open .cityStatusStack {
+    left: 16px;
+    right: calc(
+      var(--desktop-venue-drawer-width) + var(--map-chrome-inset, 10px) + 56px +
+        var(--map-chrome-gap, 6px)
+    );
+    width: auto;
+    max-width: 460px;
+    margin-inline: auto;
+    transform: none;
+  }
+
   /* The planner owns the mirrored left edge. Keep both ambient banners inside
      the remaining map lane using the same centre and width as the toolbar. */
   .appShell.planning-open .cityStatusStack,

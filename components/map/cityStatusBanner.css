@@ -127,6 +127,18 @@
 }
 .cityStatusBannerMobileCopy { display: none; }
 
+/* A feed headline can be a long all-caps line. Two lines and an ellipsis keep
+   the pill a pill. The full text stays in the title, the feed and the source. */
+@media (min-width: 641px) {
+  .cityStatusBannerCopy {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
 .cityStatusBannerDismiss {
   display: inline-flex;
   align-items: center;
