@@ -2,9 +2,10 @@ import type { PalCard } from "@/lib/palChat";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 type ScreenPoint = { x: number; y: number };
+type ScreenBounds = { left: number; right: number; top: number; bottom: number };
 
 /** Separate nearby numbered buttons while their stems retain the real locations. */
-export function palRecommendationPinOffsets(points: readonly ScreenPoint[]): ScreenPoint[] {
+export function palRecommendationPinOffsets(points: readonly ScreenPoint[], bounds?: ScreenBounds): ScreenPoint[] {
   const groups = points.map((_, index) => [index]);
   let placed = points.map((point) => ({ ...point }));
   for (;;) {
@@ -17,6 +18,18 @@ export function palRecommendationPinOffsets(points: readonly ScreenPoint[]): Scr
         const angle = -Math.PI / 2 + position * Math.PI * 2 / group.length;
         placed[index] = { x: centre.x + Math.cos(angle) * radius, y: centre.y + Math.sin(angle) * radius };
       });
+    }
+    if (bounds) {
+      for (const group of groups) {
+        const xs = group.map((index) => placed[index]!.x);
+        const ys = group.map((index) => placed[index]!.y);
+        const dx = Math.max(bounds.left - Math.min(...xs), Math.min(0, bounds.right - Math.max(...xs)));
+        const dy = Math.max(bounds.top - Math.min(...ys), Math.min(0, bounds.bottom - Math.max(...ys)));
+        for (const index of group) {
+          placed[index]!.x += dx;
+          placed[index]!.y += dy;
+        }
+      }
     }
     let merged = false;
     merge: for (let first = 0; first < groups.length; first += 1) {

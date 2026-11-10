@@ -72,7 +72,11 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
   };
 
   const position = () => {
-    const offsets = palRecommendationPinOffsets(pins.map(({ pick }) => map.project([pick.lng, pick.lat])));
+    const container = map.getContainer();
+    const offsets = palRecommendationPinOffsets(pins.map(({ pick }) => map.project([pick.lng, pick.lat])), {
+      left: 22, right: container.clientWidth - 22,
+      top: 22, bottom: container.clientHeight - 22,
+    });
     offsets.forEach((offset, index) => {
       const pin = pins[index]!;
       pin.button.style.left = `${offset.x}px`;
