@@ -98,9 +98,12 @@ export function applyPalMapCommand(command: PalMapCommand): boolean {
   return true;
 }
 
-/** The call is over: forget its grounded pubs and take its picks off the map. */
+/**
+ * The call is over: forget its grounded pubs and take its picks and its last
+ * move off the map. A new sequence, even with no picks, releases the Pal's
+ * hold on the camera, so a move still queued cannot land after the call.
+ */
 export function resetPalMap(): void {
   grounded = new Set();
-  if (state.picks.length) notify({ sequence: ++revision, picks: [], focused: null, view: null });
-  else if (state.view) notify({ ...state, view: null });
+  if (state.picks.length || state.view) notify({ sequence: ++revision, picks: [], focused: null, view: null });
 }

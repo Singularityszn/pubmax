@@ -138,8 +138,11 @@ describe("Pal picks on the main map", () => {
     expect(heard).toBe(1);
     expect(readPalMapState().picks).toEqual([]);
     applyPalMapCommand({ kind: "flyToArea", centre: { lat: 51.5, lng: -0.1 }, radiusKm: 1 });
+    const { sequence } = readPalMapState();
     resetPalMap();
-    expect(readPalMapState().view).toBeNull();
+    // A new sequence tells the map the Pal no longer owns the camera, even with no picks.
+    expect(readPalMapState()).toMatchObject({ view: null, picks: [] });
+    expect(readPalMapState().sequence).toBeGreaterThan(sequence);
     expect(applyPalMapCommand({ kind: "showPicks", picks: [pick("a")] })).toBe(false);
   });
 });
