@@ -388,10 +388,22 @@ can be retried. Repeated taps while voice starts use the same attempt.
 
 ### Voice interruptions
 
-A connected call ends when you lock the screen, hide the browser tab, leave the
-page, or put the native app in the background. If the page stays open, it keeps
-the transcript and offers **Carry on** when you return. This button starts a new
-call. Returning does not restart the microphone automatically.
+Client navigation between `/pal` and `/map`, including `/map/` subroutes, keeps
+the same call and socket open. `PalVoiceHost` holds the session in the root
+shell. On the map, `PalVoiceBar` shows the call status and newest transcript line.
+**End** stops a live call. **Cancel** stops a pending startup attempt, subject
+to the SDK limit below. Returning to `/pal` restores the full transcript panel
+without starting another call. A cold `/map` loads no ElevenLabs SDK.
+
+A connected call ends when you navigate outside these routes, reload or close
+the page, lock the screen, hide the browser tab, or background the native app.
+Muting or deleting the Pal, signing out, or switching accounts also ends the call.
+Ending a call releases its voice grant.
+
+If a background interruption leaves the session mounted, it keeps the transcript
+and offers **Carry on** when you return. On the map, **Close voice chat** dismisses
+the stopped bar. **Carry on** starts a new call. Returning does not restart the
+microphone automatically.
 
 The first microphone permission prompt does not cancel startup while the native
 app remains in the foreground. A hidden page or native background transition

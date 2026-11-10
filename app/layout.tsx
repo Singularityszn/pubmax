@@ -435,7 +435,7 @@ export default async function RootLayout({
                       load lazily after hydration — see DeferredShellExtras. */}
                   <DeferredShellExtras />
                   {/* One Pal voice call across /pal and /map. Renders nothing
-                      and loads no voice code until the person asks for voice. */}
+                      until an available /pal voice panel mounts. */}
                   <PalVoiceHost />
                   {/* Silent offline SW registration (issue #32) — renders nothing,
                       production-only, registers after load. */}

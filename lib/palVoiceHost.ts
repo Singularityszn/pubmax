@@ -21,9 +21,9 @@ export type PalVoiceHostState = {
   panel: { element: HTMLElement; props: PalVoicePanelProps } | null;
   /** The last panel's props, so the call keeps its Pal's name and look off /pal. */
   props: PalVoicePanelProps | null;
-  /** A call is starting, live, or ended out of sight with Carry on to offer. */
+  /** Retain startup, live calls, background interruptions, and visible errors. */
   engaged: boolean;
-  /** The call component is mounted and draws into the panel. */
+  /** The call component finished mounting, so the panel needs no loading state. */
   ready: boolean;
 };
 

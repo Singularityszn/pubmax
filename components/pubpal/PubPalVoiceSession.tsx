@@ -204,9 +204,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     liveRef.current = status === "connected";
   }, [status]);
 
-  // Each "next stop" ask waits for the plan read. Any later line from the
-  // person, "Stay here" or leaving /pal moves this on, so a read that lands
-  // late opens nothing; only a new "next stop" ask takes a new number.
+  // A later user line, "Stay here", or a pathname or query change cancels
+  // pending navigation. A late plan read cannot replace the person's choice.
   const nextStopRequestRef = useRef(0);
   const stayHere = useCallback((): void => {
     nextStopRequestRef.current += 1;

@@ -11,8 +11,8 @@ import {
   subscribePalVoiceHost,
 } from "@/lib/palVoiceHost";
 
-// The session carries the ElevenLabs SDK. It is fetched only when the /pal
-// panel asks for voice or a call is already live, so a cold /map loads none of it.
+// The session carries the ElevenLabs SDK. The available /pal panel mounts it,
+// and an engaged call retains it across routes. A cold /map loads none of it.
 const PubPalVoiceSession = dynamic(() => import("@/components/pubpal/PubPalVoiceSession"), {
   ssr: false,
 });
