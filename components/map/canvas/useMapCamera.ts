@@ -10,6 +10,10 @@ import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeM
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
 
+export function palCameraDefaults({ nearbyRequestToken = 0 }: { nearbyRequestToken?: number }) {
+  return { nearbyRequestToken };
+}
+
 // Chrome the near-me camera must stay clear of. The top values are only a
 // FALLBACK: the phone chrome stack is being reworked, and a hardcoded height
 // would drift the reader silently under a changed chip row. Measure it.

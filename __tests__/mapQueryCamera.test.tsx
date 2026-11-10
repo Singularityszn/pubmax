@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import type { Map, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
+import { palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
 import { useMapPlanCoordinator } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
@@ -26,6 +26,15 @@ let pendingFrame: FrameRequestCallback | undefined;
 let camera: ReturnType<typeof useMapCamera>;
 const fitBounds = vi.fn();
 const easeTo = vi.fn();
+
+describe("Pal camera defaults", () => {
+  it("starts without a nearby request and retains explicit request tokens", () => {
+    expect(palCameraDefaults({})).toEqual({ nearbyRequestToken: 0 });
+    expect(palCameraDefaults({ nearbyRequestToken: undefined })).toEqual({ nearbyRequestToken: 0 });
+    expect(palCameraDefaults({ nearbyRequestToken: 0 })).toEqual({ nearbyRequestToken: 0 });
+    expect(palCameraDefaults({ nearbyRequestToken: 3 })).toEqual({ nearbyRequestToken: 3 });
+  });
+});
 
 beforeEach(() => {
   host = document.createElement("div");

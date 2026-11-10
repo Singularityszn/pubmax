@@ -175,6 +175,7 @@ import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe"
 import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
+  palCameraDefaults,
   useMapCamera,
   useNearbyCameraFraming,
   useRouteCameraFraming,
@@ -662,7 +663,6 @@ function withPubMapCanvasDefaults({
   fitQueryOnArrival = false,
   searchFitToken = 0,
   userLocation = null,
-  nearbyRequestToken = 0,
   readerPosition = null,
   hideLayersControl = false,
   onCameraResetChange,
@@ -674,6 +674,7 @@ function withPubMapCanvasDefaults({
 }: PubMapCanvasProps) {
   return {
     ...props,
+    ...palCameraDefaults(props),
     venues,
     filteredVenueCount,
     venueListOpen,
@@ -703,7 +704,6 @@ function withPubMapCanvasDefaults({
     fitQueryOnArrival,
     searchFitToken,
     userLocation,
-    nearbyRequestToken,
     readerPosition,
     hideLayersControl,
     onCameraResetChange,
