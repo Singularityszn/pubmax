@@ -304,11 +304,22 @@ async function applyToolPlan(apiKey, plan) {
   return ids;
 }
 
+async function mainToolIds(apiKey, currentAgent, liveTools, baseUrl, secret) {
+  const resolvedTools = resolveExistingTools(liveTools, currentAgent?.conversation_config?.agent?.prompt?.tool_ids, wantedTools(baseUrl, "unused"));
+  const secretId = await ensureWorkspaceLlmSecret(apiKey, secret);
+  return ensureTools(apiKey, wantedTools(baseUrl, secretId), resolvedTools);
+}
+
 /**
  * A branch run writes only the branch and tools no other branch uses. Main's
  * tools and the workspace secret stay as they are (scripts/pubpal/branch-tools.mjs).
  */
-async function branchToolIds(apiKey, agentId, currentAgent, liveTools, baseUrl) {
+async function branchToolIds(apiKey, agentId, currentAgent, liveTools, baseUrl, branchId) {
+  if (!currentAgent) fail("--branch-id needs an existing agent.");
+  // The provider must name this exact branch, and it must not be Main.
+  if (currentAgent.branch_id !== branchId || !currentAgent.main_branch_id || currentAgent.main_branch_id === branchId) {
+    fail(`--branch-id ${branchId} is not a branch other than Main of this agent. No update was made.`);
+  }
   const main = await call("GET", agentUrl(agentId, ""), apiKey);
   const secrets = await call("GET", SECRETS_API, apiKey);
   const secretId = (Array.isArray(secrets.secrets) ? secrets.secrets : [])
@@ -610,18 +621,12 @@ async function main() {
   }
 
   const existing = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
-  if (branchId && !existing) fail("--branch-id needs an existing agent.");
   const currentAgent = existing ? await call("GET", agentUrl(existing, branchId), apiKey) : null;
   const liveTools = await listWorkspaceTools(apiKey);
   // Resolve every identity before the first secret, tool or agent write.
-  let toolIds;
-  if (branchId) {
-    toolIds = await branchToolIds(apiKey, existing, currentAgent, liveTools, baseUrl);
-  } else {
-    const resolvedTools = resolveExistingTools(liveTools, currentAgent?.conversation_config?.agent?.prompt?.tool_ids, wantedTools(baseUrl, "unused"));
-    const secretId = await ensureWorkspaceLlmSecret(apiKey, secret);
-    toolIds = await ensureTools(apiKey, wantedTools(baseUrl, secretId), resolvedTools);
-  }
+  const toolIds = branchId
+    ? await branchToolIds(apiKey, existing, currentAgent, liveTools, baseUrl, branchId)
+    : await mainToolIds(apiKey, currentAgent, liveTools, baseUrl, secret);
   const { body, defaultVoice } = agentBody(toolIds);
 
   if (existing) {

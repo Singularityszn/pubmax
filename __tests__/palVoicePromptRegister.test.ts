@@ -7,10 +7,8 @@ import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import { PAL_MAP_CLIENT_TOOL_NAMES } from "@/lib/palMapClientTools.mjs";
 import {
   PAL_VOICE_BEST_MATE_RULE,
-  PAL_VOICE_MAP_TOOLS_RULE,
   PAL_VOICE_PRE_TOOL_LINE_RULE,
   PAL_VOICE_QUICK_PICK_OR_PLAN_RULE,
-  PAL_VOICE_SHORT_ANSWER_RULE,
   PAL_VOICE_TASTE_RULE,
   pubPalAgentSystemPrompt,
   pubPalTypedChatSystemPrompt,
@@ -102,13 +100,15 @@ describe("Pub Pal voice prompt register", () => {
   it("gives voice, and only voice, the short-answer rule and the map tools it is given", () => {
     const voice = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     const typed = pubPalTypedChatSystemPrompt();
-    for (const rule of [PAL_VOICE_SHORT_ANSWER_RULE, PAL_VOICE_MAP_TOOLS_RULE]) {
-      expect(voice).toContain(rule);
-      expect(typed).not.toContain(rule);
-      expect(rule).not.toMatch(/[!\u2014]/);
+    // The step 7 clauses, written out here rather than read from the rule constants.
+    for (const clause of ["say at most two names and one price", "then say the rest are on the map", "under 25 words unless the person asked for a plan"]) {
+      expect(voice).toContain(clause);
+      expect(typed).not.toContain(clause);
     }
-    const named = PAL_VOICE_MAP_TOOLS_RULE.match(/\bmap_[a-z_]+/g) ?? [];
-    expect([...new Set(named)].sort()).toEqual([...PAL_MAP_CLIENT_TOOL_NAMES].sort());
+    for (const tool of PAL_MAP_CLIENT_TOOL_NAMES) {
+      expect(voice).toContain(tool);
+      expect(typed).not.toContain(tool);
+    }
   });
 
   it("leaves no dynamic slot a voice browser could fill inside the system prompt", () => {

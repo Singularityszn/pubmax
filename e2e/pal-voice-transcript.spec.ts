@@ -1073,7 +1073,6 @@ for (const [width, theme, reducedMotion] of [
 // map does not show goes back to the agent as a contextual update.
 for (const [width, theme] of [[390, "light"], [1440, "dark"]] as const) {
   test(`${width}px ${theme}: the agent's map tools fly to an area, focus, open and clear picks, and refuse a pick not on the map`, async ({ page }, testInfo) => {
-    test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 844 });
     await storeThemeChoice(page, theme);
     const socket = await openLiveVoice(page);
@@ -1177,4 +1176,42 @@ test("ending the call drops a map move the agent asked for that is still on its 
   await page.clock.fastForward(3_000);
   await expect(page).toHaveURL(/\/pal$/);
   await expect(page.locator(".palVoiceMapCard")).toHaveCount(0);
+});
+
+test("a newer map tool call retires a map trip still on its way", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await openLiveVoice(page);
+  const venues = [
+    { id: "venue-1t8siin", lat: 51.5139, lng: -0.132474 },
+    { id: "venue-1ozggok", lat: 51.51118, lng: -0.13631 },
+  ];
+  // Disposable provider receipts, never written to a server or shared store.
+  const cards = ["The Crown & Two Chairmen", "The Crown"].map((title, index) => ({
+    key: `retire-${index}`, venueId: venues[index]!.id, title, place: "Soho",
+    note: "Disposable browser fixture", price: index === 0 ? 5.20 : 6.40,
+    provenance: { kind: "directory", label: "Disposable menu fixture. Recorded 10 Nov 2026.", url: "https://example.test/menu" },
+  }));
+  const request = { tool_name: "search_venues", tool_call_id: `retire-${++eventId}`, tool_type: "webhook", event_id: eventId };
+  socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+  socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+    ...request, is_error: false, is_called: true,
+    full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: {
+      ok: true, tool: "search_venues", answerHint: "Two disposable test recommendations.", cards, data: { venues },
+    } }),
+  } }));
+  await expect(page.getByRole("list", { name: "Pubs from the voice answer" })).toBeVisible();
+  const call = (tool_name: string, parameters: Record<string, unknown>) => {
+    const id = ++eventId;
+    socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: { tool_name, tool_call_id: `${tool_name}-${id}`, parameters, event_id: id } }));
+  };
+  await page.clock.install();
+  call("map_open_pick_sheet", { number: 1 });
+  await expect(page.locator(".palVoiceMapCard")).toContainText(`Opening ${cards[0]!.title}`);
+  call("map_focus_pick", { number: 2 });
+  await expect(page.locator(".palVoiceMapCard")).toContainText(`Showing ${cards[1]!.title}`);
+  await page.clock.runFor(3_000);
+  await page.clock.resume();
+  await expect(page).toHaveURL(/\/map(?:\?|$)/);
+  expect(new URL(page.url()).searchParams.get("sel")).toBeNull();
+  await expect(page.getByRole("button", { name: `2. ${cards[1]!.title}`, exact: true })).toHaveAttribute("data-speaking", "");
 });

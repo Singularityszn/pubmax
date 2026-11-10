@@ -93,6 +93,13 @@ function run(args: string[], env: Record<string, string> = {}, cwd = scratch()) 
 
 const webhooks = (tools: Json[]) => tools.filter((tool) => tool.tool_config.type === "webhook");
 
+/** The live fixture read through a branch, as the provider names one. */
+function onBranch<T extends { agent: Json }>(live: T, branch = "agtbranch_test"): T {
+  live.agent.branch_id = branch;
+  live.agent.main_branch_id = "agtbranch_main";
+  return live;
+}
+
 /** The agent exactly as the provisioner would write it, shaped as ElevenLabs reads it back. */
 function matchingLive(baseUrl = BASE_URL): { agent: Json; tools: Json[]; secrets: Json[] } {
   const printed = run(["--dry-run", "--base-url", baseUrl]).stdout.split("\nDefault voice resolved:")[0] ?? "";
@@ -556,7 +563,7 @@ describe("pubpal:agent --check", () => {
     expect(checked.status).toBe(1);
     expect(checked.output).toContain(`Checked agent ${AGENT_ID} branch agtbranch_test`);
     expect(checked.output).toContain("conversation_config.turn.silence_end_call_timeout: live missing, wanted 20");
-    const updated = check({ ...live, allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    const updated = check({ ...onBranch(live), allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
     expect(updated.status, updated.output).toBe(0);
     // Every tool already matches and the secret is shared with Main, so the branch is the only write.
     const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
@@ -569,7 +576,7 @@ describe("pubpal:agent --check", () => {
   it("gives a branch at another URL its own webhooks and leaves Main's tools and the secret alone", () => {
     const live = matchingLive();
     const tunnel = "https://pubpal-test.ngrok.app";
-    const result = check({ ...live, allowWrites: true }, true, tunnel, ["--branch-id", "agtbranch_test"]);
+    const result = check({ ...onBranch(live), allowWrites: true }, true, tunnel, ["--branch-id", "agtbranch_test"]);
     expect(result.status, result.output).toBe(0);
     const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
     expect(writes.filter((row) => row.url.includes("/tools/") || row.url.includes("/secrets"))).toEqual([]);
@@ -588,7 +595,7 @@ describe("pubpal:agent --check", () => {
   it("refuses a branch change to a tool Main has attached, before any write", () => {
     const live = matchingLive();
     live.tools[0].tool_config.description = "An older description.";
-    const result = check({ ...live, allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    const result = check({ ...onBranch(live), allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
     expect(result.status).toBe(1);
     expect(result.output).toContain(`Tool ${live.tools[0].tool_config.name} (${live.tools[0].id}) is attached to Main`);
     expect(result.writes).toBe("");
@@ -601,7 +608,7 @@ describe("pubpal:agent --check", () => {
     const mainAgent = structuredClone(live.agent);
     mainAgent.conversation_config.agent.prompt.tool_ids = mainAgent.conversation_config.agent.prompt.tool_ids
       .filter((id: string) => id !== focus.id);
-    const result = check({ ...live, mainAgent, allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    const result = check({ ...onBranch(live), mainAgent, allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
     expect(result.status, result.output).toBe(0);
     const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
     expect(writes.filter((row) => row.url.includes("/tools")).map((row) => `${row.method} ${row.url.split("/").pop()}`))
@@ -619,5 +626,19 @@ describe("pubpal:agent --check", () => {
     expect(result.writes).not.toContain(`/tools/${open.id}`);
     expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools")).map((row) => row.tool_config.name))
       .toEqual(["map_open"]);
+  });
+
+  it.each([
+    ["Main's own branch", "agtbranch_main", "agtbranch_main"],
+    ["a branch the provider does not name", "agtbranch_other", "agtbranch_main"],
+  ])("refuses --branch-id for %s before any write", (_, liveBranch, mainBranch) => {
+    const live = matchingLive();
+    live.agent.branch_id = liveBranch;
+    live.agent.main_branch_id = mainBranch;
+    const requested = liveBranch === mainBranch ? liveBranch : "agtbranch_test";
+    const result = check({ ...live, allowWrites: true }, true, "https://pubpal-test.ngrok.app", ["--branch-id", requested]);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(`--branch-id ${requested} is not a branch other than Main of this agent`);
+    expect(result.writes).toBe("");
   });
 });

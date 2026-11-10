@@ -226,7 +226,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   // The person asked for the map in their own words. The call lives in the
   // shell (PalVoiceHost), so it carries on as the voice bar on /map.
-  const openMap = useCallback((href: string = PAL_VOICE_MAP_HREF, label = "Opening the map"): void => {
+  // `stillWanted` lets a newer request retire this one before the map opens.
+  const openMap = useCallback((href: string = PAL_VOICE_MAP_HREF, label = "Opening the map", stillWanted?: () => boolean): void => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
     setMapLabel(label);
     setMapPending(true);
@@ -235,6 +236,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     mapTimerRef.current = window.setTimeout(() => {
       mapTimerRef.current = null;
       setMapPending(false);
+      if (stillWanted && !stillWanted()) return;
       router.push(href as Route);
     }, PAL_VOICE_MAP_DELAY_MS);
   }, [router]);
@@ -255,7 +257,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   }, [openMap, showMap]);
   usePalMapClientTools({
     openMap,
-    mapShown: () => onMapRef.current || mapTimerRef.current !== null,
+    onMap: () => onMapRef.current,
+    mapOpening: () => mapTimerRef.current !== null,
     tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
     callLive: () => {
       const attempt = activeAttemptRef.current;

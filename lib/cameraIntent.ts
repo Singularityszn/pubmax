@@ -13,7 +13,9 @@ export type CameraIntentKind =
   | "venue"
   | "landmark"
   | "area"
-  | "pal";
+  | "pal"
+  /** A view the person asked the voice Pal for: a numbered pick or an area. */
+  | "pal-ask";
 
 type CameraIntentCoordinatorOptions = {
   requestFrame: (callback: FrameRequestCallback) => number;

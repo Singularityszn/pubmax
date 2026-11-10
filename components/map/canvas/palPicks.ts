@@ -23,8 +23,8 @@ type ProbeWindow = Window & {
 };
 
 type PalPicksOptions = {
-  /** Frame the picks, or a move the person asked for, through the camera lane, once each. */
-  frame: (sequence: number, points: readonly { lng: number; lat: number }[]) => void;
+  /** Frame the picks, or a move the person asked for (`asked`), through the camera lane, once each. */
+  frame: (sequence: number, points: readonly { lng: number; lat: number }[], asked?: boolean) => void;
   open: (venueId: string) => void;
 };
 
@@ -107,7 +107,7 @@ export function installPalPicks(map: maplibregl.Map, { frame, open }: PalPicksOp
     const { sequence, view } = readPalMapState();
     if (!view || view.sequence === moved) return;
     moved = view.sequence;
-    if (view.sequence > sequence) frame(view.sequence, view.points);
+    if (view.sequence > sequence) frame(view.sequence, view.points, true);
   };
 
   const render = () => {
