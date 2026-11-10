@@ -12,9 +12,9 @@ import { runAskTool } from "@/lib/ask/tools";
 
 const now = Date.parse(dataset.now);
 const index = loadPalEvalVenueIndex();
-const zoneOne = { priceGbp: 6.2, zone: 1, sampleSize: 352 };
-const zoneTwo = { priceGbp: 5.7, zone: 2, sampleSize: 294 };
-const zoneThree = { priceGbp: 5.35, zone: 3, sampleSize: 127 };
+const zoneOne = { priceGbp: 6.2, zone: 1, sampleSize: 351 };
+const zoneTwo = { priceGbp: 5.7, zone: 2, sampleSize: 290 };
+const zoneThree = { priceGbp: 5.35, zone: 3, sampleSize: 125 };
 const recordedZoneMedians: Record<string, typeof zoneOne> = {
   "venue-60y3sa": zoneTwo,
   "venue-10paqy": zoneThree,

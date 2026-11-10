@@ -11,6 +11,7 @@ import {
   type PriceStandingDecision,
 } from "@/lib/priceTier";
 import { venueBundlePrices, venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
@@ -54,7 +55,7 @@ export function zonePintIndexFromSlimPayload(payload: unknown, computedAt: strin
         const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
         return {
           zone: toFinite(row.zone),
-          cheapestPrice: toFinite(row.cheapestPrice),
+          cheapestPrice: isComparablePintServing(row) ? toFinite(row.cheapestPrice) : null,
           kind: toSlimKind(row.kind),
         };
       }),

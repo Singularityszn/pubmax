@@ -103,10 +103,12 @@ function serveSlimPayload(payload: unknown) {
 
 it("keeps recorded-price availability through the published slim loader", async () => {
   const source = slim.find((row) => row.id === "venue-10x17k9")!;
+  const unread = { ...source, id: "unread" };
+  delete unread.hasRecordedPrice;
   serveSlimPayload({ rows: [
     { ...source, id: "known-listed", hasRecordedPrice: true },
     { ...source, id: "known-empty", hasRecordedPrice: false },
-    { ...source, id: "unread" },
+    unread,
   ] });
   const loaded = await loadSlimVenuesFromPathResult("/data/price-availability-contract.json");
   expect(loaded.rows.map((row) => slimVenueToPin(row).hasRecordedPrice)).toEqual([true, false, undefined]);
@@ -492,6 +494,7 @@ describe("venues_slim.json", () => {
                 "zone",
                 "locality",
                 "priceSource",
+                "hasRecordedPrice",
                 "cheapestPint",
                 "measure",
                 // The day the cheapest figure was last read (lib/priceReadDay.mjs).
