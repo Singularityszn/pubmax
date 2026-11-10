@@ -87,9 +87,13 @@ async function preparePrice() {
 
 function tapLog(method: "button" | "Enter") {
   if (method === "button") {
-    defined(container.querySelector<HTMLButtonElement>(".vpsubLog")).click();
+    const logButton = container.querySelector<HTMLButtonElement>(".vpsubLog");
+    if (!logButton) throw new Error("Log it button did not render");
+    logButton.click();
   } else {
-    defined(container.querySelector<HTMLInputElement>(".vpsubInput")).dispatchEvent(
+    const priceInput = container.querySelector<HTMLInputElement>(".vpsubInput");
+    if (!priceInput) throw new Error("price input did not render");
+    priceInput.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
   }
