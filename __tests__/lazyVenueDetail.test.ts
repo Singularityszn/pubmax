@@ -43,11 +43,11 @@ function venue(id: string, name = id): Venue {
 }
 
 describe("mergeLazyDetailPins", () => {
-  it("keeps loaded price evidence together instead of borrowing the pin's date", () => {
+  it("keeps the loaded detail's own price read day", () => {
     const slim = { ...venue("venue-a", "Slim A"), cheapestPint: "Guinness", measure: "pint",
       priceSource: "Guinndex", priceObservedAt: "2026-11-07" };
     const detail = { ...venue("venue-a", "Detail A"), cheapestPrice: 6, cheapestPint: "Lager",
-      priceSource: "Pub menu" };
+      priceSource: "Pub menu", priceObservedAt: "2026-11-08" };
 
     expect(mergeLazyDetailPins([slim], new Map([[detail.id, detail]]))).toEqual([detail]);
   });
@@ -64,13 +64,13 @@ describe("mergeLazyDetailPins", () => {
     });
   });
 
-  it("keeps the slim pin's price read day on the hydrated record, so a fresh price stays fresh", () => {
-    const slim = { ...venue("venue-a", "Slim A"), priceObservedAt: "2026-10-01" };
-    const detail = venue("venue-a", "Detail A");
+  it("keeps Arnos Arms' read day when detail supplies its omitted pint name", () => {
+    const slim = { ...venue("venue-xjf3n0", "Arnos Arms"), priceSource: "Pint Prices",
+      priceObservedAt: "2026-11-09" };
+    const detail = { ...venue(slim.id, "Arnos Arms"), cheapestPint: "AMSTEL" };
 
-    const [merged] = mergeLazyDetailPins([slim], new Map([["venue-a", detail]]));
-    expect(merged?.name).toBe("Detail A");
-    expect(merged?.priceObservedAt).toBe("2026-10-01");
+    const [merged] = mergeLazyDetailPins([slim], new Map([[detail.id, detail]]));
+    expect(merged).toEqual({ ...detail, priceObservedAt: "2026-11-09" });
   });
 
 
