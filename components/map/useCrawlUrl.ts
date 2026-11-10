@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
@@ -220,8 +220,15 @@ export function useCrawlUrlSync(
     if (!holdSeededCrawlParam) crawlHold.current = null;
     const entry = urlEntry();
     latestWrite.current = { encoded, preserveCrawlParam, preserveBeerParam, entry };
-    if (!crawlUrlWriteAllowed(hold.current, encoded)) return;
+  }, [holdCleanUrl, holdSeededCrawlParam, state]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || latestWrite.current === null) return;
+    const { encoded, preserveCrawlParam, preserveBeerParam } = latestWrite.current;
+    if (!crawlUrlWriteAllowed(hold.current ?? null, encoded)) return;
     hold.current = null;
+    const entry = urlEntry();
+    latestWrite.current = { encoded, preserveCrawlParam, preserveBeerParam, entry };
     if (timer.current) clearTimeout(timer.current);
     // A walking-route link that lands before this write comes due owns the
     // address: its entry carries no stamp of ours, and the older plan written

@@ -113,7 +113,11 @@ function PlannerHistoryHarness({ state, holdCleanUrl = false, restoredPlannerOpe
       ? { id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }
       : null,
   );
-  const onSurfaceClose = useCrawlUrlSync(state, holdCleanUrl);
+  const crawlState = useMemo(() => ({
+    ...state,
+    landmarkId: shown?.id === "landmark" ? shown.state?.landmarkId ?? "" : "",
+  }), [shown, state]);
+  const onSurfaceClose = useCrawlUrlSync(crawlState, holdCleanUrl);
   const trail = useMapSurfaceNavigation({
     arrivalSearch: window.location.search,
     surfaceId: (shown?.id ?? "none") as MapSurfaceId,
@@ -227,6 +231,39 @@ async function traverseHistory(action: () => void) {
 }
 
 describe("planner arrival and close URLs", () => {
+  it.each(["", "?plan=1", "?mode=build&plan=1"])(
+    "keeps landmark links after selection and switching from /map%s",
+    async (search) => {
+      window.history.replaceState({}, "", `/map${search}#story`);
+      const state = seedCrawlState(search);
+      await act(async () => root.render(createElement(PlannerHistoryHarness, { state })));
+
+      for (const landmarkId of ["big-ben", "tower-of-london"]) {
+        act(() => showPlannerSurface({
+          id: "landmark", title: landmarkId,
+          state: { ...EMPTY_MAP_SURFACE_STATE, landmarkId },
+        }));
+        act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+
+        expect(seedCrawlState(window.location.search).landmarkId).toBe(landmarkId);
+        expect(window.location.hash).toBe("#story");
+      }
+
+      await traverseHistory(() => plannerNavigation.back());
+      act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+      expect(seedCrawlState(window.location.search).landmarkId).toBe("");
+
+      await traverseHistory(() => window.history.forward());
+      act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+      expect(seedCrawlState(window.location.search).landmarkId).toBe("tower-of-london");
+
+      await traverseHistory(() => plannerNavigation.home());
+      act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+      expect(seedCrawlState(window.location.search).landmarkId).toBe("");
+      expect(readMapSurfaceHistory(window.history.state)).toEqual([]);
+    },
+  );
+
   it.each([true, false])("preserves restored filters when the initial planner is %s", async (restoredPlannerOpen) => {
     window.history.replaceState({}, "", "/map#route");
     const state = {
