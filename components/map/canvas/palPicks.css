@@ -45,11 +45,6 @@
   cursor: pointer;
 }
 
-.palPick:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
-}
-
 .palPicksActive .donut-cluster-marker {
   /* MapLibre rewrites marker opacity inline after camera and terrain updates. */
   opacity: 0.45 !important;
@@ -58,8 +53,14 @@
 /* The pick the Pal is naming. Reduced motion keeps the ring and drops the pulse. */
 .palPick[data-speaking] {
   border-color: var(--state-selected-border);
-  box-shadow: 0 0 0 3px var(--state-selected-border), var(--map-overlay-shadow-tight);
+  outline: 3px solid var(--state-selected-border);
+  outline-offset: 0;
   animation: palPickPulse 0.8s var(--ease-standard) 3;
+}
+
+.palPick:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
 }
 
 @keyframes palPickPulse {
