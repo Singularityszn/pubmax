@@ -24,6 +24,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If you are signed in and your profile check fails or takes too long, **You** and **Social** offer **Retry**. **Retry** checks your profile again without reloading the page.
 
+  During account setup, a background session refresh keeps the handle you are typing. Switching to another account checks that account's setup status.
+
+  If a remembered account is banned, a refused switch shows a ban notice with **Community guidelines** and **Dismiss** controls. This includes automatic switches after signing out. An expired sign-in alone does not show a ban notice. During account setup, the notice appears inside the form. **Community guidelines** opens `/terms` without the setup form covering it. Returning restores the unfinished form.
+
   Your profile has a cover, personal details, statistics and section links. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.
 
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
