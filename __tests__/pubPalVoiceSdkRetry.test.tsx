@@ -33,7 +33,7 @@ vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) =>
     createElement("a", { href }, children),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }), usePathname: () => "/pal", useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: requests.authedActionFetch }));
 // jsdom cannot play audio; the cues are proved in pubPalVoice.test.tsx.
 vi.mock("@/components/pubpal/palVoiceSounds", () => ({ playPalVoiceSound: vi.fn() }));
@@ -185,7 +185,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
         return conversation;
       })
       .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
     await click("Start voice chat");
     await writeDraft("Find a quiet pub");
     await click("End");
@@ -207,7 +207,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
 
   it("connects through the real provider while keeping client transport and audio fake", async () => {
     client.startSession.mockImplementation(async (options) => connectFake(options, "conv_sdkfixture01"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
 
     await click("Start voice chat");
 
@@ -229,7 +229,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
         });
       })
       .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
     await writeDraft("Wine at The Lamb");
     await click("Start voice chat");
     expect(client.startSession).toHaveBeenCalledTimes(1);
@@ -260,7 +260,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
         });
       })
       .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
     await writeDraft("Find a quiet pub");
     await click("Start voice chat");
 
@@ -294,7 +294,7 @@ describe("Pub Pal startup with the installed React SDK", () => {
         });
       })
       .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
     await click("Start voice chat");
     await click("Cancel");
     await click("Start voice chat");

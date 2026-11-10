@@ -239,7 +239,7 @@ html:has(.appShell) {
     );
   }
 
-  body:has(.mobilePlanActivation):has(.palSummon) .appShell .mapStage {
+  body:has(.mobilePlanActivation):has(.palSummon, .palVoiceBar) .appShell .mapStage {
     --mobile-map-credit-bottom: calc(var(--float-stack-top-pal) + 10px);
   }
 
@@ -636,7 +636,7 @@ html:has(.appShell) {
   }
   /* When the Pub Pal pill is on screen it parks above the plan pill; lift the
      map-edge column so Near me never paints underneath it. */
-  body:has(.palSummon) .mobileMapUtilityCorner {
+  body:has(.palSummon, .palVoiceBar) .mobileMapUtilityCorner {
     bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
   }
 
@@ -673,7 +673,7 @@ html:has(.appShell) {
     pointer-events: auto;
     box-shadow: var(--map-overlay-shadow-tight);
   }
-  body:has(.palSummon) .mobileMapUtilityCorner > .mobileMapPalDoor {
+  body:has(.palSummon, .palVoiceBar) .mobileMapUtilityCorner > .mobileMapPalDoor {
     display: none;
   }
   /* The first-visit ask parks one gap above the column and is the one banner

@@ -54,6 +54,7 @@ import PalPrint from "./PalPrint";
 import { palGenomeFor } from "@/lib/palGenome";
 import { createPalVoiceSignal } from "@/lib/palVoiceSignal";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
+import { revokePalVoiceCall } from "@/lib/palVoiceHost";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
@@ -1031,6 +1032,7 @@ export default function PalExperience() {
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "We couldn't delete your Pal."));
       if (activeOwnerRef.current !== ownerId) return;
+      revokePalVoiceCall();
       removeStored(LOCAL_PAL_KEY);
       removeStored(`${PRIVACY_KEY}:${ownerId}`);
       setActivePlanPalContext(null, getCurrentUserId());
