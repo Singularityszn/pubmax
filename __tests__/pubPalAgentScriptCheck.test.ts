@@ -641,4 +641,18 @@ describe("pubpal:agent --check", () => {
     expect(result.output).toContain(`--branch-id ${requested} is not a branch other than Main of this agent`);
     expect(result.writes).toBe("");
   });
+
+  it("leaves agent-wide settings to Main: a branch run neither checks nor sends them", () => {
+    const live = onBranch(matchingLive());
+    live.agent.name = "Renamed Pal";
+    live.agent.platform_settings.privacy.retention_days = 7;
+    const checked = check(live, false, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(checked.status, checked.output).toBe(0);
+    const updated = check({ ...live, allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(updated.status, updated.output).toBe(0);
+    const [patch] = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(patch.url).toContain("?branch_id=agtbranch_test");
+    expect(patch.agent_config.platform_settings).toBeUndefined();
+    expect(check(live).output).toContain("platform_settings.privacy.retention_days: live 7, wanted -1");
+  });
 });

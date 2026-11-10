@@ -494,6 +494,18 @@ function mergeAgentPatch(existingAgent, body) {
   };
 }
 
+/**
+ * The name and platform settings (auth, overrides, privacy) belong to the
+ * whole agent, not to a branch, so a branch run neither checks nor sends them.
+ */
+function branchPatch(patch, branchId) {
+  if (!branchId) return patch;
+  const { name, platform_settings, ...versioned } = patch;
+  void name;
+  void platform_settings;
+  return versioned;
+}
+
 /** The PATCH a run sends to an existing agent: the live agent with this repo's fields laid over it. */
 function agentPatch(currentAgent, toolIds) {
   const { body } = agentBody(toolIds);
@@ -556,7 +568,7 @@ async function checkAgent(apiKey, baseUrl, branchId) {
   const drifts = agentDrift({
     liveAgent,
     liveTools,
-    wantedAgent: agentPatch(liveAgent, liveToolIds),
+    wantedAgent: branchPatch(agentPatch(liveAgent, liveToolIds), branchId),
     wantedTools: wanted,
     secret: { name: LLM_SECRET_NAME, id: secretId },
   });
@@ -630,7 +642,7 @@ async function main() {
   const { body, defaultVoice } = agentBody(toolIds);
 
   if (existing) {
-    await call("PATCH", agentUrl(existing, branchId), apiKey, agentPatch(currentAgent, toolIds));
+    await call("PATCH", agentUrl(existing, branchId), apiKey, branchPatch(agentPatch(currentAgent, toolIds), branchId));
     console.log(`✓ Updated agent ${existing}${branchId ? ` branch ${branchId}` : ""}`);
     console.log(`  LLM: ${AGENT_CONFIG.llm}`);
     console.log(`  Tools: ${toolIds.length}`);
