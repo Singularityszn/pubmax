@@ -1803,6 +1803,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   the moderator check.
 - **Validation:** a post UUID and a decision of `approved` or `rejected`,
   nothing else. `review_social_post_video` refuses any other word.
+- **Write:** only a `held` video can receive a decision. The first decision
+  wins. Later attempts leave the decision unchanged and return `false` from
+  the store, which the route maps to 404 `NOT_FOUND`, as for a missing video.
+  The memory store enforces this guard directly. Supabase requires migration
+  `0228`, which the captain applies separately.
 
 ### `app/api/social/posts/[postId]/photos` - Social photos 2 to 4 (route 98)
 
