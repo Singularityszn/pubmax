@@ -70,7 +70,6 @@ import {
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   bindDeviceAccountOwner,
-  clearDepartedAccountSessionDrafts,
   clearDeviceAccountSessionArtifacts,
   emitDeviceIdentityChanged,
   liveAccountDeparted,
@@ -431,8 +430,6 @@ export function AuthProvider({
         // Clear pubmaxx:plan-route-draft:v1, pubmax:plan-route-draft:v2 and
         // pubmax:plan-intake:v1 on sign-out or a shared device owner change.
         // These values describe the departing person's unpublished Plan.
-        // Clear pubmax:ask-plan-draft:v1 here, on departure only: a first
-        // sign-in keeps it so a signed-out Pal handoff survives.
         // Keep pubmax:planning-intent:v1 and
         // pubmax:onboarding:planner-handoff:v1: these are device handoffs.
         // Keep pubmaxx:plan-mutation:v1:*: request fingerprints bind retry keys.
@@ -445,7 +442,6 @@ export function AuthProvider({
         // pubmaxx:plan-creator-token:v1:*: capability restoration removes these.
         // Keep pubmax:identityNudge:planReturnTo:v1: this is a return destination.
         clearDeviceAccountSessionArtifacts(browserSessionStorage());
-        clearDepartedAccountSessionDrafts(browserSessionStorage());
         try { browserLocalStorage()?.removeItem(PLAN_HOST_NAME_KEY); } catch {}
         if (nextUserId === null) {
           clearPersistedPlanDrafts({ planDraft: browserSessionStorage(), routeDraft: browserLocalStorage() });

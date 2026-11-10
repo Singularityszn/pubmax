@@ -23,6 +23,10 @@ import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/components/map/usePintDrops";
 import { readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
+import PintDropComposer from "@/components/map/PintDropComposer";
+import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { readPintDropDraft } from "@/lib/pintDropDraft";
+import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 import { defined } from "@/__tests__/helpers/defined";
 
 type PriceRequest = {
@@ -59,10 +63,12 @@ const otherPending: DropWithPhotos = {
   },
 };
 
-function Probe() {
+function Probe({ composer = false }: { composer?: boolean }) {
   const state = usePintDrops();
   useEffect(() => { drops = state; }, [state]);
-  return createElement("p", { role: "status" }, state.dropMsg?.text);
+  return composer
+    ? createElement(PintDropComposer, { venueId: "venue-1", state })
+    : createElement("p", { role: "status" }, state.dropMsg?.text);
 }
 
 function photo(name: string): File {
@@ -273,3 +279,61 @@ it("keeps a same-account transport failure retryable without retrying automatica
   expect(revoked()).toEqual([]);
   expect(requests).toHaveLength(1);
 });
+
+
+it.each(["owner-change", "tab-departure", "sign-out"])(
+  "discards a mounted typed baseline and late dictation on %s",
+  async (transition) => {
+    let recognition: SpeechRecognitionLike | undefined;
+    const stop = vi.fn();
+    vi.stubGlobal("SpeechRecognition", class implements SpeechRecognitionLike {
+      lang = "";
+      interimResults = false;
+      continuous = false;
+      onresult: SpeechRecognitionLike["onresult"] = null;
+      onerror: SpeechRecognitionLike["onerror"] = null;
+      onend: SpeechRecognitionLike["onend"] = null;
+      start() {}
+      stop = stop;
+      constructor() { recognition = this; }
+    });
+    localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
+    await act(async () => { root.render(createElement(Probe, { composer: true })); });
+    await act(async () => {
+      drops.setDropForm((form) => ({ ...form, note: "A's private typed note" }));
+    });
+    await act(async () => {
+      defined(container.querySelector<HTMLButtonElement>(".spillExtrasToggle") ?? undefined).click();
+    });
+    await act(async () => {
+      defined(container.querySelector<HTMLButtonElement>('[aria-label="Add note by voice"]') ?? undefined).click();
+    });
+    const deliver = defined(defined(recognition).onresult ?? undefined);
+    const speech = { resultIndex: 0, results: [{ 0: { transcript: "A's dictated words" }, isFinal: true }] };
+    await act(async () => { deliver(speech); });
+    expect(drops.dropForm.note).toBe("A's private typed note A's dictated words");
+    expect(readPintDropDraft(sessionStorage, "venue-1")?.form.note).toBe("A's private typed note");
+
+    await act(async () => {
+      if (transition === "owner-change") {
+        switchAccount("pending-account-b", "bob");
+        bindDeviceAccountOwner(auth.id, localStorage, sessionStorage);
+      } else if (transition === "tab-departure") {
+        clearDeviceAccountSessionArtifacts(sessionStorage);
+      } else {
+        releaseDeviceAccountOwner(localStorage, sessionStorage);
+      }
+      deliver(speech);
+    });
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(drops.dropForm.note).toBe("");
+    expect(readPintDropDraft(sessionStorage, "venue-1")).toBeNull();
+    await act(async () => {
+      drops.setDropForm((form) => ({ ...form, note: "B's new note" }));
+    });
+    expect(readPintDropDraft(sessionStorage, "venue-1")?.form.note).toBe("B's new note");
+    await act(async () => { root.render(createElement(Probe)); });
+    await act(async () => { root.render(createElement(Probe, { composer: true })); });
+    expect(drops.dropForm.note).toBe("B's new note");
+  },
+);

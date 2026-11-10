@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   bindDeviceAccountOwner,
-  clearDepartedAccountSessionDrafts,
   clearDeviceAccountArtifacts,
+  clearDeviceAccountSessionArtifacts,
   deviceAccountOwner,
   DEVICE_ACCOUNT_OWNER_KEY,
   DEVICE_IDENTITY_CHANGED_EVENT,
@@ -11,6 +11,8 @@ import {
   DEVICE_IDENTITY_SESSION_KEYS,
   liveAccountDeparted,
   releaseDeviceAccountOwner,
+  readDeviceAccountSessionRevision,
+  subscribeDeviceAccountSession,
   subscribeDeviceIdentity,
 } from "@/lib/deviceAccountIdentity";
 import { LOCAL_PAL_KEY } from "@/lib/localPal";
@@ -85,28 +87,49 @@ describe("device account identity", () => {
     expect(DEVICE_IDENTITY_LOCAL_KEYS).not.toContain(DEVICE_ACCOUNT_OWNER_KEY);
   });
 
-  it("clears a departing account's session drafts and dismissals, but a first sign-in keeps them", () => {
-    const drafts = {
-      "pubmax_pint_drop_draft:venue-1": '{"version":2}',
-      "pubmax_pint_drop_draft:venue-2": '{"version":2}',
-      "pubmaxx:price-mission-dismiss:v1": '["venue-1"]',
-      "pubmax:ask-plan-draft:v1": '{"query":"soho"}',
-    };
-    const session = sweepableStorage({ ...drafts, "pubmax:unrelated": "keep" });
-    const local = fakeStorage();
+  it.each(["owner-change", "unstamped", "tab-departure", "sign-out"])(
+    "clears all private drafts and dismissals on %s",
+    (transition) => {
+      const drafts = {
+        "pubmax_pint_drop_draft:venue-1": '{"version":2}',
+        "pubmax_pint_drop_draft:venue-2": '{"version":2}',
+        "pubmaxx:price-mission-dismiss:v1": '["venue-1"]',
+        "pubmax:ask-plan-draft:v1": '{"query":"soho"}',
+      };
+      const session = sweepableStorage({ ...drafts, "pubmax:unrelated": "keep" });
+      const local = fakeStorage(transition === "unstamped" ? {} : { [DEVICE_ACCOUNT_OWNER_KEY]: "user-a" });
+      bindDeviceAccountOwner(transition === "unstamped" ? "user-b" : "user-a", local, session);
+      if (transition !== "unstamped") {
+        for (const [key, value] of Object.entries(drafts)) expect(session.getItem(key)).toBe(value);
+        if (transition === "sign-out") releaseDeviceAccountOwner(local, session);
+        else if (transition === "tab-departure") clearDeviceAccountSessionArtifacts(session);
+        else bindDeviceAccountOwner("user-b", local, session);
+      }
+      for (const key of Object.keys(drafts)) expect(session.getItem(key)).toBeNull();
+      expect(session.getItem("pubmax:unrelated")).toBe("keep");
+    },
+  );
 
-    // A signed-out person drafted, then signed in to post it: the draft is theirs.
-    bindDeviceAccountOwner("user-a", local, session);
-    for (const [key, value] of Object.entries(drafts)) expect(session.getItem(key)).toBe(value);
-
-    // Account A departs this tab: the next person must not see A's drafts.
-    clearDepartedAccountSessionDrafts(session);
-    for (const key of Object.keys(drafts)) expect(session.getItem(key)).toBeNull();
-    expect(session.getItem("pubmax:unrelated")).toBe("keep");
-
-    const signedOut = sweepableStorage(drafts);
-    releaseDeviceAccountOwner(fakeStorage(), signedOut);
-    for (const key of Object.keys(drafts)) expect(signedOut.getItem(key)).toBeNull();
+  it("invalidates mounted session readers only after the private artifacts are cleared", () => {
+    const session = sweepableStorage({
+      "pubmax_pint_drop_draft:venue-1": "private note",
+      "pubmaxx:price-mission-dismiss:v1": "private skip",
+      "pubmax:ask-plan-draft:v1": "private plan",
+    });
+    const revision = readDeviceAccountSessionRevision();
+    const notice = vi.fn(() => {
+      expect(session.values.size).toBe(0);
+      expect(readDeviceAccountSessionRevision()).toBeGreaterThan(revision);
+    });
+    const unsubscribe = subscribeDeviceAccountSession(notice);
+    try {
+      bindDeviceAccountOwner("user-a", device.local, session);
+      expect(notice).not.toHaveBeenCalled();
+      releaseDeviceAccountOwner(device.local, session);
+      expect(notice).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+    }
   });
 
   it("clears the previous account's whole set when a second account signs in", () => {

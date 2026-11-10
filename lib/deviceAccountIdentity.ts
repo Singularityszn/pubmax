@@ -76,20 +76,23 @@ export const DEVICE_IDENTITY_SESSION_KEYS = [
   "pubmax:referral-follow-handle",
   // The one-shot arrival greeting names a person.
   "pubmax:arrival-welcome:v1",
-] as const;
-
-/**
- * Session drafts a live account leaves behind. They are cleared only when that
- * account departs (sign-out or a switch in this tab), never on a first sign-in:
- * a signed-out person who typed one and then signed in to post it keeps it.
- */
-const DEPARTED_ACCOUNT_SESSION_KEYS = [
   "pubmaxx:price-mission-dismiss:v1",
   "pubmax:ask-plan-draft:v1",
 ] as const;
 
-/** Prefixes of per-venue session drafts with the same departure rule. */
-const DEPARTED_ACCOUNT_SESSION_PREFIXES = ["pubmax_pint_drop_draft:"] as const;
+const DEVICE_IDENTITY_SESSION_PREFIXES = ["pubmax_pint_drop_draft:"] as const;
+
+let sessionRevision = 0;
+const sessionListeners = new Set<() => void>();
+
+export function readDeviceAccountSessionRevision(): number {
+  return sessionRevision;
+}
+
+export function subscribeDeviceAccountSession(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => { sessionListeners.delete(listener); };
+}
 
 type WritableStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type SweepableStorage = WritableStorage & Partial<Pick<Storage, "key" | "length">>;
@@ -132,7 +135,7 @@ function writeKey(
  */
 export function clearDeviceAccountArtifacts(
   local: WritableStorage | null,
-  session: WritableStorage | null = null,
+  session: SweepableStorage | null = null,
 ): void {
   for (const key of DEVICE_IDENTITY_LOCAL_KEYS) removeKey(local, key);
   clearDeviceAccountSessionArtifacts(session);
@@ -144,28 +147,22 @@ export function clearDeviceAccountArtifacts(
 }
 
 /** Clear this tab's private artifacts without changing another tab's shared owner. */
-export function clearDeviceAccountSessionArtifacts(session: WritableStorage | null): void {
+export function clearDeviceAccountSessionArtifacts(session: SweepableStorage | null): void {
   showLegRouteOnMap(null);
   for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
-}
-
-/** Clear the drafts and dismissals a departing live account typed in this tab. */
-export function clearDepartedAccountSessionDrafts(session: SweepableStorage | null): void {
-  if (!session) return;
-  for (const key of DEPARTED_ACCOUNT_SESSION_KEYS) removeKey(session, key);
   const prefixed: string[] = [];
   try {
-    const length = session.length ?? 0;
+    const length = session?.length ?? 0;
     for (let index = 0; index < length; index += 1) {
-      const key = session.key?.(index);
-      if (key && DEPARTED_ACCOUNT_SESSION_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+      const key = session?.key?.(index);
+      if (key && DEVICE_IDENTITY_SESSION_PREFIXES.some((prefix) => key.startsWith(prefix))) {
         prefixed.push(key);
       }
     }
-  } catch {
-    // Blocked storage holds no draft to leak.
-  }
+  } catch {}
   for (const key of prefixed) removeKey(session, key);
+  sessionRevision += 1;
+  for (const listener of [...sessionListeners]) listener();
 }
 
 /**
@@ -193,7 +190,7 @@ export function liveAccountDeparted(
 export function bindDeviceAccountOwner(
   userId: string,
   local: WritableStorage | null,
-  session: WritableStorage | null = null,
+  session: SweepableStorage | null = null,
 ): boolean {
   if (!userId) return false;
   if (readKey(local, DEVICE_ACCOUNT_OWNER_KEY) === userId) return false;
@@ -208,7 +205,6 @@ export function releaseDeviceAccountOwner(
   session: SweepableStorage | null = null,
 ): void {
   clearDeviceAccountArtifacts(local, session);
-  clearDepartedAccountSessionDrafts(session);
   removeKey(local, DEVICE_ACCOUNT_OWNER_KEY);
 }
 
