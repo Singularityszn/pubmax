@@ -241,6 +241,8 @@ export function indexCandidates(candidates) {
  * A SHARED NAME IS NOT A MATCH. The venue must sit close to the point Guinndex
  * gives, its name must be the same pub's name, a postcode district both state
  * must agree, and no second venue may fit nearly as well.
+ * Locality text after a comma cannot establish pub identity in a near-name
+ * match.
  */
 export function matchGuinndexPub(pub, grid) {
   const lat = Number(pub?.lat);

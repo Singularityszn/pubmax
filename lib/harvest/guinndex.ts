@@ -77,6 +77,8 @@ function datedPrices(detail: Record<string, unknown>, pub: Record<string, unknow
  * THE PAGE MUST DATE ITS OWN PRICE. The headline price is taken only when a
  * dated record on the same page states the same figure, and only when the
  * newest dated record does not state a different one.
+ * Placeholder prices are excluded because a dated seed entry is not a price
+ * observation.
  */
 export function readGuinndexObservation(
   detail: unknown,
