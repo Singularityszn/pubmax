@@ -223,22 +223,6 @@ describe("Pub Pal startup with the installed React SDK", () => {
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
   });
 
-  it("asks for the grant without a microphone probe once access is granted", async () => {
-    const query = vi.fn(async () => ({ state: "granted" }));
-    vi.stubGlobal("navigator", Object.assign(Object.create(navigator) as Navigator, { permissions: { query } }));
-    client.startSession.mockImplementation(async (options) => connectFake(options, "conv_sdkfixture01"));
-    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
-
-    await click("Start voice chat");
-
-    expect(query).toHaveBeenCalledWith({ name: "microphone" });
-    expect(getUserMedia).not.toHaveBeenCalled();
-    expect(issuedGrants).toBe(1);
-    expect(container.textContent).toContain("Pal is listening");
-    await click("End");
-    expect(releasedIds).toEqual(["conv_sdkfixture01"]);
-  });
-
   it("waits for a cancelled client startup before a real SDK retry", async () => {
     client.startSession
       .mockImplementationOnce((options) => {

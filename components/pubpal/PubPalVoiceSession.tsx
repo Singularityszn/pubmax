@@ -471,7 +471,12 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       });
     }, PAL_VOICE_START_TIMEOUT_MS);
     const started = await startController.start<VoiceGrant>({
-      requestMicrophone: requestPalVoiceMicrophone,
+      requestMicrophone: async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new PubPalVoiceStartError("Can't reach your microphone. Type instead.");
+        }
+        return requestPalVoiceMicrophone({ audio: true });
+      },
       issueGrant: async () => {
         const response = await authedActionFetch("/api/pub-pal/voice-token", {
           method: "POST",

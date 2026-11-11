@@ -34,8 +34,7 @@ type VoiceProbeStream = {
 };
 
 type VoiceStartAttempt<TGrant> = {
-  /** Null when no probe is needed before the grant. */
-  requestMicrophone: () => Promise<VoiceProbeStream | null>;
+  requestMicrophone: () => Promise<VoiceProbeStream>;
   issueGrant: () => Promise<TGrant>;
   connect: (grant: TGrant) => void | Promise<void>;
   onFailure?: (message: string) => void;
@@ -144,28 +143,9 @@ export function createPalVoiceMicrophoneHold(): PalVoiceMicrophoneHold {
   };
 }
 
-async function microphoneAlreadyGranted(): Promise<boolean> {
-  try {
-    const status = await navigator.permissions?.query({ name: "microphone" as PermissionName });
-    return status?.state === "granted";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The microphone check before a metered grant. While the browser cannot
- * confirm access, this opens and returns a probe stream, so a denied
- * microphone costs no grant. Once access is granted, it returns null: the SDK
- * opens the microphone itself, and a second open here only slows the start.
- */
-export async function requestPalVoiceMicrophone(): Promise<MediaStream | null> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new PubPalVoiceStartError("Can't reach your microphone. Type instead.");
-  }
-  if (await microphoneAlreadyGranted()) return null;
+export function requestPalVoiceMicrophone(constraints: MediaStreamConstraints): Promise<MediaStream> {
   const { mediaDevices, original } = installPalVoiceMicrophone();
-  return original.call(mediaDevices, { audio: true });
+  return original.call(mediaDevices, constraints);
 }
 
 export function createPubPalVoiceStartController() {
@@ -211,8 +191,11 @@ export function createPubPalVoiceStartController() {
         .then(async () => {
           try {
             const stream = await attempt.requestMicrophone();
-            if (stream) stopTracks(stream);
-            if (currentStart.cancelled) return false;
+            if (currentStart.cancelled) {
+              stopTracks(stream);
+              return false;
+            }
+            stopTracks(stream);
             currentStart.grantRequestStarted = true;
             let grant: TGrant;
             try {
