@@ -85,7 +85,7 @@ export function ledgerStreet(venue: Omit<LedgerTitleVenue, "id">): string | null
   return null;
 }
 
-const POSTCODE_DISTRICT = /\b([A-Z]{1,2}[0-9][A-Z0-9]?)(?:\s*[0-9][A-Z]{2})?(?=\s*(?:,|$))/i;
+const POSTCODE_PARTS = /\b([A-Z]{1,2}[0-9][A-Z0-9]?)(?:\s*([0-9][A-Z]{2}))?(?=\s*(?:,|$))/i;
 
 function placeTitle(venue: LedgerTitleVenue, counts: NameCounts): string {
   const area = venueAreaLabel(venue);
@@ -96,26 +96,27 @@ function placeTitle(venue: LedgerTitleVenue, counts: NameCounts): string {
   return street ? `${venue.name}, ${street}, ${area}` : `${venue.name}, ${area}`;
 }
 
-export async function ledgerTitleName(
+export function ledgerTitleName(
   venue: LedgerTitleVenue,
   index: ReadonlyMap<string, NamedVenue>,
-  lookup: (id: string) => Promise<
-    | { status: "found"; venue: LedgerTitleVenue }
-    | { status: "missing" | "unavailable" | "retired" }
-  >,
-): Promise<string> {
+  bundledVenues: readonly LedgerTitleVenue[],
+): string {
   const counts = nameCounts(index);
   const title = placeTitle(venue, counts);
-  const district = venue.address?.match(POSTCODE_DISTRICT)?.[1]?.toUpperCase();
+  const postcode = venue.address?.match(POSTCODE_PARTS);
+  const district = postcode?.[1]?.toUpperCase();
   if (!district || (counts.byName.get(nameKey(venue.name)) ?? 0) < 2) return title;
-  const siblings = [...index.values()].filter(
-    (other) => !other.retired && other.id !== venue.id && nameKey(other.name) === nameKey(venue.name),
+  const siblings = bundledVenues.filter(
+    (other) => other.id !== venue.id
+      && index.has(other.id)
+      && !index.get(other.id)?.retired
+      && nameKey(other.name) === nameKey(venue.name)
+      && normalise(placeTitle(other, counts)) === normalise(title),
   );
-  const reads = await Promise.all(siblings.map((other) => lookup(other.id)));
-  const shared = reads.some(
-    (read) => read.status === "found"
-      && read.venue.id !== venue.id
-      && normalise(placeTitle(read.venue, counts)) === normalise(title),
+  if (!siblings.length) return title;
+  const sharedDistrict = siblings.some(
+    (other) => other.address?.match(POSTCODE_PARTS)?.[1]?.toUpperCase() === district,
   );
-  return shared ? `${title} ${district}` : title;
+  const inward = sharedDistrict ? postcode?.[2]?.toUpperCase() : undefined;
+  return `${title} ${district}${inward ? ` ${inward}` : ""}`;
 }

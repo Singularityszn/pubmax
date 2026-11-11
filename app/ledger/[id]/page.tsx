@@ -11,6 +11,7 @@ import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { ledgerTitleName } from "@/lib/ledgerTitle";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { type Venue } from "@/lib/venues";
 import JsonLd from "@/components/seo/JsonLd";
@@ -83,7 +84,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // The layout's template adds the brand to the document title. The share
   // card is not templated, so it keeps the branded form.
-  const title = `The Ledger: ${await ledgerTitleName(venue, await getVenueIndex(), lookupVenueDetail)}`;
+  const [index, bundledVenues] = await Promise.all([getVenueIndex(), getPricedVenues()]);
+  const title = `The Ledger: ${ledgerTitleName(venue, index, bundledVenues)}`;
   const cardTitle = `${title}. ${BRAND_NAME}`;
   const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
