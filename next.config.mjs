@@ -359,8 +359,7 @@ const nextConfig = {
       { source: "/crews", destination: "/social", permanent: false },
       { source: "/coffee", destination: "/map?drink=coffee", permanent: false },
       { source: "/gardens", destination: "/map?garden=1", permanent: false },
-      // The Year in Pints lives on the Pal page until December turns "Your
-      // year so far" into it; the hash lands on that section.
+      // Reuse the Pal's year instead of adding a separate public page.
       { source: "/year-in-pints", destination: "/pal#year-in-pints", permanent: false },
     ];
   },
