@@ -1,12 +1,13 @@
 // Single source of truth for rendering a handle in the UI. Some handles arrive
 // already carrying a leading "@" (demo seeds in lib/pintDropSeeds, lib/curation
 // — e.g. "@wapping_wall_ted", "@London_W4"), so any render site that naively
-// prepends its own "@" produces "@@wapping_wall_ted". These helpers normalize
-// once and prepend exactly one "@", so "@@" is impossible.
+// prepends its own "@" produces "@@wapping_wall_ted". displayHandle normalizes
+// once and prepends exactly one "@", so "@@" is impossible.
 //
 // Pure + backend-free: reuses normalizeHandle from lib/profiles (lowercase, strip
 // any leading @s, keep [a-z0-9_], cap length) so display and identity can't drift.
 
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { normalizeHandle } from "@/lib/profiles";
 
 // A stable placeholder for an empty/unknown handle. Matches the existing "anon"
@@ -25,4 +26,12 @@ export function handleOnly(raw: string | null | undefined): string {
 // NEVER yields "@@" — normalizeHandle strips every leading @ before we prepend.
 export function displayHandle(raw: string | null | undefined): string {
   return `@${handleOnly(raw)}`;
+}
+
+// How a Pint Drop's author is shown. A withheld name (an anonymous drop, a
+// retired author, or none) reads as ANON_HANDLE_LABEL with no "@": run through
+// displayHandle it would become "@apubmaxxer", a handle a real account can own.
+export function dropAuthorLabel(raw: string | null | undefined): string {
+  if (raw === ANON_HANDLE_LABEL || !normalizeHandle(raw)) return ANON_HANDLE_LABEL;
+  return displayHandle(raw);
 }

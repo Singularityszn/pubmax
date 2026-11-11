@@ -8,6 +8,7 @@ import {
   toLedgerEntry,
   type LedgerSourceDrop,
 } from "@/lib/ledger";
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { defined } from "@/__tests__/helpers/defined";
 
 function makeDrop(overrides: Partial<LedgerSourceDrop> = {}): LedgerSourceDrop {
@@ -58,6 +59,11 @@ describe("toLedgerEntry", () => {
     const entry = toLedgerEntry(makeDrop({ handle: "anonymous" }));
     expect(entry.dateLabel).toBe("3 June 2024");
     expect(typeof entry.handle).toBe("string");
+  });
+
+  it("shows an anonymous drop as the withheld label, never as a handle", () => {
+    const entry = toLedgerEntry(makeDrop({ handle: ANON_HANDLE_LABEL }));
+    expect(entry.handle).toBe("a PUBMAXXER");
   });
 });
 
