@@ -42,6 +42,8 @@ import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import type { Venue } from "@/lib/venues";
 import type { ZonePintIndex } from "@/lib/zones";
 
+import { useMapSplitListPointerHold } from "./useMapSplitListPointerHold";
+
 import "./mapSplitList.css";
 
 type Point = { lng: number; lat: number };
@@ -77,8 +79,8 @@ function liveViewKey(view: LiveView): string {
  * The ring that marks a row's pin on the map while the reader points at the
  * row or moves the keyboard onto it. A DOM mark over the canvas, placed through
  * the map's own projection and moved with the camera; it paints nothing into
- * the map's style, so the pin and basemap styling stay the canvas's own. Held
- * in a ref rather than state, so pointing at a row repaints nothing in React.
+ * the map's style, so the pin and basemap styling stay the canvas's own. The
+ * halo stays in a ref, so moving it does not require a React render.
  */
 function usePinHalo(map: MapSplitListMap | null) {
   const haloRef = useRef<{ point: Point | null; place: () => void } | null>(null);
@@ -160,9 +162,10 @@ const GROUP_TITLES = {
 /**
  * THE LIST BESIDE THE MAP. From 1024px, Explore lists the venues in the
  * current map view in a column on the left while the map fills the right, and
- * the two move together: the column re-reads the view when the camera settles
- * (debounced), a row the reader points at rings its pin, and a click opens the
- * venue sheet through the same handler a pin tap uses.
+ * the two move together. Update timing follows the split-view rule in
+ * docs/rules/components-sheets-chrome-and-navigation.md. A row the reader
+ * points at rings its pin, and a click opens the venue sheet through the same
+ * handler a pin tap uses.
  *
  * It is also the keyboard and screen-reader parallel to the canvas pins at
  * these widths (WCAG 2.1.1), the job List view does below 1024px: every venue
@@ -220,6 +223,7 @@ export default function MapSplitList({
   const [followMap, setFollowMap] = useState(true);
   const [held, setHeld] = useState<HeldView | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [pointerInside, setPointerInside] = useState(false);
   const halo = usePinHalo(map);
   const pointedIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -250,8 +254,6 @@ export default function MapSplitList({
     [],
   );
 
-  // While "Search as I move the map" is off, the list keeps the view it last
-  // searched; the live filters still apply to it.
   const shownView: HeldView | null = followMap ? null : held;
   const venues = useMemo(
     () =>
@@ -263,7 +265,7 @@ export default function MapSplitList({
       }),
     [filteredVenues, settled.venues, shownView],
   );
-  const groups = useMemo(
+  const liveGroups = useMemo(
     () =>
       buildMapSplitListGroups({
         venues,
@@ -281,8 +283,27 @@ export default function MapSplitList({
     [dropSignals, lensNoun, lensPrices, lensStatus, reader, settled, shownView, sort, venues, zoneIndex],
   );
 
+  const liveListKey = shownView?.key ?? settledKey;
+  const liveHeldIsStale = shownView !== null && shownView.key !== liveKey;
+  const liveOrder = sort === "cheapest" ? "cheapest first" : reader ? "nearest you first" : "nearest first";
+  const liveCoverageNote =
+    lensPrices !== null ? drinkLensCoverageNote(lensNoun?.toLowerCase() ?? "this view", lensStatus) : null;
+  const {
+    displayed: { groups, key: listKey, order, coverageNote, heldIsStale },
+    release: releasePointerView,
+  } = useMapSplitListPointerHold({
+    current: {
+      groups: liveGroups,
+      key: liveListKey,
+      order: liveOrder,
+      coverageNote: liveCoverageNote,
+      heldIsStale: liveHeldIsStale,
+    },
+    pointerInside,
+    loaded,
+  });
+
   // A new view starts at its first page again.
-  const listKey = shownView?.key ?? settledKey;
   const [limit, setLimit] = useState(MAP_SPLIT_LIST_PAGE_SIZE);
   const [limitKey, setLimitKey] = useState(listKey);
   if (limitKey !== listKey) {
@@ -368,15 +389,17 @@ export default function MapSplitList({
   };
 
   const toggleFollow = (next: boolean) => {
+    releasePointerView();
     setFollowMap(next);
     setHeld(next ? null : holdView(settled, settledKey));
   };
-  const searchThisView = () => setHeld(holdView(live, liveKey));
-  const heldIsStale = shownView !== null && shownView.key !== liveKey;
+  const searchThisView = () => {
+    releasePointerView();
+    setHeld(holdView(live, liveKey));
+  };
 
   const total = groups.total;
   const awaiting = total === 0 && ukBaseStatus !== "unavailable" && (ukBaseStatus === "loading" || !loaded);
-  const order = sort === "cheapest" ? "cheapest first" : reader ? "nearest you first" : "nearest first";
   const status = awaiting
     ? "Counting them up…"
     : total === 0
@@ -384,8 +407,6 @@ export default function MapSplitList({
         ? "Unlisted pubs unavailable"
         : "Nothing in view"
       : `${total} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`;
-  const coverageNote =
-    lensPrices !== null ? drinkLensCoverageNote(lensNoun?.toLowerCase() ?? "this view", lensStatus) : null;
 
   const renderGroup = (group: MapSplitListRow["group"], rows: MapSplitListRow[]) =>
     rows.length === 0 ? null : (
@@ -445,6 +466,8 @@ export default function MapSplitList({
       className="mapSplitList"
       aria-label={`${cityName} pubs in this view`}
       tabIndex={-1}
+      onPointerEnter={() => setPointerInside(true)}
+      onPointerLeave={() => setPointerInside(false)}
       {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}
     >
       <header className="mapSplitListHead">
@@ -458,7 +481,10 @@ export default function MapSplitList({
               type="button"
               className="mapSplitListSortChip"
               aria-pressed={sort === "cheapest"}
-              onClick={() => setSort("cheapest")}
+              onClick={() => {
+                releasePointerView();
+                setSort("cheapest");
+              }}
             >
               Cheapest
             </button>
@@ -466,7 +492,10 @@ export default function MapSplitList({
               type="button"
               className="mapSplitListSortChip"
               aria-pressed={sort === "nearest"}
-              onClick={() => setSort("nearest")}
+              onClick={() => {
+                releasePointerView();
+                setSort("nearest");
+              }}
             >
               Nearest
             </button>

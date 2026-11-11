@@ -57,6 +57,8 @@ describe("parsePlanGenerationRequest", () => {
     ["an invalid known value", { groupSize: 0 }],
     ["a non-boolean wetherspoonsPreferred", { wetherspoonsPreferred: "yes" }],
     ["an unknown drink category", { drinkCategory: "spirits" }],
+    ["an unknown area focus", { areaFocus: "covent-garden" }],
+    ["a non-string area focus", { areaFocus: 42 }],
   ])("still rejects non-null malformed context: %s", async (_label, context) => {
     const result = await parsePlanGenerationRequest(request({ query: "Clapham classics", context }), NOW);
 
@@ -66,6 +68,25 @@ describe("parsePlanGenerationRequest", () => {
       message: "Night Context is invalid.",
       status: 400,
     });
+  });
+
+  it.each(["soho", "piccadilly", null])("preserves explicit area focus %j", async (areaFocus) => {
+    const result = await parsePlanGenerationRequest(request({
+      context: { nightArea: "piccadilly-soho", areaFocus },
+    }), NOW);
+
+    expect(result).toMatchObject({ ok: true, value: {
+      context: { nightArea: "piccadilly-soho", areaFocus },
+    } });
+  });
+
+  it("keeps an omitted area focus absent", async () => {
+    const result = await parsePlanGenerationRequest(request({
+      context: { nightArea: "piccadilly-soho" },
+    }), NOW);
+
+    if (!result.ok) throw new Error(result.message);
+    expect(result.value.context).toEqual({ nightArea: "piccadilly-soho" });
   });
 
   it("allowlists wetherspoonsPreferred as a boolean Night Context field", async () => {

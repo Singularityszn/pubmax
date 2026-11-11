@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { getPintDropById } from "@/lib/pintDropLookup";
 import { CrossingMark, OG_CACHE_HEADERS, priceStamp } from "@/lib/ogBrand";
+import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { clampOgText } from "@/lib/ogCardText";
 
 // Per-drop OG share card (Next `opengraph-image` convention). Renders the Pint
@@ -31,7 +32,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const drop = await getPintDropById(id).catch(() => null);
 
   const venue = clampOgText(drop?.venueName, 44, "A London pub", { collapseWhitespace: true });
-  const handle = clampOgText(drop?.handle, 24, "someone", { collapseWhitespace: true });
+  const author = clampOgText(dropAuthorLabel(drop?.handle), 25);
   const drink = clampOgText(drop?.drink, 40, "", { collapseWhitespace: true });
   const note = clampOgText(drop?.note, 120, "", { collapseWhitespace: true });
   const era = clampOgText(drop?.era, 24, "", { collapseWhitespace: true });
@@ -225,7 +226,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             ) : null}
           </div>
 
-          {/* Footer: signature (@handle · era · tag) + URL */}
+          {/* Footer: signature (author · era · tag) + URL */}
           <div
             style={{
               display: "flex",
@@ -243,7 +244,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                   fontSize: 30,
                 }}
               >
-                @{handle}
+                {author}
               </div>
               {era ? (
                 <div style={{ display: "flex", color: CREAM_DIM, fontSize: 26 }}>· {era}</div>

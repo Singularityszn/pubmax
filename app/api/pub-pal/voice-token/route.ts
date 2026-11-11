@@ -295,7 +295,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
   const supabaseConfigured = isSupabaseConfigured();
   const meter = meterFor(userId, month);
   if (!supabaseConfigured && !canPrepayVoiceGrant(meter)) {
-    return publicApiError("You've used this month's trial voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
+    return publicApiError("You've used this month's voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
       compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
     });
   }
@@ -325,7 +325,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
         });
       }
       if (data === false) {
-        return publicApiError("You've used this month's trial voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
+        return publicApiError("You've used this month's voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
           compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
         });
       }

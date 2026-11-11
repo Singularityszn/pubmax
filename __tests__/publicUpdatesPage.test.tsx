@@ -6,19 +6,21 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import UpdatesPage, { metadata } from "@/app/updates/page";
+import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
+
+const datesNewestFirst = PUBLIC_UPDATES.map((update) => update.date).toSorted().toReversed();
+const newest = PUBLIC_UPDATES.find((update) => update.date === datesNewestFirst[0])!;
 
 describe("the public updates page", () => {
   it("gives a signed-out reader dated changes and a way back to the map", () => {
     document.body.innerHTML = renderToStaticMarkup(createElement(UpdatesPage));
 
     expect(document.querySelector("main h1")?.textContent).toBe("What's changed");
-    expect(document.querySelector("time")?.dateTime).toBe("2026-10-30");
-    expect(document.querySelector("time")?.textContent).toBe("30 October 2026");
-    expect(document.querySelector("article h2")?.textContent).toBe("Gardens in the sun, a pint compass and offline crawls");
-    // Newest first, through the notes up to 30 Oct.
-    expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime))
-      .toEqual(["2026-10-30", "2026-10-28", "2026-10-27", "2026-10-26", "2026-10-25", "2026-10-22", "2026-10-19"]);
-    expect(document.querySelectorAll("article li")).toHaveLength(29);
+    expect(document.querySelector("time")?.dateTime).toBe(newest.date);
+    expect(document.querySelector("article h2")?.textContent).toBe(newest.title);
+    expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime)).toEqual(datesNewestFirst);
+    expect(document.querySelectorAll("article li"))
+      .toHaveLength(PUBLIC_UPDATES.reduce((count, update) => count + update.changes.length, 0));
     expect(document.querySelector<HTMLAnchorElement>('main a[href="/map"]')?.textContent).toBe("Open the map");
     expect(document.querySelector("form, input")).toBeNull();
   });
@@ -36,7 +38,7 @@ describe("the public updates page", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-31", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: "2099-01-02", title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
@@ -45,7 +47,8 @@ describe("the public updates page", () => {
       document.body.innerHTML = renderToStaticMarkup(createElement(AppendedUpdatesPage));
 
       expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime))
-        .toEqual(["2026-10-31", "2026-10-30", "2026-10-28", "2026-10-27", "2026-10-26", "2026-10-25", "2026-10-22", "2026-10-19"]);
+        .toEqual(["2099-01-02", ...datesNewestFirst]);
+      expect(document.querySelector("time")?.textContent).toBe("2 January 2099");
       expect(document.querySelector("article h2")?.textContent).toBe("A newer release");
     } finally {
       vi.doUnmock("@/lib/publicUpdates");

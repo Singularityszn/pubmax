@@ -24,6 +24,8 @@ vi.mock("@/lib/authedFetch", async (original) => ({
   ...await original<typeof import("@/lib/authedFetch")>(),
   authedActionFetch: async () => new Response(null, { status: 503 }),
 }));
+// The map chip's age read is its own suite's (pubPalSummonOwnership); here the owner may have voice.
+vi.mock("@/components/pubpal/usePalVoiceEligibility", () => ({ usePalVoiceEligibility: () => "eligible" }));
 vi.mock("@/components/map/useCommunityPrices", () => ({ useCommunityPrices: () => ({}) }));
 vi.mock("@/components/nearme/usePriceEvidenceMission", () => ({
   usePriceEvidenceMission: () => ({ mission: { venueId: "venue-a", reason: "missing" }, dismiss() {}, complete() {} }),

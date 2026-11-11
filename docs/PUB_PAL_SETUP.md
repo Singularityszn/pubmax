@@ -185,9 +185,9 @@ agent that already exists. The captain re-runs
 changes. Do not run that command from an agent session.
 
 The map tools run in the voice browser through `client_tool_call`.
-They set `expects_response: false` and `pre_tool_speech: "off"`, so the agent neither waits nor announces a tool check.
+They set `expects_response: true` and `pre_tool_speech: "off"`, so the agent waits for the browser's answer but announces no tool check.
 [`lib/palMapClientToolCall.ts`](../lib/palMapClientToolCall.ts) owns pick and area validation.
-A refusal reaches the agent through a contextual update.
+The agent receives a refusal as the tool result before it describes the map.
 These tools are absent from the typed server tool catalog.
 The ElevenLabs typed fallback still uses the shared agent.
 If it receives a client tool call, it returns an error that asks the agent to answer in words.
@@ -220,8 +220,9 @@ npm run pubpal:agent -- --check --branch-id BRANCH_ID --base-url https://your-te
 ```
 
 A branch update preserves Main's attached tools and the workspace secret.
-A Main webhook with a different requested URL gets a new tool ID for the branch.
-If its URL is unchanged, other drift in a Main-attached tool stops the update before any write.
+If a Main webhook differs only within `api_schema`, the branch gets a new tool ID.
+This includes URL and argument schema changes.
+Other drift in a Main-attached tool stops the update before any write.
 Tools absent from Main can be updated in place. Their IDs can still be shared with other branches.
 The agent name and `platform_settings`, including auth and privacy, are agent-wide.
 A branch update neither sends nor checks those fields.
@@ -240,7 +241,7 @@ It never converts reported expenditure into a pint budget.
 Voice uses the same opening builder in its first-message override.
 [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns confirmed-memory access.
 
-1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
+1. **Hosted LLM** on the ElevenLabs plan. The [agent configuration](../scripts/pubpal/pub-pal-agent-config.json) owns the model and thinking budget.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
    Each tool sets `pre_tool_speech: "force"` and `execution_mode: "immediate"`,
    so the Pal says one short checking line while the tool runs instead of
@@ -252,6 +253,9 @@ Voice uses the same opening builder in its first-message override.
    A later tool event invalidates the earlier reply, except for a duplicate response to a completed observed request.
    That exception requires a nonempty call ID and no reopened request for that ID.
    First responses, unknown IDs, missing IDs and reopened requests still require a later reply.
+   An `end_call` request or successful response preserves the latest eligible reply.
+   If the provider then closes the socket, typed chat returns that reply.
+   A failed `end_call`, a missing reply or an unfinished data tool still produces a provider failure on closure.
    `__tests__/palElevenLabsChat.server.test.ts` checks these sequences with simulated provider events.
    These tests do not establish the live provider sequence or resolution of a production timeout.
    The script adds the tool events
@@ -353,7 +357,7 @@ Voice uses the same opening builder in its first-message override.
    call tools before any fact, never invent a price, propose then confirm,
    plain speech on get-home topics. A prompt change reaches the live agent only
    when the captain re-runs `npm run pubpal:agent`.
-   [`lib/palVoicePrompt.mjs`](../lib/palVoicePrompt.mjs) owns the voice-only short-answer and map-tool rules.
+   [`lib/palVoicePrompt.mjs`](../lib/palVoicePrompt.mjs) owns the voice-only short-answer, map-tool, silence and goodbye rules.
 5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
    conversation starts only from a signed URL the app issued, after sign-in,
    the voice cap and the spend ceiling. The agent id alone is refused.
@@ -423,10 +427,21 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 
 Then open `/pal`, create a Pal, and press Start voice chat. The status line
 reads "Pal is listening" once the socket is up.
+The [map chip guide](../README.md#pub-pal-map-chip) explains how to start voice from the map.
 
-On the first tap, the browser asks for microphone access before the server
-issues a metered voice grant. A denied request keeps the writing door open and
+On every start attempt, the app checks microphone access before requesting a
+metered voice grant. The browser can show a permission prompt on the first tap.
+A denied request keeps the writing door open and
 can be retried. Repeated taps while voice starts use the same attempt.
+
+When the voice session mounts on `/pal`, it preloads the two same-origin
+worklets through `lib/elevenlabsWorkletAssets.ts`. The resampler still loads only
+when the device needs it.
+
+The SDK delay override in `lib/pubPalVoiceSession.ts` removes the default
+Android audio-mode wait. Microphone access, the grant request and the SDK
+connection still take time. Android audio routing needs
+[real-phone verification](https://github.com/Singularityszn/pubmax/issues/2741).
 
 ### Voice interruptions
 
@@ -435,7 +450,11 @@ the same call and socket open. `PalVoiceHost` holds the session in the root
 shell. On the map, `PalVoiceBar` shows the call status and newest transcript line.
 **End** stops a live call. **Cancel** stops a pending startup attempt,
 and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
-without starting another call. A cold `/map` loads no ElevenLabs SDK.
+without starting another call. A cold `/map` loads no ElevenLabs SDK until you tap to talk.
+
+Before the session consumes a map-chip tap, leaving `/pal` and `/map` routes,
+changing accounts, hiding the page, or `pagehide` cancels the pending request.
+Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.
 
 A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
@@ -443,7 +462,9 @@ Muting or deleting the Pal, signing out, or switching accounts also ends the cal
 Ending a call releases its voice grant. A user-ended call, dropped line or error
 clears its main-map picks and grounding.
 It also clears the last voice camera request and cancels pending voice navigation.
-The agent script requests a 20-second silence timeout as a provider backstop.
+The voice prompt asks the agent to check in once after silence.
+If silence continues, the prompt asks for one short goodbye followed by `end_call`.
+The [agent configuration](../scripts/pubpal/pub-pal-agent-config.json) owns `turn_timeout` and the provider backstop, `silence_end_call_timeout`.
 The 180-second call cap remains. These settings reach an existing agent only after the captain runs the configuration command.
 
 Thirty seconds before the cap, the app tells the agent to finish in one short

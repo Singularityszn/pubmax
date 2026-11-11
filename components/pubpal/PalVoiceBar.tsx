@@ -109,7 +109,7 @@ export default function PalVoiceBar({
       ) : null}
       {appearance ? <PubPalAvatar appearance={appearance} name={palName} compact genome={genome} /> : null}
       <div className="palVoiceBarText">
-        <p role="status">{status} <PalVoiceCountdown live={live} endsAt={callEndsAt} /></p>
+        <p role="status">{status}<PalVoiceCountdown live={live} endsAt={callEndsAt} /></p>
         {caption ? <p className="palVoiceBarCaption" role={error ? "alert" : undefined}>{caption}</p> : null}
         {allowance ? <p className="palVoiceBarAllowance">{allowance}</p> : null}
       </div>

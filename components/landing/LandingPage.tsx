@@ -303,6 +303,7 @@ export default function LandingPage({
               <h2>More</h2>
               <Link prefetch={false} href="/social">{socialLabel}</Link>
               <Link prefetch={false} href="/pal">Pub Pal</Link>
+              <Link prefetch={false} href="/spoons-value">Spoons</Link>
               <Link prefetch={false} href="/places">Pick your city</Link>
               <Link prefetch={false} href="/about">About</Link>
             </div>

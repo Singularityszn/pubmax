@@ -15,8 +15,7 @@ import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib/priceTier";
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
-import { displayHandle } from "@/lib/handleDisplay";
-import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
+import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
@@ -59,8 +58,7 @@ export const UNCHECKED_PRICE_LINE = "Counts on the map once a second drinker agr
  * one, never as a made-up handle.
  */
 export function uncheckedPriceLine(handle: string | null | undefined): string {
-  const name = !handle?.trim() || handle === ANON_HANDLE_LABEL ? ANON_HANDLE_LABEL : displayHandle(handle);
-  return `Logged by ${name}, not checked`;
+  return `Logged by ${dropAuthorLabel(handle)}, not checked`;
 }
 
 /** The price claim the overview area prints, in precedence order. */

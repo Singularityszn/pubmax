@@ -86,15 +86,20 @@ describe("resolveElevenLabsVoiceIdForPal", () => {
   });
 
   it.each([
-    ["voice-picked", "voice-species", "selected", "voice-picked"],
-    ["", "voice-species", "species", "voice-species"],
-    ["", "", "agent-default", null],
-  ])("names the actual voice selection in the grant metadata", (picked, species, source, voiceId) => {
+    ["voice-picked", "", "voice-species", "selected", "voice-picked", false],
+    ["", "", "voice-species", "species", "voice-species", false],
+    ["", "", "", "agent-default", null, false],
+    // Another picked voice is on offer, so this person's pick really is missing.
+    ["", "voice-velvet", "voice-species", "species", "voice-species", true],
+    ["", "voice-velvet", "", "agent-default", null, true],
+  ])("names the actual voice selection in the grant metadata", (picked, otherPicked, species, source, voiceId, pickedVoiceMissing) => {
     vi.stubEnv("ELEVENLABS_VOICE_EMBER", picked);
+    vi.stubEnv("ELEVENLABS_VOICE_VELVET", otherPicked);
     vi.stubEnv("ELEVENLABS_VOICE_FOX", species);
     expect(buildPalVoiceOverrides(basePal)).toEqual({
       voiceId,
       voiceSource: source,
+      pickedVoiceMissing,
       firstMessage: "Hi, I'm Ripley. What kind of night are you planning?",
     });
   });

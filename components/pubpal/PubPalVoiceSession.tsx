@@ -1,18 +1,9 @@
 "use client";
 
-// The live voice session, and the ONLY module that imports the ElevenLabs SDK.
-//
-// Split out because of what the gate beside it already knows: voice is
-// env-gated per deployment, so `VoiceAvailabilityGate` (PubPalVoice.tsx) asks
-// /api/pub-pal/voice-token before anything voice-shaped may render, and on a
-// deployment with voice off nothing here ever mounts. The SDK was a static
-// import all the same, so every cold /pal parsed a whole conversation runtime
-// before first paint, for a control the reader may never reach and the
-// deployment may not even offer.
-//
-// The tri-state is unchanged and stays in PubPalVoice.tsx. PalVoiceHost mounts
-// this module from the root shell, so one call carries across /pal and /map:
-// it draws into the /pal panel's slot there and as a voice bar on /map.
+// Keep the ElevenLabs runtime behind PalVoiceHost's dynamic import so a cold
+// map loads no SDK. The /pal availability gate or a map-chip tap mounts it.
+// The root host preserves one call across /pal and /map, using the panel slot
+// on /pal and the voice bar on /map.
 
 import type { Route } from "next";
 import {
@@ -46,6 +37,7 @@ import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
 import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
 import { usePalMapClientTools } from "@/components/pubpal/usePalMapClientTools";
+import { usePalVoiceStartRequest } from "@/components/pubpal/usePalVoiceStartRequest";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -71,11 +63,13 @@ import {
 import {
   ELEVENLABS_LIBSAMPLERATE_PATH,
   ELEVENLABS_WORKLET_PATHS,
+  preloadElevenLabsWorklets,
 } from "@/lib/elevenlabsWorkletAssets";
 import {
   createPubPalVoiceStartController,
   createPalVoiceMicrophoneHold,
   PAL_MICROPHONE_PERMISSION_ERROR,
+  PAL_VOICE_CONNECTION_DELAY,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
   PAL_VOICE_START_TIMEOUT_ERROR,
@@ -236,6 +230,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
   const [callEndsAt, setCallEndsAt] = useState<number | null>(null);
+  const [sessionActive, setSessionActive] = useState(false);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -291,7 +286,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     openMap,
     onMap: () => onMapRef.current,
     mapOpening: () => mapTimerRef.current !== null,
-    tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
     // A tool call also gives way to anything the person did since it began:
     // a new line, a pub they picked, or a page they moved to (stayHere).
     callLive: () => {
@@ -392,6 +386,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     if (activeAttemptRef.current === attempt) {
+      setSessionActive(false);
       if (attempt.ended === null) resetPalMap();
       currentToolCalls.current.clear();
       // A map the call was still opening stays closed once the call ends.
@@ -414,6 +409,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   useEffect(() => {
     disposedRef.current = false;
+    preloadElevenLabsWorklets();
     return () => {
       disposedRef.current = true;
       const attempt = activeAttemptRef.current;
@@ -564,7 +560,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
-        setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
+        setUsingFallbackVoice(overrides?.pickedVoiceMissing === true);
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
         startSession({
@@ -572,6 +568,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           connectionType: "websocket",
           // The SDK holds a screen wake lock from start until the session ends.
           useWakeLock: true,
+          connectionDelay: PAL_VOICE_CONNECTION_DELAY,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onStatusChange: ({ status: next }) => {
@@ -664,6 +661,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             : undefined,
           onConnect: () => {
             if (!ownsAttempt(attempt)) return;
+            setSessionActive(true);
             attempt.ended = null;
             setEnded(null);
             const boundId = conversationIdRef.current;
@@ -813,7 +811,9 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return () => signal.attach(null);
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
-  usePalVoiceEngaged([voiceConnecting, live, ended !== null, error !== null]);
+  // The SDK clears its live status before teardown delivers onDisconnect.
+  usePalVoiceEngaged([voiceConnecting, sessionActive, ended !== null, error !== null]);
+  usePalVoiceStartRequest(start, getCurrentUserId());
   const endedHint = palVoiceEndedHint(ended, !live && !voiceConnecting);
 
   if (!panel) {

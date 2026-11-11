@@ -1120,12 +1120,15 @@ export const supabaseMessagesStore: MessagesStore = {
       }
 
       if (inserted.error) throw new Error(inserted.error.message);
-      // Bump the denormalised inbox-sort timestamp. Best-effort — the message is
-      // already stored; a failed bump only affects ordering.
+      const createdAt = (inserted.data as unknown as { created_at: string }).created_at;
+      // Keep this fallback for deployments before migration 0237 is applied.
+      // After application, the trigger stamps the conversation in the insert.
+      // A delayed fallback must never overwrite a newer message timestamp.
       await admin()
         .from(CONVERSATIONS)
-        .update({ last_message_at: new Date().toISOString() })
-        .eq("id", conversationId);
+        .update({ last_message_at: createdAt })
+        .eq("id", conversationId)
+        .lt("last_message_at", createdAt);
       return {
         message: rowToMessageDTO(inserted.data as unknown as Record<string, unknown>, {
           viewer: senderHandle,
@@ -1220,11 +1223,12 @@ export const supabaseMessagesStore: MessagesStore = {
     if (!me) return READY_EMPTY_INBOX;
     let rows: Array<Record<string, unknown>>;
     let groupMembership = new Map<string, ConversationMembership>();
+    let lanesDegraded = false;
     try {
-      // ONLY THE CONVERSATION ROWS MAY EMPTY THE INBOX. This read is what says
-      // which conversations exist; the two below only decorate them, and a
-      // failure in either used to throw all the way out here and serve an
-      // empty inbox with a 200 (F-10). They are caught where they happen now.
+      // Conversation-row and deletion-marker reads establish what can be shown.
+      // Their failures may empty the inbox. Individual latest-message failures
+      // follow visibleConversationRows. Unread and preview failures are caught
+      // by their own helpers.
       //
       // TWO LANES, because a conversation's kind names its membership
       // authority: the pair columns find every DM, and the members table finds
@@ -1235,19 +1239,17 @@ export const supabaseMessagesStore: MessagesStore = {
         readGroupConversationIds(me),
       ]);
       const groups = await readGroupConversationRows(groupIds, me);
-      groupMembership = await readGroupMembershipBatch(groups);
+      lanesDegraded = direct.degraded || groups.degraded;
+      groupMembership = await readGroupMembershipBatch(groups.rows);
       // DEDUPED BY ID, because two lanes read one table: a row that somehow
       // answered both must be ONE inbox row, or a reader meets the same thread
       // twice and the unread counts are asked for it twice.
       const byId = new Map<string, Record<string, unknown>>();
-      for (const row of [...direct, ...groups]) {
+      for (const row of [...direct.rows, ...groups.rows]) {
         const id = String(row.id ?? "");
         if (id && !byId.has(id)) byId.set(id, row);
       }
-      rows = [...byId.values()]
-        .sort((a, b) =>
-          String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
-        );
+      rows = newestFirst([...byId.values()]).slice(0, MAX_CONVERSATIONS);
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("listConversations", err);
@@ -1300,9 +1302,13 @@ export const supabaseMessagesStore: MessagesStore = {
       );
     }
 
-    const conversations = rows.slice(0, MAX_CONVERSATIONS).map((row) => {
+    const conversations = rows.map((row) => {
       const id = String(row.id);
-      const last = lastByConversation.get(id);
+      const newest = lastByConversation.get(id);
+      // A chat kept by a failed restored-chat read may hold only deleted history.
+      const last = newest && afterDeleteMark(newest.created_at, deletions.byConversation.get(id))
+        ? newest
+        : undefined;
       const counted = unread.byConversation.get(id);
       return {
         id,
@@ -1318,7 +1324,7 @@ export const supabaseMessagesStore: MessagesStore = {
     });
     return {
       conversations,
-      status: unread.degraded || recent.degraded ? "degraded" : "ready",
+      status: unread.degraded || recent.degraded || lanesDegraded ? "degraded" : "ready",
     };
   },
 
@@ -1603,11 +1609,19 @@ async function membershipForRow(
   };
 }
 
+/** Inbox rows from one lane, and whether a read that judged them failed. */
+type InboxLane = { rows: Array<Record<string, unknown>>; degraded: boolean };
+
+function newestFirst(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  return rows.sort((a, b) =>
+    String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
+  );
+}
+
 /** Every DIRECT conversation this handle is in. The pair columns find them. */
-async function readDirectConversationRows(
-  me: string,
-): Promise<Array<Record<string, unknown>>> {
+async function readDirectConversationRows(me: string): Promise<InboxLane> {
   const visible: Array<Record<string, unknown>> = [];
+  let degraded = false;
   for (let offset = 0; visible.length < MAX_CONVERSATIONS; offset += MAX_CONVERSATIONS) {
     const read = () =>
       admin()
@@ -1621,10 +1635,12 @@ async function readDirectConversationRows(
     const { data, error } = dropToBaseConversationColumns(first.error) ? await read() : first;
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
-    visible.push(...(await visibleConversationRows(rows.filter((row) => row.kind !== "group"), me)));
+    const page = await visibleConversationRows(rows.filter((row) => row.kind !== "group"), me);
+    degraded ||= page.degraded;
+    visible.push(...page.rows);
     if (rows.length < MAX_CONVERSATIONS) break;
   }
-  return visible.slice(0, MAX_CONVERSATIONS);
+  return { rows: newestFirst(visible).slice(0, MAX_CONVERSATIONS), degraded };
 }
 
 /**
@@ -1659,35 +1675,53 @@ async function readGroupConversationIds(me: string): Promise<string[]> {
   }
 }
 
+/**
+ * A successful latest-message read replaces the denormalised timestamp with
+ * created_at for a restored row. A failed read keeps its row and degrades the
+ * lane, so healthy chats survive. The inbox preview must still apply the
+ * deletion mark because retaining the row does not prove it has new messages.
+ */
 async function visibleConversationRows(
   rows: Array<Record<string, unknown>>,
   me: string,
-): Promise<Array<Record<string, unknown>>> {
-  if (rows.length === 0) return rows;
+): Promise<InboxLane> {
+  if (rows.length === 0) return { rows, degraded: false };
   const deletions = await readInboxDeletions(rows.map((row) => String(row.id)), me);
   if (deletions.degraded) throw new MessageReadUnavailableError();
-  const visible = await Promise.all(rows.map(async (row) => {
+  let degraded = false;
+  const judged = await Promise.all(rows.map(async (row) => {
     const id = String(row.id);
     const mark = deletions.byConversation.get(id);
-    if (!mark) return true;
-    const { data, error } = await admin()
-      .from(MESSAGES)
-      .select("created_at")
-      .eq("conversation_id", id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new MessageReadUnavailableError();
-    return data !== null && afterDeleteMark(data.created_at, mark);
+    if (!mark) return row;
+    try {
+      const { data, error } = await admin()
+        .from(MESSAGES)
+        .select("created_at")
+        .eq("conversation_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (data === null || !afterDeleteMark(data.created_at, mark)) return null;
+      return { ...row, last_message_at: data.created_at };
+    } catch (err) {
+      degraded = true;
+      console.error(
+        "[messages] inbox restored-chat read failed:",
+        err instanceof Error ? err.message : err,
+      );
+      return row;
+    }
   }));
-  return rows.filter((_, index) => visible[index]);
+  return { rows: judged.filter((row) => row !== null), degraded };
 }
 
 async function readGroupConversationRows(
   ids: readonly string[],
   me: string,
-): Promise<Array<Record<string, unknown>>> {
+): Promise<InboxLane> {
   const visible: Array<Record<string, unknown>> = [];
+  let degraded = false;
   for (let offset = 0; offset < ids.length; offset += MAX_CONVERSATIONS) {
     let rows: Array<Record<string, unknown>>;
     try {
@@ -1700,13 +1734,13 @@ async function readGroupConversationRows(
       rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
     } catch (err) {
       console.error("[messages] inbox group rows failed:", err instanceof Error ? err.message : err);
-      return [];
+      return { rows: [], degraded: false };
     }
-    visible.push(...(await visibleConversationRows(rows, me)));
+    const chunk = await visibleConversationRows(rows, me);
+    degraded ||= chunk.degraded;
+    visible.push(...chunk.rows);
   }
-  return visible.sort((a, b) =>
-    String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
-  ).slice(0, MAX_CONVERSATIONS);
+  return { rows: newestFirst(visible).slice(0, MAX_CONVERSATIONS), degraded };
 }
 
 /** Every group row's live membership, in ONE read rather than one per row. */

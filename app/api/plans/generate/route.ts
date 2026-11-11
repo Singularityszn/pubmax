@@ -35,6 +35,7 @@ import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planR
 import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import { planGroundingUnmintableResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
+import { planAreaName } from "@/lib/nightAreaFocus";
 import { normalizePlanStopCount } from "@/lib/planStopCount";
 import { assertServerEnv } from "@/lib/serverEnv";
 
@@ -160,7 +161,7 @@ export async function POST(request: Request): Promise<Response> {
 			// or, under a budget, the cheapest route found and its total.
 			const { mustHaves, cheapestRoute } = generatedSelection;
 			return publicApiError(
-				planGenerationRefusalMessage(context, area.name, mustHaves, cheapestRoute),
+				planGenerationRefusalMessage(context, planAreaName(area.name, context.areaFocus), mustHaves, cheapestRoute),
 				"GROUNDED_CONSTRAINTS_UNSATISFIED",
 				422,
 				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, mustHaves, cheapestRoute, ...generatedSelection.selection } },
@@ -176,7 +177,7 @@ export async function POST(request: Request): Promise<Response> {
 		}
 	}
 	const requestedStopCount = normalizePlanStopCount(context.stopCount);
-	if (chosen.length < requestedStopCount) return publicApiError(`Not enough listed pubs in ${area.name} to build a ${requestedStopCount}-stop route yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length, requestedStopCount } });
+	if (chosen.length < requestedStopCount) return publicApiError(`Not enough listed pubs in ${planAreaName(area.name, context.areaFocus)} to build a ${requestedStopCount}-stop route yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length, requestedStopCount } });
 	const pricePence = chosen.map(({ venue }, position) => {
 		const grounded = groundedStops?.[position];
 		if (grounded) return grounded.price.pence;
