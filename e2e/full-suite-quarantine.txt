@@ -3,16 +3,6 @@
 # npm run gate:e2e-skips refuses a test line with no issue above it.
 # Delete a block in the pull request that fixes its tests, then close the issue.
 
-# https://github.com/Singularityszn/pubmax/issues/2655 area coverage copy
-[chromium] › mobile-discover-coverage.spec.ts › mobile Discover shows Night Area evidence states without promising routes
-[chromium] › night-area-coverage.spec.ts › mobile planner explains planning confidence and evidence warnings
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 390px in light
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 390px in dark
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 768px in light
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 768px in dark
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 1440px in light
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 1440px in dark
-
 # https://github.com/Singularityszn/pubmax/issues/2656 the reader's own Pal map marker is missing
 [chromium] › night-ways-there.spec.ts › a routed crawl is a thick solid line with its walking minutes on a bubble on each leg, and the Pal sets off saying the first one
 [chromium] › night-ways-there.spec.ts › after the Pal led the way, a plan that ends leaves it perched beside the open pub
