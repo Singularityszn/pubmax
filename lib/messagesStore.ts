@@ -1246,7 +1246,7 @@ export const supabaseMessagesStore: MessagesStore = {
         const id = String(row.id ?? "");
         if (id && !byId.has(id)) byId.set(id, row);
       }
-      rows = newestFirst([...byId.values()]).slice(0, MAX_CONVERSATIONS);
+      rows = [...byId.values()];
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("listConversations", err);
@@ -1299,6 +1299,7 @@ export const supabaseMessagesStore: MessagesStore = {
       );
     }
 
+    rows = limitInboxRows(reconcileInboxRows(rows, lastByConversation, deletions.byConversation));
     const conversations = rows.map((row) => {
       const id = String(row.id);
       const newest = lastByConversation.get(id);
@@ -1609,10 +1610,27 @@ async function membershipForRow(
 /** Inbox rows from one lane, and whether a read that judged them failed. */
 type InboxLane = { rows: Array<Record<string, unknown>>; degraded: boolean };
 
-function newestFirst(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
-  return rows.sort((a, b) =>
-    String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
-  );
+function limitInboxRows(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  let resolved = 0;
+  return rows
+    .sort((a, b) => String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")))
+    .filter((row) => row.visibilityReadFailed === true || resolved++ < MAX_CONVERSATIONS);
+}
+
+function reconcileInboxRows(
+  rows: Array<Record<string, unknown>>,
+  lastByConversation: ReadonlyMap<string, Record<string, unknown>>,
+  deletions: ReadonlyMap<string, string>,
+): Array<Record<string, unknown>> {
+  return rows.map((row) => {
+    const id = String(row.id);
+    const newest = lastByConversation.get(id);
+    if (
+      row.visibilityReadFailed !== true || typeof newest?.created_at !== "string" ||
+      !afterDeleteMark(newest.created_at, deletions.get(id))
+    ) return row;
+    return { ...row, last_message_at: newest.created_at };
+  });
 }
 
 /**
@@ -1640,7 +1658,7 @@ async function readDirectConversationRows(me: string): Promise<InboxLane> {
     const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
     const page = await visibleConversationRows(rows.filter((row) => row.kind !== "group"), me);
     degraded ||= page.degraded;
-    visible = newestFirst([...visible, ...page.rows]).slice(0, MAX_CONVERSATIONS);
+    visible = limitInboxRows([...visible, ...page.rows]);
     if (rows.length < MAX_CONVERSATIONS) return { rows: visible, degraded };
   }
 }
@@ -1714,7 +1732,7 @@ async function visibleConversationRows(
         "[messages] inbox restored-chat read failed:",
         err instanceof Error ? err.message : err,
       );
-      return row;
+      return { ...row, visibilityReadFailed: true };
     }
   }));
   return { rows: judged.filter((row) => row !== null), degraded };
@@ -1744,7 +1762,7 @@ async function readGroupConversationRows(
     degraded ||= chunk.degraded;
     visible.push(...chunk.rows);
   }
-  return { rows: newestFirst(visible).slice(0, MAX_CONVERSATIONS), degraded };
+  return { rows: limitInboxRows(visible), degraded };
 }
 
 /** Every group row's live membership, in ONE read rather than one per row. */

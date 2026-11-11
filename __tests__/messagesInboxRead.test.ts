@@ -523,7 +523,6 @@ describe("removal privacy on durable reads", () => {
   /** A paged inbox: each chat's messages, the viewer's delete marks, and one latest-message read that may fail. */
   function answerInbox(
     rows: InboxRow[],
-    kind: InboxKind,
     marks: ReadonlyMap<string, string>,
     newestFor: (row: InboxRow) => string,
     failLatestFor?: string,
@@ -532,16 +531,14 @@ describe("removal privacy on durable reads", () => {
       if (q.table === "conversation_members") {
         const batch = filterValue(q, "in");
         if (batch) return { data: (batch[1] as string[]).flatMap((id) => ["ken", "sam", "jen"].map((handle) => ({ conversation_id: id, handle }))), error: null };
-        if (kind === "direct") return { data: [], error: null };
         const [start, end] = filterValue(q, "range") as number[];
-        return { data: rows.slice(start, end! + 1).map((row) => ({ conversation_id: row.id })), error: null };
+        return { data: rows.filter((row) => row.kind === "group").slice(start, end! + 1).map((row) => ({ conversation_id: row.id })), error: null };
       }
       if (q.table === "conversations") {
         const ids = filterValue(q, "in")?.[1] as string[] | undefined;
         if (ids) return { data: rows.filter((row) => ids.includes(row.id)), error: null };
-        if (kind === "group") return { data: [], error: null };
         const [start, end] = filterValue(q, "range") as number[];
-        return { data: rows.slice(start, end! + 1), error: null };
+        return { data: rows.filter((row) => row.kind === "direct").slice(start, end! + 1), error: null };
       }
       if (q.table === "conversation_deletions") {
         const ids = filterValue(q, "in")?.[1] as string[];
@@ -574,7 +571,7 @@ describe("removal privacy on durable reads", () => {
   ] as const)("replenishes the %s inbox after 100 deleted chats (restored: %s)", async (kind, restored) => {
     const rows = inboxRows(201, kind);
     const marks = new Map(rows.slice(0, 100).map((row) => [row.id, "2027-01-01T00:00:00Z"]));
-    answerInbox(rows, kind, marks, (row) =>
+    answerInbox(rows, marks, (row) =>
       restored && row.id === "chat-0" ? "2028-01-01T00:00:00Z" : row.last_message_at,
     );
     const inbox = await supabaseMessagesStore.listConversations("ken");
@@ -594,7 +591,7 @@ describe("removal privacy on durable reads", () => {
       // sorts last.
       const rows = inboxRows(101, kind);
       const restoredAt = "2028-01-01T00:00:00.000Z";
-      answerInbox(rows, kind, new Map([["chat-100", "2027-01-01T00:00:00Z"]]), (row) =>
+      answerInbox(rows, new Map([["chat-100", "2027-01-01T00:00:00Z"]]), (row) =>
         row.id === "chat-100" ? restoredAt : row.last_message_at,
       );
 
@@ -619,7 +616,7 @@ describe("removal privacy on durable reads", () => {
       ...row,
       last_message_at: index === 0 ? "2028-01-01T12:05:00.000Z" : otherAt,
     }));
-    answerInbox(rows, kind, new Map([["chat-0", "2028-01-01T11:00:00.000Z"]]), (row) =>
+    answerInbox(rows, new Map([["chat-0", "2028-01-01T11:00:00.000Z"]]), (row) =>
       row.id === "chat-0" ? restoredAt : otherAt,
     );
 
@@ -642,7 +639,7 @@ describe("removal privacy on durable reads", () => {
     async (kind) => {
       const rows = inboxRows(3, kind);
       // chat-1's only message predates the delete, so it is deleted history.
-      answerInbox(rows, kind, new Map([["chat-1", "2027-01-01T00:00:00Z"]]), (row) => row.last_message_at, "chat-1");
+      answerInbox(rows, new Map([["chat-1", "2027-01-01T00:00:00Z"]]), (row) => row.last_message_at, "chat-1");
 
       const inbox = await supabaseMessagesStore.listConversations("ken");
 
@@ -653,6 +650,80 @@ describe("removal privacy on durable reads", () => {
       ]);
     },
   );
+
+  it.each(
+    (["direct", "group"] as const).flatMap((kind) =>
+      [false, true].flatMap((mixed) =>
+        (["restored", "deleted-history", "unavailable"] as const).map((preview) => ({ kind, mixed, preview })),
+      ),
+    ),
+  )("retains a failed visibility read through every cap in a $kind inbox (mixed: $mixed, preview: $preview)", async ({ kind, mixed, preview }) => {
+    const rows = inboxRows(101, kind);
+    if (mixed) rows[100] = { ...defined(rows[100]), kind: kind === "direct" ? "group" : "direct" };
+    const restoredAt = "2028-01-01T00:00:00.000Z";
+    answerInbox(
+      rows,
+      new Map([["chat-100", "2027-01-01T00:00:00Z"]]),
+      (row) => row.id === "chat-100" && preview === "restored" ? restoredAt : row.last_message_at,
+      "chat-100",
+    );
+    if (preview === "unavailable") {
+      const answer = state.answer;
+      state.answer = (q) => q.table === "messages" && !q.filters.some((f) => f[0] === "is")
+        ? { data: null, error: { message: "connection reset" } }
+        : answer(q);
+    }
+
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+
+    expect(inbox.status).toBe("degraded");
+    if (preview === "restored") {
+      expect(inbox.conversations.map((row) => row.id)).toEqual([
+        "chat-100", ...rows.slice(0, 100).map((row) => row.id),
+      ]);
+      expect(inbox.conversations[0]).toMatchObject({ lastAt: restoredAt, lastBody: "said in chat-100" });
+    } else {
+      expect(inbox.conversations.map((row) => row.id)).toEqual(rows.map((row) => row.id));
+      expect(inbox.conversations.find((row) => row.id === "chat-100")).not.toHaveProperty("lastBody");
+    }
+  });
+
+  it.each(["direct", "group"] as const)("keeps healthy %s chats when a failed visibility read has later metadata", async (kind) => {
+    const rows = inboxRows(101, kind).map((row, index) => ({
+      ...row,
+      last_message_at: index === 0 ? "2028-01-01T12:05:00.000Z" : "2028-01-01T12:04:00.000Z",
+    }));
+    const restoredAt = "2028-01-01T12:00:00.000Z";
+    answerInbox(
+      rows,
+      new Map([["chat-0", "2028-01-01T11:00:00.000Z"]]),
+      (row) => row.id === "chat-0" ? restoredAt : row.last_message_at,
+      "chat-0",
+    );
+
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+
+    expect(inbox.status).toBe("degraded");
+    expect(inbox.conversations.map((row) => row.id)).toEqual([
+      ...rows.slice(1).map((row) => row.id), "chat-0",
+    ]);
+    expect(inbox.conversations[100]).toMatchObject({ lastAt: restoredAt, lastBody: "said in chat-0" });
+  });
+
+  it.each(["direct", "group"] as const)("retains more than 100 unresolved %s chats without deleted previews", async (kind) => {
+    const rows = inboxRows(101, kind);
+    answerInbox(rows, new Map(rows.map((row) => [row.id, "2027-01-01T00:00:00Z"])), (row) => row.last_message_at);
+    const answer = state.answer;
+    state.answer = (q) => q.table === "messages" && filterValue(q, "select")?.[0] === "created_at"
+      ? { data: null, error: { message: "connection reset" } }
+      : answer(q);
+
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+
+    expect(inbox.status).toBe("degraded");
+    expect(inbox.conversations.map((row) => row.id)).toEqual(rows.map((row) => row.id));
+    for (const row of inbox.conversations) expect(row).not.toHaveProperty("lastBody");
+  });
 
   it.each(
     (["direct", "group"] as const).flatMap((kind) =>
