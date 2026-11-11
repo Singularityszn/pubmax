@@ -11,6 +11,10 @@
 // card's, at every width: on a phone the card is the sheet's footer, and from
 // 641px it is the drawer's sticky top. Desktop's Stop 1 and Crawl ghosts left
 // with the old command bar, so the card's door is the one plan door there too.
+//
+// Since D4 (c) (11 Nov 2026) a pub with no drinker price from the last 30
+// days spends the coral on "Log what you paid", and the same plan door moves
+// to the card's action row as a ghost.
 
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -22,10 +26,17 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 import VenueActionCard from "@/components/map/inspector/VenueActionCard";
 import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
-import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
+import { venueActionDoors } from "@/components/map/inspector/venueActionDoors";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import type { CrawlMode, Venue } from "@/lib/venues";
-import { crawlInProgress, phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
+import { DAY_MS } from "@/lib/dayMs";
+import type { PintTrustState } from "@/lib/pintTrust";
+import {
+  crawlInProgress,
+  hasFreshDrinkerPrice,
+  phoneVenuePlanDoor,
+  venueSheetDoors,
+} from "@/lib/venuePlanDoor";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -93,6 +104,42 @@ describe("phoneVenuePlanDoor: the mapping, exactly", () => {
   });
 });
 
+describe("the coral asks for a price where no drinker has given one this month", () => {
+  const NOW = Date.parse("2026-11-11T20:00:00.000Z");
+
+  it.each([
+    ["confirmed", true],
+    ["corroborated", true],
+    ["disputed", true],
+    ["logged-once", true],
+    ["unchecked", true],
+    ["aged-out", false],
+    ["none", false],
+  ] as [PintTrustState, boolean][])("a %s drop reading counts as fresh: %s", (pintTrust, fresh) => {
+    expect(hasFreshDrinkerPrice({ pintTrust, communityPint: null }, NOW)).toBe(fresh);
+  });
+
+  it("a pint from the price form counts inside 30 days and not after", () => {
+    const at = (days: number) => ({ submittedAt: NOW - days * DAY_MS });
+    expect(hasFreshDrinkerPrice({ pintTrust: "aged-out", communityPint: at(30) }, NOW)).toBe(true);
+    expect(hasFreshDrinkerPrice({ pintTrust: "aged-out", communityPint: at(31) }, NOW)).toBe(false);
+    expect(hasFreshDrinkerPrice({ pintTrust: null, communityPint: null }, NOW)).toBe(false);
+  });
+
+  it("a pub with no fresh drinker price leads with the log door and keeps its plan door", () => {
+    const base = { isPub: true, venueId: VENUE_ID, canAcceptStop1: true, mode: "suggest" as CrawlMode, builtIds: [] };
+    expect(venueSheetDoors({ ...base, freshDrinkerPrice: false })).toEqual({
+      logFirst: true,
+      planDoor: { kind: "stop-1", label: "Make it Stop 1" },
+    });
+    expect(venueSheetDoors({ ...base, freshDrinkerPrice: true }).logFirst).toBe(false);
+    expect(venueSheetDoors({ ...base, isPub: false, freshDrinkerPrice: false })).toEqual({
+      logFirst: false,
+      planDoor: null,
+    });
+  });
+});
+
 /**
  * The sheet as PubMap composes it: the action card, its first row built from
  * the one plan door, portalled into the phone sheet's footer (or rendered in
@@ -105,13 +152,17 @@ function PhoneSheet({
   initialBuiltIds,
   onAcceptStop1,
   onToggle,
+  onLog = () => {},
   phone = true,
+  pintTrust = "corroborated",
 }: {
   initialMode: CrawlMode;
   initialBuiltIds: string[];
   onAcceptStop1: () => void;
   onToggle?: (id: string) => void;
+  onLog?: () => void;
   phone?: boolean;
+  pintTrust?: PintTrustState;
 }) {
   const [mode, setMode] = useState<CrawlMode>(initialMode);
   const [builtIds, setBuiltIds] = useState<string[]>(initialBuiltIds);
@@ -122,19 +173,26 @@ function PhoneSheet({
     setMode("build");
   };
   const pub = venue();
+  const doors = venueActionDoors({
+    venueId: pub.id,
+    venueName: pub.name,
+    isPub: true,
+    mode,
+    builtIds,
+    pintTrust,
+    communityPint: null,
+    onLog,
+    onAcceptStop1,
+    onToggleStop: toggle,
+  });
   const card = createElement(VenueActionCard, {
     venue: pub,
+    planDoor: doors.ghost,
     summary: createElement(VenueActionSummary, {
       label: "The Plan Door summary",
       price: createElement("span", null, "£4.80"),
       walkMinutes: null,
-      planDoor: createElement(VenuePeekPlanDoor, {
-        door: phoneVenuePlanDoor({ isPub: true, mode, builtIds, venueId: pub.id, canAcceptStop1: true }),
-        venueId: pub.id,
-        venueName: pub.name,
-        onAcceptStop1,
-        onToggleStop: toggle,
-      }),
+      planDoor: doors.coral,
     }),
     shareVenue: async () => {},
     currentShareFeedback: null,
@@ -252,5 +310,50 @@ describe("desktop reads the same one door", () => {
     act(() => peekDoor().click());
     expect(toggle).toHaveBeenCalledWith(VENUE_ID);
     expect(accept).not.toHaveBeenCalled();
+  });
+});
+
+describe("a pub with no fresh drinker price leads with Log what you paid", () => {
+  it.each([true, false])("phone %s: the coral logs, and the plan door still plans as a ghost", (phone) => {
+    const accept = vi.fn();
+    const log = vi.fn();
+    act(() => root.render(createElement(PhoneSheet, {
+      initialMode: "suggest", initialBuiltIds: [], onAcceptStop1: accept, onLog: log, phone, pintTrust: "aged-out",
+    })));
+
+    const coral = host.querySelectorAll<HTMLButtonElement>(".mobileVenuePeekPlanDoor");
+    expect(coral).toHaveLength(1);
+    expect(coral[0]?.getAttribute("aria-label")).toBe("Log what you paid at The Plan Door");
+    act(() => coral[0]?.click());
+    expect(log).toHaveBeenCalledTimes(1);
+
+    const toolbar = host.querySelector('[role="toolbar"][aria-label="Venue actions"]');
+    const ghosts = Array.from(toolbar?.querySelectorAll("button") ?? []);
+    expect(ghosts.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Make it Stop 1: The Plan Door",
+      "Ask for a table at The Plan Door",
+      "Share The Plan Door",
+    ]);
+    expect(planControls()).toHaveLength(1);
+    act(() => ghosts[0]?.click());
+    expect(accept).toHaveBeenCalledTimes(1);
+  });
+
+  it("the ghost follows the crawl like the coral did", () => {
+    const toggle = vi.fn();
+    act(() => root.render(createElement(PhoneSheet, {
+      initialMode: "build", initialBuiltIds: [OTHER_ID], onAcceptStop1: vi.fn(), onToggle: toggle, pintTrust: "none",
+    })));
+    const ghost = () => {
+      const door = host.querySelector<HTMLButtonElement>('[role="toolbar"] [data-plan-door]');
+      if (!door) throw new Error("the action row carries no plan door");
+      return door;
+    };
+    expect(ghost().textContent).toBe("Plan stop");
+    act(() => ghost().click());
+    expect(toggle).toHaveBeenLastCalledWith(VENUE_ID);
+    expect(ghost().textContent).toBe("In plan");
+    expect(ghost().getAttribute("aria-pressed")).toBe("true");
+    expect(planControls()).toHaveLength(1);
   });
 });
