@@ -16,6 +16,7 @@ const voiceState = vi.hoisted(() => ({
   ceilingSpent: false,
   events: [] as string[],
   memories: [] as import("@/lib/pubPal").PubPalMemory[],
+  memoriesFail: false,
   palLookupFails: false,
   palPresent: true,
   dateOfBirth: null as string | null,
@@ -42,7 +43,7 @@ const voiceState = vi.hoisted(() => ({
     voice: { id: "ember", pace: 50, warmth: 64, energy: 52 },
     muted: false,
     hidden: false,
-    proposalPreferences: { memories: false, routes: true },
+    proposalPreferences: { memories: false, routes: true } as import("@/lib/pubPal").PalProposalPreferences,
     masteryPoints: 0,
     createdAt: "2026-08-08T00:00:00.000Z",
     updatedAt: "2026-08-08T00:00:00.000Z",
@@ -54,7 +55,9 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 vi.mock("@/lib/pubPalStore", () => ({
-  listPalMemoriesResult: async () => ({ ok: true, value: voiceState.memories }),
+  listPalMemoriesResult: async () => voiceState.memoriesFail
+    ? { ok: false as const, error: "error" as const }
+    : { ok: true as const, value: voiceState.memories },
   getPubPalResult: async () => voiceState.palLookupFails
     ? { ok: false as const, error: "error" as const }
     : { ok: true as const, value: voiceState.palPresent ? voiceState.pal : null },
@@ -139,6 +142,8 @@ describe("Pub Pal voice token route", () => {
     tasteRead.mockReset();
     tasteRead.mockResolvedValue(null);
     voiceState.memories = [];
+    voiceState.memoriesFail = false;
+    voiceState.pal.proposalPreferences = { memories: false, routes: true };
     voiceState.configured = true;
     voiceState.ceilingSpent = false;
     voiceState.events.length = 0;
@@ -412,6 +417,40 @@ describe("Pub Pal voice token route", () => {
     expect(greeting).toContain("I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total.");
     expect(greeting).toContain("Something similar");
     expect(greeting).not.toContain("£26.80 a pint");
+  });
+
+  it("hands the call its memories and taste to send on connect, so the first ask skips recall", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    voiceState.memories = [{ id: "drink", palId: voiceState.pal.id, kind: "drink_preference", provenance: "user_confirmed",
+      value: "Guinness, never lager", createdAt: "2026-10-11T00:00:00Z", updatedAt: "2026-10-11T00:00:00Z" }];
+    tasteRead.mockResolvedValue(buildPalTaste({ diary: [], saved: [],
+      drops: [{ venueId: "crown", day: "2026-10-10", drink: "Camden Hells", pintPriceGbp: 5.8, vibeTags: [] }],
+      placeOf: () => ({ name: "The Crown", patch: "Soho" }),
+    }));
+    const { context } = await (await POST(issueRequest())).json();
+    expect(context).toContain("do not call recall_memories");
+    expect(context).toContain("Drinks: Guinness, never lager");
+    expect(context).toContain("Their usual patches: Soho.");
+  });
+
+  it("still tells the call when nothing is confirmed, and keeps a confirmed memory out of the greeting when taste is off", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    expect((await (await POST(issueRequest())).json()).context).toContain("has not confirmed anything to remember yet");
+    voiceState.pal.proposalPreferences = { memories: false, routes: true, taste: false };
+    voiceState.memories = [{ id: "night", palId: voiceState.pal.id, kind: "night_outcome", provenance: "user_confirmed",
+      value: "The Crown on 10 October", createdAt: "2026-10-11T00:00:00Z", updatedAt: "2026-10-11T00:00:00Z" }];
+    const body = await (await POST(issueRequest())).json();
+    expect(body.overrides.firstMessage).not.toContain("The Crown");
+    expect(body.context).toContain("A past night: The Crown on 10 October");
+  });
+
+  it("sends no memory line when the memories cannot be read, so the agent still recalls", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    voiceState.memoriesFail = true;
+    expect((await (await POST(issueRequest())).json()).context).toBeNull();
   });
 
   it("returns overrides, session cap, and pal-derived prompt fields", async () => {

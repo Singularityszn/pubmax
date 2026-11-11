@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { PubPalMemory, PubPalMemoryKind } from "@/lib/pubPal";
-import { palTastePreamble } from "@/lib/palTaste";
+import { palTastePreamble, type PalTaste } from "@/lib/palTaste";
 import { readPalTaste } from "@/lib/palTaste.server";
 import { listPalMemoriesResult } from "@/lib/pubPalStore";
 import { PAL_RECALL_MEMORY_LIMIT, selectPalMemoriesForAsk } from "@/lib/palMemoryRelevance";
@@ -116,19 +116,37 @@ export async function recallPalMemoriesForConversation(
   const ask = await askRead;
   const [memories, taste] = await Promise.all([readConfirmedPalMemories(ownerId, ask), readPalTaste(ownerId)]);
   if (!memories) return refuse("Saved memories are unavailable right now.");
-  // Voice has no typed preamble, so the taste read rides the recall answer.
-  const tasteLines = palTastePreamble(taste, "third");
-  const tasteHint = tasteLines.length > 0 ? ` ${tasteLines.join(" ")}` : "";
   return {
     result: {
       ok: true,
       tool: PAL_RECALL_MEMORIES_TOOL,
-      answerHint:
-        (memories.length === 0
-          ? "The person has not confirmed anything to remember yet."
-          : `The person confirmed these preferences and past-night reports: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Use preferences for picks. Past nights are personal history, including explicitly reported spend. Preserve the stated pub and date. Never infer or sum price observations into a bill, or treat memories as current facts about a pub.`) +
-        tasteHint,
+      answerHint: palRecalledContext(memories, taste),
       memories: memories.map(({ kind, value }) => ({ kind, value })),
     },
   };
+}
+
+/** What a voice call learns about the person: their confirmed memories, then the taste read, in the third person. */
+function palRecalledContext(memories: PalRecalledMemory[], taste: PalTaste | null): string {
+  const tasteLines = palTastePreamble(taste, "third");
+  return [
+    memories.length === 0
+      ? "The person has not confirmed anything to remember yet."
+      : `The person confirmed these preferences and past-night reports: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Use preferences for picks. Past nights are personal history, including explicitly reported spend. Preserve the stated pub and date. Never infer or sum price observations into a bill, or treat memories as current facts about a pub.`,
+    ...tasteLines,
+  ].join(" ");
+}
+
+/**
+ * The contextual update a voice call sends once it connects, so the first real
+ * ask does not wait on a recall_memories round trip. It carries what that call
+ * would return. A failed memory read sends no memory line, so the agent still
+ * recalls, and with no taste read either there is nothing to send.
+ */
+export function palVoiceConnectContext(memories: PalRecalledMemory[] | null, taste: PalTaste | null): string | null {
+  if (memories) {
+    return `App context at the start of this call, not something the person said. It supplies their confirmed memories, so do not call recall_memories. ${palRecalledContext(memories, taste)}`;
+  }
+  const tasteLines = palTastePreamble(taste, "third");
+  return tasteLines.length > 0 ? `App context at the start of this call, not something the person said. ${tasteLines.join(" ")}` : null;
 }

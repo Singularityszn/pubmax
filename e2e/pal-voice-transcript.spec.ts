@@ -67,7 +67,10 @@ function hear(socket: WebSocketRoute, text: string, tentative = false): void {
     : { type: "user_transcript", user_transcription_event: { user_transcript: text, event_id: eventId } }));
 }
 
-async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?: string, hidden = false): Promise<WebSocketRoute> {
+/** Every event the real SDK sent on a socket, from its first message. */
+const clientEvents = new WeakMap<WebSocketRoute, { type?: string; text?: string }[]>();
+
+async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?: string, hidden = false, context?: string): Promise<WebSocketRoute> {
   const timestamp = "2026-10-04T12:00:00.000Z";
   let pal = {
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
@@ -90,14 +93,17 @@ async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?:
     }
     const body = route.request().postDataJSON() as { action?: string } | null;
     if (body?.action === "release") return route.fulfill({ status: 204 });
-    return route.fulfill({ json: { signedUrl: SIGNED_URL, conversationId: "conv_e2e_transcript", maxSessionSeconds: 180, ...(firstMessage ? { overrides: { firstMessage, voiceId: null } } : {}) } });
+    return route.fulfill({ json: { signedUrl: SIGNED_URL, conversationId: "conv_e2e_transcript", maxSessionSeconds: 180, context: context ?? null, ...(firstMessage ? { overrides: { firstMessage, voiceId: null } } : {}) } });
   });
 
   let resolveSocket!: (socket: WebSocketRoute) => void;
   const opened = new Promise<WebSocketRoute>((resolve) => { resolveSocket = resolve; });
   await page.routeWebSocket(/api\.elevenlabs\.io/, (socket) => {
+    const sent: { type?: string; text?: string }[] = [];
+    clientEvents.set(socket, sent);
     socket.onMessage((message) => {
-      const event = JSON.parse(String(message)) as { type?: string };
+      const event = JSON.parse(String(message)) as { type?: string; text?: string };
+      sent.push(event);
       if (event.type !== "conversation_initiation_client_data") return;
       if (firstMessage) {
         expect(event).toMatchObject({ conversation_config_override: { agent: { first_message: firstMessage } } });
@@ -720,6 +726,14 @@ test("the real SDK carries a grounded returning opening into a fresh voice sessi
   const greeting = 'Hi, I\'m Ripley. You told me: "I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total." Something similar tonight?';
   await openLiveVoice(page, false, greeting);
   await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText(greeting);
+});
+
+test("the real SDK sends the person's memories and taste once the call connects, before any ask", async ({ page }) => {
+  const context = "App context at the start of this call, not something the person said. It supplies their confirmed memories, so do not call recall_memories. The person confirmed these preferences and past-night reports: Drinks: Guinness.";
+  const socket = await openLiveVoice(page, false, undefined, false, context);
+  await expect.poll(() => clientEvents.get(socket)?.filter((event) => event.type === "contextual_update").map((event) => event.text))
+    .toEqual([context]);
+  expect(clientEvents.get(socket)?.some((event) => event.type === "user_message")).toBe(false);
 });
 
 for (const action of ["mute", "delete", "leave", "sign out"] as const) {
