@@ -890,4 +890,17 @@ describe("venue_prices read availability", () => {
     expect(result.answerHint).toContain("listed pint £5.00");
     expect(result.answerHint).not.toContain("no corroborated");
   });
+
+  it("dates a people-logged price by its London day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    try {
+      state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+      // 00:30 BST on 15 August is still 14 August in UTC.
+      state.prices = { prices: [price({ submittedAt: Date.parse("2026-08-14T23:30:00.000Z") })], degraded: false };
+      const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx());
+      expect(result.cards.map((card) => card.note)).toContain("beer · people-logged 2026-08-15");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

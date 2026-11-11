@@ -343,7 +343,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   To stop receiving group messages, open **Chat options**. Choose **Leave group**. Confirm your departure. Your earlier messages stay for the remaining members. After deletion or departure, the thread shows a confirmation until you leave that view or change accounts.
 
-  If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations.
+  If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations. Within the inbox limit, a failed check for new messages in one deleted chat keeps that chat and the others visible. Messages from before deletion stay hidden, and the inbox shows an availability notice. When the check succeeds, the restored chat sorts and displays its newest message time.
 
   Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
 
