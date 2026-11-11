@@ -156,10 +156,10 @@ export async function resolveCanonicalIdentity(
  * Post-callback routing. Creating the account comes first and choosing a
  * handle is the step after, and /u/you is the only surface carrying the claim
  * form, so a freshly established session with no claimed handle routes there.
+ * Only a validated Pint Drop door is retained through the claim.
  * Returns the destination path, or null to stay put. Never bounces the user on
- * doubt: a device
- * handle THIS ACCOUNT owns means /u/you would just redirect back out, and a
- * failed or unreadable server answer is not evidence the account has no handle.
+ * doubt: a device handle THIS ACCOUNT owns means /u/you would redirect back out.
+ * A failed or unreadable server answer is not evidence the account has no handle.
  * When the server already owns a handle, sync it onto this device before
  * staying put.
  *

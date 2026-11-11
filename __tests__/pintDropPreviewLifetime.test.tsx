@@ -72,6 +72,11 @@ beforeEach(async () => {
   localStorage.setItem("pubmax_handle", "alice");
   minted = 0;
   io.post.mockReset();
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  });
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ drops: [] }) }));
   vi.stubGlobal("URL", Object.assign(class extends URL {}, {
     createObjectURL: vi.fn(() => `blob:preview-${++minted}`),

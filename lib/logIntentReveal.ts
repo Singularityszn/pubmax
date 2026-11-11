@@ -10,7 +10,7 @@
  *
  * This is a REVEAL and never a re-layout: nothing here changes what the sheet
  * renders, its snap detent or its tab, and the composer's own fields are
- * untouched. It scrolls the price step into view once the composer has mounted,
+ * untouched. It scrolls the price step into view once the step enters layout,
  * and it deliberately does NOT move focus: focusing the price field raises the
  * soft keyboard, which is a second decision (`lib/softKeyboard.ts` handles it
  * correctly either way) and a bigger change than the one the gap asks for.
@@ -39,9 +39,9 @@ type RevealRoot = Pick<Document, "querySelector">;
  * 1.5s wall-clock budget, and on a loaded machine the step mounted after the
  * budget ran out: the sheet stayed at its top and the reader had to scroll
  * after all, in about one arrival in four under parallel load. So the request
- * waits for the step instead of for a clock: the step reveals itself as it
- * mounts (`takeLogIntentReveal`), and a request the reader walks away from is
- * cancelled by the map (`useLogIntentRevealScope`), never by a timer.
+ * waits for the step instead of for a clock: the step reveals itself when it
+ * enters layout (`takeLogIntentReveal`). The map cancels a request the reader
+ * leaves (`useLogIntentRevealScope`), never a timer.
  */
 type PendingReveal = { reducedMotion: boolean };
 
@@ -51,9 +51,9 @@ type RevealFrame = (callback: () => void) => unknown;
 
 /**
  * Ask for the next price step to be revealed. A composer that is not open yet
- * takes the request as its step mounts. One that is already open will not
- * mount again, so its step is looked up on the next frame, after the sheet has
- * committed the detent and tab the same open asked for.
+ * takes the request when its step enters layout. An open composer will not
+ * mount again, so its step is looked up on the next frame, after the sheet
+ * commits the requested detent and tab.
  */
 export function requestLogIntentReveal(
   root: RevealRoot,
@@ -77,8 +77,8 @@ function browserNextFrame(callback: () => void): void {
 }
 
 /**
- * Called by the price step as it mounts. Reveals it when a request is waiting
- * and spends that request, so one log intent scrolls the sheet at most once.
+ * Called when the price step mounts or enters layout. A visible step consumes
+ * the waiting request, so one log intent scrolls the sheet at most once.
  */
 export function takeLogIntentReveal(step: HTMLElement | null): boolean {
   const request = pendingReveal;

@@ -37,7 +37,7 @@ export function ComposerPriceStep({
   const stepRef = useRef<HTMLDivElement>(null);
 
   // `?log=1` asks for this step before the composer exists, and the step
-  // answers as it mounts, however long the sheet took to get here.
+  // answers when it enters layout, even if it mounted behind the skeleton.
   useEffect(() => {
     const step = stepRef.current;
     if (!step) return;

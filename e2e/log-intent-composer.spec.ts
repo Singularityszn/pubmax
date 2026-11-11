@@ -203,7 +203,11 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   await tap(pint, "Pint");
   await expect(pint).toHaveAttribute("aria-checked", "true");
 
-  await tap(composer.getByRole("link", { name: "Sign in to post" }), "Sign in to post");
+  await tapUntil(
+    composer.getByRole("link", { name: "Sign in to post" }),
+    "Sign in to post",
+    page.getByRole("heading", { name: "Sign in or create your account", exact: true }),
+  );
   await expect(page).toHaveURL(/\/login\?/);
   if (door === "New here") {
     const tab = page.getByRole("tab", { name: "New here", exact: true });
@@ -221,6 +225,7 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   // drop this journey proves, and the runner drops the whole database after.
   const link = await emailedSignInLink(page, email);
   const returned = await page.context().newPage();
+  await installDeterministicMapBasemap(returned);
   await returned.goto(link);
   taps.push("open the emailed link");
 

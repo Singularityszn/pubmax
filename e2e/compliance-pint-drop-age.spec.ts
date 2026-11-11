@@ -165,7 +165,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
       await installDeterministicMapBasemap(page);
     });
 
-    test("missing age recovers in place with Social access disabled, then permits one explicit retry", async ({ page }) => {
+    test("missing age recovers in place with Social access disabled, then finishes the held price", async ({ page }) => {
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
       const auth = await installAuthDoubles(page);
@@ -192,17 +192,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
       await assertion.click();
       await expect.poll(() => lane.state().assertions).toBe(1);
       await expect(assertion).toBeHidden();
-      expect(lane.posts).toHaveLength(1);
+      await expect.poll(() => lane.state().successes).toBe(1);
       await expect(page).toHaveURL(new RegExp(`/map\\?sel=${VENUE_ID}`));
-      // The failed write cleared the composer. Re-entering the price and bill
-      // is an explicit retry, not a claimed automatic draft continuation.
-      const retried = await submitPrice(page);
-      await expect(retried.locator(".composerMsg.ok")).toBeVisible();
-      await expect(retried.locator(".composerMsg.error")).toHaveCount(0);
+      await expect(form.locator(".composerMsg.ok")).toBeVisible();
+      await expect(form.locator(".composerMsg.error")).toHaveCount(0);
       expect(lane.posts).toHaveLength(2);
       expect(lane.state()).toMatchObject({ successes: 1, assertions: 1, priceSubmitPosts: 0, socialAccessReads: 0 });
       expect(pageErrors).toEqual([]);
-      await page.screenshot({ path: test.info().outputPath("explicit-retry-success.png") });
+      await page.screenshot({ path: test.info().outputPath("age-confirmation-success.png") });
     });
 
     test("under-18 refusal offers no assertion action in either composer state", async ({ page }) => {

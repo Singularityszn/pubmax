@@ -57,7 +57,8 @@ The seed and teardown refuse production Vercel environments. CI also refuses rem
 
 ## Disposable Plan recovery
 
-`npm run test:e2e:plan-auth` runs `e2e/plan-capability-recovery.spec.ts` and `e2e/log-intent-composer.spec.ts` against a temporary local Supabase project.
+`npm run test:e2e:plan-auth` runs Plan capability recovery and new-account logging cases against a temporary local Supabase project.
+The cases live in `e2e/plan-capability-recovery.spec.ts` and `e2e/log-intent-composer.spec.ts`.
 The runner requires Docker, the Supabase CLI, the project dependencies, and Playwright Chromium.
 `DOCKER_HOST` must name an existing local Unix socket with an absolute `unix://` path.
 Docker context and TLS overrides must be unset.
@@ -75,7 +76,8 @@ It requires no existing account credentials or production data.
 The browser process uses the temporary project's keys.
 Its child environment blanks checkout environment-file variables before it sets local test values.
 The runner builds and serves the app in its own `.next-pubmax-auth-*` directory for the Plan journeys.
-The new-account journeys run on `next dev` in a separate directory, because a production build starts email sign-in on pubmaxxing.com and its CSP blocks a local GoTrue.
+The new-account journeys run on `next dev` in a separate directory.
+A production build starts email sign-in on pubmaxxing.com, and its CSP blocks a local GoTrue.
 They submit the real email form, read the link from the project's Mailpit catcher, and follow it.
 
 The specs cover these journeys:
