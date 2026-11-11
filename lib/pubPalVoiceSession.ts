@@ -4,6 +4,11 @@ export const PAL_MICROPHONE_PERMISSION_ERROR =
 export const PAL_VOICE_START_TIMEOUT_MS = 20_000;
 export const PAL_VOICE_START_TIMEOUT_ERROR =
   "Voice took too long to start. Ask in writing or try again.";
+/**
+ * By default the SDK waits 3 s on Android before it opens the socket, so the
+ * phone can switch its audio mode. This override removes that SDK delay.
+ */
+export const PAL_VOICE_CONNECTION_DELAY = { default: 0, android: 0 } as const;
 export const PAL_VOICE_LINE_DROPPED_ERROR =
   "The voice line dropped, so the Pal stopped hearing you. Start voice chat again or ask in writing.";
 
@@ -22,6 +27,15 @@ export function palVoiceLineDropped(details: unknown): boolean {
   if (reason !== "error") return false;
   const type = context && typeof context === "object" ? (context as { type?: unknown }).type : undefined;
   return type !== "max_duration_exceeded";
+}
+
+/**
+ * Did the Pal end the call on purpose? Its end_call tool and the provider's
+ * silence backstop both close the line with code 1000, which the SDK reports
+ * as `reason: "agent"`. The panel shows that as a friendly end, not an error.
+ */
+export function palVoiceEndedByPal(details: unknown): boolean {
+  return !!details && typeof details === "object" && (details as { reason?: unknown }).reason === "agent";
 }
 
 type VoiceProbeStream = {

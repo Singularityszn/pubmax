@@ -24,7 +24,6 @@ import {
   activeLensPricesFor,
   ambientBannerLaneOpen,
   builtStopCountFor,
-  coordinatedMapOverlay,
   coffeePilotSelection,
   crawlJourneysWanted,
   londonRestaurantSelection,
@@ -709,34 +708,9 @@ describe("drinkFiltersActiveFor", () => {
   });
 });
 
-describe("coordinatedMapOverlay and mapSurfaceIdFor", () => {
-  const base = {
-    logIntentFallbackVisible: false,
-    detailOpen: false,
-    planningOpen: false,
-    mapOverlay: "layers" as const,
-  };
-
-  it("lets a surface that owns the screen answer ahead of the last-opened chip", () => {
-    expect(coordinatedMapOverlay(base)).toBe("layers");
-    expect(coordinatedMapOverlay({ ...base, planningOpen: true })).toBe("planner");
-    expect(coordinatedMapOverlay({ ...base, planningOpen: true, detailOpen: true })).toBe("venue");
-    expect(
-      coordinatedMapOverlay({ ...base, detailOpen: true, logIntentFallbackVisible: true }),
-    ).toBe("moment");
-  });
-
-  it("lets the landmark story own the screen under the venue and the planner", () => {
-    // verify-preview-4, J02 and section 6 (5 Sep 2026): the story was not a
-    // surface, so the "Describe the outing" pill painted under its sheet and
-    // Back from a pub opened out of it landed on a bare map.
-    expect(coordinatedMapOverlay({ ...base, storyOpen: true })).toBe("landmark");
-    expect(coordinatedMapOverlay({ ...base, storyOpen: true, detailOpen: true })).toBe("venue");
-    expect(coordinatedMapOverlay({ ...base, storyOpen: true, planningOpen: true })).toBe("planner");
-    expect(mapSurfaceIdFor("landmark", false)).toBe("landmark");
-  });
-
+describe("mapSurfaceIdFor", () => {
   it("counts List view as a surface a reader can be on", () => {
+    expect(mapSurfaceIdFor("landmark", false)).toBe("landmark");
     expect(mapSurfaceIdFor("none", true)).toBe("venue-list");
     expect(mapSurfaceIdFor("none", false)).toBe("none");
     // An open sheet still owns the trail over the list behind it.

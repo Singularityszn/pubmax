@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
+import { mapSurfaceSearch } from "@/lib/mapSurfaceState";
+import { currentSurface } from "@/lib/surfaceStack";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
 
@@ -116,13 +118,18 @@ function entryStillOwnsWrite(entry: UrlEntry): boolean {
   return (entry.state === window.history.state && entry.length === window.history.length && entry.href === window.location.href);
 }
 
+function surfaceOwnedSearch(search: string): string {
+  const stack = readMapSurfaceHistory(window.history.state);
+  return stack === null ? search : mapSurfaceSearch(search, currentSurface(stack)?.id ?? "none");
+}
+
 function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, preserveBeerParam: boolean): void {
-  const query = mergeCrawlUrlSearch(
+  const query = surfaceOwnedSearch(mergeCrawlUrlSearch(
     encoded,
     window.location.search,
     preserveCrawlParam,
     preserveBeerParam,
-  );
+  ));
   const url = query
     ? `${window.location.pathname}?${query}${window.location.hash}`
     : `${window.location.pathname}${window.location.hash}`;
@@ -151,7 +158,7 @@ function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean, p
     if (value === null) live.delete(key);
     else live.set(key, value);
   }
-  const query = live.toString();
+  const query = surfaceOwnedSearch(live.toString());
   const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
     window.history.replaceState(ownedHistoryState(window.history.state), "", url);

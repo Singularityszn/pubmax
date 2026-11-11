@@ -100,16 +100,17 @@ live site must serve:
 gh workflow run prod-smoke.yml --ref main -f deployment_id=dpl_...
 ```
 
-Replace `dpl_...` with the released deployment's ID from its own `/api/version`
-response. A dispatched run tests its selected ref. Use a ref whose commit
+Replace `dpl_...` with the deployment ID printed by `npm run release:prod`.
+A dispatched run tests its selected ref. Use a ref whose commit
 matches the deployment.
 
 Before the suite runs, the workflow checks the live deployment's identity.
 The trigger determines the expected deployment:
 
-- A deployment-status event supplies the deployment URL. The workflow compares
-  its `/api/version` deployment ID with the live site's ID. If another
-  deployment already serves production, the run skips with a notice.
+- A deployment-status event supplies the deployed commit. The workflow compares
+  it with the `gitCommitSha` from `https://pubmaxxing.com/api/version`. If
+  another commit already serves production, the run skips with a notice.
+  An invalid or missing event commit, or a missing live commit, fails the run.
 - A dispatch with `deployment_id` requires the live site to serve that ID.
   A mismatch fails the run and leaves the named deployment unverified.
 - A dispatch without `deployment_id` tests whatever production serves when the
@@ -120,8 +121,12 @@ the suite, even if the suite failed. A changed or missing ID fails the run.
 The named deployment remains unverified because the suite cannot provide a
 complete verdict for it.
 
-The workflow always tests `https://pubmaxxing.com`, so the smoke account's
-secrets never go to another origin. `SMOKE_BASE_URL` is for local runs only.
+The workflow reads deployment identity and tests journeys through
+`https://pubmaxxing.com`. It never requests generated `*.vercel.app` URLs.
+See the [deployment runbook](../../docs/DEPLOYMENT.md#captain-owned-supabase-url-config)
+for access requirements on generated URLs.
+The smoke account's secrets never go to another origin.
+`SMOKE_BASE_URL` is for local runs only.
 
 The workflow sets `SMOKE_REQUIRE_SIGN_IN=1`. If a secret is missing, the run
 fails instead of quietly testing only the read-only half.

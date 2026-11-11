@@ -8,7 +8,7 @@ import CommentThread from "@/components/pintdrop/CommentThread";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import ShareBar from "@/components/share/ShareBar";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
-import { displayHandle } from "@/lib/handleDisplay";
+import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
@@ -80,7 +80,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 
   const price = formatDropPrice(drop.priceGbp);
   const priceBit = price ? `, ${price}` : "";
-  const title = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${priceBit}`;
+  const title = `${dropAuthorLabel(drop.handle)}'s pint at ${drop.venueName}${priceBit}`;
   const description =
     drop.note ||
     (drop.drink
@@ -144,7 +144,7 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
   const hasPhoto = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
 
   // Share lockup: a nostalgic one-liner that carries the pint into a group chat.
-  const shareTitle = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${price ? `, ${price}` : ""}`;
+  const shareTitle = `${dropAuthorLabel(drop.handle)}'s pint at ${drop.venueName}${price ? `, ${price}` : ""}`;
   const shareText = buildPintDropShareText({
     venueName: drop.venueName,
     priceGbp: drop.priceGbp,
@@ -208,7 +208,7 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
             imageClassName="permalink__avatar"
             size={32}
           />
-          <span className="permalink__handle">{displayHandle(drop.handle)}</span>
+          <span className="permalink__handle">{dropAuthorLabel(drop.handle)}</span>
           {drop.era ? <span className="permalink__meta">· {drop.era}</span> : null}
           {date ? <span className="permalink__meta">· {date}</span> : null}
         </div>

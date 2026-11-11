@@ -12,11 +12,10 @@ import { displayDrinkName } from "@/components/listing/displayCase";
 import { formatGbp } from "@/lib/formatGbp";
 import { firstHttp } from "@/lib/httpUrl";
 import { formatLedgerDate, type LedgerPintPrice } from "@/lib/ledger";
-import { displayHandle } from "@/lib/handleDisplay";
+import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
 import { uncheckedPriceLine, venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, type VenueBundlePrices, type VenuePriceLane } from "@/lib/venuePriceLane";
-import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import { HOW_WE_ESTIMATE_HREF, HOW_WE_ESTIMATE_LABEL, priceStandingFor, priceStandingFigure, priceStandingNote } from "@/lib/priceTier";
@@ -219,8 +218,7 @@ function ledgerReportLanes(publicPint: LedgerPintPrice | null | undefined) {
 /** Who logged the report, in the words its standing allows (decision 9). */
 function ledgerReportAuthor(publicPint: LedgerPintPrice): string {
   if (publicPint.unchecked) return `${uncheckedPriceLine(publicPint.handle)},`;
-  const name = publicPint.handle === ANON_HANDLE_LABEL ? ANON_HANDLE_LABEL : displayHandle(publicPint.handle);
-  return `Logged by ${name}`;
+  return `Logged by ${dropAuthorLabel(publicPint.handle)}`;
 }
 
 /** Public reports arrive with the logbook, never in the shared cached document. */

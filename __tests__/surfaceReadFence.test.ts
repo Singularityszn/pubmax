@@ -100,7 +100,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/plan/PlanVibe.tsx", fetchCount: 3, reason: "plan votes are live and mutation-sensitive" },
   { path: "components/plan/RecapDetail.tsx", fetchCount: 1, reason: "recap detail is a private mutable surface" },
   { path: "components/profile/OutTonightBoard.tsx", fetchCount: 1, reason: "presence is live and account-scoped" },
-  { path: "components/pubpal/PubPalVoice.tsx", fetchCount: 1, reason: "voice availability is a per-deployment configuration probe, not a painted surface read" },
+  { path: "components/pubpal/usePalVoiceAvailability.ts", fetchCount: 1, reason: "voice availability is a per-deployment configuration probe, not a painted surface read" },
   { path: "components/profile/OutTonightCrewLine.tsx", fetchCount: 1, reason: "presence is live and account-scoped" },
   { path: "components/profile/OutTonightToggle.tsx", fetchCount: 1, reason: "presence read and toggle are live account actions" },
   { path: "components/ratings/ratingsClient.ts", fetchCount: 1, reason: "rating client is an additive detail read" },

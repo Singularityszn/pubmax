@@ -44,6 +44,7 @@ function fakeSupabase(results: Record<string, unknown>) {
       "update",
       "upsert",
       "eq",
+      "lt",
       "neq",
       "is",
       "or",

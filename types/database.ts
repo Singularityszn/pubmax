@@ -5178,6 +5178,7 @@ export type Database = {
           last_error_code: string | null;
           created_at: string;
           updated_at: string;
+          lease_token: string | null;
         };
         Insert: {
           content_kind: string;
@@ -5190,6 +5191,7 @@ export type Database = {
           last_error_code?: string | null;
           created_at?: string;
           updated_at?: string;
+          lease_token?: string | null;
         };
         Update: {
           content_kind?: string;
@@ -5202,6 +5204,7 @@ export type Database = {
           last_error_code?: string | null;
           created_at?: string;
           updated_at?: string;
+          lease_token?: string | null;
         };
         Relationships: [];
       };
@@ -7699,6 +7702,18 @@ export type Database = {
           attempts: number;
         }[];
       };
+      claim_social_interaction_moderation_leases: {
+        Args: {
+          p_limit?: number | null;
+        };
+        Returns: {
+          content_kind: string;
+          content_id: string;
+          moderation_claim: string;
+          attempts: number;
+          lease_token: string;
+        }[];
+      };
       claim_social_post_media_cleanup_batch: {
         Args: {
           p_limit?: number | null;
@@ -7810,10 +7825,22 @@ export type Database = {
         };
         Returns: boolean;
       };
-      complete_social_interaction_moderation_job: {
+      complete_social_interaction_moderation_job:
+        | {
         Args: {
           p_kind: string | null;
           p_content_id: string | null;
+          p_decision: string | null;
+          p_error_code: string | null;
+          p_retry_at: string | null;
+        };
+        Returns: boolean;
+      }
+        | {
+        Args: {
+          p_kind: string | null;
+          p_content_id: string | null;
+          p_lease_token: string | null;
           p_decision: string | null;
           p_error_code: string | null;
           p_retry_at: string | null;
@@ -8319,6 +8346,19 @@ export type Database = {
           p_request_hash: string | null;
         };
         Returns: string;
+      };
+      lease_social_interaction_moderation_jobs: {
+        Args: {
+          p_limit: number | null;
+          p_with_token: boolean | null;
+        };
+        Returns: {
+          content_kind: string;
+          content_id: string;
+          moderation_claim: string;
+          attempts: number;
+          lease_token: string;
+        }[];
       };
       leave_social_crew_atomic: {
         Args: {
