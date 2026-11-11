@@ -28,6 +28,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /** How many next-cheapest rows sit under the answer. */
 export const HERO_RAIL_SIZE = 3;
+export const LANDING_HERO_ZONE = 1;
 
 /** One dated archive price, as the document ships it beside the answer. */
 export type LandingArchiveThen = {
@@ -148,9 +149,19 @@ export function answerKicker(scope: LandingAnswerScope, area: string): string {
   }
 }
 
-/** The heading over the rail. */
-export function railHeading(scope: LandingAnswerScope, area: string): string {
-  return scope === "anchor" ? `Cheapest listed in ${area}` : "Next cheapest";
+export function railHeading(scope: LandingAnswerScope): string {
+  return scope === "anchor" ? `Cheapest listed in Zone ${LANDING_HERO_ZONE}` : "Next cheapest";
+}
+
+/**
+ * The anchor card's zone chip. The zone is the nearest station's, so the chip
+ * names that station: the approximation is on the page, not in a footnote.
+ */
+export function anchorZoneChip(station: { name: string; zone: number }): { text: string; label: string } {
+  return {
+    text: `Zone ${station.zone} · near ${station.name}`,
+    label: `Zone ${station.zone}, by its nearest station, ${station.name}`,
+  };
 }
 
 /**

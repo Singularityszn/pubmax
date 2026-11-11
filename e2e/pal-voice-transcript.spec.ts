@@ -1,5 +1,5 @@
 import { expect, test, type Page, type WebSocketRoute } from "@playwright/test";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
@@ -16,6 +16,7 @@ const SHOTS = process.env.PAL_VOICE_EVIDENCE_DIR ?? "artifacts/pal-voice-transcr
 const SIGNED_URL = "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent_e2e&conversation_signature=e2e";
 
 test.use({
+  channel: "chromium",
   serviceWorkers: "block",
   permissions: ["microphone"],
   launchOptions: {
@@ -1546,4 +1547,138 @@ test.describe("a map voice tap on a failing network", () => {
     await page.getByRole("button", { name: "Try again", exact: true }).click();
     await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeVisible();
   });
+});
+
+// The R1 decision requires one cue per tap, immediate cold-download feedback,
+// ownership transfer without replay, and cancellation before any SDK audio.
+// These probes observe real media elements and preserve browser playback.
+test.describe("cold map tap chime ownership", () => {
+  test.beforeAll(async () => { await mkdir(SHOTS, { recursive: true }); });
+  for (const outcome of ["connect", "second tap", "background", "leave map", "download failure"] as const) {
+    test(`${outcome}: the cold map tap owns exactly one chime until handoff or cancellation`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 950 });
+      await page.addInitScript(() => {
+        const audios: HTMLMediaElement[] = [];
+        const events: { kind: string; at: number; gesture?: boolean; paused?: boolean[] }[] = [];
+        Object.assign(window, { mapChimeProbe: { audios, events } });
+        const play = HTMLMediaElement.prototype.play;
+        const pause = HTMLMediaElement.prototype.pause;
+        HTMLMediaElement.prototype.play = function () {
+          if (this.src.endsWith("/sounds/pal/voice-start.mp3")) {
+            audios.push(this);
+            events.push({ kind: "play", at: performance.now(), gesture: navigator.userActivation.isActive });
+            this.addEventListener("playing", () => events.push({ kind: "playing", at: performance.now() }), { once: true });
+          }
+          return play.call(this);
+        };
+        HTMLMediaElement.prototype.pause = function () {
+          if (audios.includes(this)) events.push({ kind: "pause", at: performance.now() });
+          return pause.call(this);
+        };
+        const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = constraints => {
+          events.push({ kind: "microphone", at: performance.now(), paused: audios.map(audio => audio.paused) });
+          return gum(constraints);
+        };
+      });
+      const probe = () => page.evaluate(() => {
+        const { audios, events } = (window as Window & { mapChimeProbe: {
+          audios: HTMLMediaElement[];
+          events: { kind: string; at: number; gesture?: boolean; paused?: boolean[] }[];
+        } }).mapChimeProbe;
+        return { events, paused: audios.map(audio => audio.paused) };
+      });
+      await releaseDeferredShell(page);
+      const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
+      await page.goto("/map");
+      await expectMapLoadingFrameReleased(page);
+      const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+      await expect(chip).toBeVisible();
+      const held: import("@playwright/test").Route[] = [];
+      let hold = true;
+      let failDownload = false;
+      await page.route("**/_next/static/chunks/*.js*", async route => {
+        if (!hold && !failDownload) return route.continue();
+        const response = await route.fetch();
+        const body = await response.text();
+        if (body.includes("Can't reach your microphone")) {
+          if (failDownload) return route.abort("internetdisconnected");
+          held.push(route);
+          return;
+        }
+        return route.fulfill({ response, body });
+      });
+      await chip.click();
+      await expect.poll(() => held.length).toBe(1);
+      await expect(chip).toContainText("Warming up voice");
+      await expect.poll(async () => (await probe()).events.filter(event => event.kind === "playing").length).toBe(1);
+      const waiting = await probe();
+      expect(waiting.events.filter(event => event.kind === "play")).toHaveLength(1);
+      expect(waiting.events.find(event => event.kind === "play")?.gesture).toBe(true);
+      expect(waiting.events.filter(event => event.kind === "microphone")).toHaveLength(0);
+      await page.evaluate(url => {
+        const script = [...document.scripts].find(element => element.src === url);
+        if (!script) throw new Error("The delayed voice script has no browser element");
+        Object.assign(window, { mapChimeChunkSettled: new Promise<void>(resolve => {
+          script.addEventListener("load", () => resolve(), { once: true });
+          script.addEventListener("error", () => resolve(), { once: true });
+        }) });
+      }, held[0].request().url());
+      await page.screenshot({ path: `${SHOTS}/chime-${outcome.replaceAll(" ", "-")}-waiting.png` });
+      let taps = 1;
+      if (outcome === "second tap") {
+        await chip.click();
+        taps++;
+        const replacement = await probe();
+        expect(replacement.events.filter(event => event.kind === "play")).toHaveLength(2);
+        expect(replacement.paused[0]).toBe(true);
+        expect(replacement.events.some(event => event.kind === "pause")).toBe(true);
+      } else if (outcome === "background") {
+        await page.evaluate(() => {
+          Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+          document.dispatchEvent(new Event("visibilitychange"));
+        });
+      } else if (outcome === "leave map") {
+        await page.getByRole("link", { name: "You", exact: true }).first().click();
+        await expect(page).toHaveURL(/\/u\/karan/);
+      }
+      hold = false;
+      if (outcome === "download failure") {
+        failDownload = true;
+        await held[0].abort("internetdisconnected");
+        await expect(chip).toContainText("Voice didn't load. Tap again.");
+      } else {
+        await held[0].continue();
+      }
+      await page.evaluate(() => (window as Window & { mapChimeChunkSettled: Promise<void> }).mapChimeChunkSettled);
+      if (outcome === "background") {
+        await page.evaluate(() => {
+          delete (document as unknown as { visibilityState?: string }).visibilityState;
+          document.dispatchEvent(new Event("visibilitychange"));
+        });
+        await expect(chip).toBeVisible();
+      }
+      if (outcome === "connect" || outcome === "second tap") {
+        const socket = await opened;
+        await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+        say(socket, "Evening. Where are we drinking?");
+        await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText("Ripley is talking");
+        const connected = await probe();
+        expect(connected.events.filter(event => event.kind === "play")).toHaveLength(taps);
+        const microphones = connected.events.filter(event => event.kind === "microphone");
+        expect(microphones.length).toBeGreaterThanOrEqual(2);
+        expect(microphones.slice(1).every(event => event.paused?.length === taps && event.paused.every(Boolean))).toBe(true);
+        await page.screenshot({ path: `${SHOTS}/chime-${outcome.replaceAll(" ", "-")}-greeting.png` });
+        await page.getByRole("button", { name: "End", exact: true }).click();
+      } else {
+        const cancelled = await probe();
+        expect(cancelled.paused).toEqual([true]);
+        expect(cancelled.events.some(event => event.kind === "pause")).toBe(true);
+        expect(cancelled.events.filter(event => event.kind === "microphone")).toHaveLength(0);
+        await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+        await page.screenshot({ path: `${SHOTS}/chime-${outcome.replaceAll(" ", "-")}-cancelled.png` });
+      }
+      await writeFile(`${SHOTS}/chime-${outcome.replaceAll(" ", "-")}.json`, JSON.stringify({ waiting, final: await probe() }, null, 2));
+    });
+  }
 });

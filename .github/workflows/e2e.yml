@@ -127,8 +127,13 @@ jobs:
           npm ci
           npm run deps:install-scripts
 
+      - name: Keep apt mirrors that resolve
+        if: steps.scope.outputs.scope == 'code'
+        uses: ./.github/actions/pubmax-apt-mirrors
+
       - name: Install Chromium
         if: steps.scope.outputs.scope == 'code'
+        timeout-minutes: 15
         run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
