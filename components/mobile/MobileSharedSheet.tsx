@@ -14,6 +14,7 @@ import { useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { mobileSheetFocusContained, mobileSheetIsModal } from "@/lib/mobileSheetA11y";
+import { publishMapSheetClearance, releaseMapSheetClearance } from "@/lib/mapSheetClearance";
 import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
 // The module that paints `.mobileSheetPortal` and `.mobileSharedSheet` owns the
@@ -262,10 +263,9 @@ export default function MobileSharedSheet({
     const sheet = sheetRef.current;
     const portal = sheet?.closest<HTMLElement>(".mobileSheetPortal");
     if (!kind || !sheet || !portal || typeof ResizeObserver === "undefined") return;
-    const root = document.documentElement;
     const publish = () => {
       const top = portal.getBoundingClientRect().bottom - sheet.offsetHeight;
-      root.style.setProperty("--map-sheet-clearance-h", `${Math.ceil(window.innerHeight - top)}px`);
+      publishMapSheetClearance(sheet, window.innerHeight - top);
     };
     publish();
     const observer = new ResizeObserver(publish);
@@ -273,7 +273,7 @@ export default function MobileSharedSheet({
     observer.observe(portal);
     return () => {
       observer.disconnect();
-      root.style.removeProperty("--map-sheet-clearance-h");
+      releaseMapSheetClearance(sheet);
     };
   }, [kind]);
 

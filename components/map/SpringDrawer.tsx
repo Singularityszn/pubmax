@@ -16,11 +16,13 @@ import {
 import {
   sheetClosedTranslateY,
   sheetTranslateY,
+  sheetTopReserveY,
   SHEET_ENTRANCE_OVERSHOOT_DAMPING,
   type SheetSnap,
 } from "@/lib/sheetSnap";
 import { useSpringValue } from "@/lib/useSpringValue";
 import { FocusTrapOwner } from "@/lib/useFocusTrap";
+import { publishMapSheetClearance, releaseMapSheetClearance } from "@/lib/mapSheetClearance";
 
 const TABLET_SHEET_QUERY = "(max-width: 768px)";
 
@@ -150,98 +152,115 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
     }, [keepMounted]);
 
     useLayoutEffect(() => {
-      const mode = tabletSheet ? "vertical" : "horizontal";
-      const modeChanged = modeRef.current !== mode;
-      const firstRun = modeRef.current === null;
-      const opening = open && !wasOpenRef.current;
-      wasOpenRef.current = open;
-      modeRef.current = mode;
-      const initialEntrance =
-        entranceOvershoot &&
-        open &&
-        !overshootEntranceDoneRef.current;
+      let viewportHeight = window.innerHeight;
+      let minimumY = tabletSheet ? sheetTopReserveY(drawerRef.current) : 0;
+      const reconcile = () => {
+        const mode = tabletSheet ? "vertical" : "horizontal";
+        const modeChanged = modeRef.current !== mode;
+        const firstRun = modeRef.current === null;
+        const opening = open && !wasOpenRef.current;
+        wasOpenRef.current = open;
+        modeRef.current = mode;
+        const initialEntrance =
+          entranceOvershoot &&
+          open &&
+          !overshootEntranceDoneRef.current;
 
-      if (tabletSheet) {
-        stopHorizontal();
-        const viewportHeight = window.innerHeight;
-        const drawerStyle = drawerRef.current
-          ? window.getComputedStyle(drawerRef.current)
-          : null;
-        const bottomClearance = drawerStyle
-          ? Number.parseFloat(drawerStyle.bottom)
-          : 0;
-        // A live voice bar keeps a band at the top (palVoiceBar.css), and the
-        // sheet's top edge stays below it.
-        const topReserve = drawerStyle
-          ? Number.parseFloat(drawerStyle.getPropertyValue("--sheet-top-reserve")) || 0
-          : 0;
-        const snapTarget = topReserve > 0
-          ? Math.max(sheetTranslateY(snap, viewportHeight), topReserve + bottomClearance)
-          : sheetTranslateY(snap, viewportHeight);
-        const closedTarget = sheetClosedTranslateY(
-          viewportHeight,
-          bottomClearance,
-        );
+        if (tabletSheet) {
+          stopHorizontal();
+          const drawerStyle = drawerRef.current
+            ? window.getComputedStyle(drawerRef.current)
+            : null;
+          const bottomClearance = drawerStyle
+            ? Number.parseFloat(drawerStyle.bottom)
+            : 0;
+          const snapTarget = sheetTranslateY(snap, viewportHeight, minimumY);
+          const closedTarget = sheetClosedTranslateY(
+            viewportHeight,
+            bottomClearance,
+          );
 
-        if (dragOffsetY !== null) {
-          wasDraggingRef.current = true;
-          jumpVertical(snapTarget + dragOffsetY);
+          if (dragOffsetY !== null) {
+            wasDraggingRef.current = true;
+            jumpVertical(sheetTranslateY(snap, viewportHeight) + dragOffsetY);
+          } else {
+            const velocity = wasDraggingRef.current ? releaseVelocityY : 0;
+            wasDraggingRef.current = false;
+            const target = open ? snapTarget : closedTarget;
+            if (firstRun || modeChanged) {
+              if (initialEntrance) {
+                jumpVertical(closedTarget);
+                animateVertical(target, {
+                  dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+                  onRest: () => {
+                    overshootEntranceDoneRef.current = true;
+                  },
+                });
+              } else {
+                jumpVertical(target);
+                if (!open) clearRetainedChildren();
+              }
+            } else {
+              animateVertical(target, {
+                velocity,
+                dampingRatio:
+                  opening && entranceOvershoot
+                    ? SHEET_ENTRANCE_OVERSHOOT_DAMPING
+                    : Math.abs(velocity) >= 500
+                      ? 0.8
+                      : 1,
+                onRest: open ? undefined : clearRetainedChildren,
+              });
+            }
+          }
         } else {
-          const velocity = wasDraggingRef.current ? releaseVelocityY : 0;
+          stopVertical();
           wasDraggingRef.current = false;
-          const target = open ? snapTarget : closedTarget;
+          const target = open ? 0 : closedHorizontal;
           if (firstRun || modeChanged) {
             if (initialEntrance) {
-              jumpVertical(closedTarget);
-              animateVertical(target, {
+              animateHorizontal(target, {
                 dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
                 onRest: () => {
                   overshootEntranceDoneRef.current = true;
                 },
               });
             } else {
-              jumpVertical(target);
+              jumpHorizontal(target);
               if (!open) clearRetainedChildren();
             }
           } else {
-            animateVertical(target, {
-              velocity,
+            animateHorizontal(target, {
               dampingRatio:
-                opening && entranceOvershoot
-                  ? SHEET_ENTRANCE_OVERSHOOT_DAMPING
-                  : Math.abs(velocity) >= 500
-                    ? 0.8
-                    : 1,
+                opening && entranceOvershoot ? SHEET_ENTRANCE_OVERSHOOT_DAMPING : 1,
               onRest: open ? undefined : clearRetainedChildren,
             });
           }
         }
-      } else {
-        stopVertical();
-        wasDraggingRef.current = false;
-        const target = open ? 0 : closedHorizontal;
-        if (firstRun || modeChanged) {
-          if (initialEntrance) {
-            animateHorizontal(target, {
-              dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
-              onRest: () => {
-                overshootEntranceDoneRef.current = true;
-              },
-            });
-          } else {
-            jumpHorizontal(target);
-            if (!open) clearRetainedChildren();
-          }
-        } else {
-          animateHorizontal(target, {
-            dampingRatio:
-              opening && entranceOvershoot ? SHEET_ENTRANCE_OVERSHOOT_DAMPING : 1,
-            onRest: open ? undefined : clearRetainedChildren,
-          });
-        }
-      }
 
-      if (firstRun) setReady(true);
+        if (firstRun) setReady(true);
+      };
+      reconcile();
+      if (!tabletSheet) return;
+      const measure = () => {
+        const height = window.innerHeight;
+        const reserve = sheetTopReserveY(drawerRef.current);
+        if (height === viewportHeight && reserve === minimumY) return;
+        viewportHeight = height;
+        minimumY = reserve;
+        reconcile();
+        const drawer = drawerRef.current;
+        if (open && drawer) {
+          publishMapSheetClearance(drawer, window.innerHeight - drawer.getBoundingClientRect().top);
+        }
+      };
+      const observer = new MutationObserver(measure);
+      observer.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+      window.addEventListener("resize", measure);
+      return () => {
+        observer.disconnect();
+        window.removeEventListener("resize", measure);
+      };
     }, [
       animateHorizontal,
       animateVertical,
@@ -259,19 +278,19 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       entranceOvershoot,
     ]);
 
-    // Where the tablet sheet's top edge sits above the viewport bottom, for
-    // chrome that docks on it (the live voice bar).
     const presented = open || verticalRunning || dragOffsetY !== null;
     useLayoutEffect(() => {
       const drawer = drawerRef.current;
       if (!tabletSheet || !presented || !drawer) return;
-      const root = document.documentElement;
+      return () => releaseMapSheetClearance(drawer);
+    }, [presented, tabletSheet]);
+
+    useLayoutEffect(() => {
+      const drawer = drawerRef.current;
+      if (!tabletSheet || !presented || !drawer) return;
       const top = drawer.getBoundingClientRect().top;
-      root.style.setProperty("--map-sheet-clearance-h", `${Math.ceil(window.innerHeight - top)}px`);
-      return () => {
-        root.style.removeProperty("--map-sheet-clearance-h");
-      };
-    }, [presented, tabletSheet, verticalValue]);
+      publishMapSheetClearance(drawer, window.innerHeight - top, open);
+    }, [open, presented, tabletSheet, verticalValue]);
 
     const transform = tabletSheet
       ? `translate3d(0, ${verticalValue}px, 0)`

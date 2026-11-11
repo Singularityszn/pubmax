@@ -45,6 +45,14 @@ describe("sheetTranslateY", () => {
     expect(sheetTranslateY("half", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.half);
     expect(sheetTranslateY("peek", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.peek);
   });
+
+  it("keeps every tablet snap below the reserved band", () => {
+    expect(sheetTranslateY("full", 900, 102)).toBe(102);
+    expect(sheetTranslateY("half", 900, 102)).toBeCloseTo(405);
+    expect(sheetTranslateY("peek", 900, 102)).toBe(702);
+    expect(sheetTranslateY("half", 900, 500)).toBe(500);
+    expect(sheetTranslateY("peek", 900, 750)).toBe(750);
+  });
 });
 
 describe("sheetClosedTranslateY", () => {

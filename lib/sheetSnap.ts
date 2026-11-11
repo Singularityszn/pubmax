@@ -301,8 +301,15 @@ export function resolveSheetSnap({
  *  641–768px inline drawer's drag (components/map/useSheetDrag.ts) and PubMap's
  *  inline drawer transforms. The rebuilt phone portal sheet no longer uses a
  *  translateY snap model — see the height resolver below. */
-export function sheetTranslateY(snap: SheetSnap, viewportHeight: number): number {
-  return snapToY(snap, viewportHeight);
+export function sheetTranslateY(snap: SheetSnap, viewportHeight: number, minimumY = 0): number {
+  return Math.max(snapToY(snap, viewportHeight), minimumY);
+}
+
+export function sheetTopReserveY(drawer: HTMLElement | null): number {
+  if (!drawer) return 0;
+  const style = window.getComputedStyle(drawer);
+  const reserve = Number.parseFloat(style.getPropertyValue("--sheet-top-reserve")) || 0;
+  return reserve > 0 ? reserve + (Number.parseFloat(style.bottom) || 0) : 0;
 }
 
 export function sheetClosedTranslateY(
