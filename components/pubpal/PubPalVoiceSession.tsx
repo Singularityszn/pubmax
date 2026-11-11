@@ -56,9 +56,10 @@ import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
   palVoiceAsks,
-  palVoiceEndedStatus,
+  palVoiceEndedHint,
   palVoiceMinutesLeft,
-  palVoiceMinutesLeftLine,
+  palVoicePanelStatus,
+  palVoiceStartDisabled,
   PAL_VOICE_RESUME_GREETING,
   PAL_VOICE_RESUME_UPDATE_LEAD,
   PAL_VOICE_WRAP_UP_SECONDS,
@@ -412,6 +413,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       }
       attempt.cancelled = true;
       attempt.voiceEndReason ??= "user";
+      // Picks an ended call kept leave with the call's last screen.
+      attempt.ended = null;
       if (attempt.sdkSessionStarted) {
         attempt.sdkSessionStarted = false;
         endSession();
@@ -801,6 +804,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
   usePalVoiceEngaged([voiceConnecting, live, ended !== null, error !== null]);
+  const endedHint = palVoiceEndedHint(ended, !live && !voiceConnecting);
 
   if (!panel) {
     return (
@@ -817,12 +821,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         {appearance ? <PalVoiceFace appearance={appearance} signal={signal} state={faceState} genome={genome} /> : null}
         <div className="palVoiceStatus" role="status">
           <i className={live ? "isLive" : ""} />
-          {isStarting
-            ? "Starting voice"
-            : live
-              ? isSpeaking ? "Pal is talking" : "Pal is listening"
-              : ended ? palVoiceEndedStatus(ended.why, palName) : "Voice ready when you are"}
-          {live && callEndsAt !== null ? <PalVoiceCountdown endsAt={callEndsAt} /> : null}
+          {palVoicePanelStatus({ starting: isStarting, live, speaking: isSpeaking, ended, palName })}
+          <PalVoiceCountdown live={live} endsAt={callEndsAt} />
         </div>
         <PalVoiceMeter
           mode={meterMode}
@@ -874,7 +874,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         ) : (
           <button
             type="button"
-            disabled={isStarting || ended?.minutesLeft === 0}
+            disabled={palVoiceStartDisabled(isStarting, ended)}
             aria-busy={isStarting}
             onClick={() => { void start(ended !== null); }}
           >
@@ -911,7 +911,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         </label>
       </div>
       {voiceConnecting && <p className="palVoiceHint">Connecting voice…</p>}
-      {ended && ended.minutesLeft !== null && !live && !voiceConnecting && <p className="palVoiceHint">{palVoiceMinutesLeftLine(ended.minutesLeft)}</p>}
+      {endedHint && <p className="palVoiceHint">{endedHint}</p>}
       {usingFallbackVoice && (voiceConnecting || status === "connected") && (
         <p className="palVoiceHint" role="status">Your chosen voice isn&apos;t available. Using your Pal&apos;s default voice.</p>
       )}

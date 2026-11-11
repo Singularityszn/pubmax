@@ -1511,6 +1511,7 @@ describe("Pub Pal voice controls", () => {
 
 type LiveSession = {
   onConnect?: () => void;
+  onStatusChange?: (event: { status: string }) => void;
   onDisconnect?: (details?: unknown) => void;
   onError?: (error: string) => void;
   onMessage?: (message: { role: string; message: string; event_id?: number }) => void;
@@ -1543,6 +1544,7 @@ async function startLiveSession(grant: Record<string, unknown> = {}): Promise<Li
   voice.status = "connected";
   voice.isListening = true;
   await act(async () => {
+    session.onStatusChange?.({ status: "connected" });
     session.onConnect?.();
     root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
   });
@@ -1598,6 +1600,9 @@ describe("Pub Pal voice transcript", () => {
       expect(transcriptLines().join(" ")).toContain("Cheap pints in Soho");
       expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("Carry on"))).toBe(true);
       expect(container.textContent).toContain(`${minutesLeft} minutes`);
+      // Closing the call's last screen takes the kept picks with it.
+      act(() => { root?.unmount(); root = null; });
+      expect(readPalMapState().picks).toEqual([]);
     },
   );
 
@@ -1631,8 +1636,6 @@ describe("Pub Pal voice transcript", () => {
     expect(carryOn).toBeTruthy();
     await act(async () => { carryOn?.click(); });
     await act(async () => { await vi.dynamicImportSettled(); });
-    for (let i = 0; i < 20; i += 1) { await act(async () => { await vi.dynamicImportSettled(); }); await settle(); }
-    console.log("DEBUG", voice.startSession.mock.calls.length);
     const resumed = defined(voice.startSession.mock.calls[1])[0] as LiveSession & { overrides?: { agent?: { firstMessage?: string } } };
     expect(resumed.overrides?.agent?.firstMessage).toBe(PAL_VOICE_RESUME_GREETING);
     voice.status = "connected";

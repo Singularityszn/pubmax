@@ -445,10 +445,17 @@ It also clears the last voice camera request and cancels pending voice navigatio
 The agent script requests a 20-second silence timeout as a provider backstop.
 The 180-second call cap remains. These settings reach an existing agent only after the captain runs the configuration command.
 
-If a background interruption leaves the session mounted, it keeps the transcript
-and offers **Carry on** when you return. On the map, **Close voice chat** dismisses
-the stopped bar. **Carry on** starts a new call. Returning does not restart the
-microphone automatically.
+Thirty seconds before the cap, the app tells the agent to finish in one short
+sentence and shows a countdown (`lib/palVoiceCall.ts`). A call that hits the cap,
+that the agent hangs up, or that a background interruption ends keeps its
+transcript and main-map picks, and offers **Carry on** with the voice minutes
+left this month. The grant reports the month's charge (`usedMinutes`), and the
+browser mirrors settlement to work out the minutes left. On the map,
+**Close voice chat** dismisses the stopped bar and clears the picks.
+**Carry on** starts a new call that keeps the picks and cards. It greets with a
+short line instead of the opening, and sends the person's earlier asks as one
+contextual update (`palSessionAsksSummaryTurn` in `lib/palSessionSummary.ts`).
+Returning does not restart the microphone automatically.
 
 The first microphone permission prompt does not cancel startup while the native
 app remains in the foreground. A hidden page or native background transition

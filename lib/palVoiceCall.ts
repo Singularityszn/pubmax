@@ -59,3 +59,20 @@ export function palVoiceMinutesLeftLine(minutes: number): string {
   if (minutes === 0) return "No voice minutes left this month";
   return `${minutes} ${minutes === 1 ? "minute" : "minutes"} of voice left this month`;
 }
+
+/** The /pal panel's one status line for the call. */
+export function palVoicePanelStatus(call: { starting: boolean; live: boolean; speaking: boolean; ended: PalVoiceEnded | null; palName: string }): string {
+  if (call.starting) return "Starting voice";
+  if (call.live) return call.speaking ? "Pal is talking" : "Pal is listening";
+  return call.ended ? palVoiceEndedStatus(call.ended.why, call.palName) : "Voice ready when you are";
+}
+
+/** The minutes left, shown once a call has ended and before the next tap. Null while a call runs or when unknown. */
+export function palVoiceEndedHint(ended: PalVoiceEnded | null, idle: boolean): string | null {
+  return idle && ended?.minutesLeft != null ? palVoiceMinutesLeftLine(ended.minutesLeft) : null;
+}
+
+/** Carry on stays off while a call is starting and once the month has no minutes left. */
+export function palVoiceStartDisabled(starting: boolean, ended: PalVoiceEnded | null): boolean {
+  return starting || ended?.minutesLeft === 0;
+}

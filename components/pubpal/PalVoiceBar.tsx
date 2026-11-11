@@ -11,7 +11,7 @@ import type { PalCard } from "@/lib/palChat";
 import type { PubPalAppearance } from "@/lib/pubPal";
 import type { PalGenome } from "@/lib/palGenome";
 import type { PalVoiceLine } from "@/lib/palVoiceTranscript";
-import { palVoiceEndedStatus, palVoiceMinutesLeftLine, type PalVoiceEnded } from "@/lib/palVoiceCall";
+import { palVoiceEndedHint, palVoiceEndedStatus, type PalVoiceEnded } from "@/lib/palVoiceCall";
 import { setPalVoiceEngaged } from "@/lib/palVoiceHost";
 import "./palVoiceBar.css";
 
@@ -93,8 +93,7 @@ export default function PalVoiceBar({
       ? `${palName} is ${speaking ? "talking" : "listening"}`
       : ended ? palVoiceEndedStatus(ended.why, palName) : "Voice stopped";
   const line = lines.at(-1);
-  const minutesLeft = !live && !starting && ended?.minutesLeft != null ? palVoiceMinutesLeftLine(ended.minutesLeft) : null;
-  const caption = error ?? minutesLeft ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
+  const caption = error ?? palVoiceEndedHint(ended, !live && !starting) ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
   return (
     <section ref={barRef} className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-focus-trap-exempt="" data-live={live ? "true" : undefined}>
       {pick ? (
@@ -109,7 +108,7 @@ export default function PalVoiceBar({
       ) : null}
       {appearance ? <PubPalAvatar appearance={appearance} name={palName} compact genome={genome} /> : null}
       <div className="palVoiceBarText">
-        <p role="status">{status}{live && callEndsAt !== null ? <> <PalVoiceCountdown endsAt={callEndsAt} /></> : null}</p>
+        <p role="status">{status} <PalVoiceCountdown live={live} endsAt={callEndsAt} /></p>
         {caption ? <p className="palVoiceBarCaption" role={error ? "alert" : undefined}>{caption}</p> : null}
       </div>
       {live || starting ? (

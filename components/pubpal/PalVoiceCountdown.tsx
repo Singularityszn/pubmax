@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-/** The seconds a call has left. Mount it only for the call's last stretch. */
-export default function PalVoiceCountdown({ endsAt }: { endsAt: number }) {
+/** The seconds a live call has left, shown only once its last stretch has begun. */
+export default function PalVoiceCountdown({ live, endsAt }: { live: boolean; endsAt: number | null }) {
+  return live && endsAt !== null ? <Ticker key={endsAt} endsAt={endsAt} /> : null;
+}
+
+function Ticker({ endsAt }: { endsAt: number }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const tick = window.setInterval(() => setNow(Date.now()), 1_000);
