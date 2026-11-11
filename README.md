@@ -154,7 +154,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   For a named pub's drinks, listed pint cards in typed and voice chat show their own publisher and **Source read** date.
   Missing, invalid or future dates show **Source read date unknown**.
 
-  "Hi show me the map" and "OK. Show me the map" focus the existing recommendation map when available.
+  In `/pal/chat`, "Hi show me the map" and "OK. Show me the map" focus the existing recommendation map when available.
   Otherwise, these commands open `/map`.
   A discovery or service request beside a generic map command stays in chat.
   "Map, not yet" and "Show me the map. Please stop." keep the conversation open.
