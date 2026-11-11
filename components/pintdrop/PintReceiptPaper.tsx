@@ -4,8 +4,8 @@ import type { PintReceipt } from "@/lib/pintReceipt";
 
 import "./pintReceipt.css";
 
-// A Pint Drop printed as a till receipt (lib/pintReceipt.ts owns every word on
-// it). `full` is the permalink's receipt. `stub` is the short tear-off the
+// A Pint Drop printed as a till receipt. lib/pintReceipt.ts owns the shared
+// receipt fields. `full` is the permalink's receipt. `stub` is the short tear-off the
 // composer offers to share right after Log it. Labels are set in the UI sans
 // and figures in the data face (docs/DESIGN_SYSTEM.md, "Monospace is for
 // figures").

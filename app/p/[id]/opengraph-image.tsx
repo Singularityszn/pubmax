@@ -7,8 +7,8 @@ import { buildPintReceipt, type PintReceipt } from "@/lib/pintReceipt";
 
 // Per-drop share card (Next `opengraph-image` convention): the Pint Drop as a
 // till receipt fed out of the top of the card, with the day it was logged set
-// large beside it. Every word comes from lib/pintReceipt.ts, the model the
-// permalink prints, so the preview and the page cannot tell two stories.
+// large beside it. Shared receipt fields come from lib/pintReceipt.ts, the
+// model the permalink prints.
 //
 // It reads the public DTO (leak-proof: a hidden drop resolves to null and the
 // card draws a blank receipt). User text is clamped before it is drawn.
