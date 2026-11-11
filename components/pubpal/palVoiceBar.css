@@ -11,6 +11,7 @@
   min-height: 60px;
   padding: 8px 8px 8px 10px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   border: 1px solid var(--line);
@@ -26,7 +27,7 @@ body:has(.palVoiceBar) .palSummon {
   display: none;
 }
 .palVoiceBarText {
-  min-width: 0;
+  min-width: min(100%, 12ch);
   flex: 1;
   display: grid;
   gap: 2px;
@@ -76,9 +77,6 @@ body:has(.palVoiceBar) .palSummon {
   }
 }
 /* The map pick the Pal is naming, above the call row. */
-.palVoiceBar:has(.palVoiceBarPick) {
-  flex-wrap: wrap;
-}
 .palVoiceBarPick {
   flex: 1 0 100%;
   min-width: 0;
