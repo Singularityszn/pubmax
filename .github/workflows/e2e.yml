@@ -127,33 +127,14 @@ jobs:
           npm ci
           npm run deps:install-scripts
 
-      # The hosted runner's apt mirror list starts with an Azure Ubuntu mirror.
-      # When a mirror host stops resolving, apt waits on DNS for every file and
-      # the step fails after ten minutes. So the list keeps only mirrors that
-      # resolve, then adds public fallbacks. apt checks every package against
-      # Ubuntu's signing key, whichever mirror serves it.
+      - name: Keep apt mirrors that resolve
+        if: steps.scope.outputs.scope == 'code'
+        uses: ./.github/actions/pubmax-apt-mirrors
+
       - name: Install Chromium
         if: steps.scope.outputs.scope == 'code'
         timeout-minutes: 15
-        run: |
-          set -euo pipefail
-          npx playwright install chromium
-          list=/etc/apt/apt-mirrors.txt
-          fallbacks="http://archive.ubuntu.com/ubuntu/ http://mirrors.edge.kernel.org/ubuntu/ http://mirror.math.princeton.edu/pub/ubuntu/"
-          for url in $( { cut -f1 "$list" 2>/dev/null || true; } ) $fallbacks; do
-            host="${url#*://}"; host="${host%%/*}"
-            if timeout 5 getent hosts "$host" >/dev/null; then
-              echo "apt mirror resolves: $url" >&2
-              echo "$url"
-            else
-              echo "::warning::apt mirror does not resolve, so it is skipped: $url" >&2
-            fi
-          done | grep -E '^https?://' | awk '!seen[$0]++' > "$RUNNER_TEMP/apt-mirrors.txt" || true
-          if [ -f "$list" ] && [ -s "$RUNNER_TEMP/apt-mirrors.txt" ]; then
-            sudo cp "$RUNNER_TEMP/apt-mirrors.txt" "$list"
-          fi
-          cat "$list" 2>/dev/null || true
-          npx playwright install-deps chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
         if: steps.scope.outputs.scope == 'code'
