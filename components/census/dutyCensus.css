@@ -3,6 +3,7 @@
    with words and a calendar rather than a second painted button. */
 
 .dutyCensus {
+  --census-ground: var(--panel-raised);
   display: grid;
   gap: var(--space-2);
   min-width: 0;
@@ -79,19 +80,20 @@
   inset: 0;
   border-radius: inherit;
   background: var(--ink-soft);
-  transform: scaleX(var(--census-elapsed, 0));
+  transform: scaleX(var(--census-elapsed));
   transform-origin: left center;
 }
 
 .dutyCensusRailNow {
   position: absolute;
   top: 50%;
-  left: calc(var(--census-elapsed, 0) * 100%);
-  width: 8px;
-  height: 8px;
+  left: calc(var(--census-elapsed) * 100%);
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--census-ground);
   border-radius: var(--radius-pill);
   background: var(--ink);
-  box-shadow: 0 0 0 3px var(--census-ground, var(--panel-raised));
   transform: translate(-50%, -50%);
 }
 
