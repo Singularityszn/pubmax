@@ -127,8 +127,9 @@ async function refundVoiceGrant(
 }
 
 /**
- * Settles one issued grant from the duration ElevenLabs recorded for its
- * conversation, under the caller's own grant. False leaves it charged in full.
+ * Settles one issued grant under its owner, using a provider duration or zero
+ * after proof that the call cannot start. A false result does not prove that
+ * the database left the charge unchanged: a committed reply can be lost.
  */
 async function settleConversation(
   admin: ReturnType<typeof requireSupabaseAdmin>,
@@ -349,10 +350,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
   const grantId = randomUUID();
   const admin = supabaseConfigured ? requireSupabaseAdmin() : null;
   if (admin) {
-    // Earlier calls are settled only when the stale charge would refuse this
-    // one, so the provider is not asked on the way to an ordinary start. A
-    // refusal is decided on settled minutes, as before. After the response,
-    // the earlier calls settle, so the month's total ends exact.
+    // Only a refusal waits for earlier calls. Retry admission even if settlement
+    // reports nothing: a reply can be lost, or another request can settle first.
     let prepaid = await prepayVoiceGrant(admin, userId, usageMonth, grantId);
     if (prepaid === "refused") {
       await settleIssuedGrants(admin, userId, usageMonth, apiKey);

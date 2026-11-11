@@ -6,15 +6,11 @@
 --
 -- After: issuing a signed URL PREPAYS the session cap (3 minutes) as one grant
 -- row. Nothing the browser says moves the meter. Two server-side doors move it
--- afterwards: refund_pub_pal_voice_grant, only while the grant is still
--- 'reserved' (the server failed before it handed a URL out), and
--- settle_pub_pal_voice_conversation, fed ElevenLabs' own call duration for that
--- conversation. The route settles on release once the provider reports the call
--- ended, and settles the owner's still-issued grants for the month
--- (issued_pub_pal_voice_conversations) before it admits the next session. An
--- unsettled grant stays charged in full, so every failure is the safe
--- direction. A settle that measures more than the prepaid cap charges the
--- difference.
+-- afterwards: refund_pub_pal_voice_grant for a server failure before a URL
+-- leaves, and settle_pub_pal_voice_conversation for an issued conversation.
+-- docs/PUB_PAL_SETUP.md#voice-grants owns settlement timing and provider proof
+-- requirements. An unsettled grant stays charged in full. A settle that
+-- measures more than the prepaid cap charges the difference.
 --
 -- The three 0027/0070/0088 quota functions are closed to service_role, so a
 -- mixed-version deploy cannot reach the client-trusted path. Until the new
@@ -149,7 +145,7 @@ end;
 $$;
 
 -- The conversations of one owner's month that are still charged at the cap,
--- for the route to settle before it admits that owner's next session.
+-- for the route to reconcile with the provider's records.
 create function public.issued_pub_pal_voice_conversations(
   p_owner_id uuid,
   p_month date

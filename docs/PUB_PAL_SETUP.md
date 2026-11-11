@@ -493,16 +493,62 @@ configuration and reads no account, which is the whole reason the Pal can
 explain itself before the tap. Issuing a voice token follows the
 [account age requirements](../README.md#pub-pal-age-requirements) before quota or provider allocation.
 An accepted request prepays a three-minute grant (`lib/palVoiceMetering.ts`).
-The server settles that grant from the call length ElevenLabs records, never from a duration the browser
-sends. When the browser releases a session, the server asks ElevenLabs for up
-to five seconds until it reports the call ended. If the call is still running
-then, the grant stays charged at three minutes until the same account next
-asks for voice. That request settles it after its response, or before it
-refuses on the allowance. A call ElevenLabs never reports as ended stays
-charged at three minutes, unless ElevenLabs has no record of it and its signed
-URL is over 20 minutes old. Such a call never started, so it settles free.
-Migration
-`0176` must be applied before the deploy that calls it.
+`prepay_pub_pal_voice_grant` checks the monthly allowance and charges the grant
+atomically. Admission requires usage below `PAL_VOICE_MONTHLY_MINUTES`, rather
+than room for the whole grant. Concurrent requests cannot bypass that check.
+
+The browser's `durationSeconds` never changes the meter. A release names only
+the issued `conversationId`. The server checks ownership with
+`owns_issued_pub_pal_voice_conversation` before it asks ElevenLabs about the call.
+An invented or already settled conversation causes no provider request.
+
+`lib/pubPalVoiceProviderDuration.server.ts` accepts a final duration only for
+provider states `processing`, `done`, or `failed`. During release, it asks
+ElevenLabs again once a second for up to five seconds. If the provider cannot
+confirm the call ended, the grant stays issued and charged in full.
+
+An ordinary voice start does not wait for earlier calls to settle.
+After a successful response, Next.js `after()` settles the owner's issued
+grants for that month, excluding the new conversation. If prepayment initially
+refuses admission, the request attempts settlement first, then retries prepayment
+once regardless of the settlement result. This retry uses the database's
+current usage even when a settlement reply was lost or another request settled
+the grant. A provider timeout leaves the unsettled grant charged in full.
+No cron or webhook settles voice grants.
+
+`settle_pub_pal_voice_conversation` replaces the prepayment with the provider's
+recorded duration, rounded up to started minutes. Zero seconds costs nothing.
+A call beyond the cap charges the difference. Settlement applies once under
+the caller's own grant. A repeated settlement cannot change the meter again.
+
+A never-started call settles at zero only when ElevenLabs returns HTTP 404
+and the grant's `created_at` is more than 20 minutes old. The signed URL can
+start a call for 15 minutes. The extra five minutes provide a clock-skew margin.
+A browser cancellation cannot prove that the URL is unusable. A running call,
+an unreadable provider response, or a missing final duration leaves the grant
+charged in full.
+
+`refund_pub_pal_voice_grant` handles server failures before the server hands out
+a signed URL. It accepts reserved or issued grants, including a link that
+committed before its reply was lost. It rejects settled or already refunded
+grants. An ambiguous prepayment result also triggers a refund, because the
+database may already have committed the charge. Once the session is linked
+and allocated, a failure to schedule `after()` does not refund that grant.
+
+Migration `0176` restricts these operations to the service role and closes
+`consume_pub_pal_voice_trial`, `release_pub_pal_voice_trial`, and
+`record_pub_pal_voice_minutes` to that role. An older application therefore
+cannot use the browser-trusted meter. The keyless in-memory meter prepays and
+refunds grants but does not settle them.
+
+The captain must apply `0176` before deploying code that calls it. A deployment
+without the migration returns 503 and offers text. Roll back the application
+before the migration, because its rollback reopens the browser-trusted meter.
+This settlement change needs no new migration.
+
+Regression coverage lives in `__tests__/pubPalVoiceTokenRoute.test.ts` and
+`__tests__/pubPalVoiceGrantsMigrationEffective.test.ts`. The latter exercises
+the route, concurrency, permissions, and rollback against PostgreSQL 16.
 
 ---
 
