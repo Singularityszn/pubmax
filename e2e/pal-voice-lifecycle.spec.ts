@@ -109,6 +109,11 @@ async function setup(page: Page, native = false, deferMicrophone = false) {
     start: async () => { await page.getByRole("button", { name: "Start voice chat", exact: true }).click(); },
     connected: async () => { await expect(page.getByRole("status").filter({ hasText: /Pal is (listening|talking)/ })).toBeVisible(); },
     say: (text: string) => socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: 1 } })),
+    speak: () => {
+      const audio = Buffer.alloc(16_000);
+      for (let i = 0; i < 8_000; i++) audio.writeInt16LE(Math.round(Math.sin(2 * Math.PI * 220 * i / 16_000) * 8_000), i * 2);
+      socket.send(JSON.stringify({ type: "audio", audio_event: { audio_base_64: audio.toString("base64"), event_id: 1 } }));
+    },
     grants: () => grants, releases: () => releases, closed: () => closed, sockets: () => sockets,
     hold: () => { holdMetadata = true; },
     pending: () => Boolean(pendingMetadata),
@@ -124,6 +129,109 @@ async function nativeEvent(page: Page, event: string, data?: unknown) {
 async function stopped(page: Page) {
   await expect.poll(() => page.evaluate(() => window.lifecycleProbe.tracks.every(track => track.readyState === "ended"))).toBe(true);
 }
+
+// The audit requires immediate tap feedback and no second cue at connection.
+// Observe the real media element, microphone, mounted panel and installed SDK.
+test("the start chime plays during permission wait and never repeats over the greeting", async ({ page, context }) => {
+  await context.grantPermissions(["microphone"]);
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.addInitScript(() => {
+    const events: { kind: string; at: number; gesture: boolean }[] = [];
+    Object.assign(window, { chimeEvents: events });
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      if (this.src.endsWith("/sounds/pal/voice-start.mp3")) {
+        events.push({ kind: "start-play", at: performance.now(), gesture: navigator.userActivation.isActive });
+        this.addEventListener("playing", () => events.push({ kind: "start-playing", at: performance.now(), gesture: navigator.userActivation.isActive }), { once: true });
+        this.addEventListener("ended", () => events.push({ kind: "start-ended", at: performance.now(), gesture: navigator.userActivation.isActive }), { once: true });
+      }
+      return play.call(this);
+    };
+  });
+  const app = await setup(page, false, true);
+  const cues = () => page.evaluate(() => (window as Window & { chimeEvents: { kind: string; at: number; gesture: boolean }[] }).chimeEvents);
+  expect(await cues()).toEqual([]);
+  await app.start();
+  await expect.poll(() => page.evaluate(() => window.lifecycleProbe.microphoneCalls)).toBe(1);
+  await expect(page.getByRole("button", { name: "Starting", exact: true })).toBeVisible();
+  await expect.poll(async () => (await cues()).map(event => event.kind)).toEqual(["start-play", "start-playing", "start-ended"]);
+  expect((await cues())[0]?.gesture).toBe(true);
+  expect(app.grants()).toBe(0);
+  await page.screenshot({ path: `${evidence}/chime-during-permission.png`, fullPage: true });
+  await page.evaluate(() => window.lifecycleProbe.allowMicrophone?.());
+  await app.connected();
+  app.say("Evening. Where are we drinking?");
+  app.speak();
+  await expect(page.getByRole("status").filter({ hasText: "Pal is talking" })).toBeVisible();
+  await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
+  expect((await cues()).filter(event => event.kind === "start-play")).toHaveLength(1);
+  await page.screenshot({ path: `${evidence}/greeting-without-second-chime.png`, fullPage: true });
+  await writeFile(`${evidence}/chime-playback.json`, JSON.stringify({ cues: await cues(), grants: app.grants(), status: await page.getByRole("status").allTextContents() }, null, 2));
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await stopped(page);
+});
+
+for (const headphones of [true, false]) {
+  test(`iOS headphone preference requests ${headphones ? "AirPods" : "the default microphone when no headphones exist"}`, async ({ page, context }) => {
+    await context.grantPermissions(["microphone"]);
+    await page.addInitScript(({ headphones }) => {
+      Object.defineProperty(navigator, "platform", { configurable: true, get: () => "iPhone" });
+      const requests: MediaStreamConstraints[] = [];
+      Object.assign(window, { microphoneRequests: requests });
+      const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = constraints => { requests.push(constraints); return gum(constraints); };
+      const enumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+      navigator.mediaDevices.enumerateDevices = async () => {
+        const devices = await enumerate();
+        return headphones ? [{ kind: "audioinput", deviceId: "disposable-airpods", groupId: "disposable", label: "AirPods Pro", toJSON: () => ({}) } as MediaDeviceInfo, ...devices] : devices;
+      };
+    }, { headphones });
+    const app = await setup(page);
+    await app.start(); await app.connected();
+    const requests = await page.evaluate(() => (window as Window & { microphoneRequests: MediaStreamConstraints[] }).microphoneRequests);
+    const sdkAudio = requests.map(request => request.audio).filter((audio): audio is MediaTrackConstraints => typeof audio === "object" && audio !== null);
+    expect(sdkAudio.length).toBeGreaterThan(0);
+    if (headphones) expect(sdkAudio).toContainEqual(expect.objectContaining({ deviceId: { ideal: "disposable-airpods" } }));
+    else expect(sdkAudio.every(audio => audio.deviceId === undefined)).toBe(true);
+    await writeFile(`${evidence}/ios-headphones-${headphones}.json`, JSON.stringify({ simulatedPlatform: "iPhone", headphones, requests, status: await page.getByRole("status").allTextContents() }, null, 2));
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await stopped(page);
+  });
+}
+
+test("a fast voice connection does not overlap the start chime with greeting audio", async ({ page, context }) => {
+  await context.grantPermissions(["microphone"]);
+  await page.setViewportSize({ width: 390, height: 950 });
+  await page.addInitScript(() => {
+    const cues: { kind: string; at: number }[] = [];
+    const probe = { cues, audio: null as HTMLMediaElement | null };
+    Object.assign(window, { fastChimeProbe: probe });
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      if (this.src.endsWith("/sounds/pal/voice-start.mp3")) {
+        probe.audio = this;
+        for (const event of ["playing", "pause", "ended"]) this.addEventListener(event, () => cues.push({ kind: event, at: performance.now() }), { once: true });
+      }
+      return play.call(this);
+    };
+  });
+  const app = await setup(page);
+  await app.start(); await app.connected();
+  app.say("Evening. Where are we drinking?");
+  app.speak();
+  await expect(page.getByRole("status").filter({ hasText: "Pal is talking" })).toBeVisible();
+  const playback = await page.evaluate(() => {
+    const probe = (window as Window & { fastChimeProbe: { cues: { kind: string; at: number }[]; audio: HTMLMediaElement | null } }).fastChimeProbe;
+    return { cues: probe.cues, greetingAt: performance.now(), chimeRequested: probe.audio !== null, chimeStillPlaying: probe.audio !== null && !probe.audio.paused && !probe.audio.ended, chimeTime: probe.audio?.currentTime, chimeDuration: probe.audio?.duration };
+  });
+  await page.screenshot({ path: `${evidence}/fast-greeting.png`, fullPage: true });
+  const completedCues = await page.evaluate(() => (window as Window & { fastChimeProbe: { cues: { kind: string; at: number }[] } }).fastChimeProbe.cues);
+  await writeFile(`${evidence}/fast-greeting-playback.json`, JSON.stringify({ ...playback, completedCues }, null, 2));
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await stopped(page);
+  expect(playback.chimeRequested).toBe(true);
+  expect(playback.chimeStillPlaying).toBe(false);
+});
 
 for (const width of [390, 768, 1440]) {
   test(`${width}px: background ends a connected call, preserves transcript and Carry on starts a fresh call`, async ({ page, context }) => {

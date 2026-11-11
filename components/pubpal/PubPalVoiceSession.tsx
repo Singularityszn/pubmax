@@ -119,6 +119,7 @@ type VoiceSessionAttempt = {
   conversationId: string | null;
   sdkSessionStarted: boolean;
   microphone: PalVoiceMicrophoneHold;
+  stopStartChime: ReturnType<typeof playPalVoiceSound>;
   connectedAt: number | null;
   capTimer: number | null;
   startupTimer: number | null;
@@ -356,6 +357,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       stayHere();
     }
     clearStartupTimer(attempt);
+    attempt.stopStartChime?.();
     attempt.requestAbort.abort();
     attempt.microphone.release();
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
@@ -436,9 +438,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const start = async () => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
-    // On the tap, inside its gesture: the cue fills the start wait instead of
-    // playing over the greeting.
-    playPalVoiceSound("start");
+    const stopStartChime = playPalVoiceSound("start");
     resetPalMap();
     currentToolCalls.current.clear();
     lastUserEvent.current = 0;
@@ -451,6 +451,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       conversationId: null,
       sdkSessionStarted: false,
       microphone: createPalVoiceMicrophoneHold(),
+      stopStartChime,
       connectedAt: null,
       capTimer: null,
       startupTimer: null,
@@ -510,6 +511,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         const overrides = grant.overrides;
         setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
+        attempt.stopStartChime?.();
         attempt.sdkSessionStarted = true;
         startSession({
           signedUrl: grant.signedUrl,

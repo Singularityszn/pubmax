@@ -14,7 +14,7 @@ export const PAL_VOICE_SOUND_SRC: Record<PalVoiceSound, string> = {
 
 const VOLUME = 0.4;
 
-export function playPalVoiceSound(sound: PalVoiceSound): void {
+export function playPalVoiceSound(sound: PalVoiceSound): (() => void) | undefined {
   if (typeof window === "undefined" || typeof window.Audio !== "function") return;
   try {
     const audio = new window.Audio(PAL_VOICE_SOUND_SRC[sound]);
@@ -22,6 +22,7 @@ export function playPalVoiceSound(sound: PalVoiceSound): void {
     void audio.play()?.catch(() => {
       // Autoplay refused or the file is missing: the cue is a nicety.
     });
+    return () => { audio.pause(); };
   } catch {
     // As above.
   }
