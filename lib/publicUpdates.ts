@@ -24,7 +24,7 @@ export const PUBLIC_UPDATES = [
     changes: [
       "We read the Pint Prices listings again on 9 November. 55 prices changed.",
       "Priced pins show up sooner when the map opens on a phone.",
-      "/tools compares the same order at two or three London pubs, with the walk between them.",
+      "/tools compares the same order at two or three London pubs. Add a meeting point and it shows the walk to each one.",
     ],
   },
   {
