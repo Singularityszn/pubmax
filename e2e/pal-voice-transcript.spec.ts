@@ -67,8 +67,8 @@ function hear(socket: WebSocketRoute, text: string, tentative = false): void {
     : { type: "user_transcript", user_transcription_event: { user_transcript: text, event_id: eventId } }));
 }
 
-/** Sign in as A with a Pal and stub the provider socket. Ends on /pal with Start offered. */
-async function preparePalAccount(page: Page, memoryProposals = false, firstMessage?: string, hidden = false, under18 = false): Promise<{ opened: Promise<WebSocketRoute> }> {
+/** Sign in as A with a Pal and stub the provider socket. mapOnly never opens /pal. */
+async function preparePalAccount(page: Page, memoryProposals = false, firstMessage?: string, hidden = false, under18 = false, mapOnly = false): Promise<{ opened: Promise<WebSocketRoute> }> {
   const timestamp = "2026-10-04T12:00:00.000Z";
   let pal = {
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
@@ -126,12 +126,24 @@ async function preparePalAccount(page: Page, memoryProposals = false, firstMessa
       version: 1, activatedAt: new Date().toISOString(),
     }));
   });
-  await seedSignedIn(page, "A");
+  if (mapOnly) {
+    await page.goto("/map");
+    await page.evaluate((savedPal) => {
+      localStorage.setItem("__e2e_signed_in_account", "A");
+      localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(savedPal));
+    }, pal);
+  } else {
+    await seedSignedIn(page, "A");
+  }
   const identityReady = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/identity/handle/current" && response.status() === 200,
   );
   await page.reload();
   await identityReady;
+  if (mapOnly) {
+    await page.evaluate((savedPal) => localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(savedPal)), pal);
+    return { opened };
+  }
   await expect(page.getByRole("button", { name: "Account options for Karan", exact: true })).toBeVisible();
   await page.getByRole("link", { name: /^Pub Pal(?:,.*)?$/ }).first().click();
   await expect(page).toHaveURL(/\/pal$/);
@@ -1228,12 +1240,12 @@ test("a newer map tool call retires a map trip still on its way", async ({ page 
 // sign-in, and on another city's map it says voice talks about London.
 // The chip rides the deferred shell, which waits 30 s on the web; tests release it at once.
 const releaseDeferredShell = (page: Page) => page.addInitScript(() => localStorage.setItem("pubmax:e2e-defer-shell:v1", "now"));
-for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"], [390, "dark"]] as const) {
+for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"], [390, "dark"], [768, "light"], [1440, "dark"]] as const) {
   test(`${width}px ${theme}: a tap on the map's Pal chip starts voice in place and the chip becomes the voice bar`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await storeThemeChoice(page, theme);
     await releaseDeferredShell(page);
-    const { opened } = await preparePalAccount(page);
+    const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
     await page.goto("/map");
     await expectMapLoadingFrameReleased(page);
     const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
@@ -1303,6 +1315,8 @@ test("signed out, the map's Pal chip offers sign-in and closes for this page vie
   await page.reload();
   await expectMapLoadingFrameReleased(page);
   await expect(signIn).toBeVisible({ timeout: 20_000 });
+  await signIn.click();
+  await expect(page).toHaveURL(/\/login\?mode=signin&from=%2Fmap/);
 });
 
 test("an under-18 account sees no Pal chip on the map", async ({ page }) => {
@@ -1316,6 +1330,7 @@ test("an under-18 account sees no Pal chip on the map", async ({ page }) => {
   await ruled;
   await expect(page.locator(".palSummon")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true })).toHaveCount(0);
+  await page.screenshot({ path: `${SHOTS}/step9-390-under18.png` });
 });
 
 test("on another city's map the Pal chip says voice talks about London for now", async ({ page }) => {
@@ -1328,3 +1343,62 @@ test("on another city's map the Pal chip says voice talks about London for now",
   await expect(chip).toContainText("Talks about London for now", { timeout: 20_000 });
   await page.screenshot({ path: `${SHOTS}/step9-390-outside-london.png` });
 });
+
+for (const interruption of ["background", "leave map"] as const) {
+  test(`a cold map voice tap cancelled by ${interruption} needs a new tap`, async ({ page }) => {
+    await releaseDeferredShell(page);
+    const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
+    await page.goto("/map");
+    await expectMapLoadingFrameReleased(page);
+    const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+    await expect(chip).toBeVisible();
+    const held: import("@playwright/test").Route[] = [];
+    let block = true;
+    let firstScript!: () => void;
+    const requested = new Promise<void>((resolve) => { firstScript = resolve; });
+    await page.route("**/_next/static/chunks/*.js*", async (route) => {
+      if (!block) return route.continue();
+      held.push(route);
+      firstScript();
+    });
+    await chip.click();
+    await requested;
+    await page.evaluate((urls) => {
+      const surface = window as unknown as { step9ScriptsLoaded: Promise<unknown> };
+      surface.step9ScriptsLoaded = Promise.all(urls.map((url) => {
+        const script = [...document.scripts].find((entry) => entry.src === url);
+        if (!script) throw new Error(`No script element for ${url}`);
+        return new Promise((resolve) => script.addEventListener("load", resolve, { once: true }));
+      }));
+    }, held.map((route) => route.request().url()));
+    if (interruption === "background") {
+      await page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    } else {
+      await page.getByRole("link", { name: "You", exact: true }).first().click();
+    }
+    block = false;
+    await Promise.all(held.map((route) => route.continue()));
+    await page.evaluate(() => (window as unknown as { step9ScriptsLoaded: Promise<unknown> }).step9ScriptsLoaded);
+    if (interruption === "background") {
+      await page.evaluate(() => {
+        delete (document as unknown as { visibilityState?: string }).visibilityState;
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    } else {
+      await expect(page).toHaveURL(/\/u\/karan/);
+      await page.getByRole("link", { name: "Explore", exact: true }).first().click();
+      await expectMapLoadingFrameReleased(page);
+    }
+    await expect(chip).toBeVisible();
+    await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/step9-cancel-${interruption.replace(" ", "-")}.png` });
+    await chip.click();
+    await opened;
+    await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(chip).toBeVisible();
+  });
+}

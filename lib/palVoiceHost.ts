@@ -4,8 +4,8 @@ import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
 
 // One voice call for the whole app. The call lives in PalVoiceHost, in the root
 // shell, so a move from /pal to /map keeps the same socket. This leaf holds no
-// SDK: the /pal panel registers where the call should draw, the call says while
-// it is in use, and the host reads both to decide whether the call is mounted.
+// SDK: the /pal panel registers where the call should draw, and the map chip
+// requests startup. The host retains pending starts and engaged calls.
 
 export type PalVoicePanelProps = {
   onStateChange?: (state: PalAnimationState) => void;
@@ -19,7 +19,7 @@ export type PalVoicePanelProps = {
 export type PalVoiceHostState = {
   /** The /pal panel's slot, while that page is mounted. */
   panel: { element: HTMLElement; props: PalVoicePanelProps } | null;
-  /** The last panel's props, so the call keeps its Pal's name and look off /pal. */
+  /** The latest panel or map-chip props preserve the Pal's name and look off /pal. */
   props: PalVoicePanelProps | null;
   /** Retain startup, live calls, background interruptions, and visible errors. */
   engaged: boolean;

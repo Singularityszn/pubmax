@@ -12,15 +12,15 @@ import {
   subscribePalVoiceHost,
 } from "@/lib/palVoiceHost";
 
-// The session carries the ElevenLabs SDK. The available /pal panel mounts it,
-// and an engaged call retains it across routes. A cold /map loads none of it.
+// The session carries the ElevenLabs SDK. The /pal panel or a map-chip tap
+// mounts it. An engaged call retains it. A cold /map loads none of it.
 const PubPalVoiceSession = dynamic(() => import("@/components/pubpal/PubPalVoiceSession"), {
   ssr: false,
 });
 
 /**
  * The one voice call, held in the root shell. Client navigation keeps the
- * shell, so a call started on /pal carries on after the move to /map.
+ * shell, so a call started on either /pal or /map survives moves between them.
  */
 export default function PalVoiceHost() {
   const host = useSyncExternalStore(subscribePalVoiceHost, readPalVoiceHost, readPalVoiceHost);
