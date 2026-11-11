@@ -165,6 +165,7 @@ describe("shouldOpenPlanningInitially", () => {
   it("opens for the explicit primary planning intent", () => {
     expect(shouldOpenPlanningInitially("suggest", "?plan=1")).toBe(true);
     expect(shouldOpenPlanningInitially("suggest", "?drink=beer&plan=1")).toBe(true);
+    expect(shouldOpenPlanningInitially("suggest", "?style=heritage&max=6&plan=1")).toBe(true);
   });
 
   it("keeps borough browse (?q=) on the clean map without opening the planner", () => {
@@ -194,9 +195,12 @@ describe("shouldOpenPlanningInitially", () => {
   it("opens explicit planner links but keeps a stop list map-first", () => {
     expect(shouldOpenPlanningInitially("suggest", "?pubs=a,b")).toBe(false);
     expect(shouldOpenPlanningInitially("build", "")).toBe(true);
-    expect(shouldOpenPlanningInitially("suggest", "?style=heritage")).toBe(true);
     // Bare mode=build without pubs still opens (rare; not a curated arrival).
     expect(shouldOpenPlanningInitially("suggest", "?mode=build")).toBe(true);
+  });
+
+  it.each(["?style=heritage", "?style=heritage&max=6"])("keeps map preferences closed on arrival: %s", (search) => {
+    expect(shouldOpenPlanningInitially("suggest", search)).toBe(false);
   });
 
   it("borough browse with mode=suggest: planner closed and query fit true", () => {

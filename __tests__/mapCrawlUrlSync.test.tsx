@@ -782,11 +782,13 @@ describe("issue 2711: the visible surface owns planner URL activation", () => {
       else if (exit === "leave") leaveHistorySurface("planner", () => {});
       else window.history.back();
     });
+    expect(buildMapSeed(window.location.search).filters.crawlStyle).toBe("heritage");
     await act(async () => root.render(createElement(HistoryHarness, { ...props, maxPrice: 6 })));
     act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
     const seed = buildMapSeed(window.location.search);
     expect(shouldOpenPlanningInitially(seed.mode, window.location.search)).toBe(false);
     expect(seed.filters.maxPrice).toBe(6);
+    expect(seed.filters.crawlStyle).toBe("heritage");
     expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
   });
 

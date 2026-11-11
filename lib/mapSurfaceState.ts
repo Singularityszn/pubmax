@@ -120,7 +120,6 @@ export function mapSurfaceSearch(search: string, surfaceId: string): string {
     const query = `?${params}`;
     if (shouldOpenPlanningInitially(params.get("mode") === "build" ? "build" : "suggest", query)) {
       params.delete("mode");
-      params.delete("style");
     }
   }
   return params.toString();

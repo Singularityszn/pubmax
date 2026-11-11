@@ -138,7 +138,7 @@ test.describe("one Map surface history owner", () => {
       test(`${exit} closes a ${populated ? "populated" : "bare"} heritage build through reload`, async ({ page }) => {
         await prepareMap(page);
         const stops = populated ? "&pubs=venue-1ufn31x,venue-1t8siin" : "";
-        await openMap(page, `/map?mode=build&plan=1&style=heritage${stops}`);
+        await openMap(page, `/map?mode=build&plan=1&style=heritage&max=6${stops}`);
         await expectSoleDrawer(page, "planner");
         if (exit === "toggle") await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
         else if (exit === "map") await planner(page).locator(".plannerMapButton").click();
@@ -149,6 +149,8 @@ test.describe("one Map surface history owner", () => {
         await page.reload({ waitUntil: "domcontentloaded" });
         await expectMapToolbarReady(page);
         await expect(planner(page)).toHaveAttribute("aria-hidden", "true");
+        expect(new URL(page.url()).searchParams.get("style")).toBe("heritage");
+        expect(new URL(page.url()).searchParams.get("max")).toBe("6");
         if (populated) {
           expect(new URL(page.url()).searchParams.get("pubs")).toBe("venue-1ufn31x,venue-1t8siin");
         }

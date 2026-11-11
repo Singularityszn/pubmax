@@ -345,6 +345,8 @@ describe("the planner deep link (plan=1) lives only on an entry that shows the p
   function expectPlannerClosed() {
     const seed = buildMapSeed(window.location.search);
     expect(shouldOpenPlanningInitially(seed.mode, window.location.search)).toBe(false);
+    expect(seed.filters.crawlStyle).toBe("heritage");
+    expect(seed.filters.maxPrice).toBe(6);
   }
 
   const address = () => `${window.location.pathname}${window.location.search}`;
@@ -385,7 +387,7 @@ describe("the planner deep link (plan=1) lives only on an entry that shows the p
     vi.unstubAllGlobals();
   });
 
-  it("keeps the arrival address on the planner entry and leaves plan=1 off the map root", async () => {
+  it("keeps the planner arrival address and preserves heritage and max 6 after closing and reloading", async () => {
     expect(trail()).toEqual(["planner"]);
     expect(address()).toBe(arrival);
     await back();
@@ -395,6 +397,7 @@ describe("the planner deep link (plan=1) lives only on an entry that shows the p
     expect(new URLSearchParams(window.location.search).get("max")).toBe("6");
     await reload();
     expect(trail()).toEqual([]);
+    expectPlannerClosed();
   });
 
   it("drops plan=1 from a pub opened over the planner, so closing a reopened planner back to it stays shut", async () => {
