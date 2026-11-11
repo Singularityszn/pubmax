@@ -1291,6 +1291,32 @@ describe("runPalElevenLabsChatTurn", () => {
       vi.useRealTimers();
     });
 
+    it.each([
+      { name: "a blank reply", event: agentResponse("   ") },
+      { name: "a missing reply body", event: { type: "agent_response", agent_response_event: {} } },
+      { name: "a missing reply event", event: { type: "agent_response" } },
+      { name: "an empty stream delta", event: responsePart("delta") },
+      { name: "a missing stream part", event: { type: "agent_chat_response_part" } },
+    ])("keeps the latest reply after $name", async ({ event }) => {
+      wsState.replyScript = [
+        { afterMs: 0, event: responsePart("delta", SOURCED_ANSWER) },
+        { afterMs: 0, event: agentResponse(SOURCED_ANSWER) },
+        { afterMs: 0, event },
+        { afterMs: 0, event: responseComplete() },
+      ];
+      const onProgress = vi.fn();
+      const pending = runPalElevenLabsChatTurn({
+        query: "quiet pubs",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+        onProgress,
+      });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
+      expect(onProgress.mock.calls).toEqual([[{ type: "delta", text: SOURCED_ANSWER }]]);
+    });
+
     it("answers a tool turn once the reply has settled, without waiting for the turn end", async () => {
       wsState.storeFilled = false;
       wsState.replyScript = [

@@ -604,6 +604,42 @@ export async function runPalElevenLabsChatTurn(
       })();
     };
 
+    const receiveResponsePart = (payload: AgentResponseEvent): void => {
+      if (!userMessageSent) return;
+      const part = payload.text_response_part;
+      if (part?.type === "start") {
+        resetStream();
+      } else if (part?.type === "delta" && part.text) {
+        progress.streamDelta();
+        streamedText = true;
+        input.onProgress?.({ type: "delta", text: part.text });
+      } else {
+        progress.streamPart(payload);
+      }
+    };
+
+    const receiveReply = (payload: AgentResponseEvent): void => {
+      if (!userMessageSent) return;
+      const reply = payload.agent_response_event?.agent_response?.trim() ?? "";
+      if (!reply) return;
+      latestReply = reply;
+      replyGeneration += 1;
+      progress.reply();
+      replyToolEvents = toolEvents;
+      // The reply is the answer unless a tool event follows it in the window.
+      armSettle(REPLY_SETTLE_MS);
+    };
+
+    const receiveEndCall = (payload: AgentResponseEvent): boolean => {
+      const tool = payload.type === "agent_tool_request" ? payload.agent_tool_request
+        : payload.type === "agent_tool_response" ? payload.agent_tool_response : undefined;
+      if (userMessageSent && tool?.tool_name === "end_call") {
+        endCallRequested = payload.type === "agent_tool_request" || payload.agent_tool_response?.is_error !== true;
+        return endCallRequested;
+      }
+      return false;
+    };
+
     ws.addEventListener("message", (event) => {
       if (settled || Date.now() >= deadline) return;
       let payload: AgentResponseEvent;
@@ -631,39 +667,16 @@ export async function runPalElevenLabsChatTurn(
       }
 
       if (payload.type === "agent_chat_response_part") {
-        if (!userMessageSent) return;
-        const part = payload.text_response_part;
-        if (part?.type === "start") {
-          resetStream();
-        } else if (part?.type === "delta" && part.text) {
-          progress.streamDelta();
-          streamedText = true;
-          input.onProgress?.({ type: "delta", text: part.text });
-        } else {
-          progress.streamPart(payload);
-        }
+        receiveResponsePart(payload);
         return;
       }
 
       if (payload.type === "agent_response") {
-        if (!userMessageSent) return;
-        const reply = payload.agent_response_event?.agent_response?.trim() ?? "";
-        if (!reply) return;
-        latestReply = reply;
-        replyGeneration += 1;
-        progress.reply();
-        replyToolEvents = toolEvents;
-        // The reply is the answer unless a tool event follows it in the window.
-        armSettle(REPLY_SETTLE_MS);
+        receiveReply(payload);
         return;
       }
 
-      const tool = payload.type === "agent_tool_request" ? payload.agent_tool_request
-        : payload.type === "agent_tool_response" ? payload.agent_tool_response : undefined;
-      if (userMessageSent && tool?.tool_name === "end_call") {
-        endCallRequested = payload.type === "agent_tool_request" || payload.agent_tool_response?.is_error !== true;
-        if (endCallRequested) return;
-      }
+      if (receiveEndCall(payload)) return;
 
       if (payload.type === "agent_tool_request") {
         if (!userMessageSent) return;
