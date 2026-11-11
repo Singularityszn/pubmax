@@ -8,6 +8,55 @@
  */
 export const PUBLIC_UPDATES = [
   {
+    id: "2026-11-10-guinness-prices-and-zone-estimates",
+    date: "2026-11-10",
+    title: "Guinness prices across the UK, and London zone estimates",
+    changes: [
+      "Pub sheets and map pins show Guinness prices listed by Guinndex, for pubs across the UK.",
+      "A London pub with no listed pint can show an estimate, marked as one. It's the middle listed price for pubs in the same fare zone.",
+      "Beer-by-area pages are back, and they say what to expect at a pub that lists no price.",
+    ],
+  },
+  {
+    id: "2026-11-09-fresh-listings-quicker-map",
+    date: "2026-11-09",
+    title: "Fresher listed prices, a quicker map and order compare",
+    changes: [
+      "We read the Pint Prices listings again on 9 November. 55 prices changed.",
+      "Priced pins show up sooner when the map opens on a phone.",
+      "/tools compares the same order at two or three London pubs, with the walk between them.",
+    ],
+  },
+  {
+    id: "2026-11-07-crawls-in-other-cities",
+    date: "2026-11-07",
+    title: "Crawls in other cities",
+    changes: [
+      "The crawls page now lists routes in other cities too, such as Manchester.",
+    ],
+  },
+  {
+    id: "2026-11-03-illustrated-pub-signs",
+    date: "2026-11-03",
+    title: "Drawn signs for pubs with no photo",
+    changes: [
+      "A pub with no usable photo shows an illustrated sign with its own name.",
+    ],
+  },
+  {
+    id: "2026-11-01-tables-twenty-pound-crawl-dry-round",
+    date: "2026-11-01",
+    title: "Ask for a table, a £20 crawl and a Dry round",
+    changes: [
+      "Pub sheets have Ask for a table, for a group of 6 to 20. It's free.",
+      "On a wider screen, a list of the pubs in view sits beside the map, cheapest or nearest first.",
+      "Plan can build a £20 crawl: stops whose listed pints add up to £20 or less.",
+      "Dry round plans stops that list an alcohol-free price, with the pint price beside it.",
+      "Cheapest pints near me has Pint roulette: one pub at random with a listed pint, within 15 minutes' walk.",
+      "On You, tap the pubs you've been to and they start your Been here list.",
+    ],
+  },
+  {
     id: "2026-10-30-sun-compass-offline-crawls",
     date: "2026-10-30",
     title: "Gardens in the sun, a pint compass and offline crawls",
