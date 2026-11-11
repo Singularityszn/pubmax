@@ -6002,7 +6002,7 @@ export default function PubMap({
     const peekDropLanes = dropLaneInputsFor(peekDropSignal);
     const doors = venueActionDoors({
       venueId: selectedVenue.id, venueName: selectedVenue.name, isPub: selectedVenueIsPub, mode, builtIds,
-      pintTrust: peekDropSignal?.pintTrust, communityPint: communityPrices.freshestByVenueId.get(selectedVenue.id),
+      drops: dropsByVenueId.get(selectedVenue.id), communityPrices: communityPrices.byVenueId.get(selectedVenue.id),
       onLog: openComposerForLog, onAcceptStop1: acceptStop1, onToggleStop: toggleBuiltStop,
     });
     const peekLane = venuePriceLane(

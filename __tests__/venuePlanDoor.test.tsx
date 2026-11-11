@@ -28,9 +28,10 @@ import VenueActionCard from "@/components/map/inspector/VenueActionCard";
 import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
 import { venueActionDoors } from "@/components/map/inspector/venueActionDoors";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
-import type { CrawlMode, Venue } from "@/lib/venues";
+import type { CrawlMode, SummaryDrop, Venue } from "@/lib/venues";
+import type { CommunityPrice } from "@/lib/communityPrice";
 import { DAY_MS } from "@/lib/dayMs";
-import type { PintTrustState } from "@/lib/pintTrust";
+import { pintTrustFor } from "@/lib/pintTrust";
 import {
   crawlInProgress,
   hasFreshDrinkerPrice,
@@ -42,6 +43,22 @@ import {
 
 const VENUE_ID = "venue-plan-door";
 const OTHER_ID = "venue-other-stop";
+const NOW = Date.parse("2026-11-11T20:00:00.000Z");
+
+function drop(days = 1, overrides: Partial<SummaryDrop> = {}): SummaryDrop {
+  return {
+    drink: "Lager",
+    priceGbp: 4.5,
+    passedDownNote: "",
+    provenance: "contributor",
+    createdAt: new Date(NOW - days * DAY_MS).toISOString(),
+    ...overrides,
+  };
+}
+
+function communityPrice(days: number, drinkCategory: CommunityPrice["drinkCategory"] = "beer"): CommunityPrice {
+  return { venueId: VENUE_ID, drinkCategory, priceGbp: 6, submittedAt: NOW - days * DAY_MS, source: "community" };
+}
 
 function venue(overrides: Partial<Venue> = {}): Venue {
   return {
@@ -59,6 +76,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  vi.spyOn(Date, "now").mockReturnValue(NOW);
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -68,6 +86,7 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   document.body.innerHTML = "";
+  vi.restoreAllMocks();
 });
 
 describe("phoneVenuePlanDoor: the mapping, exactly", () => {
@@ -105,25 +124,46 @@ describe("phoneVenuePlanDoor: the mapping, exactly", () => {
 });
 
 describe("the coral asks for a price where no drinker has given one this month", () => {
-  const NOW = Date.parse("2026-11-11T20:00:00.000Z");
-
   it.each([
-    ["confirmed", true],
-    ["corroborated", true],
-    ["disputed", true],
-    ["logged-once", true],
-    ["unchecked", true],
-    ["aged-out", false],
-    ["none", false],
-  ] as [PintTrustState, boolean][])("a %s drop reading counts as fresh: %s", (pintTrust, fresh) => {
-    expect(hasFreshDrinkerPrice({ pintTrust, communityPint: null }, NOW)).toBe(fresh);
+    [1, true],
+    [30, true],
+    [31, false],
+    [66, false],
+  ])("a report logged %s days ago counts as fresh: %s", (days, fresh) => {
+    expect(hasFreshDrinkerPrice({ drops: [drop(days)], communityPrices: undefined }, NOW)).toBe(fresh);
   });
 
-  it("a pint from the price form counts inside 30 days and not after", () => {
-    const at = (days: number) => ({ submittedAt: NOW - days * DAY_MS });
-    expect(hasFreshDrinkerPrice({ pintTrust: "aged-out", communityPint: at(30) }, NOW)).toBe(true);
-    expect(hasFreshDrinkerPrice({ pintTrust: "aged-out", communityPint: at(31) }, NOW)).toBe(false);
-    expect(hasFreshDrinkerPrice({ pintTrust: null, communityPint: null }, NOW)).toBe(false);
+  it("a confirmation today does not refresh an old report or hide a newer report", () => {
+    const confirmed = drop(66, {
+      confirmation: { confirmationId: "moderator-confirmation", confirmedAt: new Date(NOW).toISOString(), basis: "moderator" },
+    });
+    expect(pintTrustFor([confirmed], NOW).state).toBe("confirmed");
+    expect(hasFreshDrinkerPrice({ drops: [confirmed], communityPrices: undefined }, NOW)).toBe(false);
+    const drops = [confirmed, drop(1)];
+    expect(pintTrustFor(drops, NOW).drop).toBe(confirmed);
+    expect(hasFreshDrinkerPrice({ drops, communityPrices: undefined }, NOW)).toBe(true);
+  });
+
+  it.each([
+    { priceGbp: null },
+    { priceGbp: 0 },
+    { priceGbp: Number.NaN },
+    { provenance: "demo" as const },
+    { createdAt: "invalid" },
+    { createdAt: new Date(NOW + DAY_MS).toISOString() },
+  ])("does not count a report without a real dated price: %s", (overrides) => {
+    expect(hasFreshDrinkerPrice({ drops: [drop(1, overrides)], communityPrices: undefined }, NOW)).toBe(false);
+  });
+
+  it("a recent report of another measure is still a drinker price", () => {
+    expect(hasFreshDrinkerPrice({ drops: [drop(1, { measure: "half" })], communityPrices: undefined }, NOW)).toBe(true);
+  });
+
+  it("a price from any category counts inside 30 days and not after", () => {
+    expect(hasFreshDrinkerPrice({ drops: [], communityPrices: [communityPrice(30)] }, NOW)).toBe(true);
+    expect(hasFreshDrinkerPrice({ drops: [], communityPrices: [communityPrice(31)] }, NOW)).toBe(false);
+    expect(hasFreshDrinkerPrice({ drops: [], communityPrices: [communityPrice(66), communityPrice(1, "wine")] }, NOW)).toBe(true);
+    expect(hasFreshDrinkerPrice({ drops: undefined, communityPrices: undefined }, NOW)).toBe(false);
   });
 
   it("a pub with no fresh drinker price leads with the log door and keeps its plan door", () => {
@@ -154,7 +194,8 @@ function PhoneSheet({
   onToggle,
   onLog = () => {},
   phone = true,
-  pintTrust = "corroborated",
+  drops = [drop()],
+  communityPrices,
 }: {
   initialMode: CrawlMode;
   initialBuiltIds: string[];
@@ -162,7 +203,8 @@ function PhoneSheet({
   onToggle?: (id: string) => void;
   onLog?: () => void;
   phone?: boolean;
-  pintTrust?: PintTrustState;
+  drops?: SummaryDrop[];
+  communityPrices?: CommunityPrice[];
 }) {
   const [mode, setMode] = useState<CrawlMode>(initialMode);
   const [builtIds, setBuiltIds] = useState<string[]>(initialBuiltIds);
@@ -179,8 +221,8 @@ function PhoneSheet({
     isPub: true,
     mode,
     builtIds,
-    pintTrust,
-    communityPint: null,
+    drops,
+    communityPrices,
     onLog,
     onAcceptStop1,
     onToggleStop: toggle,
@@ -318,7 +360,9 @@ describe("a pub with no fresh drinker price leads with Log what you paid", () =>
     const accept = vi.fn();
     const log = vi.fn();
     act(() => root.render(createElement(PhoneSheet, {
-      initialMode: "suggest", initialBuiltIds: [], onAcceptStop1: accept, onLog: log, phone, pintTrust: "aged-out",
+      initialMode: "suggest", initialBuiltIds: [], onAcceptStop1: accept, onLog: log, phone, drops: [drop(66, {
+        confirmation: { confirmationId: "old-confirmed", confirmedAt: new Date(NOW).toISOString(), basis: "moderator" },
+      })],
     })));
 
     const coral = host.querySelectorAll<HTMLButtonElement>(".mobileVenuePeekPlanDoor");
@@ -339,10 +383,24 @@ describe("a pub with no fresh drinker price leads with Log what you paid", () =>
     expect(accept).toHaveBeenCalledTimes(1);
   });
 
+  it.each([true, false])("phone %s: a recent wine price keeps the plan door primary", (phone) => {
+    const accept = vi.fn();
+    const log = vi.fn();
+    act(() => root.render(createElement(PhoneSheet, {
+      initialMode: "suggest", initialBuiltIds: [], onAcceptStop1: accept, onLog: log, phone,
+      drops: [drop(66)], communityPrices: [communityPrice(66), communityPrice(1, "wine")],
+    })));
+    expect(peekDoor().textContent).toBe("Make it Stop 1");
+    expect(host.querySelector('[role="toolbar"] [data-plan-door]')).toBeNull();
+    act(() => peekDoor().click());
+    expect(accept).toHaveBeenCalledTimes(1);
+    expect(log).not.toHaveBeenCalled();
+  });
+
   it("the ghost follows the crawl like the coral did", () => {
     const toggle = vi.fn();
     act(() => root.render(createElement(PhoneSheet, {
-      initialMode: "build", initialBuiltIds: [OTHER_ID], onAcceptStop1: vi.fn(), onToggle: toggle, pintTrust: "none",
+      initialMode: "build", initialBuiltIds: [OTHER_ID], onAcceptStop1: vi.fn(), onToggle: toggle, drops: [],
     })));
     const ghost = () => {
       const door = host.querySelector<HTMLButtonElement>('[role="toolbar"] [data-plan-door]');

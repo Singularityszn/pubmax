@@ -1,7 +1,6 @@
-import { isWithinMaxAge, type CommunityPrice } from "@/lib/communityPrice";
+import { freshestCommunityPrice, isWithinMaxAge, type CommunityPrice } from "@/lib/communityPrice";
 import { LANDING_RECEIPT_LABEL } from "@/lib/landingHero";
-import type { PintTrustState } from "@/lib/pintTrust";
-import type { CrawlMode } from "@/lib/venues";
+import type { CrawlMode, SummaryDrop } from "@/lib/venues";
 
 /**
  * THE VENUE SHEET'S DOORS: ONE CORAL, AND IT ASKS FOR WHAT THE PUB LACKS
@@ -16,11 +15,12 @@ import type { CrawlMode } from "@/lib/venues";
  *                                             the card's action row
  *   a fresh drinker price                  -> the coral is the plan door
  *
- * A fresh drinker price is a Pint Drop the trust ladder still holds inside
- * the window (lib/pintTrust.ts), or a pint logged through the price form
- * inside the same window (lib/communityPrice.ts). A listed, sourced or
- * estimated figure is a publisher's or ours, never a drinker's, so it does
- * not count. Until the reads answer, nothing counts, and the pub asks.
+ * A fresh drinker price is a priced, non-demo Pint Drop logged within 30 days,
+ * or a price logged through the price form in any drink category within that
+ * window (lib/communityPrice.ts). The report date decides freshness, never
+ * the confirmation date or trust state. A listed, sourced or estimated figure
+ * is a publisher's or ours, never a drinker's, so it does not count.
+ * Until the reads answer, nothing counts, and the pub asks.
  *
  * THE PLAN DOOR FOLLOWS THE CRAWL, wherever it sits:
  *
@@ -74,29 +74,22 @@ export function phoneVenuePlanDoor(input: {
 /** The coral door a pub without a fresh drinker price shows. One wording, everywhere. */
 export const LOG_WHAT_YOU_PAID_LABEL = LANDING_RECEIPT_LABEL;
 
-/** The trust states that hold a drinker's report from inside the window. */
-const IN_WINDOW_DRINKER_STATES: ReadonlySet<PintTrustState> = new Set([
-  "confirmed",
-  "corroborated",
-  "disputed",
-  "logged-once",
-  "unchecked",
-]);
-
-/**
- * Whether a drinker has said what a pint costs here inside the price window.
- * `pintTrust` is the pub's drop reading; `communityPint` is its freshest pint
- * from the price form. Either one in window is enough.
- */
 export function hasFreshDrinkerPrice(
   input: {
-    pintTrust: PintTrustState | null | undefined;
-    communityPint: Pick<CommunityPrice, "submittedAt"> | null | undefined;
+    drops: readonly Pick<SummaryDrop, "createdAt" | "priceGbp" | "provenance">[] | undefined;
+    communityPrices: readonly CommunityPrice[] | undefined;
   },
   now: number = Date.now(),
 ): boolean {
-  if (input.pintTrust && IN_WINDOW_DRINKER_STATES.has(input.pintTrust)) return true;
-  return input.communityPint ? isWithinMaxAge(input.communityPint, now) : false;
+  const freshDrop = input.drops?.some((drop) => {
+    const submittedAt = Date.parse(drop.createdAt);
+    return drop.provenance !== "demo"
+      && typeof drop.priceGbp === "number" && Number.isFinite(drop.priceGbp) && drop.priceGbp > 0
+      && submittedAt <= now && isWithinMaxAge({ submittedAt }, now);
+  });
+  if (freshDrop) return true;
+  const price = freshestCommunityPrice(input.communityPrices);
+  return price !== null && price.submittedAt <= now && isWithinMaxAge(price, now);
 }
 
 export type VenueSheetDoors = {

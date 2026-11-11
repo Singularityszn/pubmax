@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-import type { CommunityPrice } from "@/lib/communityPrice";
-import type { PintTrustState } from "@/lib/pintTrust";
 import { hasFreshDrinkerPrice, venueSheetDoors } from "@/lib/venuePlanDoor";
 import type { CrawlMode } from "@/lib/venues";
 
@@ -20,12 +18,10 @@ export function venueActionDoors(input: {
   isPub: boolean;
   mode: CrawlMode;
   builtIds: readonly string[];
-  pintTrust: PintTrustState | null | undefined;
-  communityPint: Pick<CommunityPrice, "submittedAt"> | null | undefined;
   onLog: () => void;
   onAcceptStop1: () => void;
   onToggleStop: (id: string) => void;
-}): { coral: ReactNode; ghost: ReactNode; logFirst: boolean } {
+} & Parameters<typeof hasFreshDrinkerPrice>[0]): { coral: ReactNode; ghost: ReactNode; logFirst: boolean } {
   const { logFirst, planDoor } = venueSheetDoors({
     isPub: input.isPub,
     mode: input.mode,
