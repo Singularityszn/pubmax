@@ -121,7 +121,7 @@ describe("plan composer chip intent policy", () => {
       areaFocus: submittedFocus,
       groupSize: 6,
     }, 3);
-    expect(reconciled.nightArea).toBe(query === "Camden" ? "camden" : "piccadilly-soho");
+    expect(reconciled.nightArea).toBe("piccadilly-soho");
     expect(reconciled.areaFocus).toBe(expected);
     expect(reconciled.groupSize).toBe(6);
   });

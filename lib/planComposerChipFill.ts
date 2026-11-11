@@ -133,7 +133,6 @@ export function reconcileGeneratedNightContext(
   const merged = mergeInferredNightContext(inferred, explicit);
   return {
     ...merged,
-    nightArea: inferred.nightArea,
     areaFocus: inferred.areaFocus,
     stopCount: explicit.stopCount ?? normalizePlanStopCount(generatedStopCount),
   };

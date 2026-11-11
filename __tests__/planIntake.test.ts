@@ -515,7 +515,7 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
 
   it("removes the stored Soho focus when its wizard area is skipped", () => {
     const draft = createPlanIntakeDraft({ kind: "patch", id: "soho" });
-    const skipped = settlePlanIntakeStep(draft, { skip: true });
+    const skipped = settlePlanIntakeStep(reopenPlanIntakeStep(draft, "area"), { skip: true });
     const body = buildPlanGenerationIntakeBody(skipped, "", {
       ...generatedContext, nightArea: "piccadilly-soho", areaFocus: "soho",
     });

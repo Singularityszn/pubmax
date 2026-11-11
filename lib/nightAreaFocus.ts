@@ -44,6 +44,11 @@ export function isNightAreaFocus(value: unknown): value is NightAreaFocus {
   return typeof value === "string" && (NIGHT_AREA_FOCI as readonly string[]).includes(value);
 }
 
+/** Does this Night Area hold places a reader can name apart, such as Soho? */
+export function nightAreaHasFocus(area: NightAreaSlug | null | undefined): boolean {
+  return NIGHT_AREA_FOCI.some((focus) => FOCI[focus].area === area);
+}
+
 /** A focus is valid only inside the Night Area that holds it. */
 export function focusForArea(area: NightAreaSlug | null | undefined, focus: unknown): NightAreaFocus | null {
   return isNightAreaFocus(focus) && FOCI[focus].area === area ? focus : null;
