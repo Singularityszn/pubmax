@@ -296,8 +296,11 @@ Voice uses the same opening builder in its first-message override.
    ask on the server, or one line saying nothing is confirmed, so it does not
    need the tool. Voice gets the same lines from the voice-token grant
    (`context`) and sends them as one contextual update when the call connects,
-   so the first ask does not wait on the tool. A failed memory read sends no
-   memory line, and the agent still calls the tool. [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns
+   so the first ask skips the tool when the preload contains every confirmed
+   memory. If confirmed memories exceed `PAL_RECALL_MEMORY_LIMIT`, the update labels
+   the supplied memories as a partial set and requires recall for each ask.
+   The shared reader reports completeness. A failed memory read sends no memory
+   line, and the agent still calls the tool. [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns
    confirmed-memory access, past-night reports and the confirmation rule.
    A second Pal-only webhook, `propose_memory`, adds a memory card
    to a typed or voice chat for the bound account, only when that Pal has memory

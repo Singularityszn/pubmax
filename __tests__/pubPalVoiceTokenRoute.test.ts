@@ -98,6 +98,7 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
 
 import { POST } from "@/app/api/pub-pal/voice-token/route";
 import { buildPalTaste } from "@/lib/palTaste";
+import { PAL_RECALL_MEMORY_LIMIT, readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
 
 const issueRequest = () => new Request("http://localhost/api/pub-pal/voice-token", { method: "POST" });
 
@@ -433,6 +434,43 @@ describe("Pub Pal voice token route", () => {
     expect(context).toContain("Drinks: Guinness, never lager");
     expect(context).toContain("Their usual patches: Soho.");
   });
+
+  it.each([PAL_RECALL_MEMORY_LIMIT, PAL_RECALL_MEMORY_LIMIT + 1])(
+    "only suppresses recall when all %i confirmed memories fit in the preload",
+    async (count) => {
+      voiceState.rpc.mockResolvedValue({ data: true, error: null });
+      vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+      const allergy = "Allergic to sulphites, so no wine";
+      voiceState.memories = [
+        { id: "allergy", palId: voiceState.pal.id, kind: "drink_preference", provenance: "user_confirmed",
+          value: allergy, createdAt: "2026-10-10T00:00:00Z", updatedAt: "2026-10-10T00:00:00Z" },
+        ...Array.from({ length: count - 1 }, (_, index) => ({
+          id: `venue-${index}`, palId: voiceState.pal.id, kind: "venue_preference" as const,
+          provenance: "user_confirmed" as const, value: `Pub note ${index}`,
+          createdAt: "2026-10-11T00:00:00Z", updatedAt: "2026-10-11T00:00:00Z",
+        })),
+        { id: "inferred", palId: voiceState.pal.id, kind: "venue_preference", provenance: "completed_plan",
+          value: "Unconfirmed pub", createdAt: "2026-10-12T00:00:00Z", updatedAt: "2026-10-12T00:00:00Z" },
+      ];
+      const response = await POST(issueRequest());
+      expect(response.status).toBe(200);
+      const { context } = await response.json();
+      expect(context).toContain("Pubs: Pub note 0");
+      expect(context).not.toContain("Unconfirmed pub");
+      if (count === PAL_RECALL_MEMORY_LIMIT) {
+        expect(context).toContain(allergy);
+        expect(context).toContain("do not call recall_memories");
+      } else {
+        expect(context).not.toContain(allergy);
+        expect(context).toContain("partial set");
+        expect(context).toContain("call recall_memories for each ask");
+        expect(context).not.toContain("do not call recall_memories");
+        expect(await readConfirmedPalMemories(voiceState.userId, "Fancy a glass of wine?")).toContainEqual({
+          kind: "drink_preference", label: "Drinks", value: allergy,
+        });
+      }
+    },
+  );
 
   it("still tells the call when nothing is confirmed, and keeps a confirmed memory out of the greeting when taste is off", async () => {
     voiceState.rpc.mockResolvedValue({ data: true, error: null });
