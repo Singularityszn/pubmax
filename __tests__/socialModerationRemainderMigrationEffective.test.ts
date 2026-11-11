@@ -3,7 +3,8 @@
 // history, a worker whose lease expired resets the live lease of the worker
 // that reclaimed the job, and a flagged comment waits in 'needs_review' for a
 // review nobody does. After it: each is fixed, the calls the code served
-// before 0236 still work, and the rollback applies.
+// before 0236 still work, neither claim door can settle the other's lease, and
+// the rollback applies.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -69,6 +70,14 @@ function expireLease(id: string): void {
 
 function job(id: string): string {
   return db().sql(`select state || '|' || attempts from public.social_interaction_moderation_jobs where content_id='${id}'`);
+}
+
+function leaseToken(id: string): string {
+  return service(`select lease_token from public.claim_social_interaction_moderation_leases(20) where content_id='${id}'`);
+}
+
+function legacyClaim(): void {
+  service(`select content_id from public.claim_social_interaction_moderation_jobs(20)`);
 }
 
 function commentState(id: string): string {
@@ -139,9 +148,9 @@ describe.skipIf(skipReason !== null)("0236 Social moderation remainder", () => {
 
   it("lets only the holder of the live lease finish an interaction job", () => {
     const raced = comment("Lease token");
-    const stale = service(`select lease_token from public.claim_social_interaction_moderation_jobs(20) where content_id='${raced}'`);
+    const stale = leaseToken(raced);
     expireLease(raced);
-    const live = service(`select lease_token from public.claim_social_interaction_moderation_jobs(20) where content_id='${raced}'`);
+    const live = leaseToken(raced);
     expect(live).not.toBe(stale);
     expect(service(`select public.complete_social_interaction_moderation_job('comment','${raced}','${stale}',null,'stale_worker',now())`)).toBe("f");
     expect(service(`select public.complete_social_interaction_moderation_job('comment','${raced}','${stale}','approved',null,null)`)).toBe("f");
@@ -152,10 +161,35 @@ describe.skipIf(skipReason !== null)("0236 Social moderation remainder", () => {
     expect(db().sql(`select count(*) from public.social_interaction_moderation_jobs where content_id='${raced}'`)).toBe("0");
   });
 
+  it("keeps a tokenless completion off a token lease, and a token completion off a tokenless lease", () => {
+    const legacyComplete = (id: string, decision: string, error: string) => service(
+      `select public.complete_social_interaction_moderation_job('comment','${id}',${decision},${error},${error === "null" ? "null" : "now()"})`,
+    );
+    const takenByNew = comment("Old lease, new holder");
+    legacyClaim();
+    expireLease(takenByNew);
+    const live = leaseToken(takenByNew);
+    expect(legacyComplete(takenByNew, "null", "'stale_worker'")).toBe("f");
+    expect(legacyComplete(takenByNew, "'approved'", "null")).toBe("f");
+    expect(job(takenByNew)).toBe("leased|2");
+    expect(commentState(takenByNew)).toBe("visible|pending");
+    expect(service(`select public.complete_social_interaction_moderation_job('comment','${takenByNew}','${live}','needs_review',null,null)`)).toBe("t");
+    expect(commentState(takenByNew)).toBe("hidden|approved");
+
+    const takenByOld = comment("New lease, old holder");
+    const stale = leaseToken(takenByOld);
+    expireLease(takenByOld);
+    legacyClaim();
+    expect(service(`select public.complete_social_interaction_moderation_job('comment','${takenByOld}','${stale}','approved',null,null)`)).toBe("f");
+    expect(job(takenByOld)).toBe("leased|2");
+    expect(legacyComplete(takenByOld, "'approved'", "null")).toBe("t");
+    expect(commentState(takenByOld)).toBe("visible|approved");
+  });
+
   it("hides a flagged comment at once, and one flagged before the migration too", () => {
     expect(commentState(flaggedBefore)).toBe("hidden|approved");
     const flagged = comment("Flagged again");
-    const token = service(`select lease_token from public.claim_social_interaction_moderation_jobs(20) where content_id='${flagged}'`);
+    const token = leaseToken(flagged);
     expect(service(`select public.complete_social_interaction_moderation_job('comment','${flagged}','${token}','needs_review',null,null)`)).toBe("t");
     expect(commentState(flagged)).toBe("hidden|approved");
     expect(db().sql(`select count(*) from public.social_comments where moderation_state='needs_review'`)).toBe("0");
