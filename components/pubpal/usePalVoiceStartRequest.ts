@@ -19,6 +19,8 @@ export function usePalVoiceStartRequest(start: () => Promise<void>, ownerId: str
     const take = () => {
       const { startPending, startRequest, startOwner } = readPalVoiceHost();
       if (!startPending || startRequest === handled || !ownerId || startOwner !== ownerId) return;
+      // Never open the microphone for a page out of view.
+      if (document.visibilityState === "hidden") return;
       handled = startRequest;
       void startRef.current();
     };

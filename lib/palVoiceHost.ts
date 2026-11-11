@@ -77,9 +77,9 @@ export function requestPalVoiceStart(ownerId: string, props: PalVoicePanelProps)
  * Drop an ask no call has taken yet: the person left the call's pages or the
  * account changed, so returning later must not open the microphone by itself.
  */
-export function cancelPalVoiceStart(pathname: string, ownerId: string | null): void {
+export function cancelPalVoiceStart(pathname: string, ownerId: string | null, hidden = false): void {
   if (!state.startPending) return;
-  if (palVoiceCallRoute(pathname) && state.startOwner === ownerId) return;
+  if (!hidden && palVoiceCallRoute(pathname) && state.startOwner === ownerId) return;
   update({ startPending: false, startOwner: null });
 }
 

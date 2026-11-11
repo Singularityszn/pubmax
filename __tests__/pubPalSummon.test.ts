@@ -59,6 +59,11 @@ describe("the map chip", () => {
     requestPalVoiceStart("owner-a", { palName: "Ripley" });
     cancelPalVoiceStart("/map", "owner-b");
     expect(readPalVoiceHost().startPending).toBe(false);
+
+    // A page put in the background drops the ask, even on the map for the same account.
+    requestPalVoiceStart("owner-a", { palName: "Ripley" });
+    cancelPalVoiceStart("/map", "owner-a", true);
+    expect(readPalVoiceHost()).toMatchObject({ startPending: false, startOwner: null });
     revokePalVoiceCall();
   });
 });

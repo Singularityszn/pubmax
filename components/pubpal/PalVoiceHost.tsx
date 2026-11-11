@@ -26,8 +26,21 @@ export default function PalVoiceHost() {
   const host = useSyncExternalStore(subscribePalVoiceHost, readPalVoiceHost, readPalVoiceHost);
   const pathname = usePathname() ?? "";
   const ownerId = useAuth().user?.id ?? null;
-  // A tap on the map chip is for this page and this account only.
+  // A tap on the map chip is for this page, this account, and while the page
+  // is in view: a phone locked or a tab put away drops a tap not yet taken.
   useEffect(() => cancelPalVoiceStart(pathname, ownerId), [pathname, ownerId]);
+  useEffect(() => {
+    const drop = () => {
+      if (document.visibilityState === "hidden") cancelPalVoiceStart(pathname, ownerId, true);
+    };
+    const leave = () => cancelPalVoiceStart(pathname, ownerId, true);
+    document.addEventListener("visibilitychange", drop);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      document.removeEventListener("visibilitychange", drop);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [pathname, ownerId]);
   if (!palVoiceCallMounted(host, pathname)) return null;
   const props = host.panel?.props ?? host.props ?? {};
   // A new account never inherits the last account's call.
