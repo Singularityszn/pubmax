@@ -418,13 +418,6 @@ function afterDeleteMark(createdAt: unknown, mark: string | undefined): boolean 
   return at > cut;
 }
 
-/** The later of a row's sort stamp and its newest message. */
-function laterStamp(sortStamp: unknown, newestCreatedAt: unknown): unknown {
-  const newest = stampMicros(String(newestCreatedAt ?? ""));
-  if (!Number.isFinite(newest)) return sortStamp;
-  return stampMicros(String(sortStamp ?? "")) >= newest ? sortStamp : newestCreatedAt;
-}
-
 /** The later of now and the newest message, as the delete mark to store. */
 function deleteMarkFor(newestCreatedAt: string | null): string {
   const now = new Date().toISOString();
@@ -1714,7 +1707,7 @@ async function visibleConversationRows(
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (data === null || !afterDeleteMark(data.created_at, mark)) return null;
-      return { ...row, last_message_at: laterStamp(row.last_message_at, data.created_at) };
+      return { ...row, last_message_at: data.created_at };
     } catch (err) {
       degraded = true;
       console.error(

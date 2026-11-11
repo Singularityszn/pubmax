@@ -608,6 +608,35 @@ describe("removal privacy on durable reads", () => {
     },
   );
 
+  it.each(
+    (["direct", "group"] as const).flatMap((kind) =>
+      [2, 101].map((count) => ({ kind, count })),
+    ),
+  )("uses message time after a delayed metadata update in a $count-chat $kind inbox", async ({ kind, count }) => {
+    const restoredAt = "2028-01-01T12:00:00.000Z";
+    const otherAt = "2028-01-01T12:04:00.000Z";
+    const rows = inboxRows(count, kind).map((row, index) => ({
+      ...row,
+      last_message_at: index === 0 ? "2028-01-01T12:05:00.000Z" : otherAt,
+    }));
+    answerInbox(rows, kind, new Map([["chat-0", "2028-01-01T11:00:00.000Z"]]), (row) =>
+      row.id === "chat-0" ? restoredAt : otherAt,
+    );
+
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+
+    expect(inbox.status).toBe("ready");
+    if (count === 2) {
+      expect(inbox.conversations.map((row) => ({ id: row.id, lastAt: row.lastAt }))).toEqual([
+        { id: "chat-1", lastAt: otherAt },
+        { id: "chat-0", lastAt: restoredAt },
+      ]);
+    } else {
+      expect(inbox.conversations).toHaveLength(100);
+      expect(inbox.conversations.map((row) => row.id)).toEqual(rows.slice(1).map((row) => row.id));
+    }
+  });
+
   it.each(["direct", "group"] as const)(
     "keeps every other %s chat when one deleted chat's latest-message read fails",
     async (kind) => {
