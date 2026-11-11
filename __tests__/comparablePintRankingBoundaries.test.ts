@@ -28,6 +28,8 @@ import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
 import { priceRowReadDay } from "@/lib/priceReadDay.mjs";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 
+const STATIONS = [{ name: "Oxford Circus", lat: 51.5152, lng: -0.1419, zone: 1 }];
+
 const NOW = new Date("2026-11-01T12:00:00Z");
 const evidence = { priceSource: "Pub menu", priceObservedAt: "2026-10-01" };
 const rejected = [
@@ -111,8 +113,8 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
         source: { label: "Archive", url: "https://archive.example/pub", licence: "quoted" },
       })),
     };
-    expect(buildLandingPubCard(venues, history, { now: NOW.getTime() })).toMatchObject({ id: "pint", priceGbp: 5 });
-    expect(buildLandingAnchorRail(venues, { id: "anchor", primaryBorough: "Westminster" }, {}).map((row) => row.id)).toEqual(["pint"]);
+    expect(buildLandingPubCard(venues, history, { now: NOW.getTime(), stations: STATIONS })).toMatchObject({ id: "pint", priceGbp: 5 });
+    expect(buildLandingAnchorRail(venues, { id: "anchor" }, {}, STATIONS).map((row) => row.id)).toEqual(["pint"]);
     const photo = { ...defined(LONDON_COLLAGE_PHOTOS[0]), area: "test", spot: [51.5136, -0.1365] as const };
     expect(buildLondonCollageAreaPrices(venues, [photo])).toEqual({ test: { cheapestPrice: 5, pubName: "pint", pubCount: 1 } });
     expect(venues[0]?.cheapestPrice).toBe(change.cheapestPrice ?? 2.49);

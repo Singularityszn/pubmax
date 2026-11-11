@@ -18,6 +18,7 @@ import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { filterMapVenues } from "@/lib/filterMapVenues";
 import { buildLandingPubCard } from "@/lib/landingPubCard";
+import stationTable from "@/data/tfl_station_zones.json";
 import { filtersForDrinkPriceLens } from "@/lib/mapExperienceLens";
 import { pricedLandingMapHref } from "@/lib/pricedLanding";
 import { mapDrinkLensSelection } from "@/lib/pubMap";
@@ -114,6 +115,8 @@ function history(venueId: string) {
   };
 }
 
+const STATIONS = [{ name: "Blackfriars", lat: 51.5116, lng: -0.103, zone: 1 }];
+
 const NOW = Date.UTC(2026, 8, 10, 12);
 
 describe("every pint the landing card can name has a drink page or no link", () => {
@@ -133,14 +136,14 @@ describe("every pint the landing card can name has a drink page or no link", () 
       const shouted = beer.label.toUpperCase();
 
       const one = [pub("venue-one", shouted, 5.5)];
-      const lonely = buildLandingPubCard(one, history("venue-one"), { now: NOW });
+      const lonely = buildLandingPubCard(one, history("venue-one"), { now: NOW, stations: STATIONS });
       expect(lonely?.pintName).toBe(`a pint of ${beer.label.charAt(0)}${beer.label.slice(1).toLowerCase()}`);
       expect(lonely?.drinkHref, `${beer.id} below the floor must not link`).toBeNull();
 
       const crowd = Array.from({ length: DRINK_BRAND_LANDING_PUBLICATION_FLOOR }, (_, i) =>
         pub(`venue-${i}`, shouted, 5.5),
       );
-      const linked = buildLandingPubCard(crowd, history("venue-0"), { now: NOW });
+      const linked = buildLandingPubCard(crowd, history("venue-0"), { now: NOW, stations: STATIONS });
       expect(linked?.drinkHref, `${beer.id} at the floor must link its page`).toBe(
         `/drink/${encodeURIComponent(beer.id)}`,
       );
@@ -159,7 +162,7 @@ describe("every pint the landing card can name has a drink page or no link", () 
       "venue-pale",
     );
 
-    const card = buildLandingPubCard(venues, history("venue-pale"), { now: NOW });
+    const card = buildLandingPubCard(venues, history("venue-pale"), { now: NOW, stations: STATIONS });
     expect(card?.pintName).toBe("a pint of Camden pale ale");
     expect(card?.drinkHref).toBeNull();
   });
@@ -182,7 +185,7 @@ describe("every pint the landing card can name has a drink page or no link", () 
       if (landing) continue;
       const crowd = venues.filter((venue) => venue.cheapestPint?.toLowerCase().includes(beer.label.toLowerCase()));
       for (const venue of crowd.slice(0, 3)) {
-        const card = buildLandingPubCard([venue], history(venue.id), { now: NOW });
+        const card = buildLandingPubCard([venue], history(venue.id), { now: NOW, stations: stationTable.stations });
         expect(card?.drinkHref ?? null).toBeNull();
       }
     }

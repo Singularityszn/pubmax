@@ -1,0 +1,37 @@
+name: PubMax apt mirrors
+description: >-
+  Keep only the apt mirrors whose host resolves, then add public fallbacks.
+  The hosted Ubuntu runner reads its archive from the mirror list in
+  /etc/apt/apt-mirrors.txt. When a mirror host stops resolving, apt waits on
+  DNS for every file and a `playwright install --with-deps` fails after ten
+  minutes. apt checks every package against Ubuntu's signing key, whichever
+  mirror serves it. A runner without that list is left alone.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        list=/etc/apt/apt-mirrors.txt
+        if [ ! -f "$list" ]; then
+          echo "No $list on this runner, so the apt mirrors are unchanged."
+          exit 0
+        fi
+        fallbacks="http://archive.ubuntu.com/ubuntu/ http://mirrors.edge.kernel.org/ubuntu/ http://mirror.math.princeton.edu/pub/ubuntu/"
+        kept="$(mktemp)"
+        for url in $(cut -f1 "$list") $fallbacks; do
+          host="${url#*://}"
+          host="${host%%/*}"
+          if timeout 5 getent hosts "$host" >/dev/null; then
+            echo "apt mirror resolves: $url"
+            grep -qxF "$url" "$kept" || echo "$url" >> "$kept"
+          else
+            echo "::warning::apt mirror does not resolve, so it is skipped: $url"
+          fi
+        done
+        if [ -s "$kept" ]; then
+          sudo cp "$kept" "$list"
+        else
+          echo "::warning::No apt mirror resolves, so the list is unchanged."
+        fi
+        rm -f "$kept"

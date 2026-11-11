@@ -1,8 +1,5 @@
-// Three short cues for the voice panel: the line opens, the line closes, and
-// the map is on its way. They play only inside a voice chat the person
-// started, quietly, and a browser that refuses to play one costs nothing.
-// The files are ElevenLabs sound effects, trimmed and levelled to one
-// loudness, and live beside the app so the page's media-src stays 'self'.
+// Keep these files beside the app so the page's media-src stays 'self'.
+// Cue timing and routing: docs/PUB_PAL_SETUP.md#voice-audio-cues-and-routing.
 
 export type PalVoiceSound = "start" | "end" | "map";
 
@@ -14,7 +11,7 @@ export const PAL_VOICE_SOUND_SRC: Record<PalVoiceSound, string> = {
 
 const VOLUME = 0.4;
 
-export function playPalVoiceSound(sound: PalVoiceSound): void {
+export function playPalVoiceSound(sound: PalVoiceSound): (() => void) | undefined {
   if (typeof window === "undefined" || typeof window.Audio !== "function") return;
   try {
     const audio = new window.Audio(PAL_VOICE_SOUND_SRC[sound]);
@@ -22,6 +19,7 @@ export function playPalVoiceSound(sound: PalVoiceSound): void {
     void audio.play()?.catch(() => {
       // Autoplay refused or the file is missing: the cue is a nicety.
     });
+    return () => { audio.pause(); };
   } catch {
     // As above.
   }

@@ -443,6 +443,31 @@ Android audio-mode wait. Microphone access, the grant request and the SDK
 connection still take time. Android audio routing needs
 [real-phone verification](https://github.com/Singularityszn/pubmax/issues/2741).
 
+### Voice audio cues and routing
+
+Each voice start tap plays a short chime before microphone permission or a voice
+grant arrives. This includes **Start voice chat**, **Carry on**, and the map's
+[talk chip](../README.md#pub-pal-map-chip). The map chip plays its chime before the session
+module downloads. The session takes ownership of that chime without playing it
+again.
+
+A replacement map tap stops the previous chime. A cancelled request or failed
+session download also stops the chime. The app stops any remaining start chime
+before the SDK connection begins, so the cue cannot overlap the greeting.
+Cancelling or ending the startup attempt also stops the chime.
+
+A live call has separate cues when the line closes and when the map is on its way.
+A typed map request without a live call is silent. Unmounting does not play a cue.
+The cues use same-origin ElevenLabs sound effects, trimmed and levelled in
+`public/sounds/pal/`. If playback fails, the call can still continue.
+
+The app passes `preferHeadphonesForIosDevices: true` to the ElevenLabs SDK.
+On iOS, the SDK requests a detected headphone microphone as its preferred input.
+Without a matching device, it uses the default microphone constraints.
+This preference does not guarantee physical audio routing.
+An iPhone check with AirPods remains pending in
+[issue 2741](https://github.com/Singularityszn/pubmax/issues/2741).
+
 ### Voice interruptions
 
 Client navigation between `/pal` and `/map`, including `/map/` subroutes, keeps
