@@ -1,8 +1,30 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { formatGbp } from "@/lib/formatGbp";
+import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
+import { rankNearMe } from "@/lib/nearMeAnswer";
+import { CENTRAL_PATCH } from "@/lib/nightPatches";
 import { parseWhatsOnRows } from "../lib/whatsOn";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { slimLondonRows } from "./helpers/slimListedPrice";
+
+/**
+ * The pub the glance should name at this clock: the same ranking from central
+ * London over the committed slim pack. A price refresh moves it, so the spec
+ * reads it here instead of typing a pub.
+ */
+function expectedGlance(now: number) {
+  const rows = slimLondonRows();
+  const card = rankNearMe(CENTRAL_PATCH.lat, CENTRAL_PATCH.lng, [...rows], { now }).cards[0];
+  const row = rows.find((candidate) => candidate.id === card?.id);
+  if (!card || !row) throw new Error("The slim pack ranks no listed price near central London.");
+  return {
+    id: card.id,
+    pick: `${formatGbp(card.cheapestPrice)} at ${card.name}`,
+    receipt: listedPriceReceipt(row, now),
+  };
+}
 
 for (const width of [390, 1440]) {
   for (const theme of ["light", "dark"]) {
@@ -19,8 +41,10 @@ for (const width of [390, 1440]) {
           sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
         }, theme);
         await installDeterministicMapBasemap(page);
+        let glanceNow = Date.now();
         if (listings === "recorded") {
           const now = new Date("2026-10-02T15:00:00.000Z");
+          glanceNow = now.getTime();
           const rows = parseWhatsOnRows(JSON.parse(readFileSync("public/data/whats_on/deals_london.json", "utf8")), now.getTime());
           const deal = rows.find((row) => row.id === "deal-jdw-afternoon-deals-coombe-lodge-croydon");
           expect(deal).toBeDefined();
@@ -60,11 +84,11 @@ for (const width of [390, 1440]) {
           await expect(tonight.locator(".palGlanceReceipt")).toContainText("Sources: J D Wetherspoon - Food & drink. Oldest listing observed 2 October 2026.");
         }
         await expect(tonight.getByRole("link", { name: "See listings and sources.", exact: true })).toHaveAttribute("href", "/tonight");
-        await expect(price).toContainText("£4.20 at Hercules Pillars");
+        const expected = expectedGlance(glanceNow);
+        await expect(price).toContainText(expected.pick);
         await expect(price).not.toContainText("The Three Tuns - LSE Student Union");
         await expect(price.locator(".palGlanceLine")).toContainText(/Lowest listed price|Listed price around/);
-        await expect(price.locator(".palGlanceReceipt")).toContainText("Pint Prices");
-        await expect(price.locator(".palGlanceReceipt")).toContainText("Source read 2 October 2026");
+        await expect(price.locator(".palGlanceReceipt")).toContainText(expected.receipt);
         await expect(price).toContainText("Serving size, offer and entry terms are not recorded.");
         await price.scrollIntoViewIfNeeded();
         const layout = await price.locator(".palGlanceReceipt").evaluate((element) => {
@@ -76,12 +100,12 @@ for (const width of [390, 1440]) {
         expect(layout.content).toBeLessThanOrEqual(layout.available + 1);
         expect(layout.document).toBeLessThanOrEqual(layout.viewport);
         const venue = price.getByRole("link", { name: "Price source and venue details.", exact: true });
-        await expect(venue).toHaveAttribute("href", "/map?sel=venue-a3iffy");
+        await expect(venue).toHaveAttribute("href", `/map?sel=${expected.id}`);
         if (width === 1440 && theme === "light") {
           await venue.scrollIntoViewIfNeeded();
           await expect(async () => {
             await venue.click();
-            await expect(page).toHaveURL(/\/map\?sel=venue-a3iffy$/, { timeout: 1_000 });
+            await expect(page).toHaveURL(new RegExp(`/map\\?sel=${expected.id}$`), { timeout: 1_000 });
           }).toPass({ timeout: 20_000 });
           await expect(page.getByRole("tab", { name: "Menu", exact: true })).toBeVisible({ timeout: 45_000 });
           await page.goBack();

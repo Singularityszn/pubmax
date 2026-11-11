@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
+import { slimListedPrice } from "./helpers/slimListedPrice";
+
+const SHAKESPEARES_HEAD = slimListedPrice("venue-e1srzr");
+const GOLDEN_LION = slimListedPrice("venue-15i2wst");
+const [LOWEST, HIGHEST] = [SHAKESPEARES_HEAD, GOLDEN_LION].sort((left, right) => left.priceGbp - right.priceGbp);
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
@@ -23,9 +29,9 @@ for (const width of [390, 1440]) {
     expect(state.inviteToken).toBeTruthy();
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`/invite/${state.inviteToken}`);
-    await expect(page.locator(".invite__spend")).toHaveText("£6.25–£6.40 per pint");
+    await expect(page.locator(".invite__spend")).toHaveText(`${LOWEST.priceLabel}–${HIGHEST.priceLabel} per pint`);
     const stop = page.locator(".invite__stop").filter({ hasText: "Shakespeares Head" });
-    await expect(stop).toContainText("Listed by Pint Prices, collected 2 October 2026.");
+    await expect(stop).toContainText(`Listed by ${SHAKESPEARES_HEAD.source}, collected ${SHAKESPEARES_HEAD.readDay}.`);
     await expect(stop.getByRole("link", { name: "Pint Prices", exact: true })).toHaveAttribute("href", /^https:\/\//);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
