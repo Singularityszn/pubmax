@@ -55,7 +55,7 @@ export function palVoiceEndedStatus(why: PalVoiceEndedWhy, palName: string): str
   return why === "cap" ? "Time's up for this call" : `${palName} ended the call`;
 }
 
-export function palVoiceMinutesLeftLine(minutes: number): string {
+function palVoiceMinutesLeftLine(minutes: number): string {
   if (minutes === 0) return "No voice minutes left this month";
   return `${minutes} ${minutes === 1 ? "minute" : "minutes"} of voice left this month`;
 }
