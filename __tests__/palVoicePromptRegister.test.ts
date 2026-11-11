@@ -111,6 +111,26 @@ describe("Pub Pal voice prompt register", () => {
     }
   });
 
+  it("gives voice, and only voice, the rules that keep a call from going quiet or nagging", () => {
+    const voice = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
+    const typed = pubPalTypedChatSystemPrompt();
+    // The branch-tested clauses, written out here rather than read from the rule constants.
+    for (const clause of [
+      "After a tool returns, say the answer in the same turn. Never wait for the person to speak first.",
+      "check in once with a short line, such as: Still there?",
+      "If they stay quiet after that check-in, say one short goodbye",
+      "say one short goodbye and then call end_call. Never end the call while they are still asking.",
+      `The app ends the call at ${PAL_VOICE_MAX_SESSION_SECONDS} seconds.`,
+    ]) {
+      expect(voice).toContain(clause);
+      expect(typed).not.toContain(clause);
+    }
+    expect(typed).not.toContain("end_call");
+    // The old line told the agent to end a call it had no tool to end.
+    expect(voice).not.toContain("End the call once it reaches");
+    for (const line of voice.split("\n")) expect(line).not.toMatch(/[!\u2014]/);
+  });
+
   it("leaves no dynamic slot a voice browser could fill inside the system prompt", () => {
     expect(pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS)).not.toContain("{{");
   });

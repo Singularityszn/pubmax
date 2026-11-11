@@ -220,6 +220,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Before using a quoted price, check its [serving, publisher and source-read date](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it).
 
+  Ask for Soho or Piccadilly to keep generated stops, alternatives and extra stops within that place. The selected place stays with a locked Plan when you regenerate it. If too few listed pubs qualify, the planner reports the shortfall instead of adding pubs from neighbouring areas. The [area focus contract](docs/API_CONTRACTS_THE_LOCAL.md#area-focus) explains how descriptions and area choices interact.
+
   Choose the number of pubs with the stop picker or name the number in your description. The [draft recovery contract](docs/rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) explains how the planner restores your request. If a save notice appears, keep the page open to retain unsaved changes. If the latest description cannot be restored, enter it again.
 
   During **Lock it in**, stop edits, name and time fields, templates, and **Release this pub** are disabled. If the response is lost, you can retry the unchanged plan. If the planner requests a refresh, choose **Regenerate route**. Review the result before choosing **Lock it in** again.
@@ -296,6 +298,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   After a lost response, retry the Pint Drop without changing its details or attachments. The app can return the saved drop. Changed retry details are refused. See the [creation retry contract](docs/rules/app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation) for attachment limits.
 
+  Anonymous Pint Drops show "a PUBMAXXER" without an `@` instead of your handle.
+
   Choose **Friends** to share notes with people you follow who also follow you. **Legacy** keeps an entry in the pub's Ledger. Other people see the entry without your note or price. Anyone with a photo's link can open it while the link remains valid.
 
 - **Venue price stories** - open a pub's **Prices** tab to see **The Golden Thread**. Each listed or updated price keeps its own drink, serving, publisher and source-read day. A drinker report keeps its own drink, serving, attribution and log date. Missing facts are labelled. Another row never supplies missing evidence, even when its price matches. Only reports for the selected pub count.
@@ -317,6 +321,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Social** - `/social` is the canonical mobile and desktop Social shell, live by default with chronological Following, Nearby, and Across town lanes plus public pub discovery. Full posts and private activity stay closed unless the server confirms Social access; set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only for an emergency preview rollback. `/feed` and `/stories` now lead to this shell; `/discover` and `/drinks` open its Discover view. Plan joins use the [host connection policy](docs/prd/SOCIAL_LAUNCH_PRD.md#wp7---friend-graph-formation-crews-search-invites-m-l). Each new follow created by a join gives the person followed a private follow entry in `/activity`. Notification storage failures can prevent delivery. Existing follows and join retries add no duplicate entry. The entry names the follower and carries no plan or membership details.
 
   Available Social notifications appear in **Activity** in the desktop sidebar.
+
+  Comments and quote posts stay pending until automated moderation finishes. Flagged text is hidden without a manual-review queue. Approved text follows the post's visibility rules. The [Social interaction contract](docs/WRITE_SURFACE_CERTIFICATION.md#appapisocialinteractions---verified-social-interactions-and-governance-route-80) describes feature-request status and staff history.
 
   For open crawls, a new join request notifies the host, and an acceptance notifies the guest. Each notice links to the crawl page. Delivery uses Activity and, when [email is configured](.env.example), the recipient's account email. A decline, cancellation or replay sends no notice.
 

@@ -11,15 +11,16 @@ afterEach(() => {
 });
 
 describe("Social alternatives from committed public packs", () => {
-  it("includes Silver Fox's 19 October menu fact beyond the legacy price pack", async () => {
+  it("offers the newest London pint menu fact and leaves Silver Fox's newer wine out", async () => {
     vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-03T12:00:00Z"));
     const answer = await loadSocialAlternatives();
     expect(answer.priceRead).toBe("ready");
+    expect(answer.prices.map((price) => price.venueId)).not.toContain("venue-uk-w770044829");
     expect(answer.prices).toContainEqual({
-      venueId: "venue-uk-w770044829", name: "Silver Fox", href: "/map?sel=venue-uk-w770044829",
-      drink: "HIDDEN ROAD, MERLOT 13% Spanish medium bodied", serving: "187ml", priceGbp: 6,
-      publisher: { label: "silverfoxmicropub.com", url: "https://www.silverfoxmicropub.com/drinks" },
-      observedOn: "2026-10-19",
+      venueId: "venue-uk-n1707216586", name: "The Thirsty Bear", href: "/map?sel=venue-uk-n1707216586",
+      drink: "Inches Cider", serving: "pint", priceGbp: 5.95,
+      publisher: { label: "thethirstybear.com", url: "https://www.thethirstybear.com/drinks" },
+      observedOn: "2026-10-09",
     });
   });
 
