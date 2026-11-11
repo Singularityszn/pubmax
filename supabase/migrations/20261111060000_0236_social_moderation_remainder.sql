@@ -1,7 +1,7 @@
 -- 0236: the rest of the Social moderation guards.
 -- 1. social_posts.feature_status and feature_staff_response come from social_feature_request_updates.
---    A trigger sets them from the latest update row on every write, so a kind flip keeps 'shipped'.
--- 2. An interaction moderation job gets a lease token. Only the worker that holds the live lease can finish it.
+--    A trigger derives them on inserts and writes to kind or either feature field, preserving history across kind changes.
+-- 2. An interaction moderation job gets a lease token. Only the worker with the current token can finish it.
 --    The claim returns the token. The completion takes p_lease_token and the old five-argument completion is dropped.
 -- 3. A comment or quote has no 'needs_review' state. No person reviews one, so a flagged one is hidden at once.
 -- Apply after the code that sends p_lease_token is deployed. Older code calls the dropped five-argument completion.
