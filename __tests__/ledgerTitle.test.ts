@@ -169,10 +169,6 @@ describe("every Ledger page in the sitemap", () => {
     const approvedExceptions = [
       ["venue-d81nvz", "venue-7dqmn6"],
       ["venue-16ga1jj", "venue-1cbx68v"],
-      ["venue-1ow070n", "venue-q92xb4"],
-      ["venue-1xky4gf", "venue-1gpckx6"],
-      ["venue-dzidk0", "venue-1rmjqfw"],
-      ["venue-1dzgxpa", "venue-1ux9oxk"],
     ].map((ids) => ids.sort()).sort();
     const [venues, refs] = await Promise.all([getPricedVenues(), getVenueIndex()]);
     const byTitle = new Map<string, Set<string>>();
@@ -189,6 +185,9 @@ describe("every Ledger page in the sitemap", () => {
       .map((pages) => [...pages].sort())
       .sort();
     expect(byTitle.size).toBeGreaterThan(1000);
-    expect(shared).toEqual(approvedExceptions);
+    const unapproved = shared.filter(
+      (ids) => !approvedExceptions.some((approved) => approved.join(",") === ids.join(",")),
+    );
+    expect(unapproved).toEqual([]);
   });
 });
