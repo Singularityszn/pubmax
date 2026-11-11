@@ -1126,7 +1126,7 @@ for (const [width, theme] of [[390, "light"], [1440, "dark"]] as const) {
     await page.setViewportSize({ width, height: 844 });
     await storeThemeChoice(page, theme);
     const socket = await openLiveVoice(page);
-    const sent: { type?: string; text?: string; tool_call_id?: string; is_error?: boolean }[] = [];
+    const sent: { type?: string; text?: string; tool_call_id?: string; result?: string; is_error?: boolean }[] = [];
     socket.onMessage((message) => { sent.push(JSON.parse(String(message))); });
     const venues = [
       { id: "venue-1t8siin", lat: 51.5139, lng: -0.132474 },
@@ -1189,10 +1189,12 @@ for (const [width, theme] of [[390, "light"], [1440, "dark"]] as const) {
     expect(second.y).toBeLessThan(844);
     await page.screenshot({ path: `${SHOTS}/step7-${width}-${theme}-focus-pick-2.png` });
 
-    // A pick the map does not show changes nothing and tells the agent what it has.
-    await answered(call("map_focus_pick", { number: 5 }));
-    await expect.poll(() => sent.filter((event) => event.type === "contextual_update").map((event) => event.text))
-      .toEqual(["The map could not show pick 5. 2 picks are on the map."]);
+    // A pick the map does not show changes nothing. The agent learns what the map has from the tool result alone.
+    const refused = call("map_focus_pick", { number: 5 });
+    await answered(refused);
+    expect(sent.find((event) => event.type === "client_tool_result" && event.tool_call_id === refused)?.result)
+      .toBe("The map could not show pick 5. 2 picks are on the map.");
+    expect(sent.filter((event) => event.type === "contextual_update")).toEqual([]);
     expect((await picks())?.speaking).toBe(2);
 
     // "Open it": the pick's browse-only sheet opens and the call carries on.
