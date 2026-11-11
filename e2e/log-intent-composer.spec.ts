@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { addLinkAwareDestination } from "@/lib/addLink";
+import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { parseArrivalIntent } from "@/lib/arrivalWelcome";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 
@@ -238,10 +239,26 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
       .toHaveAttribute("aria-checked", "true");
     await expect(returnedComposer.getByText(`@${handle}`)).toBeVisible();
 
-    const [posted] = await Promise.all([
-      returned.waitForResponse((response) => response.request().method() === "POST"
-        && new URL(response.url()).pathname === "/api/pint-drops"),
+    const dropPost = () => returned.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname === "/api/pint-drops");
+    // A handle claimed without a date of birth has not yet said it is an adult.
+    // The composer closes on Log it, the refusal asks for the recorded adult
+    // tap on the pub's sheet, and the drinker opens the composer again.
+    const [refused] = await Promise.all([
+      dropPost(),
       tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it"),
+    ]);
+    expect(refused.status(), "a new account owes the adult tap first").toBe(409);
+    const sheet = returned.getByRole("dialog", { name: venueName!, exact: true });
+    await tap(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION }), ADULT_SELF_ASSERTION_ACTION);
+    await expect(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION })).toBeHidden();
+    await tap(sheet.getByRole("button", { name: `Log a Pint Drop at ${venueName}` }), "Log a Pint Drop");
+    const retypedPrice = returnedComposer.getByLabel("What did it cost?");
+    await tap(retypedPrice, "price field again");
+    await retypedPrice.fill(NEW_DRINKER_PRICE);
+    const [posted] = await Promise.all([
+      dropPost(),
+      tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it again"),
     ]);
     expect(posted.status(), "the drop is written").toBe(201);
 
