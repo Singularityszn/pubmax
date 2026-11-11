@@ -10,7 +10,7 @@ import { CITIES } from "@/lib/cities";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
-import { ledgerPlacePhrase, ledgerTitleName } from "@/lib/ledgerTitle";
+import { ledgerTitleName } from "@/lib/ledgerTitle";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { type Venue } from "@/lib/venues";
 import JsonLd from "@/components/seo/JsonLd";
@@ -83,10 +83,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // The layout's template adds the brand to the document title. The share
   // card is not templated, so it keeps the branded form.
-  const index = await getVenueIndex();
-  const title = `The Ledger: ${ledgerTitleName(venue, index)}`;
+  const title = `The Ledger: ${await ledgerTitleName(venue, await getVenueIndex(), lookupVenueDetail)}`;
   const cardTitle = `${title}. ${BRAND_NAME}`;
-  const description = `The story of ${venue.name} ${ledgerPlacePhrase(venue, index)}. Heritage notes and the pub's logbook of visits, in large print.`;
+  const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
   // URL points at the one indexable venue permalink.
   const canonical = `/ledger/${encodeURIComponent(venue.id)}`;

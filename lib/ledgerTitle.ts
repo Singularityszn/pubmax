@@ -11,6 +11,7 @@ import { displayVenueName, venueAreaLabel } from "@/lib/venueDisplay";
 type NamedVenue = { id: string; name: string; borough?: string; retired?: true };
 
 type LedgerTitleVenue = {
+  id: string;
   name: string;
   address?: string | null;
   locality?: string | null;
@@ -71,7 +72,7 @@ function trimStreet(part: string): string {
  * a street, skipping a bare house number, the pub's name and the area words
  * ("Barnet, Greater London" names no street). Null when no part qualifies.
  */
-export function ledgerStreet(venue: LedgerTitleVenue): string | null {
+export function ledgerStreet(venue: Omit<LedgerTitleVenue, "id">): string | null {
   const skip = new Set([nameKey(venue.name), normalise(venueAreaLabel(venue)), normalise(venue.primaryBorough ?? "")]);
   for (const part of (venue.address ?? "").split(",")) {
     const label = venueStreetLabel(part);
@@ -84,29 +85,37 @@ export function ledgerStreet(venue: LedgerTitleVenue): string | null {
   return null;
 }
 
-type LedgerPlace = { sharedName: boolean; street: string | null; area: string };
+const POSTCODE_DISTRICT = /\b([A-Z]{1,2}[0-9][A-Z0-9]?)(?:\s*[0-9][A-Z]{2})?(?=\s*(?:,|$))/i;
 
-function ledgerPlace(venue: LedgerTitleVenue, index: ReadonlyMap<string, NamedVenue>): LedgerPlace {
-  const counts = nameCounts(index);
+function placeTitle(venue: LedgerTitleVenue, counts: NameCounts): string {
   const area = venueAreaLabel(venue);
   const sharedName = (counts.byName.get(nameKey(venue.name)) ?? 0) > 1;
-  const sharedBorough = (counts.byNameAndBorough.get(boroughKey(venue.name, venue.primaryBorough)) ?? 0) > 1;
-  return { sharedName, street: sharedName && sharedBorough ? ledgerStreet(venue) : null, area };
-}
-
-/**
- * "The Crown" for a unique name, "The Crown, Islington" when another venue
- * shares the name, and "The Crown, Upper St, Islington" when another one shares
- * the borough too.
- */
-export function ledgerTitleName(venue: LedgerTitleVenue, index: ReadonlyMap<string, NamedVenue>): string {
-  const { sharedName, street, area } = ledgerPlace(venue, index);
   if (!sharedName) return venue.name;
+  const sharedBorough = (counts.byNameAndBorough.get(boroughKey(venue.name, venue.primaryBorough)) ?? 0) > 1;
+  const street = sharedBorough ? ledgerStreet(venue) : null;
   return street ? `${venue.name}, ${street}, ${area}` : `${venue.name}, ${area}`;
 }
 
-/** "on Upper St in Islington" when the title needs the street, else "in Islington". */
-export function ledgerPlacePhrase(venue: LedgerTitleVenue, index: ReadonlyMap<string, NamedVenue>): string {
-  const { street, area } = ledgerPlace(venue, index);
-  return street ? `on ${street} in ${area}` : `in ${area}`;
+export async function ledgerTitleName(
+  venue: LedgerTitleVenue,
+  index: ReadonlyMap<string, NamedVenue>,
+  lookup: (id: string) => Promise<
+    | { status: "found"; venue: LedgerTitleVenue }
+    | { status: "missing" | "unavailable" | "retired" }
+  >,
+): Promise<string> {
+  const counts = nameCounts(index);
+  const title = placeTitle(venue, counts);
+  const district = venue.address?.match(POSTCODE_DISTRICT)?.[1]?.toUpperCase();
+  if (!district || (counts.byName.get(nameKey(venue.name)) ?? 0) < 2) return title;
+  const siblings = [...index.values()].filter(
+    (other) => !other.retired && other.id !== venue.id && nameKey(other.name) === nameKey(venue.name),
+  );
+  const reads = await Promise.all(siblings.map((other) => lookup(other.id)));
+  const shared = reads.some(
+    (read) => read.status === "found"
+      && read.venue.id !== venue.id
+      && normalise(placeTitle(read.venue, counts)) === normalise(title),
+  );
+  return shared ? `${title} ${district}` : title;
 }

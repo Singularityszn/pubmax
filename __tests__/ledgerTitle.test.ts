@@ -1,13 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { ledgerPlacePhrase, ledgerStreet, ledgerTitleName } from "@/lib/ledgerTitle";
+import { ledgerStreet, ledgerTitleName } from "@/lib/ledgerTitle";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
-type Ref = { id: string; name: string; borough?: string; retired?: true };
+type Ref = { id: string; name: string; borough?: string; retired?: true; address?: string };
 
 const index = (refs: Ref[]) => new Map(refs.map((ref) => [ref.id, ref]));
+
+const titleName = (
+  venue: Parameters<typeof ledgerTitleName>[0],
+  refs: ReadonlyMap<string, Ref>,
+) => ledgerTitleName(venue, refs, async (id) => {
+  const ref = refs.get(id);
+  return ref
+    ? { status: "found", venue: { ...ref, primaryBorough: ref.borough } }
+    : { status: "missing" };
+});
 
 describe("ledger titles for pubs that share a name", () => {
   const refs = index([
@@ -16,41 +26,41 @@ describe("ledger titles for pubs that share a name", () => {
     { id: "venue-c", name: "The Lamb" },
   ]);
 
-  it("adds the pub's own area when another venue has the same name", () => {
-    expect(ledgerTitleName({ name: "The Crown", locality: "Islington" }, refs)).toBe("The Crown, Islington");
-    expect(ledgerTitleName({ name: "The Crown", locality: "London", primaryBorough: "Hackney" }, refs)).toBe(
+  it("adds the pub's own area when another venue has the same name", async () => {
+    await expect(titleName({ id: "venue-a", name: "The Crown", locality: "Islington" }, refs)).resolves.toBe("The Crown, Islington");
+    await expect(titleName({ id: "venue-a", name: "The Crown", locality: "London", primaryBorough: "Hackney" }, refs)).resolves.toBe(
       "The Crown, Hackney",
     );
   });
 
-  it("keeps a unique name bare", () => {
-    expect(ledgerTitleName({ name: "The Lamb", locality: "Bloomsbury" }, refs)).toBe("The Lamb");
+  it("keeps a unique name bare", async () => {
+    await expect(titleName({ id: "venue-c", name: "The Lamb", locality: "Bloomsbury", address: "1 Lamb Street, WC1N 1AA" }, refs)).resolves.toBe("The Lamb");
   });
 
-  it("matches names regardless of case and spacing", () => {
+  it("matches names regardless of case and spacing", async () => {
     const mixed = index([
       { id: "venue-a", name: "The  Crown" },
       { id: "venue-b", name: "the crown" },
     ]);
-    expect(ledgerTitleName({ name: "The Crown", primaryBorough: "Camden" }, mixed)).toBe("The Crown, Camden");
+    await expect(titleName({ id: "venue-a", name: "The Crown", primaryBorough: "Camden" }, mixed)).resolves.toBe("The Crown, Camden");
   });
 
-  it("reads an operator suffix as part of the same name", () => {
+  it("reads an operator suffix as part of the same name", async () => {
     const suffixed = index([
       { id: "venue-a", name: "The Moon Under Water" },
       { id: "venue-b", name: "The Moon Under Water - JD Wetherspoon" },
     ]);
-    expect(ledgerTitleName({ name: "The Moon Under Water", locality: "Barnet" }, suffixed)).toBe(
+    await expect(titleName({ id: "venue-a", name: "The Moon Under Water", locality: "Barnet" }, suffixed)).resolves.toBe(
       "The Moon Under Water, Barnet",
     );
   });
 
-  it("does not count a pub that left the map", () => {
+  it("does not count a pub that left the map", async () => {
     const withRetired = index([
       { id: "venue-a", name: "The Crown" },
       { id: "venue-b", name: "The Crown", retired: true },
     ]);
-    expect(ledgerTitleName({ name: "The Crown", locality: "Islington" }, withRetired)).toBe("The Crown");
+    await expect(titleName({ id: "venue-a", name: "The Crown", locality: "Islington" }, withRetired)).resolves.toBe("The Crown");
   });
 });
 
@@ -61,21 +71,55 @@ describe("ledger titles for pubs that share a name and a borough", () => {
     { id: "venue-c", name: "The Queens Head", borough: "Hackney" },
   ]);
 
-  it("adds the pub's own street before the area", () => {
-    const actonSt = { name: "The Queens Head", primaryBorough: "Camden", address: "66 Acton St, London WC1X 9NB, UK" };
-    expect(ledgerTitleName(actonSt, refs)).toBe("The Queens Head, Acton St, Camden");
-    expect(ledgerPlacePhrase(actonSt, refs)).toBe("on Acton St in Camden");
+  it("adds the pub's own street before the area", async () => {
+    const actonSt = { id: "venue-a", name: "The Queens Head", primaryBorough: "Camden", address: "66 Acton St, London WC1X 9NB, UK" };
+    await expect(titleName(actonSt, refs)).resolves.toBe("The Queens Head, Acton St, Camden");
   });
 
-  it("keeps the area alone when no other pub of that name shares the borough", () => {
-    const hackney = { name: "The Queens Head", primaryBorough: "Hackney", address: "1 Mare St, London E8" };
-    expect(ledgerTitleName(hackney, refs)).toBe("The Queens Head, Hackney");
-    expect(ledgerPlacePhrase(hackney, refs)).toBe("in Hackney");
+  it("keeps the area alone when no other pub of that name shares the borough", async () => {
+    const hackney = { id: "venue-c", name: "The Queens Head", primaryBorough: "Hackney", address: "1 Mare St, London E8" };
+    await expect(titleName(hackney, refs)).resolves.toBe("The Queens Head, Hackney");
   });
 
-  it("keeps the area alone when the address names no street", () => {
-    const bare = { name: "The Queens Head", primaryBorough: "Camden", address: "Camden, Greater London" };
-    expect(ledgerTitleName(bare, refs)).toBe("The Queens Head, Camden");
+  it("keeps the area alone when the address names no street", async () => {
+    const bare = { id: "venue-a", name: "The Queens Head", primaryBorough: "Camden", address: "Camden, Greater London" };
+    await expect(titleName(bare, refs)).resolves.toBe("The Queens Head, Camden");
+  });
+});
+
+describe("postcode districts for otherwise shared titles", () => {
+  it("adds only each pub's own district when the street and area still match", async () => {
+    const refs = index([
+      { id: "venue-a", name: "The Crown", borough: "Hillingdon", address: "1 High Street, UB10 1AA" },
+      { id: "venue-b", name: "The Crown", borough: "Hillingdon", address: "2 High Street, UB8 1BB" },
+    ]);
+    await expect(titleName({ ...refs.get("venue-a")!, primaryBorough: "Hillingdon" }, refs))
+      .resolves.toBe("The Crown, High Street, Hillingdon UB10");
+    await expect(titleName({ ...refs.get("venue-b")!, primaryBorough: "Hillingdon" }, refs))
+      .resolves.toBe("The Crown, High Street, Hillingdon UB8");
+  });
+
+  it.each(["London N12 8NR, UK", "N128NR", "n12 8nr", "N12"])(
+    "uses a district from %s when the address names no street",
+    async (address) => {
+      const refs = index([
+        { id: "venue-a", name: "The Elephant Inn", borough: "Barnet", address },
+        { id: "venue-b", name: "The Elephant Inn", borough: "Barnet", address: "Barnet, Greater London" },
+      ]);
+      await expect(titleName({ ...refs.get("venue-a")!, primaryBorough: "Barnet" }, refs))
+        .resolves.toBe("The Elephant Inn, Barnet N12");
+      await expect(titleName({ ...refs.get("venue-b")!, primaryBorough: "Barnet" }, refs))
+        .resolves.toBe("The Elephant Inn, Barnet");
+    },
+  );
+
+  it("keeps a distinct street title without a postcode suffix", async () => {
+    const refs = index([
+      { id: "venue-a", name: "The Crown", borough: "Camden", address: "1 High Street, NW1 1AA" },
+      { id: "venue-b", name: "The Crown", borough: "Camden", address: "2 Church Road, NW3 1BB" },
+    ]);
+    await expect(titleName({ ...refs.get("venue-a")!, primaryBorough: "Camden" }, refs))
+      .resolves.toBe("The Crown, High Street, Camden");
   });
 });
 
@@ -99,19 +143,30 @@ describe("ledgerStreet", () => {
 });
 
 describe("every Ledger page in the sitemap", () => {
-  it("has a title of its own unless no address tells the pubs apart", async () => {
+  it("shares titles only for the approved pairs with no postcode", async () => {
+    const approvedExceptions = [
+      ["venue-d81nvz", "venue-7dqmn6"],
+      ["venue-16ga1jj", "venue-1cbx68v"],
+      ["venue-1ow070n", "venue-q92xb4"],
+      ["venue-1xky4gf", "venue-1gpckx6"],
+      ["venue-dzidk0", "venue-1rmjqfw"],
+      ["venue-1dzgxpa", "venue-1ux9oxk"],
+    ].map((ids) => ids.sort()).sort();
     const [venues, refs] = await Promise.all([getPricedVenues(), getVenueIndex()]);
-    const byTitle = new Map<string, { id: string; street: string | null }[]>();
+    const byTitle = new Map<string, Set<string>>();
     for (const { id } of venues) {
       const read = await lookupVenueDetail(id);
       if (read.status !== "found") continue;
-      const title = ledgerTitleName(read.venue, refs);
-      byTitle.set(title, [...(byTitle.get(title) ?? []), { id, street: ledgerStreet(read.venue) }]);
+      const title = await ledgerTitleName(read.venue, refs, lookupVenueDetail);
+      const pages = byTitle.get(title) ?? new Set<string>();
+      pages.add(read.venue.id);
+      byTitle.set(title, pages);
     }
-    const toldApartButShared = [...byTitle].filter(
-      ([, pages]) => pages.length > 1 && new Set(pages.map((page) => page.street)).size > 1,
-    );
+    const shared = [...byTitle.values()]
+      .filter((pages) => pages.size > 1)
+      .map((pages) => [...pages].sort())
+      .sort();
     expect(byTitle.size).toBeGreaterThan(1000);
-    expect(toldApartButShared).toEqual([]);
+    expect(shared).toEqual(approvedExceptions);
   });
 });
