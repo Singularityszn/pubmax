@@ -209,75 +209,73 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   // A phone mail app opens the link in a fresh tab: same browser storage, no
   // tab state from the page that asked for it.
   const returned = await page.context().newPage();
-  const account = await seedRealPlanHost(returned);
-  try {
-    await returned.goto(emailLinkDestination(page));
-    taps.push("open the emailed link");
+  // The account stays: it owns the drop this journey proves, and the runner
+  // drops the whole disposable database afterwards.
+  await seedRealPlanHost(returned);
+  await returned.goto(emailLinkDestination(page));
+  taps.push("open the emailed link");
 
-    const onboarding = returned.getByRole("dialog", { name: "Let's get you in", exact: true });
-    await expect(onboarding).toBeVisible({ timeout: 30_000 });
-    const handleField = onboarding.getByRole("textbox", { name: "Your handle", exact: true });
-    await tap(handleField, "handle field");
-    await handleField.fill(handle);
-    await expect(onboarding.getByText("Handle available.", { exact: true })).toBeVisible();
-    const [claimed] = await Promise.all([
-      returned.waitForResponse((response) => response.request().method() === "POST"
-        && new URL(response.url()).pathname === "/api/identity/onboarding"),
-      tap(onboarding.getByRole("button", { name: "Claim handle", exact: true }), "Claim handle"),
-    ]);
-    expect(claimed.ok(), "the new account claims its handle").toBe(true);
-    await expect(onboarding).toBeHidden();
-    await expect(returned, "the new account is back at the pub it was logging").toHaveURL(
-      (url) => url.pathname === "/map" && url.searchParams.get("sel") === venueId && url.searchParams.get("log") === "1",
-      { timeout: 30_000 },
-    );
+  const onboarding = returned.getByRole("dialog", { name: "Let's get you in", exact: true });
+  await expect(onboarding).toBeVisible({ timeout: 30_000 });
+  const handleField = onboarding.getByRole("textbox", { name: "Your handle", exact: true });
+  await tap(handleField, "handle field");
+  await handleField.fill(handle);
+  await expect(onboarding.getByText("Handle available.", { exact: true })).toBeVisible();
+  const [claimed] = await Promise.all([
+    returned.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname === "/api/identity/onboarding"),
+    tap(onboarding.getByRole("button", { name: "Claim handle", exact: true }), "Claim handle"),
+  ]);
+  expect(claimed.ok(), "the new account claims its handle").toBe(true);
+  await expect(onboarding).toBeHidden();
+  await expect(returned, "the new account is back at the pub it was logging").toHaveURL(
+    (url) => url.pathname === "/map" && url.searchParams.get("sel") === venueId && url.searchParams.get("log") === "1",
+    { timeout: 30_000 },
+  );
 
-    const returnedComposer = returned.getByRole("form", { name: "Pint Drop composer" });
-    await expect(returnedComposer.locator(".spillComposerIntro")).toContainText(venueName!);
-    await expect(returnedComposer.getByLabel("What did it cost?")).toHaveValue(NEW_DRINKER_PRICE);
-    await expect(returnedComposer.getByRole("radio", { name: "Pint", exact: true }))
-      .toHaveAttribute("aria-checked", "true");
-    await expect(returnedComposer.getByText(`@${handle}`)).toBeVisible();
+  const returnedComposer = returned.getByRole("form", { name: "Pint Drop composer" });
+  await expect(returnedComposer.locator(".spillComposerIntro")).toContainText(venueName!);
+  await expect(returnedComposer.getByLabel("What did it cost?")).toHaveValue(NEW_DRINKER_PRICE);
+  await expect(returnedComposer.getByRole("radio", { name: "Pint", exact: true }))
+    .toHaveAttribute("aria-checked", "true");
+  await expect(returnedComposer.getByText(`@${handle}`)).toBeVisible();
 
-    const dropPost = () => returned.waitForResponse((response) => response.request().method() === "POST"
-      && new URL(response.url()).pathname === "/api/pint-drops");
-    // A handle claimed without a date of birth has not yet said it is an adult.
-    // The composer closes on Log it, the refusal asks for the recorded adult
-    // tap on the pub's sheet, and the drinker opens the composer again.
-    const [refused] = await Promise.all([
-      dropPost(),
-      tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it"),
-    ]);
-    expect(refused.status(), "a new account owes the adult tap first").toBe(409);
-    const sheet = returned.getByRole("dialog", { name: venueName!, exact: true });
-    await tap(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION }), ADULT_SELF_ASSERTION_ACTION);
-    await expect(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION })).toBeHidden();
-    await tap(sheet.getByRole("button", { name: `Log a Pint Drop at ${venueName}` }), "Log a Pint Drop");
-    const retypedPrice = returnedComposer.getByLabel("What did it cost?");
-    await tap(retypedPrice, "price field again");
-    await retypedPrice.fill(NEW_DRINKER_PRICE);
-    const [posted] = await Promise.all([
-      dropPost(),
-      tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it again"),
-    ]);
-    expect(posted.status(), "the drop is written").toBe(201);
+  const dropPost = () => returned.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/pint-drops");
+  // A handle claimed without a date of birth has not yet said it is an adult.
+  // The composer closes on Log it, the refusal asks for the recorded adult
+  // tap on the pub's sheet, and the drinker opens the composer again.
+  const [refused] = await Promise.all([
+    dropPost(),
+    tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it"),
+  ]);
+  expect(refused.status(), "a new account owes the adult tap first").toBe(409);
+  const sheet = returned.getByRole("dialog", { name: venueName!, exact: true });
+  await tap(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION }), ADULT_SELF_ASSERTION_ACTION);
+  await expect(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION })).toBeHidden();
+  await tap(sheet.getByRole("button", { name: `Log a Pint Drop at ${venueName}` }), "Log a Pint Drop");
+  const retypedPrice = returnedComposer.getByLabel("What did it cost?");
+  await tap(retypedPrice, "price field again");
+  await retypedPrice.fill(NEW_DRINKER_PRICE);
+  const [posted] = await Promise.all([
+    dropPost(),
+    tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it again"),
+  ]);
+  expect(posted.status(), "the drop is written").toBe(201);
 
-    const feed = await returned.request.get("/api/pint-drops");
-    expect(feed.ok()).toBe(true);
-    const { drops } = (await feed.json()) as {
-      drops: Array<{ venueId: string; handle: string; priceGbp: number | null; measure?: string }>;
-    };
-    expect(
-      drops.filter((drop) => drop.venueId === venueId
-        && drop.handle.replace(/^@+/, "") === handle
-        && drop.priceGbp === Number(NEW_DRINKER_PRICE)
-        && (drop.measure ?? "pint") === "pint"),
-      "a signed-out reader sees the new drinker's public drop",
-    ).toHaveLength(1);
-    return taps;
-  } finally {
-    await account.cleanup();
-  }
+  const feed = await returned.request.get("/api/pint-drops");
+  expect(feed.ok()).toBe(true);
+  const { drops } = (await feed.json()) as {
+    drops: Array<{ venueId: string; handle: string; priceGbp: number | null; measure?: string }>;
+  };
+  expect(
+    drops.filter((drop) => drop.venueId === venueId
+      && drop.handle.replace(/^@+/, "") === handle
+      && drop.priceGbp === Number(NEW_DRINKER_PRICE)
+      && (drop.measure ?? "pint") === "pint"),
+    "a signed-out reader sees the new drinker's public drop",
+  ).toHaveLength(1);
+  return taps;
 }
 
 test("a new phone account goes from Log what you paid to a public Pint Drop", async ({ page }, testInfo) => {
