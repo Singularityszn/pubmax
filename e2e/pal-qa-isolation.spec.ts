@@ -28,7 +28,10 @@ async function seed(page: Page) {
     localStorage.setItem('pubmax-theme', 'light');
     localStorage.setItem('pubmax:e2e-defer-shell:v1', 'now');
     localStorage.setItem(accountsKey, JSON.stringify(Object.values(accounts).map(account => ({userId:account.id,refreshToken:account.refreshToken,email:account.email,handle:account.handle,lastActiveAt:Date.now()}))));
-  }, {pal, accounts: ACCOUNTS, accountsKey: DEVICE_ACCOUNTS_KEY});
+  }, {pal, accounts: ACCOUNTS, accountsKey: DEVICE_ACCOUNTS_KEY});  // The map pill waits for the server's age rule; a test's own stub, added later, wins.
+  await page.route('**/api/pub-pal', route => route.request().method()==='GET'
+    ? route.fulfill({json:{under18:false,adultOnFile:true,pal}})
+    : route.fallback());
 }
 async function switchToB(page: Page) {
   await page.getByRole('button', {name:/Account options/}).first().click();
@@ -136,7 +139,8 @@ test('provider sign-out retires the open map marker while retaining the owner st
   await expect(marker).toHaveCount(0);
   expect(await page.evaluate(()=>localStorage.getItem('pubmax_account_owner'))).toBe(ACCOUNTS.A.id);
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('pubmax_pub_pal_v1')!).name)).toBe('Ripley');
-  await expect(page.locator('.palSummon')).toHaveCount(0);
+  // The signed-out sign-in chip may share the berth; no personal pill remains.
+  await expect(page.locator('.palSummon:not(.palSummonSignIn)')).toHaveCount(0);
   expect(await oldMarker!.evaluate(el=>el.isConnected)).toBe(false);
   const url = page.url();
   await oldMarker!.evaluate(el=>{(el as HTMLElement).click();el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));});
@@ -148,7 +152,7 @@ test('provider sign-out retires the open map marker while retaining the owner st
 test('chat uses the server Pal and removes it when its cache retires during a failed refresh', async ({ page }) => {
   await seed(page);
   let failed = false;
-  await page.route('**/api/pub-pal', route => failed ? route.fulfill({status:503,json:{error:'disposable outage'}}) : route.fulfill({json:{pal:{...pal,name:'Server Raven',appearance:{...pal.appearance,species:'raven'},muted:true}}}));
+  await page.route('**/api/pub-pal', route => failed ? route.fulfill({status:503,json:{error:'disposable outage'}}) : route.fulfill({json:{under18:false,pal:{...pal,name:'Server Raven',appearance:{...pal.appearance,species:'raven'},muted:true}}}));
   await page.goto('/pal/chat');
   const companion = page.locator('.palChatCompanion');
   await expect(companion.getByRole('img',{name:/Server Raven/})).toBeVisible();
@@ -167,7 +171,7 @@ test('chat discards account A while account B waits for its own server answer', 
     const bearer=route.request().headers().authorization ?? '';
     const token = bearer.replace(/^Bearer /, '');
     const owner = token.includes('.') ? JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString()).sub : token.endsWith('-A') ? ACCOUNTS.A.id : null;
-    if (owner === ACCOUNTS.A.id) await route.fulfill({json:{pal:{...pal,name:'Server Raven',appearance:{...pal.appearance,species:'raven'}}}});
+    if (owner === ACCOUNTS.A.id) await route.fulfill({json:{under18:false,pal:{...pal,name:'Server Raven',appearance:{...pal.appearance,species:'raven'}}}});
     else await route.fulfill({status:503,json:{error:'disposable outage'}});
   });
   await page.goto('/pal/chat');
@@ -245,7 +249,7 @@ test('a mounted private recap postcard retires on an account switch', async ({ p
 for (const state of ['hidden','deleted'] as const) {
   test(`chat respects the server ${state} state despite a visible cached Pal`, async ({ page }) => {
     await seed(page);
-    await page.route('**/api/pub-pal',route=>route.fulfill({json:{pal:state==='hidden'?{...pal,hidden:true}:null}}));
+    await page.route('**/api/pub-pal',route=>route.fulfill({json:{under18:false,pal:state==='hidden'?{...pal,hidden:true}:null}}));
     await page.goto('/pal/chat');
     const companion=page.locator('.palChatCompanion');
     await expect(companion).toBeVisible();
@@ -257,7 +261,7 @@ for (const state of ['hidden','deleted'] as const) {
 
 test('the Pal page retires personal memories when the live account changes', async ({ page }) => {
   await seed(page);
-  await page.route('**/api/pub-pal',route=>route.fulfill({json:{pal,adultOnFile:true}}));
+  await page.route('**/api/pub-pal',route=>route.fulfill({json:{under18:false,pal,adultOnFile:true}}));
   await page.route('**/api/pub-pal/memories',route=>route.fulfill({json:{memories:[{id:'private-memory-a',palId:pal.id,ownerId:ACCOUNTS.A.id,kind:'preference',provenance:'user_confirmed',value:'Private account A memory',createdAt:pal.createdAt,updatedAt:pal.updatedAt}]}}));
   await page.goto('/pal');
   await expect(page.getByRole('heading',{name:'Ripley',exact:true})).toBeVisible();
@@ -277,7 +281,7 @@ for (const transition of ['hidden', 'removed'] as const) {
     let failed = false;
     await page.route('**/api/pub-pal', route => failed
       ? route.fulfill({status:503,json:{error:'Disposable outage'}})
-      : route.fulfill({json:{pal:{...pal,name:'Pending hide Raven'}}}));
+      : route.fulfill({json:{under18:false,pal:{...pal,name:'Pending hide Raven'}}}));
     await page.goto('/pal/chat');
     const companion = page.locator('.palChatCompanion');
     await expect(companion.getByRole('img',{name:/Pending hide Raven/})).toBeVisible();
@@ -320,7 +324,7 @@ test('B opens Pal and returns to the map without inheriting A\'s night', async (
   await seedActiveNight(page);
   await installDeterministicMapBasemap(page);
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.route('**/api/pub-pal',route=>route.fulfill({json:{pal:{...pal,ownerId:ACCOUNTS.B.id,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',name:'Moss'},adultOnFile:true}}));
+  await page.route('**/api/pub-pal',route=>route.fulfill({json:{under18:false,pal:{...pal,ownerId:ACCOUNTS.B.id,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',name:'Moss'},adultOnFile:true}}));
   await page.route('**/api/pub-pal/memories',route=>route.fulfill({json:{memories:[]}}));
   await page.goto('/map');
   await expect(page.locator('.palMapMarker[role="button"]')).toBeVisible({timeout:60000});
@@ -394,7 +398,7 @@ test('the voice panel and written chat reject A\'s next-stop shortcut for B', as
   await seed(page);
   await seedActiveNight(page);
   await installDeterministicMapBasemap(page);
-  await page.route('**/api/pub-pal',route=>route.fulfill({json:{pal:{...pal,ownerId:ACCOUNTS.B.id,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',name:'Moss'},adultOnFile:true}}));
+  await page.route('**/api/pub-pal',route=>route.fulfill({json:{under18:false,pal:{...pal,ownerId:ACCOUNTS.B.id,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',name:'Moss'},adultOnFile:true}}));
   await page.route('**/api/pub-pal/memories',route=>route.fulfill({json:{memories:[]}}));
   await page.route('**/api/pub-pal/voice-token',route=>route.fulfill({json:{available:true,retention:'provider_default'}}));
   let questions = 0;
