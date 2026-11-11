@@ -126,11 +126,13 @@ describe("mounted Pal shortcut ownership", () => {
     expect(localStorage.getItem(LOCAL_PAL_KEY)).toBe(saved);
   });
 
-  it("removes the shortcut when the account signs out on the same route", async () => {
+  it("removes the shortcut when the account signs out on the same route, and offers sign-in on the map", async () => {
     await render();
     auth.user = null;
     await render();
-    expect(host.querySelector("a")).toBeNull();
+    expect(host.querySelector('a[href="/pal"]')).toBeNull();
+    expect(host.querySelector("a")?.getAttribute("href")).toBe("/login?mode=signin&from=%2Fmap");
+    expect(host.textContent).toContain("Sign in to talk to your Pal");
   });
 
   it("removes the shortcut while the live account is unresolved", async () => {

@@ -67,7 +67,8 @@ function hear(socket: WebSocketRoute, text: string, tentative = false): void {
     : { type: "user_transcript", user_transcription_event: { user_transcript: text, event_id: eventId } }));
 }
 
-async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?: string, hidden = false): Promise<WebSocketRoute> {
+/** Sign in as A with a Pal and stub the provider socket. Ends on /pal with Start offered. */
+async function preparePalAccount(page: Page, memoryProposals = false, firstMessage?: string, hidden = false): Promise<{ opened: Promise<WebSocketRoute> }> {
   const timestamp = "2026-10-04T12:00:00.000Z";
   let pal = {
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
@@ -134,6 +135,13 @@ async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?:
   await expect(page.getByRole("button", { name: "Account options for Karan", exact: true })).toBeVisible();
   await page.getByRole("link", { name: /^Pub Pal(?:,.*)?$/ }).first().click();
   await expect(page).toHaveURL(/\/pal$/);
+  await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeVisible({ timeout: 30_000 });
+  // Wrapped, so awaiting the account does not also wait for the socket.
+  return { opened };
+}
+
+async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?: string, hidden = false): Promise<WebSocketRoute> {
+  const { opened } = await preparePalAccount(page, memoryProposals, firstMessage, hidden);
   const start = page.getByRole("button", { name: "Start voice chat", exact: true });
   await expect(start).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".palVoiceEmpty")).toContainText("the conversation shows up here");
@@ -1214,4 +1222,86 @@ test("a newer map tool call retires a map trip still on its way", async ({ page 
   await expect(page).toHaveURL(/\/map(?:\?|$)/);
   expect(new URL(page.url()).searchParams.get("sel")).toBeNull();
   await expect(page.getByRole("button", { name: `2. ${cards[1]!.title}`, exact: true })).toHaveAttribute("data-speaking", "");
+});
+
+// Step 9: on the map the Pal chip starts voice in place. Signed out it offers
+// sign-in, and on another city's map it says voice talks about London.
+// The chip rides the deferred shell, which waits 30 s on the web; tests release it at once.
+const releaseDeferredShell = (page: Page) => page.addInitScript(() => localStorage.setItem("pubmax:e2e-defer-shell:v1", "now"));
+for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"], [390, "dark"]] as const) {
+  test(`${width}px ${theme}: a tap on the map's Pal chip starts voice in place and the chip becomes the voice bar`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await storeThemeChoice(page, theme);
+    await releaseDeferredShell(page);
+    const { opened } = await preparePalAccount(page);
+    await page.goto("/map");
+    await expectMapLoadingFrameReleased(page);
+    const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+    await expect(chip).toBeVisible({ timeout: 20_000 });
+    await page.screenshot({ path: `${SHOTS}/step9-${width}-${theme}-chip.png` });
+
+    // Large text: the chip grows its type, not its box geometry, and still holds its words on screen.
+    const fit = await chip.evaluate((element) => {
+      for (const text of element.querySelectorAll<HTMLElement>("strong, small")) {
+        const style = getComputedStyle(text);
+        text.style.fontSize = `${parseFloat(style.fontSize) * 1.3}px`;
+      }
+      const box = element.getBoundingClientRect();
+      const words = element.querySelector("span")!.getBoundingClientRect();
+      return { box, words, viewport: window.innerWidth };
+    });
+    expect(fit.box.right).toBeLessThanOrEqual(fit.viewport + 1);
+    expect(fit.box.left).toBeGreaterThanOrEqual(-1);
+    expect(fit.words.right).toBeLessThanOrEqual(fit.box.right + 1);
+    await page.screenshot({ path: `${SHOTS}/step9-${width}-${theme}-chip-large-text.png` });
+    await chip.evaluate((element) => {
+      for (const text of element.querySelectorAll<HTMLElement>("strong, small")) text.style.fontSize = "";
+    });
+
+    await expect(async () => {
+      if (await chip.isVisible()) await chip.click({ timeout: 2_000 });
+      await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/, { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    const socket = await opened;
+    await expect(page).toHaveURL(/\/map(?:\?|$)/);
+    await expect(chip).toBeHidden();
+    say(socket, "Hi. Where are you heading tonight?");
+    await expect(page.locator(".palVoiceBar")).toContainText("Where are you heading tonight?");
+    await page.screenshot({ path: `${SHOTS}/step9-${width}-${theme}-voice-in-place.png` });
+
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(chip).toBeVisible();
+  });
+}
+
+test("signed out, the map's Pal chip offers sign-in and stays closed once closed", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await releaseDeferredShell(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax:first-run-welcome:v1", "1");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  await page.goto("/map");
+  await expectMapLoadingFrameReleased(page);
+  const signIn = page.getByRole("link", { name: "Sign in to talk to your Pal", exact: true });
+  await expect(signIn).toBeVisible({ timeout: 20_000 });
+  await expect(signIn).toHaveAttribute("href", "/login?mode=signin&from=%2Fmap");
+  await page.screenshot({ path: `${SHOTS}/step9-390-signed-out.png` });
+  await page.locator(".palSummonSignIn").getByRole("button", { name: "Close", exact: true }).click();
+  await expect(signIn).toBeHidden();
+  await page.reload();
+  await expectMapLoadingFrameReleased(page);
+  await expect(page.locator(".palSummonSignIn")).toHaveCount(0);
+});
+
+test("on another city's map the Pal chip says voice talks about London for now", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await releaseDeferredShell(page);
+  await preparePalAccount(page);
+  await page.goto("/map/manchester");
+  await expectMapLoadingFrameReleased(page);
+  const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+  await expect(chip).toContainText("Talks about London for now", { timeout: 20_000 });
+  await page.screenshot({ path: `${SHOTS}/step9-390-outside-london.png` });
 });

@@ -44,6 +44,7 @@ import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
 import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
 import { usePalMapClientTools } from "@/components/pubpal/usePalMapClientTools";
+import { usePalVoiceStartRequest } from "@/components/pubpal/usePalVoiceStartRequest";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -744,6 +745,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
   usePalVoiceEngaged([voiceConnecting, live, endedOutOfSight, error !== null]);
+  usePalVoiceStartRequest(start);
 
   if (!panel) {
     return (

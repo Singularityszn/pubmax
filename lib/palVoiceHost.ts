@@ -25,9 +25,16 @@ export type PalVoiceHostState = {
   engaged: boolean;
   /** The call component finished mounting, so the panel needs no loading state. */
   ready: boolean;
+  /**
+   * A start asked for off /pal, by the map chip. It keeps the call mounted
+   * until the call says it is engaged, and `startRequest` counts each ask so a
+   * call takes each one once.
+   */
+  startPending: boolean;
+  startRequest: number;
 };
 
-let state: PalVoiceHostState = { panel: null, props: null, engaged: false, ready: false };
+let state: PalVoiceHostState = { panel: null, props: null, engaged: false, ready: false, startPending: false, startRequest: 0 };
 const listeners = new Set<() => void>();
 
 function update(next: Partial<PalVoiceHostState>): void {
@@ -54,11 +61,19 @@ export function registerPalVoicePanel(element: HTMLElement, props: PalVoicePanel
 }
 
 export function revokePalVoiceCall(): void {
-  update({ panel: null, props: null, engaged: false, ready: false });
+  update({ panel: null, props: null, engaged: false, ready: false, startPending: false });
 }
 
+/** Start a call where the person is, with this Pal's name and look. */
+export function requestPalVoiceStart(props: PalVoicePanelProps): void {
+  update({ props, startPending: true, startRequest: state.startRequest + 1 });
+}
+
+/** An engaged call holds itself mounted, so the start request has done its job. */
 export function setPalVoiceEngaged(engaged: boolean): void {
-  if (state.engaged !== engaged) update({ engaged });
+  if (state.engaged !== engaged || (engaged && state.startPending)) {
+    update({ engaged, ...(engaged ? { startPending: false } : {}) });
+  }
 }
 
 export function setPalVoiceReady(ready: boolean): void {
@@ -72,5 +87,5 @@ function palVoiceCallRoute(pathname: string): boolean {
 
 /** A cold page with no panel and no call mounts nothing and loads no SDK. */
 export function palVoiceCallMounted(host: PalVoiceHostState, pathname: string): boolean {
-  return host.panel !== null || (host.engaged && palVoiceCallRoute(pathname));
+  return host.panel !== null || ((host.engaged || host.startPending) && palVoiceCallRoute(pathname));
 }
