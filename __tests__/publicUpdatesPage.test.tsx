@@ -10,10 +10,6 @@ import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
 
 const datesNewestFirst = PUBLIC_UPDATES.map((update) => update.date).toSorted().toReversed();
 const newest = PUBLIC_UPDATES.find((update) => update.date === datesNewestFirst[0])!;
-const dayAfterNewest = new Date(Date.parse(`${newest.date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-const newestLabel = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
-}).format(new Date(`${newest.date}T00:00:00Z`));
 
 describe("the public updates page", () => {
   it("gives a signed-out reader dated changes and a way back to the map", () => {
@@ -21,7 +17,6 @@ describe("the public updates page", () => {
 
     expect(document.querySelector("main h1")?.textContent).toBe("What's changed");
     expect(document.querySelector("time")?.dateTime).toBe(newest.date);
-    expect(document.querySelector("time")?.textContent).toBe(newestLabel);
     expect(document.querySelector("article h2")?.textContent).toBe(newest.title);
     expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime)).toEqual(datesNewestFirst);
     expect(document.querySelectorAll("article li"))
@@ -43,7 +38,7 @@ describe("the public updates page", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: dayAfterNewest, title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: "2099-01-02", title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
@@ -52,7 +47,8 @@ describe("the public updates page", () => {
       document.body.innerHTML = renderToStaticMarkup(createElement(AppendedUpdatesPage));
 
       expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime))
-        .toEqual([dayAfterNewest, ...datesNewestFirst]);
+        .toEqual(["2099-01-02", ...datesNewestFirst]);
+      expect(document.querySelector("time")?.textContent).toBe("2 January 2099");
       expect(document.querySelector("article h2")?.textContent).toBe("A newer release");
     } finally {
       vi.doUnmock("@/lib/publicUpdates");
