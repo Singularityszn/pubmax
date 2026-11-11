@@ -798,8 +798,7 @@ function row(value: unknown): Record<string, unknown> {
 }
 
 /**
- * The completion for one claimed job. Under migration 0236 the claim returns a lease token and only that token
- * finishes the job. Before 0236 the claim has no token and the completion takes none.
+ * A claim's token selects the lease-bound completion. Migration 0236 also keeps the tokenless signature for older workers.
  */
 type InteractionJobCompletion = Database["public"]["Functions"]["complete_social_interaction_moderation_job"]["Args"];
 

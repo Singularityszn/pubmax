@@ -419,9 +419,10 @@ Without that approval, do not apply it or proceed with a release that requires i
 Migration [0236](../supabase/migrations/20261111060000_0236_social_moderation_remainder.sql)
 is expand-only, so it follows the apply-first steps below: apply 0236, then
 release the code that sends the interaction lease token. The code served before
-it keeps working. A later contract migration, applied after that code is live,
-drops the old five-argument moderation completion and tightens the job and
-comment checks.
+it keeps working. Apply the later contract migration only after that code is live.
+That migration drops the five-argument completion, adds the lease-pair CHECK,
+and narrows the comment and quote CHECKs. See the 0236 header for the deferred
+permission change.
 
 Production must hold every file in `supabase/migrations/` before Monday's release, because `npm run release:prod` refuses when the ledger lacks one ([release rule](rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)).
 
