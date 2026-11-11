@@ -197,10 +197,14 @@ to show or hide a button. Before OAuth starts, the client rechecks with
 `?fresh=1`, which is never cached. The exception covers this route alone. It
 does not loosen the bar for any other remote read.
 
-`/api/pint-drops/census` is the other named exception. It returns only the
+`/api/pint-drops/census` is the other named exception, by the captain's ruling of
+2026-11-11. It returns only the
 public aggregate count, never individual drops or author details. Its explicit
 fresh and stale windows live in the [census route](../app/api/pint-drops/census/route.ts).
 The count can lag behind submissions and removals within those windows.
+The same ruling permits the home page (`app/page.tsx`) to read the census count
+at prerender and hold it for its ISR window. The page stamps the count with
+when it was counted.
 The [census policy](../lib/dutyCensus.ts) owns count eligibility and suppression.
 This exception permits no other mutable community read.
 
