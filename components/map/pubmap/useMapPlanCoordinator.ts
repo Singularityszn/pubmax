@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 
 import type { CrawlMode } from "@/components/map/ControlRail";
 import { ownsCrawlUrlEntry } from "@/components/map/useCrawlUrl";
@@ -31,14 +31,25 @@ export type WalkRequest = { count: number; selectedVenueId: string };
 
 /** Owns mobile planning activation state so PubMap does not coordinate it piecemeal. */
 export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
-  const [mode, setMode] = useState<CrawlMode>(initial.mode);
-  const [builtIds, setBuiltIds] = useState<string[]>(initial.builtIds);
-  const [routeMapped, setRouteMapped] = useState(initial.routeMapped);
+  const [{ mode, builtIds, routeMapped }, setPlan] = useState<PlanRequest>(() => ({
+    mode: initial.mode,
+    builtIds: initial.builtIds,
+    routeMapped: initial.routeMapped,
+  }));
+  const setMode = useCallback((value: SetStateAction<CrawlMode>) => {
+    setPlan((current) => ({ ...current, mode: typeof value === "function" ? value(current.mode) : value }));
+  }, []);
+  const setBuiltIds = useCallback((value: SetStateAction<string[]>) => {
+    setPlan((current) => ({ ...current, builtIds: typeof value === "function" ? value(current.builtIds) : value }));
+  }, []);
+  const setRouteMapped = useCallback((value: SetStateAction<boolean>) => {
+    setPlan((current) => ({ ...current, routeMapped: typeof value === "function" ? value(current.routeMapped) : value }));
+  }, []);
   const [routeRequestToken, setRouteRequestToken] = useState(0);
   const mapRoute = useCallback(() => {
     setRouteMapped(true);
     setRouteRequestToken((token) => token + 1);
-  }, []);
+  }, [setRouteMapped]);
   const [planningOpen, setPlanningOpen] = useState(initial.planningOpen);
   const [plannedNightArea, setPlannedNightArea] = useState<NightAreaSlug | null>(initial.nightArea);
   const [walkRequest, setWalkRequest] = useState<WalkRequest>({ count: 0, selectedVenueId: "" });
@@ -88,14 +99,13 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
     setBuiltIds(venueIds);
     mapRoute();
     setPlannedNightArea(nightArea);
-  }, [mapRoute]);
+  }, [mapRoute, setBuiltIds, setMode]);
 
   const releasePlannerMode = useCallback(() => {
-    if (builtIds.length === 0 && mode === "build") {
-      setRouteMapped(false);
-      setMode("suggest");
-    }
-  }, [builtIds.length, mode]);
+    setPlan((current) => current.builtIds.length === 0 && current.mode === "build"
+      ? { ...current, routeMapped: false, mode: "suggest" }
+      : current);
+  }, []);
 
   return {
     mode,

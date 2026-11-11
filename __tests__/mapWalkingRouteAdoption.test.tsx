@@ -58,6 +58,15 @@ function planView(plan: Plan, ...extra: ReactNode[]) {
       },
     }, "Remove last stop"),
     createElement("button", { type: "button", onClick: plan.releasePlannerMode }, "Close plan"),
+    createElement("button", {
+      type: "button",
+      onClick: () => {
+        plan.setMode("build");
+        plan.setBuiltIds(["pub-a", "pub-b"]);
+        plan.mapRoute();
+        plan.releasePlannerMode();
+      },
+    }, "Load route and show first pub"),
     ...extra,
   );
 }
@@ -468,5 +477,13 @@ it("keeps the populated mapped route when the planner closes", async () => {
   const arrival = "mode=build&pubs=pub-a,pub-b";
   await arrive(arrival, arrival);
   press("Close plan");
+  expect(shown()).toBe("build mapped pub-a,pub-b");
+});
+
+it("keeps a route mapped when loading stops and releasing an empty deep-linked planner in one action", async () => {
+  const arrival = "mode=build&plan=1";
+  await arrive(arrival, arrival);
+  expect(shown()).toBe("build hidden");
+  press("Load route and show first pub");
   expect(shown()).toBe("build mapped pub-a,pub-b");
 });
