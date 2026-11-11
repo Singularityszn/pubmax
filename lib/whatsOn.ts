@@ -531,7 +531,7 @@ export function rowEffectiveEnd(row: WhatsOnRow): number {
 // DEAL_SOURCE_MAX_AGE_MS. A deal row is regenerated as "the next occurrence"
 // of a weekly offer, so its window is always tonight-shaped. Only the source
 // read says whether anyone has checked that the offer still runs.
-export const DEAL_SOURCE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const DEAL_SOURCE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function isLapsedDealListing(row: WhatsOnRow, now: number): boolean {
   if (row.kind !== "deal") return false;
