@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { palSummonOutsideLondon, shouldShowPubPalSummon } from "@/components/pubpal/PubPalSummon";
-import { palVoiceCallMounted, readPalVoiceHost, requestPalVoiceStart, revokePalVoiceCall, setPalVoiceEngaged } from "@/lib/palVoiceHost";
+import { cancelPalVoiceStart, palVoiceCallMounted, readPalVoiceHost, requestPalVoiceStart, revokePalVoiceCall, setPalVoiceEngaged } from "@/lib/palVoiceHost";
 
 describe("shouldShowPubPalSummon", () => {
   it("appears on the adaptive home, city maps, and plan surfaces", () => {
@@ -30,7 +30,7 @@ describe("the map chip", () => {
   it("keeps a call it asked for mounted until the call is engaged, and on the call routes only", () => {
     revokePalVoiceCall();
     expect(palVoiceCallMounted(readPalVoiceHost(), "/map")).toBe(false);
-    requestPalVoiceStart({ palName: "Ripley" });
+    requestPalVoiceStart("owner-a", { palName: "Ripley" });
     const asked = readPalVoiceHost();
     expect(asked).toMatchObject({ startPending: true, props: { palName: "Ripley" } });
     expect(palVoiceCallMounted(asked, "/map")).toBe(true);
@@ -42,8 +42,23 @@ describe("the map chip", () => {
     expect(readPalVoiceHost().startPending).toBe(false);
     setPalVoiceEngaged(false);
     expect(palVoiceCallMounted(readPalVoiceHost(), "/map")).toBe(false);
-    requestPalVoiceStart({ palName: "Ripley" });
+    requestPalVoiceStart("owner-a", { palName: "Ripley" });
     expect(readPalVoiceHost().startRequest).toBe(asked.startRequest + 1);
+    revokePalVoiceCall();
+  });
+
+  it("drops an ask no call has taken when the person leaves the call's pages or the account changes", () => {
+    revokePalVoiceCall();
+    requestPalVoiceStart("owner-a", { palName: "Ripley" });
+    cancelPalVoiceStart("/map/manchester", "owner-a");
+    expect(readPalVoiceHost()).toMatchObject({ startPending: true, startOwner: "owner-a" });
+    cancelPalVoiceStart("/profile", "owner-a");
+    expect(readPalVoiceHost()).toMatchObject({ startPending: false, startOwner: null });
+    expect(palVoiceCallMounted(readPalVoiceHost(), "/map")).toBe(false);
+
+    requestPalVoiceStart("owner-a", { palName: "Ripley" });
+    cancelPalVoiceStart("/map", "owner-b");
+    expect(readPalVoiceHost().startPending).toBe(false);
     revokePalVoiceCall();
   });
 });

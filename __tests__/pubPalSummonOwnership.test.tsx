@@ -5,7 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ user: { id: "account-a" } as { id: string } | null, loading: false }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ ...auth, getCurrentUserId: () => auth.user?.id ?? null }) }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
+// Account switching is checked on /plan, where the chip is the link to the Pal.
+const route = vi.hoisted(() => ({ pathname: "/plan" }));
+vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
+const eligibility = vi.hoisted(() => ({ under18: false as boolean | undefined }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: vi.fn(async () => Response.json({ pal: null, under18: eligibility.under18 })),
+}));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import { markActivePlan, readActivePlan, setActivePlanPalContext, setActivePlanStopIndex, writeActivePlan } from "@/lib/activePlan";
@@ -31,6 +37,9 @@ beforeEach(() => {
   sessionStorage.clear();
   auth.user = { id: "account-a" };
   auth.loading = false;
+  route.pathname = "/plan";
+  eligibility.under18 = false;
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ available: true })));
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, "account-a");
   savePal();
   host = document.createElement("div");
@@ -126,7 +135,8 @@ describe("mounted Pal shortcut ownership", () => {
     expect(localStorage.getItem(LOCAL_PAL_KEY)).toBe(saved);
   });
 
-  it("removes the shortcut when the account signs out on the same route, and offers sign-in on the map", async () => {
+  it("removes the shortcut when the account signs out on the map, and offers sign-in there", async () => {
+    route.pathname = "/map";
     await render();
     auth.user = null;
     await render();
@@ -182,5 +192,23 @@ describe("mounted Pal shortcut ownership", () => {
     savePal("account-b");
     await render();
     expect(host.querySelector("a")).toBeNull();
+  });
+
+  it("shows the map's talk button only once the server says the account is not under 18", async () => {
+    route.pathname = "/map";
+    await render();
+    expect(host.querySelector('button[aria-label="Talk to Robin, your Pub Pal"]')).not.toBeNull();
+
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    eligibility.under18 = true;
+    await render();
+    expect(host.querySelector(".palSummon")).toBeNull();
+
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    eligibility.under18 = undefined;
+    await render();
+    expect(host.querySelector(".palSummon")).toBeNull();
   });
 });

@@ -19,6 +19,7 @@ import { palGenomeFor } from "@/lib/palGenome";
 import { parseCityId } from "@/lib/cities";
 import { requestPalVoiceStart } from "@/lib/palVoiceHost";
 import { usePalVoiceAvailability } from "./usePalVoiceAvailability";
+import { usePalVoiceEligibility } from "./usePalVoiceEligibility";
 
 /** How long the chip celebrates a moment before it goes back to its offer. */
 export const PAL_SUMMON_CHEER_MS = 6_000;
@@ -44,28 +45,12 @@ export function palSummonOutsideLondon(pathname: string): boolean {
   return city !== null && city !== "london";
 }
 
-const SIGN_IN_CHIP_CLOSED_KEY = "pubmax:pal-sign-in-chip:closed:v1";
-
-function readSignInChipClosed(): boolean {
-  try {
-    return window.localStorage.getItem(SIGN_IN_CHIP_CLOSED_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 /** Signed out on the map: the way in to a Pal, and a way to put it away. */
 function SignInPalChip({ pathname }: { pathname: string }) {
-  const [closed, setClosed] = useState(readSignInChipClosed);
+  // Closed for this page view. The next visit offers the way in again.
+  const [closed, setClosed] = useState(false);
   if (closed) return null;
-  const close = () => {
-    setClosed(true);
-    try {
-      window.localStorage.setItem(SIGN_IN_CHIP_CLOSED_KEY, "1");
-    } catch {
-      // A private window keeps the chip closed for this visit only.
-    }
-  };
+  const close = () => setClosed(true);
   const href = `/login?${new URLSearchParams({ mode: "signin", from: pathname }).toString()}` as Route;
   return (
     <div className="palSummon palSummonSignIn">
@@ -125,7 +110,7 @@ function OwnedPubPalSummon({ ownerId, pathname }: { ownerId: string; pathname: s
   const genome = pal.id ? palGenomeFor(pal.id, pal.personality) : undefined;
   const line = cheer ? palSummonCheerLine(cheer) : offer ? palSummonLine({ ...offer, muted: pal.muted }) : pal.muted ? "Muted" : "Tap to talk or plan";
   if (onMapPath(pathname) && !pal.muted) {
-    return <MapPalTalk pal={pal} genome={genome} cheer={cheer !== null}
+    return <MapPalTalk ownerId={ownerId} pal={pal} genome={genome} cheer={cheer !== null}
       line={palSummonOutsideLondon(pathname) ? "Talks about London for now" : line} />;
   }
   return <Link className={cheer ? "palSummon isCheering" : "palSummon"} data-pal-state={pal.muted ? "sleeping" : undefined} href="/pal" aria-label={`Summon ${pal.name}, your Pub Pal`} onClick={() => trackEvent("pub_pal_summoned", { surface: pathname === "/" ? "home" : pathname.startsWith("/map") ? "map" : "plan" })}><PubPalAvatar appearance={pal.appearance} name={pal.name} compact genome={genome}/><span><strong>{pal.name}</strong><small role="status">{line}</small></span></Link>;
@@ -133,26 +118,31 @@ function OwnedPubPalSummon({ ownerId, pathname }: { ownerId: string; pathname: s
 
 /**
  * On the map, a tap starts voice where the person is, and the call draws as
- * the voice bar. Until the deployment says voice is on, the chip keeps its
- * link to the Pal page.
+ * the voice bar. The chip shows only once the server says the account may
+ * have voice (no under-18 date of birth), and a tap never leaves the map
+ * while the deployment's voice answer is still coming. Only a deployment
+ * that says voice is off keeps the link to the Pal page.
  */
-function MapPalTalk({ pal, genome, cheer, line }: {
+function MapPalTalk({ ownerId, pal, genome, cheer, line }: {
+  ownerId: string;
   pal: NonNullable<ReturnType<typeof useOwnPal>>;
   genome: ReturnType<typeof palGenomeFor> | undefined;
   cheer: boolean;
   line: string;
 }) {
   const availability = usePalVoiceAvailability();
+  const eligibility = usePalVoiceEligibility(ownerId);
+  if (eligibility !== "eligible") return null;
   const face = <PubPalAvatar appearance={pal.appearance} name={pal.name} compact genome={genome}/>;
   const words = <span><strong>{pal.name}</strong><small role="status">{line}</small></span>;
   const className = cheer ? "palSummon isCheering" : "palSummon";
-  if (availability !== "available") {
+  if (availability === "unavailable") {
     return <Link className={className} href="/pal" aria-label={`Summon ${pal.name}, your Pub Pal`}
       onClick={() => trackEvent("pub_pal_summoned", { surface: "map" })}>{face}{words}</Link>;
   }
   return <button type="button" className={className} aria-label={`Talk to ${pal.name}, your Pub Pal`}
     onClick={() => {
       trackEvent("pub_pal_summoned", { surface: "map" });
-      requestPalVoiceStart({ palName: pal.name, appearance: pal.appearance, genome });
+      requestPalVoiceStart(ownerId, { palName: pal.name, appearance: pal.appearance, genome });
     }}>{face}{words}</button>;
 }

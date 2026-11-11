@@ -9,7 +9,7 @@ import { readPalVoiceHost, subscribePalVoiceHost } from "@/lib/palVoiceHost";
  * The host keeps this call mounted until it is engaged, so the ask cannot be
  * lost between the tap and the first "starting" render.
  */
-export function usePalVoiceStartRequest(start: () => Promise<void>): void {
+export function usePalVoiceStartRequest(start: () => Promise<void>, ownerId: string | null): void {
   const startRef = useRef(start);
   useEffect(() => {
     startRef.current = start;
@@ -17,12 +17,12 @@ export function usePalVoiceStartRequest(start: () => Promise<void>): void {
   useEffect(() => {
     let handled = 0;
     const take = () => {
-      const { startPending, startRequest } = readPalVoiceHost();
-      if (!startPending || startRequest === handled) return;
+      const { startPending, startRequest, startOwner } = readPalVoiceHost();
+      if (!startPending || startRequest === handled || !ownerId || startOwner !== ownerId) return;
       handled = startRequest;
       void startRef.current();
     };
     take();
     return subscribePalVoiceHost(take);
-  }, []);
+  }, [ownerId]);
 }

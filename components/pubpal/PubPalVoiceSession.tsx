@@ -745,7 +745,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
   usePalVoiceEngaged([voiceConnecting, live, endedOutOfSight, error !== null]);
-  usePalVoiceStartRequest(start);
+  usePalVoiceStartRequest(start, getCurrentUserId());
 
   if (!panel) {
     return (

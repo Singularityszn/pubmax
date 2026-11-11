@@ -1,11 +1,12 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/components/auth/authContext";
 import {
+  cancelPalVoiceStart,
   palVoiceCallMounted,
   readPalVoiceHost,
   subscribePalVoiceHost,
@@ -25,6 +26,8 @@ export default function PalVoiceHost() {
   const host = useSyncExternalStore(subscribePalVoiceHost, readPalVoiceHost, readPalVoiceHost);
   const pathname = usePathname() ?? "";
   const ownerId = useAuth().user?.id ?? null;
+  // A tap on the map chip is for this page and this account only.
+  useEffect(() => cancelPalVoiceStart(pathname, ownerId), [pathname, ownerId]);
   if (!palVoiceCallMounted(host, pathname)) return null;
   const props = host.panel?.props ?? host.props ?? {};
   // A new account never inherits the last account's call.

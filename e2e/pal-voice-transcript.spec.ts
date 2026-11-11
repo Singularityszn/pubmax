@@ -68,7 +68,7 @@ function hear(socket: WebSocketRoute, text: string, tentative = false): void {
 }
 
 /** Sign in as A with a Pal and stub the provider socket. Ends on /pal with Start offered. */
-async function preparePalAccount(page: Page, memoryProposals = false, firstMessage?: string, hidden = false): Promise<{ opened: Promise<WebSocketRoute> }> {
+async function preparePalAccount(page: Page, memoryProposals = false, firstMessage?: string, hidden = false, under18 = false): Promise<{ opened: Promise<WebSocketRoute> }> {
   const timestamp = "2026-10-04T12:00:00.000Z";
   let pal = {
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
@@ -81,7 +81,7 @@ async function preparePalAccount(page: Page, memoryProposals = false, firstMessa
   await page.route("**/api/pub-pal", (route) => {
     if (route.request().method() === "DELETE") return route.fulfill({ json: { ok: true } });
     if (route.request().method() === "PATCH") pal = { ...pal, ...route.request().postDataJSON() };
-    return route.fulfill({ json: { pal, adultOnFile: true } });
+    return route.fulfill({ json: { pal, adultOnFile: !under18, under18 } });
   });
   await page.route("**/api/pub-pal/memories", (route) => route.fulfill({ json: { memories: [] } }));
   await page.route("**/api/pub-pal/tool-turn", (route) => route.fulfill({ status: 204 }));
@@ -1247,12 +1247,22 @@ for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"], [3
         text.style.fontSize = `${parseFloat(style.fontSize) * 1.3}px`;
       }
       const box = element.getBoundingClientRect();
-      const words = element.querySelector("span")!.getBoundingClientRect();
+      const words = [...element.querySelectorAll("strong, small")].map((text) => {
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        return range.getBoundingClientRect();
+      });
       return { box, words, viewport: window.innerWidth };
     });
     expect(fit.box.right).toBeLessThanOrEqual(fit.viewport + 1);
     expect(fit.box.left).toBeGreaterThanOrEqual(-1);
-    expect(fit.words.right).toBeLessThanOrEqual(fit.box.right + 1);
+    expect(fit.words).toHaveLength(2);
+    for (const words of fit.words) {
+      expect(words.left).toBeGreaterThanOrEqual(fit.box.left - 1);
+      expect(words.right).toBeLessThanOrEqual(fit.box.right + 1);
+      expect(words.top).toBeGreaterThanOrEqual(fit.box.top - 1);
+      expect(words.bottom).toBeLessThanOrEqual(fit.box.bottom + 1);
+    }
     await page.screenshot({ path: `${SHOTS}/step9-${width}-${theme}-chip-large-text.png` });
     await chip.evaluate((element) => {
       for (const text of element.querySelectorAll<HTMLElement>("strong, small")) text.style.fontSize = "";
@@ -1274,7 +1284,7 @@ for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"], [3
   });
 }
 
-test("signed out, the map's Pal chip offers sign-in and stays closed once closed", async ({ page }) => {
+test("signed out, the map's Pal chip offers sign-in and closes for this page view", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await releaseDeferredShell(page);
   await page.addInitScript(() => {
@@ -1292,7 +1302,20 @@ test("signed out, the map's Pal chip offers sign-in and stays closed once closed
   await expect(signIn).toBeHidden();
   await page.reload();
   await expectMapLoadingFrameReleased(page);
-  await expect(page.locator(".palSummonSignIn")).toHaveCount(0);
+  await expect(signIn).toBeVisible({ timeout: 20_000 });
+});
+
+test("an under-18 account sees no Pal chip on the map", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await releaseDeferredShell(page);
+  await preparePalAccount(page, false, undefined, false, true);
+  // The map's own eligibility read, after the Pal page's read.
+  const ruled = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/pub-pal" && response.request().method() === "GET");
+  await page.goto("/map");
+  await expectMapLoadingFrameReleased(page);
+  await ruled;
+  await expect(page.locator(".palSummon")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true })).toHaveCount(0);
 });
 
 test("on another city's map the Pal chip says voice talks about London for now", async ({ page }) => {

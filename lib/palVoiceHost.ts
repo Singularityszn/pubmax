@@ -32,9 +32,13 @@ export type PalVoiceHostState = {
    */
   startPending: boolean;
   startRequest: number;
+  /** The account that asked. Only that account's call may take the ask. */
+  startOwner: string | null;
 };
 
-let state: PalVoiceHostState = { panel: null, props: null, engaged: false, ready: false, startPending: false, startRequest: 0 };
+let state: PalVoiceHostState = {
+  panel: null, props: null, engaged: false, ready: false, startPending: false, startRequest: 0, startOwner: null,
+};
 const listeners = new Set<() => void>();
 
 function update(next: Partial<PalVoiceHostState>): void {
@@ -61,12 +65,22 @@ export function registerPalVoicePanel(element: HTMLElement, props: PalVoicePanel
 }
 
 export function revokePalVoiceCall(): void {
-  update({ panel: null, props: null, engaged: false, ready: false, startPending: false });
+  update({ panel: null, props: null, engaged: false, ready: false, startPending: false, startOwner: null });
 }
 
-/** Start a call where the person is, with this Pal's name and look. */
-export function requestPalVoiceStart(props: PalVoicePanelProps): void {
-  update({ props, startPending: true, startRequest: state.startRequest + 1 });
+/** Start a call where the person is, for this account, with its Pal's name and look. */
+export function requestPalVoiceStart(ownerId: string, props: PalVoicePanelProps): void {
+  update({ props, startPending: true, startRequest: state.startRequest + 1, startOwner: ownerId });
+}
+
+/**
+ * Drop an ask no call has taken yet: the person left the call's pages or the
+ * account changed, so returning later must not open the microphone by itself.
+ */
+export function cancelPalVoiceStart(pathname: string, ownerId: string | null): void {
+  if (!state.startPending) return;
+  if (palVoiceCallRoute(pathname) && state.startOwner === ownerId) return;
+  update({ startPending: false, startOwner: null });
 }
 
 /** An engaged call holds itself mounted, so the start request has done its job. */
