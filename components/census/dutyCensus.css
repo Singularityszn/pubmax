@@ -1,0 +1,220 @@
+/* The before-1-February census card (components/census/DutyCensusCard.tsx).
+   Ink only: the screen's one coral belongs to its primary, so the card asks
+   with words and a calendar rather than a second painted button. */
+
+.dutyCensus {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--ink);
+}
+
+.dutyCensusSay,
+.dutyCensusTally {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.dutyCensus p { margin: 0; }
+
+.dutyCensusKicker {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.dutyCensusLine {
+  max-width: 34rem;
+  font: 650 var(--text-md) / 1.28 var(--font-display);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.dutyCensusWhy {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  text-wrap: pretty;
+}
+
+/* The census window as a calendar: start day, the track with today on it,
+   the rise day and the rise itself. Every figure on it is a date or a rate. */
+.dutyCensusRail {
+  display: grid;
+  grid-template-columns: auto minmax(4rem, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 34rem;
+  margin-block: var(--space-1);
+  color: var(--muted);
+  font: 550 var(--text-2xs) / 1 var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.dutyCensusRailTrack {
+  position: relative;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+}
+
+/* The day the duty rises: a tick at the end of the track. */
+.dutyCensusRailTrack::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 2px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  transform: translateY(-50%);
+}
+
+.dutyCensusRailFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--ink-soft);
+  transform: scaleX(var(--census-elapsed, 0));
+  transform-origin: left center;
+}
+
+.dutyCensusRailNow {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--census-elapsed, 0) * 100%);
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  box-shadow: 0 0 0 3px var(--census-ground, var(--panel-raised));
+  transform: translate(-50%, -50%);
+}
+
+.dutyCensusRailRise {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.dutyCensusCount {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.dutyCensusFigure {
+  color: var(--ink);
+  font: 700 var(--text-base) / 1 var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.dutyCensusStamp {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font: 550 var(--text-xs) / 1.4 var(--font-data);
+}
+
+.dutyCensusLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-3);
+}
+
+.dutyCensusLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-block-size: 44px;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  overflow-wrap: anywhere;
+}
+
+.dutyCensusSource {
+  color: var(--ink-soft);
+  font-weight: 550;
+}
+
+.dutyCensusSource svg { flex: none; margin-left: 2px; }
+
+.dutyCensusSourceDate {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dutyCensusLink:hover { text-decoration-thickness: 2px; }
+}
+
+/* The home: a tile under the two answers, spanning their grid, padded and
+   edged as they are. Wide enough, the ask and the tally sit side by side. */
+.dutyCensus--tile {
+  /* The 44px link row already carries its own space under the words. */
+  padding: var(--space-4) var(--space-4) var(--space-1);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+}
+
+@media (min-width: 1024px) {
+  .dutyCensus--tile {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    column-gap: var(--space-10);
+    align-items: center;
+    padding-bottom: var(--space-4);
+  }
+  .dutyCensus--tile .dutyCensusRail { margin-top: 0; }
+}
+
+/* After a log: no box, a hairline under the receipt, on the sheet's own ground. */
+.dutyCensus--afterLog {
+  --census-ground: var(--panel);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--hairline);
+}
+
+/* Seen once per log, so it may arrive: the card rises in, then the track
+   fills to today and the dot lands on it. */
+@media (prefers-reduced-motion: no-preference) {
+  .dutyCensus--afterLog {
+    animation: dutyCensusIn var(--duration-slow) var(--ease-out-strong) both;
+  }
+  .dutyCensus--afterLog .dutyCensusRailFill {
+    animation: dutyCensusFill 520ms var(--ease-out-strong) 120ms both;
+  }
+  .dutyCensus--afterLog .dutyCensusRailNow {
+    animation: dutyCensusLand 240ms var(--ease-out-strong) 460ms both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dutyCensus--afterLog {
+    animation: dutyCensusFade 200ms ease both;
+  }
+}
+
+@keyframes dutyCensusIn {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+@keyframes dutyCensusFill {
+  from { transform: scaleX(0); }
+}
+
+@keyframes dutyCensusLand {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+}
+
+@keyframes dutyCensusFade {
+  from { opacity: 0; }
+}
