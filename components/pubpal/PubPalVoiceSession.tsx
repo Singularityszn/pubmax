@@ -79,7 +79,7 @@ import {
   type PalVoiceLine,
 } from "@/lib/palVoiceTranscript";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
-import { setPalVoiceReady, type PalVoicePanelProps } from "@/lib/palVoiceHost";
+import { setPalVoiceReady, type PalVoicePanelProps, type PalVoiceStartChime } from "@/lib/palVoiceHost";
 import { releaseVoiceSession, syncVoiceToolTurn } from "@/lib/pubPalVoiceServer";
 import { useAuth } from "@/components/auth/authContext";
 import { isPlanActiveNow, readOwnedActivePlan } from "@/lib/activePlan";
@@ -438,10 +438,12 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     void stop(attempt, "background");
   }, [ownsAttempt, stop]));
 
-  const start = async () => {
-    if (disposedRef.current) return;
-    if (startController.isStarting()) return;
-    const stopStartChime = playPalVoiceSound("start");
+  const start = async (chime?: PalVoiceStartChime) => {
+    if (disposedRef.current || startController.isStarting()) {
+      chime?.stop?.();
+      return;
+    }
+    const stopStartChime = chime ? chime.stop : playPalVoiceSound("start");
     resetPalMap();
     currentToolCalls.current.clear();
     lastUserEvent.current = 0;
