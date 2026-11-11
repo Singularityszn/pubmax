@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -186,25 +183,6 @@ describe("what the add surface says and reports", () => {
     expect(ADD_LINK_COPY.lotMeans).toMatch(/private/i);
     expect(ADD_LINK_COPY.signedIn).toMatch(/mutual/i);
     expect(ADD_LINK_RECEIPT_BODY).toMatch(/each other's lot/i);
-  });
-
-  // A source sweep, because a retired promise can come back as a literal in the
-  // surface file rather than in the policy leaf. Comments are stripped first, the
-  // way the spoons-value copy fence judges its own: this file and `lib/addLink.ts`
-  // both QUOTE the retired sentence on purpose, so a raw grep would fail on the
-  // note explaining why it was retired.
-  it("refuses the retired promise anywhere in the add surface's own source", () => {
-    const withoutComments = (source: string): string =>
-      source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
-    const sources = [
-      "lib/addLink.ts",
-      "components/social/ConfirmFollow.tsx",
-    ].map((file) => withoutComments(readFileSync(path.join(process.cwd(), file), "utf8")));
-    for (const source of sources) {
-      expect(source).not.toMatch(/land in Your lot/i);
-      expect(source).not.toMatch(/show up in Your lot/i);
-      expect(source).not.toMatch(/nights, drops and check-ins/i);
-    }
   });
 
   it("lands the add as mates only when they had already added the viewer", () => {

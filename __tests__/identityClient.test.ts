@@ -190,6 +190,21 @@ describe("post-callback handle claim routing", () => {
     ).resolves.toBe(`/u/you?returnTo=${encodeURIComponent("/map?sel=venue-1&log=1&price=5.20")}`);
   });
 
+  it.each([
+    "/add/karan?auto=1",
+    "/plan/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "/map?sel=venue-a&table=8",
+  ])("does not carry an unrelated callback destination through claim: %s", async (destination) => {
+    await expect(
+      handleClaimRouteAfterSignIn(
+        SESSION,
+        destination,
+        storageWith(new Map()),
+        requestAnswering(null),
+      ),
+    ).resolves.toBe("/u/you");
+  });
+
   it("stays put when the account already has a handle", async () => {
     const storage = storageWith(new Map());
     await expect(

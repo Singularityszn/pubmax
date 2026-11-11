@@ -143,10 +143,12 @@ function tapCounter() {
     /** A tap on a control painted before hydration, retried until it lands. */
     async tapUntil(target: Locator, label: string, landed: Locator) {
       await expect(async () => {
-        if (await target.isVisible()) await target.click({ timeout: 2_000 });
+        if (await target.isVisible()) {
+          await target.click({ timeout: 2_000 });
+          taps.push(label);
+        }
         await expect(landed).toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 45_000 });
-      taps.push(label);
     },
   };
 }

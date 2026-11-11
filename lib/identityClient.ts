@@ -5,7 +5,7 @@ import {
   captureAccountAuth,
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
-import { accountClaimReturnTo } from "@/lib/accountClaimReturnTo";
+import { safePintDropDoorReturnTo } from "@/lib/accountClaimReturnTo";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import {
   deviceAccountOwner,
@@ -156,8 +156,6 @@ export async function resolveCanonicalIdentity(
  * Post-callback routing. Creating the account comes first and choosing a
  * handle is the step after, and /u/you is the only surface carrying the claim
  * form, so a freshly established session with no claimed handle routes there.
- * A landing page the claim may return to (an add link, a Plan, a Pint Drop
- * door) rides along as its `returnTo`, so the account comes back to it.
  * Returns the destination path, or null to stay put. Never bounces the user on
  * doubt: a device
  * handle THIS ACCOUNT owns means /u/you would just redirect back out, and a
@@ -185,7 +183,7 @@ export async function handleClaimRouteAfterSignIn(
     const landed = new URL(landedUrl, "https://pubmax.invalid");
     if (landed.hash) return null;
     if (landed.pathname === HANDLE_CLAIM_NEXT) return null;
-    returnTo = accountClaimReturnTo(`${landed.pathname}${landed.search}`);
+    returnTo = safePintDropDoorReturnTo(`${landed.pathname}${landed.search}`);
   } catch {
     return null;
   }
