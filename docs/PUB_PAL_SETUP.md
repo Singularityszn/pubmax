@@ -497,8 +497,11 @@ The server settles that grant from the call length ElevenLabs records, never fro
 sends. When the browser releases a session, the server asks ElevenLabs for up
 to five seconds until it reports the call ended. If the call is still running
 then, the grant stays charged at three minutes until the same account next
-asks for voice: that request settles it before the allowance check. A call
-ElevenLabs never reports as ended stays charged at three minutes. Migration
+asks for voice. That request settles it after its response, or before it
+refuses on the allowance. A call ElevenLabs never reports as ended stays
+charged at three minutes, unless ElevenLabs has no record of it and its signed
+URL is over 20 minutes old. Such a call never started, so it settles free.
+Migration
 `0176` must be applied before the deploy that calls it.
 
 ---

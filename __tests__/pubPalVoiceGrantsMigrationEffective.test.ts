@@ -8,8 +8,10 @@
 // mocked RPCs cannot: the fault really reproduces on the pre-0176 catalog, the
 // route driven end to end over the real functions fills the allowance whatever
 // the browser says, the settle really reads only the provider's duration (on
-// release, or before the owner's next session when the call was still running),
-// and the old client-trusted functions really are closed to every role.
+// release, or after the owner's next session starts when the call was still
+// running), a grant the provider never saw settles free only once its signed
+// URL has expired, and the old client-trusted functions really are closed to
+// every role.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -22,6 +24,7 @@ import {
   billableVoiceMinutes,
 } from "@/lib/palVoiceMetering";
 
+import { defined } from "./helpers/defined";
 import {
   asBrowserRole,
   asServiceRole,
@@ -47,7 +50,20 @@ const harness = vi.hoisted(() => ({
   conversations: new Map<string, { status: string; seconds: number | null }>(),
   issued: 0,
   lastConversationId: "",
+  afterTasks: [] as Array<() => unknown>,
 }));
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (task: unknown) => { harness.afterTasks.push(typeof task === "function" ? task as () => unknown : () => task); },
+}));
+
+/** The work the route handed to after(), run once its response is out. */
+async function afterResponse(): Promise<void> {
+  while (harness.afterTasks.length) await harness.afterTasks.shift()?.();
+}
+
+const sqlText = (value: unknown) => `'${String(value).replaceAll("'", "''")}'`;
 
 vi.mock("@/lib/authServer", () => ({ callerUserId: async () => harness.userId }));
 vi.mock("@/lib/privateIdentityStore", () => ({
@@ -88,6 +104,24 @@ vi.mock("@/lib/supabase", () => ({
         .join(", ");
       const answer = harness.sql?.(`set role service_role; select to_json(public.${name}(${args}))`);
       return { data: answer ? JSON.parse(answer) as unknown : null, error: null };
+    },
+    // A select of pub_pal_voice_grants with eq and in filters, as service_role.
+    from: (table: string) => {
+      const where: string[] = [];
+      let columns = "*";
+      const query = {
+        select: (list: string) => { columns = list; return query; },
+        eq: (column: string, value: unknown) => { where.push(`${column} = ${sqlText(value)}`); return query; },
+        in: (column: string, values: unknown[]) => {
+          where.push(`${column} in (${values.map(sqlText).join(", ") || "null"})`);
+          return query;
+        },
+        then: (resolve: (value: { data: unknown; error: null }) => unknown) => {
+          const answer = harness.sql?.(`set role service_role; select coalesce(json_agg(row_to_json(t)), '[]') from (select ${columns} from public.${table} where ${where.join(" and ") || "true"}) t`);
+          return Promise.resolve(resolve({ data: answer ? JSON.parse(answer) as unknown : [], error: null }));
+        },
+      };
+      return query;
     },
   }),
 }));
@@ -184,7 +218,7 @@ beforeAll(async () => {
   db().sql(`
     insert into auth.users (id) values
       ('${uuid(1)}'), ('${uuid(2)}'), ('${uuid(3)}'), ('${uuid(4)}'), ('${uuid(5)}'),
-      ('${uuid(6)}'), ('${uuid(7)}'), ('${uuid(8)}');
+      ('${uuid(6)}'), ('${uuid(7)}'), ('${uuid(8)}'), ('${uuid(9)}');
   `);
 }, 240_000);
 
@@ -303,8 +337,9 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     expect(grantRow(uuid(5), mine.conversationId)).toBe("issued|-");
   });
 
-  it("settles a grant the release left issued before the next session is admitted", async () => {
+  it("settles a grant the release left issued once the next session is out", async () => {
     harness.userId = uuid(8);
+    harness.afterTasks.length = 0;
     const first = await (await issue()).json() as { conversationId: string };
     // The browser releases as it hangs up and the provider still reports the
     // call running for the whole settle window.
@@ -317,9 +352,47 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     harness.conversations.set(first.conversationId, { status: "done", seconds: 41 });
     const second = await issue();
 
+    // The next session does not wait on the provider: the earlier grant is still charged in full.
     expect(second.status).toBe(200);
+    expect(grantRow(uuid(8), first.conversationId)).toBe("issued|-");
+    expect(usedMinutes(uuid(8))).toBe(2 * PAL_VOICE_GRANT_MINUTES);
+
+    await afterResponse();
+
     expect(grantRow(uuid(8), first.conversationId)).toBe(`settled|${billableVoiceMinutes(41)}`);
+    const { conversationId: running } = await second.json() as { conversationId: string };
+    expect(grantRow(uuid(8), running)).toBe("issued|-");
     expect(usedMinutes(uuid(8))).toBe(billableVoiceMinutes(41) + PAL_VOICE_GRANT_MINUTES);
+  });
+
+  it("settles earlier calls before it refuses on the allowance, and frees a grant the provider never saw only after its URL expired", async () => {
+    harness.userId = uuid(9);
+    const ids: string[] = [];
+    for (let i = 0; i < PAL_VOICE_MONTHLY_MINUTES / PAL_VOICE_GRANT_MINUTES; i += 1) {
+      const response = await issue();
+      expect(response.status).toBe(200);
+      ids.push((await response.json() as { conversationId: string }).conversationId);
+    }
+    harness.afterTasks.length = 0;
+    expect(usedMinutes(uuid(9))).toBe(PAL_VOICE_MONTHLY_MINUTES);
+    const unused = defined(ids[0]);
+    const young = defined(ids[1]);
+    const rest = ids.slice(2);
+    for (const id of rest) harness.conversations.set(id, { status: "in-progress", seconds: 30 });
+    // Neither call ever reached the provider. Only the old one's URL has expired.
+    db().sql(`update public.pub_pal_voice_grants set created_at = now() - interval '21 minutes' where conversation_id = '${unused}'`);
+    db().sql(`update public.pub_pal_voice_grants set created_at = now() - interval '14 minutes' where conversation_id = '${young}'`);
+
+    const admitted = await issue();
+
+    expect(admitted.status).toBe(200);
+    expect(grantRow(uuid(9), unused)).toBe("settled|0");
+    expect(grantRow(uuid(9), young)).toBe("issued|-");
+    expect(usedMinutes(uuid(9))).toBe(PAL_VOICE_MONTHLY_MINUTES);
+
+    const refused = await issue();
+    expect(refused.status).toBe(429);
+    expect(usedMinutes(uuid(9))).toBe(PAL_VOICE_MONTHLY_MINUTES);
   });
 
   it("lists only the owner's issued grants of that month", () => {
