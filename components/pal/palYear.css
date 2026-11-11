@@ -59,7 +59,7 @@
 .palYearRead {
   min-width: 0;
 }
-@media (min-width: 48rem) {
+@media (min-width: 641px) {
   .palYearBody {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
