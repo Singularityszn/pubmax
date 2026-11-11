@@ -1,22 +1,17 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/components/auth/authContext";
 import {
   cancelPalVoiceStart,
   palVoiceCallMounted,
+  palVoiceLoadFailed,
   readPalVoiceHost,
   subscribePalVoiceHost,
 } from "@/lib/palVoiceHost";
-
-// The session carries the ElevenLabs SDK. The /pal panel or a map-chip tap
-// mounts it. An engaged call retains it. A cold /map loads none of it.
-const PubPalVoiceSession = dynamic(() => import("@/components/pubpal/PubPalVoiceSession"), {
-  ssr: false,
-});
+import { loadPalVoiceSession, type PalVoiceSessionComponent } from "@/components/pubpal/palVoiceSessionLoader";
 
 /**
  * The one voice call, held in the root shell. Client navigation keeps the
@@ -41,8 +36,22 @@ export default function PalVoiceHost() {
       window.removeEventListener("pagehide", leave);
     };
   }, [pathname, ownerId]);
-  if (!palVoiceCallMounted(host, pathname)) return null;
+  const mounted = palVoiceCallMounted(host, pathname);
+  // The session carries the ElevenLabs SDK. The /pal panel or a map-chip tap
+  // loads it. A cold /map loads none of it. A download that fails is told to
+  // the chip or panel, never thrown into the root layout.
+  const [Session, setSession] = useState<PalVoiceSessionComponent | null>(null);
+  useEffect(() => {
+    if (!mounted || Session) return;
+    let live = true;
+    loadPalVoiceSession().then(
+      (loaded) => { if (live) setSession(() => loaded); },
+      () => { if (live) palVoiceLoadFailed(); },
+    );
+    return () => { live = false; };
+  }, [mounted, Session]);
+  if (!mounted || !Session) return null;
   const props = host.panel?.props ?? host.props ?? {};
   // A new account never inherits the last account's call.
-  return <PubPalVoiceSession key={ownerId ?? "signed-out"} {...props} panel={host.panel?.element ?? null} />;
+  return <Session key={ownerId ?? "signed-out"} {...props} panel={host.panel?.element ?? null} />;
 }

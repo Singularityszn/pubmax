@@ -34,10 +34,13 @@ export type PalVoiceHostState = {
   startRequest: number;
   /** The account that asked. Only that account's call may take the ask. */
   startOwner: string | null;
+  /** The call's code did not download. Nothing mounts until a new ask. */
+  loadFailed: boolean;
 };
 
 let state: PalVoiceHostState = {
   panel: null, props: null, engaged: false, ready: false, startPending: false, startRequest: 0, startOwner: null,
+  loadFailed: false,
 };
 const listeners = new Set<() => void>();
 
@@ -70,7 +73,17 @@ export function revokePalVoiceCall(): void {
 
 /** Start a call where the person is, for this account, with its Pal's name and look. */
 export function requestPalVoiceStart(ownerId: string, props: PalVoicePanelProps): void {
-  update({ props, startPending: true, startRequest: state.startRequest + 1, startOwner: ownerId });
+  update({ props, startPending: true, startRequest: state.startRequest + 1, startOwner: ownerId, loadFailed: false });
+}
+
+/** The call's code did not download: drop the ask so the page stays as it was. */
+export function palVoiceLoadFailed(): void {
+  update({ loadFailed: true, startPending: false, startOwner: null });
+}
+
+/** The /pal panel asks for the call's code again. */
+export function retryPalVoiceLoad(): void {
+  if (state.loadFailed) update({ loadFailed: false });
 }
 
 /**
@@ -101,5 +114,6 @@ function palVoiceCallRoute(pathname: string): boolean {
 
 /** A cold page with no panel and no call mounts nothing and loads no SDK. */
 export function palVoiceCallMounted(host: PalVoiceHostState, pathname: string): boolean {
+  if (host.loadFailed) return false;
   return host.panel !== null || ((host.engaged || host.startPending) && palVoiceCallRoute(pathname));
 }

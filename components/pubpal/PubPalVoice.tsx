@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Send } from "lucide-react";
+import { Mic, Send } from "lucide-react";
 
 import type { PalAnimationState, PubPalAppearance } from "@/lib/pubPal";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
@@ -13,6 +13,7 @@ export { palVoiceAvailabilityFrom } from "@/components/pubpal/usePalVoiceAvailab
 import {
   readPalVoiceHost,
   registerPalVoicePanel,
+  retryPalVoiceLoad,
   revokePalVoiceCall,
   subscribePalVoiceHost,
   type PalVoicePanelProps,
@@ -20,6 +21,7 @@ import {
 
 const readEngaged = () => readPalVoiceHost().engaged;
 const readReady = () => readPalVoiceHost().ready;
+const readLoadFailed = () => readPalVoiceHost().loadFailed;
 const never = () => false;
 
 /**
@@ -30,6 +32,7 @@ const never = () => false;
 function PalVoicePanelSlot({ onStateChange, palName, signal, appearance, genome, onMemoryChange }: PalVoicePanelProps) {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const ready = useSyncExternalStore(subscribePalVoiceHost, readReady, never);
+  const loadFailed = useSyncExternalStore(subscribePalVoiceHost, readLoadFailed, never);
   useEffect(() => {
     if (!element) return;
     return registerPalVoicePanel(element, { onStateChange, palName, signal, appearance, genome, onMemoryChange });
@@ -39,9 +42,14 @@ function PalVoicePanelSlot({ onStateChange, palName, signal, appearance, genome,
       {ready ? null : (
         <div className="palVoice">
           <div className="palVoiceStatus" role="status">
-            Warming up voice
+            {loadFailed ? "Voice didn't load." : "Warming up voice"}
           </div>
           <div className="palVoiceActions">
+            {loadFailed ? (
+              <button type="button" onClick={retryPalVoiceLoad}>
+                <Mic size={16} aria-hidden="true" /> Try again
+              </button>
+            ) : null}
             <Link className="palVoiceWriteLink" href="/pal/chat">
               <Send size={16} aria-hidden="true" /> Ask in writing
             </Link>

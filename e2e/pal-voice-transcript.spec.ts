@@ -1378,71 +1378,75 @@ test("on another city's map the Pal chip says voice talks about London for now",
   await page.screenshot({ path: `${SHOTS}/step9-390-outside-london.png` });
 });
 
-for (const interruption of ["background", "leave map"] as const) {
-  test(`a cold map voice tap cancelled by ${interruption} needs a new tap`, async ({ page }) => {
-    await releaseDeferredShell(page);
-    const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
-    await page.goto("/map");
-    await expectMapLoadingFrameReleased(page);
-    const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
-    await expect(chip).toBeVisible();
-    const held: import("@playwright/test").Route[] = [];
-    let block = true;
-    let firstScript!: () => void;
-    const requested = new Promise<void>((resolve) => { firstScript = resolve; });
-    await page.route("**/_next/static/chunks/*.js*", async (route) => {
-      if (!block || held.length > 0) return route.continue();
-      held.push(route);
-      firstScript();
-    });
-    await test.step("Hold the cold voice script request", async () => {
-      await chip.click();
-      await requested;
-    });
-    await page.evaluate((urls) => {
-      const surface = window as unknown as { step9ScriptsLoaded: Promise<unknown> };
-      surface.step9ScriptsLoaded = Promise.all(urls.map((url) => {
-        const script = [...document.scripts].find((entry) => entry.src === url);
-        if (!script) throw new Error(`No script element for ${url}`);
-        return new Promise((resolve) => script.addEventListener("load", resolve, { once: true }));
-      }));
-    }, held.map((route) => route.request().url()));
-    if (interruption === "background") {
-      await page.evaluate(() => {
-        Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
-        document.dispatchEvent(new Event("visibilitychange"));
-      });
-    } else {
-      await page.getByRole("link", { name: "You", exact: true }).first().click();
-      await expect(page).toHaveURL(/\/u\/karan/);
-    }
-    block = false;
-    await Promise.all(held.map((route) => route.continue()));
-    await test.step("Finish the delayed scripts after interruption", async () => {
-      await page.evaluate(() => (window as unknown as { step9ScriptsLoaded: Promise<unknown> }).step9ScriptsLoaded);
-    });
-    if (interruption === "background") {
-      await page.evaluate(() => {
-        delete (document as unknown as { visibilityState?: string }).visibilityState;
-        document.dispatchEvent(new Event("visibilitychange"));
-      });
-    } else {
-      await expect(page).toHaveURL(/\/u\/karan/);
-      await page.getByRole("link", { name: "Explore", exact: true }).first().click();
+test.describe("a cold map voice tap held on the network", () => {
+  // The offline worker answers script requests itself, past page.route.
+  test.use({ serviceWorkers: "block" });
+  for (const interruption of ["background", "leave map"] as const) {
+    test(`a cold map voice tap cancelled by ${interruption} needs a new tap`, async ({ page }) => {
+      await releaseDeferredShell(page);
+      const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
+      await page.goto("/map");
       await expectMapLoadingFrameReleased(page);
-    }
-    await expect(chip).toBeVisible();
-    await expect(page.locator(".palVoiceBar")).toHaveCount(0);
-    await page.screenshot({ path: `${SHOTS}/step9-cancel-${interruption.replace(" ", "-")}.png` });
-    await test.step("Start voice with a new deliberate tap", async () => {
-      await chip.click();
-      await opened;
-      await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+      const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+      await expect(chip).toBeVisible();
+      const held: import("@playwright/test").Route[] = [];
+      let block = true;
+      let firstScript!: () => void;
+      const requested = new Promise<void>((resolve) => { firstScript = resolve; });
+      await page.route("**/_next/static/chunks/*.js*", async (route) => {
+        if (!block || held.length > 0) return route.continue();
+        held.push(route);
+        firstScript();
+      });
+      await test.step("Hold the cold voice script request", async () => {
+        await chip.click();
+        await requested;
+      });
+      await page.evaluate((urls) => {
+        const surface = window as unknown as { step9ScriptsLoaded: Promise<unknown> };
+        surface.step9ScriptsLoaded = Promise.all(urls.map((url) => {
+          const script = [...document.scripts].find((entry) => entry.src === url);
+          if (!script) throw new Error(`No script element for ${url}`);
+          return new Promise((resolve) => script.addEventListener("load", resolve, { once: true }));
+        }));
+      }, held.map((route) => route.request().url()));
+      if (interruption === "background") {
+        await page.evaluate(() => {
+          Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+          document.dispatchEvent(new Event("visibilitychange"));
+        });
+      } else {
+        await page.getByRole("link", { name: "You", exact: true }).first().click();
+        await expect(page).toHaveURL(/\/u\/karan/);
+      }
+      block = false;
+      await Promise.all(held.map((route) => route.continue()));
+      await test.step("Finish the delayed scripts after interruption", async () => {
+        await page.evaluate(() => (window as unknown as { step9ScriptsLoaded: Promise<unknown> }).step9ScriptsLoaded);
+      });
+      if (interruption === "background") {
+        await page.evaluate(() => {
+          delete (document as unknown as { visibilityState?: string }).visibilityState;
+          document.dispatchEvent(new Event("visibilitychange"));
+        });
+      } else {
+        await expect(page).toHaveURL(/\/u\/karan/);
+        await page.getByRole("link", { name: "Explore", exact: true }).first().click();
+        await expectMapLoadingFrameReleased(page);
+      }
+      await expect(chip).toBeVisible();
+      await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+      await page.screenshot({ path: `${SHOTS}/step9-cancel-${interruption.replace(" ", "-")}.png` });
+      await test.step("Start voice with a new deliberate tap", async () => {
+        await chip.click();
+        await opened;
+        await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+      });
+      await page.getByRole("button", { name: "End", exact: true }).click();
+      await expect(chip).toBeVisible();
     });
-    await page.getByRole("button", { name: "End", exact: true }).click();
-    await expect(chip).toBeVisible();
-  });
-}
+  }
+});
 
 test("a failed map age check hides a cached Pal chip and requests no microphone", async ({ page }) => {
   await releaseDeferredShell(page);
@@ -1461,4 +1465,62 @@ test("a failed map age check hides a cached Pal chip and requests no microphone"
   await expect(page.locator(".palVoiceBar")).toHaveCount(0);
   expect(starts).toBe(0);
   await page.screenshot({ path: `${SHOTS}/step9-age-check-unavailable.png` });
+});
+
+test.describe("a map voice tap on a failing network", () => {
+  // The offline worker answers script requests itself, past page.route.
+  test.use({ serviceWorkers: "block" });
+  test("a map voice tap says it is warming up, survives a failed voice download and takes a new tap", async ({ page }) => {
+    await releaseDeferredShell(page);
+    const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
+    await page.goto("/map");
+    await expectMapLoadingFrameReleased(page);
+    const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+    await expect(chip).toBeVisible();
+    let network: "hold" | "fail" | "open" = "hold";
+    const held: import("@playwright/test").Route[] = [];
+    // Only the voice call's own script is held or lost. The map's scripts load as normal.
+    await page.route("**/_next/static/chunks/*.js*", async (route) => {
+      if (network === "open") return route.continue();
+      const response = await route.fetch();
+      const body = await response.text();
+      if (!body.includes("Can't reach your microphone")) return route.fulfill({ response, body });
+      if (network === "hold") held.push(route);
+      else await route.abort("internetdisconnected");
+    });
+    await chip.click();
+    await expect(chip).toContainText("Warming up voice");
+    await expect(chip).toHaveAttribute("aria-busy", "true");
+    await page.screenshot({ path: `${SHOTS}/step9-voice-warming.png` });
+    network = "fail";
+    await Promise.all(held.map((route) => route.abort("internetdisconnected")));
+    await expect(chip).toContainText("Voice didn't load. Tap again.");
+    await expect(page.getByRole("button", { name: "Plan an outing" })).toBeVisible();
+    await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/step9-voice-load-failed.png` });
+    network = "open";
+    await chip.click();
+    await opened;
+    await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(chip).toBeVisible();
+  });
+
+  test("the Pal page says when voice did not load and loads it again on Try again", async ({ page }) => {
+    await preparePalAccount(page, false, undefined, false, false, true);
+    let failing = true;
+    await page.route("**/_next/static/chunks/*.js*", async (route) => {
+      if (!failing) return route.continue();
+      const response = await route.fetch();
+      const body = await response.text();
+      if (body.includes("Can't reach your microphone")) return route.abort("internetdisconnected");
+      return route.fulfill({ response, body });
+    });
+    await page.goto("/pal");
+    await expect(page.locator(".palVoiceStatus")).toHaveText("Voice didn't load.", { timeout: 20_000 });
+    await page.screenshot({ path: `${SHOTS}/step9-pal-voice-load-failed.png` });
+    failing = false;
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeVisible();
+  });
 });
