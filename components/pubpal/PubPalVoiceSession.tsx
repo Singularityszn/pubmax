@@ -58,13 +58,13 @@ import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
   palVoiceAsks,
   palVoiceEndedHint,
-  palVoiceMinutesLeft,
+  palVoiceEndedWithUsage,
   palVoicePanelStatus,
   palVoiceFaceState,
+  palVoiceWrapUpUpdate,
   PAL_VOICE_RESUME_GREETING,
   PAL_VOICE_RESUME_UPDATE_LEAD,
   PAL_VOICE_WRAP_UP_SECONDS,
-  PAL_VOICE_WRAP_UP_UPDATE,
   type PalVoiceEnded,
   type PalVoiceEndedWhy,
 } from "@/lib/palVoiceCall";
@@ -380,8 +380,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const markEnded = useCallback((attempt: VoiceSessionAttempt, why: PalVoiceEndedWhy): void => {
     if (attempt.connectedAt === null) return;
     attempt.ended = why;
-    const used = attempt.usedMinutes;
-    setEnded({ why, minutesLeft: used === null ? null : palVoiceMinutesLeft(used) });
+    setEnded(palVoiceEndedWithUsage({ why, minutesLeft: null }, attempt.usedMinutes));
   }, [setEnded]);
 
   const clearStartupTimer = useCallback((attempt: VoiceSessionAttempt): void => {
@@ -546,6 +545,10 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             errorMessageFrom(body, "Voice isn't available. Type instead."),
           );
         }
+        attempt.usedMinutes = body.usedMinutes ?? null;
+        if (activeAttemptRef.current === attempt && !disposedRef.current) {
+          setEnded((current) => palVoiceEndedWithUsage(current, attempt.usedMinutes));
+        }
         return { ...body, signedUrl: body.signedUrl };
       },
       connect: async (grant) => {
@@ -563,7 +566,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         const overrides = grant.overrides;
         setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
-        attempt.usedMinutes = grant.usedMinutes ?? null;
         attempt.sdkSessionStarted = true;
         startSession({
           signedUrl: grant.signedUrl,
@@ -678,6 +680,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             if (attempt.connectedAt === null) trackEvent("voice_started");
             if (attempt.connectedAt === null && resumeContext) sendContextualUpdate?.(resumeContext);
             attempt.connectedAt = Date.now();
+            const endsAt = attempt.connectedAt + maxSessionSeconds * 1000;
             clearCapTimer(attempt);
             attempt.capTimer = window.setTimeout(() => {
               markEnded(attempt, "cap");
@@ -685,8 +688,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             }, maxSessionSeconds * 1000);
             attempt.wrapTimer = window.setTimeout(() => {
               if (!ownsAttempt(attempt)) return;
-              sendContextualUpdate?.(PAL_VOICE_WRAP_UP_UPDATE);
-              setCallEndsAt(Date.now() + Math.min(PAL_VOICE_WRAP_UP_SECONDS, maxSessionSeconds) * 1000);
+              sendContextualUpdate?.(palVoiceWrapUpUpdate(endsAt, Date.now()));
+              setCallEndsAt(endsAt);
             }, Math.max(0, maxSessionSeconds - PAL_VOICE_WRAP_UP_SECONDS) * 1000);
           },
           onDisconnect: (details?: unknown) => {

@@ -10,8 +10,13 @@ import type { PalAnimationState } from "@/lib/pubPal";
 /** The last stretch of a call: the agent is told to wrap up and the screen counts down. */
 export const PAL_VOICE_WRAP_UP_SECONDS = 30;
 
-export const PAL_VOICE_WRAP_UP_UPDATE =
-  `About ${PAL_VOICE_WRAP_UP_SECONDS} seconds are left in this call. Finish the answer in one short sentence.`;
+export function palVoiceSecondsLeft(endsAt: number, now: number): number {
+  return Math.max(0, Math.ceil((endsAt - now) / 1_000));
+}
+
+export function palVoiceWrapUpUpdate(endsAt: number, now: number): string {
+  return `About ${palVoiceSecondsLeft(endsAt, now)} seconds are left in this call. Finish the answer in one short sentence.`;
+}
 
 /** What the Pal says when the person taps Carry on, in place of its opening greeting. */
 export const PAL_VOICE_RESUME_GREETING = "Right, where were we?";
@@ -31,6 +36,10 @@ export function palVoiceAsks(lines: readonly PalVoiceLine[]): string[] {
 
 export function palVoiceMinutesLeft(usedMinutes: number): number {
   return Math.max(0, PAL_VOICE_MONTHLY_MINUTES - usedMinutes);
+}
+
+export function palVoiceEndedWithUsage(ended: PalVoiceEnded | null, usedMinutes: number | null): PalVoiceEnded | null {
+  return ended ? { ...ended, minutesLeft: usedMinutes === null ? null : palVoiceMinutesLeft(usedMinutes) } : null;
 }
 
 /** Leads the earlier-asks summary a carried-on call sends when it connects (PAL_VOICE_SESSION_SUMMARY_RULE). */

@@ -125,7 +125,7 @@ import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
 import { applyPalMapCommand, groundPalMapResult, readPalMapState } from "@/lib/palMapCommands";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
-import { PAL_VOICE_RESUME_GREETING, PAL_VOICE_WRAP_UP_SECONDS, PAL_VOICE_WRAP_UP_UPDATE } from "@/lib/palVoiceCall";
+import { PAL_VOICE_RESUME_GREETING, PAL_VOICE_WRAP_UP_SECONDS } from "@/lib/palVoiceCall";
 
 // The /pal gate draws a slot and the shell's host draws the call into it.
 function PubPalVoice({ panelVisible = true, ...props }: ComponentProps<typeof PubPalVoiceGate> & { panelVisible?: boolean }) {
@@ -1629,9 +1629,20 @@ describe("Pub Pal voice transcript", () => {
     expect(screen.querySelector('[role="alert"]')?.textContent).toBe("Monthly voice allowance reached");
   });
 
-  it.each(["permission-denied", "permission-cancel", "grant-failure", "grant-cancel", "sdk-error", "sdk-disconnect", "sdk-cancel", "sdk-timeout"])(
-    "preserves the ended call through %s and retries with its asks and cards",
-    async (failure) => {
+  it.each([
+    ["permission-denied", undefined, 21],
+    ["permission-cancel", undefined, 21],
+    ["grant-failure", undefined, 21],
+    ["grant-cancel", 12, 18],
+    ["sdk-error", 12, 18],
+    ["sdk-disconnect", 12, 18],
+    ["sdk-cancel", 12, 18],
+    ["sdk-timeout", 12, 18],
+    ["sdk-error", null, null],
+    ["sdk-error", undefined, null],
+  ] as const)(
+    "preserves the ended call through %s with grant usage %s and retries with its asks and cards",
+    async (failure, usedMinutes, minutesLeft) => {
       vi.useFakeTimers();
       const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
       venuesRead.read.mockReturnValue(new Promise(() => {}));
@@ -1662,7 +1673,7 @@ describe("Pub Pal voice transcript", () => {
       else getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
       if (failure === "grant-failure") requests.authedActionFetch.mockResolvedValueOnce(Response.json({ error: "Try again" }, { status: 503 }));
       else if (failure === "grant-cancel") requests.authedActionFetch.mockReturnValueOnce(grant.promise);
-      else if (failure.startsWith("sdk-")) requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_failedRetry" }));
+      else if (failure.startsWith("sdk-")) requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_failedRetry", usedMinutes }));
       voice.endSession.mockImplementation(() => {
         voice.status = "disconnected";
         const pendingSession = voice.startSession.mock.calls.at(-1)?.[0] as LiveSession | undefined;
@@ -1681,11 +1692,12 @@ describe("Pub Pal voice transcript", () => {
         else if (failure.endsWith("cancel")) container.querySelector<HTMLButtonElement>('button[aria-label="Cancel voice startup"]')?.click();
       });
       await settle();
-      if (failure === "grant-cancel") await act(async () => { grant.resolve(Response.json({ error: "Unavailable" }, { status: 503 })); });
+      if (failure === "grant-cancel") await act(async () => { grant.resolve(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_failedRetry", usedMinutes })); });
       if (failure === "permission-cancel") await act(async () => { permission.resolve({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream); });
       await settle();
       expect(container.textContent).toContain("Time's up for this call");
-      expect(container.textContent).toContain("At least 21 minutes of voice left this month");
+      if (minutesLeft === null) expect(container.textContent).not.toContain("of voice left this month");
+      else expect(container.textContent).toContain(`At least ${minutesLeft} minutes of voice left this month`);
       expect(transcriptLines().join(" ")).toContain("Cheap pints in Soho");
       expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("The Lamb");
       expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
@@ -1714,9 +1726,37 @@ describe("Pub Pal voice transcript", () => {
     await startLiveSession();
     expect(container.querySelector('[role="timer"]')).toBeNull();
     await act(async () => { vi.advanceTimersByTime((PAL_VOICE_MAX_SESSION_SECONDS - PAL_VOICE_WRAP_UP_SECONDS) * 1000); });
-    expect(voice.sendContextualUpdate).toHaveBeenCalledWith(PAL_VOICE_WRAP_UP_UPDATE);
+    expect(voice.sendContextualUpdate).toHaveBeenCalledWith("About 30 seconds are left in this call. Finish the answer in one short sentence.");
     expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:30");
     await act(async () => { vi.advanceTimersByTime(10_000); });
+    expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:20");
+  });
+
+  it.each(["/pal", "/map"])("keeps a delayed warning and countdown tied to the cap on %s", async (surface) => {
+    vi.useFakeTimers();
+    await startLiveSession();
+    navigation.pathname = surface;
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley", panelVisible: surface === "/pal" })); });
+    await settle();
+    const clock = Date.now.bind(Date);
+    const delayedClock = vi.spyOn(Date, "now").mockImplementation(() => clock() + 10_000);
+    try {
+      await act(async () => { vi.advanceTimersByTime(150_000); });
+      expect(voice.sendContextualUpdate).toHaveBeenCalledWith("About 20 seconds are left in this call. Finish the answer in one short sentence.");
+      const screen = surface === "/map" ? document.body : container;
+      expect(screen.querySelector('[role="timer"]')?.textContent).toBe("0:20");
+      await act(async () => { vi.advanceTimersByTime(10_000); });
+      expect(screen.querySelector('[role="timer"]')?.textContent).toBe("0:10");
+    } finally {
+      delayedClock.mockRestore();
+    }
+  });
+
+  it("warns with the actual time left when the granted call is shorter than thirty seconds", async () => {
+    vi.useFakeTimers();
+    await startLiveSession({ maxSessionSeconds: 20 });
+    await act(async () => { vi.advanceTimersByTime(0); });
+    expect(voice.sendContextualUpdate).toHaveBeenCalledWith("About 20 seconds are left in this call. Finish the answer in one short sentence.");
     expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:20");
   });
 
