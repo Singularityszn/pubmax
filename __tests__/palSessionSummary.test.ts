@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PAL_SESSION_RECENT_TURNS,
   PAL_SESSION_SUMMARY_BYTE_LIMIT,
+  palSessionAsksSummaryTurn,
   palSessionSummaryTurn,
   windowPalSessionTurns,
 } from "@/lib/palSessionSummary";
@@ -105,5 +106,17 @@ describe("Pal rolling session summary", () => {
     const long = "cask ".repeat(2_000);
     const turns = [ask(long), ...Array.from({ length: PAL_SESSION_RECENT_TURNS }, (_, index) => ask(`recent ${index}`))];
     expectWithinByteCap(palSessionSummaryTurn(windowPalSessionTurns("", turns).summary)[0]);
+  });
+
+  it("summarises a whole ended call's asks for the next call, dropping the oldest first", () => {
+    expect(palSessionAsksSummaryTurn([])).toEqual([]);
+    expect(palSessionAsksSummaryTurn(["Cheap pints in Soho", "Somewhere with a garden"])).toEqual([
+      "My earlier asks, not facts about any pub: Cheap pints in Soho; Somewhere with a garden",
+    ]);
+    const asks = Array.from({ length: 40 }, (_, index) => `ask number ${index} about a quiet pub`);
+    const [turn] = palSessionAsksSummaryTurn(asks);
+    expectWithinByteCap(turn);
+    expect(turn).toContain("ask number 39");
+    expect(turn).not.toContain("ask number 0 ");
   });
 });

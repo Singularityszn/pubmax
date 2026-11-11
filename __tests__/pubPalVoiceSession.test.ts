@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createPubPalVoiceStartController, palVoiceLineDropped } from "@/lib/pubPalVoiceSession";
+import { createPubPalVoiceStartController, palVoiceLineDropped, palVoiceProviderEnd } from "@/lib/pubPalVoiceSession";
 
 describe("a voice line that drops", () => {
   it.each([
@@ -12,6 +12,18 @@ describe("a voice line that drops", () => {
     ["no details at all", undefined, false],
   ])("reads %s", (_label, details, dropped) => {
     expect(palVoiceLineDropped(details)).toBe(dropped);
+  });
+});
+
+describe("a call the provider ended", () => {
+  it.each([
+    ["the provider's own session cap", { reason: "error", message: "max", context: { type: "max_duration_exceeded" } }, "cap"],
+    ["the agent hanging up after a quiet spell", { reason: "agent", closeCode: 1000 }, "pal"],
+    ["a dropped line", { reason: "error", closeCode: 1006, message: "" }, null],
+    ["the person ending the call", { reason: "user" }, null],
+    ["no details at all", undefined, null],
+  ])("reads %s", (_label, details, end) => {
+    expect(palVoiceProviderEnd(details)).toBe(end);
   });
 });
 

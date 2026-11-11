@@ -16,6 +16,8 @@ const voiceState = vi.hoisted(() => ({
   ceilingSpent: false,
   events: [] as string[],
   memories: [] as import("@/lib/pubPal").PubPalMemory[],
+  usedMinutes: null as number | null,
+  usageReads: [] as Record<string, unknown>[],
   palLookupFails: false,
   palPresent: true,
   dateOfBirth: null as string | null,
@@ -71,7 +73,23 @@ vi.mock("@/lib/privateIdentityStore", () => ({
 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => voiceState.configured,
-  requireSupabaseAdmin: () => ({ rpc: voiceState.rpc }),
+  requireSupabaseAdmin: () => ({
+    rpc: voiceState.rpc,
+    from: (table: string) => {
+      const filters: Record<string, unknown> = { table };
+      const query = {
+        select: () => query,
+        eq: (column: string, value: unknown) => { filters[column] = value; return query; },
+        maybeSingle: async () => {
+          voiceState.usageReads.push(filters);
+          return voiceState.usedMinutes === null
+            ? { data: null, error: { message: "usage unavailable" } }
+            : { data: { used_minutes: voiceState.usedMinutes }, error: null };
+        },
+      };
+      return query;
+    },
+  }),
   clientIp: () => "203.0.113.10",
   hashIp: (ip: string) => `hashed:${ip}`,
   // The only durable-limiter key the deployment ceiling uses starts `paid-spend:`,
@@ -139,6 +157,8 @@ describe("Pub Pal voice token route", () => {
     tasteRead.mockReset();
     tasteRead.mockResolvedValue(null);
     voiceState.memories = [];
+    voiceState.usedMinutes = null;
+    voiceState.usageReads = [];
     voiceState.configured = true;
     voiceState.ceilingSpent = false;
     voiceState.events.length = 0;
@@ -733,6 +753,33 @@ describe("Pub Pal voice token route", () => {
       remainingMinutes: PAL_VOICE_MONTHLY_MINUTES - PAL_VOICE_GRANT_MINUTES,
     });
     expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
+  it("tells the browser the month's charge, this grant included, so it can show the minutes left", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    voiceState.usedMinutes = 9;
+    const body = await (await POST(issueRequest())).json();
+    expect(body.usedMinutes).toBe(9);
+    expect(voiceState.usageReads).toEqual([{
+      table: "pub_pal_voice_usage", owner_id: voiceState.userId, usage_month: expect.stringMatching(/^\d{4}-\d{2}-01$/),
+    }]);
+  });
+
+  it("still opens the call when the month's charge cannot be read, and says nothing about minutes", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    const response = await POST(issueRequest());
+    expect(response.status).toBe(200);
+    expect((await response.json()).usedMinutes).toBeNull();
+  });
+
+  it("keyless: tells the browser the in-memory month's charge", async () => {
+    voiceState.configured = false;
+    voiceState.userId = "77777777-7777-4777-8777-777777777777";
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    expect((await (await POST(issueRequest())).json()).usedMinutes).toBe(PAL_VOICE_GRANT_MINUTES);
+    expect((await (await POST(issueRequest())).json()).usedMinutes).toBe(2 * PAL_VOICE_GRANT_MINUTES);
   });
 
   it("refunds a keyless in-memory grant after provider failure", async () => {

@@ -23,7 +23,8 @@ type Probe = {
 
 declare global { interface Window { lifecycleProbe: Probe } }
 
-async function setup(page: Page, native = false, deferMicrophone = false) {
+async function setup(page: Page, native = false, deferMicrophone = false, clock = false) {
+  if (clock) await page.clock.install();
   await page.addInitScript(({ native, deferMicrophone }) => {
     const probe: Probe = window.lifecycleProbe = { microphoneCalls: 0, tracks: [], listeners: {} };
     const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -86,15 +87,17 @@ async function setup(page: Page, native = false, deferMicrophone = false) {
     events.push({ request: body, at: Date.now() });
     if (body?.action === "release") { releases++; return route.fulfill({ status: 204 }); }
     grants++;
-    return route.fulfill({ json: { signedUrl: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=disposable", conversationId: `conv_lifecycle_${grants}`, maxSessionSeconds: 180 } });
+    return route.fulfill({ json: { signedUrl: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=disposable", conversationId: `conv_lifecycle_${grants}`, maxSessionSeconds: 180, usedMinutes: 3 * grants } });
   });
   let socket: WebSocketRoute;
+  const sent: { type?: string; text?: string; conversation_config_override?: { agent?: { first_message?: string } } }[] = [];
   await page.routeWebSocket(/api\.elevenlabs\.io/, ws => {
     socket = ws;
     sockets++;
     ws.onClose(() => { closed++; events.push({ socketClosed: closed, at: Date.now() }); });
     ws.onMessage(message => {
       const event = JSON.parse(String(message));
+      sent.push(event);
       if (event.type !== "conversation_initiation_client_data") return;
       const complete = () => ws.send(JSON.stringify({ type: "conversation_initiation_metadata", conversation_initiation_metadata_event: {
         conversation_id: `conv_lifecycle_${grants}`, agent_output_audio_format: "pcm_16000", user_input_audio_format: "pcm_16000",
@@ -109,6 +112,8 @@ async function setup(page: Page, native = false, deferMicrophone = false) {
     start: async () => { await page.getByRole("button", { name: "Start voice chat", exact: true }).click(); },
     connected: async () => { await expect(page.getByRole("status").filter({ hasText: /Pal is (listening|talking)/ })).toBeVisible(); },
     say: (text: string) => socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: 1 } })),
+    hear: (text: string) => socket.send(JSON.stringify({ type: "user_transcript", user_transcription_event: { user_transcript: text, event_id: 2 } })),
+    sent: () => sent,
     grants: () => grants, releases: () => releases, closed: () => closed, sockets: () => sockets,
     hold: () => { holdMetadata = true; },
     pending: () => Boolean(pendingMetadata),
@@ -126,7 +131,7 @@ async function stopped(page: Page) {
 }
 
 for (const width of [390, 768, 1440]) {
-  test(`${width}px: background ends a connected call, preserves transcript and Carry on starts a fresh call`, async ({ page, context }) => {
+  test(`${width}px: background ends a connected call, preserves transcript and Carry on resumes it`, async ({ page, context }) => {
     await page.setViewportSize({ width, height: 950 });
     await context.grantPermissions(["microphone"]);
     const app = await setup(page, true);
@@ -134,6 +139,8 @@ for (const width of [390, 768, 1440]) {
     await app.start(); await app.connected();
     app.say("Evening. Where are we drinking?");
     await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
+    app.hear("Cheap pints in Soho");
+    await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
     await page.screenshot({ path: `${evidence}/connected-${width}.png`, fullPage: true });
     await nativeEvent(page, "pause");
     await nativeEvent(page, "pause");
@@ -145,14 +152,45 @@ for (const width of [390, 768, 1440]) {
     expect(app.grants()).toBe(1);
     await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
     await page.screenshot({ path: `${evidence}/carry-on-${width}.png`, fullPage: true });
+    await expect(page.getByText("minutes of voice left this month")).toBeVisible();
     await page.getByRole("button", { name: "Carry on", exact: true }).click();
     await app.connected();
     expect(app.grants()).toBe(2);
     await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
+    const starts = app.sent().filter(event => event.type === "conversation_initiation_client_data");
+    expect(starts.at(-1)?.conversation_config_override?.agent?.first_message).toBe("Right, where were we?");
+    await expect.poll(() => app.sent().filter(event => event.type === "contextual_update").map(event => event.text).join(" "))
+      .toContain("Cheap pints in Soho");
     await page.getByRole("button", { name: "End", exact: true }).click();
     await stopped(page);
     await expect.poll(app.releases).toBe(2);
     await app.save(`background-${width}`);
+  });
+}
+
+// The page clock jumps to the call's last stretch. The socket and audio stay real.
+for (const width of [390, 1440]) {
+  test(`${width}px: the Pal is told to wrap up, the last seconds count down, and the cap keeps the call on screen`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 950 });
+    await context.grantPermissions(["microphone"]);
+    const app = await setup(page, false, false, true);
+    await app.start(); await app.connected();
+    app.hear("Cheap pints in Soho");
+    await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
+    await expect(page.getByRole("timer")).toBeHidden();
+    await page.clock.fastForward(150_000);
+    await expect(page.getByRole("timer")).toBeVisible();
+    await expect.poll(() => app.sent().filter(event => event.type === "contextual_update").map(event => event.text))
+      .toContain("About 30 seconds are left in this call. Finish the answer in one short sentence.");
+    await page.screenshot({ path: `${evidence}/countdown-${width}.png`, fullPage: true });
+    await page.clock.fastForward(30_000);
+    await expect(page.getByRole("button", { name: "Carry on", exact: true })).toBeVisible();
+    await expect(page.getByRole("timer")).toBeHidden();
+    await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
+    await expect(page.getByText("27 minutes of voice left this month")).toBeVisible();
+    await page.screenshot({ path: `${evidence}/cap-ended-${width}.png`, fullPage: true });
+    await stopped(page);
+    await expect.poll(app.releases).toBe(1);
   });
 }
 

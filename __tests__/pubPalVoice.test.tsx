@@ -11,6 +11,7 @@ const voice = vi.hoisted(() => ({
   startSession: vi.fn(),
   endSession: vi.fn(),
   sendUserMessage: vi.fn(),
+  sendContextualUpdate: vi.fn(),
 }));
 
 const requests = vi.hoisted(() => ({
@@ -56,6 +57,7 @@ vi.mock("@elevenlabs/react", () => ({
     startSession: voice.startSession,
     endSession: voice.endSession,
     sendUserMessage: voice.sendUserMessage,
+    sendContextualUpdate: voice.sendContextualUpdate,
   }),
   useConversationMode: () => ({
     isListening: voice.isListening,
@@ -123,6 +125,7 @@ import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
 import { applyPalMapCommand, groundPalMapResult, readPalMapState } from "@/lib/palMapCommands";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
+import { PAL_VOICE_RESUME_GREETING, PAL_VOICE_WRAP_UP_SECONDS, PAL_VOICE_WRAP_UP_UPDATE } from "@/lib/palVoiceCall";
 
 // The /pal gate draws a slot and the shell's host draws the call into it.
 function PubPalVoice({ panelVisible = true, ...props }: ComponentProps<typeof PubPalVoiceGate> & { panelVisible?: boolean }) {
@@ -189,6 +192,7 @@ beforeEach(() => {
   voice.startSession.mockReset();
   voice.endSession.mockReset();
   voice.sendUserMessage.mockReset();
+  voice.sendContextualUpdate.mockReset();
   requests.authedActionFetch.mockReset();
   analytics.trackEvent.mockReset();
   venuesRead.read.mockReset().mockResolvedValue([
@@ -1515,11 +1519,12 @@ type LiveSession = {
   onDebug?: (event: unknown) => void;
 };
 
-async function startLiveSession(): Promise<LiveSession> {
+async function startLiveSession(grant: Record<string, unknown> = {}): Promise<LiveSession> {
   getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
   requests.authedActionFetch.mockResolvedValueOnce(Response.json({
     signedUrl: "wss://voice.example/session",
     conversationId: "conv_voiceSession1",
+    ...grant,
   }));
   await act(async () => {
     root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
@@ -1550,20 +1555,89 @@ function transcriptLines(): string[] {
 }
 
 describe("Pub Pal voice transcript", () => {
-  it.each(["stop", "disconnect", "error", "cap"])("forgets map picks after %s while the panel stays mounted", async (ending) => {
-    if (ending === "cap") vi.useFakeTimers();
+  it.each(["stop", "disconnect", "error"])("forgets map picks after %s while the panel stays mounted", async (ending) => {
     const session = await startLiveSession();
     groundPalMapResult(["venue-lamb"]);
     applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
     await act(async () => {
       if (ending === "disconnect") session.onDisconnect?.();
       else if (ending === "error") session.onError?.("Socket failed");
-      else if (ending === "cap") {
-        vi.advanceTimersByTime(PAL_VOICE_MAX_SESSION_SECONDS * 1000);
-      } else container.querySelector<HTMLButtonElement>(".palVoiceActions button")?.click();
+      else container.querySelector<HTMLButtonElement>(".palVoiceActions button")?.click();
     });
     expect(readPalMapState().picks).toEqual([]);
     expect(applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] })).toBe(false);
+  });
+
+  async function endLiveCall(session: LiveSession, ending: "cap" | "pal"): Promise<void> {
+    await act(async () => {
+      if (ending === "cap") vi.advanceTimersByTime(PAL_VOICE_MAX_SESSION_SECONDS * 1000);
+      else {
+        vi.advanceTimersByTime(61_000);
+        session.onDisconnect?.({ reason: "agent", closeCode: 1000 });
+      }
+    });
+    voice.status = "disconnected";
+    voice.isListening = false;
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley" })); });
+    await settle();
+  }
+
+  // Settling a 3-minute grant charges ceil(seconds / 60): the cap is 3 minutes
+  // and a 61-second call is 2, so 9 used leaves 21 and 22 of the 30.
+  it.each([["the cap", "cap", 21], ["the Pal hanging up", "pal", 22]] as const)(
+    "keeps the picks and transcript after %s and offers Carry on with the minutes left",
+    async (_label, ending, minutesLeft) => {
+      vi.useFakeTimers();
+      const session = await startLiveSession({ usedMinutes: 9 });
+      await act(async () => { session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 }); });
+      groundPalMapResult(["venue-lamb"]);
+      applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
+      await endLiveCall(session, ending);
+      expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
+      expect(transcriptLines().join(" ")).toContain("Cheap pints in Soho");
+      expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("Carry on"))).toBe(true);
+      expect(container.textContent).toContain(`${minutesLeft} minutes`);
+    },
+  );
+
+  it("tells the Pal to wrap up before the cap and counts the last seconds down", async () => {
+    vi.useFakeTimers();
+    await startLiveSession();
+    expect(container.querySelector('[role="timer"]')).toBeNull();
+    await act(async () => { vi.advanceTimersByTime((PAL_VOICE_MAX_SESSION_SECONDS - PAL_VOICE_WRAP_UP_SECONDS) * 1000); });
+    expect(voice.sendContextualUpdate).toHaveBeenCalledWith(PAL_VOICE_WRAP_UP_UPDATE);
+    expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:30");
+    await act(async () => { vi.advanceTimersByTime(10_000); });
+    expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:20");
+  });
+
+  it("carries on with a short greeting and the earlier asks, keeping the picks", async () => {
+    vi.useFakeTimers();
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 });
+      session.onMessage?.({ role: "agent", message: "The Lamb has one at five twenty." });
+    });
+    groundPalMapResult(["venue-lamb"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
+    await endLiveCall(session, "cap");
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/again", conversationId: "conv_voiceSession2",
+      overrides: { firstMessage: "Hi, I'm Ripley. What kind of night are you planning?", voiceId: null },
+    }));
+    const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+    await act(async () => { carryOn?.click(); });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    await settle();
+    const resumed = defined(voice.startSession.mock.calls[1])[0] as LiveSession & { overrides?: { agent?: { firstMessage?: string } } };
+    expect(resumed.overrides?.agent?.firstMessage).toBe(PAL_VOICE_RESUME_GREETING);
+    voice.status = "connected";
+    await act(async () => { resumed.onConnect?.(); });
+    const updates = voice.sendContextualUpdate.mock.calls.map(([text]) => String(text));
+    expect(updates.some((text) => text.includes("Cheap pints in Soho"))).toBe(true);
+    expect(updates.some((text) => text.includes("five twenty"))).toBe(false);
+    expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
   });
 
   it.each(["search_venues", "cheapest_pint_near"])("retains choices until a completed %s replaces them and rejects stale responses", async (replacementTool) => {
