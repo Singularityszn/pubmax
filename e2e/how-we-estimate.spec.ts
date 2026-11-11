@@ -70,7 +70,7 @@ test.describe("/how-we-estimate", () => {
     // page guessing.
     const body = (await section.innerText()).trim();
     const readBasis = /Basis last computed/.test(body);
-    const unreadBasis = /We could not load the estimate data/.test(body);
+    const unreadBasis = /We could not load the baseline table/.test(body);
     expect(
       readBasis !== unreadBasis,
       `the basis section said neither that it was read nor that it could not be: ${body}`,
@@ -78,8 +78,8 @@ test.describe("/how-we-estimate", () => {
     if (readBasis) {
       // A modelled count is a claim about the shipped baselines table, so the
       // page says what it holds rather than that estimates exist.
-      expect(body).toMatch(/(chain is|chains are|No chain is) modelled/);
-      expect(body).toMatch(/(area is|areas are|No area is) modelled/);
+      expect(body).toMatch(/(chain is|chains are) modelled|holds no chain-menu basis/);
+      expect(body).toMatch(/(area is|areas are) modelled|holds no area basis/);
     }
   });
 
