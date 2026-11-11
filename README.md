@@ -322,6 +322,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Available Social notifications appear in **Activity** in the desktop sidebar.
 
+  Comments and quote posts stay pending until automated moderation finishes. Flagged text is hidden without a manual-review queue. Approved text follows the post's visibility rules. The [Social interaction contract](docs/WRITE_SURFACE_CERTIFICATION.md#appapisocialinteractions---verified-social-interactions-and-governance-route-80) describes feature-request status and staff history.
+
   For open crawls, a new join request notifies the host, and an acceptance notifies the guest. Each notice links to the crawl page. Delivery uses Activity and, when [email is configured](.env.example), the recipient's account email. A decline, cancellation or replay sends no notice.
 
   Delivery is best effort and does not block the join action. Missing email settings do not prevent in-app delivery. These notices do not use push.
