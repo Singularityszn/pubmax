@@ -84,11 +84,11 @@ The interface is the handler. The existing tests already call it the way those c
 
 ## 1742 GET /api/contributors
 
-**Decision:** delete. No component, page, e2e spec, iOS shell, or Android shell fetched the path. The route and `__tests__/contributorLeaderboardRoute.test.ts` were its only users, so both are gone.
+**Decision:** option (a), delete the unused route and its test. Only `__tests__/contributorLeaderboardRoute.test.ts` called the route. No component, page, e2e spec, iOS shell, or Android shell fetched the path.
 
-`app/contributors/page.tsx` is the one adapter left. It calls `enrichContributorBoard(await readContributorLeaderboard())` from `lib/contributorLeaderboardStore.ts` and passes the board to `ContributorRecord`. A keyless read is `status: "degraded"` with `entries: []` by construction, because the store never reads process-memory stores.
+`app/contributors/page.tsx` still reads the board directly from `lib/contributorLeaderboardStore.ts` and passes it to `ContributorRecord`.
 
-To bring a public JSON board back, revert the deletion. The route spent a per-address budget and never held the board at the edge.
+To restore the route and its test, revert this PR. Both files remain in git history. The route applied a per-address budget and never cached the board at the edge.
 
 ## 1709 Convex migration shadow comparison
 
