@@ -295,6 +295,29 @@ describe("table request arrival", () => {
     expect(requests[2].name).toBe("Sam's birthday");
   });
 
+  it.each([
+    ["an unreadable", () => new Response("{", { status: 201 })],
+    ["an unrecognised", () => Response.json({ outcome: "queued" }, { status: 201 })],
+  ])("keeps %s ok answer retryable under the same key", async (_label, answer) => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    tableAuth.handle = "reader";
+    tableFetch
+      .mockResolvedValueOnce(answer())
+      .mockResolvedValueOnce(Response.json({ outcome: "sent" }, { status: 201 }));
+    await act(async () => root.render(createElement(TableRequestDialog, { venue: venue(), onClose: noop })));
+    await input('input[autocomplete="name"]', "Sam");
+    await submit();
+    expect(document.querySelector('[data-table-request-outcome="not_sent"]')).toBeNull();
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    expect(tableTrack).not.toHaveBeenCalled();
+    await submit();
+    expect(document.querySelector('[data-table-request-outcome="sent"]')).not.toBeNull();
+    const keys = tableFetch.mock.calls.map(([, init]) => JSON.parse(String(init.body)).requestKey);
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
   it("counts the keyless fallback as a sheet request, but not invalid input", async () => {
     await act(async () => root.render(createElement(TableRequestDialog, { venue: venue(), onClose: noop })));
     await submit();
