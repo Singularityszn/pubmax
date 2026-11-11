@@ -250,7 +250,7 @@ Voice uses the same opening builder in its first-message override.
    "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
    answers when a reply has settled and no observed tool request remains pending.
    The settle window is 1.2 seconds, or 0.4 seconds after `agent_response_complete`.
-   A later webhook tool event invalidates the earlier reply, except for a duplicate response to a completed observed request.
+   A later tool event invalidates the earlier reply, except for a duplicate response to a completed observed request.
    That exception requires a nonempty call ID and no reopened request for that ID.
    First responses, unknown IDs, missing IDs and reopened requests still require a later reply.
    An `end_call` request or successful response preserves the latest eligible reply.
@@ -357,7 +357,7 @@ Voice uses the same opening builder in its first-message override.
    call tools before any fact, never invent a price, propose then confirm,
    plain speech on get-home topics. A prompt change reaches the live agent only
    when the captain re-runs `npm run pubpal:agent`.
-   [`lib/palVoicePrompt.mjs`](../lib/palVoicePrompt.mjs) owns the voice-only short-answer and map-tool rules.
+   [`lib/palVoicePrompt.mjs`](../lib/palVoicePrompt.mjs) owns the voice-only short-answer, map-tool, silence and goodbye rules.
 5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
    conversation starts only from a signed URL the app issued, after sign-in,
    the voice cap and the spend ceiling. The agent id alone is refused.
