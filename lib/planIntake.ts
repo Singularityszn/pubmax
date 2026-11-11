@@ -836,12 +836,16 @@ export function buildPlanGenerationIntakeBody(
   // An empty description retains the generated count only without a stopCount override.
   // The composer supplies requested intent, including undefined, to clear that fallback.
   const retainedStopCount = cleanQuery ? undefined : currentContext?.stopCount;
+  const intakeContext = planIntakeNightContextPatch(sent);
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
     ...(isPlanStopCount(retainedStopCount) ? { stopCount: retainedStopCount } : {}),
     transportConstraints: inferNightContext(cleanQuery).context.transportConstraints,
     ...explicitContext,
-    ...planIntakeNightContextPatch(sent),
+    ...intakeContext,
+    ...(explicitContext.nightArea === intakeContext.nightArea && explicitContext.areaFocus === null
+      ? { areaFocus: null }
+      : {}),
   };
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),

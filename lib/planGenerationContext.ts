@@ -87,6 +87,9 @@ export function reconcilePlanContext(
   const inferred = inferNightContext(query, now);
   const contextPatch = explicit ?? {};
   const authoritative = intake ? intakePatch(intake) : {};
+  if (contextPatch.nightArea === authoritative.nightArea && contextPatch.areaFocus === null) {
+    delete authoritative.areaFocus;
+  }
   const context: NightContext = { ...inferred.context, ...contextPatch, ...authoritative };
   const fieldSources: ReconciledPlanContext["fieldSources"] = {};
   for (const field of Object.keys(context) as (keyof NightContext)[]) {

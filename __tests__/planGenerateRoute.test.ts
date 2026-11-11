@@ -33,7 +33,7 @@ import { groupVenuePrices } from "@/lib/venues";
 import dataset from "@/public/data/pint_prices_app_dataset.json";
 import type { LngLat } from "@/lib/walkRoute";
 import { buildPlanGenerationIntakeBody, createPlanIntakeDraft, planIntakeNightContextPatch, skipRemainingPlanIntake } from "@/lib/planIntake";
-import { mergeSubmittedNightContext, nightAreaFromPlanQuery, reconcileGeneratedNightContext } from "@/lib/planComposerChipFill";
+import { mergeSubmittedNightContext, nightAreaFromPlanQuery, reconcileGeneratedNightContext, syncPlanIntakeAreaFromQuery } from "@/lib/planComposerChipFill";
 import { memoryPlanStore } from "@/lib/planStore";
 
 // POST /api/plans/generate: drink rates, pint ceilings, structured limits and
@@ -73,6 +73,7 @@ describe("POST /api/plans/generate", () => {
     { query: "Cheap pints in Soho for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
     { query: "Cheap pints in Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "piccadilly" } },
     { intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { context: { nightArea: "camden", areaFocus: null }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
   ])("keeps a Soho request's stops, alternatives and extra stops in Soho: %j", async (input) => {
     const { soho, hercules, threeCrowns } = await westEndVenues();
     loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
@@ -98,6 +99,7 @@ describe("POST /api/plans/generate", () => {
     { query: "Cheap pints in Piccadilly & Soho for 3" },
     { query: "Cheap pints in Piccadilly and Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "soho" } },
     { context: { nightArea: "piccadilly-soho", groupSize: 3 } },
+    { context: { nightArea: "piccadilly-soho", areaFocus: null }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
   ])("keeps Three Crowns for Piccadilly and whole-area requests: %j", async (input) => {
     const { soho, threeCrowns } = await westEndVenues();
     loadConciergeVenuesMock.mockResolvedValueOnce([...soho.slice(0, 2), threeCrowns]);
@@ -116,30 +118,38 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
-    { query: "", focus: "soho" },
-    { query: "Cheap pints in Soho for 3", focus: "soho" },
-    { query: "Cheap pints in Piccadilly for 3", focus: "piccadilly" },
-  ])("keeps the wizard Plan focus through lock and regeneration for $query", async ({ query, focus }) => {
+    { query: "", focus: "soho", wholeArea: false },
+    { query: "Cheap pints in Soho for 3", focus: "soho", wholeArea: false },
+    { query: "Cheap pints in Piccadilly for 3", focus: "piccadilly", wholeArea: false },
+    { query: "", focus: undefined, wholeArea: true },
+    { query: "Cheap pints for 3", focus: undefined, wholeArea: true },
+    { query: "Cheap pints in Soho for 3", focus: "soho", wholeArea: true },
+    { query: "Cheap pints in Piccadilly for 3", focus: "piccadilly", wholeArea: true },
+    { query: "Cheap pints in Piccadilly and Soho for 3", focus: undefined, wholeArea: true },
+  ])("keeps the selected Plan geography through lock and regeneration for $query (whole area: $wholeArea)", async ({ query, focus, wholeArea }) => {
     const { planSummaryGenerationBody } = await import("@/components/plan/PlanSummary");
     const { composerCreatePayload } = await import("@/components/plan/PlanComposer");
     const { slidingDoorsGenerationBody } = await import("@/lib/slidingDoorsClient");
     const { soho, hercules, threeCrowns } = await westEndVenues();
     const allowed = focus === "soho" ? soho : [...soho.slice(0, 2), threeCrowns];
-    const candidates = [...allowed, hercules, ...(focus === "soho" ? [threeCrowns] : [])];
-    const draft = skipRemainingPlanIntake(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    const candidates = focus === undefined ? allowed : [...allowed, hercules, ...(focus === "soho" ? [threeCrowns] : [])];
+    const draft = skipRemainingPlanIntake(wholeArea
+      ? syncPlanIntakeAreaFromQuery(createPlanIntakeDraft({ kind: "patch", id: "camden" }), "Piccadilly & Soho")
+      : createPlanIntakeDraft({ kind: "patch", id: "soho" }));
     const submitted = mergeSubmittedNightContext(
-      { nightArea: "piccadilly-soho", areaFocus: null },
+      wholeArea ? { nightArea: "piccadilly-soho", areaFocus: null } : {},
       planIntakeNightContextPatch(draft),
       nightAreaFromPlanQuery(query),
     );
+    expect(submitted.areaFocus).toBe(wholeArea ? null : "soho");
     const input = buildPlanGenerationIntakeBody(draft, query, null, submitted);
-    expect(input.context).toMatchObject({ nightArea: "piccadilly-soho", areaFocus: "soho" });
+    expect(input.context).toMatchObject({ nightArea: "piccadilly-soho", areaFocus: wholeArea ? null : "soho" });
     loadConciergeVenuesMock.mockResolvedValueOnce(candidates);
     const generated = await generate(input);
     expect(generated.status, JSON.stringify(generated.body)).toBe(200);
     expect(generated.body.inferredContext.areaFocus).toBe(focus);
     for (const id of offeredVenueIds(generated.body)) expect(allowed.map(({ id }) => id)).toContain(id);
-    if (focus === "piccadilly") expect(generated.body.stops.map((stop: { venueId: string }) => stop.venueId)).toContain(threeCrowns.id);
+    if (focus !== "soho") expect(generated.body.stops.map((stop: { venueId: string }) => stop.venueId)).toContain(threeCrowns.id);
     const context = reconcileGeneratedNightContext(generated.body.inferredContext, submitted, generated.body.stops.length);
     const created = await memoryPlanStore.create(composerCreatePayload({
       title: "West End night",
