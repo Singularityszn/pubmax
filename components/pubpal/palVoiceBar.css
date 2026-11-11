@@ -70,6 +70,27 @@ body:has(.palVoiceBar) .palSummon {
     bottom: 22px;
   }
 }
+/* While a call is on screen, a map sheet at full height stops below the bar's
+   band, and an open sheet carries the bar on its top edge, so the caption and
+   End stay in reach. The sheets publish --map-sheet-clearance-h. Registered so
+   the tablet drawer reads the band in px. */
+@property --sheet-top-reserve {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+@media (max-width: 768px) {
+  body:has(.palVoiceBar) {
+    --sheet-top-reserve: calc(var(--mobile-map-top, var(--topbar-inset)) + var(--pal-voice-bar-h, 60px) + 8px);
+  }
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"]), .mapDrawer.springDrawer.open[data-spring-axis="vertical"]) .palVoiceBar {
+    bottom: min(
+      calc(var(--map-sheet-clearance-h, 0px) + 8px),
+      calc(100dvh - var(--mobile-map-top, var(--topbar-inset)) - var(--pal-voice-bar-h, 60px))
+    );
+    z-index: var(--z-context-prompt);
+  }
+}
 /* The map pick the Pal is naming, above the call row. */
 .palVoiceBar:has(.palVoiceBarPick) {
   flex-wrap: wrap;

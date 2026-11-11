@@ -1046,6 +1046,8 @@ html:has(.appShell) {
     right: 0;
     bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     z-index: var(--z-overlay-top);
+    /* Full height stops below this band (useSheetHeightDrag reads it). */
+    padding-top: var(--sheet-top-reserve, 0px);
     /* The portal frames the sheet; only the sheet and active dismiss scrim
        capture taps. Otherwise the full-screen box blocks the map above a half
        venue sheet and a second pin tap never reaches the canvas. */

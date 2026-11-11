@@ -868,9 +868,9 @@ test("returning to Pal keeps the transcript and socket, then mute ends the call"
   await expect.poll(() => closed).toBe(true);
 });
 
-for (const pending of ["plan read", "redirect timer"] as const) {
-  test(`manual pub selection cancels a pending ${pending}, preserves voice, and keeps End usable`, async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+for (const [pending, width] of [["plan read", 1440], ["redirect timer", 1440], ["redirect timer", 390], ["redirect timer", 768]] as const) {
+  test(`${width}px: manual pub selection cancels a pending ${pending}, preserves voice, and keeps End usable`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const socket = await openLiveVoice(page);
     let closed = false;
     socket.onClose(() => { closed = true; });
@@ -925,8 +925,30 @@ for (const pending of ["plan read", "redirect timer"] as const) {
     await expect(page.locator(".palVoiceBar")).toContainText("Your manual choice is still open.");
     expect(closed).toBe(false);
     await test.info().attach("manual-navigation", { body: JSON.stringify({ pending, url: page.url(), socketClosed: closed, transcript: await page.locator(".palVoiceBar").innerText() }), contentType: "application/json" });
-    await expect(page.getByRole("dialog", { name: "Pub detail", exact: true })).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/cancel-${pending.replace(" ", "-")}.png` });
+    await expect(page.getByRole("dialog", { name: width === 390 ? answer.cards[0].title : "Pub detail", exact: true })).toBeVisible();
+    if (width < 1440) {
+      const sheet = width === 390 ? ".mobileSharedSheet" : ".mapDrawer.right.open";
+      await expect(async () => {
+        const dock = await page.evaluate(sheet => ({
+          bar: document.querySelector(".palVoiceBar")!.getBoundingClientRect().bottom,
+          sheet: document.querySelector(sheet)!.getBoundingClientRect().top,
+        }), sheet);
+        expect(dock.bar).toBeLessThanOrEqual(dock.sheet);
+      }).toPass();
+    }
+    await page.screenshot({ path: `${SHOTS}/cancel-${pending.replace(" ", "-")}-${width}.png` });
+    if (width === 390) {
+      await page.getByRole("button", { name: "Expand sheet", exact: true }).click();
+      await expect(page.locator('.mobileSharedSheet.sheet-full[data-sheet-motion="idle"]')).toBeVisible();
+      await expect(async () => {
+        const full = await page.evaluate(() => ({
+          bar: document.querySelector(".palVoiceBar")!.getBoundingClientRect(),
+          sheet: document.querySelector(".mobileSharedSheet")!.getBoundingClientRect().top,
+        }));
+        expect(full.bar.top).toBeGreaterThanOrEqual(0);
+        expect(full.bar.bottom).toBeLessThanOrEqual(full.sheet);
+      }).toPass();
+    }
     const end = page.getByRole("button", { name: "End", exact: true });
     const hit = await end.evaluate(button => {
       const box = button.getBoundingClientRect();

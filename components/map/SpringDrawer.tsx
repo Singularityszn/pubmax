@@ -164,12 +164,20 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       if (tabletSheet) {
         stopHorizontal();
         const viewportHeight = window.innerHeight;
-        const snapTarget = sheetTranslateY(snap, viewportHeight);
-        const bottomClearance = drawerRef.current
-          ? Number.parseFloat(
-              window.getComputedStyle(drawerRef.current).bottom,
-            )
+        const drawerStyle = drawerRef.current
+          ? window.getComputedStyle(drawerRef.current)
+          : null;
+        const bottomClearance = drawerStyle
+          ? Number.parseFloat(drawerStyle.bottom)
           : 0;
+        // A live voice bar keeps a band at the top (palVoiceBar.css), and the
+        // sheet's top edge stays below it.
+        const topReserve = drawerStyle
+          ? Number.parseFloat(drawerStyle.getPropertyValue("--sheet-top-reserve")) || 0
+          : 0;
+        const snapTarget = topReserve > 0
+          ? Math.max(sheetTranslateY(snap, viewportHeight), topReserve + bottomClearance)
+          : sheetTranslateY(snap, viewportHeight);
         const closedTarget = sheetClosedTranslateY(
           viewportHeight,
           bottomClearance,
@@ -250,6 +258,20 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       tabletSheet,
       entranceOvershoot,
     ]);
+
+    // Where the tablet sheet's top edge sits above the viewport bottom, for
+    // chrome that docks on it (the live voice bar).
+    const presented = open || verticalRunning || dragOffsetY !== null;
+    useLayoutEffect(() => {
+      const drawer = drawerRef.current;
+      if (!tabletSheet || !presented || !drawer) return;
+      const root = document.documentElement;
+      const top = drawer.getBoundingClientRect().top;
+      root.style.setProperty("--map-sheet-clearance-h", `${Math.ceil(window.innerHeight - top)}px`);
+      return () => {
+        root.style.removeProperty("--map-sheet-clearance-h");
+      };
+    }, [presented, tabletSheet, verticalValue]);
 
     const transform = tabletSheet
       ? `translate3d(0, ${verticalValue}px, 0)`

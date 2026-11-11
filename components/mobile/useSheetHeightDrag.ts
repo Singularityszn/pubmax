@@ -120,9 +120,12 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   const capsForViewport = useCallback(() => {
     const viewport = typeof window === "undefined" ? 0 : window.innerHeight;
     const portal = typeof document === "undefined" ? null : document.querySelector(".mobileSheetPortal");
-    const dock = portal && !readSoftKeyboardOpen() ? Number.parseFloat(getComputedStyle(portal).bottom) || 0 : 0;
+    const portalStyle = portal ? getComputedStyle(portal) : null;
+    const dock = portalStyle && !readSoftKeyboardOpen() ? Number.parseFloat(portalStyle.bottom) || 0 : 0;
+    // The portal's top padding is --sheet-top-reserve, the band a live voice bar keeps.
+    const topReserve = portalStyle ? Number.parseFloat(portalStyle.paddingTop) || 0 : 0;
     const { chromePx, barsPx } = sheetChrome(portal?.querySelector<HTMLElement>(".mobileSharedSheet"));
-    const caps = sheetSnapCaps(viewport, dock, chromePx);
+    const caps = sheetSnapCaps(viewport, dock, chromePx, topReserve);
     return barsPx === null ? caps : { ...caps, peek: barsPx };
   }, []);
 

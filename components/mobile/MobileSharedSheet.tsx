@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 
@@ -254,6 +254,28 @@ export default function MobileSharedSheet({
     }
     return () => observer.disconnect();
   }, [footerEl, kind, recapToViewport]);
+
+  // How far the sheet's top edge sits above the viewport bottom, for chrome
+  // that docks on it (the live voice bar). Layout height, not the rect: the
+  // entrance slide is a transform, and the dock waits where the sheet will rest.
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    const portal = sheet?.closest<HTMLElement>(".mobileSheetPortal");
+    if (!kind || !sheet || !portal || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    const publish = () => {
+      const top = portal.getBoundingClientRect().bottom - sheet.offsetHeight;
+      root.style.setProperty("--map-sheet-clearance-h", `${Math.ceil(window.innerHeight - top)}px`);
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(sheet);
+    observer.observe(portal);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--map-sheet-clearance-h");
+    };
+  }, [kind]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.

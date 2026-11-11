@@ -336,14 +336,16 @@ export type SheetSnapCaps = Record<SheetSnap, number>;
  * own controls. `dockPx` is how far the sheet's bottom edge sits above the
  * viewport bottom (the portal stops above the primary dock), and only full
  * gives it up: its top edge stays where a bottom:0 full sheet would put it, so
- * the strip of map above it never closes.
+ * the strip of map above it never closes. `topReservePx` is a band at the top
+ * of the viewport that full also stays below, so a live voice bar docked on the
+ * sheet's top edge still fits on screen.
  */
-export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0): SheetSnapCaps {
+export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0, topReservePx = 0): SheetSnapCaps {
   const cap = (snap: SheetSnap) => Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx);
   return {
     peek: cap("peek"),
     half: cap("half"),
-    full: Math.max(0, viewportHeight * SHEET_SNAP_FRACTIONS.full - dockPx),
+    full: Math.max(0, Math.min(viewportHeight * SHEET_SNAP_FRACTIONS.full, viewportHeight - topReservePx) - dockPx),
   };
 }
 
