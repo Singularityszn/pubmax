@@ -117,7 +117,7 @@ for (const width of [390, 768, 1440]) {
       await page.addInitScript((value) => localStorage.setItem("pubmax-theme", value), theme);
       await page.goto("/social?tab=discover");
       const coverage = page.locator(".nightAreaCoverage");
-      await expect(coverage.getByText("Plan a crawl", { exact: true }).first()).toBeVisible();
+      await expect(coverage.getByText("Browse pubs", { exact: true }).first()).toBeVisible();
       const result = await new AxeBuilder({ page })
         .include(".nightAreaCoverage")
         .withRules(["color-contrast"])
