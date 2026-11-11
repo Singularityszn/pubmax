@@ -162,6 +162,7 @@ try {
   await command(process.execPath, [
     join(ROOT, "node_modules/@playwright/test/cli.js"),
     "test", "e2e/plan-capability-recovery.spec.ts", "e2e/log-intent-composer.spec.ts",
+    "--grep", "Plan capability recovery|new phone account",
     "--project=chromium", "--workers=1", "--trace=off",
   ], { env });
 } catch (error) {
