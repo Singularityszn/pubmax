@@ -8,14 +8,8 @@
 // person chooses. One validator (lib/tableRequests.ts) answers here and at the
 // route, so the form never claims a request the server would refuse.
 //
-// TWO ENDINGS, AND THE PERSON IS TOLD WHICH ONE RAN:
-//   - Sent: PUBMAXX emailed the pub's verified operator. The pub replies to
-//     the person, not to us, and a reply is not promised.
-//   - Not sent: PUBMAXX sent nothing. The dialog hands the person a prefilled
-//     email to the pub's own published address, or its phone, from the venue
-//     record, and says plainly that PUBMAXX did not send it. A deployment
-//     with no sign-in lands here without asking the server, because the
-//     server can only ever answer the same.
+// Delivery and contact fallback follow the table request rules in
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md.
 //
 // IT NEVER CHARGES ANYTHING and it is never a booking: no fee, no deposit, no
 // card (ADR 0011 keeps a fee per seated group for later). Nothing here changes
