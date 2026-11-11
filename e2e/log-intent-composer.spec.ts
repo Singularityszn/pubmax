@@ -2,13 +2,10 @@ import { randomBytes } from "node:crypto";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { addLinkAwareDestination } from "@/lib/addLink";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
-import { parseArrivalIntent } from "@/lib/arrivalWelcome";
-import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
+import { MAGIC_LINK_SENT_MESSAGE } from "@/lib/passwordlessAuth";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
-import { seedRealPlanHost } from "./helpers/realPlanAuth";
 
 /**
  * GAP 18 (mobile store-readiness audit, 2026-09-04, 390x844).
@@ -113,19 +110,25 @@ test("the log intent lands the reader on the composer's price step", async ({ pa
 const NEW_DRINKER_PRICE = "5.20";
 
 /**
- * Where the emailed link lands, by the login page's own rule. A production
- * build starts every email sign-in on pubmaxxing.com (lib/siteUrl.ts) and its
- * CSP keeps the browser off a local GoTrue, so the link itself cannot run
- * here. The journey resumes where the callback hands over: a brand-new
- * account's real session, on this destination.
+ * The sign-in link local Supabase Auth emailed to this address, read from the
+ * disposable project's mail catcher (Mailpit).
  */
-function emailLinkDestination(loginTab: Page): string {
-  const login = new URL(loginTab.url());
-  return addLinkAwareDestination(
-    parseArrivalIntent(login.searchParams.get("mode")),
-    login.searchParams.get("from"),
-    HANDLE_CLAIM_NEXT,
-  );
+async function emailedSignInLink(page: Page, address: string): Promise<string> {
+  const mail = process.env.PW_DISPOSABLE_MAIL_URL;
+  expect(mail, "the disposable runner names its mail catcher").toBeTruthy();
+  let link = "";
+  await expect(async () => {
+    const search = await page.request.get(`${mail}/api/v1/search`, { params: { query: `to:"${address}"` } });
+    expect(search.ok()).toBe(true);
+    const { messages } = (await search.json()) as { messages: Array<{ ID: string }> };
+    expect(messages, "one email reached the new address").toHaveLength(1);
+    const message = await page.request.get(`${mail}/api/v1/message/${messages[0]!.ID}`);
+    const { HTML, Text } = (await message.json()) as { HTML: string; Text: string };
+    const body = `${Text}\n${HTML}`.replaceAll("&amp;", "&");
+    link = /https?:\/\/[^\s"'<>]+\/auth\/v1\/verify\?[^\s"'<>]+/.exec(body)?.[0] ?? "";
+    expect(link, "the email carries a verify link").not.toBe("");
+  }).toPass({ timeout: 30_000 });
+  return link;
 }
 
 /** Counts each deliberate tap a drinker makes, so the journey reports its length. */
@@ -185,8 +188,8 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
 
   const priceStep = page.getByTestId("spill-price-step");
   await tapUntil(picker, "pick the pub", priceStep);
+  await expect(page, "the picked pub rides in the address").toHaveURL(/[?&]sel=/);
   const venueId = new URL(page.url()).searchParams.get("sel");
-  expect(venueId, "the picked pub rides in the address").toBeTruthy();
 
   const composer = page.getByRole("form", { name: "Pint Drop composer" });
   const venueName = (await composer.locator(".spillComposerIntro strong").textContent())?.trim();
@@ -208,16 +211,15 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   const emailField = emailForm.locator('input[type="email"]');
   await tap(emailField, "email field");
   await emailField.fill(email);
-  await expect(emailForm.locator('button[type="submit"]')).toBeEnabled();
-  taps.push("Email me a link");
+  await tap(emailForm.locator('button[type="submit"]'), "Email me a link");
+  await expect(page.getByText(MAGIC_LINK_SENT_MESSAGE)).toBeVisible();
 
   // A phone mail app opens the link in a fresh tab: same browser storage, no
-  // tab state from the page that asked for it.
+  // tab state from the page that asked for it. The account stays: it owns the
+  // drop this journey proves, and the runner drops the whole database after.
+  const link = await emailedSignInLink(page, email);
   const returned = await page.context().newPage();
-  // The account stays: it owns the drop this journey proves, and the runner
-  // drops the whole disposable database afterwards.
-  await seedRealPlanHost(returned);
-  await returned.goto(emailLinkDestination(page));
+  await returned.goto(link);
   taps.push("open the emailed link");
 
   const onboarding = returned.getByRole("dialog", { name: "Let's get you in", exact: true });
