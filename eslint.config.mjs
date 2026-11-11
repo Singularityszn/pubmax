@@ -1,9 +1,19 @@
+import { existsSync } from "node:fs";
+
 import tsParser from "@typescript-eslint/parser";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
 import { ROUTER_CACHE_FENCE_CONFIG } from "./lib/routerCacheFence.mjs";
+import { namedFiles, STATUS_WRITER_FENCE_CONFIG } from "./lib/statusWriterFence.mjs";
+
+const goneLifecycleFiles = namedFiles().filter((file) => !existsSync(new URL(file, import.meta.url)));
+if (goneLifecycleFiles.length > 0) {
+  throw new Error(
+    `lib/statusWriterFence.mjs names ${goneLifecycleFiles.join(", ")}, which no longer exists. Move the owner to the file that writes it.`,
+  );
+}
 
 const eslintConfig = [
   {
@@ -76,6 +86,8 @@ const eslintConfig = [
   // The client router cache is only safe while no page reads the request's
   // credential and nothing calls router.refresh(). See lib/routerCacheFence.mjs.
   ...ROUTER_CACHE_FENCE_CONFIG,
+  // One writer module per persisted lifecycle. See lib/statusWriterFence.mjs.
+  ...STATUS_WRITER_FENCE_CONFIG,
 ];
 
 export default eslintConfig;

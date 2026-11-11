@@ -15,6 +15,7 @@ import {
 } from "@/lib/priceTier";
 import { MIN_ESTIMATE_SAMPLE } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
+import { MIN_PRICED_VENUES } from "@/lib/zones";
 
 import "../legal.css";
 
@@ -123,7 +124,7 @@ export default function HowWeEstimatePage() {
           that quotes a price as fact.
         </p>
         <p className="legalBody">
-          We model from two bases and try the narrower one first.
+          Our baseline table uses two bases and tries the narrower one first.
         </p>
         <ul className="legalPanelList">
           <li>
@@ -137,24 +138,42 @@ export default function HowWeEstimatePage() {
           </li>
         </ul>
         <p className="legalBody">
-          A basis needs at least {MIN_ESTIMATE_SAMPLE} published prices behind
-          it. With fewer prices, we show no estimate.
+          Each basis in that table needs at least {MIN_ESTIMATE_SAMPLE} published
+          prices. With fewer prices, we do not use that basis.
+        </p>
+        <p className="legalBody">
+          <strong>London pubs.</strong>{" "}A pub without a price in the available
+          records can show a fare-zone estimate. We use each priced pub&rsquo;s
+          cheapest recorded pint from the published London index and take the
+          middle value for the zone. A pub takes the zone of its nearest station.
+          A zone needs at least {MIN_PRICED_VENUES} priced pubs before we use it.
+        </p>
+        <p className="legalBody">
+          A zone estimate replaces a borough baseline when available.
+          A chain-menu estimate takes precedence.
+        </p>
+        <p className="legalBody">
+          A beer&rsquo;s area price page can also show an estimate.
+          It uses each qualifying pub&rsquo;s cheapest listed price for that beer
+          and takes the middle value.
+          It uses all qualifying pubs, including those beyond the displayed list.
+          This estimate stays separate from the ranked prices.
         </p>
       </section>
 
       <section className="legalSection" aria-labelledby="today">
-        <h2 id="today" className="legalH2">What we are modelling from today</h2>
+        <h2 id="today" className="legalH2">What the baseline table holds today</h2>
         {baselines ? (
           <>
             <p className="legalBody">
               {chains.length === 0
-                ? "No chain is modelled yet. No chain we are permitted to read has published a pint price, so every estimate today comes from the area basis instead."
+                ? "The baseline table holds no chain-menu basis. Its estimates use the area basis."
                 : `${chains.length} ${chains.length === 1 ? "chain is" : "chains are"} modelled from their own published pints.`}
             </p>
             <p className="legalBody">
               {regions.length === 0
-                ? "No area is modelled yet, so no pub carries an estimate."
-                : `${regions.length} ${regions.length === 1 ? "area is" : "areas are"} modelled. Every other pub in the country carries no estimate, and says so.`}
+                ? "The baseline table holds no area basis."
+                : `${regions.length} ${regions.length === 1 ? "area is" : "areas are"} modelled in the baseline table. London zone estimates and estimates on beer pages use the separate methods above.`}
             </p>
             <p className="legalUpdated">
               Basis last computed{" "}
@@ -168,8 +187,9 @@ export default function HowWeEstimatePage() {
           </>
         ) : (
           <p className="legalBody">
-            We could not load the estimate data. This page cannot show which
-            prices we used to model the estimates.
+            We could not load the baseline table. Its current coverage is
+            unavailable. London zone estimates and estimates on beer pages use
+            separate data.
           </p>
         )}
       </section>

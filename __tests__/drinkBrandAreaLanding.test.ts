@@ -2,13 +2,6 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-// The downstream tests simulate a future review decision. The production
-// review policy remains fail-closed and is checked separately.
-vi.mock("@/lib/nightAreas", async (importOriginal) => {
-  const { simulatedNightAreas } = await import("./helpers/simulatedNightAreaReview");
-  return simulatedNightAreas(importOriginal);
-});
-
 import {
   DRINK_BRAND_AREA_PUBLICATION_FLOOR,
   buildDrinkBrandAreaLanding,
@@ -23,13 +16,11 @@ import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server
 import {
   PRICED_LANDING_ROW_LIMIT,
   assignVenueToNightArea,
-  nightAreaPublishesPrices,
   type PricedLandingRow,
 } from "@/lib/pricedLanding";
 import {
   NIGHT_AREAS,
   getNightArea,
-  isNightAreaRouteReady,
   type NightArea,
 } from "@/lib/nightAreas";
 import {
@@ -215,94 +206,45 @@ describe("governed drink brand by Night Area landings", () => {
     >();
   });
 
-  it("refuses unknown pairs, not-ready areas, and pairs below the floor", () => {
-    const readyArea = getNightArea("clapham");
-    const notReadyArea = getNightArea("barnes");
+  it("refuses unknown pairs and pairs below the floor", () => {
+    const area = getNightArea("clapham");
 
     expect(buildDrinkBrandAreaLanding("unknown", "guinness", [])).toBeNull();
     expect(buildDrinkBrandAreaLanding("clapham", "unknown", [])).toBeNull();
     expect(
       buildDrinkBrandAreaLanding(
-        readyArea.slug,
+        area.slug,
         "guinness",
-        [...enoughVenues(readyArea, DRINK_BRAND_AREA_PUBLICATION_FLOOR - 1), ...londonOnlyVenues()],
-        [readyArea],
-      ),
-    ).toBeNull();
-    expect(
-      buildDrinkBrandAreaLanding(
-        notReadyArea.slug,
-        "guinness",
-        [...enoughVenues(notReadyArea, DRINK_BRAND_AREA_PUBLICATION_FLOOR), ...londonOnlyVenues()],
-        [notReadyArea],
+        [...enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR - 1), ...londonOnlyVenues()],
+        [area],
       ),
     ).toBeNull();
   });
 
-  it("keeps publishing an indexed pair after the area review window lapses", () => {
-    const area = getNightArea("clapham");
-    const lapsed: NightArea = {
-      ...area,
-      lastReviewedAt: "2026-01-01T00:00:00.000Z",
-      reviewExpiresAt: "2026-02-01T00:00:00.000Z",
-    };
-
-    // Route readiness expires because planning a crawl on unchecked transport
-    // is wrong. A priced list is not a route, and 404ing a URL already in the
-    // sitemap deindexes it, so the page degrades instead of disappearing.
-    expect(isNightAreaRouteReady(lapsed, new Date("2026-08-15T12:00:00.000Z"))).toBe(false);
-    expect(nightAreaPublishesPrices(lapsed)).toBe(true);
-    expect(
-      buildDrinkBrandAreaLanding(
-        lapsed.slug,
-        "guinness",
-        [...enoughVenues(lapsed, DRINK_BRAND_AREA_PUBLICATION_FLOOR), ...londonOnlyVenues()],
-        [lapsed],
-      )?.rows,
-    ).toHaveLength(DRINK_BRAND_AREA_PUBLICATION_FLOOR);
-  });
-
-  it("still requires the gate version and completeness predicates after dropping expiry", () => {
-    const area = getNightArea("clapham");
+  // Prices move by area, not pub by pub, so a pair no longer waits for an
+  // area review: the floor and the parent brand page decide it.
+  it("publishes an unreviewed area over the floor, with its area estimate", () => {
+    const area = getNightArea("barnes");
+    expect(area.lastReviewedAt).toBeNull();
+    const prices = [4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 6.0, 9.0];
     const venues = [
-      ...enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR),
+      ...prices.map((price, index) =>
+        pricedVenue(`barnes-${index}`, area, price, {
+          scraped_at_values: index === 3 ? "2026-11-09" : "2026-10-01",
+        } as Partial<VenuePrice>),
+      ),
       ...londonOnlyVenues(),
     ];
 
-    const wrongVersion: NightArea = {
-      ...area,
-      gate: {
-        ...area.gate,
-        version: 0 as NightArea["gate"]["version"],
-      },
-    };
-    const incompleteReasons: NightArea = {
-      ...area,
-      routeReadyReasons: area.routeReadyReasons.slice(0, 1),
-    };
-    const incompleteGate: NightArea = {
-      ...area,
-      gate: { ...area.gate, checks: [] },
-    };
+    const landing = buildDrinkBrandAreaLanding(area.slug, "guinness", venues, [area]);
 
-    expect(nightAreaPublishesPrices(area)).toBe(true);
-    expect(nightAreaPublishesPrices(wrongVersion)).toBe(false);
-    expect(nightAreaPublishesPrices(incompleteReasons)).toBe(false);
-    expect(nightAreaPublishesPrices(incompleteGate)).toBe(false);
-    expect(
-      buildDrinkBrandAreaLanding(wrongVersion.slug, "guinness", venues, [wrongVersion]),
-    ).toBeNull();
-    expect(
-      buildDrinkBrandAreaLanding(
-        incompleteReasons.slug,
-        "guinness",
-        venues,
-        [incompleteReasons],
-      ),
-    ).toBeNull();
-    expect(
-      buildDrinkBrandAreaLanding(incompleteGate.slug, "guinness", venues, [incompleteGate]),
-    ).toBeNull();
+    expect(landing?.totalPricedVenues).toBe(prices.length);
+    expect(landing?.areaEstimate).toEqual({
+      priceGbp: 4.6,
+      basis: "area_median",
+      sampleSize: prices.length,
+      computedAt: "2026-11-09T00:00:00.000Z",
+    });
   });
 
   it("requires ten unique matching pubs for the publication floor", () => {
@@ -595,7 +537,7 @@ describe("governed drink brand by Night Area landings", () => {
 
     expect(landings.length).toBeGreaterThan(0);
 
-    const pairOrder = NIGHT_AREAS.filter(nightAreaPublishesPrices).flatMap((area) =>
+    const pairOrder = NIGHT_AREAS.flatMap((area) =>
       DRINK_BRAND_LANDING_CATALOG.map((brand) => `${area.slug}/${brand.id}`),
     );
     const published = landings.map(

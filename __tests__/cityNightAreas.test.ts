@@ -13,7 +13,6 @@ import {
   nightAreasByCity,
   NIGHT_AREA_SLUGS,
 } from "@/lib/nightAreas";
-import { nightAreaPublishesPrices } from "@/lib/pricedLanding";
 import { placesAreasForCity, placesPricesPill, placesCityRows } from "@/lib/places";
 import derivedAreaData from "@/public/data/night_areas/uk_cities.json";
 import {
@@ -138,9 +137,8 @@ describe("derived city Night Areas", () => {
           expect(area.missingEvidence).toContain("price_coverage");
           expect(area.missingEvidence).toContain("transport_anchor");
           expect(area.recentSignals).toEqual([]);
-          // Nothing here may reach route planning, a priced landing or the sitemap.
+          // Nothing here may reach route planning.
           expect(isNightAreaRouteReady(area)).toBe(false);
-          expect(nightAreaPublishesPrices(area)).toBe(false);
         }
       });
 

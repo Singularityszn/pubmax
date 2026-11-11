@@ -89,6 +89,8 @@ type ZonePintIndexRow = {
 };
 
 export type ZonePintIndex = {
+  /** Checked bundle prices absent from slim rows, carried outside map shards. */
+  recordedPintVenueIds?: string[];
   rows: ZonePintIndexRow[];
   /** Zones that cleared the observation gate, cheapest → dearest by median. */
   ranked: ZonePintIndexRow[];
@@ -98,6 +100,12 @@ export type ZonePintIndex = {
   cheapest: ZonePintIndexRow | null;
   /** Dearest − cheapest median across publishable zones — the "zone tax". */
   taxGbp: number | null;
+  /**
+   * When the published index was read from the shipped prices. Absent on a
+   * roll-up of whatever the client has loaded, which estimates nothing
+   * (lib/zonePriceEstimate.ts).
+   */
+  computedAt?: string;
 };
 
 /**

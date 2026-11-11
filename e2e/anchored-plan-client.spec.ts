@@ -52,6 +52,46 @@ test("accepted Venue becomes visible Stop 1 on the permanent Plan path", async (
   await expect(page.locator(".planStop__name").first()).toHaveText(venue!.name);
 });
 
+for (const width of [390, 768, 1440]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`adding a stop keeps the accepted estimate and pub finder visible at ${width}px in ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript((choice) => localStorage.setItem("pubmax-theme", choice), theme);
+      await seedAcceptedVenue(page, { id: "venue-60y3sa", name: "The Coronet" });
+      // Ten recorded £5.75 pints give an independent £5.75 zone median.
+      await page.route("**/data/venues_slim.json*", (route) => route.fulfill({ json: {
+        bundlePricesChecked: true,
+        recordedPintVenueIds: [],
+        rows: [
+          { id: "venue-60y3sa", name: "The Coronet", zone: 2, cheapestPrice: null },
+          ...Array.from({ length: 10 }, (_, index) => ({
+            id: `priced-pub-${index}`, name: `Priced pub ${index}`, zone: 2, cheapestPrice: 5.75,
+          })),
+        ],
+      } }));
+      await page.route("**/api/pint-drops?*", (route) => route.fulfill({ json: { drops: [] } }));
+      await page.route("**/api/price-submit?*", (route) => route.fulfill({ json: { prices: [] } }));
+      await page.goto("/plan");
+      const accepted = page.locator(".planStop").first();
+      await expect(accepted).toContainText("est. £5.75");
+      await page.getByRole("button", { name: "Add another stop", exact: true }).click();
+      const finder = page.getByLabel("Find a pub for stop 2", { exact: true });
+      await expect(finder).toBeVisible();
+      await expect(accepted).toBeVisible();
+      await expect(accepted).toContainText("The Coronet");
+      await expect(accepted).toContainText("est. £5.75");
+      await finder.fill("Priced pub 0");
+      await finder.press("Enter");
+      await expect(page.locator(".planStop__name").nth(1)).toHaveText("Priced pub 0");
+      await page.getByRole("button", { name: "Show Remove for stop 2", exact: true }).click();
+      await page.getByRole("button", { name: "Remove stop 2", exact: true }).click();
+      await expect(page.locator(".planStop")).toHaveCount(1);
+      await expect(accepted).toBeVisible();
+      await expect(accepted).toContainText("est. £5.75");
+    });
+  }
+}
+
 test("existing Plan work wins without consuming a newer accepted Venue", async ({ page }) => {
   const existing = { id: "venue-xjf3n0", name: "Arnos Arms" };
   const accepted = { id: "venue-122cuu1", name: "The Queen’s Head" };

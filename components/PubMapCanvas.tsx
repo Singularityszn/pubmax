@@ -199,6 +199,7 @@ import {
   type UkBaseRestoreFailure,
 } from "@/components/map/pubmap/useUkBaseStreaming";
 import type { UkBaseRestore } from "@/lib/pubMap";
+import type { PriceStandingDecision } from "@/lib/priceTier";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
 import {
   PAINT_WATCHDOG_INTERVAL_MS,
@@ -377,6 +378,8 @@ type PubMapCanvasProps = {
   provisionalVenueIds?: ReadonlySet<string> | null;
   /** Dedicated no-alcohol or food figures, separate from pint signals. */
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  /** Modelled standings for pins with no recorded price (lib/zonePriceEstimate.ts). */
+  priceStandings?: ReadonlyMap<string, PriceStandingDecision> | null;
   /** A filter the unpriced UK base pubs cannot answer, such as confirmed access. */
   ukBaseSuspended?: boolean;
   /**
@@ -807,6 +810,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     whatsOnByVenue,
     provisionalVenueIds,
     lensPrices,
+    priceStandings,
     ukBaseSuspended,
     spoonsValue,
     lensNoun,
@@ -4084,7 +4088,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       whatsOnByVenue,
       provisionalVenueIds,
       lensPrices,
-      null,
+      priceStandings ?? null,
       spoonsValue,
     );
     announceOpeningFrame(mapRef.current, mapViewRef.current, pubsDataRef.current.features);
@@ -4107,6 +4111,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     whatsOnByVenue,
     provisionalVenueIds,
     lensPrices,
+    priceStandings,
     spoonsValue,
     publishRenderedState,
     mapReady,

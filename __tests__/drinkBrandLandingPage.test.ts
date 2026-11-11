@@ -133,7 +133,7 @@ describe("governed drink brand landing page", () => {
 
     const areaLandings = await loadDrinkBrandAreaLandings();
     const guinnessAreas = areaLandings.filter((pair) => pair.brandSlug === "guinness");
-    expect(guinnessAreas).toEqual([]);
+    expect(guinnessAreas.length).toBeGreaterThan(0);
     for (const pair of guinnessAreas) {
       expect(html).toContain(
         `href="/area/${pair.areaSlug}/drink/guinness"`,

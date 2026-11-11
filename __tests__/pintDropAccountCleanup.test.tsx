@@ -280,7 +280,6 @@ it("keeps a same-account transport failure retryable without retrying automatica
   expect(requests).toHaveLength(1);
 });
 
-
 it.each(["owner-change", "tab-departure", "sign-out"])(
   "discards a mounted typed baseline and late dictation on %s",
   async (transition) => {
@@ -337,3 +336,48 @@ it.each(["owner-change", "tab-departure", "sign-out"])(
     expect(drops.dropForm.note).toBe("B's new note");
   },
 );
+
+it("today: the composer never reads submitting while the price POST is in flight (W1)", async () => {
+  const { pending } = await startPrice(false);
+  expect(requests).toHaveLength(1);
+  expect(drops.submitting).toBe(false);
+  expect(drops.composerOpen).toBe(false);
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({ drop: serverDrop("server-saved-w1") }), { status: 201 }));
+    await pending;
+  });
+  expect(drops.submitting).toBe(false);
+});
+
+it("marks the same request failed and retryable with the server's message on a refused POST", async () => {
+  const { pending, optimistic } = await startPrice(false);
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({ error: "That price looks off." }), { status: 422 }));
+    await pending;
+  });
+  expect(drops.dropsByVenueId.get("venue-1")?.[0]).toMatchObject({
+    id: optimistic.id,
+    optimistic: {
+      state: "failed", message: "That price looks off.", canRetry: true,
+      clientRequestId: optimistic.optimistic?.clientRequestId,
+    },
+  });
+  expect(defined(readOptimisticSpills(localStorage)[0]).drop).toMatchObject({
+    id: optimistic.id, optimistic: { state: "failed", canRetry: true },
+  });
+  expect(drops.dropMsg).toMatchObject({ ok: false, text: "That price looks off." });
+  expect(requests).toHaveLength(1);
+});
+
+it("stores the measure and the bill in the retry payload of a pending price (R2, fixed by G1)", async () => {
+  await act(async () => {
+    drops.setDropForm((form) => ({ ...form, measure: "half", measureLabel: "" }));
+  });
+  const { optimistic } = await startPrice(true);
+  const body = defined(requests[0]).body;
+  expect(body.get("measure")).toBe("half");
+  expect(body.has("receipt_photo")).toBe(true);
+  const entry = readOptimisticSpills(localStorage).find(({ drop }) => drop.id === optimistic.id);
+  expect(entry?.retry).toMatchObject({ measure: "half", measureLabel: "", priceGbp: "5.50" });
+  expect(entry?.retry?.receiptPhotoUrl).toMatch(/^blob:pending-preview-/);
+});

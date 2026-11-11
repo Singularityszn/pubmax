@@ -77,6 +77,7 @@ function systemPrompt(): string {
     "If a tool returns nothing, say so plainly. Prefer short British English.",
     "For map moves or plans, call propose_map_action or propose_plan - the user must confirm.",
     "Do not claim a community price moves the map unless the tool says it is corroborated.",
+    "A zone estimate is not a recorded price: always call it an estimate and name its zone.",
   ].join(" ");
 }
 

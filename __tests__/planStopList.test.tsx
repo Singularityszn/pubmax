@@ -2,7 +2,7 @@
 
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DraftStop } from "@/components/plan/PlanComposer";
 import PlanStopList, { type PlanStopListProps } from "@/components/plan/PlanStopList";
@@ -10,6 +10,13 @@ import { moveItem } from "@/lib/planStopReorder";
 
 let host: HTMLDivElement | null = null;
 let root: Root | null = null;
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+    ok: true,
+    json: async () => String(input).startsWith("/api/pint-drops") ? { drops: [] } : { prices: [] },
+  } as Response)));
+});
 
 afterEach(async () => {
   if (root) await act(async () => root!.unmount());
@@ -97,6 +104,163 @@ async function swipe(card: HTMLElement, steps: Array<{ x: number; t: number }>, 
 }
 
 describe("PlanStopList", () => {
+  const unpricedStopProps: Partial<PlanStopListProps> = {
+    stops: [picked],
+    venues: [{ id: picked.venueId, name: picked.venueName, zone: 4, hasRecordedPrice: false }],
+    zoneIndex: {
+      rows: [{ zone: 4, medianGbp: 4.95, pricedCount: 66, enough: true }],
+      ranked: [], dearest: null, cheapest: null, taxGbp: null, computedAt: "2026-11-10T00:00:00Z",
+    },
+  };
+
+  it.each(["/api/pint-drops", "/api/price-submit"])("withholds a zone estimate when %s holds a public price", async (path) => {
+    vi.mocked(fetch).mockImplementation(async (input) => ({
+      ok: true,
+      json: async () => String(input).startsWith("/api/pint-drops")
+        ? { drops: path === "/api/pint-drops" ? [{ venueId: picked.venueId, priceGbp: 5.8 }] : [] }
+        : { prices: path === "/api/price-submit" ? [{ venueId: picked.venueId, drinkCategory: "beer", priceGbp: 5.8 }] : [] },
+    } as Response));
+    await mount(unpricedStopProps);
+    expect(host!.textContent).not.toContain("est. £4.95");
+  });
+
+  it.each(["/api/pint-drops", "/api/price-submit"])("waits for the selected stop's %s read", async (path) => {
+    const emptyRead = vi.mocked(fetch).getMockImplementation()!;
+    let resolve!: (value: Response) => void;
+    vi.mocked(fetch).mockImplementation((input) => String(input).startsWith(path)
+      ? new Promise<Response>((done) => { resolve = done; }) : emptyRead(input));
+    await mount(unpricedStopProps);
+    expect(host!.textContent).not.toContain("est. £4.95");
+    await act(async () => resolve({ ok: true, json: async () => path === "/api/pint-drops" ? { drops: [] } : { prices: [] } } as Response));
+    expect(host!.textContent).toContain("est. £4.95");
+  });
+
+  it.each(["rejected", "non-ok", "degraded", "malformed", "malformed-row"])("withholds an estimate after a %s public price read", async (failure) => {
+    vi.mocked(fetch).mockImplementation(async () => {
+      if (failure === "rejected") throw new Error("offline");
+      return {
+        ok: failure !== "non-ok",
+        json: async () => failure === "malformed" ? {} : {
+          drops: failure === "malformed-row" ? [{}] : [], prices: [], degraded: failure === "degraded",
+        },
+      } as Response;
+    });
+    await mount(unpricedStopProps);
+    expect(host!.textContent).not.toContain("est. £4.95");
+  });
+
+  it.each(["/api/pint-drops", "/api/price-submit"])("closes an unread error body from %s", async (path) => {
+    let cancelled = false;
+    const failed = new Response(new ReadableStream({
+      cancel() { cancelled = true; },
+    }), { status: 503 });
+    vi.mocked(fetch).mockImplementation(async (input) => String(input).startsWith(path)
+      ? failed : Response.json({ drops: [], prices: [] }));
+
+    await mount(unpricedStopProps);
+
+    expect(host!.textContent).not.toContain("est. £4.95");
+    expect(cancelled).toBe(true);
+    expect(failed.bodyUsed).toBe(true);
+  });
+
+  it("checks public prices again when a stop returns to the plan", async () => {
+    const props = await mount(unpricedStopProps);
+    expect(host!.textContent).toContain("est. £4.95");
+    await act(async () => root!.render(createElement(PlanStopList, { ...props, stops: [] })));
+    vi.mocked(fetch).mockImplementation(async () => ({
+      ok: true, json: async () => ({ drops: [{ priceGbp: 5.8 }], prices: [] }),
+    } as Response));
+    await act(async () => root!.render(createElement(PlanStopList, props)));
+    expect(host!.textContent).not.toContain("est. £4.95");
+  });
+
+  it.each([true, false])("replaces cached absence on refresh when a public price exists: %s", async (hasPrice) => {
+    const props = await mount(unpricedStopProps);
+    expect(host!.textContent).toContain("est. £4.95");
+    const answers: Array<(value: Response) => void> = [];
+    vi.mocked(fetch).mockImplementation(() => new Promise<Response>((done) => { answers.push(done); }));
+
+    await act(async () => root!.render(createElement(PlanStopList, { ...props, refreshKey: 1 })));
+    expect(host!.textContent).not.toContain("est. £4.95");
+
+    await act(async () => {
+      for (const answer of answers) answer(Response.json({
+        drops: hasPrice ? [{ priceGbp: 5.8 }] : [], prices: [],
+      }));
+    });
+    expect(host!.textContent?.includes("est. £4.95")).toBe(!hasPrice);
+  });
+
+  it("ignores a previous refresh's absence when its response arrives late", async () => {
+    const answers: Array<(value: Response) => void> = [];
+    vi.mocked(fetch).mockImplementation(() => new Promise<Response>((done) => { answers.push(done); }));
+    const props = await mount(unpricedStopProps);
+    vi.mocked(fetch).mockImplementation(async () => Response.json({ drops: [{ priceGbp: 5.8 }], prices: [] }));
+
+    await act(async () => root!.render(createElement(PlanStopList, { ...props, refreshKey: 1 })));
+    expect(host!.textContent).not.toContain("est. £4.95");
+
+    await act(async () => {
+      for (const answer of answers) answer(Response.json({ drops: [], prices: [] }));
+    });
+    expect(host!.textContent).not.toContain("est. £4.95");
+  });
+
+  it("keeps the current estimate when a removed stop's read completes", async () => {
+    const answers: Array<(value: Response) => void> = [];
+    vi.mocked(fetch).mockImplementation(() => new Promise<Response>((done) => { answers.push(done); }));
+    const props = await mount(unpricedStopProps);
+    vi.mocked(fetch).mockImplementation(async () => ({
+      ok: true, json: async () => ({ drops: [], prices: [] }),
+    } as Response));
+    await act(async () => root!.render(createElement(PlanStopList, {
+      ...props,
+      stops: [{ ...picked, venueId: "another-pub" }],
+      venues: [{ id: "another-pub", name: "Another Pub", zone: 4, hasRecordedPrice: false }],
+    })));
+    expect(host!.textContent).toContain("est. £4.95");
+    await act(async () => {
+      for (const answer of answers) answer({ ok: true, json: async () => ({ drops: [], prices: [] }) } as Response);
+    });
+    expect(host!.textContent).toContain("est. £4.95");
+  });
+
+  it("allows a pint estimate beside an unpriced story and a recorded wine price", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ drops: [{ priceGbp: null }], prices: [{ drinkCategory: "wine", priceGbp: 7 }] }),
+    } as Response);
+    await mount(unpricedStopProps);
+    expect(host!.textContent).toContain("est. £4.95");
+  });
+
+  it.each([true, undefined])("withholds a chosen stop estimate when recorded-price availability is %s", async (hasRecordedPrice) => {
+    await mount({
+      stops: [picked],
+      venues: [{ id: picked.venueId, name: picked.venueName, zone: 4, hasRecordedPrice }],
+      zoneIndex: {
+        rows: [{ zone: 4, medianGbp: 4.95, pricedCount: 66, enough: true }],
+        ranked: [], dearest: null, cheapest: null, taxGbp: null,
+        computedAt: "2026-11-10T00:00:00Z",
+      },
+    });
+    expect(host!.textContent).not.toContain("est. £4.95");
+    expect(host!.textContent).not.toContain("Zone 4 estimate");
+  });
+
+  it("estimates a manually chosen stop after confirmed price absence", async () => {
+    await mount({
+      stops: [picked],
+      venues: [{ id: picked.venueId, name: picked.venueName, zone: 4, hasRecordedPrice: false }],
+      zoneIndex: {
+        rows: [{ zone: 4, medianGbp: 4.95, pricedCount: 66, enough: true }],
+        ranked: [], dearest: null, cheapest: null, taxGbp: null, computedAt: "2026-11-10T00:00:00Z",
+      },
+    });
+    expect(host!.textContent).toContain("est. £4.95");
+  });
+
   it.each(["", "   "])("shows an unnamed accepted venue as a card, never a finder (%j)", async (venueName) => {
     const accepted: DraftStop = { key: 1, venueId: "venue-uk-unindexed", venueName, alternatives: [] };
     const props = await mount({ stops: [accepted, picked], heldVenueId: accepted.venueId, swapDisabled: () => false });
