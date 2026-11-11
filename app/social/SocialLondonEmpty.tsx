@@ -20,7 +20,7 @@ export default function SocialLondonEmpty({ alternatives = UNAVAILABLE }: { alte
         </ul> : <Link prefetch={false} href="/crawls">Browse crawl routes</Link>}
       </section>
       <section aria-labelledby="social-empty-prices">
-        <h3 id="social-empty-prices">Latest prices we hold</h3>
+        <h3 id="social-empty-prices">Latest pint prices we hold</h3>
         {alternatives.prices.length ? <ul className="socialAlternativeList">
           {alternatives.prices.map((price) => <li key={price.venueId}>
             <Link prefetch={false} href={price.href}>{price.name}</Link>

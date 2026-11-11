@@ -267,7 +267,7 @@ The endpoint supports keyless generation. It produces a grounded draft route fro
 type GeneratePlanRequest = {
   cityId?: string;              // default "london"; validated by parseCityId
   query?: string;              // free-text night description; parsed by inferNightContext
-  context?: Partial<NightContext> | NightContext; // merged over inference; MUST resolve a nightArea
+  context?: Partial<NightContext> | NightContext; // see reconciliation below; MUST resolve a nightArea
   planStartIso?: string;
   anchor?: {                    // the accepted pub, when the person kept one first
     venueId: string;
@@ -293,7 +293,7 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 `anchor-conflict` is a `200` with no Stops, so a caller must branch on
 `outcome` before it treats an empty `stops` array as no match.
 
-[`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
+[`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Area focus follows the [specific precedence below](#area-focus). Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
 
 The optional `planStartIso` request field carries the displayed **First pint** time as a canonical UTC ISO timestamp.
 If present, an invalid value, including `null`, returns `400 MALFORMED_REQUEST` with "Plan start time is invalid."
@@ -305,6 +305,27 @@ Coverage: `__tests__/planAutomaticStart.test.ts` and `__tests__/planGenerationRe
 The composer always includes `context` through [`buildPlanGenerationIntakeBody`](../lib/planIntake.ts). It derives transport requirements from the current description, including empty or whitespace-only text. Removing transport wording removes the previous inferred requirement. An `explicitContext.transportConstraints` override still takes precedence. Recovered drink, food, and atmosphere choices remain intact.
 
 The composer sends requested stop intent through the [stop-count and draft recovery contract](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary). Request and component coverage live in `__tests__/planIntake.test.ts` and `__tests__/planComposerDescribeLink.test.ts`.
+
+### Area focus
+
+`piccadilly-soho` remains one Night Area. Its optional `context.areaFocus` distinguishes its sub-areas without changing the area slug.
+[`nightAreaFocus.ts`](../lib/nightAreaFocus.ts) owns the accepted values, geographic boundaries and focus labels.
+
+Focus precedence is:
+
+1. Query words naming Soho or Piccadilly decide the focus. Naming both selects the whole area.
+2. Otherwise, explicit `context.areaFocus` decides. A `null` value selects the whole area.
+3. Without either input, generation uses the whole area. The intake patch alone never establishes focus.
+
+Reconciliation removes a focus that does not belong to the resolved Night Area.
+The composer sends focus explicitly on every generation request, using description words, wizard or Tune choices, or recovered context.
+A whole-area Tune choice sends `null`. A later wizard choice replaces that choice.
+The composer persists its explicit choice with the draft and accepts the server-reconciled focus for the generated route.
+An area choice made during generation keeps priority over the response and marks that result stale.
+
+[`preparePlanGeneration`](../lib/planGeneration.server.ts) filters the shared candidate pool by focus and measures distance from its centre.
+The [Crawl planner guide](../README.md#features) owns the user-visible scope, shortfall and regeneration behaviour.
+Coverage: `__tests__/planGenerateRoute.test.ts`, `__tests__/planComposerChipIntent.test.ts` and `__tests__/planComposerAccountBoundary.test.tsx`.
 
 ### Response `200`
 

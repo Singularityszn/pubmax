@@ -91,12 +91,27 @@ describe("GET /api/pub-pal", () => {
     evidence.adultSelfAssertedAt = new Date().toISOString();
     const res = await GET(new Request("http://localhost/api/pub-pal"));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ pal: null, adultOnFile: true });
+    expect(await res.json()).toEqual({ pal: null, adultOnFile: true, under18: false });
   });
 
   it("is false for an account that has not answered", async () => {
     const res = await GET(new Request("http://localhost/api/pub-pal"));
-    expect(await res.json()).toEqual({ pal: null, adultOnFile: false });
+    expect(await res.json()).toEqual({ pal: null, adultOnFile: false, under18: false });
+  });
+
+  it("marks under 18 an account whose Pal was made by the 18+ tick before an under-18 date of birth was saved", async () => {
+    // The Pal's own tick leaves no age evidence, so the stored date of birth decides.
+    expect((await POST(new Request("http://localhost/api/pub-pal", {
+      method: "POST", body: JSON.stringify({ name: "Moss", adultConfirmed: true }),
+    }))).status).toBe(201);
+    expect(await (await GET(new Request("http://localhost/api/pub-pal"))).json()).toMatchObject({ under18: false });
+    evidence.dateOfBirth = yearsAgo(16);
+    expect(await (await GET(new Request("http://localhost/api/pub-pal"))).json()).toMatchObject({ under18: true });
+  });
+
+  it("fails closed, offering no voice, when the date of birth cannot be read", async () => {
+    evidence.identityThrows = true;
+    expect(await (await GET(new Request("http://localhost/api/pub-pal"))).json()).toMatchObject({ under18: true });
   });
 
   it("still answers 401 without a session", async () => {

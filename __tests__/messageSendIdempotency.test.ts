@@ -65,7 +65,7 @@ function builder(table: string) {
     query.payload = args[0] as Record<string, unknown>;
     return chain;
   };
-  for (const name of ["eq", "neq", "is", "in", "or", "order"]) chain[name] = record(name);
+  for (const name of ["eq", "neq", "is", "in", "or", "order", "lt"]) chain[name] = record(name);
   chain.limit = () => chain;
   chain.maybeSingle = () => chain;
   chain.single = () => chain;
@@ -128,6 +128,44 @@ describe("readClientMessageId", () => {
 });
 
 describe("durable send with an idempotency key", () => {
+  it.each([
+    ["2026-09-05T22:00:00Z", "2026-09-05T22:10:00Z"],
+    ["2026-09-05T22:10:00Z", "2026-09-05T22:10:00Z"],
+    ["2026-09-05T22:20:00Z", "2026-09-05T22:20:00Z"],
+  ])("keeps the newest message stamp when a send finishes against %s", async (storedAt, expectedAt) => {
+    const stamps = new Map([
+      [CONVERSATION, storedAt],
+      ["another-conversation", "2026-09-05T21:00:00Z"],
+    ]);
+    state.answer = (q) => {
+      if (q.table === "conversations" && q.op === "select") return { data: PAIR, error: null };
+      if (q.table === "messages" && q.op === "insert") {
+        return { data: storedRow("m1", "first"), error: null };
+      }
+      if (q.table === "conversations" && q.op === "update") {
+        for (const [id, stamp] of stamps) {
+          const matches = q.filters.every(([op, column, value]) => {
+            if (op === "eq" && column === "id") return id === value;
+            if (op === "lt" && column === "last_message_at") {
+              return Date.parse(stamp) < Date.parse(String(value));
+            }
+            throw new Error(`Unexpected update filter: ${op} ${column}`);
+          });
+          if (matches) stamps.set(id, String(q.payload?.last_message_at));
+        }
+      }
+      return { data: null, error: null };
+    };
+
+    const sent = await supabaseMessagesStore.send(CONVERSATION, "ken", "first", undefined, {
+      clientMessageId: KEY,
+    });
+
+    expect(sent?.message.createdAt).toBe("2026-09-05T22:10:00Z");
+    expect(stamps.get(CONVERSATION)).toBe(expectedAt);
+    expect(stamps.get("another-conversation")).toBe("2026-09-05T21:00:00Z");
+  });
+
   it("writes the key with the row when the sender gives one", async () => {
     state.answer = (q) =>
       q.table === "conversations" && q.op === "select"

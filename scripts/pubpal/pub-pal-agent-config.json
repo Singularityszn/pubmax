@@ -1,7 +1,10 @@
 {
-  "llm": "gemini-2.5-flash-lite",
+  "llm": "gemini-2.5-flash",
+  "thinking_budget": 0,
   "reasoning_effort": null,
-  "llmCreditNote": "ElevenLabs-billed Gemini 2.5 Flash Lite (low per-minute LLM credits on the Agents plan; see ElevenLabs pricing for live rates).",
+  "llmCreditNote": "ElevenLabs-billed Gemini 2.5 Flash with thinking off. Flash Lite left 17 to 20 s of silence after each tool. On the branch test the LLM was about 7% of a voice call's credits.",
+  "turn_timeout": 20,
+  "silence_end_call_timeout": 60,
   "toolNames": [
     "search_venues",
     "whats_on",

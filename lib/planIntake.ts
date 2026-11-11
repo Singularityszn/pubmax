@@ -802,6 +802,7 @@ function stripPlanIntakeOwnedContext(
   if (!context) return {};
   const unowned: Partial<NightContext> = { ...context };
   delete unowned.nightArea;
+  delete unowned.areaFocus;
   delete unowned.daypart;
   delete unowned.groupSize;
   delete unowned.stopCount;
@@ -834,12 +835,13 @@ export function buildPlanGenerationIntakeBody(
   // An empty description retains the generated count only without a stopCount override.
   // The composer supplies requested intent, including undefined, to clear that fallback.
   const retainedStopCount = cleanQuery ? undefined : currentContext?.stopCount;
+  const intakeContext = planIntakeNightContextPatch(sent);
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
     ...(isPlanStopCount(retainedStopCount) ? { stopCount: retainedStopCount } : {}),
     transportConstraints: inferNightContext(cleanQuery).context.transportConstraints,
     ...explicitContext,
-    ...planIntakeNightContextPatch(sent),
+    ...intakeContext,
   };
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),

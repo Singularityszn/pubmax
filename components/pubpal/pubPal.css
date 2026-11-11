@@ -162,6 +162,21 @@
   display: grid;
   gap: 1px;
 }
+/* On the map the chip is a button that starts voice where the person is. */
+button.palSummon {
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+/* Signed out on the map: the sign-in door, and a way to put the chip away. */
+.palSummonSignIn {
+  padding-block: 0;
+  padding-inline: var(--space-3) 0;
+}
+.palSummonSignIn a {
+  color: inherit;
+  text-decoration: none;
+}
 .palSummon strong {
   font: 700 11px var(--font-display);
 }

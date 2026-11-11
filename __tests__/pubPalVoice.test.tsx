@@ -1776,7 +1776,24 @@ describe("Pub Pal voice transcript", () => {
   });
 
   it.each([
-    ["the agent ended the call", { reason: "agent", closeCode: 1000 }],
+    ["the agent's end_call", { reason: "agent", context: { type: "end_call", reason: "Agent ended the call" } }],
+    ["the provider's silence close", { reason: "agent", context: { type: "close", code: 1000 }, closeCode: 1000 }],
+  ])("shows a friendly end with Carry on after %s", async (_label, details) => {
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "agent", message: "I'll leave you to it. Tap me when you want another pub." });
+      voice.status = "disconnected";
+      session.onDisconnect?.(details);
+      root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
+    });
+    await settle();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelector(".palVoiceStatus")?.textContent).toBe("Ripley ended the call");
+    expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("Carry on"))).toBe(true);
+    expect(transcriptLines().at(-1)).toContain("I'll leave you to it.");
+  });
+
+  it.each([
     ["the provider's session cap", { reason: "error", message: "max", context: { type: "max_duration_exceeded" } }],
   ])("stays quiet when %s", async (_label, details) => {
     const session = await startLiveSession();

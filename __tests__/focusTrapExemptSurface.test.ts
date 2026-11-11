@@ -174,7 +174,7 @@ describe("useFocusTrap with an exempt surface", () => {
         root!.render(createElement("div", null,
           createElement(PalVoiceBar, {
             palName: "Ripley", lines: [], error: null,
-            live: true, speaking: false, starting: false, endedOutOfSight: false,
+            live: true, speaking: false, starting: false, ended: null,
             onEnd: () => { ended = true; }, onCarryOn: () => {}, onClose: () => {},
           }),
           createElement(Trap, { containerRef: { current: byId("drawer") }, policy }),
