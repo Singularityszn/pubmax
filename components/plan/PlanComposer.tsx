@@ -3075,7 +3075,8 @@ function PlanComposerForm({
       geographyChoice.current += 1;
       const nightArea = next.answers.area ? nightAreaForPlanIntakePatch(next.answers.area) : null;
       setExplicitNightContext((current) => {
-        const { areaFocus: _earlierFocus, ...rest } = current ?? {};
+        const rest = { ...current };
+        delete rest.areaFocus;
         return nightAreaHasFocus(nightArea)
           ? { ...rest, nightArea, areaFocus: focusForArea(nightArea, next.answers.area) }
           : { ...rest, nightArea };
@@ -3423,7 +3424,8 @@ function PlanComposerForm({
     }
     if (queriedArea !== undefined) {
       setExplicitNightContext((current) => {
-        const { areaFocus: _earlierFocus, ...rest } = current ?? {};
+        const rest = { ...current };
+        delete rest.areaFocus;
         return nightAreaHasFocus(queriedArea) ? { ...rest, ...geography } : { ...rest, nightArea: queriedArea };
       });
     }

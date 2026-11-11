@@ -124,7 +124,7 @@ function stripTemplateGeography(query: string): string {
     .trim();
 }
 
-/** Align stop count with the generated route so Lock it in can enable. */
+/** Keep server-reconciled focus while preserving explicit stop-count intent for Lock it in. */
 export function reconcileGeneratedNightContext(
   inferred: NightContext,
   explicit: Partial<NightContext>,
