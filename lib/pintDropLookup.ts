@@ -40,24 +40,18 @@ import { resolveStoredVenue, venueMapUrl } from "@/lib/venueIndex";
 // The exact, public-only column list. NEVER add report_*/moderator_*/moderated_*
 // here — a hidden drop's photo keys and moderation trail must not leave the DB.
 const PUBLIC_COLUMNS =
-  "id,venue_id,handle,drink,measure,measure_label,price_gbp,price_evidence,passed_down_note,era,provenance,created_at,vibe_tags,visibility,pint_photo_key,venue_photo_key";
+  "id,venue_id,handle,drink,measure,measure_label,price_gbp,price_evidence,passed_down_note,era,provenance,created_at,vibe_tags,visibility,pint_photo_key,venue_photo_key,author_retired_at";
 
-// The same list plus the retirement stamp (migration 0150), which decides which
-// NAME the reader is given. This lane names its columns rather than selecting
-// `*`, so a cluster without 0150 refuses the whole read; the read below falls
-// back to PUBLIC_COLUMNS on that one error, and a drop then reads as a live
-// author, which on such a cluster it is.
-const PUBLIC_COLUMNS_WITH_RETIREMENT = `${PUBLIC_COLUMNS},author_retired_at`;
+const OPTIONAL_PUBLIC_COLUMNS = ["measure", "measure_label", "price_evidence", "author_retired_at"];
 
-/** PostgREST's answer for a column this deployment's database does not have. */
-function isMissingRetirementColumnError(
+function isMissingPublicColumnError(
   error: { code?: string; message?: string } | null,
+  column: string,
 ): boolean {
   if (!error) return false;
-  const code = error.code ?? "";
-  const message = error.message ?? "";
   return (
-    (code === "42703" || code === "PGRST204") && message.includes("author_retired_at")
+    (error.code === "42703" || error.code === "PGRST204") &&
+    new RegExp(`\\b${column}\\b`, "i").test(error.message ?? "")
   );
 }
 
@@ -384,9 +378,15 @@ export async function getPintDropById(
             .eq("id", dropId)
             .eq("status", "visible")
             .maybeSingle();
-        let { data, error } = await read(PUBLIC_COLUMNS_WITH_RETIREMENT);
-        if (isMissingRetirementColumnError(error)) {
-          ({ data, error } = await read(PUBLIC_COLUMNS));
+        let columns = PUBLIC_COLUMNS.split(",");
+        let { data, error } = await read(columns.join(","));
+        while (error) {
+          const missing = OPTIONAL_PUBLIC_COLUMNS.find(
+            (column) => columns.includes(column) && isMissingPublicColumnError(error, column),
+          );
+          if (!missing) break;
+          columns = columns.filter((column) => column !== missing);
+          ({ data, error } = await read(columns.join(",")));
         }
         if (!error && isVisibleRow(data)) {
           const row = data;

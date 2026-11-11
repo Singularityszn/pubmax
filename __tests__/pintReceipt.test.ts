@@ -1,7 +1,3 @@
-// Honest pint receipts: a receipt prints only what the drinker logged, with its
-// London day, and a listed price beside it only with the line that says the two
-// are not shown to be the same pint.
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getPintDropById } from "@/lib/pintDropLookup";
@@ -10,13 +6,12 @@ import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import {
   buildPintReceipt,
   buildReceiptShareText,
+  buildPersonalReceiptShareText,
   formatReceiptItem,
   receiptShareFromSavedDrop,
   type PintReceiptDrop,
 } from "@/lib/pintReceipt";
 import { shareReceipt } from "@/lib/pintShareAction";
-import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
-import type { PintShare } from "@/lib/pintShare";
 
 const LOGGED = "2026-11-10T21:14:00.000Z";
 
@@ -31,15 +26,6 @@ const drop: PintReceiptDrop = {
   priceEvidence: "unchecked",
 };
 
-const listed: PintShare = {
-  venueId: "venue-hatton",
-  name: "The Sir Christopher Hatton",
-  area: "Holborn",
-  priceGbp: 5.2,
-  publisher: "Pint Prices",
-  readDay: "2 Nov",
-};
-
 describe("buildPintReceipt", () => {
   it("prints the pub, the drink, the measure, the price, the London day and the drinker", () => {
     expect(buildPintReceipt(drop)).toEqual({
@@ -50,7 +36,6 @@ describe("buildPintReceipt", () => {
       loggedOn: "Tue 10 Nov 2026",
       drinker: "@thirsty_ted",
       bill: "Not checked yet",
-      listed: null,
     });
   });
 
@@ -89,18 +74,11 @@ describe("buildPintReceipt", () => {
     expect(buildPintReceipt({ ...drop, measure: undefined }).measure).toBe("Pint");
   });
 
-  it("puts the listed price beside a pint only with its source and the house line", () => {
-    expect(buildPintReceipt(drop, listed).listed).toEqual({
-      price: "£5.20",
-      source: "listed by Pint Prices, 2 Nov",
-      houseLine: PRICE_NOT_COMPARED_LINE,
-    });
-  });
-
-  it("shows no comparison for a half, an unpriced drop or a pub with no listed price", () => {
-    expect(buildPintReceipt({ ...drop, measure: "half" }, listed).listed).toBeNull();
-    expect(buildPintReceipt({ ...drop, priceGbp: null }, listed).listed).toBeNull();
-    expect(buildPintReceipt(drop, null).listed).toBeNull();
+  it("carries only the drinker's paid price", () => {
+    const receipt = buildPintReceipt(drop);
+    expect(receipt.price).toBe("£4.70");
+    expect(receipt).not.toHaveProperty("listed");
+    expect(JSON.stringify(receipt).match(/£[\d.]+/g)).toEqual(["£4.70"]);
   });
 });
 
@@ -168,25 +146,33 @@ describe("formatReceiptItem", () => {
 describe("buildReceiptShareText", () => {
   it("carries the drink, the pub, the price and the day", () => {
     expect(buildReceiptShareText(buildPintReceipt(drop))).toBe(
-      "Pint of Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
+      "Pint of Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. A pint receipt on PUBMAXX.",
     );
   });
 
   it("names the measure when no drink was named", () => {
     expect(buildReceiptShareText(buildPintReceipt({ ...drop, drink: "" }))).toBe(
-      "A pint at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
+      "A pint at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. A pint receipt on PUBMAXX.",
     );
   });
 
   it("keeps a half's price attached to the half", () => {
     expect(buildReceiptShareText(buildPintReceipt({ ...drop, measure: "half", priceGbp: 2.35 }))).toBe(
-      "Half of Guinness at The Sir Christopher Hatton, £2.35, Tue 10 Nov 2026. My receipt on PUBMAXX.",
+      "Half of Guinness at The Sir Christopher Hatton, £2.35, Tue 10 Nov 2026. A pint receipt on PUBMAXX.",
     );
   });
 
   it("keeps a named wine's glass size", () => {
     expect(buildReceiptShareText(buildPintReceipt({ ...drop, drink: "Merlot", measure: "175ml" }))).toBe(
-      "Merlot, 175 ml at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
+      "Merlot, 175 ml at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. A pint receipt on PUBMAXX.",
+    );
+  });
+});
+
+describe("buildPersonalReceiptShareText", () => {
+  it("uses personal wording for the author's post-save share", () => {
+    expect(buildPersonalReceiptShareText(buildPintReceipt(drop))).toBe(
+      "Pint of Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
     );
   });
 });

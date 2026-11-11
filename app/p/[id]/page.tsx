@@ -11,7 +11,6 @@ import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 import { type ViewerContext } from "@/lib/pintDrops";
 import { buildPintReceipt, buildReceiptShareText, formatReceiptItem, type PintReceipt } from "@/lib/pintReceipt";
-import { resolvePintShare } from "@/lib/pintShare.server";
 
 import "./permalink.css";
 
@@ -124,13 +123,8 @@ export default async function PintDropPermalink({ params, searchParams }: PagePr
   return <ReceiptCard drop={drop} id={id} />;
 }
 
-// ── The pint receipt ─────────────────────────────────────────────────────────
-// The drop printed as a till receipt (lib/pintReceipt.ts owns every word on it),
-// lying on the bar. The pub's listed pint prints beside it only with its source
-// and the house line, and only when the pub's own record holds one.
-async function ReceiptCard({ drop, id }: { drop: PublicDrop; id: string }) {
-  const { share: listed } = await resolvePintShare(drop.venueId);
-  const receipt = buildPintReceipt(drop, listed);
+function ReceiptCard({ drop, id }: { drop: PublicDrop; id: string }) {
+  const receipt = buildPintReceipt(drop);
   const photoUrl = drop.pintPhotoUrl || drop.venuePhotoUrl;
   const shareTitle = receiptTitle(receipt);
   const shareText = buildReceiptShareText(receipt);

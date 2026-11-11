@@ -87,20 +87,6 @@ export default function PintReceiptPaper({
         ) : null}
       </dl>
 
-      {full && receipt.listed ? (
-        <>
-          <div className="pintReceipt__rule" aria-hidden="true" />
-          <div className="pintReceipt__listed">
-            <p className="pintReceipt__row">
-              <span>On the record here</span>
-              <span className="pintReceipt__figure">{receipt.listed.price}</span>
-            </p>
-            <p className="pintReceipt__small">{receipt.listed.source}</p>
-            <p className="pintReceipt__house">{receipt.listed.houseLine}</p>
-          </div>
-        </>
-      ) : null}
-
       {extras ? (
         <>
           <div className="pintReceipt__rule" aria-hidden="true" />

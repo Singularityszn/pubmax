@@ -15,7 +15,7 @@ import { trackEvent } from "@/lib/analytics";
 import type { ContentShareSurface } from "@/lib/analyticsEvents";
 import { shareViaNativeSheet } from "@/lib/nativeShare";
 import { buildPintShareText, pintShareUrl, type PintShare } from "@/lib/pintShare";
-import { buildReceiptShareText, type ReceiptShare } from "@/lib/pintReceipt";
+import { buildPersonalReceiptShareText, type ReceiptShare } from "@/lib/pintReceipt";
 import { isUserCancelledShare } from "@/lib/venueShare";
 
 export type PintShareOutcome = "shared" | "cancelled" | "copied" | "failed";
@@ -96,7 +96,7 @@ export function shareReceipt(
     {
       path: share.path,
       title: `My receipt from ${share.receipt.venueName}`,
-      text: buildReceiptShareText(share.receipt),
+      text: buildPersonalReceiptShareText(share.receipt),
       surface: "receipt",
     },
     deps,

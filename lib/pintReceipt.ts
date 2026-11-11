@@ -1,26 +1,10 @@
 import type { Route } from "next";
 
-import { DRINK_MEASURE_LABEL, drinkMeasureName, measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { DRINK_MEASURE_LABEL, drinkMeasureName, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { formatGbp } from "@/lib/formatGbp";
 import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { ANON_HANDLE_LABEL, type Visibility } from "@/lib/pintDropShared";
 import type { PriceEvidence } from "@/lib/pintDropReceipt";
-import { pintShareSourceLine, type PintShare } from "@/lib/pintShare";
-import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
-
-// THE PINT RECEIPT: one public Pint Drop, printed like a till receipt.
-//
-// It prints only what the drinker logged and what the server knows about it:
-// the pub, the drink, the measure, the price, the London day it was logged,
-// who logged it and what the bill check found. A listed price prints beside a
-// pint only with its source line, and always with the house line, because a
-// listed row and a drinker's pint cannot be shown to be the same pint.
-//
-// The day is the day the drop was logged. The app has no other paid date, so
-// the receipt says "Logged" and never claims more.
-//
-// Browser-safe: the permalink, its share image and the composer's share step
-// all read this one model.
 
 export type PintReceiptDrop = {
   venueName: string;
@@ -45,7 +29,6 @@ export type PintReceipt = {
   /** "@handle", or the house label for an anonymous or withheld author. */
   drinker: string;
   bill: string | null;
-  listed: { price: string; source: string; houseLine: string } | null;
 };
 
 const BILL_LINE: Record<PriceEvidence, string> = {
@@ -80,13 +63,9 @@ function receiptDrinkerLabel(handle: string, visibility?: Visibility): string {
   return dropAuthorLabel(handle);
 }
 
-export function buildPintReceipt(
-  drop: PintReceiptDrop,
-  listedShare: PintShare | null = null,
-): PintReceipt {
+export function buildPintReceipt(drop: PintReceiptDrop): PintReceipt {
   const priceGbp = positivePrice(drop.priceGbp);
   const drink = drop.drink.replace(/\s+/g, " ").trim();
-  const comparable = priceGbp !== null && measureIsPint(drop.measure) && listedShare !== null;
   return {
     venueName: drop.venueName,
     measure: drinkMeasureName(drop.measure, drop.measureLabel),
@@ -95,13 +74,6 @@ export function buildPintReceipt(
     loggedOn: londonDay(drop.createdAt),
     drinker: receiptDrinkerLabel(drop.handle, drop.visibility),
     bill: priceGbp !== null && drop.priceEvidence ? BILL_LINE[drop.priceEvidence] : null,
-    listed: comparable
-      ? {
-          price: formatGbp(listedShare.priceGbp),
-          source: pintShareSourceLine(listedShare),
-          houseLine: PRICE_NOT_COMPARED_LINE,
-        }
-      : null,
   };
 }
 
@@ -119,10 +91,18 @@ export function formatReceiptItem(receipt: PintReceipt): string {
     : `A ${measure} serve`;
 }
 
-export function buildReceiptShareText(receipt: PintReceipt): string {
+function receiptShareDetails(receipt: PintReceipt): string {
   const what = formatReceiptItem(receipt);
   const bits = [`${what} at ${receipt.venueName}`, receipt.price, receipt.loggedOn].filter(Boolean);
-  return `${bits.join(", ")}. My receipt on PUBMAXX.`;
+  return bits.join(", ");
+}
+
+export function buildReceiptShareText(receipt: PintReceipt): string {
+  return `${receiptShareDetails(receipt)}. A pint receipt on PUBMAXX.`;
+}
+
+export function buildPersonalReceiptShareText(receipt: PintReceipt): string {
+  return `${receiptShareDetails(receipt)}. My receipt on PUBMAXX.`;
 }
 
 export type ReceiptShare = { dropId: string; path: Route; receipt: PintReceipt };
