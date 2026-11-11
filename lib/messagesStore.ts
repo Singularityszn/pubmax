@@ -645,7 +645,7 @@ type InboxUnread = { byConversation: Map<string, number>; degraded: boolean };
 type InboxDeletions = { byConversation: Map<string, string>; degraded: boolean };
 type InboxRecent = {
   lastByConversation: Map<string, Record<string, unknown>>;
-  windowFull: boolean;
+  missingIds: string[];
   degraded: boolean;
 };
 
@@ -766,6 +766,19 @@ async function readInboxDeletions(ids: readonly string[], me: string): Promise<I
 
 /** The newest-first window that holds each conversation's last message. */
 async function readInboxRecent(ids: readonly string[]): Promise<InboxRecent> {
+  const reads: Array<Promise<InboxRecent>> = [];
+  for (let offset = 0; offset < ids.length; offset += MAX_CONVERSATIONS) {
+    reads.push(readInboxRecentBatch(ids.slice(offset, offset + MAX_CONVERSATIONS)));
+  }
+  const batches = await Promise.all(reads);
+  return {
+    lastByConversation: new Map(batches.flatMap((batch) => [...batch.lastByConversation])),
+    missingIds: batches.flatMap((batch) => batch.missingIds),
+    degraded: batches.some((batch) => batch.degraded),
+  };
+}
+
+async function readInboxRecentBatch(ids: readonly string[]): Promise<InboxRecent> {
   const lastByConversation = new Map<string, Record<string, unknown>>();
   const window = ids.length * INBOX_LAST_MESSAGE_WINDOW;
   let rows: Array<Record<string, unknown>>;
@@ -783,13 +796,17 @@ async function readInboxRecent(ids: readonly string[]): Promise<InboxRecent> {
       "[messages] inbox recent window failed:",
       err instanceof Error ? err.message : err,
     );
-    return { lastByConversation, windowFull: false, degraded: true };
+    return { lastByConversation, missingIds: [], degraded: true };
   }
   for (const row of rows) {
     const id = String(row.conversation_id);
     if (!lastByConversation.has(id)) lastByConversation.set(id, row);
   }
-  return { lastByConversation, windowFull: rows.length >= window, degraded: false };
+  return {
+    lastByConversation,
+    missingIds: rows.length >= window ? ids.filter((id) => !lastByConversation.has(id)) : [],
+    degraded: false,
+  };
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -1274,30 +1291,27 @@ export const supabaseMessagesStore: MessagesStore = {
     if (deletions.degraded) return { conversations: [], status: "degraded" };
 
     const lastByConversation = recent.lastByConversation;
-    if (recent.windowFull) {
-      const missing = ids.filter((id) => !lastByConversation.has(id));
-      await Promise.all(
-        missing.map(async (id) => {
-          try {
-            const { data: one, error } = await admin()
-              .from(MESSAGES)
-              .select(inboxLastColumns())
-              .eq("conversation_id", id)
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            if (error) throw new Error(error.message);
-            if (one) lastByConversation.set(id, one as unknown as Record<string, unknown>);
-          } catch (err) {
-            recent.degraded = true;
-            console.error(
-              "[messages] inbox last-message re-ask failed:",
-              err instanceof Error ? err.message : err,
-            );
-          }
-        }),
-      );
-    }
+    await Promise.all(
+      recent.missingIds.map(async (id) => {
+        try {
+          const { data: one, error } = await admin()
+            .from(MESSAGES)
+            .select(inboxLastColumns())
+            .eq("conversation_id", id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (error) throw new Error(error.message);
+          if (one) lastByConversation.set(id, one as unknown as Record<string, unknown>);
+        } catch (err) {
+          recent.degraded = true;
+          console.error(
+            "[messages] inbox last-message re-ask failed:",
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }),
+    );
 
     rows = limitInboxRows(reconcileInboxRows(rows, lastByConversation, deletions.byConversation));
     const conversations = rows.map((row) => {

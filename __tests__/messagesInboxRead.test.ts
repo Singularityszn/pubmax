@@ -688,6 +688,51 @@ describe("removal privacy on durable reads", () => {
     }
   });
 
+  it.each(["direct", "group", "mixed"] as const)("bounds preview reads with a busy chat and many unresolved %s chats", async (kind) => {
+    const rows = inboxRows(251, kind === "mixed" ? "direct" : kind).map((row, index) => ({
+      ...row,
+      kind: kind === "mixed" && index % 2 ? "group" as const : row.kind,
+    }));
+    const unresolved = rows.slice(1, 152);
+    const marks = new Map(unresolved.map((row) => [row.id, "2027-01-01T00:00:00Z"]));
+    const restoredAt = "2028-01-01T00:00:00.000Z";
+    answerInbox(rows, marks, (row) => marks.has(row.id) ? restoredAt : row.last_message_at);
+    const answer = state.answer;
+    const busyMessages = Array.from({ length: 1_001 }, () => ({
+      conversation_id: "chat-0", sender_handle: "sam", body: "Busy chat",
+      created_at: "2029-01-01T00:00:00.000Z",
+    }));
+    state.answer = (q) => {
+      if (q.table !== "messages" || q.filters.some((f) => f[0] === "is")) return answer(q);
+      if (filterValue(q, "select")?.[0] === "created_at") {
+        return { data: null, error: { message: "connection reset" } };
+      }
+      if (q.single) return answer(q);
+      const ids = filterValue(q, "in")?.[1] as string[];
+      const messages = answer(q).data as Array<(typeof busyMessages)[number]>;
+      return {
+        data: [...(ids.includes("chat-0") ? busyMessages : []), ...messages]
+          .sort((a, b) => b.created_at.localeCompare(a.created_at))
+          .slice(0, Math.min(q.limit ?? 1_000, 1_000)),
+        error: null,
+      };
+    };
+
+    const inbox = await supabaseMessagesStore.listConversations("ken");
+
+    expect(inbox.status).toBe("degraded");
+    expect(inbox.conversations).toHaveLength(251);
+    for (const row of unresolved) {
+      expect(inbox.conversations.find((chat) => chat.id === row.id)).toMatchObject({
+        lastAt: restoredAt, lastBody: `said in ${row.id}`,
+      });
+    }
+    const messageReads = state.queries.filter((q) => q.table === "messages");
+    for (const read of messageReads) expect(read.limit).toBeLessThanOrEqual(1_000);
+    const previews = messageReads.filter((q) => !q.single && !q.filters.some((f) => f[0] === "is"));
+    for (const read of previews) expect(read.limit).toBeLessThan(1_000);
+  });
+
   it.each(["direct", "group"] as const)("keeps healthy %s chats when a failed visibility read has later metadata", async (kind) => {
     const rows = inboxRows(101, kind).map((row, index) => ({
       ...row,
