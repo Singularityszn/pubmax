@@ -169,7 +169,7 @@ describe("/social signed out, London lane open", () => {
       expect(choice, href).not.toBeNull();
       expect(choice!.compareDocumentPosition(offer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
-    expect(host.textContent).toContain("Latest prices we hold");
+    expect(host.textContent).toContain("Latest pint prices we hold");
     expect(host.textContent).toContain("a pint");
     expect(host.querySelector("a[href='https://lamb.example/menu']")?.textContent).toBe("The Lamb");
     expect(host.querySelector("time[dateTime='2026-10-30']")).not.toBeNull();

@@ -13,39 +13,37 @@ import { parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
 const rows = parseUkPriceBundleRows(JSON.parse(readFileSync(
   join(process.cwd(), "public/data/uk_prices/rows.json"), "utf8",
 )));
-const venue = {
+const NOW = Date.parse("2026-11-07T12:00:00Z");
+const LORE = {
   id: "venue-uk-w745483505", name: "Lore of the Land", address: "4 Conway Street, W1T 6BB",
   latitude: 51.5220874, longitude: -0.1395832, kind: "pub", prices: [],
 } satisfies Parameters<typeof buildSocialAlternatives>[0][number];
+const THIRSTY_BEAR = {
+  id: "venue-uk-n1707216586", name: "The Thirsty Bear", address: "62, Stamford street, London, SE1 9LX",
+  latitude: 51.50707, longitude: -0.10812, kind: "pub", prices: [],
+} satisfies Parameters<typeof buildSocialAlternatives>[0][number];
 
-describe("Social empty-state menu labels from the published price bundle", () => {
-  it.each([
-    ["Pedro Ximenez 'Noe' 30-Year-Old VORS, Golzalez Byass, Jerez, Spain 37.5cl", 14.25],
-    ["Sauternes 2022, Chateau Laville, Bordeaux, France 75cl", 11.75],
-    ["'Kabir' Moscato di Panttelleria, Donnafugata, Sicily, Italy 75cl", 8.25],
-  ] as const)("prints the complete source name for %s", (label, priceGbp) => {
-    const row = rows.find((candidate) => candidate.venueId === venue.id && candidate.drinkLabel === label);
-    expect(row).toBeDefined();
-    const alternatives = buildSocialAlternatives(
-      [venue], [], Date.parse("2026-11-07T12:00:00Z"), row ? [row] : [],
-    );
-    expect(alternatives.prices).toHaveLength(1);
-    const host = document.createElement("div");
-    host.innerHTML = renderToStaticMarkup(createElement(SocialLondonEmpty, { alternatives }));
-    const section = host.querySelector("section[aria-labelledby='social-empty-prices']");
-    expect(section?.querySelector(".socialAlternativeMeta")?.textContent).toBe(`${label}, 50ml · £${priceGbp.toFixed(2)}`);
-    expect(section?.querySelector(".socialAlternativeSource a")?.getAttribute("href"))
-      .toBe("https://loreoftheland.com/menu/wine-list/");
-    expect(section?.querySelector("time")?.dateTime).toBe("2026-10-19");
+function pricesSection(venue: Parameters<typeof buildSocialAlternatives>[0][number]) {
+  const alternatives = buildSocialAlternatives([venue], [], NOW, rows);
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(createElement(SocialLondonEmpty, { alternatives }));
+  return { alternatives, section: host.querySelector("section[aria-labelledby='social-empty-prices']") };
+}
+
+describe("Social empty-state pint prices from the published price bundle", () => {
+  it("keeps a pub's published wine list out and says no dated price is held", () => {
+    expect(rows.some((row) => row.venueId === LORE.id && row.category === "wine")).toBe(true);
+    const { alternatives, section } = pricesSection(LORE);
+    expect(alternatives).toMatchObject({ priceRead: "ready", prices: [] });
+    expect(section?.querySelector(".socialAlternativeMeta")?.textContent).toBe("No dated menu prices to show here yet.");
   });
 
-  it("never offers a truncated dessert-wine name from the complete bundle", () => {
-    const alternatives = buildSocialAlternatives([venue], [], Date.parse("2026-11-07T12:00:00Z"), rows);
+  it("prints a published pint with its complete name, serving, publisher and read day", () => {
+    const { alternatives, section } = pricesSection(THIRSTY_BEAR);
     expect(alternatives.prices).toHaveLength(1);
-    const host = document.createElement("div");
-    host.innerHTML = renderToStaticMarkup(createElement(SocialLondonEmpty, { alternatives }));
-    const label = host.querySelector("section[aria-labelledby='social-empty-prices'] .socialAlternativeMeta")?.textContent;
-    expect(label).toBeTruthy();
-    expect(label).not.toMatch(/^(?:e' 30-Year|ine Sauternes|Moscato di Panttelleria)/);
+    expect(section?.querySelector(".socialAlternativeMeta")?.textContent).toBe("Inches Cider, pint · £5.95");
+    expect(section?.querySelector(".socialAlternativeSource a")?.getAttribute("href"))
+      .toBe("https://www.thethirstybear.com/drinks");
+    expect(section?.querySelector("time")?.dateTime).toBe("2026-10-09");
   });
 });
