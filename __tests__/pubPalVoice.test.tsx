@@ -1760,6 +1760,45 @@ describe("Pub Pal voice transcript", () => {
     expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:20");
   });
 
+  it.each([
+    ["/pal", "cap", true],
+    ["/pal", "pal", false],
+    ["/map", "cap", false],
+    ["/map", "pal", true],
+  ] as const)("carries on without earlier asks using the normal opener on %s after %s with overrides %s", async (surface, ending, withOverrides) => {
+    vi.useFakeTimers();
+    const session = await startLiveSession();
+    await endLiveCall(session, ending);
+    navigation.pathname = surface;
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley", panelVisible: surface === "/pal" })); });
+    await settle();
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    const overrides = withOverrides
+      ? { firstMessage: "Hello, what kind of night are you planning?", voiceId: "voice-ripley" }
+      : undefined;
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/again", conversationId: "conv_voiceSession2", overrides,
+    }));
+    const screen = surface === "/map" ? document.body : container;
+    const carryOn = [...screen.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+    expect(carryOn).toBeTruthy();
+    await act(async () => { carryOn?.click(); });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    const resumed = defined(voice.startSession.mock.calls[1])[0] as LiveSession & {
+      overrides?: { agent?: { firstMessage?: string }; tts?: { voiceId: string } };
+    };
+    if (withOverrides) {
+      expect(resumed.overrides).toEqual({
+        agent: { firstMessage: "Hello, what kind of night are you planning?" },
+        tts: { voiceId: "voice-ripley" },
+      });
+    } else expect(resumed.overrides).toBeUndefined();
+    voice.sendContextualUpdate.mockClear();
+    voice.status = "connected";
+    await act(async () => { resumed.onConnect?.(); });
+    expect(voice.sendContextualUpdate).not.toHaveBeenCalled();
+  });
+
   it("carries on with a short greeting and the earlier asks, keeping the picks", async () => {
     vi.useFakeTimers();
     const session = await startLiveSession();

@@ -652,10 +652,10 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
               if (proposals.length) setMemoryCards((current) => [...current, ...proposals.filter((proposal) => !current.some((prior) => prior.id === proposal.id))].slice(-3));
             }
           },
-          overrides: overrides || resume
+          overrides: overrides || resumeContext
             ? {
                 agent: {
-                  firstMessage: resume ? PAL_VOICE_RESUME_GREETING : overrides?.firstMessage,
+                  firstMessage: resumeContext ? PAL_VOICE_RESUME_GREETING : overrides?.firstMessage,
                 },
                 ...(overrides?.voiceId
                   ? { tts: { voiceId: overrides.voiceId } }
