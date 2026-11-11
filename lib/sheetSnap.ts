@@ -337,15 +337,13 @@ export function sheetClosedTranslateY(
 export type SheetSnapCaps = Record<SheetSnap, number>;
 
 /**
- * Per-snap cap heights (px) for the bottom-anchored sheet. Peek and half are
- * the plain `<fraction>dvh` used in mobileMapShell.css, raised to `chromePx`
- * (the sheet's header, footer and body padding) so neither clips the sheet's
- * own controls. `dockPx` is how far the sheet's bottom edge sits above the
- * viewport bottom (the portal stops above the primary dock), and only full
- * gives it up: its top edge stays where a bottom:0 full sheet would put it, so
- * the strip of map above it never closes. `topReservePx` is a band at the top
- * of the viewport that full also stays below, so a live voice bar docked on the
- * sheet's top edge still fits on screen.
+ * Per-snap cap heights (px) for the bottom-anchored sheet. Peek and half use
+ * viewport fractions, raised to `chromePx` for the header, footer and body
+ * padding. Every snap is limited to the full cap, even when chrome cannot fit.
+ * `dockPx` is the distance from the sheet's bottom edge to the viewport bottom.
+ * Full subtracts this distance to preserve its usual top edge above the dock.
+ * `topReservePx` reserves a viewport band above the sheet and can reduce full
+ * further. Peek and half also shrink when they exceed that reduced cap.
  */
 export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0, topReservePx = 0): SheetSnapCaps {
   const full = Math.max(0, Math.min(viewportHeight * SHEET_SNAP_FRACTIONS.full, viewportHeight - topReservePx) - dockPx);

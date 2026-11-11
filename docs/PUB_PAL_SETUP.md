@@ -452,6 +452,11 @@ shell. On the map, `PalVoiceBar` shows the call status and newest transcript lin
 and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
 without starting another call. A cold `/map` loads no ElevenLabs SDK until you tap to talk.
 
+At phone widths and 641-768 px tablet widths, an open map sheet positions the
+voice bar above its top edge. The sheet's maximum height leaves space for the
+bar, so the caption, **End** and sheet header remain visible. This space adjusts
+when the bar's height changes. The desktop layout stays unchanged.
+
 Before the session consumes a map-chip tap, leaving `/pal` and `/map` routes,
 changing accounts, hiding the page, or `pagehide` cancels the pending request.
 Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.
