@@ -147,16 +147,21 @@ function hasZeroAlcoholStrength(query: string): boolean {
   });
 }
 
-export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
-  const query = cleanText(rawQuery, 500);
-  const lower = query.toLocaleLowerCase();
-  const reasons: ContextReason[] = [];
+function inferNightArea(query: string, lower: string, reasons: ContextReason[]): Pick<NightContext, "nightArea" | "areaFocus"> {
   const areaMatch = AREA_LABELS.find(({ label }) => lower.includes(label.toLocaleLowerCase()));
   if (areaMatch) reasons.push({ field: "nightArea", evidence: areaMatch.label, explanation: "Matched the requested area." });
   const areaFocus = nightAreaFocusFromQuery(areaMatch?.slug ?? null, query);
   if (areaFocus) {
     reasons.push({ field: "areaFocus", evidence: nightAreaFocusLabel(areaFocus), explanation: "Matched the place named inside the area." });
   }
+  return { nightArea: areaMatch?.slug ?? null, ...(areaFocus ? { areaFocus } : {}) };
+}
+
+export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
+  const query = cleanText(rawQuery, 500);
+  const lower = query.toLocaleLowerCase();
+  const reasons: ContextReason[] = [];
+  const area = inferNightArea(query, lower, reasons);
 
   let daypart = defaultDaypart(now);
   // Explicit clock words win over occasion language. Coffee / catch-up / Spoons
@@ -236,8 +241,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
 
   return {
     context: {
-      nightArea: areaMatch?.slug ?? null,
-      ...(areaFocus ? { areaFocus } : {}),
+      ...area,
       daypart,
       partyType,
       groupSize,
@@ -252,7 +256,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
       accessibility,
       transportConstraints,
     },
-    confidence: areaMatch ? 0.86 : 0.62,
+    confidence: area.nightArea ? 0.86 : 0.62,
     reasons,
   };
 }

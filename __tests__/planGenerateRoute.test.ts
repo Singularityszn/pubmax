@@ -69,6 +69,22 @@ describe("POST /api/plans/generate", () => {
   }
 
   it.each([
+    { areaFocus: "soho", lat: 51.5136, lng: -0.1338 },
+    { areaFocus: "piccadilly", lat: 51.5101, lng: -0.1342 },
+    { areaFocus: null, lat: 51.511, lng: -0.134 },
+    { areaFocus: undefined, lat: 51.511, lng: -0.134 },
+  ])("measures candidate distance from the requested geography: %j", async ({ areaFocus, lat, lng }) => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([generatedVenue("origin", { lat, lng })]);
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ context: { nightArea: "piccadilly-soho", areaFocus } }),
+    }), PLAN_GENERATION_TEST_NOW);
+
+    if (!("prepared" in result)) throw new Error(JSON.stringify(await result.response.json()));
+    expect(result.prepared.candidates).toHaveLength(1);
+    expect(result.prepared.candidates[0]?.distance).toBe(0);
+  });
+
+  it.each([
     { query: "Cheap pints in Soho for 3" },
     { query: "Cheap pints in Soho for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
     { query: "Cheap pints in Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "piccadilly" } },

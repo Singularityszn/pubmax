@@ -424,6 +424,12 @@ function applyStrictestRouteBudget(
 	}
 }
 
+function planCandidateGeography(context: NightContext, area: NightArea) {
+	// Stops, swap options and extra stops use the same focus and distance origin.
+	const focus = context.areaFocus ?? null;
+	return { focus, origin: focus ? nightAreaFocusCentre(focus) : area.centre };
+}
+
 export async function preparePlanGeneration(
 	request: Request,
 	requestNow: number = Date.now(),
@@ -559,10 +565,7 @@ export async function preparePlanGeneration(
 	const dietaryMenu = dietaryNeeds.length > 0
 		? { need: dietaryNeeds[0]!, menuLinkVenueIds: await menuLinkVenueIds() }
 		: null;
-	// One rule for stops, swap options and extra stops: a named place inside
-	// the area keeps only its own pubs, and measures distance from its centre.
-	const focus = context.areaFocus ?? null;
-	const origin = focus ? nightAreaFocusCentre(focus) : area.centre;
+	const { focus, origin } = planCandidateGeography(context, area);
 	const candidates = cappedVenues
 		.map((venue) => {
 			const distance = distanceKm(origin, venue);

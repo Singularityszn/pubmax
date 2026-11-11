@@ -169,6 +169,10 @@ function isNullableIntegerInRange(value: unknown, min: number, max: number): val
   return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max);
 }
 
+function parseAreaFocus(value: unknown): NightContext["areaFocus"] {
+  return value === null || isNightAreaFocus(value) ? value : undefined;
+}
+
 function parseContext(value: unknown): Partial<NightContext> | null | undefined {
   if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !hasOnlyKeys(value, CONTEXT_KEYS)) return undefined;
@@ -180,10 +184,12 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
         if (item !== null && !isNightAreaSlug(item)) return undefined;
         result.nightArea = item as NightContext["nightArea"];
         break;
-      case "areaFocus":
-        if (item !== null && !isNightAreaFocus(item)) return undefined;
-        result.areaFocus = item as NightContext["areaFocus"];
+      case "areaFocus": {
+        const focus = parseAreaFocus(item);
+        if (focus === undefined) return undefined;
+        result.areaFocus = focus;
         break;
+      }
       case "daypart":
         if (!isDaypart(item)) return undefined;
         result.daypart = item;
