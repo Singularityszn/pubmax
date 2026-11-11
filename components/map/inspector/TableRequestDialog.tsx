@@ -214,9 +214,15 @@ export default function TableRequestDialog({
         setStage({ kind: "sent" });
         return;
       }
-      if (response.ok) {
+      if (response.ok && body?.outcome === "not_sent") {
         trackEvent("table_request_sent", { source, outcome: "not_sent" });
         setStage({ kind: "not_sent", request: validation.fields });
+        return;
+      }
+      // The pub may already have the email, so only a retry under this key can tell.
+      if (response.ok) {
+        setStage({ kind: "form" });
+        setError({ field: null, text: "We could not confirm that request. Sending it again will not ask the pub twice." });
         return;
       }
       const status = readContributionGateStatus(body?.status);
