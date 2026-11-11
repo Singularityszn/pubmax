@@ -526,7 +526,21 @@ export function rowEffectiveEnd(row: WhatsOnRow): number {
 // stale bundled seed must never be SERVED. The tonight window path already
 // scopes past rows out via filterTonight; this guards the default (no window)
 // path, which would otherwise surface a played fixture forever.
+//
+// A deal also goes past once its source read is older than
+// DEAL_SOURCE_MAX_AGE_MS. A deal row is regenerated as "the next occurrence"
+// of a weekly offer, so its window is always tonight-shaped. Only the source
+// read says whether anyone has checked that the offer still runs.
+export const DEAL_SOURCE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function isLapsedDealListing(row: WhatsOnRow, now: number): boolean {
+  if (row.kind !== "deal") return false;
+  const observed = Date.parse(row.observedAt);
+  return !Number.isFinite(observed) || now - observed > DEAL_SOURCE_MAX_AGE_MS;
+}
+
 export function isPastDated(row: WhatsOnRow, now: number = Date.now()): boolean {
+  if (isLapsedDealListing(row, now)) return true;
   const end = rowEffectiveEnd(row);
   return Number.isFinite(end) && end <= now;
 }
