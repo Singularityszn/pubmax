@@ -521,11 +521,8 @@ export function rowEffectiveEnd(row: WhatsOnRow): number {
 // interval row (e.g. an all-day deal) stays live while it is still running,
 // exactly like isOnTonight's overlap test.
 //
-// This is the #408 defence: the hand-curated sport-fixtures seed goes stale the
-// moment a kickoff passes (crons are dead, so nothing re-derives it), and a
-// stale bundled seed must never be SERVED. The tonight window path already
-// scopes past rows out via filterTonight; this guards the default (no window)
-// path, which would otherwise surface a played fixture forever.
+// Bundled seeds can outlive their fixtures. The default read has no tonight
+// window, so it needs this guard to exclude ended listings too.
 //
 // A deal also goes past once its source read is older than
 // DEAL_SOURCE_MAX_AGE_MS. A deal row is regenerated as "the next occurrence"
