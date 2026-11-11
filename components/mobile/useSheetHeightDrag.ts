@@ -98,7 +98,6 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     viewportHeight: number;
     startClientY: number;
     startHeight: number;
-    caps: ReturnType<typeof sheetSnapCaps>;
     startSnap: SheetSnap;
     lastY: number;
     lastTime: number;
@@ -289,7 +288,6 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
         viewportHeight: window.innerHeight,
         startClientY: event.clientY,
         startHeight,
-        caps: capsForViewport(),
         startSnap: sheetSnap,
         lastY: event.clientY,
         lastTime: performance.now(),
@@ -299,7 +297,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       event.currentTarget.setPointerCapture(event.pointerId);
       setDragging(true);
     },
-    [capsForViewport, gestureEnabled, jumpTo, sheetSnap, stop],
+    [gestureEnabled, jumpTo, sheetSnap, stop],
   );
 
   const onSheetDragMove = useCallback(
@@ -323,9 +321,9 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
 
       const raw =
         drag.startHeight + (drag.startClientY - event.clientY);
-      jumpTo(presentHeight(raw, drag.caps.full));
+      jumpTo(presentHeight(raw, capsForViewport().full));
     },
-    [jumpTo],
+    [capsForViewport, jumpTo],
   );
 
   const onSheetDragEnd = useCallback(
@@ -340,7 +338,8 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
 
       const raw =
         drag.startHeight + (drag.startClientY - event.clientY);
-      const releaseHeight = presentHeight(raw, drag.caps.full);
+      const caps = capsForViewport();
+      const releaseHeight = presentHeight(raw, caps.full);
       const paused = performance.now() - drag.lastTime > RELEASE_PAUSE_MS;
       const velocity = paused ? 0 : drag.velocity;
       const { snap, dismissed } = resolveSheetHeightSnap({
@@ -349,7 +348,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
         startHeightPx: drag.startHeight,
         releaseHeightPx: releaseHeight,
         velocity,
-        caps: drag.caps,
+        caps,
       });
 
       if (dismissed) {
@@ -358,13 +357,13 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       }
 
       setRestingSnap(snap);
-      animateTo(drag.caps[snap], {
+      animateTo(caps[snap], {
         velocity: velocity * 1000,
         dampingRatio:
           Math.abs(velocity) >= MOMENTUM_VELOCITY_THRESHOLD ? 0.8 : 1,
       });
     },
-    [animateTo, dismissWithVelocity, setRestingSnap],
+    [animateTo, capsForViewport, dismissWithVelocity, setRestingSnap],
   );
 
   return {

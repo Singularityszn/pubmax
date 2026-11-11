@@ -27,7 +27,13 @@ function Harness({
 }) {
   const drag = useSheetHeightDrag(onDismiss);
   onRender(drag);
-  return null;
+  return createElement("section", { className: "mapDrawer", style: { height: drag.sheetHeight } },
+    createElement("header", {
+      onPointerDown: drag.onSheetDragStart,
+      onPointerMove: drag.onSheetDragMove,
+      onPointerUp: drag.onSheetDragEnd,
+      onPointerCancel: drag.onSheetDragEnd,
+    }, "Drag"));
 }
 
 let root: Root | null = null;
@@ -143,6 +149,61 @@ describe("useSheetHeightDrag under a shrinking layout viewport", () => {
     expect(probe.snapshot!.sheetHeight).toBe(sheetSnapCaps(538, 0).full);
     // A jump, not a spring: the height is already at rest.
     expect(probe.snapshot!.settling).toBe(false);
+  });
+
+  it.each([
+    { initialReserve: 84, reserve: 132, full: 648 },
+    { initialReserve: 132, reserve: 84, full: 696 },
+  ])("uses a changed voice band from $initialReserve to $reserve during a drag", async ({ initialReserve, reserve, full }) => {
+    setViewport(844);
+    const portal = document.body.appendChild(document.createElement("div"));
+    portal.className = "mobileSheetPortal";
+    portal.style.bottom = "64px";
+    portal.style.paddingTop = `${initialReserve}px`;
+    vi.spyOn(window, "matchMedia").mockReturnValue({
+      matches: true, addEventListener() {}, removeEventListener() {},
+    } as unknown as MediaQueryList);
+    try {
+      const probe = await mount();
+      await act(async () => probe.snapshot!.openAtSnap("full"));
+      const initialHeight = probe.snapshot!.sheetHeight;
+      const drawer = document.querySelector<HTMLElement>(".mapDrawer")!;
+      const header = drawer.querySelector("header")!;
+      vi.spyOn(drawer, "getBoundingClientRect").mockImplementation(() => ({ height: probe.snapshot!.sheetHeight } as DOMRect));
+      header.setPointerCapture = vi.fn();
+      header.hasPointerCapture = () => true;
+      header.releasePointerCapture = vi.fn();
+      const pointer = async (type: string, clientY: number) => {
+        await act(async () => header.dispatchEvent(new MouseEvent(type, { bubbles: true, clientY })));
+      };
+
+      await pointer("pointerdown", 200);
+      portal.style.paddingTop = `${reserve}px`;
+      await act(async () => probe.snapshot!.recapToViewport());
+      expect(probe.snapshot!.dragging).toBe(true);
+      expect(probe.snapshot!.sheetHeight).toBe(initialHeight);
+
+      await pointer("pointerup", 200);
+      expect(probe.snapshot!.sheetSnap).toBe("full");
+      expect(probe.snapshot!.sheetHeight).toBe(full);
+      expect(844 - 64 - probe.snapshot!.sheetHeight).toBe(reserve);
+
+      await pointer("pointerdown", 200);
+      portal.style.paddingTop = `${initialReserve}px`;
+      await act(async () => probe.snapshot!.recapToViewport());
+      await pointer("pointermove", 180);
+      if (initialReserve > reserve) {
+        expect(probe.snapshot!.sheetHeight).toBeLessThan(full);
+        expect(probe.snapshot!.sheetHeight).toBeGreaterThan(initialHeight);
+      } else {
+        expect(probe.snapshot!.sheetHeight).toBe(full + 20);
+      }
+      await pointer("pointercancel", 180);
+      expect(probe.snapshot!.sheetHeight).toBe(initialHeight);
+      expect(probe.snapshot!.dragging).toBe(false);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it("brings the field that holds focus back into its scroller", async () => {
