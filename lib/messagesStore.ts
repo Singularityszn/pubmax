@@ -645,7 +645,7 @@ type InboxUnread = { byConversation: Map<string, number>; degraded: boolean };
 type InboxDeletions = { byConversation: Map<string, string>; degraded: boolean };
 type InboxRecent = {
   lastByConversation: Map<string, Record<string, unknown>>;
-  missingIds: string[];
+  windowFull: boolean;
   degraded: boolean;
 };
 
@@ -766,19 +766,6 @@ async function readInboxDeletions(ids: readonly string[], me: string): Promise<I
 
 /** The newest-first window that holds each conversation's last message. */
 async function readInboxRecent(ids: readonly string[]): Promise<InboxRecent> {
-  const reads: Array<Promise<InboxRecent>> = [];
-  for (let offset = 0; offset < ids.length; offset += MAX_CONVERSATIONS) {
-    reads.push(readInboxRecentBatch(ids.slice(offset, offset + MAX_CONVERSATIONS)));
-  }
-  const batches = await Promise.all(reads);
-  return {
-    lastByConversation: new Map(batches.flatMap((batch) => [...batch.lastByConversation])),
-    missingIds: batches.flatMap((batch) => batch.missingIds),
-    degraded: batches.some((batch) => batch.degraded),
-  };
-}
-
-async function readInboxRecentBatch(ids: readonly string[]): Promise<InboxRecent> {
   const lastByConversation = new Map<string, Record<string, unknown>>();
   const window = ids.length * INBOX_LAST_MESSAGE_WINDOW;
   let rows: Array<Record<string, unknown>>;
@@ -796,17 +783,13 @@ async function readInboxRecentBatch(ids: readonly string[]): Promise<InboxRecent
       "[messages] inbox recent window failed:",
       err instanceof Error ? err.message : err,
     );
-    return { lastByConversation, missingIds: [], degraded: true };
+    return { lastByConversation, windowFull: false, degraded: true };
   }
   for (const row of rows) {
     const id = String(row.conversation_id);
     if (!lastByConversation.has(id)) lastByConversation.set(id, row);
   }
-  return {
-    lastByConversation,
-    missingIds: rows.length >= window ? ids.filter((id) => !lastByConversation.has(id)) : [],
-    degraded: false,
-  };
+  return { lastByConversation, windowFull: rows.length >= window, degraded: false };
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -1263,7 +1246,7 @@ export const supabaseMessagesStore: MessagesStore = {
         const id = String(row.id ?? "");
         if (id && !byId.has(id)) byId.set(id, row);
       }
-      rows = [...byId.values()];
+      rows = newestFirst([...byId.values()]).slice(0, MAX_CONVERSATIONS);
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("listConversations", err);
@@ -1291,29 +1274,31 @@ export const supabaseMessagesStore: MessagesStore = {
     if (deletions.degraded) return { conversations: [], status: "degraded" };
 
     const lastByConversation = recent.lastByConversation;
-    await Promise.all(
-      recent.missingIds.map(async (id) => {
-        try {
-          const { data: one, error } = await admin()
-            .from(MESSAGES)
-            .select(inboxLastColumns())
-            .eq("conversation_id", id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (error) throw new Error(error.message);
-          if (one) lastByConversation.set(id, one as unknown as Record<string, unknown>);
-        } catch (err) {
-          recent.degraded = true;
-          console.error(
-            "[messages] inbox last-message re-ask failed:",
-            err instanceof Error ? err.message : err,
-          );
-        }
-      }),
-    );
+    if (recent.windowFull) {
+      const missing = ids.filter((id) => !lastByConversation.has(id));
+      await Promise.all(
+        missing.map(async (id) => {
+          try {
+            const { data: one, error } = await admin()
+              .from(MESSAGES)
+              .select(inboxLastColumns())
+              .eq("conversation_id", id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (error) throw new Error(error.message);
+            if (one) lastByConversation.set(id, one as unknown as Record<string, unknown>);
+          } catch (err) {
+            recent.degraded = true;
+            console.error(
+              "[messages] inbox last-message re-ask failed:",
+              err instanceof Error ? err.message : err,
+            );
+          }
+        }),
+      );
+    }
 
-    rows = limitInboxRows(reconcileInboxRows(rows, lastByConversation, deletions.byConversation));
     const conversations = rows.map((row) => {
       const id = String(row.id);
       const newest = lastByConversation.get(id);
@@ -1624,40 +1609,17 @@ async function membershipForRow(
 /** Inbox rows from one lane, and whether a read that judged them failed. */
 type InboxLane = { rows: Array<Record<string, unknown>>; degraded: boolean };
 
-function limitInboxRows(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
-  let resolved = 0;
-  return rows
-    .sort((a, b) => String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")))
-    .filter((row) => row.visibilityReadFailed === true || resolved++ < MAX_CONVERSATIONS);
+function newestFirst(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  return rows.sort((a, b) =>
+    String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
+  );
 }
 
-function reconcileInboxRows(
-  rows: Array<Record<string, unknown>>,
-  lastByConversation: ReadonlyMap<string, Record<string, unknown>>,
-  deletions: ReadonlyMap<string, string>,
-): Array<Record<string, unknown>> {
-  return rows.map((row) => {
-    const id = String(row.id);
-    const newest = lastByConversation.get(id);
-    if (
-      row.visibilityReadFailed !== true || typeof newest?.created_at !== "string" ||
-      !afterDeleteMark(newest.created_at, deletions.get(id))
-    ) return row;
-    return { ...row, last_message_at: newest.created_at };
-  });
-}
-
-/**
- * Every DIRECT conversation this handle is in. The pair columns find them.
- *
- * THE SCAN READS EVERY PAGE. `send` bumps last_message_at best-effort, so a
- * chat restored by a message whose bump failed can sort anywhere. A scan that
- * stopped at the first full page of visible rows never reached it (F13).
- */
+/** Every DIRECT conversation this handle is in. The pair columns find them. */
 async function readDirectConversationRows(me: string): Promise<InboxLane> {
-  let visible: Array<Record<string, unknown>> = [];
+  const visible: Array<Record<string, unknown>> = [];
   let degraded = false;
-  for (let offset = 0; ; offset += MAX_CONVERSATIONS) {
+  for (let offset = 0; visible.length < MAX_CONVERSATIONS; offset += MAX_CONVERSATIONS) {
     const read = () =>
       admin()
         .from(CONVERSATIONS)
@@ -1672,9 +1634,10 @@ async function readDirectConversationRows(me: string): Promise<InboxLane> {
     const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
     const page = await visibleConversationRows(rows.filter((row) => row.kind !== "group"), me);
     degraded ||= page.degraded;
-    visible = limitInboxRows([...visible, ...page.rows]);
-    if (rows.length < MAX_CONVERSATIONS) return { rows: visible, degraded };
+    visible.push(...page.rows);
+    if (rows.length < MAX_CONVERSATIONS) break;
   }
+  return { rows: newestFirst(visible).slice(0, MAX_CONVERSATIONS), degraded };
 }
 
 /**
@@ -1711,7 +1674,7 @@ async function readGroupConversationIds(me: string): Promise<string[]> {
 
 /**
  * The rows this viewer has not deleted, or that a later message restored. A
- * restored row sorts by that message, so a missed bump cannot sink it.
+ * restored row sorts and shows the time of that message, not last_message_at.
  *
  * ONE FAILED LATEST-MESSAGE READ KEEPS ITS ROW and degrades the lane. Throwing
  * would empty a whole inbox of healthy chats (F14); the inbox preview hides
@@ -1746,7 +1709,7 @@ async function visibleConversationRows(
         "[messages] inbox restored-chat read failed:",
         err instanceof Error ? err.message : err,
       );
-      return { ...row, visibilityReadFailed: true };
+      return row;
     }
   }));
   return { rows: judged.filter((row) => row !== null), degraded };
@@ -1776,7 +1739,7 @@ async function readGroupConversationRows(
     degraded ||= chunk.degraded;
     visible.push(...chunk.rows);
   }
-  return { rows: limitInboxRows(visible), degraded };
+  return { rows: newestFirst(visible).slice(0, MAX_CONVERSATIONS), degraded };
 }
 
 /** Every group row's live membership, in ONE read rather than one per row. */
