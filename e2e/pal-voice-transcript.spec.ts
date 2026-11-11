@@ -5,6 +5,7 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { storeThemeChoice } from "./helpers/themeClock";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 // The voice panel on /pal, driven through the REAL ElevenLabs SDK against a
 // stand-in for the provider's socket. The stand-in speaks the provider's own
@@ -146,7 +147,7 @@ async function preparePalAccount(page: Page, memoryProposals = false, firstMessa
     return { opened };
   }
   await expect(page.getByRole("button", { name: "Account options for Karan", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: /^Pub Pal(?:,.*)?$/ }).first().click();
+  await page.getByRole("link", { name: /^Pub Pal(?:,.*)?$/ }).first().press("Enter");
   await expect(page).toHaveURL(/\/pal$/);
   await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeVisible({ timeout: 30_000 });
   // Wrapped, so awaiting the account does not also wait for the socket.
@@ -957,6 +958,173 @@ for (const [pending, width] of [["plan read", 1440], ["redirect timer", 1440], [
     });
     await test.info().attach("voice-end-hit-target", { body: JSON.stringify(hit), contentType: "application/json" });
     await test.step("End remains usable beside pub details", async () => { expect(hit.reachable).toBe(true); });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect.poll(() => closed).toBe(true);
+  });
+}
+
+for (const width of [390, 568, 641, 768]) {
+  test(`${width}px: a growing voice bar stays above the sheet after a held drag`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: width === 568 ? 320 : 844 });
+    await storeThemeChoice(page, width === 641 ? "dark" : "light");
+    const socket = await openLiveVoice(page);
+    hear(socket, "Find four pubs in Soho");
+    const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find four pubs in Soho" } });
+    expect(response.ok()).toBe(true);
+    const answer = await response.json();
+    const index = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { rows: { id: string; lat: number; lng: number }[] };
+    const venues = index.rows.filter(venue => answer.cards.some((card: { venueId: string }) => card.venueId === venue.id));
+    const request = { tool_name: "search_venues", tool_call_id: `sheet-reserve-${++eventId}`, tool_type: "webhook", event_id: eventId };
+    socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+    socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+      ...request, is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: { ok: true, tool: "search_venues", answerHint: "Recorded results.", cards: answer.cards, data: { venues } } }),
+    } }));
+    await page.getByRole("list", { name: "Pubs from the voice answer" }).getByRole("link", { name: answer.cards[0].title, exact: true }).click();
+    await expect(page.locator(".palVoiceBar")).toBeVisible();
+    await expectMapLoadingFrameReleased(page);
+    const phone = width <= 640;
+    const sheet = page.locator(phone ? ".mobileSharedSheet" : ".mapDrawer.right.open");
+    const handle = sheet.locator(phone ? ".mobileSharedSheetHeader" : ".mapDrawerHead");
+    await expectLayoutSettled(sheet);
+    const dragToFull = async () => {
+      const box = await handle.boundingBox();
+      if (!box) throw new Error("The sheet has no drag handle.");
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height - 3);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2, 8, { steps: 12 });
+      await page.mouse.up();
+      await expect(sheet).toHaveClass(/sheet-full/);
+      await expectLayoutSettled(sheet);
+    };
+    if (phone) await page.getByRole("button", { name: "Expand sheet", exact: true }).click();
+    else await dragToFull();
+    if (phone) await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    const before = await sheet.boundingBox();
+    const readState = () => sheet.evaluate(element => ({
+      top: element.getBoundingClientRect().top,
+      transform: getComputedStyle(element).transform,
+      inline: element.getAttribute("style"),
+      reserve: getComputedStyle(element).getPropertyValue("--sheet-top-reserve"),
+      bottom: getComputedStyle(element).bottom,
+      height: element.getBoundingClientRect().height,
+      maxHeight: getComputedStyle(element).maxHeight,
+      scrollY,
+    }));
+    const beforeState = await readState();
+    await page.screenshot({ path: `${SHOTS}/held-drag-before-${width}.png` });
+    const box = await handle.boundingBox();
+    if (!box || !before) throw new Error("The sheet has no visible header.");
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height - 3;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    const grabbed = await sheet.boundingBox();
+    await info.attach("grab-geometry", { body: JSON.stringify({ before: beforeState, after: await readState() }), contentType: "application/json" });
+    await page.screenshot({ path: `${SHOTS}/held-drag-grabbed-${width}.png` });
+    socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+      tool_name: "map_focus_pick", tool_call_id: `grow-${++eventId}`, parameters: { number: 2 }, event_id: eventId,
+    } }));
+    await expect(page.locator(".palVoiceBarPick")).toContainText(answer.cards[1].title);
+    await page.mouse.move(x, y - 1);
+    await page.mouse.up();
+    if (phone) await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    const checkDock = async () => {
+      const geometry = await page.evaluate(selector => {
+        const bar = document.querySelector(".palVoiceBar")!.getBoundingClientRect();
+        const sheet = document.querySelector(selector)!.getBoundingClientRect();
+        const end = [...document.querySelectorAll(".palVoiceBar button")].find(button => button.textContent?.trim() === "End")!;
+        const endBox = end.getBoundingClientRect();
+        return { barTop: bar.top, barBottom: bar.bottom, sheetTop: sheet.top,
+          endReachable: end.contains(document.elementFromPoint(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2)) };
+      }, phone ? ".mobileSharedSheet" : ".mapDrawer.right.open");
+      expect(geometry.barTop).toBeGreaterThanOrEqual(0);
+      expect(geometry.barBottom).toBeLessThanOrEqual(geometry.sheetTop);
+      expect(geometry.endReachable).toBe(true);
+      return geometry;
+    };
+    await expect(checkDock).toPass();
+    await info.attach("held-drag-geometry", { body: JSON.stringify(await checkDock()), contentType: "application/json" });
+    await page.screenshot({ path: `${SHOTS}/held-drag-grown-${width}.png` });
+    if (width !== 568) {
+      await page.evaluate(() => document.documentElement.style.fontSize = "32px");
+      await expect(checkDock).toPass();
+      await page.screenshot({ path: `${SHOTS}/held-drag-large-text-${width}.png` });
+      await page.evaluate(() => document.documentElement.style.fontSize = "");
+      await expect(checkDock).toPass();
+    }
+    let closed = false;
+    socket.onClose(() => { closed = true; });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect.poll(() => closed).toBe(true);
+    await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+    if (phone) await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    expect((await sheet.boundingBox())!.y).toBeLessThan(before.y + 1);
+    expect(Math.abs(grabbed!.y - before.y)).toBeLessThanOrEqual(1);
+  });
+}
+
+for (const surface of ["planner", "story"] as const) {
+  test(`768px: the voice bar follows ${surface} to venue and browser Back`, async ({ page }, info) => {
+    await page.setViewportSize({ width: 768, height: 900 });
+    await storeThemeChoice(page, "light");
+    await releaseDeferredShell(page);
+    const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
+    const path = surface === "planner"
+      ? "/map?mode=build&plan=1&q=Soho&pubs=venue-1ufn31x,venue-1t8siin,venue-xiesdn"
+      : "/map?landmark=big-ben";
+    await page.goto(path);
+    await expectMapLoadingFrameReleased(page);
+    const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+    await expect(async () => {
+      if (await chip.isVisible()) {
+        await chip.focus();
+        await page.keyboard.press("Enter");
+      }
+      await expect(page.locator(".palVoiceBar")).toBeVisible();
+    }).toPass();
+    const socket = await opened;
+    say(socket, "Your call stays with the map.");
+    const incoming = page.locator(surface === "planner" ? ".mapDrawer.left.open:not(.storyDrawer)" : ".storyDrawer.open");
+    await expectLayoutSettled(incoming);
+    const check = async () => {
+      const geometry = await incoming.evaluate(element => {
+        const bar = document.querySelector(".palVoiceBar")!.getBoundingClientRect();
+        const sheet = element.getBoundingClientRect();
+        const end = document.querySelector(".palVoiceBar button")!;
+        const button = end.getBoundingClientRect();
+        return { barBottom: bar.bottom, sheetTop: sheet.top,
+          endReachable: end.contains(document.elementFromPoint(button.x + button.width / 2, button.y + button.height / 2)) };
+      });
+      expect(geometry.barBottom).toBeLessThanOrEqual(geometry.sheetTop);
+      expect(geometry.sheetTop - geometry.barBottom).toBeLessThanOrEqual(9);
+      expect(geometry.endReachable).toBe(true);
+      return geometry;
+    };
+    await expect(check).toPass();
+    await incoming.locator(surface === "planner" ? ".routeList > li button" : ".landmarkStoryPubs button").first().click();
+    const venue = page.locator(".mapDrawer.right.open");
+    await expectLayoutSettled(venue);
+    const handle = venue.locator(".mapDrawerHead");
+    const box = await handle.boundingBox();
+    if (!box) throw new Error("The venue has no header.");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height - 3);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, 8, { steps: 12 });
+    await page.mouse.up();
+    await expect(venue).toHaveClass(/sheet-full/);
+    await expectLayoutSettled(venue);
+    await page.goBack();
+    await expectLayoutSettled(incoming);
+    await expect(page.locator(".mapDrawer.right")).toHaveCSS("will-change", "auto");
+    await expect(check).toPass();
+    await info.attach("handoff-geometry", { body: JSON.stringify(await check()), contentType: "application/json" });
+    await page.screenshot({ path: `${SHOTS}/handoff-${surface}-768.png` });
+    let closed = false;
+    socket.onClose(() => { closed = true; });
     await page.getByRole("button", { name: "End", exact: true }).click();
     await expect.poll(() => closed).toBe(true);
   });

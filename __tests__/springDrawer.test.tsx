@@ -59,7 +59,8 @@ function tabletLayout(): void {
   }));
   const computedStyle = window.getComputedStyle.bind(window);
   vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
-    const style = computedStyle(element);
+    const style = document.createElement("div").style;
+    style.cssText = computedStyle(element).cssText;
     if (element.classList.contains("mapDrawer")) {
       style.bottom = "58px";
       style.setProperty("--sheet-top-reserve", document.body.style.getPropertyValue("--sheet-top-reserve") || "0px");

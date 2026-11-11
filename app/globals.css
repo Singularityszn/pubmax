@@ -5442,12 +5442,12 @@ button:disabled {
     transform: translateY(8dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
+  .mapDrawer.left.open.sheet-full:not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-half:not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-peek:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet) {
     height: 100dvh;
     max-height: none;
   }
