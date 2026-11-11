@@ -230,11 +230,11 @@ afterEach(() => {
 });
 
 describe("Pub Pal voice controls", () => {
-  it.each(["species", "agent-default"])("discloses the %s fallback without changing provider overrides", async (voiceSource) => {
+  it.each(["species", "agent-default"])("discloses a missing picked voice on the %s fallback without changing provider overrides", async (voiceSource) => {
     getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
     requests.authedActionFetch.mockResolvedValueOnce(Response.json({
       signedUrl: "wss://voice.example/session",
-      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource },
+      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource, pickedVoiceMissing: true },
     }));
     await mountAvailable();
     expect(container.textContent).not.toContain("Your chosen voice isn't available");
@@ -243,7 +243,23 @@ describe("Pub Pal voice controls", () => {
     expect(container.querySelector('[role="status"].palVoiceHint')?.textContent).toBe(
       "Your chosen voice isn't available. Using your Pal's default voice.",
     );
-    expect(JSON.stringify(defined(voice.startSession.mock.calls[0])[0])).not.toContain("voiceSource");
+    const sent = JSON.stringify(defined(voice.startSession.mock.calls[0])[0]);
+    expect(sent).not.toContain("voiceSource");
+    expect(sent).not.toContain("pickedVoiceMissing");
+  });
+
+  // With no picked voice on offer, the Pal's own voice is the only voice, so there is nothing to apologise for.
+  it.each(["species", "agent-default"])("says nothing about a pick on the %s voice when no picked voice is offered", async (voiceSource) => {
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/session",
+      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource, pickedVoiceMissing: false },
+    }));
+    await mountAvailable();
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    expect(container.textContent).not.toContain("Your chosen voice isn't available");
+    expect(voice.startSession).toHaveBeenCalledOnce();
   });
 
   it.each(["selected", "unknown", undefined])("does not claim a fallback for %s selection metadata", async (voiceSource) => {
@@ -513,7 +529,7 @@ describe("Pub Pal voice controls", () => {
   });
 
   it.each([
-    [429, "VOICE_ALLOWANCE_USED", "You've used this month's trial voice allowance."],
+    [429, "VOICE_ALLOWANCE_USED", "You've used this month's voice allowance."],
     [503, "UNAVAILABLE", "Voice isn't set up yet."],
   ])("does not release a parsed non-ok grant response (%s)", async (status, code, error) => {
     const stopTrack = vi.fn();
