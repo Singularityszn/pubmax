@@ -15,6 +15,8 @@ import type { Venue } from "@/lib/venues";
 // figure, month, source and day. What it cannot carry is a sentence saying this
 // pub's pint went up or down: that compares two items nobody has shown match.
 
+const STATIONS = [{ name: "Blackfriars", lat: 51.5116, lng: -0.103, zone: 1 }];
+
 const NOW = Date.UTC(2026, 9, 17, 12);
 const VENUE_ID = "venue-budlight";
 
@@ -124,7 +126,7 @@ describe("a then line with no matched item claims no movement", () => {
   ])("when the archive pint %s", (_label, drink) => {
     const venues = [venue()];
     const raw = history(drink);
-    const card = buildLandingPubCard(venues, raw, { now: NOW });
+    const card = buildLandingPubCard(venues, raw, { now: NOW, stations: STATIONS });
     const archive = buildLandingArchiveIndex(venues, raw, NOW);
 
     // Both facts survive: today's listed figure and the dated, sourced archive row.
