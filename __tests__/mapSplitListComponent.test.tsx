@@ -245,6 +245,96 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Boot", "The Anchor", "The Crown"]);
   });
 
+  it("holds a row's price and position when Pint Drops arrive during a press", () => {
+    const onSelectVenue = vi.fn();
+    render({ onSelectVenue });
+    const list = host.querySelector(".mapSplitList")!;
+    pointer(list, "pointerover");
+    const pressed = rows()[1]!;
+    act(() => pressed.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
+    render({ onSelectVenue, dropSignals: new Map([[CROWN.id, {
+      hasPintDrops: true,
+      latestContributorPrice: 3.5,
+      latestContributorAt: Date.now(),
+      pintTrust: "corroborated",
+    }]]) });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    expect(pressed.querySelector(".price-plaque")?.textContent).toBe("£5.40");
+    act(() => pressed.click());
+    expect(onSelectVenue).toHaveBeenLastCalledWith(CROWN.id);
+
+    pointer(list, "pointerout");
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS - 1));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    act(() => vi.advanceTimersByTime(1));
+    expect(rowNames()).toEqual(["The Crown", "The Anchor"]);
+    expect(rows()[0]?.querySelector(".price-plaque")?.textContent).toBe("£3.50");
+  });
+
+  it.each([false, true])("lets results arrive under the pointer when an empty list has loaded=%s", (loaded) => {
+    render({ visibleVenues: [], loaded });
+    const list = host.querySelector(".mapSplitList")!;
+    pointer(list, "pointerover");
+    render({ visibleVenues: [CROWN], loaded: true });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Crown"]);
+    expect(status()).toBe("1 place, cheapest first");
+    expect(host.querySelector(".mapSplitListEmpty")).toBeNull();
+  });
+
+  it("does not hold selectable rows while the list is loading", () => {
+    render();
+    const list = host.querySelector(".mapSplitList")!;
+    pointer(list, "pointerover");
+    render({ visibleVenues: [LAMB], loaded: false });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Lamb"]);
+  });
+
+  it("holds lens captions and walk times but applies both sort controls while pointing", () => {
+    render();
+    const list = host.querySelector(".mapSplitList")!;
+    pointer(list, "pointerover");
+    render({ reader: { lng: -0.13, lat: 51.513 }, lensNoun: "Wine", lensStatus: "partial", lensPrices: new Map([
+      [CROWN.id, { venueId: CROWN.id, category: "wine", categoryLabel: "House wine", priceGbp: 6.4,
+        observedAt: "2026-10-28", source: "community" }],
+      [ANCHOR.id, { venueId: ANCHOR.id, category: "wine", categoryLabel: "House wine", priceGbp: 4.8,
+        observedAt: "2026-10-28", source: "community" }],
+    ]) });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    expect(rows()[0]?.querySelector(".price-plaque")?.textContent).toBe("£4.20");
+    expect(rows()[0]?.textContent).not.toContain("House wine");
+    expect(host.querySelector(".mapSplitListRowWalk")).toBeNull();
+    expect(host.querySelector(".mapSplitListNote")).toBeNull();
+    act(() => button("Nearest").click());
+    expect(rowNames()).toEqual(["The Crown", "The Anchor"]);
+    expect(rows()[0]?.textContent).toContain("House wine");
+    expect(host.querySelector(".mapSplitListRowWalk")).not.toBeNull();
+    expect(host.querySelector(".mapSplitListNote")).not.toBeNull();
+    act(() => button("Cheapest").click());
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+  });
+
+  it("applies the follow toggle and a requested search while the pointer stays inside", () => {
+    render();
+    const list = host.querySelector(".mapSplitList")!;
+    pointer(list, "pointerover");
+    const follow = host.querySelector<HTMLInputElement>(".mapSplitListFollow input")!;
+    act(() => follow.click());
+    render({ visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    act(() => button("Show pubs in this view").click());
+    expect(rowNames()).toEqual(["The Lamb"]);
+    render();
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Lamb"]);
+    act(() => follow.click());
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+  });
+
   it("shows only projected venues and removes a departed venue's pin halo", () => {
     const fake = fakeMap();
     render({ map: fake.map });
@@ -388,7 +478,10 @@ describe("the list beside the map, at desktop width", () => {
   it("draws a page of rows and reveals the next on request, focusing the first new one", () => {
     const many = Array.from({ length: 45 }, (_, index) => venue(`venue-${index}`, `Pub ${String(index).padStart(2, "0")}`, 4 + index / 100));
     render({ visibleVenues: many, filteredVenues: many });
+    pointer(host.querySelector(".mapSplitList")!, "pointerover");
     expect(rows()).toHaveLength(40);
+    render({ visibleVenues: [LAMB], filteredVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     act(() => button("Show 5 more").click());
     expect(rows()).toHaveLength(45);
     expect(document.activeElement).toBe(rows()[40]);

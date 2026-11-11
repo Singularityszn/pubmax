@@ -220,9 +220,6 @@ export default function MapSplitList({
   const [followMap, setFollowMap] = useState(true);
   const [held, setHeld] = useState<HeldView | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  // Pubs keep arriving after the list first draws. A row that moved between
-  // press and release would lose the click, so the rows hold still while the
-  // pointer is over the list.
   const [pointerInside, setPointerInside] = useState(false);
   const halo = usePinHalo(map);
   const pointedIdRef = useRef<string | null>(null);
@@ -240,7 +237,7 @@ export default function MapSplitList({
     }),
     [restaurantModel.rows, ukBaseModel.rows, viewportCenter, visibleVenues],
   );
-  const settled = useDebouncedValue(live, MAP_SPLIT_LIST_DEBOUNCE_MS, pointerInside);
+  const settled = useDebouncedValue(live, MAP_SPLIT_LIST_DEBOUNCE_MS);
   const settledKey = useMemo(() => liveViewKey(settled), [settled]);
   const liveKey = useMemo(() => liveViewKey(live), [live]);
   const holdView = useCallback(
@@ -267,7 +264,7 @@ export default function MapSplitList({
       }),
     [filteredVenues, settled.venues, shownView],
   );
-  const groups = useMemo(
+  const liveGroups = useMemo(
     () =>
       buildMapSplitListGroups({
         venues,
@@ -285,8 +282,30 @@ export default function MapSplitList({
     [dropSignals, lensNoun, lensPrices, lensStatus, reader, settled, shownView, sort, venues, zoneIndex],
   );
 
+  const liveListKey = shownView?.key ?? settledKey;
+  const liveOrder = sort === "cheapest" ? "cheapest first" : reader ? "nearest you first" : "nearest first";
+  const liveCoverageNote =
+    lensPrices !== null ? drinkLensCoverageNote(lensNoun?.toLowerCase() ?? "this view", lensStatus) : null;
+  // Hold rendered rows during pointer interaction, except for explicit list actions.
+  const [pointerView, setPointerView] = useState<{
+    groups: typeof liveGroups;
+    key: string;
+    order: string;
+    coverageNote: string | null;
+  } | null>(null);
+  if (!loaded && pointerView !== null) setPointerView(null);
+  if (pointerInside && loaded && pointerView === null && liveGroups.total > 0) {
+    setPointerView({ groups: liveGroups, key: liveListKey, order: liveOrder, coverageNote: liveCoverageNote });
+  }
+  useEffect(() => {
+    if (pointerInside || pointerView === null) return;
+    const timer = setTimeout(() => setPointerView(null), MAP_SPLIT_LIST_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [pointerInside, pointerView]);
+  const groups = pointerView?.groups ?? liveGroups;
+
   // A new view starts at its first page again.
-  const listKey = shownView?.key ?? settledKey;
+  const listKey = pointerView?.key ?? liveListKey;
   const [limit, setLimit] = useState(MAP_SPLIT_LIST_PAGE_SIZE);
   const [limitKey, setLimitKey] = useState(listKey);
   if (limitKey !== listKey) {
@@ -372,15 +391,19 @@ export default function MapSplitList({
   };
 
   const toggleFollow = (next: boolean) => {
+    setPointerView(null);
     setFollowMap(next);
     setHeld(next ? null : holdView(settled, settledKey));
   };
-  const searchThisView = () => setHeld(holdView(live, liveKey));
+  const searchThisView = () => {
+    setPointerView(null);
+    setHeld(holdView(live, liveKey));
+  };
   const heldIsStale = shownView !== null && shownView.key !== liveKey;
 
   const total = groups.total;
   const awaiting = total === 0 && ukBaseStatus !== "unavailable" && (ukBaseStatus === "loading" || !loaded);
-  const order = sort === "cheapest" ? "cheapest first" : reader ? "nearest you first" : "nearest first";
+  const order = pointerView?.order ?? liveOrder;
   const status = awaiting
     ? "Counting them up…"
     : total === 0
@@ -388,8 +411,7 @@ export default function MapSplitList({
         ? "Unlisted pubs unavailable"
         : "Nothing in view"
       : `${total} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`;
-  const coverageNote =
-    lensPrices !== null ? drinkLensCoverageNote(lensNoun?.toLowerCase() ?? "this view", lensStatus) : null;
+  const coverageNote = pointerView ? pointerView.coverageNote : liveCoverageNote;
 
   const renderGroup = (group: MapSplitListRow["group"], rows: MapSplitListRow[]) =>
     rows.length === 0 ? null : (
@@ -464,7 +486,10 @@ export default function MapSplitList({
               type="button"
               className="mapSplitListSortChip"
               aria-pressed={sort === "cheapest"}
-              onClick={() => setSort("cheapest")}
+              onClick={() => {
+                setPointerView(null);
+                setSort("cheapest");
+              }}
             >
               Cheapest
             </button>
@@ -472,7 +497,10 @@ export default function MapSplitList({
               type="button"
               className="mapSplitListSortChip"
               aria-pressed={sort === "nearest"}
-              onClick={() => setSort("nearest")}
+              onClick={() => {
+                setPointerView(null);
+                setSort("nearest");
+              }}
             >
               Nearest
             </button>
