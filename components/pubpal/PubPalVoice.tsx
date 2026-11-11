@@ -9,7 +9,7 @@ import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
 import type { PalGenome } from "@/lib/palGenome";
 import { usePalVoiceAvailability } from "@/components/pubpal/usePalVoiceAvailability";
 
-export { palVoiceAvailabilityFrom, type PalVoiceAvailability } from "@/components/pubpal/usePalVoiceAvailability";
+export { palVoiceAvailabilityFrom } from "@/components/pubpal/usePalVoiceAvailability";
 import {
   readPalVoiceHost,
   registerPalVoicePanel,
