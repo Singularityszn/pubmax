@@ -225,8 +225,8 @@ These controls solve different problems:
   custom production domain public while protecting deployment URLs and
   previews. Configure it in Vercel Project Settings under Deployment
   Protection. Signed-in team members can still open protected URLs. Other
-  reviewers need a temporary share link, and automated checks need an
-  automation bypass secret.
+  reviewers need a temporary share link. Automated checks against protected
+  URLs need an automation bypass secret.
 - A permanent host redirect is canonicalisation, not access control. Redirecting
   Vercel's generated production aliases to the apex stops them serving an
   independent copy. `proxy.ts` evaluates the incoming host on every request, so

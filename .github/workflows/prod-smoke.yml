@@ -76,15 +76,10 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      # The live origin always serves the newest deploy, while this run checked
-      # out one commit. Only https://pubmaxxing.com/api/version is asked, never
-      # the deployment's own *.vercel.app URL, because Vercel Deployment
-      # Protection answers that URL with a 401. A deployment status compares
-      # the live commit with the deployed commit. A newer deploy already serving
-      # production makes this run moot, because that deploy's own run tests it.
-      # A dispatch that names a deployment is a release waiting on this verdict,
-      # so a replaced deployment fails the run instead: a skip would read as a
-      # pass.
+      # Generated deployment URLs can require Vercel Authentication. Read
+      # identity from the public production origin instead. A named dispatch
+      # is a release waiting on this verdict, so replacement must fail rather
+      # than appear to pass through a skip. See e2e/prod-smoke/README.md.
       - name: Check the live site serves this deployment
         id: bound
         env:
