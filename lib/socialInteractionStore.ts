@@ -25,6 +25,7 @@ import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } fro
 import {
   cleanSocialText,
   emptyInteractionSummary,
+  interactionModerationOutcome,
   SOCIAL_REPORT_KINDS,
   SOCIAL_REPORT_REASONS,
   validIdempotencyKey,
@@ -38,7 +39,6 @@ import {
   type SocialFeatureUpdateInput,
   type SocialInteractionActor,
   type SocialInteractionSummary,
-  type SocialModerationState,
   type SocialNotificationDTO,
   type SocialQuoteInput,
   type SocialRelationship,
@@ -49,6 +49,7 @@ import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/modera
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { requireSupabaseAdmin, requiresSupabaseStore, hashActor } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
+import type { Database } from "@/types/database";
 
 function payloadDigest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -577,20 +578,13 @@ export function createMemorySocialInteractionStore(options: {
         result.processed += 1;
         try {
           const moderation = await adapter.moderate({ postId: job.id, text: job.text });
-          if (job.kind === "comment") {
-            const row = comments.get(job.id);
-            if (row) {
-              row.moderationState = moderation.decision;
-              if (moderation.decision === "approved") {
-                addNotification(job.sourceAuthorProfileId, row.authorProfileId, "comment", row.postId);
-              }
-            }
-          } else {
-            const row = quotes.get(job.id);
-            if (row) {
-              row.moderationState = moderation.decision;
-              if (moderation.decision === "approved") addNotification(row.sourceAuthorProfileId, row.authorProfileId, "quote", row.sourcePost.id);
-            }
+          const outcome = interactionModerationOutcome(moderation.decision);
+          const row = job.kind === "comment" ? comments.get(job.id) : quotes.get(job.id);
+          if (row) {
+            row.moderationState = outcome.moderationState;
+            if (outcome.hidden) row.status = "hidden";
+            else if ("postId" in row) addNotification(job.sourceAuthorProfileId, row.authorProfileId, "comment", row.postId);
+            else addNotification(row.sourceAuthorProfileId, row.authorProfileId, "quote", row.sourcePost.id);
           }
           jobs.delete(`${job.kind}:${job.id}`);
           if (moderation.decision === "approved") result.approved += 1;
@@ -803,6 +797,21 @@ function row(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/**
+ * The completion for one claimed job. Under migration 0236 the claim returns a lease token and only that token
+ * finishes the job. Before 0236 the claim has no token and the completion takes none.
+ */
+type InteractionJobCompletion = Database["public"]["Functions"]["complete_social_interaction_moderation_job"]["Args"];
+
+function interactionJobCompletion(
+  claim: Record<string, unknown>,
+  outcome: Pick<InteractionJobCompletion, "p_decision" | "p_error_code" | "p_retry_at">,
+): InteractionJobCompletion {
+  const lease = typeof claim.lease_token === "string" ? { p_lease_token: claim.lease_token } : {};
+  // Before 0236 the key must be absent: PostgREST matches a function by its argument names.
+  return { p_kind: String(claim.content_kind), p_content_id: String(claim.content_id), ...lease, ...outcome } as InteractionJobCompletion;
+}
+
 function commentFromRow(value: unknown): SocialCommentDTO {
   const valueRow = row(value);
   return {
@@ -810,9 +819,7 @@ function commentFromRow(value: unknown): SocialCommentDTO {
     postId: String(valueRow.post_id),
     body: String(valueRow.body),
     author: { handle: String(valueRow.author_handle) },
-    moderationState: valueRow.moderation_state === "approved" || valueRow.moderation_state === "needs_review"
-      ? valueRow.moderation_state
-      : "pending",
+    moderationState: valueRow.moderation_state === "approved" ? "approved" : "pending",
     createdAt: String(valueRow.created_at),
   };
 }
@@ -1093,7 +1100,7 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         body: String(value.body),
         visibility: value.visibility as SocialPostVisibility,
         author: { handle: String(value.author_handle) },
-        moderationState: (value.moderation_state ?? "pending") as SocialModerationState,
+        moderationState: value.moderation_state === "approved" ? "approved" as const : "pending" as const,
         createdAt: String(value.created_at),
       };
     }, () => memorySocialInteractionStore.createQuote(actor, postId, input), true);
@@ -1140,18 +1147,14 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
       const result: ModerationResult = { processed: 0, approved: 0, needsReview: 0, retried: 0, terminalErrors: 0 };
       const settlements = await Promise.allSettled((data ?? []).map(async (value: unknown) => {
         const valueRow = row(value);
-        const kind = String(valueRow.content_kind);
-        const contentId = String(valueRow.content_id);
         result.processed += 1;
         try {
-          const moderation = await adapter.moderate({ postId: contentId, text: String(valueRow.moderation_claim) });
-          const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", {
-            p_kind: kind,
-            p_content_id: contentId,
+          const moderation = await adapter.moderate({ postId: String(valueRow.content_id), text: String(valueRow.moderation_claim) });
+          const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", interactionJobCompletion(valueRow, {
             p_decision: moderation.decision,
             p_error_code: null,
             p_retry_at: null,
-          });
+          }));
           if (completion.error) throw completion.error;
           if (completion.data !== true) return;
           if (moderation.decision === "approved") result.approved += 1;
@@ -1162,13 +1165,11 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
           const retryAt = retryable
             ? new Date(Date.now() + moderationRetryBackoffMs(attempts)).toISOString()
             : null;
-          const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", {
-            p_kind: kind,
-            p_content_id: contentId,
+          const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", interactionJobCompletion(valueRow, {
             p_decision: null,
             p_error_code: moderationError instanceof Error ? moderationError.name.slice(0, 120) : "provider_error",
             p_retry_at: retryAt,
-          });
+          }));
           if (completion.error) throw completion.error;
           if (completion.data !== true) return;
           if (retryable) result.retried += 1;
