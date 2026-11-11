@@ -430,11 +430,8 @@ import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
   boundsNameNowhere,
-  NEIGHBOUR_SHARD_RING,
   openingLoadViewportFor,
   openingLocationCancellationAfterAttempt,
-  scheduleSlimShardRingLoads,
-  VIEWPORT_SHARD_RING,
   type MapBounds,
   type SlimShardLoader,
 } from "@/lib/slimShards";
@@ -548,6 +545,7 @@ import { usePrivateMapCamera } from "@/components/map/usePrivateMapCamera";
 import { mapAreaOpeningView } from "@/lib/mapAreaArrival";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { useMapSecondaryStreamHold } from "@/components/map/useMapSecondaryStreamHold";
+import { useMapRingLoads } from "@/components/map/pubmap/useMapRingLoads";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   drinkLensPriceNoun,
@@ -2423,15 +2421,6 @@ export default function PubMap({
   }, [cityId]);
   const ringLoadPendingKeyRef = useRef<string | null>(null);
   const targetViewportLoadStartedRef = useRef(false);
-  // Until the pins have painted, the wire belongs to the pins
-  // (lib/mapFirstPinStreams.ts). A ring asked for while the hold is on is
-  // remembered rather than dropped, and runs against the camera the reader is
-  // actually looking at once the hold ends.
-  const secondaryStreamsHeldRef = useRef(true);
-  const heldRingLoadRef = useRef<{
-    loader: SlimShardLoader;
-    bounds: MapBounds;
-  } | null>(null);
   const [deferInitialSpatialLoad] = useState(() => {
     try {
       return window.localStorage.getItem(FIRST_PINS_SEEN_KEY) !== "1";
@@ -2487,56 +2476,6 @@ export default function PubMap({
     });
   }, []);
 
-  const scheduleRingLoad = useCallback(
-    (
-      loader: SlimShardLoader,
-      bounds: MapBounds,
-    ) => {
-      if (secondaryStreamsHeldRef.current) {
-        heldRingLoadRef.current = { loader, bounds };
-        return;
-      }
-      const key = JSON.stringify([
-        bounds.west,
-        bounds.south,
-        bounds.east,
-        bounds.north,
-      ]);
-      if (ringLoadPendingKeyRef.current === key) return;
-      ringLoadPendingKeyRef.current = key;
-      const loaderGeneration = slimLoaderGenerationRef.current;
-      const isCurrentLoader = () =>
-        slimLoaderRef.current === loader &&
-        slimLoaderGenerationRef.current === loaderGeneration;
-      const loadRing = (ring: number, onSettled?: () => void) => {
-        if (!isCurrentLoader()) return;
-        void loader
-          .inBounds(bounds, ring)
-          .then((rows) => {
-            if (!isCurrentLoader()) return;
-            mergeSlimVenues(rows);
-            refreshCountCoverage();
-          })
-          .catch(() => undefined)
-          .finally(() => onSettled?.());
-      };
-      scheduleSlimShardRingLoads(
-        () => {
-          if (!isCurrentLoader()) return;
-          targetViewportLoadStartedRef.current = true;
-          loadRing(VIEWPORT_SHARD_RING);
-        },
-        () =>
-          loadRing(NEIGHBOUR_SHARD_RING, () => {
-            if (isCurrentLoader() && ringLoadPendingKeyRef.current === key) {
-              ringLoadPendingKeyRef.current = null;
-            }
-          }),
-      );
-    },
-    [mergeSlimVenues, refreshCountCoverage],
-  );
-
   // A canvas that reports itself no longer ready has been torn down and is
   // re-initialising (Retry, soft retry, context loss). Its painted pins are
   // gone with it, so the reveal latch drops and the held frame comes back
@@ -2583,21 +2522,20 @@ export default function PubMap({
     pinsRevealed,
     canvasUnavailable: mapCanvasUnavailable,
   });
-  useEffect(() => {
-    secondaryStreamsHeldRef.current = secondaryStreamsHeld;
-    if (secondaryStreamsHeld) return;
-    const held = heldRingLoadRef.current;
-    heldRingLoadRef.current = null;
-    if (!held) return;
-    // The camera may have settled somewhere else while the hold was on, so the
-    // released ring reads the CURRENT view when the map has named one.
-    const bounds =
-      latestMapBoundsCityRef.current === activeMapCityIdRef.current &&
-      latestMapBoundsRef.current
-        ? latestMapBoundsRef.current
-        : held.bounds;
-    scheduleRingLoad(held.loader, bounds);
-  }, [scheduleRingLoad, secondaryStreamsHeld]);
+  const { scheduleRingLoad, viewShardsLanding, awaitViewShards, settleViewShards } = useMapRingLoads({
+    secondaryStreamsHeld,
+    refs: {
+      slimLoaderRef,
+      slimLoaderGenerationRef,
+      ringLoadPendingKeyRef,
+      targetViewportLoadStartedRef,
+      latestMapBoundsRef,
+      latestMapBoundsCityRef,
+      activeMapCityIdRef,
+    },
+    mergeSlimVenues,
+    refreshCountCoverage,
+  });
   // The ambient lane describes the MAP. With the map's own venue view in the
   // canvas's place, a road-closure or another-city banner is a claim about
   // something the reader cannot see, and at 1440 it landed straight over the
@@ -2678,6 +2616,7 @@ export default function PubMap({
     let resumeRefreshVersion = 0;
     void Promise.resolve().then(() => {
       if (cancelled) return;
+      awaitViewShards();
       setVenueIndexFailed(false);
       setCompleteCountSlugs(null);
       if (!preserveSyncResume) {
@@ -2724,6 +2663,7 @@ export default function PubMap({
             setLoaded(true);
             setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = result.status === "ready";
+            if (result.status !== "ready") settleViewShards();
             if (result.status === "ready") {
               const targetBounds =
                 latestMapBoundsCityRef.current === cityId
@@ -2743,6 +2683,7 @@ export default function PubMap({
             if (!isCurrentLoader()) return;
             liveShardLoadStatusRef.current = "unavailable";
             initialShardLoadSettledRef.current = true;
+            settleViewShards();
             setVenueIndexFailed(true);
             setLoadedCityId(cityId);
             setLoaded(true);
@@ -2846,7 +2787,7 @@ export default function PubMap({
       ringLoadPendingKeyRef.current = null;
       targetViewportLoadStartedRef.current = false;
     };
-  }, [arrivalSearch, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
+  }, [arrivalSearch, awaitViewShards, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, settleViewShards, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -2945,6 +2886,8 @@ export default function PubMap({
             initialShardLoadStartedRef.current = result.status === "ready";
             if (result.status === "ready" && isCurrentLoader()) {
               scheduleRingLoad(loader, bounds);
+            } else {
+              settleViewShards();
             }
           }
           refreshCountCoverage();
@@ -2954,6 +2897,7 @@ export default function PubMap({
           liveShardLoadStatusRef.current = "unavailable";
           if (firstLoad) {
             initialShardLoadSettledRef.current = true;
+            settleViewShards();
             setVenueIndexFailed(true);
             setLoadedCityId(cityId);
             setLoaded(true);
@@ -2969,6 +2913,7 @@ export default function PubMap({
       openingLocationResolved,
       refreshCountCoverage,
       scheduleRingLoad,
+      settleViewShards,
       shouldResolveOpeningLocation,
     ],
   );
@@ -6736,6 +6681,7 @@ export default function PubMap({
           loadedCityId === cityId &&
           visibleVenueState?.cityId === cityId
         }
+        viewLanding={viewShardsLanding}
         map={liveMap}
         onSelectVenue={handleVenueClick}
         onSelectUkBasePub={handleUkBasePubClick}

@@ -66,7 +66,7 @@ describe("the closed set of held lanes", () => {
   });
 
   it("holds the slim shard rings at the one door every ring load comes through", () => {
-    const source = read("components/PubMap.tsx");
+    const source = read("components/map/pubmap/useMapRingLoads.ts");
     // The guard sits at the TOP of scheduleRingLoad, before the pending-key
     // dedupe, so a ring asked for while the hold is on is remembered rather
     // than banked against a key that would then refuse the retry.

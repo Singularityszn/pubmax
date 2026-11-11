@@ -98,6 +98,7 @@ function props(overrides: Partial<Props> = {}): Props {
     viewportCenter: [-0.13, 51.513],
     reader: null,
     loaded: true,
+    viewLanding: false,
     map: null,
     onSelectVenue: () => {},
     onSelectUkBasePub: () => {},
@@ -281,6 +282,27 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Crown"]);
     expect(status()).toBe("1 place, cheapest first");
     expect(host.querySelector(".mapSplitListEmpty")).toBeNull();
+  });
+
+  it("is busy until its rows are the settled view, then ready", () => {
+    const busy = () => host.querySelector(".mapSplitList")?.getAttribute("aria-busy");
+    render({ visibleVenues: [ANCHOR], viewLanding: true });
+    expect(busy()).toBe("true");
+    render({ visibleVenues: [CROWN, ANCHOR], viewLanding: false });
+    expect(busy()).toBe("true");
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(busy()).toBe("false");
+
+    const list = host.querySelector(".mapSplitList")!;
+    pointer(list, "pointerover");
+    render({ visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    expect(busy()).toBe("true");
+    pointer(list, "pointerout");
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Lamb"]);
+    expect(busy()).toBe("false");
   });
 
   it("does not hold selectable rows while the list is loading", () => {
