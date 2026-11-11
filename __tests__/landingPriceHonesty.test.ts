@@ -30,6 +30,7 @@ const card: LandingPubCardData = {
   name: "The Test Arms",
   area: "City of London",
   primaryBorough: "City of London",
+  station: null,
   priceGbp: 4.13,
   pintName: "a pint of bitter",
   drinkHref: null,

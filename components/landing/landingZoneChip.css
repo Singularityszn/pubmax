@@ -61,6 +61,6 @@
 
 /* Long station names on a narrow phone: the chip may take the row under the
    area rather than squeeze it. */
-@media (max-width: 400px) {
+@media (max-width: 640px) {
   .lpAnswerHead:has(.lpZoneChip) { flex-wrap: wrap; row-gap: var(--space-2); }
 }
