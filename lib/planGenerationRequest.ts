@@ -7,6 +7,7 @@ import {
   isPartyType,
   type NightContext,
 } from "@/lib/nightPlanning";
+import { isNightAreaFocus } from "@/lib/nightAreaFocus";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import {
   isPlainRecord,
@@ -32,6 +33,7 @@ const BOROUGH_AREA_KEYS = ["kind", "name"] as const;
 const ANCHOR_VENUE_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/;
 const CONTEXT_KEYS = [
   "nightArea",
+  "areaFocus",
   "daypart",
   "partyType",
   "groupSize",
@@ -177,6 +179,10 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
       case "nightArea":
         if (item !== null && !isNightAreaSlug(item)) return undefined;
         result.nightArea = item as NightContext["nightArea"];
+        break;
+      case "areaFocus":
+        if (item !== null && !isNightAreaFocus(item)) return undefined;
+        result.areaFocus = item as NightContext["areaFocus"];
         break;
       case "daypart":
         if (!isDaypart(item)) return undefined;

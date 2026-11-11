@@ -39,6 +39,107 @@ import type { LngLat } from "@/lib/walkRoute";
 describe("POST /api/plans/generate", () => {
   installPlanGenerateRouteHooks();
 
+  async function westEndVenues() {
+    const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+    const venues = await actual.loadConciergeVenues("london");
+    const named = (name: string) => {
+      const venue = venues.find((row) => row.name === name);
+      if (!venue) throw new Error(`missing ${name}`);
+      return venue;
+    };
+    return {
+      soho: ["The Dog & Duck", "Coach & Horses", "The Crown & Two Chairmen", "The Nellie Dean", "Shakespeares Head (Soho)"].map(named),
+      hercules: named("Hercules Pillars"),
+      threeCrowns: named("Three Crowns (Picaddilly)"),
+    };
+  }
+
+  async function generate(input: unknown) {
+    const response = await POST(new Request("http://localhost/api/plans/generate", { method: "POST", body: JSON.stringify(input) }));
+    return { status: response.status, body: await response.json() };
+  }
+
+  function offeredVenueIds(body: { stops: { venueId: string; alternatives: { venueId: string }[] }[]; endingRecommendations: { kind: string; options: { id: string }[] }[] }) {
+    const extensions = body.endingRecommendations.find((ending) => ending.kind === "keep_going")?.options ?? [];
+    return [...body.stops, ...body.stops.flatMap((stop) => stop.alternatives)].map(({ venueId }) => venueId)
+      .concat(extensions.map(({ id }) => id));
+  }
+
+  it.each([
+    { query: "Cheap pints in Soho for 3" },
+    { query: "Cheap pints in Soho for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { query: "Cheap pints in Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "piccadilly" } },
+  ])("keeps a Soho request's stops, alternatives and extra stops in Soho: %j", async (input) => {
+    const { soho, hercules, threeCrowns } = await westEndVenues();
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
+    const { status, body } = await generate(input);
+    expect(status, JSON.stringify(body)).toBe(200);
+    expect(body.inferredContext).toMatchObject({ nightArea: "piccadilly-soho", areaFocus: "soho" });
+    expect(body.stops).toHaveLength(3);
+    for (const id of offeredVenueIds(body)) expect(soho.map(({ id }) => id)).toContain(id);
+
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho.slice(0, 2), hercules, threeCrowns]);
+    const shortfall = await generate(input);
+    // The honest shortfall names Soho and never pads from the rest of the area.
+    expect(shortfall.status).toBe(422);
+    expect(["GROUNDED_VENUES_INSUFFICIENT", "GROUNDED_CONSTRAINTS_UNSATISFIED"]).toContain(shortfall.body.code);
+    expect(shortfall.body.details.availableVenueCount).toBe(2);
+    expect(JSON.stringify(shortfall.body)).toContain("Soho");
+    expect(JSON.stringify(shortfall.body)).not.toContain("Piccadilly");
+  });
+
+  it.each([
+    { query: "Cheap pints in Piccadilly for 3" },
+    { query: "Cheap pints in Piccadilly for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { query: "Cheap pints in Piccadilly & Soho for 3" },
+    { query: "Cheap pints in Piccadilly and Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "soho" } },
+    { context: { nightArea: "piccadilly-soho", groupSize: 3 } },
+  ])("keeps Three Crowns for Piccadilly and whole-area requests: %j", async (input) => {
+    const { soho, threeCrowns } = await westEndVenues();
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho.slice(0, 2), threeCrowns]);
+    const { status, body } = await generate(input);
+    expect(status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toContain(threeCrowns.id);
+  });
+
+  it("keeps a Piccadilly request off Hercules Pillars", async () => {
+    const { soho, hercules, threeCrowns } = await westEndVenues();
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
+    const { status, body } = await generate({ query: "Cheap pints in Piccadilly for 3" });
+    expect(status, JSON.stringify(body)).toBe(200);
+    expect(body.inferredContext.areaFocus).toBe("piccadilly");
+    expect(offeredVenueIds(body)).not.toContain(hercules.id);
+  });
+
+  it("keeps a locked Soho Plan in Soho when it regenerates", async () => {
+    const { planSummaryGenerationBody } = await import("@/components/plan/PlanSummary");
+    const { slidingDoorsGenerationBody } = await import("@/lib/slidingDoorsClient");
+    const { cleanNightContext } = await import("@/lib/nightPlanning");
+    const { soho, hercules, threeCrowns } = await westEndVenues();
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
+    const generated = await generate({ query: "Cheap pints in Soho for 3" });
+    expect(generated.status, JSON.stringify(generated.body)).toBe(200);
+    // Locking stores the generated context through the same cleaner.
+    const locked = {
+      context: cleanNightContext(generated.body.inferredContext),
+      plan: { anchorVenueId: null, anchorSource: null, startTime: "2026-11-11T19:00:00.000Z" },
+      stops: generated.body.stops,
+    } as unknown as import("@/lib/plan").PlanState;
+    expect(locked.context?.areaFocus).toBe("soho");
+
+    for (const body of [
+      planSummaryGenerationBody(locked),
+      slidingDoorsGenerationBody(locked, "shorter-walk"),
+      slidingDoorsGenerationBody(locked, "plot-twist"),
+    ]) {
+      loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
+      const regenerated = await generate(body);
+      expect(regenerated.status, JSON.stringify(regenerated.body)).toBe(200);
+      expect(regenerated.body.inferredContext.areaFocus).toBe("soho");
+      for (const id of offeredVenueIds(regenerated.body)) expect(soho.map(({ id }) => id)).toContain(id);
+    }
+  });
+
   it.each(drinkRatePhrases(5).flatMap(drinkRateInputs))(
     "enforces every accepted drink price through preparation and selection: %j", async ({ total, ...input }) => {
       const now = PLAN_GENERATION_TEST_NOW;

@@ -64,6 +64,7 @@ import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHost
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { planAreaName } from "@/lib/nightAreaFocus";
 import { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 export { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
@@ -318,7 +319,7 @@ export function pickedPlanStop(stop: DraftStop, venue: PlanVenueOption): DraftSt
 const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 
 /** The area and daypart a route was sorted for, which a later edit to the night does not move. */
-type RouteNight = Pick<Partial<NightContext>, "nightArea" | "daypart">;
+type RouteNight = Pick<Partial<NightContext>, "nightArea" | "areaFocus" | "daypart">;
 
 export type StoredRouteDraft = {
   savedAt?: string;
@@ -753,6 +754,7 @@ function routeNightOf(context: Partial<NightContext> | null): RouteNight | null 
   if (!context?.nightArea && !context?.daypart) return null;
   return {
     ...(context.nightArea ? { nightArea: context.nightArea } : {}),
+    ...(context.areaFocus ? { areaFocus: context.areaFocus } : {}),
     ...(context.daypart ? { daypart: context.daypart } : {}),
   };
 }
@@ -3308,8 +3310,10 @@ function PlanComposerForm({
     );
   }
 
-  function updateNightContext(patch: Partial<NightContext>) {
+  function updateNightContext(edit: Partial<NightContext>) {
     if (!editableContext) return;
+    // A picked area is the whole area, so a place named earlier no longer narrows it.
+    const patch = edit.nightArea !== undefined && edit.areaFocus === undefined ? { ...edit, areaFocus: null } : edit;
     pendingDraftSave.current = true;
     const next = { ...editableContext, ...patch };
     if ((routeSorted || routeStale) && nightContextChanged(editableContext, next)) {
@@ -4057,7 +4061,7 @@ function PlanComposerForm({
     </>
   );
 
-  const areaName = routeNight?.nightArea ? getNightArea(routeNight.nightArea)?.name ?? null : null;
+  const areaName = routeNight?.nightArea ? planAreaName(getNightArea(routeNight.nightArea).name, routeNight.areaFocus) : null;
   const viewStops = completeStops;
   const summaryLine = routeSummaryLine(viewStops, measured, startTime);
   const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));

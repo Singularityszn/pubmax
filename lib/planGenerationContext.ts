@@ -4,6 +4,7 @@ import {
   type NightContext,
 } from "@/lib/nightPlanning";
 import { formatGbp } from "@/lib/formatGbp";
+import { focusForArea } from "@/lib/nightAreaFocus";
 import { PLAN_TIME_WINDOWS } from "@/lib/planIntake";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
@@ -57,6 +58,27 @@ function intakeReason(field: keyof NightContext, intake: ParsedPlanGenerationInt
   return { field, evidence, explanation: "Applied from the completed Plan intake." };
 }
 
+/**
+ * The place a query names inside its area wins. Otherwise a regenerated Plan
+ * keeps the focus its stored context carries. The intake patch never sets a
+ * focus: the composer maps Soho, Piccadilly and both together to one patch.
+ */
+function applyAreaFocus(
+  context: NightContext,
+  fieldSources: ReconciledPlanContext["fieldSources"],
+  inferred: ReturnType<typeof inferNightContext>,
+  contextPatch: Partial<NightContext>,
+): void {
+  const queryNamedArea = inferred.reasons.some((reason) => reason.field === "nightArea");
+  const source = queryNamedArea ? "query" : "context";
+  const focus = focusForArea(context.nightArea, queryNamedArea ? inferred.context.areaFocus : contextPatch.areaFocus);
+  delete context.areaFocus;
+  delete fieldSources.areaFocus;
+  if (!focus) return;
+  context.areaFocus = focus;
+  fieldSources.areaFocus = source;
+}
+
 /** Reconcile fields by authority and preserve an auditable source per field. */
 export function reconcilePlanContext(
   query: string,
@@ -79,6 +101,7 @@ export function reconcilePlanContext(
           ? "query"
           : "default";
   }
+  applyAreaFocus(context, fieldSources, inferred, contextPatch);
   if (fieldSources.daypart === "default" && planStartIso) {
     // The validated displayed schedule affects only the fallback, never query interpretation.
     context.daypart = inferNightContext("", new Date(planStartIso)).context.daypart;

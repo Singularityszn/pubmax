@@ -11,6 +11,7 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { formatGbp } from "@/lib/formatGbp";
 import { firstHttps } from "@/lib/httpUrl";
 import { haversineKm } from "@/lib/haversine";
+import { nightAreaFocusCentre, nightAreaFocusContains, planAreaName } from "@/lib/nightAreaFocus";
 import { CATEGORY_META } from "@/lib/drinks";
 import {
 	DRY_ROUND_ANCHOR_UNLISTED_LINE,
@@ -558,9 +559,13 @@ export async function preparePlanGeneration(
 	const dietaryMenu = dietaryNeeds.length > 0
 		? { need: dietaryNeeds[0]!, menuLinkVenueIds: await menuLinkVenueIds() }
 		: null;
+	// One rule for stops, swap options and extra stops: a named place inside
+	// the area keeps only its own pubs, and measures distance from its centre.
+	const focus = context.areaFocus ?? null;
+	const origin = focus ? nightAreaFocusCentre(focus) : area.centre;
 	const candidates = cappedVenues
 		.map((venue) => {
-			const distance = distanceKm(area.centre, venue);
+			const distance = distanceKm(origin, venue);
 			const tonightEvents = tonightByVenue.get(venue.id) ?? [];
 			const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
 			const scored = scoreVenueForPlan(
@@ -580,7 +585,7 @@ export async function preparePlanGeneration(
 				operator: wetherspoonBranchIds.has(venue.id) ? "wetherspoon" : null };
 		})
 		.filter(({ distance, venue, signalClaims }) =>
-			distance <= area.radiusKm
+			(focus ? nightAreaFocusContains(focus, venue) : distance <= area.radiusKm)
 			&& venue.promoted !== true
 			// A plan may be shared with people who have never met: never send
 			// them to a members', students' or staff bar. Swap options and the
@@ -648,7 +653,7 @@ async function dryRoundCandidates(
 	if (selection.ok) return { listed, candidates: selection.candidates };
 	// A pub that lists no alcohol-free price is never brought in to pad it.
 	return { response: publicApiError(
-		dryRoundTooFewLine({ areaName: area.name, stopCount, listedNames: selection.listedNames }),
+		dryRoundTooFewLine({ areaName: planAreaName(area.name, context.areaFocus), stopCount, listedNames: selection.listedNames }),
 		"DRY_ROUND_TOO_FEW",
 		422,
 		{ details: { nightArea: area.slug, listedVenueCount: selection.listedNames.length, requestedStopCount: stopCount } },
