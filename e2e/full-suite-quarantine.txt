@@ -52,24 +52,6 @@
 [chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 1440px in dark
 [chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 390px in light with recorded roads
 
-# https://github.com/Singularityszn/pubmax/issues/2657 drink brand landing pages
-[chromium] › drink-brand-area-landing.spec.ts › 320px light governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 320px dark governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 390px light governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 390px dark governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 430px light governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 430px dark governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 1440px light governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 1440px dark governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 320px capped Clapham Guinness Ledger count › keeps full capped count visible without clipping
-[chromium] › drink-brand-area-landing.spec.ts › 390px capped Clapham Guinness Ledger count › keeps full capped count visible without clipping
-[chromium] › drink-brand-area-landing.spec.ts › 430px capped Clapham Guinness Ledger count › keeps full capped count visible without clipping
-[chromium] › drink-brand-landing.spec.ts › governed Guinness landing at 320px › answers above the fold with touch-safe rows
-[chromium] › drink-brand-landing.spec.ts › governed Guinness landing at 390px › answers above the fold with touch-safe rows
-[chromium] › drink-brand-landing.spec.ts › governed Guinness landing at 430px › answers above the fold with touch-safe rows
-[chromium] › drink-brand-landing.spec.ts › Guinness landing cross-surface journey › keeps brand Map state, restores Back, and arms the explicit log picker
-[chromium] › drink-brand-landing.spec.ts › Guinness landing desktop proof › keeps the ranked answer readable at 1440px
-
 # https://github.com/Singularityszn/pubmax/issues/2658 the Save to a list button takes no click
 [chromium] › profile-saved-after-reload.spec.ts › profile saved venues after a full reload › the owner sees a saved venue on a full load of their profile
 [chromium] › venue-actions-late-facts.spec.ts › a late area comparison keeps Create & save under the pointer at 1440px
