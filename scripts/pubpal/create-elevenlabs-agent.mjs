@@ -18,10 +18,15 @@
 //   5. signed-URL authentication, so a conversation starts only with a URL the
 //      sign-in, the voice cap and the spend budget handed out,
 //   6. how the agent hears a person in a pub: patient turn-taking, speech kept
-//      during a proposal, London pub words for the recogniser, and a hang-up
-//      after a long silence,
+//      during a proposal, London pub words for the recogniser, other voices
+//      in the room filtered out, one check-in after a quiet spell, and a
+//      goodbye through the end_call tool,
 //   7. the map client tools a live voice call answers in the browser
 //      (lib/palMapClientTools.mjs).
+//
+// The model and the silence timings are captain calls. They live in
+// pub-pal-agent-config.json: llm, thinking_budget, turn_timeout and
+// silence_end_call_timeout.
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
 // without one it looks for an agent of the same name before creating a new
@@ -152,13 +157,30 @@ const CLIENT_EVENTS = [
 //   words that are hard to hear and common in asks go here, not a gazetteer.
 // - `quality` and `user_input_audio_format` restate the provider's defaults,
 //   so `--check` reports a dashboard change that would make the Pal hear worse.
-// - `silence_end_call_timeout` hangs up after 20 s with nobody talking. The app
-//   ends the call when the screen locks; this is the provider's backstop, so a
-//   phone left in a pocket does not spend minutes up to the call cap.
+// - `turn_timeout` is how long the agent waits in silence before it speaks.
+//   People look at the map or turn to a friend, so it waits 20 s, then the
+//   prompt has it check in once and say goodbye with end_call at about 42 s.
+// - `silence_end_call_timeout` is the provider's backstop if that goodbye never
+//   comes. Below 60 s it cut the agent's own goodbye in half.
 const PAL_TURN_CONFIG = {
   turn_eagerness: "patient",
   transcribe_on_disabled_interruptions: true,
-  silence_end_call_timeout: 20,
+  turn_timeout: AGENT_CONFIG.turn_timeout,
+  silence_end_call_timeout: AGENT_CONFIG.silence_end_call_timeout,
+};
+
+// Other voices in the pub are not the person talking to the Pal.
+const PAL_VAD_CONFIG = { background_voice_detection: true };
+
+// The agent hangs up itself after a goodbye. The voice panel shows that close
+// as a friendly end, not an error (lib/pubPalVoiceSession.ts).
+const PAL_BUILT_IN_TOOLS = {
+  end_call: {
+    type: "system",
+    name: "end_call",
+    description: "Call after one short goodbye, with no exclamation marks, when the person is done or stays quiet after your one check-in.",
+    params: { system_tool_type: "end_call" },
+  },
 };
 
 const PAL_ASR_KEYWORDS = [
@@ -248,14 +270,16 @@ function webhookToolConfig(name, baseUrl, secretId) {
   };
 }
 
-// A map tool only moves the view, so the agent neither waits for it nor says a
-// checking line first. A refusal reaches the agent as a contextual update.
+// A map tool only moves the view, so the agent says no checking line first. It
+// waits for the browser's answer, so it never says the map moved when the app
+// refused (usePalMapClientTools.ts). The answer takes about 0.1 s.
 function clientToolConfig({ name, description, parameters }) {
   return {
     type: "client",
     name,
     description,
-    expects_response: false,
+    expects_response: true,
+    response_timeout_secs: 5,
     pre_tool_speech: "off",
     execution_mode: "immediate",
     interruption_mode: "allow",
@@ -349,8 +373,10 @@ function agentBody(toolIds) {
         prompt: {
           prompt: systemPrompt(),
           llm: AGENT_CONFIG.llm,
+          thinking_budget: AGENT_CONFIG.thinking_budget,
           reasoning_effort: AGENT_CONFIG.reasoning_effort,
           tool_ids: toolIds,
+          built_in_tools: structuredClone(PAL_BUILT_IN_TOOLS),
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
         language: "en",
@@ -361,6 +387,7 @@ function agentBody(toolIds) {
       },
       asr: structuredClone(PAL_ASR_CONFIG),
       turn: { ...PAL_TURN_CONFIG },
+      vad: { ...PAL_VAD_CONFIG },
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
@@ -515,6 +542,11 @@ function agentPatch(currentAgent, toolIds) {
     prompt: {
       ...(conversationConfig.agent?.prompt ?? {}),
       ...body.conversation_config.agent.prompt,
+      // A dashboard-only built-in tool, such as skip_turn, is kept.
+      built_in_tools: {
+        ...(conversationConfig.agent?.prompt?.built_in_tools ?? {}),
+        ...body.conversation_config.agent.prompt.built_in_tools,
+      },
       custom_llm: null,
     },
     first_message:
@@ -532,6 +564,7 @@ function agentPatch(currentAgent, toolIds) {
   // Laid over the live sections, so a dashboard-only setting there is kept.
   conversationConfig.asr = { ...(conversationConfig.asr ?? {}), ...structuredClone(PAL_ASR_CONFIG) };
   conversationConfig.turn = { ...(conversationConfig.turn ?? {}), ...PAL_TURN_CONFIG };
+  conversationConfig.vad = { ...(conversationConfig.vad ?? {}), ...PAL_VAD_CONFIG };
   return mergeAgentPatch(currentAgent, {
     ...body,
     conversation_config: conversationConfig,

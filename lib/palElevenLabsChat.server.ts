@@ -119,7 +119,7 @@ type AgentResponseEvent = {
   agent_response_event?: { agent_response?: string };
   text_response_part?: { type?: string; text?: string };
   agent_tool_request?: { tool_call_id?: string; tool_name?: string };
-  agent_tool_response?: { tool_call_id?: string; tool_name?: string };
+  agent_tool_response?: { tool_call_id?: string; tool_name?: string; is_error?: boolean };
   client_tool_call?: { tool_call_id?: string; tool_name?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
@@ -462,6 +462,7 @@ export async function runPalElevenLabsChatTurn(
     let replyGeneration = 0;
     let toolEvents = 0;
     let replyToolEvents = 0;
+    let endCallRequested = false;
     const pendingToolCalls = new Set<string>();
     const completedToolCalls = new Set<string>();
     const completeToolCall = (rawCallId: string | undefined): boolean => {
@@ -472,13 +473,14 @@ export async function runPalElevenLabsChatTurn(
       if (pendingToolCalls.delete(callId) && callId) completedToolCalls.add(callId);
       return true;
     };
-    // The agent says a checking line before each tool call, so a reply is the
-    // answer only when no tool event followed it and no tool is still running.
+    // The agent says a checking line before data tools. Their events invalidate
+    // earlier replies. An end_call request or successful response preserves
+    // an eligible farewell.
     const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
     const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome =>
       palChatAnswer(agentMessage, turn, conversationId);
-    // Text sent to the caller since the last reset. A tool event or a newer reply
-    // makes it a checking line, so the caller is told to clear it.
+    // Text sent to the caller since the last reset. An invalidating tool event
+    // or a newer reply tells the caller to clear it.
     let streamedText = false;
     const resetStream = () => {
       if (!streamedText) return;
@@ -490,8 +492,8 @@ export async function runPalElevenLabsChatTurn(
       if (settleTimer) clearTimeout(settleTimer);
       settleTimer = null;
     };
-    // Finish on the latest reply once nothing has followed it for `ms`. A tool
-    // event or a newer reply in the window clears or re-arms this.
+    // Finish on the latest eligible reply after `ms`. An invalidating tool event
+    // or a newer reply clears or re-arms this timer.
     const armSettle = (ms: number) => {
       clearSettle();
       settleTimer = setTimeout(() => {
@@ -603,6 +605,42 @@ export async function runPalElevenLabsChatTurn(
       })();
     };
 
+    const receiveResponsePart = (payload: AgentResponseEvent): void => {
+      if (!userMessageSent) return;
+      const part = payload.text_response_part;
+      if (part?.type === "start") {
+        resetStream();
+      } else if (part?.type === "delta" && part.text) {
+        progress.streamDelta();
+        streamedText = true;
+        input.onProgress?.({ type: "delta", text: part.text });
+      } else {
+        progress.streamPart(payload);
+      }
+    };
+
+    const receiveReply = (payload: AgentResponseEvent): void => {
+      if (!userMessageSent) return;
+      const reply = payload.agent_response_event?.agent_response?.trim() ?? "";
+      if (!reply) return;
+      latestReply = reply;
+      replyGeneration += 1;
+      progress.reply();
+      replyToolEvents = toolEvents;
+      // A later data tool event invalidates this reply during the settle window.
+      armSettle(REPLY_SETTLE_MS);
+    };
+
+    const receiveEndCall = (payload: AgentResponseEvent): boolean => {
+      const tool = payload.type === "agent_tool_request" ? payload.agent_tool_request
+        : payload.type === "agent_tool_response" ? payload.agent_tool_response : undefined;
+      if (userMessageSent && tool?.tool_name === "end_call") {
+        endCallRequested = payload.type === "agent_tool_request" || payload.agent_tool_response?.is_error !== true;
+        return endCallRequested;
+      }
+      return false;
+    };
+
     ws.addEventListener("message", (event) => {
       if (settled || Date.now() >= deadline) return;
       let payload: AgentResponseEvent;
@@ -630,32 +668,16 @@ export async function runPalElevenLabsChatTurn(
       }
 
       if (payload.type === "agent_chat_response_part") {
-        if (!userMessageSent) return;
-        const part = payload.text_response_part;
-        if (part?.type === "start") {
-          resetStream();
-        } else if (part?.type === "delta" && part.text) {
-          progress.streamDelta();
-          streamedText = true;
-          input.onProgress?.({ type: "delta", text: part.text });
-        } else {
-          progress.streamPart(payload);
-        }
+        receiveResponsePart(payload);
         return;
       }
 
       if (payload.type === "agent_response") {
-        if (!userMessageSent) return;
-        const reply = payload.agent_response_event?.agent_response?.trim() ?? "";
-        if (!reply) return;
-        latestReply = reply;
-        replyGeneration += 1;
-        progress.reply();
-        replyToolEvents = toolEvents;
-        // The reply is the answer unless a tool event follows it in the window.
-        armSettle(REPLY_SETTLE_MS);
+        receiveReply(payload);
         return;
       }
+
+      if (receiveEndCall(payload)) return;
 
       if (payload.type === "agent_tool_request") {
         if (!userMessageSent) return;
@@ -700,7 +722,12 @@ export async function runPalElevenLabsChatTurn(
     });
 
     ws.addEventListener("close", () => {
-      if (!settled) finish({ ok: false, code: "PROVIDER_UNAVAILABLE" }, "socket_close");
+      if (settled) return;
+      if (endCallRequested && latestReply && replyIsAnswer()) {
+        finishWithLatestReply();
+        return;
+      }
+      finish({ ok: false, code: "PROVIDER_UNAVAILABLE" }, "socket_close");
     });
   });
 }

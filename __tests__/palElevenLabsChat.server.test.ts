@@ -10,7 +10,7 @@ const CHECKING_LINE = "Let me check prices near Soho.";
 const SIGNED_URL =
   "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent-id&conversation_signature=sig&conversation_id=conv_regression01";
 
-type ScriptedEvent = { afterMs: number; event: Record<string, unknown> };
+type ScriptedEvent = { afterMs: number; event: Record<string, unknown>; socketEvent?: "close" };
 
 function agentResponse(text: string): Record<string, unknown> {
   return { type: "agent_response", agent_response_event: { agent_response: text } };
@@ -118,7 +118,7 @@ class MockElevenLabsWebSocket {
         let at = 0;
         for (const step of wsState.replyScript) {
           at += step.afterMs;
-          setTimeout(() => this.emit("message", { data: JSON.stringify(step.event) }), at);
+          setTimeout(() => this.emit(step.socketEvent ?? "message", { data: JSON.stringify(step.event) }), at);
         }
         return;
       }
@@ -1102,6 +1102,72 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
   });
 
+  describe("agent end_call in typed chat", () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const farewell = "Tap me when you want another pub.";
+    const request = {
+      type: "agent_tool_request",
+      agent_tool_request: { tool_name: "end_call", tool_call_id: "end_1", tool_type: "system" },
+    };
+    const response = {
+      type: "agent_tool_response",
+      agent_tool_response: { tool_name: "end_call", tool_call_id: "end_1", is_error: false },
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    });
+
+    it.each([
+      { name: "request", events: [agentResponse(farewell), request] },
+      { name: "response", events: [agentResponse(farewell), response] },
+      { name: "request and response", events: [agentResponse(farewell), request, response] },
+      { name: "request before the farewell", events: [request, agentResponse(farewell), response] },
+      { name: "earlier data tool", events: [toolRequest("search_1"), toolResponse("search_1"), agentResponse(farewell), request, response] },
+    ])("returns the latest farewell on socket close after $name", async ({ events }) => {
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse("An earlier answer.") },
+        ...events.flatMap((event) => event.type === "agent_response"
+          ? [responsePart("delta", farewell), event]
+          : [event]).map((event) => ({ afterMs: 0, event })),
+        { afterMs: 0, event: {}, socketEvent: "close" },
+      ];
+      const onProgress = vi.fn();
+      const pending = runPalElevenLabsChatTurn({ query: "Cheers, that's all", ownerId, onProgress });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: farewell });
+      expect(onProgress.mock.calls).toEqual([[{ type: "delta", text: farewell }]]);
+    });
+
+    it("keeps the farewell eligible when the socket stays open", async () => {
+      wsState.replyScript = [agentResponse(farewell), request, response].map((event) => ({ afterMs: 0, event }));
+      const pending = runPalElevenLabsChatTurn({ query: "Cheers, that's all", ownerId });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: farewell });
+    });
+
+    it.each([
+      { name: "unexpected closure", events: [agentResponse(farewell)] },
+      { name: "no farewell", events: [request, response] },
+      { name: "unfinished data tool", events: [agentResponse(CHECKING_LINE), toolRequest("search_1"), request, response] },
+      { name: "failed end_call", events: [agentResponse(farewell), request, { ...response, agent_tool_response: { ...response.agent_tool_response, is_error: true } }] },
+    ])("retains the provider failure for $name", async ({ events }) => {
+      wsState.replyScript = [
+        ...events.map((event) => ({ afterMs: 0, event })),
+        { afterMs: 0, event: {}, socketEvent: "close" },
+      ];
+      const pending = runPalElevenLabsChatTurn({ query: "Cheers, that's all", ownerId });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+    });
+  });
+
   describe("streaming the reply as the agent writes it", () => {
     type Progress = { type: "delta"; text: string } | { type: "reset" };
     const OWNER = "11111111-1111-4111-8111-111111111111";
@@ -1223,6 +1289,32 @@ describe("runPalElevenLabsChatTurn", () => {
 
     afterEach(() => {
       vi.useRealTimers();
+    });
+
+    it.each([
+      { name: "a blank reply", event: agentResponse("   ") },
+      { name: "a missing reply body", event: { type: "agent_response", agent_response_event: {} } },
+      { name: "a missing reply event", event: { type: "agent_response" } },
+      { name: "an empty stream delta", event: responsePart("delta") },
+      { name: "a missing stream part", event: { type: "agent_chat_response_part" } },
+    ])("keeps the latest reply after $name", async ({ event }) => {
+      wsState.replyScript = [
+        { afterMs: 0, event: responsePart("delta", SOURCED_ANSWER) },
+        { afterMs: 0, event: agentResponse(SOURCED_ANSWER) },
+        { afterMs: 0, event },
+        { afterMs: 0, event: responseComplete() },
+      ];
+      const onProgress = vi.fn();
+      const pending = runPalElevenLabsChatTurn({
+        query: "quiet pubs",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+        onProgress,
+      });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
+      expect(onProgress.mock.calls).toEqual([[{ type: "delta", text: SOURCED_ANSWER }]]);
     });
 
     it("answers a tool turn once the reply has settled, without waiting for the turn end", async () => {

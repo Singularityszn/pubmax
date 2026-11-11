@@ -9,7 +9,7 @@ type FakeSessionOptions = {
   connectionDelay?: { default: number; android?: number; ios?: number };
   onConversationCreated?: (conversation: FakeConversation) => void;
   onConnect?: (event: { conversationId: string }) => void;
-  onDisconnect?: (event: { reason: string }) => void;
+  onDisconnect?: (event: { reason: string; closeCode?: number }) => void;
   onStatusChange?: (event: { status: string }) => void;
 };
 
@@ -28,13 +28,13 @@ const client = vi.hoisted(() => ({
   startSession: vi.fn<(options: FakeSessionOptions) => Promise<FakeConversation>>(),
 }));
 const requests = vi.hoisted(() => ({ authedActionFetch: vi.fn() }));
-const navigation = vi.hoisted(() => ({ push: vi.fn() }));
+const navigation = vi.hoisted(() => ({ push: vi.fn(), pathname: "/pal" }));
 
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) =>
     createElement("a", { href }, children),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }), usePathname: () => "/pal", useSearchParams: () => new URLSearchParams() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }), usePathname: () => navigation.pathname, useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: requests.authedActionFetch }));
 // jsdom cannot play audio; the cues are proved in pubPalVoice.test.tsx.
 vi.mock("@/components/pubpal/palVoiceSounds", () => ({ playPalVoiceSound: vi.fn() }));
@@ -44,6 +44,8 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
 }));
 
 import PubPalVoiceSession from "@/components/pubpal/PubPalVoiceSession";
+import PalVoiceHost from "@/components/pubpal/PalVoiceHost";
+import { registerPalVoicePanel, revokePalVoiceCall } from "@/lib/palVoiceHost";
 import { defined } from "@/__tests__/helpers/defined";
 import { PAL_VOICE_START_TIMEOUT_ERROR, PAL_VOICE_START_TIMEOUT_MS } from "@/lib/pubPalVoiceSession";
 
@@ -122,6 +124,7 @@ beforeEach(() => {
   ));
   requests.authedActionFetch.mockReset();
   navigation.push.mockReset();
+  navigation.pathname = "/pal";
   fetchMock = vi.fn(async () => { throw new Error("Unexpected real network request"); });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("WebSocket", class {
@@ -161,6 +164,7 @@ afterEach(async () => {
   await act(async () => {
     root?.unmount();
     root = null;
+    revokePalVoiceCall();
     rejectPendingStartup?.(new DOMException("Fixture startup stopped", "NotAllowedError"));
     for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
   });
@@ -171,6 +175,46 @@ afterEach(async () => {
 });
 
 describe("Pub Pal startup with the installed React SDK", () => {
+  it("retains the map voice bar through a normal provider close until restart or dismissal", async () => {
+    client.startSession.mockImplementation(async (options) => connectFake(options, `conv_sdkfixture0${issuedGrants}`));
+    let removePanel!: () => void;
+    await act(async () => {
+      removePanel = registerPalVoicePanel(container, { palName: "Ripley" });
+      root?.render(createElement(PalVoiceHost));
+      await vi.dynamicImportSettled();
+    });
+    await click("Start voice chat");
+    await act(async () => {
+      navigation.pathname = "/map";
+      removePanel();
+      root?.render(createElement(PalVoiceHost));
+    });
+    expect(container.querySelector(".palVoiceBar")?.getAttribute("data-live")).toBe("true");
+
+    const closeNormally = async (options: FakeSessionOptions) => {
+      // The client publishes disconnecting before asynchronous audio teardown.
+      await act(async () => { options.onStatusChange?.({ status: "disconnecting" }); });
+      await act(async () => {
+        options.onStatusChange?.({ status: "disconnected" });
+        options.onDisconnect?.({ reason: "agent", closeCode: 1000 });
+      });
+      await settle();
+      expect(container.querySelector('.palVoiceBar [role="status"]')?.textContent).toBe("Ripley ended the call");
+      expect(container.querySelector('[role="alert"]')).toBeNull();
+      expect(buttonContaining("Carry on").disabled).toBe(false);
+    };
+
+    await closeNormally(defined(client.startSession.mock.calls[0])[0]);
+    expect(releasedIds).toEqual(["conv_sdkfixture01"]);
+    await click("Carry on");
+    expect(client.startSession).toHaveBeenCalledTimes(2);
+    expect(container.querySelector(".palVoiceBar")?.getAttribute("data-live")).toBe("true");
+    await closeNormally(defined(client.startSession.mock.calls[1])[0]);
+    expect(releasedIds).toEqual(["conv_sdkfixture01", "conv_sdkfixture02"]);
+    await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="Close voice chat"]')?.click(); });
+    expect(container.querySelector(".palVoiceBar")).toBeNull();
+  });
+
   it("retries a connected session while its old teardown finishes and preserves the draft", async () => {
     let finishOldEnd: (() => void) | undefined;
     const oldEnd = new Promise<void>((resolve) => { finishOldEnd = resolve; });
