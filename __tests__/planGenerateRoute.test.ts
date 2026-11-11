@@ -32,6 +32,9 @@ import { priceRowReadDay } from "@/lib/priceReadDay.mjs";
 import { groupVenuePrices } from "@/lib/venues";
 import dataset from "@/public/data/pint_prices_app_dataset.json";
 import type { LngLat } from "@/lib/walkRoute";
+import { buildPlanGenerationIntakeBody, createPlanIntakeDraft, planIntakeNightContextPatch, skipRemainingPlanIntake } from "@/lib/planIntake";
+import { mergeSubmittedNightContext, nightAreaFromPlanQuery, reconcileGeneratedNightContext } from "@/lib/planComposerChipFill";
+import { memoryPlanStore } from "@/lib/planStore";
 
 // POST /api/plans/generate: drink rates, pint ceilings, structured limits and
 // the end-to-end route contract.
@@ -69,6 +72,7 @@ describe("POST /api/plans/generate", () => {
     { query: "Cheap pints in Soho for 3" },
     { query: "Cheap pints in Soho for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
     { query: "Cheap pints in Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "piccadilly" } },
+    { intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
   ])("keeps a Soho request's stops, alternatives and extra stops in Soho: %j", async (input) => {
     const { soho, hercules, threeCrowns } = await westEndVenues();
     loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
@@ -111,32 +115,54 @@ describe("POST /api/plans/generate", () => {
     expect(offeredVenueIds(body)).not.toContain(hercules.id);
   });
 
-  it("keeps a locked Soho Plan in Soho when it regenerates", async () => {
+  it.each([
+    { query: "", focus: "soho" },
+    { query: "Cheap pints in Soho for 3", focus: "soho" },
+    { query: "Cheap pints in Piccadilly for 3", focus: "piccadilly" },
+  ])("keeps the wizard Plan focus through lock and regeneration for $query", async ({ query, focus }) => {
     const { planSummaryGenerationBody } = await import("@/components/plan/PlanSummary");
+    const { composerCreatePayload } = await import("@/components/plan/PlanComposer");
     const { slidingDoorsGenerationBody } = await import("@/lib/slidingDoorsClient");
-    const { cleanNightContext } = await import("@/lib/nightPlanning");
     const { soho, hercules, threeCrowns } = await westEndVenues();
-    loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
-    const generated = await generate({ query: "Cheap pints in Soho for 3" });
+    const allowed = focus === "soho" ? soho : [...soho.slice(0, 2), threeCrowns];
+    const candidates = [...allowed, hercules, ...(focus === "soho" ? [threeCrowns] : [])];
+    const draft = skipRemainingPlanIntake(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    const submitted = mergeSubmittedNightContext(
+      { nightArea: "piccadilly-soho", areaFocus: null },
+      planIntakeNightContextPatch(draft),
+      nightAreaFromPlanQuery(query),
+    );
+    const input = buildPlanGenerationIntakeBody(draft, query, null, submitted);
+    expect(input.context).toMatchObject({ nightArea: "piccadilly-soho", areaFocus: "soho" });
+    loadConciergeVenuesMock.mockResolvedValueOnce(candidates);
+    const generated = await generate(input);
     expect(generated.status, JSON.stringify(generated.body)).toBe(200);
-    // Locking stores the generated context through the same cleaner.
-    const locked = {
-      context: cleanNightContext(generated.body.inferredContext),
-      plan: { anchorVenueId: null, anchorSource: null, startTime: "2026-11-11T19:00:00.000Z" },
+    expect(generated.body.inferredContext.areaFocus).toBe(focus);
+    for (const id of offeredVenueIds(generated.body)) expect(allowed.map(({ id }) => id)).toContain(id);
+    if (focus === "piccadilly") expect(generated.body.stops.map((stop: { venueId: string }) => stop.venueId)).toContain(threeCrowns.id);
+    const context = reconcileGeneratedNightContext(generated.body.inferredContext, submitted, generated.body.stops.length);
+    const created = await memoryPlanStore.create(composerCreatePayload({
+      title: "West End night",
+      creatorName: "Karan",
+      startTime: "2026-11-11T19:00:00.000Z",
       stops: generated.body.stops,
-    } as unknown as import("@/lib/plan").PlanState;
-    expect(locked.context?.areaFocus).toBe("soho");
+      context,
+    }));
+    if (!created.ok) throw new Error(created.error);
+    const locked = await memoryPlanStore.get(created.plan.plan.id);
+    if (!locked) throw new Error("Locked Plan was not stored");
+    expect(locked.context?.areaFocus).toBe(focus);
 
     for (const body of [
       planSummaryGenerationBody(locked),
       slidingDoorsGenerationBody(locked, "shorter-walk"),
       slidingDoorsGenerationBody(locked, "plot-twist"),
     ]) {
-      loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
+      loadConciergeVenuesMock.mockResolvedValueOnce(candidates);
       const regenerated = await generate(body);
       expect(regenerated.status, JSON.stringify(regenerated.body)).toBe(200);
-      expect(regenerated.body.inferredContext.areaFocus).toBe("soho");
-      for (const id of offeredVenueIds(regenerated.body)) expect(soho.map(({ id }) => id)).toContain(id);
+      expect(regenerated.body.inferredContext.areaFocus).toBe(focus);
+      for (const id of offeredVenueIds(regenerated.body)) expect(allowed.map(({ id }) => id)).toContain(id);
     }
   });
 

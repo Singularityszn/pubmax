@@ -26,6 +26,7 @@ import {
 import { DAY_MS } from "@/lib/dayMs";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { PLAN_INTAKE_STORAGE_KEY } from "@/lib/planDraftStorage";
+import { focusForArea } from "@/lib/nightAreaFocus";
 
 export { clearPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY } from "@/lib/planDraftStorage";
 
@@ -765,7 +766,7 @@ export function planIntakeNightContextPatch(draft: PlanIntakeDraft): Partial<Nig
   const timeWindow = PLAN_TIME_WINDOWS.find((option) => option.id === draft.answers.timeWindow);
   const nightArea = draft.answers.area ? nightAreaForPlanIntakePatch(draft.answers.area) : null;
   return {
-    ...(nightArea ? { nightArea } : {}),
+    ...(nightArea ? { nightArea, areaFocus: focusForArea(nightArea, draft.answers.area) } : {}),
     ...(timeWindow ? { daypart: timeWindow.daypart } : {}),
     ...(draft.answers.groupSize !== null ? { groupSize: draft.answers.groupSize } : {}),
     ...(normalizePlanStopCount(draft.answers.stopCount) !== DEFAULT_PLAN_STOP_COUNT
@@ -802,6 +803,7 @@ function stripPlanIntakeOwnedContext(
   if (!context) return {};
   const unowned: Partial<NightContext> = { ...context };
   delete unowned.nightArea;
+  delete unowned.areaFocus;
   delete unowned.daypart;
   delete unowned.groupSize;
   delete unowned.stopCount;

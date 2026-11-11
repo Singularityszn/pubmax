@@ -95,7 +95,7 @@ export function mergeSubmittedNightContext(
 ): Partial<NightContext> {
   return {
     ...explicit,
-    ...(intake.nightArea ? { nightArea: intake.nightArea } : {}),
+    ...(intake.nightArea ? { nightArea: intake.nightArea, areaFocus: intake.areaFocus ?? null } : {}),
     ...(queryArea.kind === "supported" || queryArea.kind === "unmapped"
       ? { nightArea: queryArea.slug }
       : queryArea.kind === "unsupported-patch" ? { nightArea: null } : {}),
@@ -133,6 +133,8 @@ export function reconcileGeneratedNightContext(
   const merged = mergeInferredNightContext(inferred, explicit);
   return {
     ...merged,
+    nightArea: inferred.nightArea,
+    areaFocus: inferred.areaFocus,
     stopCount: explicit.stopCount ?? normalizePlanStopCount(generatedStopCount),
   };
 }

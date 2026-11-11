@@ -983,6 +983,21 @@ it.each([false, true])("checks the winning intake against the generated request,
   expect(recover().intakeDraft?.draft.answers.stopCount).toBe(1);
 });
 
+it.each(["Soho", "Piccadilly", "Piccadilly and Soho"])("recovers a correlated wizard route with server geography %s", (query) => {
+  const route = routeDraft(NOW, {
+    nightContext: { ...inferNightContext(query).context, daypart: "evening" },
+    anchorVenueId: null,
+    anchorSource: null,
+    outcome: "unanchored",
+  });
+  const local = intake(NOW + 1);
+  local.routeReference = { savedAt: route.savedAt!, operationKey: "operation-1" };
+  expect(recoverPlanDrafts({ plan: null, legacyDraft: null, intake: local, route })).toMatchObject({
+    acceptanceUnavailable: false,
+    routeWins: true,
+  });
+});
+
 it.each(["correlated", "empty", "conflicting", "uncorrelated"] as const)(
   "restores legacy route inputs only with established request ownership: %s",
   (kind) => {

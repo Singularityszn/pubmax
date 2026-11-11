@@ -23,7 +23,10 @@ function intakePatch(intake: ParsedPlanGenerationIntake): Partial<NightContext> 
     ? PLAN_TIME_WINDOWS.find((option) => option.id === intake.handoff.timeWindow?.id)
     : null;
   return {
-    ...(!skipped.has("area") && intake.exactNightArea ? { nightArea: intake.exactNightArea } : {}),
+    ...(!skipped.has("area") && intake.exactNightArea ? {
+      nightArea: intake.exactNightArea,
+      areaFocus: focusForArea(intake.exactNightArea, intake.handoff.area?.id),
+    } : {}),
     ...(!skipped.has("time-window") && time ? { daypart: time.daypart } : {}),
     ...(!skipped.has("group-size") && intake.handoff.groupSize !== null
       ? { groupSize: intake.handoff.groupSize }
@@ -40,7 +43,7 @@ function intakePatch(intake: ParsedPlanGenerationIntake): Partial<NightContext> 
 }
 
 function intakeReason(field: keyof NightContext, intake: ParsedPlanGenerationIntake): ContextReason {
-  const evidence = field === "nightArea"
+  const evidence = field === "nightArea" || field === "areaFocus"
     ? intake.handoff.area?.id ?? "selected patch"
     : field === "daypart"
       ? intake.handoff.timeWindow?.id ?? "selected time"
@@ -58,20 +61,14 @@ function intakeReason(field: keyof NightContext, intake: ParsedPlanGenerationInt
   return { field, evidence, explanation: "Applied from the completed Plan intake." };
 }
 
-/**
- * The place a query names inside its area wins. Otherwise a regenerated Plan
- * keeps the focus its stored context carries. The intake patch never sets a
- * focus: the composer maps Soho, Piccadilly and both together to one patch.
- */
 function applyAreaFocus(
   context: NightContext,
   fieldSources: ReconciledPlanContext["fieldSources"],
   inferred: ReturnType<typeof inferNightContext>,
-  contextPatch: Partial<NightContext>,
 ): void {
   const queryNamedArea = inferred.reasons.some((reason) => reason.field === "nightArea");
-  const source = queryNamedArea ? "query" : "context";
-  const focus = focusForArea(context.nightArea, queryNamedArea ? inferred.context.areaFocus : contextPatch.areaFocus);
+  const source = queryNamedArea ? "query" : fieldSources.areaFocus;
+  const focus = focusForArea(context.nightArea, queryNamedArea ? inferred.context.areaFocus : context.areaFocus);
   delete context.areaFocus;
   delete fieldSources.areaFocus;
   if (!focus) return;
@@ -101,7 +98,7 @@ export function reconcilePlanContext(
           ? "query"
           : "default";
   }
-  applyAreaFocus(context, fieldSources, inferred, contextPatch);
+  applyAreaFocus(context, fieldSources, inferred);
   if (fieldSources.daypart === "default" && planStartIso) {
     // The validated displayed schedule affects only the fallback, never query interpretation.
     context.daypart = inferNightContext("", new Date(planStartIso)).context.daypart;
@@ -113,7 +110,7 @@ export function reconcilePlanContext(
     }
   }
   for (const field of Object.keys(authoritative) as (keyof NightContext)[]) {
-    reasons.push(intakeReason(field, intake!));
+    if (fieldSources[field] === "intake") reasons.push(intakeReason(field, intake!));
   }
   const confidence = Object.keys(authoritative).length > 0
     ? Math.max(inferred.confidence, 0.9)

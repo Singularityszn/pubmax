@@ -14,7 +14,7 @@ import {
   reconcileGeneratedNightContext,
   syncPlanIntakeAreaFromQuery,
 } from "@/lib/planComposerChipFill";
-import type { NightContext } from "@/lib/nightPlanning";
+import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 
 vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 
@@ -107,6 +107,23 @@ describe("plan composer chip intent policy", () => {
     expect(submitted.nightArea).toBe("camden");
     expect(submitted.groupSize).toBe(6);
     expect(submitted.stopCount).toBe(4);
+  });
+
+  it.each([
+    { query: "Soho", submittedFocus: null, expected: "soho" },
+    { query: "Piccadilly", submittedFocus: "soho" as const, expected: "piccadilly" },
+    { query: "Piccadilly and Soho", submittedFocus: "soho" as const, expected: undefined },
+    { query: "Camden", submittedFocus: "soho" as const, expected: undefined },
+  ])("keeps the server geography for $query over submitted focus $submittedFocus", ({ query, submittedFocus, expected }) => {
+    const generated = inferNightContext(query).context;
+    const reconciled = reconcileGeneratedNightContext(generated, {
+      nightArea: "piccadilly-soho",
+      areaFocus: submittedFocus,
+      groupSize: 6,
+    }, 3);
+    expect(reconciled.nightArea).toBe(query === "Camden" ? "camden" : "piccadilly-soho");
+    expect(reconciled.areaFocus).toBe(expected);
+    expect(reconciled.groupSize).toBe(6);
   });
 
   it("keeps an unmapped recognized query area over stale context area", () => {

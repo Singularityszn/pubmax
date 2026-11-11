@@ -497,6 +497,7 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     });
     expect(planIntakeNightContextPatch(draft)).toEqual({
       nightArea: "bermondsey-london-bridge",
+      areaFocus: null,
       daypart: "after_work",
       groupSize: 5,
       budget: "value",
@@ -506,12 +507,22 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
   });
 
   const ownedFields: Record<PlanIntakeStep, Array<keyof NightContext>> = {
-    area: ["nightArea"],
+    area: ["nightArea", "areaFocus"],
     "time-window": ["daypart"],
     "group-size": ["groupSize"],
     budget: ["budget", "budgetLimitPence"],
     accessibility: ["accessibility"],
   };
+
+  it("removes the stored Soho focus when its wizard area is skipped", () => {
+    const draft = createPlanIntakeDraft({ kind: "patch", id: "soho" });
+    const skipped = settlePlanIntakeStep(draft, { skip: true });
+    const body = buildPlanGenerationIntakeBody(skipped, "", {
+      ...generatedContext, nightArea: "piccadilly-soho", areaFocus: "soho",
+    });
+    expect(body.context).not.toHaveProperty("areaFocus");
+    expect(body.context).not.toHaveProperty("nightArea");
+  });
 
   for (const step of PLAN_INTAKE_STEPS) {
     it(`removes stale ${step} fields after answer, generate, reopen and skip`, () => {
