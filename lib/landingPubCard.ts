@@ -56,7 +56,7 @@ import { venueAreaLabel } from "@/lib/venueDisplay";
 import type { Venue } from "@/lib/venues";
 
 /** The fare zone the landing's pub card and its rail are drawn from. */
-export const LANDING_HERO_ZONE = 1;
+const LANDING_HERO_ZONE = 1;
 
 /** The station a pub takes its fare zone from, as the card prints it. */
 export type LandingCardStation = { name: string; zone: number };
