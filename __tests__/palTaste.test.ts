@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  asksForSomewhereNew,
   buildPalTaste,
   palTasteAsk,
+  palVisitedVenueIds,
   palTastePreamble,
   type PalTasteDiaryInput,
   type PalTasteDropInput,
@@ -88,6 +90,27 @@ describe("buildPalTaste", () => {
       placeOf,
     });
     expect(taste?.wishlist).toEqual(["The Anchor"]);
+  });
+
+  it("counts a pub as visited from the diary, a price log or the Been here list, and nothing else", () => {
+    const visited = palVisitedVenueIds({
+      diary: [diary("crown", "2026-10-02")],
+      drops: [drop("lamb", "2026-10-03")],
+      saved: [
+        { venueId: "ship", listType: "Been here" },
+        { venueId: "anchor", listType: "Want to Visit" },
+      ],
+    });
+    expect([...visited].sort()).toEqual(["crown", "lamb", "ship"]);
+  });
+
+  it("hears the ask for somewhere new, places not yet tried, or a surprise", () => {
+    for (const ask of ["Somewhere new in Peckham", "pubs I haven't been to near Soho", "places I haven\u2019t tried", "places I've never tried", "Surprise me"]) {
+      expect(asksForSomewhereNew(ask), ask).toBe(true);
+    }
+    for (const ask of ["Find four pubs in Soho", "Cheapest pint near Camden", "What is new at The Crown", "a new pub tonight", "somewhere different"]) {
+      expect(asksForSomewhereNew(ask), ask).toBe(false);
+    }
   });
 
   it("uses only pint prices and needs two of them for a usual pint", () => {

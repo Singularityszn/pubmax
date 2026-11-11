@@ -1273,6 +1273,13 @@ describe("rename-safe author reads", () => {
         "new-anonymous", "new-public", "old-anonymous", "old-friends", "old-public",
       ]);
     }
+    // The owner's own "somewhere new" read keeps a pub known only from an anonymous drop.
+    authored("only-anonymous", "venue-wrpmzq-anon", NEW, "anonymous", "2026-02-03T00:00:00.000Z");
+    for (const requested of [OLD, NEW]) {
+      expect(await memoryPintDropStore.listOwnVenueIds(requested)).toContain("venue-wrpmzq-anon");
+    }
+    expect(await memoryPintDropStore.listVisibleAuthorVenueIds(NEW, { handle: NEW }, null)).not.toContain("venue-wrpmzq-anon");
+    expect(await memoryPintDropStore.listOwnVenueIds(OTHER)).toEqual([]);
   });
 
   it("never gives the old drops to a different account", async () => {

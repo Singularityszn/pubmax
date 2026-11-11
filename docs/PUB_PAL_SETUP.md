@@ -337,6 +337,13 @@ Voice uses the same opening builder in its first-message override.
    a missing key is on). The setting is read fresh before every read, so
    turning it off stops the next turn reading the favourite drink or logs, past the cache, and a
    Pal that cannot be read fails closed.
+   New-place searches use `search_venues.onlyNew` from the shared tool catalog in typed and voice chat.
+   `lib/pubPalToolInvoke.server.ts` resolves the owner through the conversation binding established by `bindPubPalToolTurn`.
+   Deterministic typed answers use the authenticated owner and the same `palOnlyNewScope` helper.
+   This separate exclusion read checks `palTasteAllowed` before reading history and does not use the taste summary's cache or 900 ms budget.
+   `readPalVisitedVenues` resolves stored venue aliases and reads complete Pint Drop venue identities, including the owner's anonymous drops.
+   The exclusion set stays on the server. ElevenLabs receives the filtered results and any fallback hint.
+   The [Pub Pal usage guide](../README.md#pub-pal-new-picks) owns the request phrases and fallback messages.
    Without a typed-chat provider, a signed-in ask with no area, mood or budget runs
    `search_venues` off the read's patch, vibe and usual price instead of
    asking for one.

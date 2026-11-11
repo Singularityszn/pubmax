@@ -241,7 +241,9 @@ export async function toolCheapestPintNear(
   }
 
   const limit = limitOf(args.limit, 4, 5);
-  const points = toPricedPoints(args.foodOnly === true ? venues.filter((venue) => venue.amenities.food) : venues);
+  // "Somewhere new" leaves the owner's visits out of the answers, never out of the anchor match.
+  const candidates = ctx.excludeVenueIds ? venues.filter((venue) => !ctx.excludeVenueIds!.has(venue.id)) : venues;
+  const points = toPricedPoints(args.foodOnly === true ? candidates.filter((venue) => venue.amenities.food) : candidates);
   let rows: NearMeCard[];
   let scope: "walkable" | "widened" | "none";
   if (anchorVenue && (anchor.kind === "venue" || anchorVenue.id.startsWith("night-area:"))) {

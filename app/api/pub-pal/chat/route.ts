@@ -9,7 +9,7 @@ import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
-import { runAsk } from "@/lib/ask/runAsk";
+import { routedAskRequest, runAsk } from "@/lib/ask/runAsk";
 import { parseLateFoodQuestion, resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import type { AskResponseBody, AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -32,7 +32,7 @@ import {
 import { palClaudeConfigured, runPalClaudeChatTurn } from "@/lib/palClaudeChat.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { palTasteAsk } from "@/lib/palTaste";
-import { readPalTaste } from "@/lib/palTaste.server";
+import { palNoveltyForAsk, readPalTaste } from "@/lib/palTaste.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -311,12 +311,14 @@ export async function POST(request: Request): Promise<Response> {
     try {
       const social = keylessSocialReply(query, turns);
       if (social) return social;
+      const novelty = await palNoveltyForAsk(routedAskRequest(query, turns), () => callerUserId(request));
       const answer = await runAsk({
         query,
         cityId: record.cityId,
         turns,
         skipModel: true,
         traceRoute: "api/pub-pal/chat",
+        excludeVenueIds: novelty.excludeVenueIds,
       });
       // Discovery ranks on area, mood, budget and group size. Without one,
       // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
@@ -346,9 +348,10 @@ export async function POST(request: Request): Promise<Response> {
               cityId: record.cityId,
               skipModel: true,
               traceRoute: "api/pub-pal/chat",
+              excludeVenueIds: novelty.excludeVenueIds,
             });
             if (picked.cards.length > 0) {
-              return jsonNoStore({ ...picked, answer: `${tasteAsk.because} ${picked.answer}` });
+              return jsonNoStore(novelty.tell({ ...picked, answer: `${tasteAsk.because} ${picked.answer}` }));
             }
           }
           return jsonNoStore({
@@ -361,7 +364,7 @@ export async function POST(request: Request): Promise<Response> {
           });
         }
       }
-      return jsonNoStore(answer);
+      return jsonNoStore(novelty.tell(answer));
     } catch (error) {
       console.error("pub-pal-chat.unexpected_error", error);
       return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });

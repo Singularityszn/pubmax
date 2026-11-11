@@ -138,7 +138,8 @@ async function toolSearchVenues(
   const query = str(args.query) || ctx.query;
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
-    const venues = await loadConciergeVenues(ctx.cityId);
+    const exclude = ctx.excludeVenueIds;
+    const venues = (await loadConciergeVenues(ctx.cityId)).filter((venue) => !exclude?.has(venue.id));
     const ceiling = parsed.intent.maxPintPrice;
     const requiresPintPrice = resolveAskPriceIntent(query).kind === "pint";
     const eligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) => {

@@ -11,8 +11,8 @@ import {
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
-import { palTastePreamble, type PalTaste } from "@/lib/palTaste";
-import { readPalTaste } from "@/lib/palTaste.server";
+import { asksForSomewhereNew, palTastePreamble, type PalTaste } from "@/lib/palTaste";
+import { palOnlyNewScope, readPalTaste } from "@/lib/palTaste.server";
 import { fetchPalSignedConversation, type PalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { log } from "@/lib/log";
 import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConversationId";
@@ -315,7 +315,12 @@ export async function preparePalChatProviderTurn(
 
   let result: Awaited<ReturnType<typeof runAsk>>;
   try {
-    result = await beforePalChatDeadline(deadline, () => runAsk({ query: recordQuery, cityId, skipModel: true }));
+    // "Somewhere new" on the record path leaves out the owner's own visits, as the tool does.
+    result = await beforePalChatDeadline(deadline, async () => {
+      const scope = asksForSomewhereNew(recordQuery) ? await palOnlyNewScope(input.ownerId) : null;
+      const answer = await runAsk({ query: recordQuery, cityId, skipModel: true, excludeVenueIds: scope?.exclude });
+      return scope?.hint ? { ...answer, answer: `${scope.hint} ${answer.answer}` } : answer;
+    });
   } catch (error) {
     const code = error instanceof PalChatDeadlineExceeded ? "TIMEOUT" : "UNAVAILABLE";
     recordFailure(code, "tool_result");

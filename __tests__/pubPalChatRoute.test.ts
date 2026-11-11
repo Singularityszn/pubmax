@@ -31,7 +31,8 @@ vi.mock("@/lib/authServer", () => ({
 
 const tasteState = vi.hoisted(() => ({ taste: null as unknown }));
 
-vi.mock("@/lib/palTaste.server", () => ({
+vi.mock("@/lib/palTaste.server", async (original) => ({
+  ...await original<typeof import("@/lib/palTaste.server")>(),
   readPalTaste: vi.fn(async () => tasteState.taste),
 }));
 
@@ -355,6 +356,45 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body.toolsUsed).toEqual(["search_venues"]);
     expect(body.cards).toHaveLength(3);
     expect(body.answer).not.toContain("not prices for that item");
+  });
+
+  it("keeps a novelty ask when the next line only answers the area question", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "in Soho",
+        cityId: "london",
+        turns: [
+          { role: "user", content: "Find pubs somewhere new" },
+          { role: "assistant", content: "Which area should I look in?" },
+        ],
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.answer).toContain("I don't know where you've been yet.");
+  });
+
+  it("explains missing visit history for signed-out keyless novelty picks", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "Find four pubs in Soho with pints under £8 somewhere new",
+        cityId: "london",
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards).toHaveLength(4);
+    expect(body.answer).toContain("I don't know where you've been yet.");
   });
 
   it.each(VIBE_CHIPS)("accepts the actual $label starter question keylessly", async (chip) => {

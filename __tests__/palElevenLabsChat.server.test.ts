@@ -198,9 +198,12 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
 
 const tasteMocks = vi.hoisted(() => ({
   readPalTaste: vi.fn<(ownerId: string) => Promise<unknown>>(async () => null),
+  palOnlyNewScope: vi.fn<(ownerId: string | null) => Promise<{ exclude?: ReadonlySet<string>; hint: string }>>(
+    async () => ({ hint: "I don't know where you've been yet." }),
+  ),
 }));
 
-vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteMocks.readPalTaste }));
+vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteMocks.readPalTaste, palOnlyNewScope: tasteMocks.palOnlyNewScope }));
 
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
@@ -346,6 +349,24 @@ describe("runPalElevenLabsChatTurn", () => {
     }
     expect(wsState.socketsOpened).toBe(0);
     expect(wsState.userMessageText).toBeNull();
+  });
+
+  it("leaves the owner's visits out of a typed somewhere-new answer from the records, and says why when it cannot", async () => {
+    const owner = "11111111-1111-4111-8111-111111111111";
+    const ask = "Find four pubs in Soho with pints under £6";
+    const before = await runPalElevenLabsChatTurn({ query: ask, ownerId: owner });
+    expect(tasteMocks.palOnlyNewScope).not.toHaveBeenCalled();
+    const visited = before.ok ? before.cards.map((card) => card.venueId).slice(0, 2) : [];
+    expect(visited).toHaveLength(2);
+    tasteMocks.palOnlyNewScope.mockResolvedValueOnce({ exclude: new Set(visited), hint: "" });
+
+    const fresh = await runPalElevenLabsChatTurn({ query: `${ask}, somewhere new`, ownerId: owner });
+
+    expect(tasteMocks.palOnlyNewScope).toHaveBeenCalledWith(owner);
+    expect(fresh.ok && fresh.cards.some((card) => visited.includes(card.venueId))).toBe(false);
+    expect(wsState.socketsOpened).toBe(0);
+    const off = await runPalElevenLabsChatTurn({ query: `${ask}, surprise me`, ownerId: owner });
+    expect(off.ok && off.message.startsWith("I don't know where you've been yet.")).toBe(true);
   });
 
   it("review regression: returns independent transit with the unsupported price answer", async () => {

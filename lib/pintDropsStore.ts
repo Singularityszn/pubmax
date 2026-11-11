@@ -227,6 +227,11 @@ export type PintDropStore = {
     venueId?: string,
   ): Promise<string[]>;
   /**
+   * Every venue the author has a visible drop at, their anonymous drops
+   * included. The author's own read only, for "somewhere new".
+   */
+  listOwnVenueIds(authorHandle: string): Promise<string[]>;
+  /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
    * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
    * UI). Returns visible `legacy` drops for the venue, newest-first, as public
@@ -836,11 +841,12 @@ async function attributedAuthorVenueIds(
   rows: PersistableDrop[],
   authorIdentity: AuthorIdentity,
   viewer?: ViewerContext,
+  ownRead = false,
 ): Promise<string[]> {
   const author = authorIdentity.current;
   const permitted = asAuthorDrops(rows, authorIdentity).filter(
     (drop) =>
-      matchesAttributedAuthor(drop, author) &&
+      (ownRead ? matchesAuthorFilter(drop, author, viewer) : matchesAttributedAuthor(drop, author)) &&
       visibilityOf(drop) !== "legacy" &&
       canViewOnPublicSurface(drop, viewer),
   );
@@ -971,6 +977,11 @@ export const memoryPintDropStore: PintDropStore = {
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
     return attributedAuthorVenueIds(rows, author, viewer);
+  },
+  async listOwnVenueIds(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    if (!author) return [];
+    return attributedAuthorVenueIds(listAllVisiblePintDrops(null), author, { handle: author.current }, true);
   },
   async listLegacyForVenue(venueId) {
     const published = await dropWithdrawnAuthors(
@@ -1364,6 +1375,59 @@ function logDropCreateFailure(err: unknown, drop: PintDrop, uploadedCount: numbe
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
+/** Every venue an author has a visible durable drop at, paged so no cap applies. */
+async function durableAuthorVenueIds(
+  authorHandle: string,
+  viewer: ViewerContext | undefined,
+  cityId: CityId | null | undefined,
+  venueId: string | undefined,
+  ownRead: boolean,
+): Promise<string[]> {
+  const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+  if (!author) return [];
+  const authorHandles = wornHandleList(author);
+  const venueIds = venueId ? await storedVenueIds(venueId) : [];
+  const visited = new Set<string>();
+  let afterId: string | undefined;
+  // Unique IDs give every page a stable boundary, including equal timestamps.
+  // Only venue identities survive each page. Photos and the timeline stay bounded.
+  for (;;) {
+    const base = () => {
+      let query = admin()
+        .from(TABLE)
+        .select("*")
+        .eq("status", "visible")
+        .in("handle", authorHandles)
+        .order("id", { ascending: true })
+        .limit(MAX_PUBLIC_DROPS);
+      if (afterId) query = query.gt("id", afterId);
+      if (venueIds.length === 1) query = query.eq("venue_id", venueIds[0]);
+      else if (venueIds.length > 1) query = query.in("venue_id", venueIds);
+      return query;
+    };
+    let { data, error } = await base().neq("visibility", "legacy");
+    if (error && isMissingVisibilityColumnError(error)) {
+      ({ data, error } = await base());
+    }
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    const rows = page.map(fromRow)
+      .filter((drop) => venueId || dropMatchesCityScope(drop.venueId, cityId));
+    for (const id of await attributedAuthorVenueIds(rows, author, ownRead ? { handle: author.current } : viewer, ownRead)) visited.add(id);
+    if (page.length < MAX_PUBLIC_DROPS) break;
+    const nextId = page[page.length - 1]?.id;
+    if (typeof nextId !== "string" || (afterId && nextId <= afterId)) {
+      throw new Error("Pint Drop geography pagination did not advance.");
+    }
+    afterId = nextId;
+  }
+  const seeds = venueId
+    ? venueIds.flatMap((id) => demoDropsFor(id))
+    : demoPintDropsForCity(cityId);
+  for (const id of await attributedAuthorVenueIds(seeds, author, ownRead ? { handle: author.current } : viewer, ownRead)) visited.add(id);
+  return [...visited].sort();
+}
+
 export const supabasePintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const currentOf = new Map(storedIdGroups.flatMap((keys) => keys.map((key) => [key, keys[0]] as const)));
@@ -1674,49 +1738,10 @@ export const supabasePintDropStore: PintDropStore = {
   },
 
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
-    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
-    if (!author) return [];
-    const authorHandles = wornHandleList(author);
-    const venueIds = venueId ? await storedVenueIds(venueId) : [];
-    const visited = new Set<string>();
-    let afterId: string | undefined;
-    // Unique IDs give every page a stable boundary, including equal timestamps.
-    // Only venue identities survive each page. Photos and the timeline stay bounded.
-    for (;;) {
-      const base = () => {
-        let query = admin()
-          .from(TABLE)
-          .select("*")
-          .eq("status", "visible")
-          .in("handle", authorHandles)
-          .order("id", { ascending: true })
-          .limit(MAX_PUBLIC_DROPS);
-        if (afterId) query = query.gt("id", afterId);
-        if (venueIds.length === 1) query = query.eq("venue_id", venueIds[0]);
-        else if (venueIds.length > 1) query = query.in("venue_id", venueIds);
-        return query;
-      };
-      let { data, error } = await base().neq("visibility", "legacy");
-      if (error && isMissingVisibilityColumnError(error)) {
-        ({ data, error } = await base());
-      }
-      if (error) throw new Error(error.message);
-      const page = data ?? [];
-      const rows = page.map(fromRow)
-        .filter((drop) => venueId || dropMatchesCityScope(drop.venueId, cityId));
-      for (const id of await attributedAuthorVenueIds(rows, author, viewer)) visited.add(id);
-      if (page.length < MAX_PUBLIC_DROPS) break;
-      const nextId = page[page.length - 1]?.id;
-      if (typeof nextId !== "string" || (afterId && nextId <= afterId)) {
-        throw new Error("Pint Drop geography pagination did not advance.");
-      }
-      afterId = nextId;
-    }
-    const seeds = venueId
-      ? venueIds.flatMap((id) => demoDropsFor(id))
-      : demoPintDropsForCity(cityId);
-    for (const id of await attributedAuthorVenueIds(seeds, author, viewer)) visited.add(id);
-    return [...visited].sort();
+    return durableAuthorVenueIds(authorHandle, viewer, cityId, venueId, false);
+  },
+  async listOwnVenueIds(authorHandle) {
+    return durableAuthorVenueIds(authorHandle, undefined, null, undefined, true);
   },
 
   /** The LEGACY lane for one venue (ledger-only capability for issue #27).
