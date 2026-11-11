@@ -286,8 +286,8 @@ export type SlimShardLoader = {
   /** Compatibility read for consumers that need the central shard. */
   core(): Promise<SlimVenue[]>;
   /**
-   * Venues from location shards intersecting `bounds`. The viewport includes
-   * cached rows. Neighbour rings return only newly loaded rows. Never throws.
+   * Venues from location shards intersecting `bounds` not yet delivered.
+   * Includes cached rows still held by another request. Never throws.
    */
   inBounds(bounds: MapBounds, ring?: number): Promise<SlimVenue[]>;
   /** First map read: viewport cells, or the legacy core. */
@@ -520,8 +520,26 @@ export function createSlimShardLoader(
   const shardPromises = new Map<string, Promise<SlimShardLoadResult>>();
   // request path -> the revision a read was refused for, until it is reported.
   const shardSkews = new Map<string, { served: unknown }>();
-  // shard urls that have successfully contributed venues (so inBounds skips them).
+  // Successful fetches establish coverage before their caller returns rows.
   const loadedUrls = new Set<string>();
+  const deliveredShardKeys = new Set<string>();
+
+  function shardKey(url: string): string {
+    const requestPath = shardRequestPath(url, packRequestRevision);
+    const digest = settledManifest?.priceDatasetDigest;
+    return digest ? `${requestPath}#${digest}` : requestPath;
+  }
+
+  function deliverRows(
+    shards: Pick<ShardEntry, "url">[],
+    results: SlimShardLoadResult[],
+  ): SlimVenue[] {
+    return results.flatMap((result, index) => {
+      const shard = shards[index];
+      if (shard && result.status === "ready") deliveredShardKeys.add(shardKey(shard.url));
+      return result.rows;
+    });
+  }
 
   function revisionMatches(parsed: ShardManifest): boolean {
     return (
@@ -741,7 +759,7 @@ export function createSlimShardLoader(
   ): Promise<SlimShardLoadResult> {
     const expectedPriceDatasetDigest = settledManifest?.priceDatasetDigest;
     const requestPath = shardRequestPath(url, packRequestRevision);
-    const key = expectedPriceDatasetDigest ? `${requestPath}#${expectedPriceDatasetDigest}` : requestPath;
+    const key = shardKey(url);
     let p = shardPromises.get(key);
     if (p && foreground) {
       const queuedIndex = queuedShardReads.findIndex((read) => read.key === key);
@@ -813,6 +831,7 @@ export function createSlimShardLoader(
       // can adopt the revision the server holds; a map with no pins is never
       // the answer. Any other failure keeps its old meaning.
       if (!shardSkews.has(shardRequestPath(guessedUrl, packRequestRevision))) {
+        deliverRows([{ url: guessedUrl }], [guessed]);
         return guessed;
       }
     }
@@ -828,7 +847,7 @@ export function createSlimShardLoader(
     if (needed.length === 0) return { rows: [], status: "ready" };
     const results = await Promise.all(needed.map((s) => loadShard(s.url)));
     return {
-      rows: results.flatMap((result) => result.rows),
+      rows: deliverRows(needed, results),
       status: results.every((result) => result.status === "ready") ? "ready" : "unavailable",
     };
   }
@@ -851,20 +870,20 @@ export function createSlimShardLoader(
       if (core.url === guessedCoreUrl && packRequestRevision === MAP_DATA_REVISION) {
         await guessedRows;
       }
-      return (await loadShard(core.url)).rows;
+      return deliverRows([core], [await loadShard(core.url)]);
     },
 
     async inBounds(bounds: MapBounds, ring = 0): Promise<SlimVenue[]> {
       const m = await manifest();
       if (!m) return [];
       const needed = shardsForBounds(m, bounds, ring, true).filter(
-        (s) => ring === VIEWPORT_SHARD_RING || !loadedUrls.has(s.url),
+        (s) => !deliveredShardKeys.has(shardKey(s.url)),
       );
       if (needed.length === 0) return [];
       const results = await Promise.all(
         needed.map((s) => loadShard(s.url, false, ring === VIEWPORT_SHARD_RING)),
       );
-      return results.flatMap((result) => result.rows);
+      return deliverRows(needed, results);
     },
 
     async initial(bounds: MapBounds): Promise<SlimVenue[]> {
@@ -896,7 +915,7 @@ export function createSlimShardLoader(
         results = results.map((result, index) => retryByUrl.get(needed[index]?.url ?? "") ?? result);
       }
       return {
-        rows: results.flatMap((result) => result.rows),
+        rows: deliverRows(needed, results),
         ...(m.priceDatasetDigest ? { priceDatasetDigest: m.priceDatasetDigest } : {}),
         status: results.every((result) => result.status === "ready")
           ? "ready"
@@ -908,7 +927,7 @@ export function createSlimShardLoader(
       const m = await manifest();
       if (!m) return manifestRevisionRejected ? [] : loadWholeIndex();
       const results = await Promise.all(m.shards.map((s) => loadShard(s.url)));
-      return results.flatMap((result) => result.rows);
+      return deliverRows(m.shards, results);
     },
 
     coverageComplete(bounds: MapBounds): boolean | null {

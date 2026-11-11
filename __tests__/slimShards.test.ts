@@ -390,17 +390,17 @@ describe("createSlimShardLoader (London)", () => {
     expect(fetched).not.toContain("/data/venues_slim.enfield.json");
   });
 
-  it("inBounds() returns cached viewport rows without fetching them again", async () => {
+  it("inBounds() returns each delivered shard only once without fetching it again", async () => {
     const loader = createSlimShardLoader("london");
     await loader.core();
     const rows = await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 });
-    expect(rows.map((v) => v.id)).toEqual(["c1", "c2", "g1"]);
+    expect(rows.map((v) => v.id)).toEqual(["g1"]);
     expect(fetched).toContain("/data/venues_slim.greenwich.json");
 
     // A second pass over the same viewport must not refetch the loaded shard.
     fetched = [];
     const again = await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 });
-    expect(again).toEqual(rows);
+    expect(again).toEqual([]);
     expect(fetched).toEqual([]);
 
     const neighbours = await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 }, 1);
@@ -429,6 +429,21 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((venue) => venue.id)).toEqual(["c1", "c2"]);
     expect(fetched).toContain("/data/venues_slim.core.json");
   });
+
+  it.each(["initial", "initialResult", "nearPoint", "all"] as const)(
+    "inBounds() does not repeat shards delivered by %s()",
+    async (read) => {
+      const loader = createSlimShardLoader("london");
+      const bounds = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+      const result = read === "nearPoint" ? await loader.nearPoint(51.5, -0.1)
+        : read === "all" ? await loader.all() : await loader[read](bounds);
+      const rows = Array.isArray(result) ? result : result.rows;
+      expect(rows.map((row) => row.id)).toContain("c1");
+      fetched = [];
+      await expect(loader.inBounds(bounds)).resolves.toEqual([]);
+      expect(fetched).toEqual([]);
+    },
+  );
 
   it("nearPoint() loads the shard the user geolocated into", async () => {
     const loader = createSlimShardLoader("london");
@@ -554,16 +569,16 @@ describe("createSlimShardLoader (London)", () => {
     expect(loader.coverageComplete(coreOnly)).toBe(false);
   });
 
-  it("keeps cached rows when a shard fails and retries it on the next call", async () => {
+  it("retries a failed shard without repeating delivered rows", async () => {
     installFetch({ "/data/venues_slim.greenwich.json": "fail" });
     const loader = createSlimShardLoader("london");
     await loader.core();
     const bounds = { west: 0.0, south: 51.44, east: 0.12, north: 51.53 };
-    expect((await loader.inBounds(bounds)).map((v) => v.id)).toEqual(["c1", "c2"]);
+    expect(await loader.inBounds(bounds)).toEqual([]);
     // The failed shard is NOT marked loaded, so it retries — now let it succeed.
     installFetch();
     const rows = await loader.inBounds(bounds);
-    expect(rows.map((v) => v.id)).toEqual(["c1", "c2", "g1"]);
+    expect(rows.map((v) => v.id)).toEqual(["g1"]);
   });
 
   it("preserves initial shard failure status for the map readiness gate", async () => {
@@ -589,7 +604,7 @@ describe("createSlimShardLoader (London)", () => {
     expect(fetched.filter((url) => url === "/data/venues_slim.core.json")).toHaveLength(1);
     expect(fetched).not.toContain("/data/venues_slim.manifest.json");
 
-    await loader.inBounds(bounds);
+    await expect(loader.inBounds(bounds)).resolves.toEqual([]);
     expect(fetched).toContain("/data/venues_slim.manifest.json");
     expect(fetched.filter((url) => url === "/data/venues_slim.core.json")).toHaveLength(1);
   });
