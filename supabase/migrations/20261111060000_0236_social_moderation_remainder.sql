@@ -1,7 +1,7 @@
 -- 0236: the rest of the Social moderation guards. Expand only: the code served before it keeps working.
 -- 1. social_posts.feature_status and feature_staff_response come from social_feature_request_updates.
 --    A trigger derives them on inserts and writes to kind or either feature field, preserving history across kind changes.
--- 2. An interaction moderation job gets a lease token. The new claim_social_interaction_moderation_leases returns it.
+-- 2. Only claim_social_interaction_moderation_leases issues and returns a lease token for each claimed job.
 --    A new six-argument completion takes p_lease_token and finishes the job only for the worker with that token.
 --    The served code's claim and five-argument completion stay. That claim leases with no token, and that
 --    completion settles only a lease with no token, so neither door can settle a lease the other door holds.
