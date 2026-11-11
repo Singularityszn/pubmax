@@ -96,7 +96,7 @@ export default function PlanIntake({
   onChange,
 }: {
   draft: PlanIntakeDraft;
-  onChange: (next: PlanIntakeDraft) => void;
+  onChange: (next: PlanIntakeDraft, editedStep?: PlanIntakeStep) => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const hasRenderedRef = useRef(false);
@@ -161,7 +161,7 @@ export default function PlanIntake({
         onChange({
           ...draftRef.current,
           answers: { ...draftRef.current.answers, area: patch.id },
-        });
+        }, "area");
         setLocationState({
           kind: "success",
           message: `${patch.label} is your nearest supported area. Continue when you are ready.`,
@@ -301,7 +301,7 @@ export default function PlanIntake({
                   onClick={() => {
                     cancelLocationRequest();
                     writeRememberedArea({ kind: "patch", id: patch.id });
-                    onChange({ ...draft, answers: { ...draft.answers, area: patch.id } });
+                    onChange({ ...draft, answers: { ...draft.answers, area: patch.id } }, "area");
                   }}
                 >
                   <MapPin size={16} aria-hidden="true" /> {patch.label}

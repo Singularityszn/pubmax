@@ -220,6 +220,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Before using a quoted price, check its [serving, publisher and source-read date](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it).
 
+  Ask for Soho or Piccadilly to keep generated stops, alternatives and extra stops within that place. The selected place stays with a locked Plan when you regenerate it. If too few listed pubs qualify, the planner reports the shortfall instead of adding pubs from neighbouring areas. The [area focus contract](docs/API_CONTRACTS_THE_LOCAL.md#area-focus) explains how descriptions and area choices interact.
+
   Choose the number of pubs with the stop picker or name the number in your description. The [draft recovery contract](docs/rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) explains how the planner restores your request. If a save notice appears, keep the page open to retain unsaved changes. If the latest description cannot be restored, enter it again.
 
   During **Lock it in**, stop edits, name and time fields, templates, and **Release this pub** are disabled. If the response is lost, you can retry the unchanged plan. If the planner requests a refresh, choose **Regenerate route**. Review the result before choosing **Lock it in** again.
