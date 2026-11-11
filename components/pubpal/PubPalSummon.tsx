@@ -19,7 +19,6 @@ import { PubPalAvatar } from "./PubPalAvatar";
 import { palGenomeFor } from "@/lib/palGenome";
 import { parseCityId } from "@/lib/cities";
 import { readPalVoiceHost, requestPalVoiceStart, subscribePalVoiceHost } from "@/lib/palVoiceHost";
-import { loadPalVoiceSession } from "./palVoiceSessionLoader";
 import { usePalVoiceAvailability } from "./usePalVoiceAvailability";
 import { usePalVoiceEligibility } from "./usePalVoiceEligibility";
 
@@ -129,9 +128,6 @@ const readVoiceTap = () => {
 };
 const noVoiceTap = () => null;
 
-// Fetch the call's code on the first sign of a tap, so the download overlaps it.
-const warmVoice = () => { loadPalVoiceSession().catch(() => undefined); };
-
 /**
  * On the map, a tap starts voice where the person is, and the call draws as
  * the voice bar. The chip shows only once the server says the account may
@@ -160,7 +156,7 @@ function MapPalTalk({ ownerId, pal, genome, cheer, line }: {
       onClick={() => trackEvent("pub_pal_summoned", { surface: "map" })}>{face}{words}</Link>;
   }
   return <button type="button" className={className} aria-label={`Talk to ${pal.name}, your Pub Pal`}
-    aria-busy={tap === ownerId} onPointerEnter={warmVoice} onPointerDown={warmVoice} onFocus={warmVoice}
+    aria-busy={tap === ownerId}
     onClick={() => {
       trackEvent("pub_pal_summoned", { surface: "map" });
       requestPalVoiceStart(ownerId, { palName: pal.name, appearance: pal.appearance, genome });
