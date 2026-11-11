@@ -6,7 +6,10 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonCached } from "@/lib/apiResponses";
 import { loadDutyCensusCount } from "@/lib/dutyCensus.server";
 import { isLimited } from "@/lib/pintDrops";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+
+assertServerEnv();
 
 const PER_IP_LIMIT = 30;
 const GLOBAL_LIMIT = 600;

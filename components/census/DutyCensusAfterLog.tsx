@@ -4,22 +4,21 @@ import { useEffect, useState } from "react";
 
 import DutyCensusCard from "@/components/census/DutyCensusCard";
 import { dutyCensusView, type DutyCensusView } from "@/lib/dutyCensus";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 // The census card under a priced log's receipt. It waits for the figure (or
 // for the read to fail) and then lands whole, so nothing moves after it does.
 
 const COUNT_WAIT_MS = 2500;
+// The route's own CDN hold: a figure this young is still the figure.
+const COUNT_FRESH_MS = 60_000;
 
-async function readCensusCount(signal: AbortSignal): Promise<number | null> {
-  try {
-    const response = await fetch("/api/pint-drops/census", { signal });
-    if (!response.ok) return null;
-    const body: unknown = await response.json();
-    const count = (body as { count?: unknown } | null)?.count;
-    return typeof count === "number" ? count : null;
-  } catch {
-    return null;
-  }
+type CensusBody = { count: number | null };
+
+function isCensusBody(body: unknown): body is CensusBody {
+  if (!body || typeof body !== "object") return false;
+  const count = (body as { count?: unknown }).count;
+  return count === null || typeof count === "number";
 }
 
 export default function DutyCensusAfterLog() {
@@ -29,9 +28,17 @@ export default function DutyCensusAfterLog() {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), COUNT_WAIT_MS);
     let live = true;
-    void readCensusCount(controller.signal).then((count) => {
+    let landed = false;
+    void loadSurfaceJson<CensusBody>(
+      "/api/pint-drops/census",
+      { signal: controller.signal, freshForMs: COUNT_FRESH_MS, validate: isCensusBody },
+      (body) => {
+        landed = true;
+        setView(dutyCensusView(Date.now(), body.count));
+      },
+    ).then(() => {
       window.clearTimeout(timer);
-      if (live) setView(dutyCensusView(Date.now(), count));
+      if (live && !landed) setView(dutyCensusView(Date.now(), null));
     });
     return () => {
       live = false;
