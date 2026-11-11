@@ -18,6 +18,7 @@ const voiceState = vi.hoisted(() => ({
   memories: [] as import("@/lib/pubPal").PubPalMemory[],
   usedMinutes: null as number | null,
   usageReads: [] as Record<string, unknown>[],
+  memoriesFail: false,
   palLookupFails: false,
   palPresent: true,
   dateOfBirth: null as string | null,
@@ -44,7 +45,7 @@ const voiceState = vi.hoisted(() => ({
     voice: { id: "ember", pace: 50, warmth: 64, energy: 52 },
     muted: false,
     hidden: false,
-    proposalPreferences: { memories: false, routes: true },
+    proposalPreferences: { memories: false, routes: true } as import("@/lib/pubPal").PalProposalPreferences,
     masteryPoints: 0,
     createdAt: "2026-08-08T00:00:00.000Z",
     updatedAt: "2026-08-08T00:00:00.000Z",
@@ -56,7 +57,9 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 vi.mock("@/lib/pubPalStore", () => ({
-  listPalMemoriesResult: async () => ({ ok: true, value: voiceState.memories }),
+  listPalMemoriesResult: async () => voiceState.memoriesFail
+    ? { ok: false as const, error: "error" as const }
+    : { ok: true as const, value: voiceState.memories },
   getPubPalResult: async () => voiceState.palLookupFails
     ? { ok: false as const, error: "error" as const }
     : { ok: true as const, value: voiceState.palPresent ? voiceState.pal : null },
@@ -113,6 +116,7 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
 
 import { POST } from "@/app/api/pub-pal/voice-token/route";
 import { buildPalTaste } from "@/lib/palTaste";
+import { PAL_RECALL_MEMORY_LIMIT, readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
 
 const issueRequest = () => new Request("http://localhost/api/pub-pal/voice-token", { method: "POST" });
 
@@ -159,6 +163,8 @@ describe("Pub Pal voice token route", () => {
     voiceState.memories = [];
     voiceState.usedMinutes = null;
     voiceState.usageReads = [];
+    voiceState.memoriesFail = false;
+    voiceState.pal.proposalPreferences = { memories: false, routes: true };
     voiceState.configured = true;
     voiceState.ceilingSpent = false;
     voiceState.events.length = 0;
@@ -432,6 +438,77 @@ describe("Pub Pal voice token route", () => {
     expect(greeting).toContain("I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total.");
     expect(greeting).toContain("Something similar");
     expect(greeting).not.toContain("£26.80 a pint");
+  });
+
+  it("hands the call its memories and taste to send on connect, so the first ask skips recall", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    voiceState.memories = [{ id: "drink", palId: voiceState.pal.id, kind: "drink_preference", provenance: "user_confirmed",
+      value: "Guinness, never lager", createdAt: "2026-10-11T00:00:00Z", updatedAt: "2026-10-11T00:00:00Z" }];
+    tasteRead.mockResolvedValue(buildPalTaste({ diary: [], saved: [],
+      drops: [{ venueId: "crown", day: "2026-10-10", drink: "Camden Hells", pintPriceGbp: 5.8, vibeTags: [] }],
+      placeOf: () => ({ name: "The Crown", patch: "Soho" }),
+    }));
+    const { context } = await (await POST(issueRequest())).json();
+    expect(context).toContain("do not call recall_memories");
+    expect(context).toContain("Drinks: Guinness, never lager");
+    expect(context).toContain("Their usual patches: Soho.");
+  });
+
+  it.each([PAL_RECALL_MEMORY_LIMIT, PAL_RECALL_MEMORY_LIMIT + 1])(
+    "only suppresses recall when all %i confirmed memories fit in the preload",
+    async (count) => {
+      voiceState.rpc.mockResolvedValue({ data: true, error: null });
+      vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+      const allergy = "Allergic to sulphites, so no wine";
+      voiceState.memories = [
+        { id: "allergy", palId: voiceState.pal.id, kind: "drink_preference", provenance: "user_confirmed",
+          value: allergy, createdAt: "2026-10-10T00:00:00Z", updatedAt: "2026-10-10T00:00:00Z" },
+        ...Array.from({ length: count - 1 }, (_, index) => ({
+          id: `venue-${index}`, palId: voiceState.pal.id, kind: "venue_preference" as const,
+          provenance: "user_confirmed" as const, value: `Pub note ${index}`,
+          createdAt: "2026-10-11T00:00:00Z", updatedAt: "2026-10-11T00:00:00Z",
+        })),
+        { id: "inferred", palId: voiceState.pal.id, kind: "venue_preference", provenance: "completed_plan",
+          value: "Unconfirmed pub", createdAt: "2026-10-12T00:00:00Z", updatedAt: "2026-10-12T00:00:00Z" },
+      ];
+      const response = await POST(issueRequest());
+      expect(response.status).toBe(200);
+      const { context } = await response.json();
+      expect(context).toContain("Pubs: Pub note 0");
+      expect(context).not.toContain("Unconfirmed pub");
+      if (count === PAL_RECALL_MEMORY_LIMIT) {
+        expect(context).toContain(allergy);
+        expect(context).toContain("do not call recall_memories");
+      } else {
+        expect(context).not.toContain(allergy);
+        expect(context).toContain("partial set");
+        expect(context).toContain("call recall_memories for each ask");
+        expect(context).not.toContain("do not call recall_memories");
+        expect(await readConfirmedPalMemories(voiceState.userId, "Fancy a glass of wine?")).toContainEqual({
+          kind: "drink_preference", label: "Drinks", value: allergy,
+        });
+      }
+    },
+  );
+
+  it("still tells the call when nothing is confirmed, and keeps a confirmed memory out of the greeting when taste is off", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    expect((await (await POST(issueRequest())).json()).context).toContain("has not confirmed anything to remember yet");
+    voiceState.pal.proposalPreferences = { memories: false, routes: true, taste: false };
+    voiceState.memories = [{ id: "night", palId: voiceState.pal.id, kind: "night_outcome", provenance: "user_confirmed",
+      value: "The Crown on 10 October", createdAt: "2026-10-11T00:00:00Z", updatedAt: "2026-10-11T00:00:00Z" }];
+    const body = await (await POST(issueRequest())).json();
+    expect(body.overrides.firstMessage).not.toContain("The Crown");
+    expect(body.context).toContain("A past night: The Crown on 10 October");
+  });
+
+  it("sends no memory line when the memories cannot be read, so the agent still recalls", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    voiceState.memoriesFail = true;
+    expect((await (await POST(issueRequest())).json()).context).toBeNull();
   });
 
   it("returns overrides, session cap, and pal-derived prompt fields", async () => {

@@ -15,7 +15,7 @@ import {
   type PalVoiceMeterState,
 } from "@/lib/palVoiceMetering";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
+import { palVoiceConnectContext, readConfirmedPalMemorySelection } from "@/lib/palConfirmedMemories.server";
 import { palTasteAllowed } from "@/lib/pubPal";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { readPalTaste } from "@/lib/palTaste.server";
@@ -354,12 +354,16 @@ async function handleIssueToken(userId: string): Promise<Response> {
   const usedMinutesRead = admin ? readUsedMinutes(admin, userId, usageMonth) : Promise.resolve(meter.usedMinutes);
   let providerAllocated = false;
   try {
-    const [session, taste, memories] = await Promise.all([
+    const [session, taste, memorySelection] = await Promise.all([
       fetchPalSignedConversation({ apiKey, agentId }),
       readPalTaste(userId),
-      palTasteAllowed(pal.proposalPreferences) ? readConfirmedPalMemories(userId) : Promise.resolve([]),
+      readConfirmedPalMemorySelection(userId),
     ]);
-    const overrides = buildPalVoiceOverrides(pal, { taste, memories });
+    const overrides = buildPalVoiceOverrides(pal, {
+      taste,
+      memories: palTasteAllowed(pal.proposalPreferences) ? memorySelection?.memories ?? null : [],
+    });
+    const context = palVoiceConnectContext(memorySelection, taste);
     if (!session.ok) {
       if (session.reason === "unreachable") {
         return publicApiError("The voice service didn't answer in time.", "PROVIDER_TIMEOUT", 504, {
@@ -413,6 +417,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
       conversationId,
       connectionType: "websocket",
       overrides,
+      context,
       maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
       remaining: remainingMinutes,
       remainingMinutes,
