@@ -5,10 +5,9 @@
    On a phone it is the portal sheet's footer (a flex child below the scroll
    body), so it is always in view and sits above the safe area the portal
    already reserves. From 641px it is the sticky top of the drawer, under the
-   drawer's own head, so it stays in view while the Overview scrolls. Its plan
-   door is the sheet's one coral fill at every width; everything else on the
-   card is a ghost, and the Overview's price door is drawn in ink
-   (app/globals.css `.priceDoor`). */
+   drawer's own head, so it stays in view while the Overview scrolls. Primary
+   and secondary actions follow the action-card rule in
+   docs/rules/components-venue-plan-and-message-surfaces.md. */
 
 .venueActionCard {
   display: grid;

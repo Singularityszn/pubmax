@@ -3,14 +3,14 @@
 // THE VENUE SHEET'S ACTION CARD (launch plan 1 Nov 2026, section 5). Airbnb's
 // reservation card for a pub: one compact card that stays in view while the
 // Overview scrolls. Its first row is the price with its trust words and date,
-// the walk if known and the ONE plan door (VenueActionSummary, built by the map
+// the walk if known and the ONE coral door (VenueActionSummary, built by the map
 // from the sheet's own readings); under it, "Ask for a table" and Share.
 //
 // WHERE IT SITS. Inside the phone's portal sheet it renders into the footer
 // slot (components/mobile/sheetFooterContext.ts), a flex child below the
 // scroll body, so it rides with the sheet and sits above the safe area. With
 // no footer slot (641px and wider) it renders in place under the sheet's head
-// and venueSheet.css makes it the sticky top of the drawer.
+// and venueActionCard.css makes it the sticky top of the drawer.
 //
 // IT ADDS NO BLOCK. It is the peek row and the old command bar made one: the
 // plan door, the price and the walk left the top of the body, and the
@@ -18,11 +18,9 @@
 // them, because the card's one door owns all three. Nothing on it appears
 // twice on the sheet.
 //
-// ONE CORAL (lib/venuePlanDoor.ts). The first row's door is the sheet's one
-// painted control: the plan door, or "Log what you paid" on a pub with no
-// drinker price from the last 30 days, when the plan door joins "Ask for a
-// table" and Share as a ghost in the second row. The Overview's price door is
-// drawn in ink.
+// lib/venuePlanDoor.ts decides the primary action. The action-card rule in
+// docs/rules/components-venue-plan-and-message-surfaces.md owns its priority
+// and the treatment of secondary actions.
 
 import dynamic from "next/dynamic";
 import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
