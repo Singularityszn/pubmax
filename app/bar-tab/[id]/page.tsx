@@ -103,9 +103,6 @@ export default async function BarTabPage({ params }: PageProps) {
   if (read.status !== "found") notFound();
   const { venue } = read;
   redirectMergedVenueId("/bar-tab", id, venue.id);
-  // Everything below reads/links off the canonical venue id (D1) so a merged
-  // alias URL and the surviving canonical URL share the same drops/ratings,
-  // never the raw route param, which may be a losing duplicate id.
   const canonicalId = venue.id;
 
   // The SAME public read the feed uses, visibility already applied server-side

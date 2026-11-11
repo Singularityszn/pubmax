@@ -32,9 +32,8 @@ export async function venuePermalinkRedirect(
 }
 
 /**
- * A merged duplicate id (public/data/venue_id_aliases.json) answers a 308 to
- * the surviving venue's page, so one pub has one URL. `requestedId` is the
- * route param and `canonicalId` the id the detail lookup resolved it to.
+ * Call only after a successful detail lookup. An unavailable alias read must
+ * keep its recovery path rather than establish a permanent destination.
  */
 export function redirectMergedVenueId(
   basePath: "/ledger" | "/bar-tab" | "/pubs",

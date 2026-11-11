@@ -174,10 +174,6 @@ export default async function LedgerPage({ params }: PageProps) {
   if (read.status !== "found") notFound();
   const { venue } = read;
   redirectMergedVenueId("/ledger", id, venue.id);
-  // Everything below reads/links off the canonical venue id (D1) so a merged
-  // alias URL and the surviving canonical URL share the same logbook, Family
-  // Table, and ratings, never the raw route param, which may be a losing
-  // duplicate id.
   const canonicalId = venue.id;
 
   const curation = venue.curation;
