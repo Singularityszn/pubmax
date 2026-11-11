@@ -1,6 +1,6 @@
 import type { Route } from "next";
 
-import { drinkMeasureName, measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { DRINK_MEASURE_LABEL, drinkMeasureName, measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { formatGbp } from "@/lib/formatGbp";
 import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { ANON_HANDLE_LABEL, type Visibility } from "@/lib/pintDropShared";
@@ -105,9 +105,22 @@ export function buildPintReceipt(
   };
 }
 
-/** "Guinness at The Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX." */
+export function formatReceiptItem(receipt: PintReceipt): string {
+  const measure = Object.values(DRINK_MEASURE_LABEL).includes(receipt.measure)
+    ? receipt.measure.toLowerCase()
+    : receipt.measure;
+  if (receipt.drink) {
+    return measure === "pint" || measure === "half"
+      ? `${receipt.measure} of ${receipt.drink}`
+      : `${receipt.drink}, ${measure}`;
+  }
+  return measure === "pint" || measure === "half" || measure === "bottle"
+    ? `A ${measure}`
+    : `A ${measure} serve`;
+}
+
 export function buildReceiptShareText(receipt: PintReceipt): string {
-  const what = receipt.drink ?? `A ${receipt.measure.toLowerCase()}`;
+  const what = formatReceiptItem(receipt);
   const bits = [`${what} at ${receipt.venueName}`, receipt.price, receipt.loggedOn].filter(Boolean);
   return `${bits.join(", ")}. My receipt on PUBMAXX.`;
 }

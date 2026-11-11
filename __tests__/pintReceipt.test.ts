@@ -10,6 +10,7 @@ import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import {
   buildPintReceipt,
   buildReceiptShareText,
+  formatReceiptItem,
   receiptShareFromSavedDrop,
   type PintReceiptDrop,
 } from "@/lib/pintReceipt";
@@ -141,16 +142,51 @@ describe("receiptShareFromSavedDrop", () => {
   });
 });
 
+describe("formatReceiptItem", () => {
+  it.each([
+    ["pint", "Guinness", "", "Pint of Guinness"],
+    ["half", "Guinness", "", "Half of Guinness"],
+    ["175ml", "Merlot", "", "Merlot, 175 ml"],
+    ["bottle", "Rioja", "", "Rioja, bottle"],
+    ["single", "Gin", "", "Gin, single"],
+    ["double", "Gin", "", "Gin, double"],
+    ["other", "Lager", "Schooner", "Lager, Schooner"],
+    ["pint", "", "", "A pint"],
+    ["half", "", "", "A half"],
+    ["125ml", "", "", "A 125 ml serve"],
+    ["175ml", "", "", "A 175 ml serve"],
+    ["250ml", "", "", "A 250 ml serve"],
+    ["bottle", "", "", "A bottle"],
+    ["single", "", "", "A single serve"],
+    ["double", "", "", "A double serve"],
+    ["other", "", "Schooner", "A Schooner serve"],
+  ] as const)("preserves %s with drink '%s' and label '%s'", (measure, drink, measureLabel, expected) => {
+    expect(formatReceiptItem(buildPintReceipt({ ...drop, measure, drink, measureLabel }))).toBe(expected);
+  });
+});
+
 describe("buildReceiptShareText", () => {
   it("carries the drink, the pub, the price and the day", () => {
     expect(buildReceiptShareText(buildPintReceipt(drop))).toBe(
-      "Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
+      "Pint of Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
     );
   });
 
   it("names the measure when no drink was named", () => {
     expect(buildReceiptShareText(buildPintReceipt({ ...drop, drink: "" }))).toBe(
       "A pint at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
+    );
+  });
+
+  it("keeps a half's price attached to the half", () => {
+    expect(buildReceiptShareText(buildPintReceipt({ ...drop, measure: "half", priceGbp: 2.35 }))).toBe(
+      "Half of Guinness at The Sir Christopher Hatton, £2.35, Tue 10 Nov 2026. My receipt on PUBMAXX.",
+    );
+  });
+
+  it("keeps a named wine's glass size", () => {
+    expect(buildReceiptShareText(buildPintReceipt({ ...drop, drink: "Merlot", measure: "175ml" }))).toBe(
+      "Merlot, 175 ml at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
     );
   });
 });
@@ -174,7 +210,7 @@ describe("shareReceipt", () => {
     expect(outcome).toBe("shared");
     expect(shareFn).toHaveBeenCalledWith({
       title: "My receipt from The Sir Christopher Hatton",
-      text: "Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
+      text: "Pint of Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX.",
       url: "https://pubmaxxing.com/p/drop-1",
     });
     expect(track).toHaveBeenCalledWith("content_shared", { channel: "native", surface: "receipt" });
@@ -190,7 +226,7 @@ describe("shareReceipt", () => {
     });
     expect(outcome).toBe("copied");
     expect(writeText).toHaveBeenCalledWith(
-      "Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX. https://pubmaxxing.com/p/drop-1",
+      "Pint of Guinness at The Sir Christopher Hatton, £4.70, Tue 10 Nov 2026. My receipt on PUBMAXX. https://pubmaxxing.com/p/drop-1",
     );
   });
 });

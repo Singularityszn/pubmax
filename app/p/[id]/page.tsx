@@ -9,9 +9,8 @@ import PintReceiptPaper from "@/components/pintdrop/PintReceiptPaper";
 import ShareBar from "@/components/share/ShareBar";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
-import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
-import { buildPintReceipt, type PintReceipt } from "@/lib/pintReceipt";
+import { buildPintReceipt, buildReceiptShareText, formatReceiptItem, type PintReceipt } from "@/lib/pintReceipt";
 import { resolvePintShare } from "@/lib/pintShare.server";
 
 import "./permalink.css";
@@ -50,11 +49,12 @@ async function resolveViewer(
 
 // "a PUBMAXXER's pint at The Hatton, £4.70": the drinker as the receipt shows them.
 function receiptTitle(receipt: PintReceipt): string {
-  return `${receipt.drinker}'s pint at ${receipt.venueName}${receipt.price ? `, ${receipt.price}` : ""}`;
+  const item = receipt.measure === "Pint" ? "pint" : formatReceiptItem(receipt);
+  return `${receipt.drinker}'s ${item} at ${receipt.venueName}${receipt.price ? `, ${receipt.price}` : ""}`;
 }
 
 function receiptDescription(receipt: PintReceipt): string {
-  const what = receipt.drink ?? `A ${receipt.measure.toLowerCase()}`;
+  const what = formatReceiptItem(receipt);
   const price = receipt.price ? ` for ${receipt.price}` : "";
   const day = receipt.loggedOn ? `, logged ${receipt.loggedOn}` : "";
   return `${what} at ${receipt.venueName}${price}${day}. A pint receipt on PUBMAXX.`;
@@ -73,7 +73,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 
   const receipt = buildPintReceipt(drop);
   const title = receiptTitle(receipt);
-  const description = drop.note || receiptDescription(receipt);
+  const description = [receiptDescription(receipt), drop.note].filter(Boolean).join(" ");
 
   // opengraph-image.tsx sits beside this route, so Next auto-attaches it; we
   // still name the canonical url + card type here for a complete lockup.
@@ -133,10 +133,7 @@ async function ReceiptCard({ drop, id }: { drop: PublicDrop; id: string }) {
   const receipt = buildPintReceipt(drop, listed);
   const photoUrl = drop.pintPhotoUrl || drop.venuePhotoUrl;
   const shareTitle = receiptTitle(receipt);
-  const shareText = buildPintDropShareText({
-    venueName: drop.venueName,
-    priceGbp: drop.priceGbp,
-  });
+  const shareText = buildReceiptShareText(receipt);
   const hasExtras = Boolean(drop.note || drop.era || drop.vibeTags.length);
 
   return (
