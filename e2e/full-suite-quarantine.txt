@@ -247,18 +247,6 @@
 [chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 1440px
 [chromium] › account-identity-recovery.spec.ts › you: Retry recovers from 503 without reloading
 
-# https://github.com/Singularityszn/pubmax/issues/2703 expects the evening /tonight link; fails from 04:00 to 16:00 London
-[chromium] › pal-qa-isolation.spec.ts › B receives a clean choice for the same leg after A chose a way on the map
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 320px and 100% in light
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 320px and 200% in light
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 320px and 100% in dark
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 320px and 200% in dark
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 390px and 100% in light
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 390px and 200% in light
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 390px and 100% in dark
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 390px and 200% in dark
-
-
 # https://github.com/Singularityszn/pubmax/issues/2701 passed only on retry on 10 November (map-uk-base-layer, messages-thread)
 [chromium-gl] › map-uk-base-layer.spec.ts › normal London entry paints UK base pubs and takes a price
 [chromium] › messages-thread.spec.ts › the message thread on a phone › names the other person, pins the composer, opens on the newest message
