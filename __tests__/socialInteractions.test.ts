@@ -339,6 +339,12 @@ describe("Social governance, reports, and notifications", () => {
       status: "shipped",
       staffResponse: "Available now.",
     });
+
+    expect((await posts.edit(post.id, alice, 0, { kind: "standard" }, true)).featureRequest).toBeNull();
+    expect((await posts.edit(post.id, alice, 1, { kind: "feature_request" }, true)).featureRequest).toEqual({
+      status: "shipped",
+      staffResponse: "Available now.",
+    });
   });
 
   it("queues deduplicated reports without hiding content", async () => {

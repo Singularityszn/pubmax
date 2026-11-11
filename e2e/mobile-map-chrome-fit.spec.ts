@@ -1100,6 +1100,20 @@ async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Pr
       }),
     );
   }, { visibleConsent: consentVisible, ownerId: ACCOUNTS.A.id });
+  // On the map the pill waits for the server's age rule (GET /api/pub-pal,
+  // under18). The auth doubles have no server session, so answer it for the
+  // same stored Pal, as the server does for an adult owner.
+  await page.route("**/api/pub-pal", (route) => route.request().method() === "GET"
+    ? route.fulfill({ json: {
+        pal: {
+          id: "pal-e2e", ownerId: ACCOUNTS.A.id, name: "Ada", adultAttestedAt: "2026-01-01T00:00:00.000Z",
+          appearance: {}, personality: {}, voice: {}, muted: false, hidden: false, proposalPreferences: {},
+          masteryPoints: 0, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+        adultOnFile: true,
+        under18: false,
+      } })
+    : route.fallback());
   await seedSignedIn(page, "A");
 }
 

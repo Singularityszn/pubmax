@@ -184,7 +184,7 @@ function parsePrice(raw: string): number | null {
  */
 export function buildSpillPreview(input: SpillPreviewInput): SpillPreviewModel {
   const anonymous = input.visibility === "anonymous";
-  const shownHandle = anonymous ? `@${ANON_HANDLE_LABEL}` : displayHandle(input.handle);
+  const shownHandle = anonymous ? ANON_HANDLE_LABEL : displayHandle(input.handle);
   // The avatar initial comes from the real handle for a normal Spill, but for an
   // anonymous one we must NOT leak the first letter of the withheld handle — use
   // the masked label instead.

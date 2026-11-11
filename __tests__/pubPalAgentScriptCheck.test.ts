@@ -131,7 +131,7 @@ function matchingLive(baseUrl = BASE_URL): { agent: Json; tools: Json[]; secrets
 }
 
 function check(live: { agent: Json; mainAgent?: Json; tools: Json[]; secrets: Json[]; allowWrites?: boolean; hasMore?: boolean;
-  reasoningContract?: { llm: "gemini-2.5-flash-lite"; reasoning_effort: null } }, update = false, baseUrl = BASE_URL, extra: string[] = []) {
+  reasoningContract?: { llm: "gemini-2.5-flash"; reasoning_effort: null } }, update = false, baseUrl = BASE_URL, extra: string[] = []) {
   const directory = scratch();
   writeFileSync(path.join(directory, "live.json"), JSON.stringify(live));
   writeFileSync(path.join(directory, "mock-fetch.mjs"), MOCK_FETCH);
@@ -166,7 +166,7 @@ describe("pubpal:agent --check", () => {
     live.agent.conversation_config.agent.language = "en";
     live.agent.conversation_config.tts = { voice_id: "existing-voice" };
     live.agent.platform_settings.overrides.conversation_config_override.tts.speed = true;
-    const contract = { llm: "gemini-2.5-flash-lite", reasoning_effort: null } as const;
+    const contract = { llm: "gemini-2.5-flash", reasoning_effort: null } as const;
     const drift = check({ ...live, reasoningContract: contract });
     expect(drift.status).toBe(1);
     expect(drift.writes).toBe("");
@@ -202,15 +202,16 @@ describe("pubpal:agent --check", () => {
     expect(drift.writes).toBe("");
     expect(drift.output).toContain("conversation_config.turn.turn_eagerness: live normal, wanted patient");
     expect(drift.output).toContain("conversation_config.turn.transcribe_on_disabled_interruptions");
+    expect(drift.output).toContain("conversation_config.turn.turn_timeout: live 7, wanted 20");
     expect(drift.output).toContain("conversation_config.asr.keywords");
 
     const updated = check({ ...live, allowWrites: true }, true);
     expect(updated.status, updated.output).toBe(0);
     expect(updated.live.agent.conversation_config.turn).toEqual({
       turn_eagerness: "patient",
-      turn_timeout: 7,
+      turn_timeout: 20,
       transcribe_on_disabled_interruptions: true,
-      silence_end_call_timeout: 20,
+      silence_end_call_timeout: 60,
     });
     expect(updated.live.agent.conversation_config.asr).toMatchObject({
       quality: "high",
@@ -423,7 +424,7 @@ describe("pubpal:agent --check", () => {
     const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
     expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"))).toHaveLength(TOOLS);
     expect(writes.find((row) => row.url.endsWith("/agents/create")).tool_ids).toHaveLength(TOOLS);
-    expect(writes.find((row) => row.url.endsWith("/agents/create")).agent_config.conversation_config.agent.prompt).toMatchObject({ llm: "gemini-2.5-flash-lite", reasoning_effort: null });
+    expect(writes.find((row) => row.url.endsWith("/agents/create")).agent_config.conversation_config.agent.prompt).toMatchObject({ llm: "gemini-2.5-flash", thinking_budget: 0, reasoning_effort: null });
     expect(result.output).not.toContain(SECRET);
     expect(result.writes).not.toContain(SECRET);
   });
@@ -551,7 +552,7 @@ describe("pubpal:agent --check", () => {
     const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
     const created = writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"));
     expect(created.map((row) => row.tool_config)).toEqual([expect.objectContaining({
-      type: "client", name: "map_focus_pick", expects_response: false,
+      type: "client", name: "map_focus_pick", expects_response: true,
     })]);
     expect(writes.find((row) => row.tool_ids).tool_ids).toContain("created:map_focus_pick");
   });
@@ -562,7 +563,7 @@ describe("pubpal:agent --check", () => {
     const checked = check(live, false, BASE_URL, ["--branch-id", "agtbranch_test"]);
     expect(checked.status).toBe(1);
     expect(checked.output).toContain(`Checked agent ${AGENT_ID} branch agtbranch_test`);
-    expect(checked.output).toContain("conversation_config.turn.silence_end_call_timeout: live missing, wanted 20");
+    expect(checked.output).toContain("conversation_config.turn.silence_end_call_timeout: live missing, wanted 60");
     const updated = check({ ...onBranch(live), allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
     expect(updated.status, updated.output).toBe(0);
     // Every tool already matches and the secret is shared with Main, so the branch is the only write.
@@ -590,6 +591,59 @@ describe("pubpal:agent --check", () => {
       ...webhooks(live.tools).map((tool) => `created:${tool.tool_config.name}`),
       ...live.tools.filter((tool) => tool.tool_config.type === "client").map((tool) => tool.id),
     ]);
+  });
+
+  it("reports an agent on the old model and silence settings, and the update keeps dashboard built-in tools and VAD fields", () => {
+    const live = matchingLive();
+    // Main as it was before the branch test: Flash Lite, a 7 s nag, no backstop, no end_call.
+    const prompt = live.agent.conversation_config.agent.prompt;
+    prompt.llm = "gemini-2.5-flash-lite";
+    delete prompt.thinking_budget;
+    prompt.built_in_tools = { skip_turn: { type: "system", name: "skip_turn", params: { system_tool_type: "skip_turn" } } };
+    live.agent.conversation_config.turn = { ...live.agent.conversation_config.turn, turn_timeout: 7, silence_end_call_timeout: -1 };
+    live.agent.conversation_config.vad = { background_voice_detection: false, dashboard_only: 1 };
+    const focus = live.tools.find((tool) => tool.tool_config.name === "map_focus_pick")!;
+    focus.tool_config.expects_response = false;
+    delete focus.tool_config.response_timeout_secs;
+
+    const drift = check(live);
+    expect(drift.status).toBe(1);
+    expect(drift.writes).toBe("");
+    for (const line of [
+      "conversation_config.agent.prompt.llm: live gemini-2.5-flash-lite, wanted gemini-2.5-flash",
+      "conversation_config.agent.prompt.thinking_budget: live missing, wanted 0",
+      "conversation_config.agent.prompt.built_in_tools.end_call: live missing",
+      "conversation_config.turn.turn_timeout: live 7, wanted 20",
+      "conversation_config.turn.silence_end_call_timeout: live -1, wanted 60",
+      "conversation_config.vad.background_voice_detection: live false, wanted true",
+      "tools.map_focus_pick.expects_response: live false, wanted true",
+      "tools.map_focus_pick.response_timeout_secs: live missing, wanted 5",
+    ]) expect(drift.output).toContain(line);
+
+    const updated = check({ ...live, allowWrites: true }, true);
+    expect(updated.status, updated.output).toBe(0);
+    const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    // The PATCH body itself, since the provider replaces a section it is sent.
+    const sent = writes.find((row) => row.url.includes("/convai/agents/")).agent_config.conversation_config;
+    expect(Object.keys(sent.agent.prompt.built_in_tools).sort()).toEqual(["end_call", "skip_turn"]);
+    expect(sent.vad).toEqual({ background_voice_detection: true, dashboard_only: 1 });
+    expect(sent.agent.prompt).toMatchObject({ llm: "gemini-2.5-flash", thinking_budget: 0 });
+    expect(writes.find((row) => row.url.endsWith(`/tools/${focus.id}`)).tool_config).toMatchObject({ expects_response: true, response_timeout_secs: 5 });
+  });
+
+  it("gives a branch its own copy of a Main webhook whose argument schema changed", () => {
+    const live = matchingLive();
+    // Main's search_venues predates an argument this repo added.
+    const search = live.tools.find((tool) => tool.tool_config.name === "search_venues")!;
+    delete search.tool_config.api_schema.request_body_schema.properties.limit;
+    const result = check({ ...onBranch(live), allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(result.status, result.output).toBe(0);
+    const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(writes.filter((row) => row.url.includes("/tools")).map((row) => `${row.method} ${row.tool_config.name}`))
+      .toEqual(["POST search_venues"]);
+    expect(writes.find((row) => row.tool_ids).tool_ids).toEqual(
+      live.agent.conversation_config.agent.prompt.tool_ids.map((id: string) => (id === search.id ? "created:search_venues" : id)),
+    );
   });
 
   it("refuses a branch change to a tool Main has attached, before any write", () => {

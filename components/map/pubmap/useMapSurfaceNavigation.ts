@@ -29,6 +29,7 @@ import {
   type SurfaceEntry,
   type SurfaceStack,
 } from "@/lib/surfaceStack";
+import { mapSurfaceSearch } from "@/lib/mapSurfaceState";
 import type { MapOverlay } from "@/lib/mobileShell";
 import { announceAcceptedArrivalUrlChange, canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
 
@@ -70,13 +71,6 @@ function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean 
 /** The one owned param a landmark arrival carries (`/map?landmark=<id>`). */
 const LANDMARK_PARAM = "landmark";
 
-function withoutLandmarkParam(pathname: string, search: string, hash: string): string {
-  const params = new URLSearchParams(search);
-  params.delete(LANDMARK_PARAM);
-  const query = params.toString();
-  return `${pathname}${query ? `?${query}` : ""}${hash}`;
-}
-
 function selectedVenueId(stack: SurfaceStack<MapSurfaceState>): string {
   const current = currentSurface(stack);
   return current?.id === "venue" ? current.state?.venueId ?? "" : "";
@@ -102,7 +96,12 @@ function urlForStack(
   stack: SurfaceStack<MapSurfaceState>,
   selectionHint: string,
 ): string {
-  const { pathname, search, hash } = window.location;
+  const { pathname, hash } = window.location;
+  const shown = currentSurface(stack);
+  const params = new URLSearchParams(mapSurfaceSearch(window.location.search, shown?.id ?? "none"));
+  if (shown?.id === "landmark" && shown.state?.landmarkId) params.set(LANDMARK_PARAM, shown.state.landmarkId);
+  else params.delete(LANDMARK_PARAM);
+  const search = params.toString() ? `?${params}` : "";
   const venueId = selectedVenueId(stack);
   const liveVenueId = new URLSearchParams(search).get("sel");
   return venueId
@@ -225,14 +224,13 @@ export function useMapSurfaceNavigation({
     const shown = surfaceId === "none"
       ? null
       : { id: surfaceId, title: surfaceTitle, state: surfaceState };
-    const { pathname, search, hash } = window.location;
     const arrivalUrl = currentBrowserUrl();
 
     if (shown?.id === "venue" && searchHasSelection(arrivalSearch)) {
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, root, ""),
         "",
-        cleanMapUrl(pathname, search, hash),
+        urlForStack(root, ""),
       );
       const selected = [shown] as SurfaceStack<MapSurfaceState>;
       window.history.pushState(
@@ -255,7 +253,7 @@ export function useMapSurfaceNavigation({
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, root, ""),
         "",
-        withoutLandmarkParam(pathname, search, hash),
+        urlForStack(root, ""),
       );
       const story = [shown] as SurfaceStack<MapSurfaceState>;
       window.history.pushState(
@@ -264,6 +262,21 @@ export function useMapSurfaceNavigation({
         arrivalUrl,
       );
       publishInitialStack(story);
+      flushPendingOpens();
+      return;
+    }
+
+    // A planner arrival (`?plan=1`) is the same shape again: the planner entry
+    // keeps the arrival address, and the map root under it does not reopen it.
+    if (shown?.id === "planner") {
+      window.history.replaceState(
+        stampMapSurfaceHistory(window.history.state, root, ""),
+        "",
+        urlForStack(root, ""),
+      );
+      const planner = [shown] as SurfaceStack<MapSurfaceState>;
+      window.history.pushState(stampMapSurfaceHistory(window.history.state, planner, ""), "", arrivalUrl);
+      publishInitialStack(planner);
       flushPendingOpens();
       return;
     }
@@ -329,15 +342,8 @@ export function useMapSurfaceNavigation({
       const previous = pendingHomeRef.current ?? stackRef.current;
       pendingHomeRef.current = null;
       if (landed !== null && !selectedVenueId(next)) {
-        const { pathname, search, hash } = window.location;
-        const selectionFree = new URL(cleanMapUrl(pathname, search, hash), window.location.origin);
-        // A landed trail with no story open carries no `?landmark=` either.
-        const cleanUrl = next.some((entry) => entry.id === "landmark")
-          ? `${selectionFree.pathname}${selectionFree.search}${selectionFree.hash}`
-          : withoutLandmarkParam(selectionFree.pathname, selectionFree.search, selectionFree.hash);
-        if (currentBrowserUrl() !== cleanUrl) {
-          window.history.replaceState(event.state, "", cleanUrl);
-        }
+        const url = urlForStack(next, "");
+        if (currentBrowserUrl() !== url) window.history.replaceState(window.history.state, "", url);
       }
       if (
         window.location.pathname === ownedPathRef.current &&

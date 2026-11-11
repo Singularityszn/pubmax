@@ -206,7 +206,6 @@ describe("mutating API surface certification", () => {
     expect(section).toMatch(/stable profile/i);
     expect(section).toMatch(/desired state/i);
     expect(section).toMatch(/private saves/i);
-    expect(section).toMatch(/held moderation/i);
     expect(section).toMatch(/named staff/i);
     expect(section).toMatch(/safety floors\s+stay\s+open/i);
   });

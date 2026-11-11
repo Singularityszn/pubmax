@@ -114,7 +114,7 @@ A crawl story stop price is a price submission. When any stop carries a price, `
 
 `loadSocialAlternatives` projects bundled public data on the server. Public alternatives contain no posts, accounts or crew data.
 
-`buildSocialAlternatives` orders eligible publisher updates and listed UK bundle rows together by observation time. It keeps the newest eligible row per pub, for at most two pubs. Each price retains its actual drink, serving, amount, publisher, source URL and full London observation day. The drink need not be beer. Venue identity and location come from existing public records. Ambiguous, quarantined, closed, restricted and non-London records stay out.
+`buildSocialAlternatives` orders eligible publisher updates and listed UK bundle rows together by observation time. Only a pint serving is eligible: `measureFromServingSize` must read the serving as a pint, and the drink name must not name another measure. It keeps the newest eligible row per pub, for at most two pubs. Each price retains its actual drink, serving, amount, publisher, source URL and full London observation day. Venue identity and location come from existing public records. Ambiguous, quarantined, closed, restricted and non-London records stay out.
 
 Recency makes no claim about today's price or the cheapest price. A failed required public-data read withholds prices rather than presenting an older subset as the latest. Missing eligible rows and failed reads have different notices. Pins: `__tests__/socialAlternatives.test.ts`, `__tests__/socialAlternativesServer.test.ts`, `__tests__/socialTracing.test.ts`.
 

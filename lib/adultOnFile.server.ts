@@ -48,6 +48,19 @@ async function accountDateOfBirthIsMinor(userId: string): Promise<boolean> {
 }
 
 /**
+ * True when the stored date of birth is under 18 or cannot be read.
+ * Voice offers must require false. Pal creation and voice enforce the same
+ * stored-date rule through palUnder18Refusal.
+ */
+export async function accountUnder18ForPal(userId: string): Promise<boolean> {
+  try {
+    return await accountDateOfBirthIsMinor(userId);
+  } catch {
+    return true;
+  }
+}
+
+/**
  * The Pal door for an account whose stored date of birth says under 18. Pal
  * creation and voice both ask it, so neither trusts the body's 18+ tick alone.
  */

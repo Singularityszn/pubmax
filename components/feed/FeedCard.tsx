@@ -19,7 +19,7 @@ import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
 import type { FeedItem, OptimisticSpillState } from "@/lib/feed";
 import { CHEERS_GATE_PROMPT } from "@/lib/optimisticToggle";
-import { displayHandle } from "@/lib/handleDisplay";
+import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { REACTION_KEYS, REACTION_META, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import prefetchVenue from "@/lib/prefetchVenue";
 // Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
@@ -217,9 +217,7 @@ export default function FeedCard({
       .then((ok) => (ok === false ? showGatePrompt() : undefined))
       .catch(showGatePrompt);
   }
-  // One normalized "@handle" used everywhere this card names the author, so a
-  // seed handle that already carries a leading "@" can't render as "@@".
-  const shownHandle = displayHandle(item.handle);
+  const shownHandle = dropAuthorLabel(item.handle);
   // A sampled card (SampleSkeleton) is drawn while the real read is out, and
   // it never asks the server for its sample pages.
   const sampled = useIsSample();

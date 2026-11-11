@@ -1,4 +1,4 @@
-import { accountAdultOnFile, palUnder18Refusal } from "@/lib/adultOnFile.server";
+import { accountAdultOnFile, accountUnder18ForPal, palUnder18Refusal } from "@/lib/adultOnFile.server";
 import { callerUserId } from "@/lib/authServer";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
@@ -17,10 +17,13 @@ export async function GET(request: Request): Promise<Response> {
   const result = await getPubPalResult(id);
   // `adultOnFile` lets the setup skip the 18+ question the account already
   // answered ("we ask once"). It is a read of evidence, never a grant: setup
-  // still sends its own confirmation with the Pal.
-  return result.ok
-    ? jsonNoStore({ pal: result.value, adultOnFile: await accountAdultOnFile(id) })
-    : publicApiError("Pub Pal is temporarily unavailable.", "PUB_PAL_STORE_UNAVAILABLE", 503, { retryable: true });
+  // still sends its own confirmation with the Pal. `under18` is the stored
+  // date of birth rule voice enforces, so the map chip offers nothing to it.
+  if (!result.ok) {
+    return publicApiError("Pub Pal is temporarily unavailable.", "PUB_PAL_STORE_UNAVAILABLE", 503, { retryable: true });
+  }
+  const [adultOnFile, under18] = await Promise.all([accountAdultOnFile(id), accountUnder18ForPal(id)]);
+  return jsonNoStore({ pal: result.value, adultOnFile, under18 });
 }
 
 export async function POST(request: Request): Promise<Response> {

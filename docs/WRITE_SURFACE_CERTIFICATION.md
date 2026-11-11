@@ -388,13 +388,16 @@ bodies.
   counts and notifications re-authorise their source and apply block reductions
   on every read. Feeds stay chronological and engagement never enters map,
   venue, price or popularity ranking.
-- **Moderation and governance:** comments and quote posts remain held moderation
-  content until the OpenAI worker records an approval. Reports never auto-hide.
-  Hide and restore require an active named staff role and append an audit row.
+- **Moderation and governance:** the [Social usage guide](../README.md#features)
+  owns comment and quote moderation outcomes. Reports never auto-hide.
+  Staff hide and restore actions require an active named staff role and append an audit row.
   Named moderators read the private report queue and explicitly resolve each
   report, retaining staff-role provenance.
-  Feature-request status and response history are append-only and staff actions
-  use the same private identity.
+  Feature-request staff history is append-only, and staff actions use the same
+  private identity. Status and response derive from the latest staff update,
+  ordered by creation time and ID. Without an update, the status is `submitted`
+  and the response is null. Changing a post to standard clears its displayed
+  feature metadata. Changing it back restores the latest update from history.
 - **Failure and rollback:** the Social freeze runs before identity, limiter or
   storage work for ordinary writes. Reporting and moderation safety floors stay
   open. Deployed production selects the durable store and fails closed when
