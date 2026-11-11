@@ -9,7 +9,7 @@ import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
-import { runAsk } from "@/lib/ask/runAsk";
+import { routedAskRequest, runAsk } from "@/lib/ask/runAsk";
 import { parseLateFoodQuestion, resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import type { AskResponseBody, AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -311,7 +311,7 @@ export async function POST(request: Request): Promise<Response> {
     try {
       const social = keylessSocialReply(query, turns);
       if (social) return social;
-      const novelty = await palNoveltyForAsk(query, () => callerUserId(request));
+      const novelty = await palNoveltyForAsk(routedAskRequest(query, turns), () => callerUserId(request));
       const answer = await runAsk({
         query,
         cityId: record.cityId,

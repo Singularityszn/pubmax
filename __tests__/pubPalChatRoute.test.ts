@@ -358,6 +358,27 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body.answer).not.toContain("not prices for that item");
   });
 
+  it("keeps a novelty ask when the next line only answers the area question", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "in Soho",
+        cityId: "london",
+        turns: [
+          { role: "user", content: "Find pubs somewhere new" },
+          { role: "assistant", content: "Which area should I look in?" },
+        ],
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.answer).toContain("I don't know where you've been yet.");
+  });
+
   it("explains missing visit history for signed-out keyless novelty picks", async () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("TYPESAFE_API_KEY", "");

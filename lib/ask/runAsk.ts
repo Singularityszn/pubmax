@@ -140,6 +140,16 @@ function composeAnswer(
   return "Nothing sourced for that. Try a nearby area or a broader ask.";
 }
 
+/**
+ * The request discovery runs: a short follow-up such as "in Soho" folded into
+ * the person's earlier ask. Anything that reads the ask, such as "somewhere
+ * new", reads this, so it sees what the search sees.
+ */
+export function routedAskRequest(query: string, turns: readonly AskTurn[]): string {
+  const prior = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
+  return refineRoutedAskQuery(query, prior.at(-1), prior);
+}
+
 function normaliseTurns(raw: unknown): AskTurn[] {
   if (!Array.isArray(raw)) return [];
   const turns: AskTurn[] = [];
@@ -243,8 +253,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   if (toolResults.length === 0 && !unsupported) {
     // Incorporate last user refinement phrases into the routed query when the
     // current ask is short ("cheaper", "closer to the Tube").
-    const priorUser = [...turns].reverse().find((t) => t.role === "user");
-    const routedQuery = refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content));
+    const routedQuery = routedAskRequest(query, turns);
     let venues: Array<{ id: string; name: string; area: string }> = [];
     try {
       venues = (await loadConciergeVenues(cityId)).map((venue) => ({
