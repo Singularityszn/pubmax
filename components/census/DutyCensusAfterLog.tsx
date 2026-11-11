@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import DutyCensusCard from "@/components/census/DutyCensusCard";
-import { dutyCensusView, type DutyCensusView } from "@/lib/dutyCensus";
+import { DUTY_CENSUS_RISES_AT, dutyCensusView, type DutyCensusView } from "@/lib/dutyCensus";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 // The census card under a priced log's receipt. It waits for the figure (or
@@ -46,6 +46,15 @@ export default function DutyCensusAfterLog() {
       controller.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!view) return;
+    const delay = Math.min(Date.parse(DUTY_CENSUS_RISES_AT) - Date.now(), 2_147_483_647);
+    const timer = window.setTimeout(() => {
+      setView((current) => current && dutyCensusView(Date.now(), current.count));
+    }, Math.max(0, delay));
+    return () => window.clearTimeout(timer);
+  }, [view]);
 
   return view ? <DutyCensusCard view={view} className="dutyCensus--afterLog" /> : null;
 }

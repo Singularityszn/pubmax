@@ -21,5 +21,6 @@ export async function loadDutyCensusCount(): Promise<number | null> {
 
 /** The census card for a document read now and held for `holdMs`, or null once it has closed. */
 export async function loadDutyCensusView(holdMs: number): Promise<DutyCensusView | null> {
-  return dutyCensusView(Date.now(), await loadDutyCensusCount(), holdMs);
+  const count = await loadDutyCensusCount();
+  return dutyCensusView(Date.now(), count, holdMs);
 }

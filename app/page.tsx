@@ -8,6 +8,7 @@ import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { huntSourceVerb, type HuntPint } from "@/lib/cheapestHunt";
 import { loadCheapestHunt } from "@/lib/cheapestHunt.server";
 import { loadDutyCensusView } from "@/lib/dutyCensus.server";
+import { ISR_EXPIRE_SECONDS } from "@/lib/cdnDocumentEdge.mjs";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
 import { LANDING_FALLBACK_RECEIPT_HREF } from "@/lib/landingHero";
 import { loadLandingDrinkLinks } from "@/lib/landingDiscovery.server";
@@ -124,10 +125,7 @@ export default async function Home() {
     // claim and no city rows, never an invented pint.
     loadCheapestHunt(),
     loadLandingDrinkLinks(),
-    // Public priced Pint Drops since the duty census began, held for the
-    // revalidate window: the card stamps when it counted and stands down an
-    // hour before the rise rather than asking after it.
-    loadDutyCensusView(revalidate * 1000),
+    loadDutyCensusView(ISR_EXPIRE_SECONDS * 1000),
   ]);
   // The Price Glass's pours (round-two wild idea 01, lib/wildPriceGlass.ts):
   // London's average, its cheapest and dearest pints from the hunt above, and
