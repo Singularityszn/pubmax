@@ -51,6 +51,7 @@ const harness = vi.hoisted(() => ({
   issued: 0,
   lastConversationId: "",
   afterTasks: [] as Array<() => unknown>,
+  loseSettlementReply: false,
 }));
 
 vi.mock("next/server", async (importOriginal) => ({
@@ -103,6 +104,10 @@ vi.mock("@/lib/supabase", () => ({
           `${key} => ${typeof value === "number" ? value : `'${String(value).replaceAll("'", "''")}'`}`)
         .join(", ");
       const answer = harness.sql?.(`set role service_role; select to_json(public.${name}(${args}))`);
+      if (name === "settle_pub_pal_voice_conversation" && harness.loseSettlementReply) {
+        harness.loseSettlementReply = false;
+        throw new Error("settlement reply lost");
+      }
       return { data: answer ? JSON.parse(answer) as unknown : null, error: null };
     },
     // A select of pub_pal_voice_grants with eq and in filters, as service_role.
@@ -218,7 +223,7 @@ beforeAll(async () => {
   db().sql(`
     insert into auth.users (id) values
       ('${uuid(1)}'), ('${uuid(2)}'), ('${uuid(3)}'), ('${uuid(4)}'), ('${uuid(5)}'),
-      ('${uuid(6)}'), ('${uuid(7)}'), ('${uuid(8)}'), ('${uuid(9)}');
+      ('${uuid(6)}'), ('${uuid(7)}'), ('${uuid(8)}'), ('${uuid(9)}'), ('${uuid(10)}');
   `);
 }, 240_000);
 
@@ -393,6 +398,32 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     const refused = await issue();
     expect(refused.status).toBe(429);
     expect(usedMinutes(uuid(9))).toBe(PAL_VOICE_MONTHLY_MINUTES);
+  });
+
+  it("admits against committed minutes when the settlement reply is lost", async () => {
+    harness.userId = uuid(10);
+    harness.afterTasks.length = 0;
+    const ids: string[] = [];
+    for (let i = 0; i < 10; i += 1) {
+      const response = await issue();
+      expect(response.status).toBe(200);
+      const { conversationId } = await response.json() as { conversationId: string };
+      ids.push(conversationId);
+      harness.conversations.set(conversationId, { status: "in-progress", seconds: 0 });
+    }
+    harness.afterTasks.length = 0;
+    expect(usedMinutes(uuid(10))).toBe(30);
+    const ended = defined(ids[0]);
+    harness.conversations.set(ended, { status: "done", seconds: 20 });
+    harness.loseSettlementReply = true;
+
+    const response = await issue();
+
+    expect(response.status).toBe(200);
+    expect(grantRow(uuid(10), ended)).toBe("settled|1");
+    expect(usedMinutes(uuid(10))).toBe(31);
+    const { conversationId } = await response.json() as { conversationId: string };
+    expect(grantRow(uuid(10), conversationId)).toBe("issued|-");
   });
 
   it("lists only the owner's issued grants of that month", () => {

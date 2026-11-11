@@ -203,7 +203,7 @@ async function unstartableConversations(
 
 /**
  * Settles the grants of the owner's month that a release left issued, from
- * the provider's own records, and returns how many it settled. An ended call
+ * the provider's own records. An ended call
  * settles at its recorded length. A call the provider has no record of
  * settles free only once its signed URL can no longer start it. Anything else
  * stays charged in full. `skip` names the session just issued.
@@ -214,17 +214,17 @@ async function settleIssuedGrants(
   usageMonth: string,
   apiKey: string,
   skip?: string,
-): Promise<number> {
+): Promise<void> {
   let conversationIds: string[];
   try {
     const { data, error } = await admin.rpc("issued_pub_pal_voice_conversations", {
       p_owner_id: userId,
       p_month: usageMonth,
     });
-    if (error || !Array.isArray(data)) return 0;
+    if (error || !Array.isArray(data)) return;
     conversationIds = data.filter((id): id is string => isPubPalConversationId(id) && id !== skip);
   } catch {
-    return 0;
+    return;
   }
   const records = await Promise.all(conversationIds.map(async (conversationId) => ({
     conversationId,
@@ -232,21 +232,11 @@ async function settleIssuedGrants(
   })));
   const missing = records.filter(({ record }) => record.kind === "missing").map(({ conversationId }) => conversationId);
   const unstartable = new Set(await unstartableConversations(admin, userId, missing));
-  const settled = await Promise.all(records.map(({ conversationId, record }) => {
+  await Promise.all(records.map(({ conversationId, record }) => {
     if (record.kind === "ended") return settleConversation(admin, userId, conversationId, record.seconds);
     if (unstartable.has(conversationId)) return settleConversation(admin, userId, conversationId, 0);
     return false;
   }));
-  return settled.filter(Boolean).length;
-}
-
-/** Runs `task` once the response is out. With no request scope, it starts now. */
-function afterResponse(task: () => Promise<unknown>): void {
-  try {
-    after(task);
-  } catch {
-    void task();
-  }
 }
 
 /**
@@ -364,7 +354,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
     // refusal is decided on settled minutes, as before. After the response,
     // the earlier calls settle, so the month's total ends exact.
     let prepaid = await prepayVoiceGrant(admin, userId, usageMonth, grantId);
-    if (prepaid === "refused" && await settleIssuedGrants(admin, userId, usageMonth, apiKey) > 0) {
+    if (prepaid === "refused") {
+      await settleIssuedGrants(admin, userId, usageMonth, apiKey);
       prepaid = await prepayVoiceGrant(admin, userId, usageMonth, grantId);
     }
     if (prepaid === "unknown") {
@@ -395,6 +386,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
   }
 
   let providerAllocated = false;
+  let conversationId: string;
+  let response: Response;
   try {
     const [session, taste, memories] = await Promise.all([
       fetchPalSignedConversation({ apiKey, agentId }),
@@ -418,7 +411,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
         { retryable: true, compatibilityFields: { fallback: "text" } },
       );
     }
-    const { signedUrl, conversationId } = session;
+    const { signedUrl } = session;
+    conversationId = session.conversationId;
     try {
       await bindPubPalToolTurn(conversationId, userId, DEFAULT_CITY_ID);
     } catch {
@@ -449,9 +443,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
       }
     }
     providerAllocated = true;
-    if (admin) afterResponse(() => settleIssuedGrants(admin, userId, usageMonth, apiKey, conversationId));
     const remainingMinutes = supabaseConfigured ? null : remainingVoiceMinutes(meter);
-    return jsonNoStore({
+    response = jsonNoStore({
       signedUrl,
       conversationId,
       connectionType: "websocket",
@@ -472,6 +465,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
       await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
     }
   }
+  if (admin) after(() => settleIssuedGrants(admin, userId, usageMonth, apiKey, conversationId));
+  return response;
 }
 
 /**
