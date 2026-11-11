@@ -1,18 +1,9 @@
 "use client";
 
-// The live voice session, and the ONLY module that imports the ElevenLabs SDK.
-//
-// Split out because of what the gate beside it already knows: voice is
-// env-gated per deployment, so `VoiceAvailabilityGate` (PubPalVoice.tsx) asks
-// /api/pub-pal/voice-token before anything voice-shaped may render, and on a
-// deployment with voice off nothing here ever mounts. The SDK was a static
-// import all the same, so every cold /pal parsed a whole conversation runtime
-// before first paint, for a control the reader may never reach and the
-// deployment may not even offer.
-//
-// The tri-state is unchanged and stays in PubPalVoice.tsx. PalVoiceHost mounts
-// this module from the root shell, so one call carries across /pal and /map:
-// it draws into the /pal panel's slot there and as a voice bar on /map.
+// Keep the ElevenLabs runtime behind PalVoiceHost's dynamic import so a cold
+// map loads no SDK. The /pal availability gate or a map-chip tap mounts it.
+// The root host preserves one call across /pal and /map, using the panel slot
+// on /pal and the voice bar on /map.
 
 import type { Route } from "next";
 import {

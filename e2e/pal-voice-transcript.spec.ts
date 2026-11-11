@@ -16,6 +16,7 @@ const SHOTS = process.env.PAL_VOICE_EVIDENCE_DIR ?? "artifacts/pal-voice-transcr
 const SIGNED_URL = "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent_e2e&conversation_signature=e2e";
 
 test.use({
+  serviceWorkers: "block",
   permissions: ["microphone"],
   launchOptions: {
     args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
@@ -544,28 +545,51 @@ for (const width of [390, 1440]) {
   });
 }
 
-test("a cold /map loads no ElevenLabs code, even with the shell extras released", async ({ page }) => {
-  // Only the SDK's socket handshake carries this event name.
-  const scripts: Promise<{ url: string; sdk: boolean }>[] = [];
-  page.on("response", (response) => {
-    if (response.request().resourceType() !== "script") return;
-    scripts.push(response.text()
-      .then((body) => ({ url: response.url(), sdk: body.includes("conversation_initiation_client_data") }))
-      .catch(() => ({ url: response.url(), sdk: false })));
+test("a cold /map defers the voice transport chunk until the chip tap", async ({ page }) => {
+  // The runtime WebSocket access identifies the transport chunk independently
+  // of its filename or source. A cold download of that chunk fails this check.
+  await releaseDeferredShell(page);
+  const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
+  const scripts = new Set<string>();
+  page.on("request", (request) => {
+    if (request.resourceType() === "script") scripts.add(request.url());
   });
-  await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal: null, adultOnFile: true } }));
-  await installAuthDoubles(page);
-  await page.addInitScript(() => localStorage.setItem("pubmax:e2e-defer-shell:v1", "now"));
-  await seedSignedIn(page, "A");
   await page.goto("/map");
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible();
   await expectMapLoadingFrameReleased(page);
-  await page.waitForLoadState("load");
-  const loaded = await Promise.all(scripts);
-  await test.info().attach("cold-map-network", { body: JSON.stringify(loaded, null, 2), contentType: "application/json" });
+  const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+  await expect(chip).toBeVisible();
+  const beforeTap = [...scripts];
+  await page.evaluate(() => {
+    const surface = window as unknown as { voiceSocketStacks: string[] };
+    surface.voiceSocketStacks = [];
+    const transport = window.WebSocket;
+    Object.defineProperty(window, "WebSocket", {
+      configurable: true,
+      get() {
+        surface.voiceSocketStacks.push(new Error().stack ?? "");
+        return transport;
+      },
+    });
+  });
   await page.screenshot({ path: `${SHOTS}/cold-map.png` });
-  expect(loaded.length).toBeGreaterThan(0);
-  expect(loaded.filter((script) => script.sdk).map((script) => script.url)).toEqual([]);
+  await chip.click();
+  await opened;
+  await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+  const stacks = await page.evaluate(() => (window as unknown as { voiceSocketStacks: string[] }).voiceSocketStacks);
+  await test.info().attach("voice-transport-stacks", {
+    body: JSON.stringify(stacks, null, 2), contentType: "application/json",
+  });
+  const caller = stacks.flatMap((stack) => stack.split("\n").slice(2))
+    .map((frame) => frame.match(/https?:\/\/[^\s)]+/)?.[0]?.replace(/:\d+:\d+$/, ""))
+    .find(Boolean);
+  expect(caller, "The live voice startup must identify its transport script").toBeTruthy();
+  expect(beforeTap).not.toContain(caller);
+  expect([...scripts]).toContain(caller);
+  await test.info().attach("cold-map-network", {
+    body: JSON.stringify({ beforeTap, transportCaller: caller, stacks }, null, 2), contentType: "application/json",
+  });
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await expect(chip).toBeVisible();
 });
 
 test("Stay here keeps the person on the Pal, and the Pal's own words never open the map", async ({ page }) => {
@@ -1250,6 +1274,16 @@ for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"], [3
     await expectMapLoadingFrameReleased(page);
     const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
     await expect(chip).toBeVisible({ timeout: 20_000 });
+    await expect(async () => {
+      const painted = await page.evaluate(() => {
+        const probe = (window as unknown as {
+          __pubmaxPaintedMapTapPoints?: (() => unknown[]) & { state?: () => { loaded: boolean } };
+        }).__pubmaxPaintedMapTapPoints;
+        return Boolean(probe?.state?.().loaded && probe().length > 0);
+      });
+      expect(painted).toBe(true);
+    }).toPass();
+    await expectMapLoadingFrameReleased(page);
     await page.screenshot({ path: `${SHOTS}/step9-${width}-${theme}-chip.png` });
 
     // Large text: the chip grows its type, not its box geometry, and still holds its words on screen.
@@ -1357,12 +1391,14 @@ for (const interruption of ["background", "leave map"] as const) {
     let firstScript!: () => void;
     const requested = new Promise<void>((resolve) => { firstScript = resolve; });
     await page.route("**/_next/static/chunks/*.js*", async (route) => {
-      if (!block) return route.continue();
+      if (!block || held.length > 0) return route.continue();
       held.push(route);
       firstScript();
     });
-    await chip.click();
-    await requested;
+    await test.step("Hold the cold voice script request", async () => {
+      await chip.click();
+      await requested;
+    });
     await page.evaluate((urls) => {
       const surface = window as unknown as { step9ScriptsLoaded: Promise<unknown> };
       surface.step9ScriptsLoaded = Promise.all(urls.map((url) => {
@@ -1378,10 +1414,13 @@ for (const interruption of ["background", "leave map"] as const) {
       });
     } else {
       await page.getByRole("link", { name: "You", exact: true }).first().click();
+      await expect(page).toHaveURL(/\/u\/karan/);
     }
     block = false;
     await Promise.all(held.map((route) => route.continue()));
-    await page.evaluate(() => (window as unknown as { step9ScriptsLoaded: Promise<unknown> }).step9ScriptsLoaded);
+    await test.step("Finish the delayed scripts after interruption", async () => {
+      await page.evaluate(() => (window as unknown as { step9ScriptsLoaded: Promise<unknown> }).step9ScriptsLoaded);
+    });
     if (interruption === "background") {
       await page.evaluate(() => {
         delete (document as unknown as { visibilityState?: string }).visibilityState;
@@ -1395,10 +1434,31 @@ for (const interruption of ["background", "leave map"] as const) {
     await expect(chip).toBeVisible();
     await expect(page.locator(".palVoiceBar")).toHaveCount(0);
     await page.screenshot({ path: `${SHOTS}/step9-cancel-${interruption.replace(" ", "-")}.png` });
-    await chip.click();
-    await opened;
-    await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+    await test.step("Start voice with a new deliberate tap", async () => {
+      await chip.click();
+      await opened;
+      await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
+    });
     await page.getByRole("button", { name: "End", exact: true }).click();
     await expect(chip).toBeVisible();
   });
 }
+
+test("a failed map age check hides a cached Pal chip and requests no microphone", async ({ page }) => {
+  await releaseDeferredShell(page);
+  await preparePalAccount(page, false, undefined, false, false, true);
+  await page.route("**/api/pub-pal", (route) => route.fulfill({ status: 503, json: { error: "Unavailable" } }));
+  let starts = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/pub-pal/voice-token" && request.method() === "POST") starts += 1;
+  });
+  const checked = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/pub-pal" && response.status() === 503);
+  await page.goto("/map");
+  await checked;
+  await expectMapLoadingFrameReleased(page);
+  await expect(page.getByRole("button", { name: "Account options for Karan", exact: true })).toBeVisible();
+  await expect(page.locator(".palSummon")).toHaveCount(0);
+  await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+  expect(starts).toBe(0);
+  await page.screenshot({ path: `${SHOTS}/step9-age-check-unavailable.png` });
+});

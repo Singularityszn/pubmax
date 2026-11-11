@@ -53,13 +53,6 @@ function PalVoicePanelSlot({ onStateChange, palName, signal, appearance, genome,
   );
 }
 
-// Voice is switched on per deployment by the captain's ElevenLabs keys (see
-// docs/PUB_PAL_SETUP.md). Until they are set, the Pal SAYS so in its own voice
-// and points at the writing door - a Start button that answers 503 on the tap
-// reads as a broken feature rather than one nobody has turned on. Availability
-// is TRI-STATE: while the answer is still coming the control renders neither
-// claim, because "voice is off" is a statement we must have checked.
-
 export const PAL_VOICE_UNAVAILABLE_LINE =
   "Voice is unavailable just now. Ask me in writing and you'll get the same answers.";
 const PAL_VOICE_MUTED_LINE =

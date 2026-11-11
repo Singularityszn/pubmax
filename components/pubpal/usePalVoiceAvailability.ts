@@ -12,12 +12,8 @@ export type PalVoiceAvailability = "asking" | "available" | "unavailable";
 const PAL_VOICE_AVAILABILITY_TIMEOUT_MS = 8_000;
 
 /**
- * Read the probe's answer.
- *
- * Anything short of an explicit `available: true` is treated as off. That is
- * the safe half here and only here: the two states differ by which door the
- * Pal offers, and offering the writing door when voice was in fact available
- * costs a tap, while offering a Start button that answers 503 reads as broken.
+ * Only an explicit `available: true` enables the /pal voice panel.
+ * Probe failures offer writing rather than a Start button that would fail.
  */
 export function palVoiceAvailabilityFrom(
   ok: boolean,
