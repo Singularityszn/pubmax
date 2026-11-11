@@ -742,9 +742,12 @@ describe("Pub Pal voice token route", () => {
     it("keeps the linked grant charged when background scheduling throws", async () => {
       const db = meteredMonth(0, []);
       const asked = provider({});
-      vi.mocked(after).mockImplementationOnce(() => { throw new Error("no request scope"); });
-
-      await expect(POST(issueRequest())).rejects.toThrow("no request scope");
+      await vi.mocked(after).withImplementation(
+        () => { throw new Error("no request scope"); },
+        async () => {
+          await expect(POST(issueRequest())).rejects.toThrow("no request scope");
+        },
+      );
 
       expect(db.used).toBe(PAL_VOICE_GRANT_MINUTES);
       expect(db.grants.find((grant) => grant.conversationId === NEW)?.state).toBe("issued");
