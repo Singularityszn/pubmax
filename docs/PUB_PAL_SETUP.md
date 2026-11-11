@@ -445,8 +445,14 @@ connection still take time. Android audio routing needs
 
 ### Voice audio cues and routing
 
-Pressing **Start voice chat** plays a short chime during startup, before microphone
-permission or the voice grant arrives. The app stops any remaining start chime
+Each voice start tap plays a short chime before microphone permission or a voice
+grant arrives. This includes **Start voice chat**, **Carry on**, and the map's
+[talk chip](../README.md#pub-pal-map-chip). The map chip plays its chime before the session
+module downloads. The session takes ownership of that chime without playing it
+again.
+
+A replacement map tap stops the previous chime. A cancelled request or failed
+session download also stops the chime. The app stops any remaining start chime
 before the SDK connection begins, so the cue cannot overlap the greeting.
 Cancelling or ending the startup attempt also stops the chime.
 
