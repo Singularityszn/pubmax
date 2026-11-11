@@ -1,6 +1,6 @@
 // Which tool writes a --branch-id run may make. Workspace tools are shared by
 // every branch of an agent, so a branch run never changes a tool Main has
-// attached: a Main webhook whose endpoint or argument schema must change gets
+// attached: a Main webhook whose drift stays within api_schema gets
 // a new branch-only copy, and any other change to one stops the run before
 // its first write. Pure.
 

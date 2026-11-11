@@ -3,6 +3,7 @@ import { expect, test, type WebSocketRoute } from "@playwright/test";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, AUTH_STORAGE_KEY, accessJwt, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // The real voice panel and SDK use a disposable provider socket. This proves
 // browser recovery and session release, without a provider account or key.
@@ -193,8 +194,21 @@ test("a voice session can end, restart, recover from transport loss, and start a
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ["light", "dark"]) {
-      const toggle = page.getByRole("button", { name: `Switch to ${theme} theme`, exact: true });
-      if (await toggle.isVisible()) await toggle.click();
+      await expectMapLoadingFrameReleased(page);
+      if (await page.locator("html").getAttribute("data-theme") !== theme) {
+        const toggle = page.getByRole("button", { name: `Switch to ${theme} theme`, exact: true });
+        const inSheet = width === 390;
+        if (inSheet) {
+          await (await mobileMapShellControl(page, "more")).click();
+          await page.getByRole("tab", { name: "Layers", exact: true }).click();
+        }
+        await toggle.click();
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        if (inSheet) await page.keyboard.press("Escape");
+      }
+      await expect.poll(() => page.evaluate(() => (window as Window & {
+        __pubmaxPaintedMapTapPoints?: () => unknown[];
+      }).__pubmaxPaintedMapTapPoints?.().length ?? 0)).toBeGreaterThan(0);
       await expect(bar.getByRole("status")).toBeVisible();
       await page.screenshot({ path: test.info().outputPath(`friendly-map-${width}-${theme}.png`) });
     }
