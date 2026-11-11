@@ -6,6 +6,9 @@ import { slimListedPrice } from "./helpers/slimListedPrice";
 const SHAKESPEARES_HEAD = slimListedPrice("venue-e1srzr");
 const GOLDEN_LION = slimListedPrice("venue-15i2wst");
 const [LOWEST, HIGHEST] = [SHAKESPEARES_HEAD, GOLDEN_LION].sort((left, right) => left.priceGbp - right.priceGbp);
+const SPEND_LABEL = LOWEST.priceGbp === HIGHEST.priceGbp
+  ? `${LOWEST.priceLabel} per pint`
+  : `${LOWEST.priceLabel}–${HIGHEST.priceLabel} per pint`;
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -29,7 +32,7 @@ for (const width of [390, 1440]) {
     expect(state.inviteToken).toBeTruthy();
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`/invite/${state.inviteToken}`);
-    await expect(page.locator(".invite__spend")).toHaveText(`${LOWEST.priceLabel}–${HIGHEST.priceLabel} per pint`);
+    await expect(page.locator(".invite__spend")).toHaveText(SPEND_LABEL);
     const stop = page.locator(".invite__stop").filter({ hasText: "Shakespeares Head" });
     await expect(stop).toContainText(`Listed by ${SHAKESPEARES_HEAD.source}, collected ${SHAKESPEARES_HEAD.readDay}.`);
     await expect(stop.getByRole("link", { name: "Pint Prices", exact: true })).toHaveAttribute("href", /^https:\/\//);
