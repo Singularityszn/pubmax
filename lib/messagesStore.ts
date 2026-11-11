@@ -1222,10 +1222,10 @@ export const supabaseMessagesStore: MessagesStore = {
     let groupMembership = new Map<string, ConversationMembership>();
     let lanesDegraded = false;
     try {
-      // ONLY THE CONVERSATION ROWS MAY EMPTY THE INBOX. This read is what says
-      // which conversations exist; the two below only decorate them, and a
-      // failure in either used to throw all the way out here and serve an
-      // empty inbox with a 200 (F-10). They are caught where they happen now.
+      // Conversation-row and deletion-marker reads establish what can be shown.
+      // Their failures may empty the inbox. Individual latest-message failures
+      // follow visibleConversationRows. Unread and preview failures are caught
+      // by their own helpers.
       //
       // TWO LANES, because a conversation's kind names its membership
       // authority: the pair columns find every DM, and the members table finds
@@ -1673,12 +1673,10 @@ async function readGroupConversationIds(me: string): Promise<string[]> {
 }
 
 /**
- * The rows this viewer has not deleted, or that a later message restored. A
- * restored row sorts and shows the time of that message, not last_message_at.
- *
- * ONE FAILED LATEST-MESSAGE READ KEEPS ITS ROW and degrades the lane. Throwing
- * would empty a whole inbox of healthy chats (F14); the inbox preview hides
- * whatever predates the delete.
+ * A successful latest-message read replaces the denormalised timestamp with
+ * created_at for a restored row. A failed read keeps its row and degrades the
+ * lane, so healthy chats survive. The inbox preview must still apply the
+ * deletion mark because retaining the row does not prove it has new messages.
  */
 async function visibleConversationRows(
   rows: Array<Record<string, unknown>>,
