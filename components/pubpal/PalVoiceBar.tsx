@@ -93,7 +93,8 @@ export default function PalVoiceBar({
       ? `${palName} is ${speaking ? "talking" : "listening"}`
       : ended ? palVoiceEndedStatus(ended.why, palName) : "Voice stopped";
   const line = lines.at(-1);
-  const caption = error ?? palVoiceEndedHint(ended, !live && !starting) ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
+  const caption = error ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
+  const allowance = palVoiceEndedHint(ended, !live && !starting);
   return (
     <section ref={barRef} className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-focus-trap-exempt="" data-live={live ? "true" : undefined}>
       {pick ? (
@@ -110,6 +111,7 @@ export default function PalVoiceBar({
       <div className="palVoiceBarText">
         <p role="status">{status} <PalVoiceCountdown live={live} endsAt={callEndsAt} /></p>
         {caption ? <p className="palVoiceBarCaption" role={error ? "alert" : undefined}>{caption}</p> : null}
+        {allowance ? <p className="palVoiceBarAllowance">{allowance}</p> : null}
       </div>
       {live || starting ? (
         <button type="button" onClick={onEnd} aria-label={live ? undefined : "Cancel voice startup"}>
@@ -117,7 +119,7 @@ export default function PalVoiceBar({
         </button>
       ) : (
         <>
-          {ended && ended.minutesLeft !== 0 ? (
+          {ended ? (
             <button type="button" onClick={onCarryOn}>
               <Mic size={16} aria-hidden="true" /> Carry on
             </button>

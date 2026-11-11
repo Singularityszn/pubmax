@@ -449,12 +449,15 @@ Thirty seconds before the cap, the app tells the agent to finish in one short
 sentence and shows a countdown (`lib/palVoiceCall.ts`). A call that hits the cap,
 that the agent hangs up, or that a background interruption ends keeps its
 transcript and main-map picks, and offers **Carry on** with the voice minutes
-left this month. The grant reports the month's charge (`usedMinutes`), and the
-browser mirrors settlement to work out the minutes left. On the map,
+left this month. The grant reports the month's prepaid charge (`usedMinutes`).
+The browser shows a conservative minimum and lets the server decide whether
+another call can start. On the map, the allowance appears below the transcript.
 **Close voice chat** dismisses the stopped bar and clears the picks.
 **Carry on** starts a new call that keeps the picks and cards. It greets with a
 short line instead of the opening, and sends the person's earlier asks as one
 contextual update (`palSessionAsksSummaryTurn` in `lib/palSessionSummary.ts`).
+If startup fails or is cancelled, the ended call, picks and cards remain available
+for another attempt. A successful connection clears the previous ended status.
 Returning does not restart the microphone automatically.
 
 The first microphone permission prompt does not cancel startup while the native

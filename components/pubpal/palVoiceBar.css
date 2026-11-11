@@ -46,6 +46,11 @@ body:has(.palVoiceBar) .palSummon {
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
+.palVoiceBarAllowance {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
 .palVoiceBar button {
   min-width: 44px;
   min-height: 44px;

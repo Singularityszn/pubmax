@@ -152,7 +152,7 @@ for (const width of [390, 768, 1440]) {
     expect(app.grants()).toBe(1);
     await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
     await page.screenshot({ path: `${evidence}/carry-on-${width}.png`, fullPage: true });
-    await expect(page.getByText("minutes of voice left this month")).toBeVisible();
+    await expect(page.getByText("At least 27 minutes of voice left this month", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Carry on", exact: true }).click();
     await app.connected();
     expect(app.grants()).toBe(2);
@@ -187,7 +187,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("button", { name: "Carry on", exact: true })).toBeVisible();
     await expect(page.getByRole("timer")).toBeHidden();
     await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
-    await expect(page.getByText("27 minutes of voice left this month")).toBeVisible();
+    await expect(page.getByText("At least 27 minutes of voice left this month", { exact: true })).toBeVisible();
     await page.screenshot({ path: `${evidence}/cap-ended-${width}.png`, fullPage: true });
     await stopped(page);
     await expect.poll(app.releases).toBe(1);

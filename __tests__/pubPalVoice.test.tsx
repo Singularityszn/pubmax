@@ -1585,9 +1585,7 @@ describe("Pub Pal voice transcript", () => {
     await settle();
   }
 
-  // Settling a 3-minute grant charges ceil(seconds / 60): the cap is 3 minutes
-  // and a 61-second call is 2, so 9 used leaves 21 and 22 of the 30.
-  it.each([["the cap", "cap", 21], ["the Pal hanging up", "pal", 22]] as const)(
+  it.each([["the cap", "cap", 21], ["the Pal hanging up", "pal", 21]] as const)(
     "keeps the picks and transcript after %s and offers Carry on with the minutes left",
     async (_label, ending, minutesLeft) => {
       vi.useFakeTimers();
@@ -1599,10 +1597,115 @@ describe("Pub Pal voice transcript", () => {
       expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
       expect(transcriptLines().join(" ")).toContain("Cheap pints in Soho");
       expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("Carry on"))).toBe(true);
-      expect(container.textContent).toContain(`${minutesLeft} minutes`);
+      expect(container.textContent).toContain(`At least ${minutesLeft} minutes of voice left this month`);
       // Closing the call's last screen takes the kept picks with it.
       act(() => { root?.unmount(); root = null; });
       expect(readPalMapState().picks).toEqual([]);
+    },
+  );
+
+  it.each(["/pal", "/map"])("keeps the transcript beside a zero allowance and lets the server decide on %s", async (surface) => {
+    vi.useFakeTimers();
+    const session = await startLiveSession({ usedMinutes: 30 });
+    await act(async () => { session.onMessage?.({ role: "agent", message: "The Lamb has a listed pint." }); });
+    await endLiveCall(session, "pal");
+    navigation.pathname = surface;
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley", panelVisible: surface === "/pal" })); });
+    await settle();
+    const screen = surface === "/map" ? document.body : container;
+    expect(screen.textContent).toContain("The Lamb has a listed pint.");
+    expect(screen.textContent).toContain("At least 0 minutes of voice left this month");
+    if (surface === "/map") {
+      expect(screen.querySelector(".palVoiceBarCaption")?.textContent).toBe("The Lamb has a listed pint.");
+      expect(screen.querySelector(".palVoiceBarAllowance")?.textContent).toBe("At least 0 minutes of voice left this month");
+    }
+    const carryOn = [...screen.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+    expect(carryOn?.disabled).toBe(false);
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({ error: "Monthly voice allowance reached" }, { status: 429 }));
+    const calls = requests.authedActionFetch.mock.calls.length;
+    await act(async () => { carryOn?.click(); });
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(calls + 1);
+    expect(screen.querySelector('[role="alert"]')?.textContent).toBe("Monthly voice allowance reached");
+  });
+
+  it.each(["permission-denied", "permission-cancel", "grant-failure", "grant-cancel", "sdk-error", "sdk-disconnect", "sdk-cancel", "sdk-timeout"])(
+    "preserves the ended call through %s and retries with its asks and cards",
+    async (failure) => {
+      vi.useFakeTimers();
+      const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+      venuesRead.read.mockReturnValue(new Promise(() => {}));
+      const session = await startLiveSession({ usedMinutes: 9 });
+      await act(async () => {
+        session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 });
+        session.onAgentToolRequest?.({ tool_call_id: "kept", event_id: 2, tool_name: "search_venues" });
+        session.onAgentToolResponse?.({
+          tool_call_id: "kept", event_id: 2, tool_name: "search_venues", is_error: false, is_called: true,
+          full_tool_result: JSON.stringify({ result: {
+            ok: true, tool: "search_venues", answerHint: "Listed pubs.",
+            cards: [{ key: "kept", venueId: "venue-lamb", title: "The Lamb", place: "Camden", note: "", price: 5.2, provenance: { kind: "directory", label: "Source read 2 October 2026" } }],
+            data: { venues: [{ id: "venue-lamb", lat: 51.5, lng: -0.1 }] },
+          } }),
+        });
+      });
+      await endLiveCall(session, "cap");
+      const clickCarryOn = async () => {
+        const button = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) => item.textContent?.includes("Carry on"));
+        expect(button).toBeTruthy();
+        await act(async () => { button?.click(); });
+        await act(async () => { await vi.dynamicImportSettled(); });
+      };
+      const permission = deferred<MediaStream>();
+      const grant = deferred<Response>();
+      if (failure === "permission-denied") getUserMedia.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
+      else if (failure === "permission-cancel") getUserMedia.mockReturnValueOnce(permission.promise);
+      else getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      if (failure === "grant-failure") requests.authedActionFetch.mockResolvedValueOnce(Response.json({ error: "Try again" }, { status: 503 }));
+      else if (failure === "grant-cancel") requests.authedActionFetch.mockReturnValueOnce(grant.promise);
+      else if (failure.startsWith("sdk-")) requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_failedRetry" }));
+      voice.endSession.mockImplementation(() => {
+        voice.status = "disconnected";
+        const pendingSession = voice.startSession.mock.calls.at(-1)?.[0] as LiveSession | undefined;
+        pendingSession?.onStatusChange?.({ status: "disconnected" });
+      });
+      await clickCarryOn();
+      expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
+      await act(async () => {
+        const retry = voice.startSession.mock.calls.at(1)?.[0] as LiveSession | undefined;
+        if (failure === "sdk-error") retry?.onError?.("Socket failed");
+        else if (failure === "sdk-disconnect") {
+          retry?.onStatusChange?.({ status: "disconnected" });
+          retry?.onDisconnect?.({ reason: "error", closeCode: 1006 });
+        }
+        else if (failure === "sdk-timeout") vi.advanceTimersByTime(PAL_VOICE_START_TIMEOUT_MS);
+        else if (failure.endsWith("cancel")) container.querySelector<HTMLButtonElement>('button[aria-label="Cancel voice startup"]')?.click();
+      });
+      await settle();
+      if (failure === "grant-cancel") await act(async () => { grant.resolve(Response.json({ error: "Unavailable" }, { status: 503 })); });
+      if (failure === "permission-cancel") await act(async () => { permission.resolve({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream); });
+      await settle();
+      expect(container.textContent).toContain("Time's up for this call");
+      expect(container.textContent).toContain("At least 21 minutes of voice left this month");
+      expect(transcriptLines().join(" ")).toContain("Cheap pints in Soho");
+      expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("The Lamb");
+      expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/again", conversationId: "conv_successRetry" }));
+      await clickCarryOn();
+      const resumed = defined(voice.startSession.mock.calls.at(-1))[0] as LiveSession & { overrides?: { agent?: { firstMessage?: string } } };
+      expect(resumed.overrides?.agent?.firstMessage).toBe(PAL_VOICE_RESUME_GREETING);
+      voice.status = "connected";
+      await act(async () => {
+        resumed.onStatusChange?.({ status: "connected" });
+        resumed.onConnect?.();
+        root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
+      });
+      expect(voice.sendContextualUpdate.mock.calls.some(([text]) => String(text).includes("Cheap pints in Soho"))).toBe(true);
+      expect(container.textContent).not.toContain("Time's up for this call");
+      expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("The Lamb");
+      await act(async () => { container.querySelector<HTMLButtonElement>(".palVoiceActions button")?.click(); });
+      expect(readPalMapState().picks).toEqual([]);
+      canvas.mockRestore();
     },
   );
 
@@ -1830,7 +1933,7 @@ describe("Pub Pal voice transcript", () => {
     });
     await settle();
     expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.textContent).toContain("Start voice chat");
+    expect(container.textContent).toContain("Carry on");
   });
 
   it("never moves on the Pal's own words", async () => {

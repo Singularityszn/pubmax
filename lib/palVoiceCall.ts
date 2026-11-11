@@ -3,13 +3,9 @@
 //
 // The cap and the monthly allowance are owned by lib/palVoiceMetering.ts.
 
-import {
-  billableVoiceMinutes,
-  PAL_VOICE_GRANT_MINUTES,
-  PAL_VOICE_MAX_SESSION_SECONDS,
-  PAL_VOICE_MONTHLY_MINUTES,
-} from "@/lib/palVoiceMetering";
+import { PAL_VOICE_MONTHLY_MINUTES } from "@/lib/palVoiceMetering";
 import type { PalVoiceLine } from "@/lib/palVoiceTranscript";
+import type { PalAnimationState } from "@/lib/pubPal";
 
 /** The last stretch of a call: the agent is told to wrap up and the screen counts down. */
 export const PAL_VOICE_WRAP_UP_SECONDS = 30;
@@ -25,7 +21,6 @@ export type PalVoiceEndedWhy = "away" | "cap" | "pal";
 
 export type PalVoiceEnded = {
   why: PalVoiceEndedWhy;
-  /** Voice minutes left this month once this call settles. Null when the server did not say. */
   minutesLeft: number | null;
 };
 
@@ -34,16 +29,8 @@ export function palVoiceAsks(lines: readonly PalVoiceLine[]): string[] {
   return lines.filter((line) => line.speaker === "you").map((line) => line.text);
 }
 
-/**
- * Minutes left this month once the call that just ended settles. The grant
- * prepaid the whole cap, and settlement charges one minute per started minute
- * of the call (lib/palVoiceMetering.ts), so this mirrors what the server will
- * charge. The browser's clock runs a little past the cap, so it is held to it.
- * `usedMinutes` is the month's charge the grant reported, prepay included.
- */
-export function palVoiceMinutesLeft(usedMinutes: number, callSeconds: number): number {
-  const settled = usedMinutes - PAL_VOICE_GRANT_MINUTES + billableVoiceMinutes(Math.min(PAL_VOICE_MAX_SESSION_SECONDS, callSeconds));
-  return Math.max(0, PAL_VOICE_MONTHLY_MINUTES - settled);
+export function palVoiceMinutesLeft(usedMinutes: number): number {
+  return Math.max(0, PAL_VOICE_MONTHLY_MINUTES - usedMinutes);
 }
 
 /** Leads the earlier-asks summary a carried-on call sends when it connects (PAL_VOICE_SESSION_SUMMARY_RULE). */
@@ -56,8 +43,7 @@ export function palVoiceEndedStatus(why: PalVoiceEndedWhy, palName: string): str
 }
 
 function palVoiceMinutesLeftLine(minutes: number): string {
-  if (minutes === 0) return "No voice minutes left this month";
-  return `${minutes} ${minutes === 1 ? "minute" : "minutes"} of voice left this month`;
+  return `At least ${minutes} ${minutes === 1 ? "minute" : "minutes"} of voice left this month`;
 }
 
 /** The /pal panel's one status line for the call. */
@@ -72,7 +58,9 @@ export function palVoiceEndedHint(ended: PalVoiceEnded | null, idle: boolean): s
   return idle && ended?.minutesLeft != null ? palVoiceMinutesLeftLine(ended.minutesLeft) : null;
 }
 
-/** Carry on stays off while a call is starting and once the month has no minutes left. */
-export function palVoiceStartDisabled(starting: boolean, ended: PalVoiceEnded | null): boolean {
-  return starting || ended?.minutesLeft === 0;
+export function palVoiceFaceState(starting: boolean, live: boolean, speaking: boolean, awaitingPal: boolean): PalAnimationState {
+  if (starting) return "noticing";
+  if (!live) return "idle";
+  if (speaking) return "speaking";
+  return awaitingPal ? "thinking" : "listening";
 }

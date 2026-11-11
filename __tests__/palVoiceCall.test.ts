@@ -1,36 +1,37 @@
 import { describe, expect, it } from "vitest";
 
-import { palVoiceEndedHint, palVoiceMinutesLeft, palVoiceStartDisabled } from "@/lib/palVoiceCall";
+import { palVoiceEndedHint, palVoiceMinutesLeft, palVoiceFaceState } from "@/lib/palVoiceCall";
 
-// The oracle is settle_pub_pal_voice_conversation (migration 0176): a grant
-// prepays 3 minutes, and settling moves the month's charge to
-// used - 3 + ceil(seconds / 60), with a zero-second call free. A grant is
-// admitted while the month's charge is under 30 minutes.
-describe("minutes left once an ended call settles", () => {
+describe("the prepaid balance required by the operator's conservative allowance decision", () => {
   it.each([
-    ["a 61-second call after six minutes of earlier calls", 9, 61, 22],
-    ["a full three-minute call", 9, 180, 21],
-    ["a call the browser clock ran a little past the cap", 9, 181.4, 21],
-    ["a call that never got a word in", 9, 0, 24],
-    ["a grant admitted at 29 minutes that spent 30 seconds", 32, 30, 0],
-  ])("%s", (_label, usedMinutes, callSeconds, left) => {
-    expect(palVoiceMinutesLeft(usedMinutes, callSeconds)).toBe(left);
+    ["a prepaid call after six minutes of earlier calls", 9, 21],
+    ["the monthly allowance is fully prepaid", 30, 0],
+    ["a grant admitted at 29 minutes", 32, 0],
+  ])("%s", (_label, usedMinutes, left) => {
+    expect(palVoiceMinutesLeft(usedMinutes)).toBe(left);
   });
 });
 
 describe("the moment between an ended call and the next tap", () => {
   it("shows the minutes left only once the call has ended and nothing is starting", () => {
     const ended = { why: "cap" as const, minutesLeft: 21 };
-    expect(palVoiceEndedHint(ended, true)).toContain("21");
+    expect(palVoiceEndedHint(ended, true)).toBe("At least 21 minutes of voice left this month");
+    expect(palVoiceEndedHint({ why: "pal", minutesLeft: 0 }, true)).toBe("At least 0 minutes of voice left this month");
+    expect(palVoiceEndedHint({ why: "away", minutesLeft: 1 }, true)).toBe("At least 1 minute of voice left this month");
     expect(palVoiceEndedHint(ended, false)).toBeNull();
     expect(palVoiceEndedHint({ why: "pal", minutesLeft: null }, true)).toBeNull();
     expect(palVoiceEndedHint(null, true)).toBeNull();
   });
+});
 
-  it("keeps Carry on off while starting and once no minutes are left", () => {
-    expect(palVoiceStartDisabled(false, { why: "cap", minutesLeft: 0 })).toBe(true);
-    expect(palVoiceStartDisabled(true, null)).toBe(true);
-    expect(palVoiceStartDisabled(false, { why: "away", minutesLeft: 1 })).toBe(false);
-    expect(palVoiceStartDisabled(false, { why: "pal", minutesLeft: null })).toBe(false);
+describe("the voice portrait follows the call's visible activity", () => {
+  it.each([
+    [true, false, false, false, "noticing"],
+    [false, false, true, true, "idle"],
+    [false, true, true, true, "speaking"],
+    [false, true, false, true, "thinking"],
+    [false, true, false, false, "listening"],
+  ] as const)("maps activity %s/%s/%s/%s to %s", (starting, live, speaking, awaitingPal, expected) => {
+    expect(palVoiceFaceState(starting, live, speaking, awaitingPal)).toBe(expected);
   });
 });

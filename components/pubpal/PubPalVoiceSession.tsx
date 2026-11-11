@@ -24,6 +24,7 @@ import {
   useState,
   type Dispatch,
   type SetStateAction,
+  type RefObject,
 } from "react";
 import {
   ConversationProvider,
@@ -59,7 +60,7 @@ import {
   palVoiceEndedHint,
   palVoiceMinutesLeft,
   palVoicePanelStatus,
-  palVoiceStartDisabled,
+  palVoiceFaceState,
   PAL_VOICE_RESUME_GREETING,
   PAL_VOICE_RESUME_UPDATE_LEAD,
   PAL_VOICE_WRAP_UP_SECONDS,
@@ -169,7 +170,20 @@ type VoiceTranscript = {
   setLines: Dispatch<SetStateAction<PalVoiceLine[]>>;
 };
 
-function VoiceControls({ panel, onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal, appearance, genome, onMemoryChange }: {
+type VoiceResults = Record<string, { cards: PalCard[]; order: number }>;
+
+type RetainedVoiceState = {
+  ended: PalVoiceEnded | null;
+  setEnded: Dispatch<SetStateAction<PalVoiceEnded | null>>;
+  voiceResults: VoiceResults;
+  setVoiceResults: Dispatch<SetStateAction<VoiceResults>>;
+  memoryCards: PalMemoryCard[];
+  setMemoryCards: Dispatch<SetStateAction<PalMemoryCard[]>>;
+  toolRequestOrder: RefObject<number>;
+  groundedOrder: RefObject<number>;
+};
+
+function VoiceControls({ panel, onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, retained, signal, appearance, genome, onMemoryChange }: {
   /** The /pal panel's slot. With none, the call draws as the voice bar. */
   panel: HTMLElement | null;
   onStateChange?: (state: PalAnimationState) => void;
@@ -180,6 +194,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   setError: (error: string | null) => void;
   palName: string;
   transcript: VoiceTranscript;
+  retained: RetainedVoiceState;
   signal?: PalVoiceSignal;
   appearance?: PubPalAppearance;
   genome?: PalGenome;
@@ -201,21 +216,18 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
   const { lines, setLines } = transcript;
+  const { ended, setEnded, voiceResults, setVoiceResults, memoryCards, setMemoryCards, toolRequestOrder, groundedOrder } = retained;
   const [hearing, setHearing] = useState(false);
   const [tentative, setTentative] = useState("");
   const [awaitingPal, setAwaitingPal] = useState(false);
-  const [voiceResults, setVoiceResults] = useState<Record<string, { cards: PalCard[]; order: number }>>({});
   const { voiceCards, recommendationCards } = useMemo(() => {
     const cards = [...new Map(Object.values(voiceResults).flatMap((result) => result.cards)
       .map((card) => [`${card.key}:${card.venueId}`, card])).values()];
     return { voiceCards: cards, recommendationCards: voiceResults.search_venues?.cards ?? cards };
   }, [voiceResults]);
-  const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
   const pickSpeech = usePalPickSpeech();
   const focusedPick = usePalFocusedCard(recommendationCards);
   const currentToolCalls = useRef(new Map<string, { id: string; order: number }>());
-  const toolRequestOrder = useRef(0);
-  const groundedOrder = useRef(0);
   const lastUserEvent = useRef(0);
   const [mapPending, setMapPending] = useState(false);
   const [mapLabel, setMapLabel] = useState("Opening the map");
@@ -223,7 +235,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
-  const [ended, setEnded] = useState<PalVoiceEnded | null>(null);
   const [callEndsAt, setCallEndsAt] = useState<number | null>(null);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
@@ -370,8 +381,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (attempt.connectedAt === null) return;
     attempt.ended = why;
     const used = attempt.usedMinutes;
-    setEnded({ why, minutesLeft: used === null ? null : palVoiceMinutesLeft(used, (Date.now() - attempt.connectedAt) / 1000) });
-  }, []);
+    setEnded({ why, minutesLeft: used === null ? null : palVoiceMinutesLeft(used) });
+  }, [setEnded]);
 
   const clearStartupTimer = useCallback((attempt: VoiceSessionAttempt): void => {
     if (attempt.startupTimer !== null) {
@@ -413,8 +424,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       }
       attempt.cancelled = true;
       attempt.voiceEndReason ??= "user";
-      // Picks an ended call kept leave with the call's last screen.
-      attempt.ended = null;
       if (attempt.sdkSessionStarted) {
         attempt.sdkSessionStarted = false;
         endSession();
@@ -472,6 +481,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
     if (!resume) {
+      setEnded(null);
       resetPalMap();
       setVoiceResults({});
       setMemoryCards([]);
@@ -496,14 +506,13 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       capTimer: null,
       wrapTimer: null,
       startupTimer: null,
-      ended: null,
+      ended: resume ? ended?.why ?? null : null,
       usedMinutes: null,
       requestAbort: new AbortController(),
       voiceEndReported: false,
       voiceEndReason: null,
     };
     activeAttemptRef.current = attempt;
-    setEnded(null);
     setError(null);
     setUsingFallbackVoice(false);
     setStartupStopped(false);
@@ -653,6 +662,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             : undefined,
           onConnect: () => {
             if (!ownsAttempt(attempt)) return;
+            attempt.ended = null;
+            setEnded(null);
             const boundId = conversationIdRef.current;
             if (boundId) void syncVoiceToolTurn({ conversationId: boundId });
             clearStartupTimer(attempt);
@@ -790,11 +801,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   const live = status === "connected";
   const meterMode = palVoiceMeterMode(voiceConnecting, live, isSpeaking);
-  const faceState: PalAnimationState = voiceConnecting
-    ? "noticing"
-    : live
-      ? isSpeaking ? "speaking" : awaitingPal ? "thinking" : "listening"
-      : "idle";
+  const faceState = palVoiceFaceState(voiceConnecting, live, isSpeaking, awaitingPal);
 
   // The portrait beside the panel reads the same levels the meter does.
   useEffect(() => {
@@ -874,7 +881,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         ) : (
           <button
             type="button"
-            disabled={palVoiceStartDisabled(isStarting, ended)}
+            disabled={isStarting}
             aria-busy={isStarting}
             onClick={() => { void start(ended !== null); }}
           >
@@ -938,6 +945,11 @@ export default function PubPalVoiceSession({
   // The transcript outlives an SDK reset and a session that ended, so the
   // person can read back what was said. It lives in this tab only.
   const [lines, setLines] = useState<PalVoiceLine[]>([]);
+  const [ended, setEnded] = useState<PalVoiceEnded | null>(null);
+  const [voiceResults, setVoiceResults] = useState<VoiceResults>({});
+  const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
+  const toolRequestOrder = useRef(0);
+  const groundedOrder = useRef(0);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const resetPendingSession = useCallback((nextError: string | null) => {
@@ -949,6 +961,7 @@ export default function PubPalVoiceSession({
     setPalVoiceReady(true);
     return () => setPalVoiceReady(false);
   }, []);
+  useEffect(() => () => resetPalMap(), []);
   return (
     <ConversationProvider key={sdkGeneration}>
       <VoiceControls
@@ -961,6 +974,7 @@ export default function PubPalVoiceSession({
         setError={setError}
         palName={palName}
         transcript={{ lines, setLines }}
+        retained={{ ended, setEnded, voiceResults, setVoiceResults, memoryCards, setMemoryCards, toolRequestOrder, groundedOrder }}
         signal={signal}
         appearance={appearance}
         genome={genome}
