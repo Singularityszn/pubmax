@@ -25,6 +25,7 @@ import {
 } from "@/lib/addLink";
 import { ANALYTICS_EVENTS, sanitizeEvent } from "@/lib/analyticsEvents";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
+import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
 
 /** The login page's own call, so this walks the shipped thread. */
@@ -74,6 +75,16 @@ describe("the add link survives account creation", () => {
     expect(
       inviteReturnToFromUrl(`https://pubmaxxing.com${destination}`),
     ).toBe("/add/karan?auto=1");
+  });
+
+  it("routes a sign-up from the Pint Drop composer back to the pub and price", () => {
+    // The composer's "Sign in to post" opens the sign-in door, and a stranger
+    // reads "New here" as theirs. Both doors must end on the same composer.
+    const door = "/map?sel=venue-12ino21&log=1&price=5.20";
+    expect(loginDestination("signin", door)).toBe(door);
+    const destination = loginDestination("signup", door);
+    expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe(door);
   });
 
   it("leaves an ordinary login untouched", () => {
