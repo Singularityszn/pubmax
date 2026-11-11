@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+import { slimListedPrice } from "./helpers/slimListedPrice";
+
+const SHAKESPEARES_HEAD = slimListedPrice("venue-e1srzr");
+
 // The Pal chat's claims have to match what the app knows. With no location
 // shared, the cheapest-pint glance measured from the middle of the area and
 // still said "about 11 min on foot", and a question that named Blackfriars was
@@ -22,8 +26,8 @@ for (const width of [390, 1440]) {
     await box.press("Enter");
     const card = page.locator(".palChatCard").filter({ hasText: "Shakespeares Head" });
     await expect(card).toBeVisible({ timeout: 20_000 });
-    await expect(card).toContainText("£6.25");
-    await expect(card).toContainText("Pint Prices. Source read 2 October 2026.");
+    await expect(card).toContainText(SHAKESPEARES_HEAD.priceLabel);
+    await expect(card).toContainText(`${SHAKESPEARES_HEAD.source}. Source read ${SHAKESPEARES_HEAD.readDay}.`);
   });
 }
 
