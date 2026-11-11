@@ -77,8 +77,8 @@ function liveViewKey(view: LiveView): string {
  * The ring that marks a row's pin on the map while the reader points at the
  * row or moves the keyboard onto it. A DOM mark over the canvas, placed through
  * the map's own projection and moved with the camera; it paints nothing into
- * the map's style, so the pin and basemap styling stay the canvas's own. Held
- * in a ref rather than state, so pointing at a row repaints nothing in React.
+ * the map's style, so the pin and basemap styling stay the canvas's own. The
+ * halo stays in a ref, so moving it does not require a React render.
  */
 function usePinHalo(map: MapSplitListMap | null) {
   const haloRef = useRef<{ point: Point | null; place: () => void } | null>(null);
@@ -160,9 +160,10 @@ const GROUP_TITLES = {
 /**
  * THE LIST BESIDE THE MAP. From 1024px, Explore lists the venues in the
  * current map view in a column on the left while the map fills the right, and
- * the two move together: the column re-reads the view when the camera settles
- * (debounced), a row the reader points at rings its pin, and a click opens the
- * venue sheet through the same handler a pin tap uses.
+ * the two move together. Update timing follows the split-view rule in
+ * docs/rules/components-sheets-chrome-and-navigation.md. A row the reader
+ * points at rings its pin, and a click opens the venue sheet through the same
+ * handler a pin tap uses.
  *
  * It is also the keyboard and screen-reader parallel to the canvas pins at
  * these widths (WCAG 2.1.1), the job List view does below 1024px: every venue
@@ -251,8 +252,6 @@ export default function MapSplitList({
     [],
   );
 
-  // While "Search as I move the map" is off, the list keeps the view it last
-  // searched; the live filters still apply to it.
   const shownView: HeldView | null = followMap ? null : held;
   const venues = useMemo(
     () =>
