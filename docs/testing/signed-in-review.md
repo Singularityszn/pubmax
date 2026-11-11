@@ -74,7 +74,9 @@ It creates local accounts with generated credentials and verifies their sessions
 It requires no existing account credentials or production data.
 The browser process uses the temporary project's keys.
 Its child environment blanks checkout environment-file variables before it sets local test values.
-The runner builds and serves the app in its own `.next-pubmax-auth-*` directory.
+The runner builds and serves the app in its own `.next-pubmax-auth-*` directory for the Plan journeys.
+The new-account journeys run on `next dev` in a separate directory, because a production build starts email sign-in on pubmaxxing.com and its CSP blocks a local GoTrue.
+They submit the real email form, read the link from the project's Mailpit catcher, and follow it.
 
 The specs cover these journeys:
 
