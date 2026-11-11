@@ -459,7 +459,7 @@ Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.
 A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.
-Ending a call releases its voice grant and clears its main-map picks and grounding.
+Ending a call requests [voice-grant settlement](#voice-grants) and clears its main-map picks and grounding.
 It also clears the last voice camera request and cancels pending voice navigation.
 The voice prompt asks the agent to check in once after silence.
 If silence continues, the prompt asks for one short goodbye followed by `end_call`.
