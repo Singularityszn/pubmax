@@ -1705,6 +1705,15 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
   });
 
+  it("chimes on the tap, while the line is still starting", async () => {
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    expect(sounds.play.mock.calls).toEqual([["start"]]);
+    expect(voice.startSession).not.toHaveBeenCalled();
+  });
+
   it("chimes once when the line opens and once when it closes", async () => {
     const session = await startLiveSession();
     expect(sounds.play.mock.calls).toEqual([["start"]]);

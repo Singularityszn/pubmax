@@ -1,4 +1,4 @@
-// Three short cues for the voice panel: the line opens, the line closes, and
+// Three short cues for the voice panel: a call starts on the tap, the line closes, and
 // the map is on its way. They play only inside a voice chat the person
 // started, quietly, and a browser that refuses to play one costs nothing.
 // The files are ElevenLabs sound effects, trimmed and levelled to one

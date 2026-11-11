@@ -436,6 +436,9 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const start = async () => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
+    // On the tap, inside its gesture: the cue fills the start wait instead of
+    // playing over the greeting.
+    playPalVoiceSound("start");
     resetPalMap();
     currentToolCalls.current.clear();
     lastUserEvent.current = 0;
@@ -514,6 +517,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           // The SDK holds a screen wake lock from start until the session ends.
           useWakeLock: true,
           connectionDelay: PAL_VOICE_CONNECTION_DELAY,
+          // AirPods or wired headphones take the call on iOS, when present.
+          preferHeadphonesForIosDevices: true,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onStatusChange: ({ status: next }) => {
@@ -616,7 +621,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             // denied, and a socket that never opened are all sessions that
             // never started. `connectedAt` is null until here, so it is also
             // the latch: a reconnect on the same attempt reports once.
-            if (attempt.connectedAt === null) playPalVoiceSound("start");
             if (attempt.connectedAt === null) trackEvent("voice_started");
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
