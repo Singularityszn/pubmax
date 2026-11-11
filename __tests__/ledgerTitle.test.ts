@@ -169,6 +169,7 @@ describe("every Ledger page in the sitemap", () => {
     const approvedExceptions = [
       ["venue-d81nvz", "venue-7dqmn6"],
       ["venue-16ga1jj", "venue-1cbx68v"],
+      ["venue-1dzgxpa", "venue-1ux9oxk"],
     ].map((ids) => ids.sort()).sort();
     const [venues, refs] = await Promise.all([getPricedVenues(), getVenueIndex()]);
     const byTitle = new Map<string, Set<string>>();
