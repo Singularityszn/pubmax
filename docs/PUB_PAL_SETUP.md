@@ -440,7 +440,8 @@ without starting another call. A cold `/map` loads no ElevenLabs SDK.
 A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.
-Ending a call releases its voice grant and clears its main-map picks and grounding.
+Ending a call releases its voice grant. A user-ended call, dropped line or error
+clears its main-map picks and grounding.
 It also clears the last voice camera request and cancels pending voice navigation.
 The agent script requests a 20-second silence timeout as a provider backstop.
 The 180-second call cap remains. These settings reach an existing agent only after the captain runs the configuration command.
@@ -448,14 +449,25 @@ The 180-second call cap remains. These settings reach an existing agent only aft
 Thirty seconds before the cap, the app tells the agent to finish in one short
 sentence and shows a countdown (`lib/palVoiceCall.ts`). A call that hits the cap,
 that the agent hangs up, or that a background interruption ends keeps its
-transcript and main-map picks, and offers **Carry on** with the voice minutes
-left this month. The grant reports the month's prepaid charge (`usedMinutes`).
-The browser shows a conservative minimum and lets the server decide whether
-another call can start. On the map, the allowance appears below the transcript.
-**Close voice chat** dismisses the stopped bar and clears the picks.
-**Carry on** starts a new call that keeps the picks and cards. It greets with a
-short line instead of the opening, and sends the person's earlier asks as one
-contextual update (`palSessionAsksSummaryTurn` in `lib/palSessionSummary.ts`).
+transcript and main-map picks, and offers **Carry on**.
+**Close voice chat** dismisses the stopped map bar and clears the picks.
+
+When usage is known, the browser shows "At least N minutes of voice left this
+month" before the **Carry on** tap. On the map, the allowance appears below
+the transcript.
+The grant reports the month's prepaid charge (`usedMinutes`) for both keyless
+and Supabase runs. The minimum is the monthly allowance minus that charge,
+with a floor of zero. Unknown usage produces no figure.
+
+Each new grant refreshes the figure, even if startup fails or is cancelled.
+The server decides whether another call can start. A zero figure does not
+disable **Carry on**.
+
+**Carry on** starts a new call that keeps the picks and cards. When an earlier-asks
+summary is available, the call uses a short resume greeting and sends the summary
+as one contextual update (`palSessionAsksSummaryTurn` in `lib/palSessionSummary.ts`).
+If there are no earlier asks or the summary module fails to load, the call uses
+the normal opening greeting and sends no resume update.
 If startup fails or is cancelled, the ended call, picks and cards remain available
 for another attempt. A successful connection clears the previous ended status.
 Returning does not restart the microphone automatically.

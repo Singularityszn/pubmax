@@ -18,7 +18,7 @@ export function palVoiceWrapUpUpdate(endsAt: number, now: number): string {
   return `About ${palVoiceSecondsLeft(endsAt, now)} seconds are left in this call. Finish the answer in one short sentence.`;
 }
 
-/** What the Pal says when the person taps Carry on, in place of its opening greeting. */
+/** The resume greeting is used only when an earlier-asks summary reaches the new call. */
 export const PAL_VOICE_RESUME_GREETING = "Right, where were we?";
 
 /** Why a connected call ended in a way the person can carry on from. */
