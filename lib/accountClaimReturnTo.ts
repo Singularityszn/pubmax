@@ -52,7 +52,8 @@ export function safePintDropDoorReturnTo(raw: string | null | undefined): Route 
   return `${address[1]}?${door.toString()}` as Route;
 }
 
-function accountClaimReturnTo(raw: string | null | undefined): Route | null {
+/** A page the claim surface may hand a new account back to, or null. */
+export function accountClaimReturnTo(raw: string | null | undefined): Route | null {
   return safeInviteReturnTo(raw)
     ?? safePlanReturnTo(raw)
     ?? safeTableRequestReturnTo(raw)
