@@ -1,6 +1,6 @@
 // GET /api/pint-drops/census: the duty census figure for the composer's
 // success state. `count` is null when there is no figure to print
-// (lib/dutyCensus.server.ts). The CDN holds an answer for a minute.
+// (lib/dutyCensus.server.ts).
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonCached } from "@/lib/apiResponses";
