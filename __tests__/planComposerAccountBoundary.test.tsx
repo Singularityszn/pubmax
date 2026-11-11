@@ -158,6 +158,46 @@ async function accountADrafts(): Promise<void> {
   await vi.waitFor(() => expect(storedRequest()).toBe(A_REQUEST));
 }
 
+describe("mounted Plan wizard area ownership", () => {
+  it.each([
+    { choice: "Soho", nightArea: "piccadilly-soho", areaFocus: "soho" },
+    { choice: "Camden", nightArea: "camden", areaFocus: null },
+    { choice: null, nightArea: "piccadilly-soho", areaFocus: null },
+  ])("replaces a whole-area Tune choice only after selecting $choice in the wizard", async ({ choice, nightArea, areaFocus }) => {
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft({ kind: "patch", id: "soho" })));
+    const fetchMock = vi.fn<typeof fetch>(async (input) => Response.json(
+      String(input).includes("/api/plans/generate") ? GENERATED : [],
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    await mountComposer();
+
+    for (const area of ["camden", "piccadilly-soho"]) {
+      await act(async () => {
+        const select = document.querySelector<HTMLSelectElement>("#plan-context-area")!;
+        expect(select).not.toBeNull();
+        select.value = area;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+    await act(async () => { document.querySelector<HTMLButtonElement>(".planIntake__tune")!.click(); });
+    if (choice) {
+      await act(async () => {
+        const button = [...document.querySelectorAll<HTMLButtonElement>('[aria-label="Choose an area"] button')]
+          .find((candidate) => candidate.textContent?.trim() === choice);
+        expect(button).toBeDefined();
+        button!.click();
+      });
+    }
+    await act(async () => { document.querySelector<HTMLButtonElement>(".planIntake__continue")!.click(); });
+    await act(async () => { document.querySelector<HTMLButtonElement>(".planComposer__conciergeInput button")!.click(); });
+    await vi.waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/api/plans/generate"))).toBe(true));
+    const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
+    const body = JSON.parse(String(generation[1]?.body));
+    expect(body.query ?? "").toBe("");
+    expect(body.context).toMatchObject({ nightArea, areaFocus });
+  });
+});
+
 describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
   it.each([
     ["Plan it", "account"],

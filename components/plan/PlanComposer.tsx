@@ -3058,12 +3058,22 @@ function PlanComposerForm({
     askDraftQuery,
   ]);
 
-  function updatePlanIntake(next: PlanIntakeDraft) {
+  function updatePlanIntake(next: PlanIntakeDraft, editedStep?: PlanIntakeStep) {
     if (!samePlanIntake(next, planIntake)) pendingDraftSave.current = true;
+    const areaChanged = editedStep === "area" || next.answers.area !== planIntake.answers.area;
+    if (areaChanged) {
+      pendingDraftSave.current = true;
+      setExplicitNightContext((current) => {
+        const updated = { ...current };
+        delete updated.nightArea;
+        delete updated.areaFocus;
+        return updated;
+      });
+    }
     const reconciled = next.answers.stopCount === undefined
       ? { draft: next, context: nightContext }
       : applyPlanStopCount(next, nightContext, next.answers.stopCount, next.answers.stopCountSource);
-    const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
+    const answersChanged = areaChanged || JSON.stringify(planIntakeHandoff(planIntake))
       !== JSON.stringify(planIntakeHandoff(reconciled.draft));
     if (answersChanged && nightContext) {
       setRouteStale(true);
@@ -4209,12 +4219,12 @@ function PlanComposerForm({
       }) ? (
         <PlanIntake
           draft={planIntake}
-          onChange={(draft) => {
+          onChange={(draft, editedStep) => {
             if (!draft.completed && !wizardChosen) {
               pendingDraftSave.current = true;
               setWizardChosen(true);
             }
-            updatePlanIntake(draft);
+            updatePlanIntake(draft, editedStep);
           }}
         />
       ) : null}
