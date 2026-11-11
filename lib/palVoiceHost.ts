@@ -16,6 +16,8 @@ export type PalVoicePanelProps = {
   onMemoryChange?: () => void;
 };
 
+export type PalVoiceStartChime = { stop: (() => void) | undefined };
+
 export type PalVoiceHostState = {
   /** The /pal panel's slot, while that page is mounted. */
   panel: { element: HTMLElement; props: PalVoicePanelProps } | null;
@@ -34,6 +36,7 @@ export type PalVoiceHostState = {
   startRequest: number;
   /** The account that asked. Only that account's call may take the ask. */
   startOwner: string | null;
+  stopStartChime?: () => void;
   /** The call's code did not download. Nothing mounts until a new ask. */
   loadFailed: boolean;
 };
@@ -68,17 +71,26 @@ export function registerPalVoicePanel(element: HTMLElement, props: PalVoicePanel
 }
 
 export function revokePalVoiceCall(): void {
-  update({ panel: null, props: null, engaged: false, ready: false, startPending: false, startOwner: null });
+  state.stopStartChime?.();
+  update({ panel: null, props: null, engaged: false, ready: false, startPending: false, startOwner: null, stopStartChime: undefined });
 }
 
 /** Start a call where the person is, for this account, with its Pal's name and look. */
-export function requestPalVoiceStart(ownerId: string, props: PalVoicePanelProps): void {
-  update({ props, startPending: true, startRequest: state.startRequest + 1, startOwner: ownerId, loadFailed: false });
+export function requestPalVoiceStart(ownerId: string, props: PalVoicePanelProps, stopStartChime?: () => void): void {
+  state.stopStartChime?.();
+  update({ props, startPending: true, startRequest: state.startRequest + 1, startOwner: ownerId, loadFailed: false, stopStartChime });
+}
+
+export function takePalVoiceStartChime(): PalVoiceStartChime {
+  const chime = { stop: state.stopStartChime };
+  update({ stopStartChime: undefined });
+  return chime;
 }
 
 /** The call's code did not download: drop the ask so the page stays as it was. */
 export function palVoiceLoadFailed(): void {
-  update({ loadFailed: true, startPending: false, startOwner: null });
+  state.stopStartChime?.();
+  update({ loadFailed: true, startPending: false, startOwner: null, stopStartChime: undefined });
 }
 
 /** The /pal panel asks for the call's code again. */
@@ -93,7 +105,8 @@ export function retryPalVoiceLoad(): void {
 export function cancelPalVoiceStart(pathname: string, ownerId: string | null, hidden = false): void {
   if (!state.startPending) return;
   if (!hidden && palVoiceCallRoute(pathname) && state.startOwner === ownerId) return;
-  update({ startPending: false, startOwner: null });
+  state.stopStartChime?.();
+  update({ startPending: false, startOwner: null, stopStartChime: undefined });
 }
 
 /** An engaged call holds itself mounted, so the start request has done its job. */
