@@ -6,6 +6,7 @@ import {
   seededPintDropDraftForm,
   writePintDropDraft,
 } from "@/lib/pintDropDraft";
+import { readDeviceAccountSessionRevision } from "@/lib/deviceAccountIdentity";
 import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { safeSessionStorage } from "@/lib/safeStorage";
@@ -48,6 +49,7 @@ export function useVenueDraft({
   transientVoiceNoteBaseline,
   priceSeed = null,
 }: UseVenueDraftArgs): boolean {
+  const revision = readDeviceAccountSessionRevision();
   const [draftReadyVenueId, setDraftReadyVenueId] = useState<string | null>(null);
   if (draftReadyVenueId !== null && draftReadyVenueId !== venueId) {
     // React adjust-state-during-render pattern: block stale shared composer
@@ -82,7 +84,7 @@ export function useVenueDraft({
   }, [venueId, priceSeed, resetComposer, setDropForm, setVisibility, setVibeTags]);
 
   useEffect(() => {
-    if (draftReadyVenueId !== venueId) return;
+    if (revision !== readDeviceAccountSessionRevision() || draftReadyVenueId !== venueId) return;
     writePintDropDraft(
       safeSessionStorage(),
       venueId,
@@ -93,7 +95,7 @@ export function useVenueDraft({
         updatedAt: new Date().toISOString(),
       }, transientVoiceNoteBaseline),
     );
-  }, [venueId, draftReadyVenueId, dropForm, transientVoiceNoteBaseline, visibility, vibeTags]);
+  }, [revision, venueId, draftReadyVenueId, dropForm, transientVoiceNoteBaseline, visibility, vibeTags]);
 
   useEffect(() => {
     if (draftReady) markPubmaxTiming("pubmax:composer-interactive");

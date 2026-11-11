@@ -60,7 +60,7 @@ export function transitionSubmission(state: SubmissionState, event: SubmissionEv
 8. **Idempotency keys belong to the attempt.** Mint the key once when the attempt starts. Rotate it only when the payload changes. Send it on every retry. Precedent: the draft's `requestKey` in `app/social/SocialComposer.tsx`.
 9. **Storage and URL.**
    - Persist a machine through one versioned serialiser.
-   - A key that holds account data is account-scoped, or it is in `DEVICE_IDENTITY_LOCAL_KEYS` or `DEVICE_IDENTITY_SESSION_KEYS` (`lib/deviceAccountIdentity.ts`).
+   - A key that holds account data is account-scoped or follows the [device account cleanup contract](lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device).
    - A URL param is either the source or derived. It has one writer.
    - Every stored state value has a writer and a reader. Delete a value or a key that only one side uses.
 10. **Server stores.** The memory and Supabase backends import the same transition table. A Supabase write is compare-and-set on the from-state (`.in("state", allowedFrom)`). Zero rows means `conflict`, never success. Precedent: `nextState` and `setState` in `lib/pintDropWithTagsStore.ts`.

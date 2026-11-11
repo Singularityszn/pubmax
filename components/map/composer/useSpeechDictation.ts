@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  readDeviceAccountSessionRevision,
+  subscribeDeviceAccountSession,
+} from "@/lib/deviceAccountIdentity";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import {
@@ -53,9 +57,19 @@ export function useSpeechDictation({
   }, []);
 
   useEffect(() => {
-    // Stop any in-flight recognition on unmount (venue switch/composer close).
+    const stop = () => {
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+      if (!recognition) return;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.stop();
+    };
+    const unsubscribe = subscribeDeviceAccountSession(stop);
     return () => {
-      recognitionRef.current?.stop();
+      unsubscribe();
+      stop();
     };
   }, []);
 
@@ -69,7 +83,9 @@ export function useSpeechDictation({
       recognition.interimResults = true;
       recognition.continuous = true;
       noteBeforeListeningRef.current = note;
+      const revision = readDeviceAccountSessionRevision();
       recognition.onresult = (event) => {
+        if (revision !== readDeviceAccountSessionRevision()) return;
         const transcript = speechSessionTranscript(event);
         const base = noteBeforeListeningRef.current;
         const joined = base.trim() ? `${base.trim()} ${transcript}` : transcript;

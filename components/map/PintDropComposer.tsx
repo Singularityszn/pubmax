@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ChevronDown, RefreshCw, Send } from "lucide-react";
 
@@ -36,6 +36,10 @@ import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { pintDropDoorHref } from "@/lib/landingHero";
+import {
+  readDeviceAccountSessionRevision,
+  subscribeDeviceAccountSession,
+} from "@/lib/deviceAccountIdentity";
 import "./spillComposer.css";
 
 type PintDropComposerProps = {
@@ -49,7 +53,16 @@ type PintDropComposerProps = {
   lastTrainDecision?: LastPintDecision | null;
 };
 
-export default function PintDropComposer({
+export default function PintDropComposer(props: PintDropComposerProps) {
+  const revision = useSyncExternalStore(
+    subscribeDeviceAccountSession,
+    readDeviceAccountSessionRevision,
+    () => 0,
+  );
+  return <AccountPintDropComposer key={revision} {...props} />;
+}
+
+function AccountPintDropComposer({
   venueId,
   state,
   venueName,
