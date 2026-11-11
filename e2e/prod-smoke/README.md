@@ -107,9 +107,11 @@ matches the deployment.
 Before the suite runs, the workflow checks the live deployment's identity.
 The trigger determines the expected deployment:
 
-- A deployment-status event supplies the deployment URL. The workflow compares
-  its `/api/version` deployment ID with the live site's ID. If another
-  deployment already serves production, the run skips with a notice.
+- A deployment-status event supplies the deployed commit. The workflow compares
+  it with the `gitCommitSha` from `https://pubmaxxing.com/api/version`. If
+  another commit already serves production, the run skips with a notice. The
+  workflow never requests the deployment's own `*.vercel.app` URL, because
+  Vercel Deployment Protection answers that URL with a 401.
 - A dispatch with `deployment_id` requires the live site to serve that ID.
   A mismatch fails the run and leaves the named deployment unverified.
 - A dispatch without `deployment_id` tests whatever production serves when the
