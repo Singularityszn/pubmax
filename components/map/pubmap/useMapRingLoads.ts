@@ -28,9 +28,9 @@ type RingLoadRefs = {
  * remembered rather than dropped, and runs against the camera the reader is
  * actually looking at once the hold ends.
  *
- * `viewShardsLanding` is true from the moment a view is asked for until its
- * own viewport ring has landed, or until the loader has said nothing more is
- * coming (`settleViewShards`). Until then the venues in view are a partial set.
+ * Failed viewport work must release readiness too. Later retries can make
+ * the view busy again, so readiness cannot guarantee a stable row identity.
+ * See docs/rules/components-sheets-chrome-and-navigation.md for list readiness.
  */
 export function useMapRingLoads({
   secondaryStreamsHeld,

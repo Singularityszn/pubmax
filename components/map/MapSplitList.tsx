@@ -154,9 +154,8 @@ function rowTrustLine(row: MapSplitListRow): string {
 }
 
 /**
- * The rows drawn are the settled rows for the view the map shows: its shards
- * have landed, the re-read has caught up with the camera, and no pointer hold
- * is keeping an earlier view on screen. Until then the list is `aria-busy`.
+ * Readiness describes the current view. Later shard retries can change its
+ * rows again, so consumers must not treat readiness as a stable row identity.
  */
 function rowsSettled(
   loaded: boolean,

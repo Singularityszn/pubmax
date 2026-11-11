@@ -2787,9 +2787,9 @@ export default function PubMap({
   }, [arrivalSearch, awaitViewShards, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, settleViewShards, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
-  // it intersects and merge their pins. Already-loaded shards are skipped by
-  // the loader; a failed shard is not marked loaded, so a later moveend retries
-  // it — the map keeps working with whatever loaded.
+  // it intersects and merge their pins. The loader skips shards whose rows
+  // were delivered, but waits for undelivered shards already in flight. Failed
+  // shards remain eligible for retry, so partial results do not prevent recovery.
   // A canvas is the ONLY thing that ever reports map bounds, and three arrival
   // lanes (a search arrival, a UK place arrival, national browse) deliberately
   // wait for that report before reading a single shard, so the pubs land where
