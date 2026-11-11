@@ -206,7 +206,7 @@ test.describe("one Map surface history owner", () => {
     const savedFilters = () => page.evaluate((key) => {
       const raw = window.localStorage.getItem(key);
       const filters = raw ? JSON.parse(raw).filters : null;
-      return filters ? { outdoor: filters.requireOutdoorSeating === true, dog: filters.requireDogFriendly === true, stepFree: filters.requireStepFree === true, garden: filters.requireBeerGarden === true } : null;
+      return filters ? { outdoor: filters.requireOutdoorSeating === true, dog: filters.requireDogFriendly === true, stepFree: filters.requireStepFree === true, garden: filters.requireBeerGarden === true, max: filters.maxPrice, style: filters.crawlStyle } : null;
     }, SESSION);
     await prepareMap(page);
     await openMap(page);
@@ -214,31 +214,37 @@ test.describe("one Map surface history owner", () => {
     // Save filters the address does not encode, and leave the planner open, as a returning reader would.
     await page.evaluate((key) => {
       const session = JSON.parse(window.localStorage.getItem(key)!);
-      session.filters = { ...session.filters, requireOutdoorSeating: true, requireDogFriendly: true, requireStepFree: true };
+      session.filters = { ...session.filters, requireOutdoorSeating: true, requireDogFriendly: true, requireStepFree: true, maxPrice: 6, crawlStyle: "heritage" };
       session.openSheet = "planner";
       window.localStorage.setItem(key, JSON.stringify(session));
     }, SESSION);
 
     await openMap(page);
     await expectSoleDrawer(page, "planner");
-    expect(await savedFilters()).toEqual({ outdoor: true, dog: true, stepFree: true, garden: false });
+    const expectedFilters = { outdoor: true, dog: true, stepFree: true, garden: false, max: 6, style: "heritage" };
+    expect(await savedFilters()).toEqual(expectedFilters);
 
     await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
     await expect(planner(page)).toHaveAttribute("aria-hidden", "true", { timeout: 30_000 });
-    await expect.poll(savedFilters).toEqual({ outdoor: true, dog: true, stepFree: true, garden: false });
+    await expect.poll(savedFilters).toEqual(expectedFilters);
+    expect(new URL(page.url()).search).toBe("");
 
-    // A second open and close, then a reload, keep every saved filter.
     await page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" }).click();
     await expectSoleDrawer(page, "planner");
+    expect(new URL(page.url()).search).toBe("");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expectMapToolbarReady(page);
+    await expectSoleDrawer(page, "planner");
+    await expect.poll(savedFilters).toEqual(expectedFilters);
     await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
     await expect(planner(page)).toHaveAttribute("aria-hidden", "true", { timeout: 30_000 });
-    await expect.poll(savedFilters).toEqual({ outdoor: true, dog: true, stepFree: true, garden: false });
+    await expect.poll(savedFilters).toEqual(expectedFilters);
     expect(new URL(page.url()).searchParams.has("plan")).toBe(false);
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expectMapToolbarReady(page);
     await expect(planner(page)).toHaveAttribute("aria-hidden", "true");
-    await expect.poll(savedFilters).toEqual({ outdoor: true, dog: true, stepFree: true, garden: false });
+    await expect.poll(savedFilters).toEqual(expectedFilters);
   });
 
   test("clearing a restored query after closing its Venue does not reopen it", async ({

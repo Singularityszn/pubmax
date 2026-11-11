@@ -181,13 +181,11 @@ export function useMapSurfaceNavigation({
         selectedVenueId(transition.stack),
         transition.kind === "push" ? above + 1 : above,
       );
-      const url = new URL(urlForStack(transition.stack, selectionHintRef.current), window.location.origin);
-      if (entry.id === "planner") url.searchParams.set("plan", "1");
-      const address = `${url.pathname}${url.search}${url.hash}`;
+      const url = urlForStack(transition.stack, selectionHintRef.current);
       if (transition.kind === "push") {
-        window.history.pushState(state, "", address);
+        window.history.pushState(state, "", url);
       } else {
-        window.history.replaceState(state, "", address);
+        window.history.replaceState(state, "", url);
       }
     },
     [publishStack],
@@ -343,8 +341,8 @@ export function useMapSurfaceNavigation({
       const closingHome = pendingHomeRef.current !== null;
       const previous = pendingHomeRef.current ?? stackRef.current;
       pendingHomeRef.current = null;
-      if (landed !== null) {
-        const url = urlForStack(next, selectionHintRef.current);
+      if (landed !== null && !selectedVenueId(next)) {
+        const url = urlForStack(next, "");
         if (currentBrowserUrl() !== url) window.history.replaceState(window.history.state, "", url);
       }
       if (

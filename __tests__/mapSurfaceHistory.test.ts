@@ -166,13 +166,13 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   const onRestore = vi.fn();
   const onHome = vi.fn();
 
-  function Harness() {
+  function Harness({ selectionHint = "" }: { selectionHint?: string }) {
     navigation = useMapSurfaceNavigation({
       arrivalSearch: "",
       surfaceId: "none",
       surfaceTitle: "",
       surfaceState: EMPTY_MAP_SURFACE_STATE,
-      selectionHint: "",
+      selectionHint,
       onRestore,
       onHome,
       onSurfaceClose: () => {},
@@ -243,6 +243,35 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     await traverse(() => navigation.back());
     expect(trail()?.map((entry) => entry.id)).toEqual(["planner"]);
     expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "planner" }));
+  });
+
+  it.each(["", "53.4808,-2.2426"])("keeps a pub's at= hint on Back from Plan with outgoing hint %j", async (selectionHint) => {
+    await act(async () => root.render(createElement(Harness, { selectionHint: "51.5003,-0.2218" })));
+    openSurfaces(venue);
+    const venueUrl = window.location.href;
+    await act(async () => root.render(createElement(Harness, { selectionHint })));
+    openSurfaces(planner);
+
+    await traverse(() => navigation.back());
+
+    expect(window.location.href).toBe(venueUrl);
+    expect(new URLSearchParams(window.location.search).get("at")).toBe("51.5003,-0.2218");
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "venue" }));
+  });
+
+  it("keeps a pub's at= hint on Forward from Plan", async () => {
+    openSurfaces(planner);
+    await act(async () => root.render(createElement(Harness, { selectionHint: "53.4808,-2.2426" })));
+    openSurfaces(venue);
+    const venueUrl = window.location.href;
+    await traverse(() => navigation.back());
+    await act(async () => root.render(createElement(Harness, { selectionHint: "51.5003,-0.2218" })));
+
+    await traverse(() => window.history.forward());
+
+    expect(window.location.href).toBe(venueUrl);
+    expect(new URLSearchParams(window.location.search).get("at")).toBe("53.4808,-2.2426");
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "venue" }));
   });
 
   it("today: reorder pushes a browser entry, so stack depth 2 sits on 3 entries above root (R3)", () => {
