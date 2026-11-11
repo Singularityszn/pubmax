@@ -15,9 +15,13 @@ const UPDATE: DrinkPriceUpdate = {
   source: { label: "The Lamb menu", url: "https://lamb.example/menu", licence: "facts-only" },
 };
 const BUNDLE: UkPriceBundleRow = {
-  venueId: "venue-uk-w770044829", name: "Silver Fox", category: "wine", priceGbp: 6,
+  venueId: "venue-uk-w770044829", name: "Silver Fox", category: "beer", priceGbp: 4.8,
   lane: "site-harvest", standing: "listed", sourceUrl: "https://www.silverfoxmicropub.com/drinks",
   publisher: "silverfoxmicropub.com", observedAt: "2026-10-19T16:21:29.579Z", basis: null, sampleSize: null,
+  servingSize: "Pint", drinkLabel: "Kent Best Bitter",
+};
+const WINE: UkPriceBundleRow = {
+  ...BUNDLE, category: "wine", priceGbp: 6, observedAt: "2026-11-01T16:21:29.579Z",
   servingSize: "187ml", drinkLabel: "HIDDEN ROAD, MERLOT 13% Spanish medium bodied",
 };
 const SILVER_FOX = {
@@ -48,6 +52,9 @@ describe("public alternatives for an empty London feed", () => {
       { ...UPDATE, lane: "demo" },
       { ...UPDATE, venueKey: "a pub outside our London list" },
       { ...UPDATE, priceGbp: -1 },
+      { ...UPDATE, servingSize: "half pint" },
+      { ...UPDATE, servingSize: "125ml", category: "wine", drinkName: "House red" },
+      { ...UPDATE, drinkName: "House lager 330ml bottle" },
     ];
     expect(buildSocialAlternatives([VENUE], rejected, NOW).prices).toEqual([]);
   });
@@ -61,8 +68,8 @@ describe("public alternatives for an empty London feed", () => {
   });
 
   it("reads the source timestamp as a London day without changing its serving", () => {
-    const answer = buildSocialAlternatives([VENUE], [{ ...UPDATE, servingSize: "125ml", observedAt: "2026-07-01T23:30:00Z" }], NOW);
-    expect(answer.prices[0]).toMatchObject({ serving: "125ml", priceGbp: 5.5, observedOn: "2026-07-02" });
+    const answer = buildSocialAlternatives([VENUE], [{ ...UPDATE, servingSize: "Pint", observedAt: "2026-07-01T23:30:00Z" }], NOW);
+    expect(answer.prices[0]).toMatchObject({ serving: "Pint", priceGbp: 5.5, observedOn: "2026-07-02" });
   });
 
   it("distinguishes a failed read from a successful read with no eligible prices", () => {
@@ -76,20 +83,21 @@ describe("public alternatives for an empty London feed", () => {
     expect(buildSocialAlternatives([venue], [{ ...UPDATE, venueKey: "members only club|1 lamb street|51.50000|-0.10000" }], NOW).prices).toEqual([]);
   });
 
-  it("orders both public packs together and preserves the newer non-beer menu fact", () => {
+  it("orders both public packs together and keeps only pint servings", () => {
     const older = { ...UPDATE, observedAt: "2026-10-13T12:00:00Z" };
-    const answer = buildSocialAlternatives([VENUE, SILVER_FOX], [older], NOW, [BUNDLE]);
-    expect(answer.prices.map((price) => [price.venueId, price.observedOn])).toEqual([
-      ["venue-uk-w770044829", "2026-10-19"], ["venue-lamb", "2026-10-13"],
+    const answer = buildSocialAlternatives([VENUE, SILVER_FOX], [older], NOW, [WINE, BUNDLE]);
+    expect(answer.prices.map((price) => [price.venueId, price.serving, price.observedOn])).toEqual([
+      ["venue-uk-w770044829", "Pint", "2026-10-19"], ["venue-lamb", "pint", "2026-10-13"],
     ]);
     expect(answer.prices[0]).toEqual({
       venueId: "venue-uk-w770044829", name: "Silver Fox", href: "/map?sel=venue-uk-w770044829",
-      drink: "HIDDEN ROAD, MERLOT 13% Spanish medium bodied", serving: "187ml", priceGbp: 6,
+      drink: "Kent Best Bitter", serving: "Pint", priceGbp: 4.8,
       publisher: { label: "silverfoxmicropub.com", url: "https://www.silverfoxmicropub.com/drinks" },
       observedOn: "2026-10-19",
     });
     const newer = { ...UPDATE, observedAt: "2026-10-30T12:00:00Z" };
     expect(buildSocialAlternatives([VENUE, SILVER_FOX], [newer], NOW, [BUNDLE]).prices[0]?.venueId).toBe("venue-lamb");
+    expect(buildSocialAlternatives([SILVER_FOX], [], NOW, [WINE])).toMatchObject({ priceRead: "ready", prices: [] });
   });
 
   it("rejects ambiguous venue keys in both public packs regardless of input order", () => {

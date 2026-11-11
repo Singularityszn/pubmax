@@ -185,7 +185,7 @@ test.describe("desktop taste wave 1", () => {
       await expect(storiesPrimary.getByRole("link", { name: "Plan a night", exact: true })).toBeVisible();
       const empty = page.locator(".socialFeedEmpty--london");
       await expect(empty.getByRole("link", { name: "Victorian Soho", exact: true })).toBeVisible();
-      await expect(empty.getByRole("heading", { name: "Latest prices we hold", exact: true })).toBeVisible();
+      await expect(empty.getByRole("heading", { name: "Latest pint prices we hold", exact: true })).toBeVisible();
       const offer = empty.locator(".socialEmptySignIn").getByRole("link", { name: "Sign in", exact: true });
       await expect(offer).toBeVisible();
       expect(await empty.evaluate((node) => {

@@ -220,6 +220,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Before using a quoted price, check its [serving, publisher and source-read date](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it).
 
+  Ask for Soho or Piccadilly to keep generated stops, alternatives and extra stops within that place. The selected place stays with a locked Plan when you regenerate it. If too few listed pubs qualify, the planner reports the shortfall instead of adding pubs from neighbouring areas. The [area focus contract](docs/API_CONTRACTS_THE_LOCAL.md#area-focus) explains how descriptions and area choices interact.
+
   Choose the number of pubs with the stop picker or name the number in your description. The [draft recovery contract](docs/rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary) explains how the planner restores your request. If a save notice appears, keep the page open to retain unsaved changes. If the latest description cannot be restored, enter it again.
 
   During **Lock it in**, stop edits, name and time fields, templates, and **Release this pub** are disabled. If the response is lost, you can retry the unchanged plan. If the planner requests a refresh, choose **Regenerate route**. Review the result before choosing **Lock it in** again.
@@ -295,6 +297,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Pint Drops** - community photos, the price you paid, and a passed-down note, moderated. New priced drops start as not checked. When bill reading is available, the app checks an attached bill after saving the drop. A matching read earns receipt evidence. Mismatches enter the admin **Bills** queue, and unreadable bills leave prices not checked. The [bill check rules](docs/rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price) define matching, retries and failure behaviour. Your Pint Passport counts distinct London boroughs across the author's complete attributed drop history that you can view, including visits outside the timeline. Other drop statistics use the capped timeline. Another person cannot see your anonymous drops through your profile or contribution totals. Sign in to include them in your own timeline and contribution totals. A City of London visit counts once and changes the label to **Boroughs + City**. Without a City visit, the label stays **Boroughs**. Shared passport text names the City separately. Drops with no recorded London borough or City do not increase this count.
 
   After a lost response, retry the Pint Drop without changing its details or attachments. The app can return the saved drop. Changed retry details are refused. See the [creation retry contract](docs/rules/app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation) for attachment limits.
+
+  Anonymous Pint Drops show "a PUBMAXXER" without an `@` instead of your handle.
 
   Choose **Friends** to share notes with people you follow who also follow you. **Legacy** keeps an entry in the pub's Ledger. Other people see the entry without your note or price. Anyone with a photo's link can open it while the link remains valid.
 

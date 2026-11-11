@@ -7,6 +7,7 @@ import {
   isPartyType,
   type NightContext,
 } from "@/lib/nightPlanning";
+import { isNightAreaFocus } from "@/lib/nightAreaFocus";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import {
   isPlainRecord,
@@ -32,6 +33,7 @@ const BOROUGH_AREA_KEYS = ["kind", "name"] as const;
 const ANCHOR_VENUE_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/;
 const CONTEXT_KEYS = [
   "nightArea",
+  "areaFocus",
   "daypart",
   "partyType",
   "groupSize",
@@ -167,6 +169,10 @@ function isNullableIntegerInRange(value: unknown, min: number, max: number): val
   return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max);
 }
 
+function parseAreaFocus(value: unknown): NightContext["areaFocus"] {
+  return value === null || isNightAreaFocus(value) ? value : undefined;
+}
+
 function parseContext(value: unknown): Partial<NightContext> | null | undefined {
   if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !hasOnlyKeys(value, CONTEXT_KEYS)) return undefined;
@@ -178,6 +184,12 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
         if (item !== null && !isNightAreaSlug(item)) return undefined;
         result.nightArea = item as NightContext["nightArea"];
         break;
+      case "areaFocus": {
+        const focus = parseAreaFocus(item);
+        if (focus === undefined) return undefined;
+        result.areaFocus = focus;
+        break;
+      }
       case "daypart":
         if (!isDaypart(item)) return undefined;
         result.daypart = item;

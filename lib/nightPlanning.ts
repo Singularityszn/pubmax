@@ -5,6 +5,7 @@ import { londonHour } from "@/lib/londonHour";
 import { NIGHT_SERVICE_END_HOUR, NIGHT_SERVICE_START_HOUR } from "@/lib/nightServiceHours";
 import { NIGHT_AREAS, type NightAreaSlug } from "@/lib/nightAreas";
 import { isNightAreaSlug } from "@/lib/nightAreaSlugs";
+import { focusForArea, isNightAreaFocus, nightAreaFocusFromQuery, nightAreaFocusLabel, type NightAreaFocus } from "@/lib/nightAreaFocus";
 import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
 import { tubeIsARouteRule } from "@/lib/planGetHome";
 import { drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
@@ -26,6 +27,8 @@ export type Budget = (typeof BUDGETS)[number];
 
 export type NightContext = {
   nightArea: NightAreaSlug | null;
+  /** The place the reader named inside `nightArea`, such as Soho. Missing or null means the whole area. */
+  areaFocus?: NightAreaFocus | null;
   daypart: Daypart;
   partyType: PartyType;
   groupSize: number | null;
@@ -144,12 +147,21 @@ function hasZeroAlcoholStrength(query: string): boolean {
   });
 }
 
+function inferNightArea(query: string, lower: string, reasons: ContextReason[]): Pick<NightContext, "nightArea" | "areaFocus"> {
+  const areaMatch = AREA_LABELS.find(({ label }) => lower.includes(label.toLocaleLowerCase()));
+  if (areaMatch) reasons.push({ field: "nightArea", evidence: areaMatch.label, explanation: "Matched the requested area." });
+  const areaFocus = nightAreaFocusFromQuery(areaMatch?.slug ?? null, query);
+  if (areaFocus) {
+    reasons.push({ field: "areaFocus", evidence: nightAreaFocusLabel(areaFocus), explanation: "Matched the place named inside the area." });
+  }
+  return { nightArea: areaMatch?.slug ?? null, ...(areaFocus ? { areaFocus } : {}) };
+}
+
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
   const query = cleanText(rawQuery, 500);
   const lower = query.toLocaleLowerCase();
   const reasons: ContextReason[] = [];
-  const areaMatch = AREA_LABELS.find(({ label }) => lower.includes(label.toLocaleLowerCase()));
-  if (areaMatch) reasons.push({ field: "nightArea", evidence: areaMatch.label, explanation: "Matched the requested area." });
+  const area = inferNightArea(query, lower, reasons);
 
   let daypart = defaultDaypart(now);
   // Explicit clock words win over occasion language. Coffee / catch-up / Spoons
@@ -229,7 +241,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
 
   return {
     context: {
-      nightArea: areaMatch?.slug ?? null,
+      ...area,
       daypart,
       partyType,
       groupSize,
@@ -244,7 +256,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
       accessibility,
       transportConstraints,
     },
-    confidence: areaMatch ? 0.86 : 0.62,
+    confidence: area.nightArea ? 0.86 : 0.62,
     reasons,
   };
 }
@@ -284,6 +296,7 @@ export function cleanNightContextPatch(value: unknown): Partial<NightContext> | 
 
   return {
     ...(row.nightArea === null || isNightAreaSlug(row.nightArea) ? { nightArea: row.nightArea } : {}),
+    ...(row.areaFocus === null || isNightAreaFocus(row.areaFocus) ? { areaFocus: row.areaFocus } : {}),
     ...(isDaypart(row.daypart) ? { daypart: row.daypart } : {}),
     ...(isPartyType(row.partyType) ? { partyType: row.partyType } : {}),
     ...(row.groupSize === null
@@ -316,8 +329,10 @@ export function cleanNightContext(value: unknown): NightContext | null {
   if (!isNightAreaSlug(row.nightArea) || !isDaypart(row.daypart)) return null;
   if (!isPartyType(row.partyType)) return null;
   if (!isBudget(row.budget)) return null;
+  const areaFocus = focusForArea(row.nightArea, row.areaFocus);
   return {
     nightArea: row.nightArea,
+    ...(areaFocus ? { areaFocus } : {}),
     daypart: row.daypart as Daypart,
     partyType: row.partyType as PartyType,
     groupSize: typeof row.groupSize === "number" && row.groupSize >= 1 && row.groupSize <= 30 ? Math.floor(row.groupSize) : null,

@@ -24,8 +24,13 @@ import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import { NAMED_ROUTES } from "@/lib/namedRoutes";
 import { loadAreaLandings } from "@/lib/areaLanding.server";
 import { PRICED_LANDING_PUBLICATION_FLOORS } from "@/lib/pricedLanding";
+import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
+
+const NEWEST_UPDATE = PUBLIC_UPDATES.map((update) => update.date).toSorted().at(-1)!;
+const DAY_AFTER_NEWEST_UPDATE = new Date(Date.parse(`${NEWEST_UPDATE}T00:00:00Z`) + 86_400_000)
+  .toISOString().slice(0, 10);
 
 // The number of UNCONDITIONAL static hub URLs the generator emits while Social
 // is gated (the fixed list in app/sitemap.ts minus /social). Kept here so a
@@ -210,7 +215,7 @@ describe("sitemap()", () => {
 
   it("dates the updates page from its latest released note", () => {
     const update = entries.find((entry) => entry.url === `${SITE}/updates`);
-    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-30T00:00:00.000Z");
+    expect(new Date(update!.lastModified!).toISOString()).toBe(`${NEWEST_UPDATE}T00:00:00.000Z`);
   });
 
   it("uses an appended newer release to date the updates page", async () => {
@@ -220,14 +225,14 @@ describe("sitemap()", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-31", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: DAY_AFTER_NEWEST_UPDATE, title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
     try {
       const { default: appendedSitemap } = await import("@/app/sitemap");
       const update = (await appendedSitemap()).find((entry) => entry.url === `${SITE}/updates`);
-      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-31T00:00:00.000Z");
+      expect(new Date(update!.lastModified!).toISOString()).toBe(`${DAY_AFTER_NEWEST_UPDATE}T00:00:00.000Z`);
     } finally {
       vi.doUnmock("@/lib/publicUpdates");
       vi.resetModules();

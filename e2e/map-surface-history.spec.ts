@@ -214,12 +214,16 @@ test.describe("one Map surface history owner", () => {
     await openMap(page);
     await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key) !== null, SESSION)).toBe(true);
     // Save filters the address does not encode, and leave the planner open, as a returning reader would.
-    await page.evaluate((key) => {
-      const session = JSON.parse(window.localStorage.getItem(key)!);
-      session.filters = { ...session.filters, requireOutdoorSeating: true, requireDogFriendly: true, requireStepFree: true, maxPrice: 6, crawlStyle: "heritage" };
-      session.openSheet = "planner";
-      window.localStorage.setItem(key, JSON.stringify(session));
-    }, SESSION);
+    // The live map rewrites its own session as it settles and unloads, so the seed is written at the
+    // start of the next document, before the map reads it, and only once.
+    const session = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key)!), SESSION);
+    session.filters = { ...session.filters, requireOutdoorSeating: true, requireDogFriendly: true, requireStepFree: true, maxPrice: 6, crawlStyle: "heritage" };
+    session.openSheet = "planner";
+    await page.addInitScript(({ key, value }) => {
+      if (window.sessionStorage.getItem("e2e:map-session-seeded")) return;
+      window.sessionStorage.setItem("e2e:map-session-seeded", "1");
+      window.localStorage.setItem(key, value);
+    }, { key: SESSION, value: JSON.stringify(session) });
 
     await openMap(page);
     await expectSoleDrawer(page, "planner");
