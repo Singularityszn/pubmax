@@ -276,3 +276,92 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     expect(backSurface([venue, planner])).toEqual([venue]);
   });
 });
+
+describe("the planner deep link (plan=1) lives only on an entry that shows the planner", () => {
+  let root: Root;
+  let container: HTMLDivElement;
+  let navigation: ReturnType<typeof useMapSurfaceNavigation>;
+  const arrival = "/map?mode=build&plan=1";
+  const plannerState = { ...EMPTY_MAP_SURFACE_STATE };
+
+  function Harness() {
+    navigation = useMapSurfaceNavigation({
+      arrivalSearch: "?mode=build&plan=1",
+      surfaceId: "planner",
+      surfaceTitle: "Plan an outing",
+      surfaceState: plannerState,
+      selectionHint: "",
+      onRestore: () => {},
+      onHome: () => {},
+      onSurfaceClose: () => {},
+    });
+    return null;
+  }
+
+  const address = () => `${window.location.pathname}${window.location.search}`;
+  const trail = () => readMapSurfaceHistory<MapSurfaceState>(window.history.state)?.map((entry) => entry.id);
+
+  function open(entry: { id: string; title: string; venueId?: string; landmarkId?: string }) {
+    act(() => {
+      navigation.open({
+        id: entry.id as never,
+        title: entry.title,
+        state: { ...EMPTY_MAP_SURFACE_STATE, venueId: entry.venueId ?? "", landmarkId: entry.landmarkId ?? "" },
+      });
+    });
+  }
+
+  async function back() {
+    await act(async () => {
+      const landed = new Promise<void>((resolve) => {
+        window.addEventListener("popstate", () => resolve(), { once: true });
+      });
+      navigation.back();
+      await landed;
+    });
+  }
+
+  beforeEach(async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    window.history.replaceState(null, "", arrival);
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => { root.render(createElement(Harness)); });
+  });
+
+  afterEach(async () => {
+    await act(async () => { root.unmount(); });
+    container.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps the arrival address on the planner entry and leaves plan=1 off the map root", async () => {
+    expect(trail()).toEqual(["planner"]);
+    expect(address()).toBe(arrival);
+    await back();
+    expect(trail()).toEqual([]);
+    expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
+  });
+
+  it("drops plan=1 from a pub opened over the planner, so closing a reopened planner back to it stays shut", async () => {
+    open({ id: "venue", title: "The French House", venueId: "venue-french-house" });
+    expect(new URLSearchParams(window.location.search).get("sel")).toBe("venue-french-house");
+    expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
+    open({ id: "planner", title: "Plan an outing" });
+    expect(trail()).toEqual(["venue", "planner"]);
+    await back();
+    expect(trail()).toEqual(["planner", "venue"]);
+    expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
+    expect(new URLSearchParams(window.location.search).get("sel")).toBe("venue-french-house");
+  });
+
+  it("drops plan=1 from a landmark story opened over the planner, and Back returns to the planner's address", async () => {
+    open({ id: "landmark", title: "Big Ben", landmarkId: "big-ben" });
+    expect(trail()).toEqual(["planner", "landmark"]);
+    expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
+    await back();
+    expect(trail()).toEqual(["planner"]);
+    expect(address()).toBe(arrival);
+  });
+});

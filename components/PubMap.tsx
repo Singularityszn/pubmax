@@ -1830,6 +1830,7 @@ export default function PubMap({
   const {
     mode,
     setMode,
+    releasePlannerMode,
     builtIds,
     setBuiltIds,
     routeMapped,
@@ -2397,9 +2398,8 @@ export default function PubMap({
   ]);
 
   // The planner's own exits go Back when it is the top entry, so its browser entry goes too.
-  const exitPlanning = useCallback(() => surfaceLeaveRef.current("planner", closePlanning), [closePlanning]);
-  const togglePlanning = useCallback(() => (planningOpen ? exitPlanning() : openPlanning()),
-    [exitPlanning, openPlanning, planningOpen]);
+  const exitPlanning = useCallback(() => { releasePlannerMode(); surfaceLeaveRef.current("planner", closePlanning); }, [closePlanning, releasePlannerMode]);
+  const togglePlanning = useCallback(() => (planningOpen ? exitPlanning() : openPlanning()), [exitPlanning, openPlanning, planningOpen]);
 
   // Issue #35 + location-first sharding: paint pins from the slim index cells
   // that intersect the opening viewport (or instantly from the resume
@@ -5472,7 +5472,7 @@ export default function PubMap({
     surfaceState: mapSurfaceState,
     selectionHint,
     onRestore: restoreMapSurface,
-    onHome: closeEverySurface,
+    onHome: () => { releasePlannerMode(); closeEverySurface(); },
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,
   });

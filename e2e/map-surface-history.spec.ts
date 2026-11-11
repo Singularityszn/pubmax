@@ -133,6 +133,61 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
   });
 
+  test("closing a planner deep link drops plan=1 and its bare build mode, so a reload stays on the map", async ({ page }) => {
+    await prepareMap(page);
+    await openMap(page, "/map?mode=build&plan=1");
+    await expectSoleDrawer(page, "planner");
+
+    await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
+    await expect(planner(page)).toHaveAttribute("aria-hidden", "true", { timeout: 30_000 });
+    await expect.poll(() => new URL(page.url()).search).toBe("");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expectMapToolbarReady(page);
+    await expect(page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" })).toBeVisible();
+    await expect(planner(page)).toHaveAttribute("aria-hidden", "true");
+  });
+
+  test("a restored planner keeps saved filters, even ones the address cannot hold, through a close and a reload", async ({ page }) => {
+    const SESSION = "pubmaxx.mobile-map-session.v1";
+    const savedFilters = () => page.evaluate((key) => {
+      const raw = window.localStorage.getItem(key);
+      const filters = raw ? JSON.parse(raw).filters : null;
+      return filters ? { outdoor: filters.requireOutdoorSeating === true, dog: filters.requireDogFriendly === true, garden: filters.requireBeerGarden === true } : null;
+    }, SESSION);
+    await prepareMap(page);
+    await openMap(page);
+    await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key) !== null, SESSION)).toBe(true);
+    // Save filters the address does not encode, and leave the planner open, as a returning reader would.
+    await page.evaluate((key) => {
+      const session = JSON.parse(window.localStorage.getItem(key)!);
+      session.filters = { ...session.filters, requireOutdoorSeating: true, requireDogFriendly: true };
+      session.openSheet = "planner";
+      window.localStorage.setItem(key, JSON.stringify(session));
+    }, SESSION);
+
+    await openMap(page);
+    await expectSoleDrawer(page, "planner");
+    expect(await savedFilters()).toEqual({ outdoor: true, dog: true, garden: false });
+
+    await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
+    await expect(planner(page)).toHaveAttribute("aria-hidden", "true", { timeout: 30_000 });
+    await expect.poll(savedFilters).toEqual({ outdoor: true, dog: true, garden: false });
+
+    // A second open and close, then a reload, keep every saved filter.
+    await page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" }).click();
+    await expectSoleDrawer(page, "planner");
+    await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
+    await expect(planner(page)).toHaveAttribute("aria-hidden", "true", { timeout: 30_000 });
+    await expect.poll(savedFilters).toEqual({ outdoor: true, dog: true, garden: false });
+    expect(new URL(page.url()).searchParams.has("plan")).toBe(false);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expectMapToolbarReady(page);
+    await expect(planner(page)).toHaveAttribute("aria-hidden", "true");
+    await expect.poll(savedFilters).toEqual({ outdoor: true, dog: true, garden: false });
+  });
+
   test("clearing a restored query after closing its Venue does not reopen it", async ({
     page,
   }) => {

@@ -90,9 +90,16 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
     setPlannedNightArea(nightArea);
   }, [mapRoute]);
 
+  // A bare build mode reopens the planner on load (`?mode=build`). An explicit
+  // close lets it go when no stop is built, so the address left behind stays shut.
+  const releasePlannerMode = useCallback(() => {
+    if (builtIds.length === 0) setMode("suggest");
+  }, [builtIds.length]);
+
   return {
     mode,
     setMode,
+    releasePlannerMode,
     builtIds,
     setBuiltIds,
     routeMapped,
