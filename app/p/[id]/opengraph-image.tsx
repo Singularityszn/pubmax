@@ -226,7 +226,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             ) : null}
           </div>
 
-          {/* Footer: signature (@handle · era · tag) + URL */}
+          {/* Footer: signature (author · era · tag) + URL */}
           <div
             style={{
               display: "flex",

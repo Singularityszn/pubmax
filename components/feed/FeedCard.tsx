@@ -217,8 +217,6 @@ export default function FeedCard({
       .then((ok) => (ok === false ? showGatePrompt() : undefined))
       .catch(showGatePrompt);
   }
-  // One normalized "@handle" used everywhere this card names the author, so a
-  // seed handle that already carries a leading "@" can't render as "@@".
   const shownHandle = dropAuthorLabel(item.handle);
   // A sampled card (SampleSkeleton) is drawn while the real read is out, and
   // it never asks the server for its sample pages.

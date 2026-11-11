@@ -17,7 +17,7 @@ import type { TonightEntry } from "@/lib/leaderboard";
 // presentational and prop-driven: the /discover page computes the entries from
 // the community drops it already fetches and owns the data lifecycle. Each row
 // is one venue's cheapest reported pint: the rank, the pub (linked into
-// /map?sel=…), the stable £ price badge, the reporter's @handle, and a rough relative
+// /map?sel=…), the stable £ price badge, the reporter's label, and a rough relative
 // time. Prices are community-reported — labelled honestly, not authoritative.
 
 type TonightBoardProps = {

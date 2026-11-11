@@ -1,8 +1,8 @@
 // Single source of truth for rendering a handle in the UI. Some handles arrive
 // already carrying a leading "@" (demo seeds in lib/pintDropSeeds, lib/curation
 // — e.g. "@wapping_wall_ted", "@London_W4"), so any render site that naively
-// prepends its own "@" produces "@@wapping_wall_ted". These helpers normalize
-// once and prepend exactly one "@", so "@@" is impossible.
+// prepends its own "@" produces "@@wapping_wall_ted". displayHandle normalizes
+// once and prepends exactly one "@", so "@@" is impossible.
 //
 // Pure + backend-free: reuses normalizeHandle from lib/profiles (lowercase, strip
 // any leading @s, keep [a-z0-9_], cap length) so display and identity can't drift.
