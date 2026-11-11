@@ -348,11 +348,12 @@ export type SheetSnapCaps = Record<SheetSnap, number>;
  * sheet's top edge still fits on screen.
  */
 export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0, topReservePx = 0): SheetSnapCaps {
-  const cap = (snap: SheetSnap) => Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx);
+  const full = Math.max(0, Math.min(viewportHeight * SHEET_SNAP_FRACTIONS.full, viewportHeight - topReservePx) - dockPx);
+  const cap = (snap: SheetSnap) => Math.min(full, Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx));
   return {
     peek: cap("peek"),
     half: cap("half"),
-    full: Math.max(0, Math.min(viewportHeight * SHEET_SNAP_FRACTIONS.full, viewportHeight - topReservePx) - dockPx),
+    full,
   };
 }
 

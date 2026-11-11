@@ -98,6 +98,38 @@ describe("useSheetHeightDrag under a shrinking layout viewport", () => {
     expect(probe.snapshot!.settling).toBe(false);
   });
 
+  it.each(["peek", "half", "full"] as const)("re-caps %s and its command bar when the voice band grows", async (snap) => {
+    setViewport(320, 568);
+    const portal = document.body.appendChild(document.createElement("div"));
+    portal.className = "mobileSheetPortal";
+    portal.style.bottom = "64px";
+    const sheet = portal.appendChild(document.createElement("section"));
+    sheet.className = "mobileSharedSheet";
+    const header = sheet.appendChild(document.createElement("header"));
+    Object.defineProperty(header, "offsetHeight", { value: 64 });
+    const body = sheet.appendChild(document.createElement("div"));
+    body.className = "mobileSharedSheetBody";
+    body.style.padding = "8px 16px";
+    const footer = sheet.appendChild(document.createElement("div"));
+    footer.className = "mobileSharedSheetFooter";
+    Object.defineProperty(footer, "offsetHeight", { value: 121 });
+    const probe = await mount();
+
+    await act(async () => probe.snapshot!.openAtSnap(snap));
+    const initialHeight = probe.snapshot!.sheetHeight;
+    expect(initialHeight).toBeGreaterThan(124);
+
+    portal.style.paddingTop = "132px";
+    await act(async () => probe.snapshot!.recapToViewport());
+    expect(probe.snapshot!.sheetHeight).toBe(124);
+    expect(probe.snapshot!.sheetSnap).toBe(snap);
+    expect(probe.snapshot!.settling).toBe(false);
+
+    portal.style.paddingTop = "0px";
+    await act(async () => probe.snapshot!.recapToViewport());
+    expect(probe.snapshot!.sheetHeight).toBe(initialHeight);
+  });
+
   it("re-caps an open sheet to the new viewport, jumping rather than springing", async () => {
     setViewport(773);
     const probe = await mount();

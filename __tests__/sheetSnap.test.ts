@@ -307,6 +307,18 @@ describe("sheetSnapCaps — per-snap cap heights (bottom-anchored model)", () =>
     expect(caps.half).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.half);
     expect(sheetSnapCaps(844, 98, 0, 20).full).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.full - 98);
   });
+
+  it.each([0, 201])("fits every snap below the voice band on a short phone with %ipx chrome", (chromePx) => {
+    const caps = sheetSnapCaps(320, 64, chromePx, 132);
+    for (const snap of SHEET_SNAP_ORDER) {
+      expect(caps[snap]).toBeGreaterThanOrEqual(0);
+      expect(caps[snap]).toBeLessThanOrEqual(124);
+      expect(320 - 64 - caps[snap]).toBeGreaterThanOrEqual(132);
+    }
+    expect(caps.peek).toBeLessThanOrEqual(caps.half);
+    expect(caps.half).toBeLessThanOrEqual(caps.full);
+    expect(caps.full).toBe(124);
+  });
 });
 
 describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)", () => {

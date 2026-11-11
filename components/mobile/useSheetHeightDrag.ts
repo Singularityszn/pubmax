@@ -126,7 +126,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     const topReserve = portalStyle ? Number.parseFloat(portalStyle.paddingTop) || 0 : 0;
     const { chromePx, barsPx } = sheetChrome(portal?.querySelector<HTMLElement>(".mobileSharedSheet"));
     const caps = sheetSnapCaps(viewport, dock, chromePx, topReserve);
-    return barsPx === null ? caps : { ...caps, peek: barsPx };
+    return barsPx === null ? caps : { ...caps, peek: Math.min(barsPx, caps.full) };
   }, []);
 
   // Both of these SPRING the height, so the entrance's transform stands down
