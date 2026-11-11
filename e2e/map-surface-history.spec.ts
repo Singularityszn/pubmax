@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 import {
   desktopPlannerDrawer,
@@ -386,4 +387,130 @@ test.describe("one Map surface history owner", () => {
       });
     }
   });
+});
+
+
+test.describe("map surface lanes preserve existing journeys", () => {
+  test.use({ serviceWorkers: "block" });
+
+// Oracle: SM-11 explicitly preserves the split list beside a selected venue.
+// A reducer that retires the list when it opens a venue must fail this check.
+for (const theme of ['light', 'dark']) {
+  test(`1440 ${theme}: split list survives venue selection, replacement and Home`, async ({ page }, info) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript((choice) => {
+      localStorage.setItem('pubmax-theme', choice);
+      localStorage.setItem('pubmax-tour-v1-done', '1');
+      localStorage.setItem('pubmax_onboarding_dismissed', '1');
+      localStorage.setItem('pubmax:map-first-visit-arrival:v1', 'dismissed');
+      sessionStorage.setItem('pubmax_onboarding_dismissed', '1');
+      sessionStorage.setItem('pubmax:citySuggestDismiss:v1', '1');
+    }, theme);
+    await installDeterministicMapBasemap(page);
+    await page.goto('/map?list=1');
+    await expectMapToolbarReady(page);
+    const list = page.locator('.mapSplitList');
+    await expect(list).toBeVisible();
+    const rows = list.locator('.mapSplitListRow');
+    await expect(rows.first()).toBeVisible();
+    await page.screenshot({ path: info.outputPath('split-before-selection.png') });
+    const first = await rows.first().locator('.mapSplitListRowName').innerText();
+    await rows.first().click();
+    await expectSoleDesktopDrawer(page, 'venue');
+    await expect(desktopVenueDrawer(page).getByRole('heading', { name: first, exact: true })).toBeVisible();
+    await expect(list).toBeVisible();
+    await page.screenshot({ path: info.outputPath('split-and-venue.png') });
+    const secondRow = rows.filter({ hasNotText: first }).first();
+    const second = await secondRow.locator('.mapSplitListRowName').innerText();
+    await secondRow.click();
+    await expectSoleDesktopDrawer(page, 'venue');
+    await expect(desktopVenueDrawer(page).getByRole('heading', { name: second, exact: true })).toBeVisible();
+    await expect(list).toBeVisible();
+    await desktopVenueDrawer(page).locator('.surfaceNavHome').click();
+    await expect(page.locator('.mapDrawer.springDrawer.open')).toHaveCount(0);
+    await expect(list).toBeVisible();
+    await page.screenshot({ path: info.outputPath('split-after-home.png') });
+  });
+}
+
+test('planner route reversal survives venue inspection and Back', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    localStorage.setItem('pubmax-theme', 'light');
+    localStorage.setItem('pubmax-tour-v1-done', '1');
+    localStorage.setItem('pubmax:map-first-visit-arrival:v1', 'dismissed');
+    sessionStorage.setItem('pubmax_onboarding_dismissed', '1');
+  });
+  await installDeterministicMapBasemap(page);
+  await page.goto('/map?mode=build&plan=1&q=Soho&pubs=venue-1ufn31x,venue-1t8siin,venue-xiesdn,venue-phqazo,venue-15i2wst');
+  await expectSoleDesktopDrawer(page, 'planner');
+  const planner = desktopPlannerDrawer(page);
+  const stops = planner.locator('.routeList > li');
+  await expect(stops).toHaveCount(5);
+  const names = planner.locator('.routeList > li > button strong');
+  const initial = await names.allTextContents();
+  await planner.getByRole('button', { name: 'Reverse route', exact: true }).click();
+  await expect(names).toHaveText([...initial].reverse());
+  const reversed = [...initial].reverse();
+  await stops.first().getByRole('button').first().click();
+  await expectSoleDesktopDrawer(page, 'venue');
+  await page.keyboard.press('Escape');
+  await expectSoleDesktopDrawer(page, 'planner');
+  await expect(stops).toHaveCount(5);
+  await expect(names).toHaveText(reversed);
+  await page.screenshot({ path: info.outputPath('reordered-planner-restored.png') });
+});
+
+test('768: a venue drawer replaces the planner without a split list', async ({ page }, info) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    localStorage.setItem('pubmax-theme', 'light');
+    localStorage.setItem('pubmax-tour-v1-done', '1');
+    localStorage.setItem('pubmax:map-first-visit-arrival:v1', 'dismissed');
+    sessionStorage.setItem('pubmax_onboarding_dismissed', '1');
+  });
+  await installDeterministicMapBasemap(page);
+  await page.goto('/map?mode=build&plan=1&q=Soho&pubs=venue-1ufn31x,venue-1t8siin,venue-xiesdn');
+  await expectSoleDesktopDrawer(page, 'planner');
+  await expect(page.locator('.mapSplitList')).toHaveCount(0);
+  await desktopPlannerDrawer(page).locator('.routeList > li').first().getByRole('button').first().click();
+  await expectSoleDesktopDrawer(page, 'venue');
+  await expect(page.locator('.mapSplitList')).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('tablet-sole-venue.png') });
+});
+
+for (const width of [390, 1440]) {
+  test(`${width}: a nearby pub replaces its landmark and Back restores the landmark`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(() => {
+      localStorage.setItem('pubmax-theme', 'light');
+      localStorage.setItem('pubmax-tour-v1-done', '1');
+      localStorage.setItem('pubmax:map-first-visit-arrival:v1', 'dismissed');
+      sessionStorage.setItem('pubmax_onboarding_dismissed', '1');
+    });
+    await installDeterministicMapBasemap(page);
+    await page.goto('/map?landmark=big-ben');
+    await expect(page.getByRole('heading', { name: 'Big Ben', exact: true })).toBeVisible();
+    const nearby = page.locator('.landmarkStoryPubs button').first();
+    await expect(nearby).toBeVisible();
+    await nearby.click();
+    if (width === 390) {
+      await expect(page.locator('.mobileSheetPortal')).toHaveCount(1);
+      await expect(page.locator('.mobileSheetPortal')).toHaveAttribute('data-sheet-kind', 'venue');
+    } else {
+      await expectSoleDesktopDrawer(page, 'venue');
+    }
+    await expect(page.getByRole('heading', { name: 'Big Ben', exact: true })).toBeHidden();
+    await page.screenshot({ path: info.outputPath('landmark-to-venue.png') });
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('heading', { name: 'Big Ben', exact: true })).toBeVisible();
+    await expect(page.locator('.landmarkStoryPubs button').first()).toBeVisible();
+    await page.screenshot({ path: info.outputPath('landmark-restored.png') });
+  });
+}
+
 });

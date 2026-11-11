@@ -24,6 +24,14 @@ export function focusMapSplitList(): boolean {
 }
 
 /**
+ * Whether the list beside the map is up. It needs the split width and a map
+ * that can draw: with no map there is no "in view" to list.
+ */
+export function splitListShown(splitListWidth: boolean, mapCanvasErrored: boolean, mapCanvasUnavailable: boolean): boolean {
+  return splitListWidth && !mapCanvasErrored && !mapCanvasUnavailable;
+}
+
+/**
  * Whether the floating List view (components/map/MapVenueList.tsx) is open.
  * From 1024px the list beside the map is the venue list, so a request for List
  * view (a `?list=1` arrival) opens nothing over the map there; the request is
