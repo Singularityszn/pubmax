@@ -60,7 +60,7 @@ import TableRequestDialog from "@/components/map/inspector/TableRequestDialog";
 dynamicDialog.component = TableRequestDialog as React.ComponentType<never>;
 import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
-import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
+import { venueActionDoors } from "@/components/map/inspector/venueActionDoors";
 import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import {
@@ -68,7 +68,6 @@ import {
   venueActionCardPriceDate,
   venueActionCardWalkMinutes,
 } from "@/lib/venueActionCard";
-import { phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
 import {
   dropLaneInputsFor,
   pintTrustFor,
@@ -394,6 +393,18 @@ function renderSheet(
     lanes.aged,
     lanes.disputed,
   );
+  const doors = venueActionDoors({
+    venueId: pub.id,
+    venueName: pub.name,
+    isPub: true,
+    mode: options.mode ?? "suggest",
+    builtIds: options.builtIds ?? [],
+    drops,
+    communityPrices: [],
+    onLog: noop,
+    onAcceptStop1: noop,
+    onToggleStop: noop,
+  });
   const summary = createElement(VenueActionSummary, {
     label: `${pub.name} summary`,
     walkMinutes: venueActionCardWalkMinutes(options.userLocation ?? null, pub),
@@ -406,26 +417,15 @@ function renderSheet(
       detailLoading: false,
       priceReadStatus: "ready",
       dropReadStatus: "ready",
-      onLog: noop,
+      onLog: doors.logFirst ? undefined : noop,
       dated: venueActionCardPriceDate(lane, pub),
     }),
-    planDoor: createElement(VenuePeekPlanDoor, {
-      door: phoneVenuePlanDoor({
-        isPub: true,
-        mode: options.mode ?? "suggest",
-        builtIds: options.builtIds ?? [],
-        venueId: pub.id,
-        canAcceptStop1: true,
-      }),
-      venueId: pub.id,
-      venueName: pub.name,
-      onAcceptStop1: noop,
-      onToggleStop: noop,
-    }),
+    planDoor: doors.coral,
   });
   const card = createElement(VenueActionCard, {
     venue: pub,
     summary,
+    planDoor: doors.ghost,
     shareVenue: async () => {},
     currentShareFeedback: null,
   });
@@ -514,7 +514,7 @@ describe("the card prints the sheet's own price and date", () => {
 });
 
 describe("one coral action", () => {
-  it("the card holds exactly one painted door, and it is the plan door", () => {
+  it("with a fresh drinker price, the card holds exactly one painted door, and it is the plan door", () => {
     for (const [mode, builtIds] of [["suggest", []], ["build", ["venue-other"]]] as const) {
       const view = renderSheet([drop()].slice(0, 1), { mode, builtIds: [...builtIds] });
       const card = cardOf(view);
@@ -527,6 +527,26 @@ describe("one coral action", () => {
     }
   });
 
+  it.each([
+    ["no drinker price", () => []],
+    ["a drinker price past the window", () => defined(DROPS["aged-out"])()],
+  ] as const)("with %s, the one painted door is Log what you paid and the plan door is a ghost", (_label, drops) => {
+    for (const [mode, builtIds, plan] of [
+      ["suggest", [], "Make it Stop 1: The Action Arms"],
+      ["build", ["venue-other"], "Plan stop"],
+    ] as const) {
+      const view = renderSheet(drops(), { mode, builtIds: [...builtIds] });
+      const card = cardOf(view);
+      const coral = [...view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)];
+      expect(coral.map(actionName)).toEqual(["Log what you paid at The Action Arms"]);
+      const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
+      expect(ghosts.map(actionName)).toEqual([plan, "Ask for a table at The Action Arms", "Share The Action Arms"]);
+      for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
+      // The coral already asks, so the price cell says and does not ask again.
+      expect(card.querySelector(".mobileVenuePeekDrop")).toBeNull();
+    }
+  });
+
   it("the Overview renders one price door beside the plan door", () => {
     expect(renderSheet([drop()]).querySelectorAll("[data-price-door]")).toHaveLength(1);
   });
@@ -534,10 +554,12 @@ describe("one coral action", () => {
 
 describe("no action appears twice on the sheet", () => {
   it.each([
-    ["no crawl", "suggest", []],
-    ["a crawl in progress", "build", ["venue-other"]],
-  ] as const)("with %s", (_label, mode, builtIds) => {
-    const view = renderSheet(defined(DROPS["logged-once"])(), { mode, builtIds: [...builtIds] });
+    ["no crawl", "logged-once", "suggest", []],
+    ["a crawl in progress", "logged-once", "build", ["venue-other"]],
+    ["no fresh drinker price", "aged-out", "suggest", []],
+    ["no fresh drinker price and a crawl in progress", "aged-out", "build", ["venue-other"]],
+  ] as const)("with %s", (_label, state, mode, builtIds) => {
+    const view = renderSheet(defined(DROPS[state])(), { mode, builtIds: [...builtIds] });
     // "That's wrong" sits beside the price AND under the listed facts by its
     // own rule (components/map/inspector/VenueCorrectionDoor.tsx, `where`):
     // two lines, two subjects, neither of them a card action.
