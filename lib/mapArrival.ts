@@ -94,9 +94,7 @@ export function resolveArrivalQueryRestore(input: {
 /**
  * Whether the planner (left drawer) should open on first paint.
  *
- * Opens for planner links (`plan=1` or `mode=`). Stays closed for drink-shape arrivals, curated crawl
- * arrivals (map-first polyline), and borough browse deep-links (`?q=` —
- * always map-first, even when `mode=` / `style=` is also present).
+ * Arrival rules: docs/MAP_URL_PARAMS.md#history-and-filter-synchronisation.
  */
 export function shouldOpenPlanningInitially(
   seededMode: CrawlMode,

@@ -136,7 +136,7 @@ test.describe("one Map surface history owner", () => {
   for (const exit of ["toggle", "map", "home", "escape"] as const) {
     for (const populated of [false, true]) {
       test(`${exit} closes a ${populated ? "populated" : "bare"} heritage build through reload`, async ({ page }) => {
-        await prepareMap(page);
+        await prepareMap(page, exit === "map" ? { width: 768, height: 1024 } : DESKTOP);
         const stops = populated ? "&pubs=venue-1ufn31x,venue-1t8siin" : "";
         await openMap(page, `/map?mode=build&plan=1&style=heritage&max=6${stops}`);
         await expectSoleDrawer(page, "planner");
