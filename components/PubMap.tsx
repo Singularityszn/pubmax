@@ -2357,13 +2357,13 @@ export default function PubMap({
 
   const retireMapSurfaces = useCallback((retire: readonly MapSurfaceRetirement[]) => {
     if (retire.includes("venue")) setSelectedVenueId("");
-    if (retire.includes("planner")) setPlanningOpen(false);
+    if (retire.includes("planner")) { releasePlannerMode(); setPlanningOpen(false); }
     if (retire.includes("overlay")) setMapOverlay("none");
     if (retire.includes("planner-sheet")) {
       setPlannerSheetSnap("half");
       setPlannerSheetDragY(null);
     }
-  }, [setPlannerSheetDragY, setPlannerSheetSnap, setPlanningOpen, setSelectedVenueId]);
+  }, [releasePlannerMode, setPlannerSheetDragY, setPlannerSheetSnap, setPlanningOpen, setSelectedVenueId]);
   const closePlanning = useCallback(() => retireMapSurfaces(["planner", "planner-sheet", "overlay"]), [retireMapSurfaces]);
   useLayoutEffect(() => {
     closePlanningRef.current = closePlanning;
@@ -2398,7 +2398,7 @@ export default function PubMap({
   ]);
 
   // The planner's own exits go Back when it is the top entry, so its browser entry goes too.
-  const exitPlanning = useCallback(() => { releasePlannerMode(); surfaceLeaveRef.current("planner", closePlanning); }, [closePlanning, releasePlannerMode]);
+  const exitPlanning = useCallback(() => surfaceLeaveRef.current("planner", closePlanning), [closePlanning]);
   const togglePlanning = useCallback(() => (planningOpen ? exitPlanning() : openPlanning()), [exitPlanning, openPlanning, planningOpen]);
 
   // Issue #35 + location-first sharding: paint pins from the slim index cells
@@ -5404,10 +5404,10 @@ export default function PubMap({
     closeComposer();
     setMapOverlay("none");
     setSelectedVenueId("");
-    setPlanningOpen(false);
+    releasePlannerMode(); setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
+  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
   const closeEverySurface = useCallback(() => {
     clearLogIntent();
     closeMapSurfaces();
@@ -5472,7 +5472,7 @@ export default function PubMap({
     surfaceState: mapSurfaceState,
     selectionHint,
     onRestore: restoreMapSurface,
-    onHome: () => { releasePlannerMode(); closeEverySurface(); },
+    onHome: closeEverySurface,
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,
   });

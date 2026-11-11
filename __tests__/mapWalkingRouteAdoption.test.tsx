@@ -57,6 +57,7 @@ function planView(plan: Plan, ...extra: ReactNode[]) {
         plan.setRouteMapped(true);
       },
     }, "Remove last stop"),
+    createElement("button", { type: "button", onClick: plan.releasePlannerMode }, "Close plan"),
     ...extra,
   );
 }
@@ -450,5 +451,22 @@ it("a fresh entry with the same sel parameter restores its pub after a local sel
   window.history.pushState(null, "", `/map?${link}`);
   await select(link);
   expect(drawer()).toBe("Showing pub-b");
+  expect(shown()).toBe("build mapped pub-a,pub-b");
+});
+
+
+it("clears mapping activation when the last built stop is removed and the planner closes (R2)", async () => {
+  const arrival = "mode=build&pubs=pub-a";
+  await arrive(arrival, arrival);
+  press("Remove last stop");
+  expect(shown()).toBe("build mapped");
+  press("Close plan");
+  expect(shown()).toBe("suggest hidden");
+});
+
+it("keeps the populated mapped route when the planner closes", async () => {
+  const arrival = "mode=build&pubs=pub-a,pub-b";
+  await arrive(arrival, arrival);
+  press("Close plan");
   expect(shown()).toBe("build mapped pub-a,pub-b");
 });

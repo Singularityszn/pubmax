@@ -29,6 +29,7 @@ import {
   type SurfaceEntry,
   type SurfaceStack,
 } from "@/lib/surfaceStack";
+import { mapSurfaceSearch } from "@/lib/mapSurfaceState";
 import type { MapOverlay } from "@/lib/mobileShell";
 import { announceAcceptedArrivalUrlChange, canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
 
@@ -69,23 +70,6 @@ function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean 
 
 /** The one owned param a landmark arrival carries (`/map?landmark=<id>`). */
 const LANDMARK_PARAM = "landmark";
-/** The planner deep link (`/map?plan=1`). It reopens the planner on load. */
-const PLANNER_PARAM = "plan";
-
-function searchWithout(param: string, search: string): string {
-  const params = new URLSearchParams(search);
-  params.delete(param);
-  const query = params.toString();
-  return query ? `?${query}` : "";
-}
-
-function withoutParam(param: string, pathname: string, search: string, hash: string): string {
-  return `${pathname}${searchWithout(param, search)}${hash}`;
-}
-
-function withoutLandmarkParam(pathname: string, search: string, hash: string): string {
-  return withoutParam(LANDMARK_PARAM, pathname, search, hash);
-}
 
 function selectedVenueId(stack: SurfaceStack<MapSurfaceState>): string {
   const current = currentSurface(stack);
@@ -113,10 +97,11 @@ function urlForStack(
   selectionHint: string,
 ): string {
   const { pathname, hash } = window.location;
-  // Only an entry that shows the planner may carry its deep link.
-  const search = currentSurface(stack)?.id === "planner"
-    ? window.location.search
-    : searchWithout(PLANNER_PARAM, window.location.search);
+  const shown = currentSurface(stack);
+  const params = new URLSearchParams(mapSurfaceSearch(window.location.search, shown?.id ?? "none"));
+  if (shown?.id === "landmark" && shown.state?.landmarkId) params.set(LANDMARK_PARAM, shown.state.landmarkId);
+  else params.delete(LANDMARK_PARAM);
+  const search = params.toString() ? `?${params}` : "";
   const venueId = selectedVenueId(stack);
   const liveVenueId = new URLSearchParams(search).get("sel");
   return venueId
@@ -196,11 +181,13 @@ export function useMapSurfaceNavigation({
         selectedVenueId(transition.stack),
         transition.kind === "push" ? above + 1 : above,
       );
-      const url = urlForStack(transition.stack, selectionHintRef.current);
+      const url = new URL(urlForStack(transition.stack, selectionHintRef.current), window.location.origin);
+      if (entry.id === "planner") url.searchParams.set("plan", "1");
+      const address = `${url.pathname}${url.search}${url.hash}`;
       if (transition.kind === "push") {
-        window.history.pushState(state, "", url);
+        window.history.pushState(state, "", address);
       } else {
-        window.history.replaceState(state, "", url);
+        window.history.replaceState(state, "", address);
       }
     },
     [publishStack],
@@ -239,14 +226,13 @@ export function useMapSurfaceNavigation({
     const shown = surfaceId === "none"
       ? null
       : { id: surfaceId, title: surfaceTitle, state: surfaceState };
-    const { pathname, search, hash } = window.location;
     const arrivalUrl = currentBrowserUrl();
 
     if (shown?.id === "venue" && searchHasSelection(arrivalSearch)) {
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, root, ""),
         "",
-        cleanMapUrl(pathname, search, hash),
+        urlForStack(root, ""),
       );
       const selected = [shown] as SurfaceStack<MapSurfaceState>;
       window.history.pushState(
@@ -269,7 +255,7 @@ export function useMapSurfaceNavigation({
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, root, ""),
         "",
-        withoutLandmarkParam(pathname, search, hash),
+        urlForStack(root, ""),
       );
       const story = [shown] as SurfaceStack<MapSurfaceState>;
       window.history.pushState(
@@ -284,11 +270,11 @@ export function useMapSurfaceNavigation({
 
     // A planner arrival (`?plan=1`) is the same shape again: the planner entry
     // keeps the arrival address, and the map root under it does not reopen it.
-    if (shown?.id === "planner" && new URLSearchParams(arrivalSearch).has(PLANNER_PARAM)) {
+    if (shown?.id === "planner") {
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, root, ""),
         "",
-        withoutParam(PLANNER_PARAM, pathname, search, hash),
+        urlForStack(root, ""),
       );
       const planner = [shown] as SurfaceStack<MapSurfaceState>;
       window.history.pushState(stampMapSurfaceHistory(window.history.state, planner, ""), "", arrivalUrl);
@@ -357,16 +343,9 @@ export function useMapSurfaceNavigation({
       const closingHome = pendingHomeRef.current !== null;
       const previous = pendingHomeRef.current ?? stackRef.current;
       pendingHomeRef.current = null;
-      if (landed !== null && !selectedVenueId(next)) {
-        const { pathname, search, hash } = window.location;
-        const selectionFree = new URL(cleanMapUrl(pathname, search, hash), window.location.origin);
-        // A landed trail with no story open carries no `?landmark=` either.
-        const cleanUrl = next.some((entry) => entry.id === "landmark")
-          ? `${selectionFree.pathname}${selectionFree.search}${selectionFree.hash}`
-          : withoutLandmarkParam(selectionFree.pathname, selectionFree.search, selectionFree.hash);
-        if (currentBrowserUrl() !== cleanUrl) {
-          window.history.replaceState(event.state, "", cleanUrl);
-        }
+      if (landed !== null) {
+        const url = urlForStack(next, selectionHintRef.current);
+        if (currentBrowserUrl() !== url) window.history.replaceState(window.history.state, "", url);
       }
       if (
         window.location.pathname === ownedPathRef.current &&

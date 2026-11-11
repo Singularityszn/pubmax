@@ -163,46 +163,45 @@ describe("resolveArrivalQueryRestore", () => {
 
 describe("shouldOpenPlanningInitially", () => {
   it("opens for the explicit primary planning intent", () => {
-    expect(shouldOpenPlanningInitially([], "suggest", "?plan=1")).toBe(true);
-    expect(shouldOpenPlanningInitially([], "suggest", "?drink=beer&plan=1")).toBe(true);
+    expect(shouldOpenPlanningInitially("suggest", "?plan=1")).toBe(true);
+    expect(shouldOpenPlanningInitially("suggest", "?drink=beer&plan=1")).toBe(true);
   });
 
   it("keeps borough browse (?q=) on the clean map without opening the planner", () => {
-    expect(shouldOpenPlanningInitially([], "suggest", "?q=Barnet")).toBe(false);
-    expect(shouldOpenPlanningInitially([], "suggest", "?q=Croydon")).toBe(false);
+    expect(shouldOpenPlanningInitially("suggest", "?q=Barnet")).toBe(false);
+    expect(shouldOpenPlanningInitially("suggest", "?q=Croydon")).toBe(false);
     // mode=/style= still map-first for borough browse
-    expect(shouldOpenPlanningInitially([], "suggest", "?q=Barnet&mode=suggest")).toBe(false);
-    expect(shouldOpenPlanningInitially([], "suggest", "?q=Barnet&style=heritage")).toBe(false);
+    expect(shouldOpenPlanningInitially("suggest", "?q=Barnet&mode=suggest")).toBe(false);
+    expect(shouldOpenPlanningInitially("suggest", "?q=Barnet&style=heritage")).toBe(false);
   });
 
   it("keeps drink-shape arrivals on the clean map even with style=/q=", () => {
-    expect(shouldOpenPlanningInitially([], "suggest", "?drink=wine&style=heritage")).toBe(false);
-    expect(shouldOpenPlanningInitially([], "suggest", "?drink=beer&q=Soho")).toBe(false);
+    expect(shouldOpenPlanningInitially("suggest", "?drink=wine&style=heritage")).toBe(false);
+    expect(shouldOpenPlanningInitially("suggest", "?drink=beer&q=Soho")).toBe(false);
   });
 
   it("keeps curated crawl arrivals map-first (planner closed)", () => {
     expect(
       shouldOpenPlanningInitially(
-        ["a", "b"],
         "build",
         "?mode=build&pubs=a,b&crawl=victorian-soho",
       ),
     ).toBe(false);
-    expect(shouldOpenPlanningInitially(["a", "b"], "build", "?mode=build&pubs=a,b")).toBe(false);
-    expect(shouldOpenPlanningInitially([], "build", "?crawl=victorian-soho")).toBe(false);
+    expect(shouldOpenPlanningInitially("build", "?mode=build&pubs=a,b")).toBe(false);
+    expect(shouldOpenPlanningInitially("build", "?crawl=victorian-soho")).toBe(false);
   });
 
-  it("opens the planner for shared crawl / style / build arrivals", () => {
-    expect(shouldOpenPlanningInitially(["a", "b"], "suggest", "")).toBe(true);
-    expect(shouldOpenPlanningInitially([], "build", "")).toBe(true);
-    expect(shouldOpenPlanningInitially([], "suggest", "?style=heritage")).toBe(true);
+  it("opens explicit planner links but keeps a stop list map-first", () => {
+    expect(shouldOpenPlanningInitially("suggest", "?pubs=a,b")).toBe(false);
+    expect(shouldOpenPlanningInitially("build", "")).toBe(true);
+    expect(shouldOpenPlanningInitially("suggest", "?style=heritage")).toBe(true);
     // Bare mode=build without pubs still opens (rare; not a curated arrival).
-    expect(shouldOpenPlanningInitially([], "suggest", "?mode=build")).toBe(true);
+    expect(shouldOpenPlanningInitially("suggest", "?mode=build")).toBe(true);
   });
 
   it("borough browse with mode=suggest: planner closed and query fit true", () => {
     const search = "?q=Barnet&mode=suggest";
-    expect(shouldOpenPlanningInitially([], "suggest", search)).toBe(false);
+    expect(shouldOpenPlanningInitially("suggest", search)).toBe(false);
     expect(shouldFitQueryVenuesOnArrival(search)).toBe(true);
   });
 
@@ -210,7 +209,7 @@ describe("shouldOpenPlanningInitially", () => {
     const search = "?drink=beer&q=Soho";
     expect(isDrinkShapeArrival(search)).toBe(true);
     expect(isBoroughBrowseArrival(search)).toBe(false);
-    expect(shouldOpenPlanningInitially([], "suggest", search)).toBe(false);
+    expect(shouldOpenPlanningInitially("suggest", search)).toBe(false);
     expect(shouldFitQueryVenuesOnArrival(search)).toBe(false);
   });
 });

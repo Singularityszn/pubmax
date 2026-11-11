@@ -1,3 +1,4 @@
+import { shouldOpenPlanningInitially } from "@/lib/mapArrival";
 import type { MapOverlay } from "@/lib/mobileShell";
 
 /**
@@ -110,4 +111,17 @@ function overlayTransition(state: MapSurfaceState, overlay: MapOverlay, phone: b
   if (phone && next.kind !== "none") return { state: { ...state, surface: next }, retire: ["venue", "planner"] };
   const drawerUp = state.surface.kind === "venue" || state.surface.kind === "planner" || state.surface.kind === "landmark";
   return { state: drawerUp ? state : { ...state, surface: next }, retire: [] };
+}
+
+export function mapSurfaceSearch(search: string, surfaceId: string): string {
+  const params = new URLSearchParams(search);
+  if (surfaceId !== "planner") {
+    params.delete("plan");
+    const query = `?${params}`;
+    if (shouldOpenPlanningInitially(params.get("mode") === "build" ? "build" : "suggest", query)) {
+      params.delete("mode");
+      params.delete("style");
+    }
+  }
+  return params.toString();
 }
