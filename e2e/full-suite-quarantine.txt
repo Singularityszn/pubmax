@@ -3,32 +3,6 @@
 # npm run gate:e2e-skips refuses a test line with no issue above it.
 # Delete a block in the pull request that fixes its tests, then close the issue.
 
-# https://github.com/Singularityszn/pubmax/issues/2654 price receipts expect the 2 October read date
-[chromium] › venue-price-sources.spec.ts › light publisher links › 390px: /pubs/venue-18uogns shows the price's publisher and read day
-[chromium] › venue-price-sources.spec.ts › light publisher links › 390px: /ledger/venue-18uogns shows the price's publisher and read day
-[chromium] › venue-price-sources.spec.ts › light publisher links › 390px: invite publisher links retain their citation and own 44px targets
-[chromium] › venue-price-sources.spec.ts › light publisher links › 1440px: /pubs/venue-18uogns shows the price's publisher and read day
-[chromium] › venue-price-sources.spec.ts › light publisher links › 1440px: /ledger/venue-18uogns shows the price's publisher and read day
-[chromium] › venue-price-sources.spec.ts › light publisher links › 1440px: invite publisher links retain their citation and own 44px targets
-[chromium] › venue-price-sources.spec.ts › dark publisher links › 390px: /pubs/venue-18uogns shows the price's publisher and read day
-[chromium] › venue-price-sources.spec.ts › dark publisher links › 390px: /ledger/venue-18uogns shows the price's publisher and read day
-[chromium] › venue-price-sources.spec.ts › dark publisher links › 390px: invite publisher links retain their citation and own 44px targets
-[chromium] › venue-price-sources.spec.ts › dark publisher links › 1440px: /pubs/venue-18uogns shows the price's publisher and read day
-[chromium] › venue-price-sources.spec.ts › dark publisher links › 1440px: /ledger/venue-18uogns shows the price's publisher and read day
-[chromium] › venue-price-sources.spec.ts › dark publisher links › 1440px: invite publisher links retain their citation and own 44px targets
-[chromium] › pal-glance-evidence.spec.ts › 390px light: current summary notes expose scoped evidence and real source doors
-[chromium] › pal-glance-evidence.spec.ts › 390px light: recorded summary notes expose scoped evidence and real source doors
-[chromium] › pal-glance-evidence.spec.ts › 390px dark: current summary notes expose scoped evidence and real source doors
-[chromium] › pal-glance-evidence.spec.ts › 390px dark: recorded summary notes expose scoped evidence and real source doors
-[chromium] › pal-glance-evidence.spec.ts › 1440px light: current summary notes expose scoped evidence and real source doors
-[chromium] › pal-glance-evidence.spec.ts › 1440px light: recorded summary notes expose scoped evidence and real source doors
-[chromium] › pal-glance-evidence.spec.ts › 1440px dark: current summary notes expose scoped evidence and real source doors
-[chromium] › pal-glance-evidence.spec.ts › 1440px dark: recorded summary notes expose scoped evidence and real source doors
-[chromium] › pal-chat-grounding.spec.ts › Soho answer cards retain their price receipts at 390px
-[chromium] › pal-chat-grounding.spec.ts › Soho answer cards retain their price receipts at 1440px
-[chromium] › invite-price-grounding.spec.ts › invite pint prices keep their unit and source at 390px
-[chromium] › invite-price-grounding.spec.ts › invite pint prices keep their unit and source at 1440px
-
 # https://github.com/Singularityszn/pubmax/issues/2655 area coverage copy
 [chromium] › mobile-discover-coverage.spec.ts › mobile Discover shows Night Area evidence states without promising routes
 [chromium] › night-area-coverage.spec.ts › mobile planner explains planning confidence and evidence warnings

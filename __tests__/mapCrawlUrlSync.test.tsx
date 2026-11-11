@@ -10,6 +10,7 @@ import { seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 import { curatedCrawlHydrationFromSeed } from "@/lib/mapSeedCrawl";
 import { buildMapSeed } from "@/lib/pubMap";
 import { readMapSurfaceHistory, stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
+import { shouldOpenPlanningInitially } from "@/lib/mapArrival";
 import { initialFilters, type Filters } from "@/lib/venues";
 
 function mapState(
@@ -766,5 +767,41 @@ describe("completed Beer share intent during actual URL synchronization", () => 
     expect(params.get("pubs")).toBe("pub-a,pub-b");
     expect(window.location.hash).toBe("#route");
     expect(window.history.state.root).toBe(true);
+  });
+});
+
+
+describe("issue 2711: the visible surface owns planner URL activation", () => {
+  it.each(["back", "home", "leave"] as const)("keeps an empty heritage build closed after %s and a delayed URL write", async (exit) => {
+    window.history.replaceState({}, "", "/map");
+    const props = { query: "", crawlStyle: "heritage" as const, plan: { mode: "build" as const, builtIds: [] } };
+    await act(async () => root.render(createElement(HistoryHarness, props)));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    await traverseHistory(() => {
+      if (exit === "home") closeHistorySurfaces();
+      else if (exit === "leave") leaveHistorySurface("planner", () => {});
+      else window.history.back();
+    });
+    expect(buildMapSeed(window.location.search).filters.crawlStyle).toBe("heritage");
+    await act(async () => root.render(createElement(HistoryHarness, { ...props, maxPrice: 6 })));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    const seed = buildMapSeed(window.location.search);
+    expect(shouldOpenPlanningInitially(seed.mode, window.location.search)).toBe(false);
+    expect(seed.filters.maxPrice).toBe(6);
+    expect(seed.filters.crawlStyle).toBe("heritage");
+    expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
+  });
+
+  it("keeps a populated plan and its order on the map after Home and reload", async () => {
+    const builtIds = ["pub-b", "pub-a"];
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", crawlStyle: "heritage", plan: { mode: "build", builtIds },
+    })));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    await traverseHistory(() => closeHistorySurfaces());
+    const seed = buildMapSeed(window.location.search);
+    expect(seed.builtIds).toEqual(builtIds);
+    expect(shouldOpenPlanningInitially(seed.mode, window.location.search)).toBe(false);
+    expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
   });
 });

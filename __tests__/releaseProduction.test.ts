@@ -27,20 +27,21 @@ function boundStep(): SmokeStep {
   return step;
 }
 
-/**
- * Runs the bound step's script the way a GitHub runner does, with curl and jq
- * replaced so /api/version answers `live` on the production origin and `mine`
- * on a deployment URL.
- */
-function runBoundStep(input: { live: string; expected?: string; deploymentUrl?: string; mine?: string }) {
+function runBoundStep(input: {
+  eventName: "workflow_dispatch" | "deployment_status";
+  live: string;
+  expected?: string;
+  expectedSha?: string;
+  gitCommitSha?: string;
+}) {
   const bin = mkdtempSync(path.join(tmpdir(), "prod-smoke-bound-"));
   writeFileSync(
     path.join(bin, "curl"),
     [
       "#!/bin/sh",
       'for arg in "$@"; do url="$arg"; done',
-      'case "$url" in https://pubmaxxing.com/*) id="$FAKE_LIVE" ;; *) id="$FAKE_MINE" ;; esac',
-      'printf \'{"deploymentId":"%s"}\' "$id"',
+      '[ "$url" = "https://pubmaxxing.com/api/version" ] || exit 22',
+      'printf \'{"deploymentId":"%s","gitCommitSha":"%s"}\' "$FAKE_LIVE" "$FAKE_GIT_COMMIT_SHA"',
       "",
     ].join("\n"),
   );
@@ -48,9 +49,12 @@ function runBoundStep(input: { live: string; expected?: string; deploymentUrl?: 
     path.join(bin, "jq"),
     [
       `#!${process.execPath}`,
+      'const fields = { ".deploymentId // empty": "deploymentId", ".gitCommitSha // empty": "gitCommitSha" };',
+      'const field = fields[process.argv[3]];',
+      'if (process.argv[2] !== "-r" || !field) process.exit(2);',
       'let body = "";',
       'process.stdin.on("data", (chunk) => { body += chunk; });',
-      'process.stdin.on("end", () => { process.stdout.write(`${JSON.parse(body).deploymentId ?? ""}\\n`); });',
+      'process.stdin.on("end", () => { process.stdout.write(`${JSON.parse(body)[field] ?? ""}\\n`); });',
       "",
     ].join("\n"),
   );
@@ -65,8 +69,9 @@ function runBoundStep(input: { live: string; expected?: string; deploymentUrl?: 
       PATH: `${bin}:${process.env.PATH}`,
       GITHUB_OUTPUT: outputFile,
       FAKE_LIVE: input.live,
-      FAKE_MINE: input.mine ?? "",
-      DEPLOYMENT_URL: input.deploymentUrl ?? "",
+      FAKE_GIT_COMMIT_SHA: input.gitCommitSha ?? "",
+      EVENT_NAME: input.eventName,
+      EXPECTED_SHA: input.expectedSha ?? "",
       EXPECTED_DEPLOYMENT_ID: input.expected ?? "",
     },
   });
@@ -394,7 +399,7 @@ describe("releaseProduction", () => {
       if (command === "gh" && args[0] === "run" && args[1] === "watch") {
         const input = calls.find((call) => call.args[0] === "workflow")?.args.find((arg) => arg.startsWith("deployment_id="));
         const expected = args[2] === "88" ? "dpl_b" : input?.slice("deployment_id=".length);
-        const job = runBoundStep({ live, expected });
+        const job = runBoundStep({ eventName: "workflow_dispatch", live, expected });
         calls.push({ command, args });
         return { status: job.status ?? 1, stdout: job.stdout };
       }
@@ -434,16 +439,18 @@ describe("prod-smoke.yml binds a dispatched run to the released deployment", () 
     expect(workflow.on.workflow_dispatch.inputs.deployment_id).toMatchObject({ required: false, type: "string" });
     expect(workflow["run-name"]).toBe("Production smoke ${{ inputs.deployment_id || github.run_id }}");
     expect(boundStep().env?.EXPECTED_DEPLOYMENT_ID).toBe("${{ inputs.deployment_id }}");
+    expect(boundStep().env?.EVENT_NAME).toBe("${{ github.event_name }}");
+    expect(boundStep().env?.EXPECTED_SHA).toBe("${{ github.event.deployment.sha }}");
   });
 
   it("runs the suite when production serves the named deployment, and keeps it as the after-check baseline", () => {
-    const job = runBoundStep({ live: "dpl_a", expected: "dpl_a" });
+    const job = runBoundStep({ eventName: "workflow_dispatch", live: "dpl_a", expected: "dpl_a" });
     expect(job.status).toBe(0);
     expect(job.output).toBe("live=dpl_a\nrun=true\n");
   });
 
   it("fails, never skips, when production serves another deployment", () => {
-    const job = runBoundStep({ live: "dpl_b", expected: "dpl_a" });
+    const job = runBoundStep({ eventName: "workflow_dispatch", live: "dpl_b", expected: "dpl_a" });
     expect(job.status).toBe(1);
     expect(job.stdout).toContain("not the released deployment dpl_a");
     expect(job.stdout).toContain("unverified");
@@ -451,16 +458,38 @@ describe("prod-smoke.yml binds a dispatched run to the released deployment", () 
   });
 
   it("refuses a deployment id that is not one", () => {
-    const job = runBoundStep({ live: "dpl_a", expected: "dpl_a;rm" });
+    const job = runBoundStep({ eventName: "workflow_dispatch", live: "dpl_a", expected: "dpl_a;rm" });
     expect(job.status).toBe(1);
     expect(job.stdout).toContain("Unexpected deployment id");
   });
 
-  it("keeps the deployment_status and bare dispatch paths as they were", () => {
-    expect(runBoundStep({ live: "dpl_a" }).output).toBe("live=dpl_a\nrun=true\n");
-    const newer = runBoundStep({ live: "dpl_b", mine: "dpl_a", deploymentUrl: "https://pubmax-a.vercel.app" });
-    expect(newer.status).toBe(0);
-    expect(newer.output).toBe("live=dpl_b\nrun=false\n");
+  it("runs a bare dispatch without a deployment commit", () => {
+    const job = runBoundStep({ eventName: "workflow_dispatch", live: "dpl_a" });
+    expect(job.status).toBe(0);
+    expect(job.output).toBe("live=dpl_a\nrun=true\n");
+  });
+
+  it.each([
+    { gitCommitSha: SHA, run: "true" },
+    { gitCommitSha: "b".repeat(40), run: "false" },
+  ])("sets run=$run for a deployment-status commit $gitCommitSha", ({ gitCommitSha, run }) => {
+    const job = runBoundStep({ eventName: "deployment_status", live: "dpl_a", expectedSha: SHA, gitCommitSha });
+    expect(job.status).toBe(0);
+    expect(job.output).toBe(`live=dpl_a\nrun=${run}\n`);
+  });
+
+  it.each(["", "invalid"])("refuses deployment-status commit %j", (expectedSha) => {
+    const job = runBoundStep({ eventName: "deployment_status", live: "dpl_a", expectedSha, gitCommitSha: SHA });
+    expect(job.status).toBe(1);
+    expect(job.stdout).toContain("Unexpected deployment commit");
+    expect(job.output).toBe("live=dpl_a\n");
+  });
+
+  it("fails when the public version response has no commit", () => {
+    const job = runBoundStep({ eventName: "deployment_status", live: "dpl_a", expectedSha: SHA });
+    expect(job.status).toBe(1);
+    expect(job.stdout).toContain("named no commit");
+    expect(job.output).toBe("live=dpl_a\n");
   });
 });
 

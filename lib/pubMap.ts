@@ -783,7 +783,6 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
   cityId: CityId;
   search: string;
   shouldOpenPlanningInitially: (
-    builtIds: string[],
     mode: MapSeed["mode"],
     search: string,
   ) => boolean;
@@ -809,7 +808,7 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
       !seed.selectedVenueId &&
       restoredSession?.openSheet !== "venue" &&
       (restoredSession?.openSheet === "planner" ||
-        input.shouldOpenPlanningInitially(seed.builtIds, seed.mode, search)),
+        input.shouldOpenPlanningInitially(seed.mode, search)),
   };
 }
 

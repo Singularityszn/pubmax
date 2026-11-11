@@ -130,6 +130,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   If your stored date of birth says you are under 18, you cannot create a Pal or start voice.
   An adult confirmation cannot override that date.
   If the account date cannot be checked, both actions are temporarily unavailable.
+  The map's voice chip stays hidden until the server confirms that the account date does not block voice.
+  A failed check keeps the voice chip hidden.
   Adults and accounts without a stored date keep the same setup requirements.
   Pal setup records the adult confirmation time without storing a birth date in the Pal record.
 
@@ -190,6 +192,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   It does not assess sobriety or recommend another drink.
   It points you to **Getting Home** on the venue sheet and retains sourced transport facts.
 
+  <a id="pub-pal-map-chip"></a>
+
+  On the map, tap your unmuted Pal's chip to start voice in place when voice is available. The chip becomes the voice bar. If voice is unavailable, the chip opens `/pal` with its writing option.
+
+  Signed out, the map chip offers **Sign in to talk to your Pal**. **Close** hides this sign-in chip for the current page view. On another city's map, an unmuted Pal's chip says **Talks about London for now**.
+
   Voice starts only after your action. You can cancel startup or choose **Ask in writing** if voice cannot connect. The status line tells you when your chosen voice falls back to the default. Configured voice shows transcripts, returned pub cards and their map.
 
   Grounded voice results also show numbered picks on the main map and dim the other pins. Tap a pick to open its pub. The map frames the picks unless you hold or move it. [ADR 0014](docs/adr/0014-night-os-ask-agent.md#decision) defines voice view moves and actions that still need confirmation.
@@ -208,7 +216,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Large portraits use the seven authorised original species models, with pointer and keyboard controls. Original images remain visible until the model draws, and return if it fails. Reduced motion and compact avatars keep the still artwork. Local browser acceptance and live voice verification remain separate requirements. The [setup guide](docs/PUB_PAL_SETUP.md) explains provider requirements and verification limits.
 
-- **Crawl planner** - at `/plan`, describe a night, such as "Quiet wine in Clapham for 2". Choose **Plan it**. On a new plan, the description and primary action appear before **Already have a list of pubs?** and **Import a pub list**. Import opens a dialog and requires sign-in. Closing the dialog returns focus to **Import a pub list**. Before saving, [review the result, including incomplete routes, and check **Drinks** in **Tune details**](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it). You can choose an alcoholic drink category or the existing no-alcohol option. A non-beer selection leaves unavailable prices and route budgets unknown. For these nights or the no-alcohol option, leave **Max per person** unset: generation cannot prove that ceiling from the available reports. Saved community reports show their date and say when serving size is missing. First-run **Plan my night** opens the same planner with your selected area and budget. See the [generation limits](docs/API_CONTRACTS_THE_LOCAL.md#3-post-apiplansgenerate--grounded-plan-generation) for meal constraints and pint ceilings. The [budget search limits](docs/API_CONTRACTS_THE_LOCAL.md#budget-route-search) explain refusals for **Max per person**. The map also offers Suggest mode or Build mode. Developer details and current persistence limits live in the [Plan price contract](docs/API_CONTRACTS_THE_LOCAL.md#selected-drink-price-evidence).
+- **Crawl planner** - at `/plan`, describe a night, such as "Quiet wine in Clapham for 2". Choose **Plan it**. On a new plan, the description and primary action appear before **Already have a list of pubs?** and **Import a pub list**. Import opens a dialog and requires sign-in. Closing the dialog returns focus to **Import a pub list**. Before saving, [review the result, including incomplete routes, and check **Drinks** in **Tune details**](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it). You can choose an alcoholic drink category or the existing no-alcohol option. A non-beer selection leaves unavailable prices and route budgets unknown. For these nights or the no-alcohol option, leave **Max per person** unset: generation cannot prove that ceiling from the available reports. Saved community reports show their date and say when serving size is missing. First-run **Plan my night** opens the same planner with your selected area and budget. See the [generation limits](docs/API_CONTRACTS_THE_LOCAL.md#3-post-apiplansgenerate--grounded-plan-generation) for meal constraints and pint ceilings. The [budget search limits](docs/API_CONTRACTS_THE_LOCAL.md#budget-route-search) explain refusals for **Max per person**. The map also offers Suggest mode or Build mode. The [map URL guide](docs/MAP_URL_PARAMS.md#history-and-filter-synchronisation) explains planner closure, reload, and saved filters. Developer details and current persistence limits live in the [Plan price contract](docs/API_CONTRACTS_THE_LOCAL.md#selected-drink-price-evidence).
 
   Before using a quoted price, check its [serving, publisher and source-read date](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it).
 
@@ -343,7 +351,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   To stop receiving group messages, open **Chat options**. Choose **Leave group**. Confirm your departure. Your earlier messages stay for the remaining members. After deletion or departure, the thread shows a confirmation until you leave that view or change accounts.
 
-  If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations.
+  If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations. Within the inbox limit, a failed check for new messages in one deleted chat keeps that chat and the others visible. Messages from before deletion stay hidden, and the inbox shows an availability notice. When the check succeeds, the restored chat sorts and displays its newest message time.
 
   Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
 

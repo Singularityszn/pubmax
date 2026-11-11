@@ -133,6 +133,122 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
   });
 
+  for (const exit of ["toggle", "map", "home", "escape"] as const) {
+    for (const populated of [false, true]) {
+      test(`${exit} closes a ${populated ? "populated" : "bare"} heritage build through reload`, async ({ page }) => {
+        await prepareMap(page, exit === "map" ? { width: 768, height: 1024 } : DESKTOP);
+        const stops = populated ? "&pubs=venue-1ufn31x,venue-1t8siin" : "";
+        await openMap(page, `/map?mode=build&plan=1&style=heritage&max=6${stops}`);
+        await expectSoleDrawer(page, "planner");
+        if (exit === "toggle") await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
+        else if (exit === "map") await planner(page).locator(".plannerMapButton").click();
+        else if (exit === "home") await planner(page).locator(".surfaceNavHome").click();
+        else await page.keyboard.press("Escape");
+        await expect(planner(page)).toHaveAttribute("aria-hidden", "true");
+        await expect.poll(() => new URL(page.url()).searchParams.has("plan")).toBe(false);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expectMapToolbarReady(page);
+        await expect(planner(page)).toHaveAttribute("aria-hidden", "true");
+        expect(new URL(page.url()).searchParams.get("style")).toBe("heritage");
+        expect(new URL(page.url()).searchParams.get("max")).toBe("6");
+        if (populated) {
+          expect(new URL(page.url()).searchParams.get("pubs")).toBe("venue-1ufn31x,venue-1t8siin");
+        }
+      });
+    }
+  }
+
+  for (const viewport of [{ width: 768, height: 1024 }, PHONE]) {
+    for (const steps of [2, 12]) {
+      test(`${viewport.width}: planner ${steps === 2 ? "fling" : "drag"} stays closed through reload`, async ({ page }) => {
+        await prepareMap(page, viewport);
+        await openMap(page, "/map?mode=build&plan=1&style=heritage");
+        const phone = viewport.width === PHONE.width;
+        const sheet = phone ? page.locator('.mobileSheetPortal[data-sheet-kind="planner"]') : planner(page);
+        const handle = sheet.locator(phone ? ".mobileSharedSheetHeader" : ".plannerSheetHead");
+        await expect(sheet).toBeVisible();
+        const box = await handle.boundingBox();
+        if (!box) throw new Error("The planner has no drag handle.");
+        const x = box.x + 18;
+        await page.mouse.move(x, box.y + box.height - 10);
+        await page.mouse.down();
+        await page.mouse.move(x, viewport.height - 8, { steps });
+        await page.mouse.up();
+        if (phone) await expect(sheet).toHaveCount(0);
+        else await expect(sheet).toHaveAttribute("aria-hidden", "true");
+        await expect.poll(() => new URL(page.url()).searchParams.has("plan")).toBe(false);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        if (phone) {
+          await expectMobileMapShellReady(page, 60_000);
+          await expect(page.locator('.mobileSheetPortal[data-sheet-kind="planner"]')).toHaveCount(0);
+        } else {
+          await expectMapToolbarReady(page);
+          await expect(planner(page)).toHaveAttribute("aria-hidden", "true");
+        }
+      });
+    }
+  }
+
+  test("a venue replacing a populated planner shares and reloads with the planner closed", async ({ page }) => {
+    await prepareMap(page);
+    await openMap(page, "/map?mode=build&plan=1&style=heritage&pubs=venue-1ufn31x,venue-1t8siin");
+    await expectSoleDrawer(page, "planner");
+    await planner(page).locator(".routeList > li").first().getByRole("button").first().click();
+    await expectSoleDrawer(page, "venue");
+    await expect.poll(() => new URL(page.url()).searchParams.has("plan")).toBe(false);
+    const sharedUrl = page.url();
+    expect(new URL(sharedUrl).searchParams.get("sel")).toBe("venue-1ufn31x");
+    await openMap(page, sharedUrl);
+    await expectSoleDrawer(page, "venue");
+    expect(new URL(page.url()).searchParams.get("pubs")).toBe("venue-1ufn31x,venue-1t8siin");
+  });
+
+  test("a restored planner keeps saved filters, even ones the address cannot hold, through a close and a reload", async ({ page }) => {
+    const SESSION = "pubmaxx.mobile-map-session.v1";
+    const savedFilters = () => page.evaluate((key) => {
+      const raw = window.localStorage.getItem(key);
+      const filters = raw ? JSON.parse(raw).filters : null;
+      return filters ? { outdoor: filters.requireOutdoorSeating === true, dog: filters.requireDogFriendly === true, stepFree: filters.requireStepFree === true, garden: filters.requireBeerGarden === true, max: filters.maxPrice, style: filters.crawlStyle } : null;
+    }, SESSION);
+    await prepareMap(page);
+    await openMap(page);
+    await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key) !== null, SESSION)).toBe(true);
+    // Save filters the address does not encode, and leave the planner open, as a returning reader would.
+    await page.evaluate((key) => {
+      const session = JSON.parse(window.localStorage.getItem(key)!);
+      session.filters = { ...session.filters, requireOutdoorSeating: true, requireDogFriendly: true, requireStepFree: true, maxPrice: 6, crawlStyle: "heritage" };
+      session.openSheet = "planner";
+      window.localStorage.setItem(key, JSON.stringify(session));
+    }, SESSION);
+
+    await openMap(page);
+    await expectSoleDrawer(page, "planner");
+    const expectedFilters = { outdoor: true, dog: true, stepFree: true, garden: false, max: 6, style: "heritage" };
+    expect(await savedFilters()).toEqual(expectedFilters);
+
+    await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
+    await expect(planner(page)).toHaveAttribute("aria-hidden", "true", { timeout: 30_000 });
+    await expect.poll(savedFilters).toEqual(expectedFilters);
+    expect(new URL(page.url()).search).toBe("");
+
+    await page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" }).click();
+    await expectSoleDrawer(page, "planner");
+    expect(new URL(page.url()).search).toBe("");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expectMapToolbarReady(page);
+    await expectSoleDrawer(page, "planner");
+    await expect.poll(savedFilters).toEqual(expectedFilters);
+    await page.locator(".mapToolbar").getByRole("button", { name: "Close plan" }).click();
+    await expect(planner(page)).toHaveAttribute("aria-hidden", "true", { timeout: 30_000 });
+    await expect.poll(savedFilters).toEqual(expectedFilters);
+    expect(new URL(page.url()).searchParams.has("plan")).toBe(false);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expectMapToolbarReady(page);
+    await expect(planner(page)).toHaveAttribute("aria-hidden", "true");
+    await expect.poll(savedFilters).toEqual(expectedFilters);
+  });
+
   test("clearing a restored query after closing its Venue does not reopen it", async ({
     page,
   }) => {
@@ -415,6 +531,9 @@ for (const theme of ['light', 'dark']) {
     const rows = list.locator('.mapSplitListRow');
     await expect(rows.first()).toBeVisible();
     await page.screenshot({ path: info.outputPath('split-before-selection.png') });
+    // Pubs keep streaming into the view. The rows hold still only while the
+    // pointer is over the list, so point at it before reading a row's name.
+    await list.hover();
     const first = await rows.first().locator('.mapSplitListRowName').innerText();
     await rows.first().click();
     await expectSoleDesktopDrawer(page, 'venue');

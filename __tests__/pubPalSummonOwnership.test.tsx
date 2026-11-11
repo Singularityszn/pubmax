@@ -1,17 +1,32 @@
 // @vitest-environment jsdom
-import { act, createElement, useLayoutEffect } from "react";
+import { act, createElement, Fragment, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ user: { id: "account-a" } as { id: string } | null, loading: false }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ ...auth, getCurrentUserId: () => auth.user?.id ?? null }) }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => ({ signedOut: !auth.loading && auth.user === null }),
+}));
+// Account switching is checked on /plan, where the chip is the link to the Pal.
+const route = vi.hoisted(() => ({ pathname: "/plan" }));
+vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
+const eligibility = vi.hoisted(() => ({ under18: false as boolean | undefined }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: vi.fn(async () => Response.json({ pal: null, under18: eligibility.under18 })),
+}));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/components/pubpal/palVoiceSessionLoader", () => ({
+  loadPalVoiceSession: vi.fn(async () => function MockVoiceSession() { return createElement("div", { "data-voice-session": true }); }),
+}));
 
 import { markActivePlan, readActivePlan, setActivePlanPalContext, setActivePlanStopIndex, writeActivePlan } from "@/lib/activePlan";
 import { announcePalMoment } from "@/lib/palMoments";
 import { readPendingCompletedNight, recordCompletedNight } from "@/lib/morningReentry";
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
+import PalVoiceHost from "@/components/pubpal/PalVoiceHost";
+import { loadPalVoiceSession } from "@/components/pubpal/palVoiceSessionLoader";
+import { revokePalVoiceCall } from "@/lib/palVoiceHost";
 import { LOCAL_PAL_KEY, announceLocalPalChange } from "@/lib/localPal";
 import { DEVICE_ACCOUNT_OWNER_KEY, emitDeviceIdentityChanged } from "@/lib/deviceAccountIdentity";
 
@@ -31,6 +46,9 @@ beforeEach(() => {
   sessionStorage.clear();
   auth.user = { id: "account-a" };
   auth.loading = false;
+  route.pathname = "/plan";
+  eligibility.under18 = false;
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ available: true })));
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, "account-a");
   savePal();
   host = document.createElement("div");
@@ -39,6 +57,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount());
+  revokePalVoiceCall();
   host.remove();
   localStorage.clear();
   sessionStorage.clear();
@@ -47,6 +66,28 @@ afterEach(async () => {
 });
 
 describe("mounted Pal shortcut ownership", () => {
+  it("loads the map voice session only after chip activation", async () => {
+    route.pathname = "/map";
+    vi.mocked(loadPalVoiceSession).mockClear();
+    await act(async () => {
+      root.render(createElement(Fragment, null, createElement(PubPalSummon), createElement(PalVoiceHost)));
+    });
+    const chip = host.querySelector<HTMLButtonElement>('button[aria-label="Talk to Robin, your Pub Pal"]');
+    expect(chip).not.toBeNull();
+    expect(loadPalVoiceSession).not.toHaveBeenCalled();
+
+    await act(async () => { chip!.dispatchEvent(new MouseEvent("pointerover", { bubbles: true })); });
+    expect(loadPalVoiceSession).not.toHaveBeenCalled();
+    await act(async () => { chip!.focus(); });
+    expect(loadPalVoiceSession).not.toHaveBeenCalled();
+    await act(async () => { chip!.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })); });
+    expect(loadPalVoiceSession).not.toHaveBeenCalled();
+
+    await act(async () => { chip!.click(); });
+    expect(loadPalVoiceSession).toHaveBeenCalledTimes(1);
+    expect(host.querySelector("[data-voice-session]")).not.toBeNull();
+  });
+
   it("retires the previous account's cheer and night offer when a new Pal arrives", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     vi.setSystemTime(new Date(2026, 9, 18, 9, 0));
@@ -126,11 +167,14 @@ describe("mounted Pal shortcut ownership", () => {
     expect(localStorage.getItem(LOCAL_PAL_KEY)).toBe(saved);
   });
 
-  it("removes the shortcut when the account signs out on the same route", async () => {
+  it("removes the shortcut when the account signs out on the map, and offers sign-in there", async () => {
+    route.pathname = "/map";
     await render();
     auth.user = null;
     await render();
-    expect(host.querySelector("a")).toBeNull();
+    expect(host.querySelector('a[href="/pal"]')).toBeNull();
+    expect(host.querySelector("a")?.getAttribute("href")).toBe("/login?mode=signin&from=%2Fmap");
+    expect(host.textContent).toContain("Sign in to talk to your Pal");
   });
 
   it("removes the shortcut while the live account is unresolved", async () => {
@@ -180,5 +224,23 @@ describe("mounted Pal shortcut ownership", () => {
     savePal("account-b");
     await render();
     expect(host.querySelector("a")).toBeNull();
+  });
+
+  it("shows the map's talk button only once the server says the account is not under 18", async () => {
+    route.pathname = "/map";
+    await render();
+    expect(host.querySelector('button[aria-label="Talk to Robin, your Pub Pal"]')).not.toBeNull();
+
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    eligibility.under18 = true;
+    await render();
+    expect(host.querySelector(".palSummon")).toBeNull();
+
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    eligibility.under18 = undefined;
+    await render();
+    expect(host.querySelector(".palSummon")).toBeNull();
   });
 });
