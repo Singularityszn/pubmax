@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { resolvedColour } from "./helpers/hitArea";
+import { slimListedPrice } from "./helpers/slimListedPrice";
+
+const SWISS_COTTAGE = slimListedPrice("venue-18uogns");
+const SHAKESPEARES_HEAD = slimListedPrice("venue-e1srzr");
 
 async function expectPublisherTargets(page: Page, testInfo: TestInfo) {
   const ink = await resolvedColour(page, ".listedPriceSource", "var(--color-text)");
@@ -59,7 +63,7 @@ for (const theme of ["light", "dark"] as const) {
           await expect(page.getByRole("heading", { name: "Ye Olde Swiss Cottage", exact: true })).toBeVisible();
           const source = page.locator(".listedPriceSource").first();
           await expect(source.getByRole("link", { name: "Pint Prices", exact: true })).toBeVisible({ timeout: 1_000 });
-          await expect(source.locator("time")).toHaveAttribute("datetime", "2026-10-02");
+          await expect(source.locator("time")).toHaveAttribute("datetime", SWISS_COTTAGE.observedOn);
           await testInfo.attach("citation-layout", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
           await expectPublisherTargets(page, testInfo);
         });
@@ -79,8 +83,8 @@ for (const theme of ["light", "dark"] as const) {
         await page.goto(`/invite/${inviteToken}`);
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         const source = page.locator(".listedPriceSource");
-        await expect(source).toHaveText("Listed by Pint Prices, collected 2 October 2026.");
-        await expect(source.locator("time")).toHaveAttribute("datetime", "2026-10-02");
+        await expect(source).toHaveText(`Listed by ${SHAKESPEARES_HEAD.source}, collected ${SHAKESPEARES_HEAD.readDay}.`);
+        await expect(source.locator("time")).toHaveAttribute("datetime", SHAKESPEARES_HEAD.observedOn);
         await testInfo.attach("citation-layout", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
         await expectPublisherTargets(page, testInfo);
       });

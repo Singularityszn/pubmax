@@ -64,6 +64,7 @@ import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHost
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { focusForArea, nightAreaFocusFromQuery, nightAreaHasFocus, planAreaName } from "@/lib/nightAreaFocus";
 import { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 export { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
@@ -318,7 +319,7 @@ export function pickedPlanStop(stop: DraftStop, venue: PlanVenueOption): DraftSt
 const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 
 /** The area and daypart a route was sorted for, which a later edit to the night does not move. */
-type RouteNight = Pick<Partial<NightContext>, "nightArea" | "daypart">;
+type RouteNight = Pick<Partial<NightContext>, "nightArea" | "areaFocus" | "daypart">;
 
 export type StoredRouteDraft = {
   savedAt?: string;
@@ -753,6 +754,7 @@ function routeNightOf(context: Partial<NightContext> | null): RouteNight | null 
   if (!context?.nightArea && !context?.daypart) return null;
   return {
     ...(context.nightArea ? { nightArea: context.nightArea } : {}),
+    ...(context.areaFocus ? { areaFocus: context.areaFocus } : {}),
     ...(context.daypart ? { daypart: context.daypart } : {}),
   };
 }
@@ -2382,6 +2384,8 @@ function PlanComposerForm({
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const automaticCreatorName = useRef<string | null>(null);
   const pendingDraftSave = useRef(false);
+  // Counts the reader's area choices, so a response sent before a newer choice cannot undo it.
+  const geographyChoice = useRef(0);
   const requestOwner = useRef(acceptedOwner);
   if (canPersist && requestOwner.current === null) requestOwner.current = acceptedOwner;
   const ownerAccountId = useRef(user?.id);
@@ -2656,9 +2660,16 @@ function PlanComposerForm({
     stopCount: normalizePlanStopCount(requestedStopCount),
   } : null);
   const editableContext = editableBase ? { ...editableBase, ...explicitNightContext } : null;
-  const requestContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext };
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
+  const requestContext = {
+    nightArea: askDraftQuery ? undefined : nightContext?.nightArea,
+    ...explicitNightContext,
+    // A reader's own area choice owns the focus. Otherwise the route on screen keeps the place it was planned for.
+    areaFocus: explicitNightContext && "areaFocus" in explicitNightContext
+      ? explicitNightContext.areaFocus ?? null
+      : askDraftQuery ? null : nightContext?.areaFocus ?? routeNight?.areaFocus ?? null,
+  };
   const recoveredStopsNeedRefresh = !recoveredRouteDraft && Boolean(recoveredDraft?.stops.length)
     && (!provisionalRequest || !heldVenueId || recoveredDraft?.routeReference === null);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale || recoveredStopsNeedRefresh);
@@ -3056,12 +3067,25 @@ function PlanComposerForm({
     askDraftQuery,
   ]);
 
-  function updatePlanIntake(next: PlanIntakeDraft) {
+  function updatePlanIntake(next: PlanIntakeDraft, editedStep?: PlanIntakeStep) {
     if (!samePlanIntake(next, planIntake)) pendingDraftSave.current = true;
+    const areaChanged = editedStep === "area" || next.answers.area !== planIntake.answers.area;
+    if (areaChanged) {
+      pendingDraftSave.current = true;
+      geographyChoice.current += 1;
+      const nightArea = next.answers.area ? nightAreaForPlanIntakePatch(next.answers.area) : null;
+      setExplicitNightContext((current) => {
+        const rest = { ...current };
+        delete rest.areaFocus;
+        return nightAreaHasFocus(nightArea)
+          ? { ...rest, nightArea, areaFocus: focusForArea(nightArea, next.answers.area) }
+          : { ...rest, nightArea };
+      });
+    }
     const reconciled = next.answers.stopCount === undefined
       ? { draft: next, context: nightContext }
       : applyPlanStopCount(next, nightContext, next.answers.stopCount, next.answers.stopCountSource);
-    const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
+    const answersChanged = areaChanged || JSON.stringify(planIntakeHandoff(planIntake))
       !== JSON.stringify(planIntakeHandoff(reconciled.draft));
     if (answersChanged && nightContext) {
       setRouteStale(true);
@@ -3308,8 +3332,11 @@ function PlanComposerForm({
     );
   }
 
-  function updateNightContext(patch: Partial<NightContext>) {
+  function updateNightContext(edit: Partial<NightContext>) {
     if (!editableContext) return;
+    // A picked area is the whole area, so a place named earlier inside it no longer narrows it.
+    const patch = nightAreaHasFocus(edit.nightArea) && edit.areaFocus === undefined ? { ...edit, areaFocus: null } : edit;
+    if (patch.nightArea !== undefined || patch.areaFocus !== undefined) geographyChoice.current += 1;
     pendingDraftSave.current = true;
     const next = { ...editableContext, ...patch };
     if ((routeSorted || routeStale) && nightContextChanged(editableContext, next)) {
@@ -3383,19 +3410,24 @@ function PlanComposerForm({
     const queryArea = nightAreaFromPlanQuery(query);
     const intakeBase = intakeOverride ?? planIntake;
     const { stopCount, stopCountSource } = resolvePlanStopCountIntent(query, intakeBase.answers.stopCount, intakeBase.answers.stopCountSource);
-    const explicitContext = { ...context, stopCount };
-    if (queryArea.kind !== "none") {
-      setExplicitNightContext((current) => ({
-        ...current,
-        nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
-      }));
-    }
+    const queriedArea = queryArea.kind === "none" ? undefined : queryArea.kind === "unsupported-patch" ? null : queryArea.slug;
+    const geography = queriedArea === undefined
+      ? { areaFocus: context.areaFocus ?? null }
+      : { nightArea: queriedArea, areaFocus: nightAreaFocusFromQuery(queriedArea, query) };
+    const explicitContext = { ...context, ...geography, stopCount };
     const intake = syncPlanIntakeAreaFromQuery(
       applyPlanStopCount(intakeBase, null, stopCount, stopCountSource).draft,
       query,
     );
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
+    }
+    if (queriedArea !== undefined) {
+      setExplicitNightContext((current) => {
+        const rest = { ...current };
+        delete rest.areaFocus;
+        return nightAreaHasFocus(queriedArea) ? { ...rest, ...geography } : { ...rest, nightArea: queriedArea };
+      });
     }
     const intakeContextForSort = planIntakeNightContextPatch(intake);
     const intakeUnsupportedPatch = unsupportedPatchForCurrentGenerator(
@@ -3437,6 +3469,7 @@ function PlanComposerForm({
     if (signal.aborted) return;
     const request = prepareConciergeRequest(queryOverride, intakeOverride, context);
     if (!request) return;
+    const sentGeographyChoice = geographyChoice.current;
     const { query, intake, submittedContext } = request;
     // A crawl the Pal (or Ask the map) drafted for THIS ask is kept: spent
     // here, once, by the generation that answers it.
@@ -3531,12 +3564,12 @@ function PlanComposerForm({
         suggested,
         refreshed: routeSorted,
       });
-      if (reconciled) {
-        setNightContext(reconciled);
-      }
+      // A newer area choice made while this request waited wins, and the route it answered goes stale.
+      const superseded = geographyChoice.current !== sentGeographyChoice;
+      if (reconciled) setNightContext(reconciled);
       setRouteNight(routeNightOf(reconciled ?? submittedContext));
       setRouteRevision(routeRevisionFromState(body));
-      setRouteStale(false);
+      setRouteStale(superseded);
       setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       setPlanAnchor(generatedAnchor);
@@ -4057,7 +4090,8 @@ function PlanComposerForm({
     </>
   );
 
-  const areaName = routeNight?.nightArea ? getNightArea(routeNight.nightArea)?.name ?? null : null;
+  const routeArea = routeNight?.nightArea ? getNightArea(routeNight.nightArea) : null;
+  const areaName = routeArea ? planAreaName(routeArea.name, routeNight?.areaFocus) : null;
   const viewStops = completeStops;
   const summaryLine = routeSummaryLine(viewStops, measured, startTime);
   const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
@@ -4205,12 +4239,12 @@ function PlanComposerForm({
       }) ? (
         <PlanIntake
           draft={planIntake}
-          onChange={(draft) => {
+          onChange={(draft, editedStep) => {
             if (!draft.completed && !wizardChosen) {
               pendingDraftSave.current = true;
               setWizardChosen(true);
             }
-            updatePlanIntake(draft);
+            updatePlanIntake(draft, editedStep);
           }}
         />
       ) : null}

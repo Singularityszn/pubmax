@@ -1,6 +1,7 @@
 // Night OS Ask tool registry (ADR 0014). Server-only handlers with typed I/O
 // and provenance. No tool invents a price.
 
+import { londonDayKey } from "@/lib/pintContributions";
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { isIndependentAskTool, isVenueDiscoveryAsk, isVenueHoursQuestion, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
 import { isGenericMapAsk } from "@/lib/ask/routingPolicy";
@@ -365,7 +366,7 @@ async function toolVenueHeritage(
 
 function communityPriceNote(price: CommunityPrice): string {
   const when = Number.isFinite(price.submittedAt)
-    ? new Date(price.submittedAt).toISOString().slice(0, 10)
+    ? londonDayKey(new Date(price.submittedAt))
     : "undated";
   return `${price.drinkCategory} · people-logged ${when}`;
 }

@@ -1,8 +1,14 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { comparablePint } from "@/lib/comparablePint.mjs";
+import { haversineKm } from "@/lib/haversine";
+import { MAX_ANSWERS, WALKABLE_RADIUS_KM, WIDENED_RADIUS_KM } from "@/lib/nearMeAnswer";
+import { CENTRAL_PATCH } from "@/lib/nightPatches";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { parseWhatsOnRows } from "../lib/whatsOn";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { slimListedPrice, slimLondonRows } from "./helpers/slimListedPrice";
 
 for (const width of [390, 1440]) {
   for (const theme of ["light", "dark"]) {
@@ -19,13 +25,13 @@ for (const width of [390, 1440]) {
           sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
         }, theme);
         await installDeterministicMapBasemap(page);
+        const glanceNow = listings === "recorded" ? Date.parse("2026-10-02T15:00:00.000Z") : Date.now();
+        await page.clock.setFixedTime(new Date(glanceNow));
         if (listings === "recorded") {
-          const now = new Date("2026-10-02T15:00:00.000Z");
-          const rows = parseWhatsOnRows(JSON.parse(readFileSync("public/data/whats_on/deals_london.json", "utf8")), now.getTime());
+          const rows = parseWhatsOnRows(JSON.parse(readFileSync("public/data/whats_on/deals_london.json", "utf8")), glanceNow);
           const deal = rows.find((row) => row.id === "deal-jdw-afternoon-deals-coombe-lodge-croydon");
           expect(deal).toBeDefined();
-          await page.clock.setFixedTime(now);
-          await page.route("**/api/whats-on?**", (route) => route.fulfill({ json: { rows: [deal], servedAt: now.toISOString() } }));
+          await page.route("**/api/whats-on?**", (route) => route.fulfill({ json: { rows: [deal], servedAt: new Date(glanceNow).toISOString() } }));
         }
         const listingResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/whats-on");
         await page.goto("/pal/chat");
@@ -60,11 +66,28 @@ for (const width of [390, 1440]) {
           await expect(tonight.locator(".palGlanceReceipt")).toContainText("Sources: J D Wetherspoon - Food & drink. Oldest listing observed 2 October 2026.");
         }
         await expect(tonight.getByRole("link", { name: "See listings and sources.", exact: true })).toHaveAttribute("href", "/tonight");
-        await expect(price).toContainText("£4.20 at Hercules Pillars");
+        const venue = price.getByRole("link", { name: "Price source and venue details.", exact: true });
+        await expect(venue).toHaveAttribute("href", /^\/map\?sel=venue-[a-z0-9]+$/);
+        const venueHref = (await venue.getAttribute("href"))!;
+        const venueUrl = new URL(venueHref, page.url());
+        const venueId = venueUrl.searchParams.get("sel")!;
+        const expected = slimListedPrice(venueId);
+        const qualifying = slimLondonRows()
+          .filter((row) => isPublicRankablePub(row) && comparablePint(row, glanceNow) !== null)
+          .map((row) => ({ row, km: haversineKm([CENTRAL_PATCH.lng, CENTRAL_PATCH.lat], [row.lng, row.lat]) }));
+        const line = price.locator(".palGlanceLine");
+        await expect(line).toContainText(/Lowest listed price (within 1 km|among nearby pubs)/);
+        const scope = await line.innerText();
+        const candidates = scope.includes("within 1 km")
+          ? qualifying.filter(({ km }) => km <= WALKABLE_RADIUS_KM)
+          : qualifying.filter(({ km }) => km <= WIDENED_RADIUS_KM)
+            .sort((left, right) => left.km - right.km)
+            .slice(0, MAX_ANSWERS);
+        expect(candidates.map(({ row }) => row.id)).toContain(venueId);
+        expect(candidates.filter(({ row }) => row.cheapestPrice! < expected.priceGbp).map(({ row }) => row.id)).toEqual([]);
+        await expect(price).toContainText(`${expected.priceLabel} at ${expected.name}`);
         await expect(price).not.toContainText("The Three Tuns - LSE Student Union");
-        await expect(price.locator(".palGlanceLine")).toContainText(/Lowest listed price|Listed price around/);
-        await expect(price.locator(".palGlanceReceipt")).toContainText("Pint Prices");
-        await expect(price.locator(".palGlanceReceipt")).toContainText("Source read 2 October 2026");
+        await expect(price.locator(".palGlanceReceipt")).toContainText(`${expected.source}. Source read ${expected.readDay}.`);
         await expect(price).toContainText("Serving size, offer and entry terms are not recorded.");
         await price.scrollIntoViewIfNeeded();
         const layout = await price.locator(".palGlanceReceipt").evaluate((element) => {
@@ -75,13 +98,11 @@ for (const width of [390, 1440]) {
         expect(layout.right).toBeLessThanOrEqual(width + 1);
         expect(layout.content).toBeLessThanOrEqual(layout.available + 1);
         expect(layout.document).toBeLessThanOrEqual(layout.viewport);
-        const venue = price.getByRole("link", { name: "Price source and venue details.", exact: true });
-        await expect(venue).toHaveAttribute("href", "/map?sel=venue-a3iffy");
         if (width === 1440 && theme === "light") {
           await venue.scrollIntoViewIfNeeded();
           await expect(async () => {
             await venue.click();
-            await expect(page).toHaveURL(/\/map\?sel=venue-a3iffy$/, { timeout: 1_000 });
+            await expect(page).toHaveURL(venueUrl.href, { timeout: 1_000 });
           }).toPass({ timeout: 20_000 });
           await expect(page.getByRole("tab", { name: "Menu", exact: true })).toBeVisible({ timeout: 45_000 });
           await page.goBack();

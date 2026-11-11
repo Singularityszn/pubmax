@@ -174,6 +174,14 @@ test.describe("mobile map tile paint", () => {
         }),
       );
     }, ACCOUNTS.A.id);
+    // The map pill waits for the server's age rule; answer it for the stored Pal.
+    await page.route("**/api/pub-pal", (route) => route.request().method() === "GET"
+      ? route.fulfill({ json: { under18: false, adultOnFile: true, pal: {
+          id: "pal-e2e", ownerId: ACCOUNTS.A.id, name: "Ada", adultAttestedAt: "2026-01-01T00:00:00.000Z",
+          appearance: {}, personality: {}, voice: {}, muted: false, hidden: false, proposalPreferences: {},
+          masteryPoints: 0, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        } } })
+      : route.fallback());
     await seedSignedIn(page, "A");
 
     await page.goto("/map");

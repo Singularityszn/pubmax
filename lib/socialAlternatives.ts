@@ -1,6 +1,8 @@
 import type { Route } from "next";
 
 import boundaries from "@/data/london_boroughs_simplified.json";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { measureFromServingSize } from "@/lib/drinkMeasure";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import { firstHttp } from "@/lib/httpUrl";
 import type { BoroughBoundaryCollection } from "@/lib/londonBoroughClassifier";
@@ -38,7 +40,7 @@ type SocialAlternativeVenue = Pick<Venue,
   "id" | "name" | "address" | "latitude" | "longitude" | "kind" | "sourceName" | "prices"
 >;
 
-/** Project public London menu observations. Recency is not a cheapest-price claim. */
+/** Project public London pint menu observations. Recency is not a cheapest-price claim. */
 export function buildSocialAlternatives(
   venues: readonly SocialAlternativeVenue[],
   updates: readonly DrinkPriceUpdate[] | null,
@@ -79,7 +81,8 @@ export function buildSocialAlternatives(
     if (!venue || seen.has(venue.id) || !isPublicRankablePub(venue)
       || isVerifiedClosedCuratedVenue(venue.id) || isVerifiedClosedPub(venue.id)
       || !boroughNameForPoint(venue.latitude, venue.longitude, boundaries as BoroughBoundaryCollection)
-      || !serving || !publisher || !sourceUrl || !update.drinkName.trim()
+      || !serving || measureFromServingSize(serving) !== "pint" || !isComparablePintServing({ cheapestPint: update.drinkName })
+      || !publisher || !sourceUrl || !update.drinkName.trim()
       || !Number.isFinite(update.priceGbp) || update.priceGbp <= 0 || !isValidObservedAt(update.observedAt, now)) continue;
     const day = /^(\d{4}-\d{2}-\d{2})(?:T|$)/.exec(update.observedAt)?.[1];
     if (!day || new Date(`${day}T12:00:00Z`).toISOString().slice(0, 10) !== day) continue;

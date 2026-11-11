@@ -4,7 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: { id: "owner" }, loading: false, getCurrentUserId: () => "owner" }) }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
+// The chip's cheer is the same on every surface; home keeps it the Pal link.
+vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import PalCheer, { palCheerLine } from "@/components/pal/PalCheer";

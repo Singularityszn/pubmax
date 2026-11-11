@@ -4,8 +4,8 @@ import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
 
 // One voice call for the whole app. The call lives in PalVoiceHost, in the root
 // shell, so a move from /pal to /map keeps the same socket. This leaf holds no
-// SDK: the /pal panel registers where the call should draw, the call says while
-// it is in use, and the host reads both to decide whether the call is mounted.
+// SDK: the /pal panel registers where the call should draw, and the map chip
+// requests startup. The host retains pending starts and engaged calls.
 
 export type PalVoicePanelProps = {
   onStateChange?: (state: PalAnimationState) => void;
@@ -19,15 +19,29 @@ export type PalVoicePanelProps = {
 export type PalVoiceHostState = {
   /** The /pal panel's slot, while that page is mounted. */
   panel: { element: HTMLElement; props: PalVoicePanelProps } | null;
-  /** The last panel's props, so the call keeps its Pal's name and look off /pal. */
+  /** The latest panel or map-chip props preserve the Pal's name and look off /pal. */
   props: PalVoicePanelProps | null;
   /** Retain startup, live calls, background interruptions, and visible errors. */
   engaged: boolean;
   /** The call component finished mounting, so the panel needs no loading state. */
   ready: boolean;
+  /**
+   * A start asked for off /pal, by the map chip. It keeps the call mounted
+   * until the call says it is engaged, and `startRequest` counts each ask so a
+   * call takes each one once.
+   */
+  startPending: boolean;
+  startRequest: number;
+  /** The account that asked. Only that account's call may take the ask. */
+  startOwner: string | null;
+  /** The call's code did not download. Nothing mounts until a new ask. */
+  loadFailed: boolean;
 };
 
-let state: PalVoiceHostState = { panel: null, props: null, engaged: false, ready: false };
+let state: PalVoiceHostState = {
+  panel: null, props: null, engaged: false, ready: false, startPending: false, startRequest: 0, startOwner: null,
+  loadFailed: false,
+};
 const listeners = new Set<() => void>();
 
 function update(next: Partial<PalVoiceHostState>): void {
@@ -54,11 +68,39 @@ export function registerPalVoicePanel(element: HTMLElement, props: PalVoicePanel
 }
 
 export function revokePalVoiceCall(): void {
-  update({ panel: null, props: null, engaged: false, ready: false });
+  update({ panel: null, props: null, engaged: false, ready: false, startPending: false, startOwner: null });
 }
 
+/** Start a call where the person is, for this account, with its Pal's name and look. */
+export function requestPalVoiceStart(ownerId: string, props: PalVoicePanelProps): void {
+  update({ props, startPending: true, startRequest: state.startRequest + 1, startOwner: ownerId, loadFailed: false });
+}
+
+/** The call's code did not download: drop the ask so the page stays as it was. */
+export function palVoiceLoadFailed(): void {
+  update({ loadFailed: true, startPending: false, startOwner: null });
+}
+
+/** The /pal panel asks for the call's code again. */
+export function retryPalVoiceLoad(): void {
+  if (state.loadFailed) update({ loadFailed: false });
+}
+
+/**
+ * Drop an ask no call has taken yet: the person left the call's pages or the
+ * account changed, so returning later must not open the microphone by itself.
+ */
+export function cancelPalVoiceStart(pathname: string, ownerId: string | null, hidden = false): void {
+  if (!state.startPending) return;
+  if (!hidden && palVoiceCallRoute(pathname) && state.startOwner === ownerId) return;
+  update({ startPending: false, startOwner: null });
+}
+
+/** An engaged call holds itself mounted, so the start request has done its job. */
 export function setPalVoiceEngaged(engaged: boolean): void {
-  if (state.engaged !== engaged) update({ engaged });
+  if (state.engaged !== engaged || (engaged && state.startPending)) {
+    update({ engaged, ...(engaged ? { startPending: false } : {}) });
+  }
 }
 
 export function setPalVoiceReady(ready: boolean): void {
@@ -72,5 +114,6 @@ function palVoiceCallRoute(pathname: string): boolean {
 
 /** A cold page with no panel and no call mounts nothing and loads no SDK. */
 export function palVoiceCallMounted(host: PalVoiceHostState, pathname: string): boolean {
-  return host.panel !== null || (host.engaged && palVoiceCallRoute(pathname));
+  if (host.loadFailed) return false;
+  return host.panel !== null || ((host.engaged || host.startPending) && palVoiceCallRoute(pathname));
 }

@@ -10,6 +10,18 @@ const EVENING = new Date("2026-08-07T19:30:00.000Z");
 
 describe("inferNightContext", () => {
   it.each([
+    ["Cheap pints in Soho for 3", "piccadilly-soho", "soho"],
+    ["Cheap pints in Piccadilly for 3", "piccadilly-soho", "piccadilly"],
+    ["Cheap pints in Piccadilly and Soho for 3", "piccadilly-soho", undefined],
+    ["Cheap pints in Camden for 3", "camden", undefined],
+    ["Cheap pints for 3", null, undefined],
+  ])("infers the area and its optional focus from %s", (query, nightArea, areaFocus) => {
+    const { context } = inferNightContext(query, EVENING);
+    expect(context.nightArea).toBe(nightArea);
+    expect(context.areaFocus).toBe(areaFocus);
+  });
+
+  it.each([
     ["cheap wine in Soho for 2", "wine"],
     ["cocktails in Soho for 2", "cocktail"],
     ["whisky in Soho for 2", "whisky"],
