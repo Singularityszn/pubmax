@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { palSummonOutsideLondon, shouldShowPubPalSummon } from "@/components/pubpal/PubPalSummon";
 import { cancelPalVoiceStart, palVoiceCallMounted, readPalVoiceHost, requestPalVoiceStart, revokePalVoiceCall, setPalVoiceEngaged } from "@/lib/palVoiceHost";
@@ -20,6 +20,36 @@ describe("shouldShowPubPalSummon", () => {
 });
 
 describe("the map chip", () => {
+  it.each([
+    ["/profile", "owner-a", false],
+    ["/map", "owner-b", false],
+    ["/map", "owner-a", true],
+  ] as const)("stops pending feedback on cancellation at %s for %s (hidden: %s)", (path, owner, hidden) => {
+    revokePalVoiceCall();
+    const stop = vi.fn();
+    requestPalVoiceStart("owner-a", {}, stop);
+    cancelPalVoiceStart("/map", "owner-a");
+    expect(stop).not.toHaveBeenCalled();
+    cancelPalVoiceStart(path, owner, hidden);
+    expect(stop).toHaveBeenCalledOnce();
+    revokePalVoiceCall();
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("stops replaced and revoked feedback without retaining either handle", () => {
+    revokePalVoiceCall();
+    const first = vi.fn();
+    const second = vi.fn();
+    requestPalVoiceStart("owner-a", {}, first);
+    requestPalVoiceStart("owner-a", {}, second);
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).not.toHaveBeenCalled();
+    revokePalVoiceCall();
+    revokePalVoiceCall();
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledOnce();
+  });
+
   it("says voice talks about London on another city's map only", () => {
     expect(palSummonOutsideLondon("/map/manchester")).toBe(true);
     expect(palSummonOutsideLondon("/map")).toBe(false);
