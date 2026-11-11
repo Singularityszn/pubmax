@@ -1120,13 +1120,15 @@ export const supabaseMessagesStore: MessagesStore = {
       }
 
       if (inserted.error) throw new Error(inserted.error.message);
+      const createdAt = (inserted.data as unknown as { created_at: string }).created_at;
       // Bump the denormalised inbox-sort timestamp. Best-effort — the message is
       // already stored; a failed bump only affects ordering. Migration 0237's
       // trigger stamps it inside the insert; this stays until 0237 is applied.
       await admin()
         .from(CONVERSATIONS)
-        .update({ last_message_at: new Date().toISOString() })
-        .eq("id", conversationId);
+        .update({ last_message_at: createdAt })
+        .eq("id", conversationId)
+        .lt("last_message_at", createdAt);
       return {
         message: rowToMessageDTO(inserted.data as unknown as Record<string, unknown>, {
           viewer: senderHandle,
