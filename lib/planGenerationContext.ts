@@ -23,10 +23,7 @@ function intakePatch(intake: ParsedPlanGenerationIntake): Partial<NightContext> 
     ? PLAN_TIME_WINDOWS.find((option) => option.id === intake.handoff.timeWindow?.id)
     : null;
   return {
-    ...(!skipped.has("area") && intake.exactNightArea ? {
-      nightArea: intake.exactNightArea,
-      areaFocus: focusForArea(intake.exactNightArea, intake.handoff.area?.id),
-    } : {}),
+    ...(!skipped.has("area") && intake.exactNightArea ? { nightArea: intake.exactNightArea } : {}),
     ...(!skipped.has("time-window") && time ? { daypart: time.daypart } : {}),
     ...(!skipped.has("group-size") && intake.handoff.groupSize !== null
       ? { groupSize: intake.handoff.groupSize }
@@ -43,7 +40,7 @@ function intakePatch(intake: ParsedPlanGenerationIntake): Partial<NightContext> 
 }
 
 function intakeReason(field: keyof NightContext, intake: ParsedPlanGenerationIntake): ContextReason {
-  const evidence = field === "nightArea" || field === "areaFocus"
+  const evidence = field === "nightArea"
     ? intake.handoff.area?.id ?? "selected patch"
     : field === "daypart"
       ? intake.handoff.timeWindow?.id ?? "selected time"
@@ -87,9 +84,6 @@ export function reconcilePlanContext(
   const inferred = inferNightContext(query, now);
   const contextPatch = explicit ?? {};
   const authoritative = intake ? intakePatch(intake) : {};
-  if (contextPatch.nightArea === authoritative.nightArea && contextPatch.areaFocus === null) {
-    delete authoritative.areaFocus;
-  }
   const context: NightContext = { ...inferred.context, ...contextPatch, ...authoritative };
   const fieldSources: ReconciledPlanContext["fieldSources"] = {};
   for (const field of Object.keys(context) as (keyof NightContext)[]) {

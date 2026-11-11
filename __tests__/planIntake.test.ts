@@ -497,7 +497,6 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     });
     expect(planIntakeNightContextPatch(draft)).toEqual({
       nightArea: "bermondsey-london-bridge",
-      areaFocus: null,
       daypart: "after_work",
       groupSize: 5,
       budget: "value",

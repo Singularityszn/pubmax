@@ -64,7 +64,7 @@ import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHost
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
-import { planAreaName } from "@/lib/nightAreaFocus";
+import { focusForArea, nightAreaFocusFromQuery, planAreaName } from "@/lib/nightAreaFocus";
 import { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 export { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
@@ -2650,7 +2650,15 @@ function PlanComposerForm({
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
   const recoveredExplicitNightContext = recoveredIntent.explicitNightContext;
-  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext> | undefined>(urlAsk ? {} : recoveredExplicitNightContext);
+  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext> | undefined>(() => {
+    if (urlAsk) return {};
+    const context = routeDraftFields.nightContext ?? routeDraftFields.routeNight;
+    if (!context) return recoveredExplicitNightContext;
+    const geography = { nightArea: context.nightArea, areaFocus: context.areaFocus ?? null };
+    return routeDraftFields.routeStale
+      ? { ...geography, ...recoveredExplicitNightContext }
+      : { ...recoveredExplicitNightContext, ...geography };
+  });
   const intakeContext = planIntakeNightContextPatch(planIntake);
   const editableBase = nightContext ?? ((hasDurableIntakeDraft && Object.keys(intakeContext).some((key) => key !== "stopCount")) || explicitNightContext !== undefined ? {
     ...inferNightContext(conciergeQuery).context,
@@ -2658,7 +2666,7 @@ function PlanComposerForm({
     stopCount: normalizePlanStopCount(requestedStopCount),
   } : null);
   const editableContext = editableBase ? { ...editableBase, ...explicitNightContext } : null;
-  const requestContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext };
+  const requestContext = { nightArea: askDraftQuery ? undefined : nightContext?.nightArea, ...explicitNightContext, areaFocus: explicitNightContext?.areaFocus ?? null };
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
   const recoveredStopsNeedRefresh = !recoveredRouteDraft && Boolean(recoveredDraft?.stops.length)
@@ -3063,12 +3071,12 @@ function PlanComposerForm({
     const areaChanged = editedStep === "area" || next.answers.area !== planIntake.answers.area;
     if (areaChanged) {
       pendingDraftSave.current = true;
-      setExplicitNightContext((current) => {
-        const updated = { ...current };
-        delete updated.nightArea;
-        delete updated.areaFocus;
-        return updated;
-      });
+      const nightArea = next.answers.area ? nightAreaForPlanIntakePatch(next.answers.area) : null;
+      setExplicitNightContext((current) => ({
+        ...current,
+        nightArea,
+        areaFocus: focusForArea(nightArea, next.answers.area),
+      }));
     }
     const reconciled = next.answers.stopCount === undefined
       ? { draft: next, context: nightContext }
@@ -3322,7 +3330,6 @@ function PlanComposerForm({
 
   function updateNightContext(edit: Partial<NightContext>) {
     if (!editableContext) return;
-    // A picked area is the whole area, so a place named earlier no longer narrows it.
     const patch = edit.nightArea !== undefined && edit.areaFocus === undefined ? { ...edit, areaFocus: null } : edit;
     pendingDraftSave.current = true;
     const next = { ...editableContext, ...patch };
@@ -3397,13 +3404,13 @@ function PlanComposerForm({
     const queryArea = nightAreaFromPlanQuery(query);
     const intakeBase = intakeOverride ?? planIntake;
     const { stopCount, stopCountSource } = resolvePlanStopCountIntent(query, intakeBase.answers.stopCount, intakeBase.answers.stopCountSource);
-    const explicitContext = { ...context, stopCount };
-    if (queryArea.kind !== "none") {
-      setExplicitNightContext((current) => ({
-        ...current,
-        nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
-      }));
-    }
+    const geography = queryArea.kind === "none"
+      ? { areaFocus: context.areaFocus ?? null }
+      : {
+          nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
+          areaFocus: nightAreaFocusFromQuery(queryArea.kind === "unsupported-patch" ? null : queryArea.slug, query),
+        };
+    const explicitContext = { ...context, ...geography, stopCount };
     const intake = syncPlanIntakeAreaFromQuery(
       applyPlanStopCount(intakeBase, null, stopCount, stopCountSource).draft,
       query,
@@ -3411,6 +3418,7 @@ function PlanComposerForm({
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
     }
+    setExplicitNightContext((current) => ({ ...current, ...geography }));
     const intakeContextForSort = planIntakeNightContextPatch(intake);
     const intakeUnsupportedPatch = unsupportedPatchForCurrentGenerator(
       intake,
@@ -3547,6 +3555,11 @@ function PlanComposerForm({
       });
       if (reconciled) {
         setNightContext(reconciled);
+        setExplicitNightContext((current) => ({
+          ...current,
+          nightArea: reconciled.nightArea,
+          areaFocus: reconciled.areaFocus ?? null,
+        }));
       }
       setRouteNight(routeNightOf(reconciled ?? submittedContext));
       setRouteRevision(routeRevisionFromState(body));

@@ -53,7 +53,7 @@ import {
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
 import { PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
-import { PLAN_INTAKE_STORAGE_KEY, createPlanIntakeDraft, readPlanIntakeDraft, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
+import { PLAN_INTAKE_STORAGE_KEY, createPlanIntakeDraft, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
@@ -159,6 +159,38 @@ async function accountADrafts(): Promise<void> {
 }
 
 describe("mounted Plan wizard area ownership", () => {
+  it.each([
+    { query: "Cheap pints in Piccadilly for 3", focus: "piccadilly" },
+    { query: "Cheap pints in Piccadilly and Soho for 3", focus: null },
+  ])("keeps $query geography after fresh-tab recovery and refresh", async ({ query, focus }) => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => Response.json(
+      String(input).includes("/api/plans/generate")
+        ? { ...GENERATED, inferredContext: inferNightContext(query).context }
+        : [],
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    await mountComposer();
+    await editInput(QUERY, query);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click();
+    });
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop")).toHaveLength(3));
+    await vi.waitFor(() => expect(readPlanIntakeDraftWithMetadata()?.explicitNightContext).toMatchObject({
+      nightArea: "piccadilly-soho", areaFocus: focus,
+    }));
+    await act(async () => { root!.unmount(); });
+    root = null;
+    host!.remove();
+    sessionStorage.clear();
+    await mountComposer();
+    expect(queryValue() ?? "").toBe("");
+    await act(async () => { document.querySelector<HTMLButtonElement>(".planComposer__conciergeInput button")!.click(); });
+    await vi.waitFor(() => expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(2));
+    for (const [, init] of fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))) {
+      expect(JSON.parse(String(init?.body)).context).toMatchObject({ nightArea: "piccadilly-soho", areaFocus: focus });
+    }
+  });
+
   it.each([
     { choice: "Soho", nightArea: "piccadilly-soho", areaFocus: "soho" },
     { choice: "Camden", nightArea: "camden", areaFocus: null },

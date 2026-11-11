@@ -108,7 +108,6 @@ function matchingIntakeRoute(
   const count = intake.draft.answers.stopCount;
   if (count !== undefined && count !== route.value.nightContext?.stopCount) return false;
   if (!(Object.keys(patch) as (keyof typeof patch)[])
-    .filter((key) => key !== "areaFocus")
     .every((key) => JSON.stringify(patch[key]) === JSON.stringify(route.value.nightContext?.[key]))) return false;
   if (match === "current") {
     if (route.value.routeStale) return route.savedAt === intake.savedAt;

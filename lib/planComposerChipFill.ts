@@ -95,12 +95,7 @@ export function mergeSubmittedNightContext(
 ): Partial<NightContext> {
   return {
     ...explicit,
-    ...(intake.nightArea ? {
-      nightArea: intake.nightArea,
-      areaFocus: explicit.nightArea === intake.nightArea && explicit.areaFocus === null
-        ? null
-        : intake.areaFocus ?? null,
-    } : {}),
+    ...(intake.nightArea ? { nightArea: intake.nightArea } : {}),
     ...(queryArea.kind === "supported" || queryArea.kind === "unmapped"
       ? { nightArea: queryArea.slug }
       : queryArea.kind === "unsupported-patch" ? { nightArea: null } : {}),

@@ -72,8 +72,7 @@ describe("POST /api/plans/generate", () => {
     { query: "Cheap pints in Soho for 3" },
     { query: "Cheap pints in Soho for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
     { query: "Cheap pints in Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "piccadilly" } },
-    { intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
-    { context: { nightArea: "camden", areaFocus: null }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { context: { nightArea: "piccadilly-soho", areaFocus: "soho" }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
   ])("keeps a Soho request's stops, alternatives and extra stops in Soho: %j", async (input) => {
     const { soho, hercules, threeCrowns } = await westEndVenues();
     loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
@@ -100,6 +99,8 @@ describe("POST /api/plans/generate", () => {
     { query: "Cheap pints in Piccadilly and Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "soho" } },
     { context: { nightArea: "piccadilly-soho", groupSize: 3 } },
     { context: { nightArea: "piccadilly-soho", areaFocus: null }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { context: { nightArea: "piccadilly-soho", areaFocus: "piccadilly" }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
   ])("keeps Three Crowns for Piccadilly and whole-area requests: %j", async (input) => {
     const { soho, threeCrowns } = await westEndVenues();
     loadConciergeVenuesMock.mockResolvedValueOnce([...soho.slice(0, 2), threeCrowns]);
@@ -137,7 +138,7 @@ describe("POST /api/plans/generate", () => {
       ? syncPlanIntakeAreaFromQuery(createPlanIntakeDraft({ kind: "patch", id: "camden" }), "Piccadilly & Soho")
       : createPlanIntakeDraft({ kind: "patch", id: "soho" }));
     const submitted = mergeSubmittedNightContext(
-      wholeArea ? { nightArea: "piccadilly-soho", areaFocus: null } : {},
+      { nightArea: "piccadilly-soho", areaFocus: wholeArea ? null : "soho" },
       planIntakeNightContextPatch(draft),
       nightAreaFromPlanQuery(query),
     );
