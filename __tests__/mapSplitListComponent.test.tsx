@@ -226,11 +226,30 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Lamb"]);
   });
 
+  it("holds its rows while the pointer is over the list, so a click opens the row it pressed", () => {
+    const onSelectVenue = vi.fn();
+    render({ onSelectVenue });
+    const list = host.querySelector(".mapSplitList")!;
+    pointer(list, "pointerover");
+
+    // Pubs keep arriving as the map streams in more of the view.
+    const boot = venue("venue-boot", "The Boot", 3.9);
+    render({ onSelectVenue, visibleVenues: [CROWN, ANCHOR, boot] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    act(() => rows()[1]!.click());
+    expect(onSelectVenue).toHaveBeenLastCalledWith("venue-crown");
+
+    pointer(list, "pointerout");
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Boot", "The Anchor", "The Crown"]);
+  });
+
   it("shows only projected venues and removes a departed venue's pin halo", () => {
     const fake = fakeMap();
     render({ map: fake.map });
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
-    pointer(rows()[0]!, "pointerover");
+    act(() => rows()[0]!.focus());
     expect(fake.halo()?.hidden).toBe(false);
 
     render({ map: fake.map, visibleVenues: [LAMB] });
