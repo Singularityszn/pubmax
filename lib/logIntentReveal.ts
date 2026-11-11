@@ -85,6 +85,7 @@ export function takeLogIntentReveal(step: HTMLElement | null): boolean {
   // jsdom and the older browsers behind the shell both answer an element with
   // no scrollIntoView, and a reveal that throws would take the composer with it.
   if (!request || !step || typeof step.scrollIntoView !== "function") return false;
+  if (step.getClientRects().length === 0) return false;
   pendingReveal = null;
   step.scrollIntoView({
     behavior: logIntentRevealBehavior(request.reducedMotion),

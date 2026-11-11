@@ -49,6 +49,9 @@ beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
     .IS_REACT_ACT_ENVIRONMENT = true;
   scrolled = [];
+  vi.spyOn(Element.prototype, "getClientRects").mockReturnValue(
+    Object.assign([new DOMRect(0, 0, 300, 200)], { item: () => null }),
+  );
   Element.prototype.scrollIntoView = vi.fn(function (this: Element, options?: unknown) {
     scrolled.push({ element: this, options });
   });
@@ -61,6 +64,7 @@ afterEach(() => {
   unmountStep();
   host.remove();
   cancelLogIntentReveal();
+  vi.restoreAllMocks();
   delete (Element.prototype as Partial<Element>).scrollIntoView;
 });
 
