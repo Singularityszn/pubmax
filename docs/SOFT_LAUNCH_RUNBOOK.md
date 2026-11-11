@@ -418,9 +418,10 @@ Without that approval, do not apply it or proceed with a release that requires i
 
 Migration [0236](../supabase/migrations/20261111060000_0236_social_moderation_remainder.sql)
 is expand-only, so it follows the apply-first steps below: apply 0236, then
-release the code that sends the interaction lease token. The code served before
-it keeps working. Apply the later contract migration only after that code is live.
-That migration drops the five-argument completion, adds the lease-pair CHECK,
+release the code that claims interaction jobs with a lease token. The code served
+before it keeps its tokenless claim and completion, and neither door can finish a
+job the other door holds. Apply the later contract migration only after that code
+is live. That migration drops the tokenless claim and completion, adds the lease-pair CHECK,
 and narrows the comment and quote CHECKs. See the 0236 header for the deferred
 permission change.
 

@@ -1,12 +1,13 @@
 -- 0236: the rest of the Social moderation guards. Expand only: the code served before it keeps working.
 -- 1. social_posts.feature_status and feature_staff_response come from social_feature_request_updates.
 --    A trigger derives them on inserts and writes to kind or either feature field, preserving history across kind changes.
--- 2. An interaction moderation job gets a lease token. The claim returns it. A new six-argument completion takes
---    p_lease_token and finishes the job only for the worker with the current token.
---    The five-argument completion stays for the code served before this change. It clears the token.
+-- 2. An interaction moderation job gets a lease token. The new claim_social_interaction_moderation_leases returns it.
+--    A new six-argument completion takes p_lease_token and finishes the job only for the worker with that token.
+--    The served code's claim and five-argument completion stay. That claim leases with no token, and that
+--    completion settles only a lease with no token, so neither door can settle a lease the other door holds.
 -- 3. No writer leaves a comment or quote in 'needs_review'. No person reviews one, so a flagged one is hidden at once.
--- Order: apply 0236, then deploy the code that sends p_lease_token.
--- A later contract migration, after that code is live, drops the five-argument completion, adds a CHECK that a
+-- Order: apply 0236, then deploy the code that calls the new claim.
+-- A later contract migration, after that code is live, drops the tokenless claim and completion, adds a CHECK that a
 -- leased job has a token, removes 'needs_review' from the comment and quote CHECKs and revokes the three-argument
 -- completion from service_role.
 begin;
@@ -46,10 +47,9 @@ where post.kind = 'feature_request'
   and exists (select 1 from public.social_feature_request_updates update where update.post_id = post.id);
 
 alter table public.social_interaction_moderation_jobs add column lease_token uuid;
-update public.social_interaction_moderation_jobs set lease_token = gen_random_uuid() where state = 'leased';
 
-drop function public.claim_social_interaction_moderation_jobs(integer);
-create function public.claim_social_interaction_moderation_jobs(p_limit integer default 20)
+-- One claim body for both doors. p_with_token false is the served code's tokenless lease.
+create function public.lease_social_interaction_moderation_jobs(p_limit integer, p_with_token boolean)
 returns table(content_kind text, content_id uuid, moderation_claim text, attempts integer, lease_token uuid)
 language plpgsql
 security definer
@@ -72,12 +72,34 @@ begin
     for update skip locked limit p_limit
   )
   update public.social_interaction_moderation_jobs job
-  set state = 'leased', lease_until = now() + interval '2 minutes', lease_token = gen_random_uuid(),
+  set state = 'leased', lease_until = now() + interval '2 minutes',
+      lease_token = case when p_with_token then gen_random_uuid() end,
       attempts = job.attempts + 1, updated_at = now()
   from candidates
   where job.content_kind = candidates.content_kind and job.content_id = candidates.content_id
   returning job.content_kind, job.content_id, job.moderation_claim, job.attempts, job.lease_token;
 end;
+$$;
+revoke all on function public.lease_social_interaction_moderation_jobs(integer, boolean) from public, anon, authenticated;
+
+-- The served code's claim keeps its shape. Its lease has no token, so only the five-argument completion settles it.
+create or replace function public.claim_social_interaction_moderation_jobs(p_limit integer default 20)
+returns table(content_kind text, content_id uuid, moderation_claim text, attempts integer)
+language sql
+security definer
+set search_path = public
+as $$
+  select lease.content_kind, lease.content_id, lease.moderation_claim, lease.attempts
+  from public.lease_social_interaction_moderation_jobs(p_limit, false) lease;
+$$;
+
+create function public.claim_social_interaction_moderation_leases(p_limit integer default 20)
+returns table(content_kind text, content_id uuid, moderation_claim text, attempts integer, lease_token uuid)
+language sql
+security definer
+set search_path = public
+as $$
+  select * from public.lease_social_interaction_moderation_jobs(p_limit, true);
 $$;
 
 create or replace function public.complete_social_interaction_moderation_job(
@@ -93,19 +115,22 @@ security definer
 set search_path = public
 as $$
 begin
+  if p_decision is null and p_error_code is null then raise exception 'moderation error required'; end if;
+  perform 1 from public.social_interaction_moderation_jobs
+  where content_kind = p_kind and content_id = p_content_id and state = 'leased' and lease_token is null
+  for update;
+  if not found then return false; end if;
   if p_decision is not null then
     return public.complete_social_interaction_moderation(p_kind, p_content_id, p_decision);
   end if;
-  if p_error_code is null then raise exception 'moderation error required'; end if;
   update public.social_interaction_moderation_jobs
   set state = case when p_retry_at is null then 'error' else 'pending' end,
       next_attempt_at = coalesce(p_retry_at, next_attempt_at),
       lease_until = null,
-      lease_token = null,
       last_error_code = left(p_error_code, 120),
       updated_at = now()
-  where content_kind = p_kind and content_id = p_content_id and state = 'leased';
-  return found;
+  where content_kind = p_kind and content_id = p_content_id;
+  return true;
 end;
 $$;
 
@@ -189,10 +214,10 @@ where moderation_state = 'needs_review';
 update public.social_quotes set status = 'hidden', moderation_state = 'approved', updated_at = now()
 where moderation_state = 'needs_review';
 
-revoke all on function public.claim_social_interaction_moderation_jobs(integer) from public, anon, authenticated;
+revoke all on function public.claim_social_interaction_moderation_leases(integer) from public, anon, authenticated;
 revoke all on function public.complete_social_interaction_moderation_job(text, uuid, uuid, text, text, timestamptz)
   from public, anon, authenticated;
-grant execute on function public.claim_social_interaction_moderation_jobs(integer),
+grant execute on function public.claim_social_interaction_moderation_leases(integer),
   public.complete_social_interaction_moderation_job(text, uuid, uuid, text, text, timestamptz)
 to service_role;
 

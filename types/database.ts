@@ -7700,6 +7700,17 @@ export type Database = {
           content_id: string;
           moderation_claim: string;
           attempts: number;
+        }[];
+      };
+      claim_social_interaction_moderation_leases: {
+        Args: {
+          p_limit?: number | null;
+        };
+        Returns: {
+          content_kind: string;
+          content_id: string;
+          moderation_claim: string;
+          attempts: number;
           lease_token: string;
         }[];
       };
@@ -8335,6 +8346,19 @@ export type Database = {
           p_request_hash: string | null;
         };
         Returns: string;
+      };
+      lease_social_interaction_moderation_jobs: {
+        Args: {
+          p_limit: number | null;
+          p_with_token: boolean | null;
+        };
+        Returns: {
+          content_kind: string;
+          content_id: string;
+          moderation_claim: string;
+          attempts: number;
+          lease_token: string;
+        }[];
       };
       leave_social_crew_atomic: {
         Args: {

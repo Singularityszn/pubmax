@@ -2,7 +2,8 @@
 -- The application from this change works on both shapes, so the rollback can run before or after its deploy.
 -- It loses no data. A comment or quote that 0236 hid stays hidden and approved, which the old code reads as hidden.
 -- A worker that claimed a job under 0236 and finishes with the six-argument completion after the rollback gets an
--- error. The next claim takes the job again when its two-minute lease ends.
+-- error. The next claim takes the job again when its two-minute lease ends. The code from this change then claims
+-- through the 0073 claim again, because it falls back when claim_social_interaction_moderation_leases is missing.
 begin;
 
 drop trigger social_posts_feature_from_history on public.social_posts;
@@ -71,8 +72,7 @@ begin
 end;
 $$;
 
-drop function public.claim_social_interaction_moderation_jobs(integer);
-create function public.claim_social_interaction_moderation_jobs(p_limit integer default 20)
+create or replace function public.claim_social_interaction_moderation_jobs(p_limit integer default 20)
 returns table(content_kind text, content_id uuid, moderation_claim text, attempts integer)
 language plpgsql
 security definer
@@ -103,9 +103,8 @@ begin
 end;
 $$;
 
+drop function public.claim_social_interaction_moderation_leases(integer);
+drop function public.lease_social_interaction_moderation_jobs(integer, boolean);
 alter table public.social_interaction_moderation_jobs drop column lease_token;
-
-revoke all on function public.claim_social_interaction_moderation_jobs(integer) from public, anon, authenticated;
-grant execute on function public.claim_social_interaction_moderation_jobs(integer) to service_role;
 
 commit;

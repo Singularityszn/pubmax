@@ -797,9 +797,26 @@ function row(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/** PostgREST's "no such function" (PGRST202) or PostgreSQL's 42883. */
+function isMissingFunction(error: { code?: string }): boolean {
+  return error.code === "PGRST202" || error.code === "42883";
+}
+
 /**
- * A claim's token selects the lease-bound completion. Migration 0236 also keeps the tokenless signature for older workers.
+ * 0236 adds the claim that returns a lease token. Before it is applied, or after its rollback, the tokenless claim
+ * is the only door. Its lease is settled only by the tokenless completion, so the two doors never mix.
  */
+async function claimInteractionModerationJobs(limit: number): Promise<unknown[]> {
+  const admin = requireSupabaseAdmin();
+  const leased = await admin.rpc("claim_social_interaction_moderation_leases", { p_limit: limit });
+  if (!leased.error) return leased.data ?? [];
+  if (!isMissingFunction(leased.error)) throw leased.error;
+  const legacy = await admin.rpc("claim_social_interaction_moderation_jobs", { p_limit: limit });
+  if (legacy.error) throw legacy.error;
+  return legacy.data ?? [];
+}
+
+/** A claim's token selects the lease-bound completion. A tokenless claim needs the tokenless completion. */
 type InteractionJobCompletion = Database["public"]["Functions"]["complete_social_interaction_moderation_job"]["Args"];
 
 function interactionJobCompletion(
@@ -1139,12 +1156,9 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
 
   async processModerationQueue(adapter, requestedLimit = 20) {
     return durableOrMemory(async () => {
-      const { data, error } = await requireSupabaseAdmin().rpc("claim_social_interaction_moderation_jobs", {
-        p_limit: Math.min(Math.max(requestedLimit, 1), 50),
-      });
-      if (error) throw error;
+      const claimed = await claimInteractionModerationJobs(Math.min(Math.max(requestedLimit, 1), 50));
       const result: ModerationResult = { processed: 0, approved: 0, needsReview: 0, retried: 0, terminalErrors: 0 };
-      const settlements = await Promise.allSettled((data ?? []).map(async (value: unknown) => {
+      const settlements = await Promise.allSettled(claimed.map(async (value: unknown) => {
         const valueRow = row(value);
         result.processed += 1;
         try {
