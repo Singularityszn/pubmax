@@ -1,10 +1,14 @@
--- 0236: the rest of the Social moderation guards.
+-- 0236: the rest of the Social moderation guards. Expand only: the code served before it keeps working.
 -- 1. social_posts.feature_status and feature_staff_response come from social_feature_request_updates.
 --    A trigger derives them on inserts and writes to kind or either feature field, preserving history across kind changes.
--- 2. An interaction moderation job gets a lease token. Only the worker with the current token can finish it.
---    The claim returns the token. The completion takes p_lease_token and the old five-argument completion is dropped.
--- 3. A comment or quote has no 'needs_review' state. No person reviews one, so a flagged one is hidden at once.
--- Apply after the code that sends p_lease_token is deployed. Older code calls the dropped five-argument completion.
+-- 2. An interaction moderation job gets a lease token. The claim returns it. A new six-argument completion takes
+--    p_lease_token and finishes the job only for the worker with the current token.
+--    The five-argument completion stays for the code served before this change. It clears the token.
+-- 3. No writer leaves a comment or quote in 'needs_review'. No person reviews one, so a flagged one is hidden at once.
+-- Order: apply 0236, then deploy the code that sends p_lease_token.
+-- A later contract migration, after that code is live, drops the five-argument completion, adds a CHECK that a
+-- leased job has a token, removes 'needs_review' from the comment and quote CHECKs and revokes the three-argument
+-- completion from service_role.
 begin;
 
 create function public.social_post_feature_from_history()
@@ -43,8 +47,6 @@ where post.kind = 'feature_request'
 
 alter table public.social_interaction_moderation_jobs add column lease_token uuid;
 update public.social_interaction_moderation_jobs set lease_token = gen_random_uuid() where state = 'leased';
-alter table public.social_interaction_moderation_jobs add constraint social_interaction_moderation_jobs_lease_pair_check
-  check ((state = 'leased') = (lease_token is not null));
 
 drop function public.claim_social_interaction_moderation_jobs(integer);
 create function public.claim_social_interaction_moderation_jobs(p_limit integer default 20)
@@ -78,7 +80,35 @@ begin
 end;
 $$;
 
-drop function public.complete_social_interaction_moderation_job(text, uuid, text, text, timestamptz);
+create or replace function public.complete_social_interaction_moderation_job(
+  p_kind text,
+  p_content_id uuid,
+  p_decision text,
+  p_error_code text,
+  p_retry_at timestamptz
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_decision is not null then
+    return public.complete_social_interaction_moderation(p_kind, p_content_id, p_decision);
+  end if;
+  if p_error_code is null then raise exception 'moderation error required'; end if;
+  update public.social_interaction_moderation_jobs
+  set state = case when p_retry_at is null then 'error' else 'pending' end,
+      next_attempt_at = coalesce(p_retry_at, next_attempt_at),
+      lease_until = null,
+      lease_token = null,
+      last_error_code = left(p_error_code, 120),
+      updated_at = now()
+  where content_kind = p_kind and content_id = p_content_id and state = 'leased';
+  return found;
+end;
+$$;
+
 create function public.complete_social_interaction_moderation_job(
   p_kind text,
   p_content_id uuid,
@@ -158,14 +188,7 @@ update public.social_comments set status = 'hidden', moderation_state = 'approve
 where moderation_state = 'needs_review';
 update public.social_quotes set status = 'hidden', moderation_state = 'approved', updated_at = now()
 where moderation_state = 'needs_review';
-alter table public.social_comments drop constraint social_comments_moderation_state_check;
-alter table public.social_comments add constraint social_comments_moderation_state_check
-  check (moderation_state in ('pending', 'approved'));
-alter table public.social_quotes drop constraint social_quotes_moderation_state_check;
-alter table public.social_quotes add constraint social_quotes_moderation_state_check
-  check (moderation_state in ('pending', 'approved'));
 
-revoke all on function public.complete_social_interaction_moderation(text, uuid, text) from public, anon, authenticated, service_role;
 revoke all on function public.claim_social_interaction_moderation_jobs(integer) from public, anon, authenticated;
 revoke all on function public.complete_social_interaction_moderation_job(text, uuid, uuid, text, text, timestamptz)
   from public, anon, authenticated;

@@ -1,19 +1,12 @@
--- Rollback 0236: restore the 0073 interaction job functions, the stored feature status and the 'needs_review' value.
+-- Rollback 0236: restore the 0073 interaction job functions, drop the lease token and the feature status trigger.
 -- The application from this change works on both shapes, so the rollback can run before or after its deploy.
 -- It loses no data. A comment or quote that 0236 hid stays hidden and approved, which the old code reads as hidden.
--- A worker that claimed a job under 0236 and finishes after the rollback gets an error. The next claim takes the job
--- again when its two-minute lease ends.
+-- A worker that claimed a job under 0236 and finishes with the six-argument completion after the rollback gets an
+-- error. The next claim takes the job again when its two-minute lease ends.
 begin;
 
 drop trigger social_posts_feature_from_history on public.social_posts;
 drop function public.social_post_feature_from_history();
-
-alter table public.social_comments drop constraint social_comments_moderation_state_check;
-alter table public.social_comments add constraint social_comments_moderation_state_check
-  check (moderation_state in ('pending', 'approved', 'needs_review'));
-alter table public.social_quotes drop constraint social_quotes_moderation_state_check;
-alter table public.social_quotes add constraint social_quotes_moderation_state_check
-  check (moderation_state in ('pending', 'approved', 'needs_review'));
 
 create or replace function public.complete_social_interaction_moderation(p_kind text, p_content_id uuid, p_decision text)
 returns boolean
@@ -50,7 +43,7 @@ end;
 $$;
 
 drop function public.complete_social_interaction_moderation_job(text, uuid, uuid, text, text, timestamptz);
-create function public.complete_social_interaction_moderation_job(
+create or replace function public.complete_social_interaction_moderation_job(
   p_kind text,
   p_content_id uuid,
   p_decision text,
@@ -110,16 +103,9 @@ begin
 end;
 $$;
 
-alter table public.social_interaction_moderation_jobs drop constraint social_interaction_moderation_jobs_lease_pair_check;
 alter table public.social_interaction_moderation_jobs drop column lease_token;
 
-revoke all on function public.complete_social_interaction_moderation(text, uuid, text) from public, anon, authenticated;
 revoke all on function public.claim_social_interaction_moderation_jobs(integer) from public, anon, authenticated;
-revoke all on function public.complete_social_interaction_moderation_job(text, uuid, text, text, timestamptz)
-  from public, anon, authenticated;
-grant execute on function public.complete_social_interaction_moderation(text, uuid, text),
-  public.claim_social_interaction_moderation_jobs(integer),
-  public.complete_social_interaction_moderation_job(text, uuid, text, text, timestamptz)
-to service_role;
+grant execute on function public.claim_social_interaction_moderation_jobs(integer) to service_role;
 
 commit;

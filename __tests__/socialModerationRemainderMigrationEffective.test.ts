@@ -2,7 +2,8 @@
 // flipped to a standard post and back reads 'submitted' against a 'shipped'
 // history, a worker whose lease expired resets the live lease of the worker
 // that reclaimed the job, and a flagged comment waits in 'needs_review' for a
-// review nobody does. After it: each is fixed, and the rollback applies.
+// review nobody does. After it: each is fixed, the calls the code served
+// before 0236 still work, and the rollback applies.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -27,6 +28,7 @@ const FEATURE = "a2360000-0000-4000-8000-000000000007";
 
 let session: PostgresSession | null = null;
 let keySeed = 0;
+let flaggedBefore = "";
 
 function db(): PostgresSession {
   if (!session) throw new Error("PostgreSQL 0236 session did not start.");
@@ -116,9 +118,9 @@ describe.skipIf(skipReason !== null)("0236 Social moderation remainder", () => {
     expect(service(`select public.complete_social_interaction_moderation_job('comment','${raced}',null,'stale_worker',now())`)).toBe("t");
     expect(job(raced)).toBe("pending|2");
 
-    const flagged = comment("Flagged words");
-    expect(service(`select public.complete_social_interaction_moderation_job('comment','${flagged}','needs_review',null,null)`)).toBe("t");
-    expect(commentState(flagged)).toBe("visible|needs_review");
+    flaggedBefore = comment("Flagged words");
+    expect(service(`select public.complete_social_interaction_moderation_job('comment','${flaggedBefore}','needs_review',null,null)`)).toBe("t");
+    expect(commentState(flaggedBefore)).toBe("visible|needs_review");
     db().sql(`delete from public.social_interaction_moderation_jobs`);
   });
 
@@ -148,16 +150,37 @@ describe.skipIf(skipReason !== null)("0236 Social moderation remainder", () => {
     expect(service(`select public.complete_social_interaction_moderation_job('comment','${raced}','${live}','approved',null,null)`)).toBe("t");
     expect(commentState(raced)).toBe("visible|approved");
     expect(db().sql(`select count(*) from public.social_interaction_moderation_jobs where content_id='${raced}'`)).toBe("0");
-    db().expectRefusal(asServiceRole(`select public.complete_social_interaction_moderation('comment','${raced}','approved')`));
   });
 
-  it("hides a flagged comment at once and refuses the needs_review state", () => {
+  it("hides a flagged comment at once, and one flagged before the migration too", () => {
+    expect(commentState(flaggedBefore)).toBe("hidden|approved");
     const flagged = comment("Flagged again");
     const token = service(`select lease_token from public.claim_social_interaction_moderation_jobs(20) where content_id='${flagged}'`);
     expect(service(`select public.complete_social_interaction_moderation_job('comment','${flagged}','${token}','needs_review',null,null)`)).toBe("t");
     expect(commentState(flagged)).toBe("hidden|approved");
     expect(db().sql(`select count(*) from public.social_comments where moderation_state='needs_review'`)).toBe("0");
-    db().expectRefusal(`update public.social_comments set moderation_state='needs_review' where id='${flagged}'`);
+  });
+
+  it("keeps the calls of the code served before 0236 working", () => {
+    // The exact RPC arguments lib/socialInteractionStore.ts on main sends: a claim by p_limit, then the
+    // five-argument completion with no lease token.
+    const complete = (id: string, decision: string | null, error: string | null, retry: string | null) => service(
+      `select public.complete_social_interaction_moderation_job(p_kind => 'comment', p_content_id => '${id}',
+        p_decision => ${decision}, p_error_code => ${error}, p_retry_at => ${retry})`,
+    );
+    const approved = comment("Old worker approves");
+    const flagged = comment("Old worker flags");
+    const retried = comment("Old worker retries");
+    const claimed = db().sql(asServiceRole(`select content_id from public.claim_social_interaction_moderation_jobs(p_limit => 20)`));
+    expect(claimed.split("\n").filter((line) => line !== "SET").sort()).toEqual([approved, flagged, retried].sort());
+    expect(complete(approved, "'approved'", "null", "null")).toBe("t");
+    expect(complete(flagged, "'needs_review'", "null", "null")).toBe("t");
+    expect(complete(retried, "null", "'provider_error'", "now() + interval '1 minute'")).toBe("t");
+    expect(db().sql(`select count(*) from public.read_social_comments('${AUTHOR}','${SOURCE}',null,null,50) where id='${approved}'`)).toBe("1");
+    expect(commentState(flagged)).toBe("hidden|approved");
+    expect(db().sql(`select state || '|' || (lease_token is null) from public.social_interaction_moderation_jobs where content_id='${retried}'`))
+      .toBe("pending|true");
+    db().sql(`delete from public.social_interaction_moderation_jobs`);
   });
 
   it("rolls back and applies again", () => {

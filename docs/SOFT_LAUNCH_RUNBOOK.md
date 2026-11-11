@@ -416,10 +416,12 @@ Do all of 8.2 by Sunday 15 November. The one exception is the last migrations, w
 Migration 0225 has a separate approval condition in its [header](../supabase/migrations/20261108090000_0225_open_crawl_share_card.sql).
 Without that approval, do not apply it or proceed with a release that requires it.
 
-Migration headers take precedence over the apply-first steps below. Check the
-[0236 compatibility prerequisite](../supabase/migrations/20261111060000_0236_social_moderation_remainder.sql)
-before including it in an apply. Stop if the serving application does not meet
-that prerequisite.
+Migration [0236](../supabase/migrations/20261111060000_0236_social_moderation_remainder.sql)
+is expand-only, so it follows the apply-first steps below: apply 0236, then
+release the code that sends the interaction lease token. The code served before
+it keeps working. A later contract migration, applied after that code is live,
+drops the old five-argument moderation completion and tightens the job and
+comment checks.
 
 Production must hold every file in `supabase/migrations/` before Monday's release, because `npm run release:prod` refuses when the ledger lacks one ([release rule](rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)).
 

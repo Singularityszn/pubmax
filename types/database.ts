@@ -7814,7 +7814,18 @@ export type Database = {
         };
         Returns: boolean;
       };
-      complete_social_interaction_moderation_job: {
+      complete_social_interaction_moderation_job:
+        | {
+        Args: {
+          p_kind: string | null;
+          p_content_id: string | null;
+          p_decision: string | null;
+          p_error_code: string | null;
+          p_retry_at: string | null;
+        };
+        Returns: boolean;
+      }
+        | {
         Args: {
           p_kind: string | null;
           p_content_id: string | null;
