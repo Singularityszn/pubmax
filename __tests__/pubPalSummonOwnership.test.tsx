@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ user: { id: "account-a" } as { id: string } | null, loading: false }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ ...auth, getCurrentUserId: () => auth.user?.id ?? null }) }));
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => ({ signedOut: !auth.loading && auth.user === null }),
+}));
 // Account switching is checked on /plan, where the chip is the link to the Pal.
 const route = vi.hoisted(() => ({ pathname: "/plan" }));
 vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));

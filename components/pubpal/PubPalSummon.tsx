@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { useAuth } from "@/components/auth/authContext";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import { trackEvent } from "@/lib/analytics";
 import { isPlanActiveNow, subscribeActivePlan } from "@/lib/activePlan";
 import { useOwnedActivePlan } from "@/components/night/useOwnedActivePlan";
@@ -66,7 +67,9 @@ export default function PubPalSummon() {
   const { user, loading } = useAuth();
   const ownerId = loading ? null : user?.id ?? null;
   const pathname = usePathname() ?? "";
-  if (!ownerId) return !loading && onMapPath(pathname) ? <SignInPalChip pathname={pathname} /> : null;
+  // A null user is not sign-out: offer sign-in only once the live session says so.
+  const { signedOut } = useViewerSession();
+  if (!ownerId) return signedOut && onMapPath(pathname) ? <SignInPalChip pathname={pathname} /> : null;
   // Each account gets a new instance before paint. Old callbacks cannot
   // transfer a cheer or a night offer into the next account's instance.
   return <OwnedPubPalSummon key={ownerId} ownerId={ownerId} pathname={pathname} />;
