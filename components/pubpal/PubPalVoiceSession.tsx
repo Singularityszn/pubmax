@@ -519,7 +519,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           // The SDK holds a screen wake lock from start until the session ends.
           useWakeLock: true,
           connectionDelay: PAL_VOICE_CONNECTION_DELAY,
-          // AirPods or wired headphones take the call on iOS, when present.
+          // Physical iOS routing still needs device verification. See docs/PUB_PAL_SETUP.md#voice-audio-cues-and-routing.
           preferHeadphonesForIosDevices: true,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,

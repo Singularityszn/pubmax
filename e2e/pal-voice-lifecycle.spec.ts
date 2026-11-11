@@ -11,6 +11,55 @@ import { ACCOUNTS, installAuthDoubles } from "./helpers/authDoubles";
 const evidence = process.env.PUBMAX_LIFECYCLE_EVIDENCE_DIR ?? "artifacts/pal-voice-lifecycle";
 test.beforeAll(async () => { await mkdir(evidence, { recursive: true }); });
 
+test("cancelling during permission wait stops the tap chime and prevents a late connection", async ({ page, context }) => {
+  await context.grantPermissions(["microphone"]);
+  await page.addInitScript(() => {
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      if (this.src.endsWith("/sounds/pal/voice-start.mp3")) Object.assign(window, { cancelledStartChime: this });
+      return play.call(this);
+    };
+  });
+  const app = await setup(page, false, true);
+  await app.start();
+  await expect.poll(() => page.evaluate(() => window.lifecycleProbe.microphoneCalls)).toBe(1);
+  await page.getByRole("button", { name: "Cancel voice startup" }).click();
+  const chime = await page.evaluate(() => {
+    const audio = (window as Window & { cancelledStartChime?: HTMLMediaElement }).cancelledStartChime;
+    return { requested: Boolean(audio), paused: audio?.paused };
+  });
+  expect(chime).toEqual({ requested: true, paused: true });
+  await page.evaluate(() => window.lifecycleProbe.allowMicrophone?.());
+  await expect.poll(() => page.evaluate(() => window.lifecycleProbe.tracks.length)).toBe(1);
+  await stopped(page);
+  expect(app.grants()).toBe(0);
+  expect(app.sockets()).toBe(0);
+  await page.screenshot({ path: `${evidence}/cancelled-tap-chime.png`, fullPage: true });
+  await writeFile(`${evidence}/cancelled-tap-chime.json`, JSON.stringify({ chime, grants: app.grants(), sockets: app.sockets() }, null, 2));
+});
+
+test("a missing start chime file does not prevent the greeting or ending the call", async ({ page, context }) => {
+  await context.grantPermissions(["microphone"]);
+  let chimeRequests = 0;
+  await page.route("**/sounds/pal/voice-start.mp3", route => {
+    chimeRequests++;
+    return route.fulfill({ status: 404, body: "Missing disposable chime" });
+  });
+  const app = await setup(page, false, true);
+  await app.start();
+  await expect.poll(() => chimeRequests).toBe(1);
+  await page.evaluate(() => window.lifecycleProbe.allowMicrophone?.());
+  await app.connected();
+  app.say("Evening. Where are we drinking?");
+  app.speak();
+  await expect(page.getByRole("status").filter({ hasText: "Pal is talking" })).toBeVisible();
+  await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
+  await page.screenshot({ path: `${evidence}/missing-chime-greeting.png`, fullPage: true });
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await stopped(page);
+  await app.save("missing-chime");
+});
+
 // Full Chromium supports the fake microphone on macOS. The headless shell does not.
 test.use({ channel: "chromium", launchOptions: { args: ["--use-fake-device-for-media-stream"] } });
 
