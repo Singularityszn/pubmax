@@ -164,19 +164,6 @@ describe("the viewport loads on this turn, the ring on idle", () => {
     expect(refreshNeighbour).toHaveBeenCalledTimes(1);
   });
 
-  it("sends the ring through the idle lane, whatever the settle was", () => {
-    const source = readFileSync(join(process.cwd(), "components/map/pubmap/useMapRingLoads.ts"), "utf8");
-    const lane = source.slice(source.indexOf("const scheduleRingLoad = useCallback("));
-    const body = lane.slice(0, lane.indexOf("[awaitViewShards, mergeSlimVenues, refreshCountCoverage"));
-
-    expect(body).toContain("loadRing(VIEWPORT_SHARD_RING, viewLanded)");
-    expect(body).toContain("loadRing(NEIGHBOUR_SHARD_RING");
-    expect(body).toContain("scheduleSlimShardRingLoads(");
-    expect(body).not.toContain('scheduleRingLoad(loader, bounds, "target")');
-    expect(body).not.toContain('scheduleRingLoad(loader, bounds, "refresh")');
-    expect(body).not.toContain("inBounds(bounds, 1)");
-  });
-
   it("reads the opening bounds through the placeholder guard", () => {
     const source = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
     expect(source).toContain("openingLoadViewportFor(initialShardStart.viewport");

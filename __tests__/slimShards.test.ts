@@ -390,18 +390,24 @@ describe("createSlimShardLoader (London)", () => {
     expect(fetched).not.toContain("/data/venues_slim.enfield.json");
   });
 
-  it("inBounds() lazily loads intersecting shards once, skipping already-loaded ones", async () => {
+  it("inBounds() returns cached viewport rows without fetching them again", async () => {
     const loader = createSlimShardLoader("london");
     await loader.core();
     const rows = await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 });
-    expect(rows.map((v) => v.id)).toEqual(["g1"]);
+    expect(rows.map((v) => v.id)).toEqual(["c1", "c2", "g1"]);
     expect(fetched).toContain("/data/venues_slim.greenwich.json");
 
     // A second pass over the same viewport must not refetch the loaded shard.
     fetched = [];
     const again = await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 });
-    expect(again).toEqual([]);
-    expect(fetched).not.toContain("/data/venues_slim.greenwich.json");
+    expect(again).toEqual(rows);
+    expect(fetched).toEqual([]);
+
+    const neighbours = await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 }, 1);
+    expect(neighbours.map((v) => v.id)).toEqual(["e1"]);
+    fetched = [];
+    expect(await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 }, 1)).toEqual([]);
+    expect(fetched).toEqual([]);
   });
 
   it("inBounds() loads core when a later viewport reaches central London", async () => {

@@ -286,8 +286,8 @@ export type SlimShardLoader = {
   /** Compatibility read for consumers that need the central shard. */
   core(): Promise<SlimVenue[]>;
   /**
-   * Venues from location shards intersecting `bounds` that are not already
-   * loaded. Returns [] when nothing new is needed. Never throws.
+   * Venues from location shards intersecting `bounds`. The viewport includes
+   * cached rows. Neighbour rings return only newly loaded rows. Never throws.
    */
   inBounds(bounds: MapBounds, ring?: number): Promise<SlimVenue[]>;
   /** First map read: viewport cells, or the legacy core. */
@@ -295,9 +295,9 @@ export type SlimShardLoader = {
   initialResult(bounds: MapBounds): Promise<SlimShardLoadResult>;
   /**
    * Return all rows from location shards intersecting the walk radius, including
-   * cached rows on repeated or overlapping queries. Unlike inBounds, this is not
-   * an incremental read. After one retry, status reports whether every required
-   * shard loaded. Partial rows must not establish a nearby cheapest winner.
+   * cached rows on repeated or overlapping queries. After one retry, status
+   * reports whether every required shard loaded. Partial rows must not establish
+   * a nearby cheapest winner.
    */
   nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult>;
   /** Every shard (for by-id / whole-index consumers). */
@@ -857,7 +857,9 @@ export function createSlimShardLoader(
     async inBounds(bounds: MapBounds, ring = 0): Promise<SlimVenue[]> {
       const m = await manifest();
       if (!m) return [];
-      const needed = shardsForBounds(m, bounds, ring, true).filter((s) => !loadedUrls.has(s.url));
+      const needed = shardsForBounds(m, bounds, ring, true).filter(
+        (s) => ring === VIEWPORT_SHARD_RING || !loadedUrls.has(s.url),
+      );
       if (needed.length === 0) return [];
       const results = await Promise.all(
         needed.map((s) => loadShard(s.url, false, ring === VIEWPORT_SHARD_RING)),

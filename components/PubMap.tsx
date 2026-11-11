@@ -2419,7 +2419,6 @@ export default function PubMap({
   useEffect(() => {
     activeMapCityIdRef.current = cityId;
   }, [cityId]);
-  const ringLoadPendingKeyRef = useRef<string | null>(null);
   const targetViewportLoadStartedRef = useRef(false);
   const [deferInitialSpatialLoad] = useState(() => {
     try {
@@ -2527,7 +2526,6 @@ export default function PubMap({
     refs: {
       slimLoaderRef,
       slimLoaderGenerationRef,
-      ringLoadPendingKeyRef,
       targetViewportLoadStartedRef,
       latestMapBoundsRef,
       latestMapBoundsCityRef,
@@ -2608,7 +2606,6 @@ export default function PubMap({
     initialShardLoadSettledRef.current = false;
     liveShardLoadStatusRef.current = "pending";
     liveShardRowsCommittedRef.current = false;
-    ringLoadPendingKeyRef.current = null;
     targetViewportLoadStartedRef.current = false;
     const preserveSyncResume =
       !mapResumeSeedConsumedRef.current && Boolean(mapResumeSeed);
@@ -2784,7 +2781,6 @@ export default function PubMap({
       initialShardLoadSettledRef.current = false;
       liveShardLoadStatusRef.current = "pending";
       liveShardRowsCommittedRef.current = false;
-      ringLoadPendingKeyRef.current = null;
       targetViewportLoadStartedRef.current = false;
     };
   }, [arrivalSearch, awaitViewShards, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, settleViewShards, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);

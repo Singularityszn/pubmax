@@ -15,7 +15,6 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 type RingLoadRefs = {
   slimLoaderRef: RefObject<SlimShardLoader | null>;
   slimLoaderGenerationRef: RefObject<number>;
-  ringLoadPendingKeyRef: RefObject<string | null>;
   targetViewportLoadStartedRef: RefObject<boolean>;
   latestMapBoundsRef: RefObject<MapBounds | null>;
   latestMapBoundsCityRef: RefObject<CityId | null>;
@@ -47,7 +46,6 @@ export function useMapRingLoads({
   const {
     slimLoaderRef,
     slimLoaderGenerationRef,
-    ringLoadPendingKeyRef,
     targetViewportLoadStartedRef,
     latestMapBoundsRef,
     latestMapBoundsCityRef,
@@ -83,14 +81,6 @@ export function useMapRingLoads({
         awaitViewShards();
         return;
       }
-      const key = JSON.stringify([
-        bounds.west,
-        bounds.south,
-        bounds.east,
-        bounds.north,
-      ]);
-      if (ringLoadPendingKeyRef.current === key) return;
-      ringLoadPendingKeyRef.current = key;
       const viewLanded = awaitViewShards();
       const loaderGeneration = slimLoaderGenerationRef.current;
       const isCurrentLoader = () =>
@@ -114,15 +104,10 @@ export function useMapRingLoads({
           targetViewportLoadStartedRef.current = true;
           loadRing(VIEWPORT_SHARD_RING, viewLanded);
         },
-        () =>
-          loadRing(NEIGHBOUR_SHARD_RING, () => {
-            if (isCurrentLoader() && ringLoadPendingKeyRef.current === key) {
-              ringLoadPendingKeyRef.current = null;
-            }
-          }),
+        () => loadRing(NEIGHBOUR_SHARD_RING),
       );
     },
-    [awaitViewShards, mergeSlimVenues, refreshCountCoverage, ringLoadPendingKeyRef, slimLoaderGenerationRef, slimLoaderRef, targetViewportLoadStartedRef],
+    [awaitViewShards, mergeSlimVenues, refreshCountCoverage, slimLoaderGenerationRef, slimLoaderRef, targetViewportLoadStartedRef],
   );
 
   useEffect(() => {
