@@ -57,7 +57,7 @@ The seed and teardown refuse production Vercel environments. CI also refuses rem
 
 ## Disposable Plan recovery
 
-`npm run test:e2e:plan-auth` runs `e2e/plan-capability-recovery.spec.ts` against a temporary local Supabase project.
+`npm run test:e2e:plan-auth` runs `e2e/plan-capability-recovery.spec.ts` and `e2e/log-intent-composer.spec.ts` against a temporary local Supabase project.
 The runner requires Docker, the Supabase CLI, the project dependencies, and Playwright Chromium.
 `DOCKER_HOST` must name an existing local Unix socket with an absolute `unix://` path.
 Docker context and TLS overrides must be unset.
@@ -76,11 +76,12 @@ The browser process uses the temporary project's keys.
 Its child environment blanks checkout environment-file variables before it sets local test values.
 The runner builds and serves the app in its own `.next-pubmax-auth-*` directory.
 
-The spec covers these journeys:
+The specs cover these journeys:
 
 - A signed-in host restores a lost Plan cookie on page entry.
 - A signed-in host restores a lost Plan cookie after a mounted status action, then saves the status with another tap.
 - A signed-out browser sends no account recovery write after cookie loss.
+- A new account goes from the home page's "Log what you paid" to a public Pint Drop, through each login door.
 
 The mounted journey checks that recovery causes no document navigation.
 The signed-in journeys are skipped in the normal keyless suite.
