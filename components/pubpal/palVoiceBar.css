@@ -113,3 +113,8 @@ body:has(.palVoiceBar) .palSummon {
   font-size: var(--text-xs);
   line-height: 1.35;
 }
+.palVoiceCountdown {
+  font: 700 var(--text-xs) / 1.3 var(--font-data);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}

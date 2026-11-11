@@ -1242,7 +1242,8 @@ describe("Pub Pal voice controls", () => {
       session.onConnect?.();
       await Promise.resolve();
     });
-    expect(vi.getTimerCount()).toBe(1);
+    // The cap and the wrap-up warning before it.
+    expect(vi.getTimerCount()).toBe(2);
 
     await act(async () => {
       session.onError?.(new Error("socket failed"));
@@ -1627,9 +1628,11 @@ describe("Pub Pal voice transcript", () => {
       overrides: { firstMessage: "Hi, I'm Ripley. What kind of night are you planning?", voiceId: null },
     }));
     const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+    expect(carryOn).toBeTruthy();
     await act(async () => { carryOn?.click(); });
     await act(async () => { await vi.dynamicImportSettled(); });
-    await settle();
+    for (let i = 0; i < 20; i += 1) { await act(async () => { await vi.dynamicImportSettled(); }); await settle(); }
+    console.log("DEBUG", voice.startSession.mock.calls.length);
     const resumed = defined(voice.startSession.mock.calls[1])[0] as LiveSession & { overrides?: { agent?: { firstMessage?: string } } };
     expect(resumed.overrides?.agent?.firstMessage).toBe(PAL_VOICE_RESUME_GREETING);
     voice.status = "connected";

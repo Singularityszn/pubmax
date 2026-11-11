@@ -40,6 +40,7 @@ import PalVoiceBar, { useOnMapRef, usePalVoiceEngaged } from "@/components/pubpa
 import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVoiceMeter";
 import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
+import PalVoiceCountdown from "@/components/pubpal/PalVoiceCountdown";
 import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
 import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
@@ -54,6 +55,18 @@ import type { PalAnimationState, PubPalAppearance } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
+  palVoiceAsks,
+  palVoiceEndedStatus,
+  palVoiceMinutesLeft,
+  palVoiceMinutesLeftLine,
+  PAL_VOICE_RESUME_GREETING,
+  PAL_VOICE_RESUME_UPDATE_LEAD,
+  PAL_VOICE_WRAP_UP_SECONDS,
+  PAL_VOICE_WRAP_UP_UPDATE,
+  type PalVoiceEnded,
+  type PalVoiceEndedWhy,
+} from "@/lib/palVoiceCall";
+import {
   ELEVENLABS_LIBSAMPLERATE_PATH,
   ELEVENLABS_WORKLET_PATHS,
 } from "@/lib/elevenlabsWorkletAssets";
@@ -67,6 +80,7 @@ import {
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
   palVoiceLineDropped,
+  palVoiceProviderEnd,
   requestPalVoiceMicrophone,
   type PalVoiceMicrophoneHold,
 } from "@/lib/pubPalVoiceSession";
@@ -105,6 +119,7 @@ type VoiceTokenResponse = {
   conversationId?: string;
   overrides?: PalVoiceOverrides;
   maxSessionSeconds?: number;
+  usedMinutes?: number | null;
   error?: string;
 };
 
@@ -119,7 +134,11 @@ type VoiceSessionAttempt = {
   microphone: PalVoiceMicrophoneHold;
   connectedAt: number | null;
   capTimer: number | null;
+  wrapTimer: number | null;
   startupTimer: number | null;
+  /** Set when the call ended in a way the person can carry on from. Its picks stay on the map. */
+  ended: PalVoiceEndedWhy | null;
+  usedMinutes: number | null;
   requestAbort: AbortController;
   voiceEndReported: boolean;
   voiceEndReason: VoiceEndReason | null;
@@ -203,7 +222,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
-  const [endedOutOfSight, setEndedOutOfSight] = useState(false);
+  const [ended, setEnded] = useState<PalVoiceEnded | null>(null);
+  const [callEndsAt, setCallEndsAt] = useState<number | null>(null);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -337,6 +357,19 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       window.clearTimeout(attempt.capTimer);
       attempt.capTimer = null;
     }
+    if (attempt.wrapTimer !== null) {
+      window.clearTimeout(attempt.wrapTimer);
+      attempt.wrapTimer = null;
+    }
+    setCallEndsAt(null);
+  }, []);
+
+  // Read before finalizeSession clears `connectedAt`.
+  const markEnded = useCallback((attempt: VoiceSessionAttempt, why: PalVoiceEndedWhy): void => {
+    if (attempt.connectedAt === null) return;
+    attempt.ended = why;
+    const used = attempt.usedMinutes;
+    setEnded({ why, minutesLeft: used === null ? null : palVoiceMinutesLeft(used, (Date.now() - attempt.connectedAt) / 1000) });
   }, []);
 
   const clearStartupTimer = useCallback((attempt: VoiceSessionAttempt): void => {
@@ -348,7 +381,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     if (activeAttemptRef.current === attempt) {
-      resetPalMap();
+      if (attempt.ended === null) resetPalMap();
       currentToolCalls.current.clear();
       // A map the call was still opening stays closed once the call ends.
       stayHere();
@@ -426,18 +459,29 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   usePageLeft(useCallback((): void => {
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
-    if (attempt.connectedAt !== null) setEndedOutOfSight(true);
+    markEnded(attempt, "away");
     void stop(attempt, "background");
-  }, [ownsAttempt, stop]));
+  }, [markEnded, ownsAttempt, stop]));
 
-  const start = async () => {
+  // Carry on keeps the picks and cards, greets briefly and tells the new call
+  // what the person asked before. Start voice chat begins clean.
+  const start = async (resume = false) => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
-    resetPalMap();
+    if (!resume) {
+      resetPalMap();
+      setVoiceResults({});
+      setMemoryCards([]);
+    }
     currentToolCalls.current.clear();
     lastUserEvent.current = 0;
-    setVoiceResults({});
-    setMemoryCards([]);
+    const asks = palVoiceAsks(lines);
+    const resumeUpdate = resume && asks.length > 0
+      ? import("@/lib/palSessionSummary").then(
+        ({ palSessionAsksSummaryTurn }) => palSessionAsksSummaryTurn(asks).map((turn) => `${PAL_VOICE_RESUME_UPDATE_LEAD} ${turn}`)[0] ?? null,
+        () => null,
+      )
+      : null;
     const attempt: VoiceSessionAttempt = {
       cancelled: false,
       releaseRequired: false,
@@ -447,13 +491,16 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       microphone: createPalVoiceMicrophoneHold(),
       connectedAt: null,
       capTimer: null,
+      wrapTimer: null,
       startupTimer: null,
+      ended: null,
+      usedMinutes: null,
       requestAbort: new AbortController(),
       voiceEndReported: false,
       voiceEndReason: null,
     };
     activeAttemptRef.current = attempt;
-    setEndedOutOfSight(false);
+    setEnded(null);
     setError(null);
     setUsingFallbackVoice(false);
     setStartupStopped(false);
@@ -494,7 +541,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           void finalizeSession(attempt);
           return;
         }
-        await attempt.microphone.begin();
+        const [, resumeContext] = await Promise.all([attempt.microphone.begin(), resumeUpdate]);
         if (!ownsAttempt(attempt)) {
           attempt.microphone.reportStartupFinished();
           void finalizeSession(attempt);
@@ -504,6 +551,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         const overrides = grant.overrides;
         setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
+        attempt.usedMinutes = grant.usedMinutes ?? null;
         attempt.sdkSessionStarted = true;
         startSession({
           signedUrl: grant.signedUrl,
@@ -590,12 +638,12 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
               if (proposals.length) setMemoryCards((current) => [...current, ...proposals.filter((proposal) => !current.some((prior) => prior.id === proposal.id))].slice(-3));
             }
           },
-          overrides: overrides
+          overrides: overrides || resume
             ? {
                 agent: {
-                  firstMessage: overrides.firstMessage,
+                  firstMessage: resume ? PAL_VOICE_RESUME_GREETING : overrides?.firstMessage,
                 },
-                ...(overrides.voiceId
+                ...(overrides?.voiceId
                   ? { tts: { voiceId: overrides.voiceId } }
                   : {}),
               }
@@ -614,16 +662,25 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             // the latch: a reconnect on the same attempt reports once.
             if (attempt.connectedAt === null) playPalVoiceSound("start");
             if (attempt.connectedAt === null) trackEvent("voice_started");
+            if (attempt.connectedAt === null && resumeContext) sendContextualUpdate?.(resumeContext);
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
             attempt.capTimer = window.setTimeout(() => {
+              markEnded(attempt, "cap");
               void stop(attempt, "cap");
             }, maxSessionSeconds * 1000);
+            attempt.wrapTimer = window.setTimeout(() => {
+              if (!ownsAttempt(attempt)) return;
+              sendContextualUpdate?.(PAL_VOICE_WRAP_UP_UPDATE);
+              setCallEndsAt(Date.now() + Math.min(PAL_VOICE_WRAP_UP_SECONDS, maxSessionSeconds) * 1000);
+            }, Math.max(0, maxSessionSeconds - PAL_VOICE_WRAP_UP_SECONDS) * 1000);
           },
           onDisconnect: (details?: unknown) => {
             attempt.voiceEndReason ??= "disconnect";
             if (!ownsAttempt(attempt)) return;
             const wasLive = attempt.connectedAt !== null;
+            const providerEnd = wasLive ? palVoiceProviderEnd(details) : null;
+            if (providerEnd) markEnded(attempt, providerEnd);
             if (wasLive) playPalVoiceSound("end");
             conversationIdRef.current = null;
             startController.settle();
@@ -743,14 +800,14 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return () => signal.attach(null);
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
-  usePalVoiceEngaged([voiceConnecting, live, endedOutOfSight, error !== null]);
+  usePalVoiceEngaged([voiceConnecting, live, ended !== null, error !== null]);
 
   if (!panel) {
     return (
       <PalVoiceBar palName={palName} appearance={appearance} genome={genome} lines={lines}
-        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
-        onEnd={stopCurrentAttempt} onCarryOn={() => { void start(); }}
-        onClose={() => { setEndedOutOfSight(false); setError(null); }} />
+        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} ended={ended} callEndsAt={callEndsAt}
+        onEnd={stopCurrentAttempt} onCarryOn={() => { void start(true); }}
+        onClose={() => { setEnded(null); setError(null); }} />
     );
   }
 
@@ -764,7 +821,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             ? "Starting voice"
             : live
               ? isSpeaking ? "Pal is talking" : "Pal is listening"
-              : "Voice ready when you are"}
+              : ended ? palVoiceEndedStatus(ended.why, palName) : "Voice ready when you are"}
+          {live && callEndsAt !== null ? <PalVoiceCountdown endsAt={callEndsAt} /> : null}
         </div>
         <PalVoiceMeter
           mode={meterMode}
@@ -816,11 +874,11 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         ) : (
           <button
             type="button"
-            disabled={isStarting}
+            disabled={isStarting || ended?.minutesLeft === 0}
             aria-busy={isStarting}
-            onClick={() => { void start(); }}
+            onClick={() => { void start(ended !== null); }}
           >
-            <Mic size={16} /> {isStarting ? "Starting" : endedOutOfSight ? "Carry on" : "Start voice chat"}
+            <Mic size={16} /> {isStarting ? "Starting" : ended ? "Carry on" : "Start voice chat"}
           </button>
         )}
         {voiceConnecting && (
@@ -853,6 +911,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         </label>
       </div>
       {voiceConnecting && <p className="palVoiceHint">Connecting voice…</p>}
+      {ended && ended.minutesLeft !== null && !live && !voiceConnecting && <p className="palVoiceHint">{palVoiceMinutesLeftLine(ended.minutesLeft)}</p>}
       {usingFallbackVoice && (voiceConnecting || status === "connected") && (
         <p className="palVoiceHint" role="status">Your chosen voice isn&apos;t available. Using your Pal&apos;s default voice.</p>
       )}

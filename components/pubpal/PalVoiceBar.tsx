@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import { Mic, MicOff, X } from "lucide-react";
 
 import PalCardPrice from "@/components/pal/PalCardPrice";
+import PalVoiceCountdown from "@/components/pubpal/PalVoiceCountdown";
 import { PubPalAvatar } from "@/components/pubpal/PubPalAvatar";
 import type { PalCard } from "@/lib/palChat";
 import type { PubPalAppearance } from "@/lib/pubPal";
 import type { PalGenome } from "@/lib/palGenome";
 import type { PalVoiceLine } from "@/lib/palVoiceTranscript";
+import { palVoiceEndedStatus, palVoiceMinutesLeftLine, type PalVoiceEnded } from "@/lib/palVoiceCall";
 import { setPalVoiceEngaged } from "@/lib/palVoiceHost";
 import "./palVoiceBar.css";
 
@@ -47,7 +49,8 @@ export default function PalVoiceBar({
   live,
   speaking,
   starting,
-  endedOutOfSight,
+  ended,
+  callEndsAt = null,
   onEnd,
   onCarryOn,
   onClose,
@@ -62,7 +65,9 @@ export default function PalVoiceBar({
   live: boolean;
   speaking: boolean;
   starting: boolean;
-  endedOutOfSight: boolean;
+  ended: PalVoiceEnded | null;
+  /** When a live call hits its cap, once its last stretch has begun. */
+  callEndsAt?: number | null;
   onEnd: () => void;
   onCarryOn: () => void;
   onClose: () => void;
@@ -86,9 +91,10 @@ export default function PalVoiceBar({
     ? "Starting voice"
     : live
       ? `${palName} is ${speaking ? "talking" : "listening"}`
-      : endedOutOfSight ? `${palName} hung up while you were away` : "Voice stopped";
+      : ended ? palVoiceEndedStatus(ended.why, palName) : "Voice stopped";
   const line = lines.at(-1);
-  const caption = error ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
+  const minutesLeft = !live && !starting && ended?.minutesLeft != null ? palVoiceMinutesLeftLine(ended.minutesLeft) : null;
+  const caption = error ?? minutesLeft ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
   return (
     <section ref={barRef} className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-focus-trap-exempt="" data-live={live ? "true" : undefined}>
       {pick ? (
@@ -103,7 +109,7 @@ export default function PalVoiceBar({
       ) : null}
       {appearance ? <PubPalAvatar appearance={appearance} name={palName} compact genome={genome} /> : null}
       <div className="palVoiceBarText">
-        <p role="status">{status}</p>
+        <p role="status">{status}{live && callEndsAt !== null ? <> <PalVoiceCountdown endsAt={callEndsAt} /></> : null}</p>
         {caption ? <p className="palVoiceBarCaption" role={error ? "alert" : undefined}>{caption}</p> : null}
       </div>
       {live || starting ? (
@@ -112,7 +118,7 @@ export default function PalVoiceBar({
         </button>
       ) : (
         <>
-          {endedOutOfSight ? (
+          {ended && ended.minutesLeft !== 0 ? (
             <button type="button" onClick={onCarryOn}>
               <Mic size={16} aria-hidden="true" /> Carry on
             </button>

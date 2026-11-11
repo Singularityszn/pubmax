@@ -86,3 +86,8 @@ export function palSessionSummaryTurn(summary: string): string[] {
   );
   return text ? [`${SUMMARY_LABEL}${text}`] : [];
 }
+
+/** The summary turn for a call carried on from one that ended: every earlier ask, the oldest dropped first. */
+export function palSessionAsksSummaryTurn(asks: readonly string[]): string[] {
+  return palSessionSummaryTurn(rollSummary("", asks.map((content) => ({ role: "user" as const, content }))));
+}
