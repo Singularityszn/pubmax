@@ -1983,6 +1983,43 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
   });
 
+  it("chimes on the tap, while the line is still starting", async () => {
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    expect(sounds.play.mock.calls).toEqual([["start"]]);
+    expect(voice.startSession).not.toHaveBeenCalled();
+  });
+
+  it("stops the tap chime before a fast SDK connection can play the greeting", async () => {
+    const { playPalVoiceSound } = await vi.importActual<typeof import("@/components/pubpal/palVoiceSounds")>("@/components/pubpal/palVoiceSounds");
+    sounds.play.mockImplementation(playPalVoiceSound);
+    const cues: { src: string; paused: boolean }[] = [];
+    vi.stubGlobal("Audio", class {
+      paused = true;
+      volume = 1;
+      constructor(readonly src: string) { cues.push(this); }
+      play() { this.paused = false; return Promise.resolve(); }
+      pause() { this.paused = true; }
+    });
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session" }));
+    const playbackAtSdkStart: boolean[] = [];
+    voice.startSession.mockImplementation(() => { playbackAtSdkStart.push(cues.some(cue => !cue.paused)); });
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    expect(cues).toHaveLength(1);
+    expect(cues[0]).toMatchObject({ src: "/sounds/pal/voice-start.mp3", paused: false });
+
+    await act(async () => { permission.resolve({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream); });
+    await settle();
+
+    // Audit item 10 forbids overlap even when the provider greets immediately.
+    expect(playbackAtSdkStart).toEqual([false]);
+  });
+
   it("chimes once when the line opens and once when it closes", async () => {
     const session = await startLiveSession();
     expect(sounds.play.mock.calls).toEqual([["start"]]);

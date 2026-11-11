@@ -20,6 +20,14 @@
 // so the card keeps its provenance line; ties go to the longer archive span,
 // then the name. Deterministic, so the prerendered document and its share card
 // agree, and derived, so a re-collected dataset moves the pick.
+//
+// Where: Zone 1 only (captain
+// decision D1 (a), 11 Nov 2026). Cheapest-anywhere put a Sutton pint under a
+// Kingsbury pint, both £2.43, so the London story started in the outer zones.
+// A pub takes the zone of its nearest station (lib/nearestStationZone.mjs), the
+// same rule the map's zone lens uses, and the card names that station so the
+// approximation is on the page. No Zone 1 pub that qualifies means no card,
+// never a quiet fall back to the outer zones.
 
 import type { Route } from "next";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
@@ -28,6 +36,7 @@ import { haystackMatchesBrand } from "@/lib/drinkBrands";
 import {
   answerEvidenceFor,
   HERO_RAIL_SIZE,
+  LANDING_HERO_ZONE,
   type LandingArchiveIndex,
   type LandingRailRow,
 } from "@/lib/landingHero";
@@ -39,6 +48,7 @@ import {
   venuePriceArc,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
+import { nearestStationZone, type StationZone } from "@/lib/nearestStationZone.mjs";
 import { priceMovementLine } from "@/lib/priceMovementLine";
 import type { PriceStanding } from "@/lib/priceTier";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
@@ -46,11 +56,29 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import type { Venue } from "@/lib/venues";
 
+/** The station a pub takes its fare zone from, as the card prints it. */
+export type LandingCardStation = { name: string; zone: number };
+
+type LandingPickOpts = {
+  now?: number;
+  stations: readonly StationZone[];
+};
+
+function heroStation(venue: Venue, stations: readonly StationZone[]): LandingCardStation | null {
+  const nearest = nearestStationZone(venue.latitude, venue.longitude, stations);
+  return nearest && nearest.zone === LANDING_HERO_ZONE ? { name: nearest.station, zone: nearest.zone } : null;
+}
+
 export type LandingPubCardData = {
   id: string;
   name: string;
   area: string;
   primaryBorough: string;
+  /**
+   * The nearest station and its fare zone, which is how the card knows it is
+   * in Zone 1.
+   */
+  station: LandingCardStation;
   /** Cheapest listed pint in pounds, without a claim about today's price. */
   priceGbp: number;
   /** The pint the price is for, as the dataset names it. */
@@ -111,21 +139,24 @@ function drinkHrefFor(venue: Venue, venues: readonly Venue[]): Route | null {
 export function buildLandingPubCard(
   venues: readonly Venue[],
   rawHistory: unknown,
-  opts: { now?: number } = {},
+  opts: LandingPickOpts,
 ): LandingPubCardData | null {
   const now = opts.now ?? Date.now();
   const history = groupPriceHistoryByVenue(parsePriceHistory(rawHistory, now));
-  const candidates = venues.filter(
-    (venue) =>
-      isPublicRankablePub(venue) &&
-      comparableVenuePint(venue, null, false, now) !== null &&
-      history.has(venue.id),
-  );
-  if (candidates.length === 0) return null;
+  const candidates = venues.flatMap((venue) => {
+    if (
+      !isPublicRankablePub(venue) ||
+      comparableVenuePint(venue, null, false, now) === null ||
+      !history.has(venue.id)
+    ) return [];
+    const station = heroStation(venue, opts.stations);
+    return station ? [{ venue, station }] : [];
+  });
 
   // Listed first, then cheapest, then the longest archive span, then the name.
-  const ranked = candidates.map((venue) => ({
+  const ranked = candidates.map(({ venue, station }) => ({
     venue,
+    station,
     listed: answerEvidenceFor({ priceGbp: venue.cheapestPrice as number, prices: venue.prices }, now).standing === "listed",
     span: spanYears(history.get(venue.id), venue, now),
   }));
@@ -136,8 +167,9 @@ export function buildLandingPubCard(
       b.span - a.span ||
       a.venue.name.localeCompare(b.venue.name),
   );
-  const chosen = ranked[0]?.venue;
-  if (!chosen) return null;
+  const selected = ranked[0];
+  if (!selected) return null;
+  const { venue: chosen, station } = selected;
 
   // The bundled index names the cheapest pint but states neither its serving
   // nor its terms, so today's figure carries no comparison item and no movement
@@ -155,6 +187,7 @@ export function buildLandingPubCard(
     name: chosen.name,
     area: venueAreaLabel(chosen),
     primaryBorough: chosen.primaryBorough,
+    station,
     priceGbp: arc.nowGbp,
     pintName: pintLabel(chosen),
     drinkHref: drinkHrefFor(chosen, venues),
@@ -211,21 +244,24 @@ export function buildLandingArchiveIndex(
 }
 
 /**
- * The rows under the anchor card when the browser has no fix: the cheapest
- * listed pints in the anchor's own borough, cheapest first, the anchor itself
- * left out. An empty answer hides the rail rather than padding it.
+ * The rows under the anchor card when the browser has no fix, cheapest first,
+ * the anchor itself left out. They follow the card:
+ * the next cheapest listed pints in LANDING_HERO_ZONE, from any borough.
+ * An empty answer hides the rail rather
+ * than padding it.
  */
 export function buildLandingAnchorRail(
   venues: readonly Venue[],
-  anchor: { id: string; primaryBorough: string },
+  anchor: { id: string },
   archive: LandingArchiveIndex,
+  stations: readonly StationZone[],
 ): LandingRailRow[] {
   return venues
     .filter(
       (venue) =>
         venue.id !== anchor.id &&
         isPublicRankablePub(venue) &&
-        venue.primaryBorough === anchor.primaryBorough &&
+        heroStation(venue, stations) !== null &&
         comparableVenuePint(venue, null, false) !== null,
     )
     .sort((a, b) => (a.cheapestPrice as number) - (b.cheapestPrice as number) || a.name.localeCompare(b.name))
