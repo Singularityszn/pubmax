@@ -558,6 +558,11 @@ test("a cold /map defers the voice transport chunk until the chip tap", async ({
   await expectMapLoadingFrameReleased(page);
   const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
   await expect(chip).toBeVisible();
+  const coldScripts = [...scripts];
+  await chip.hover();
+  await chip.focus();
+  await page.mouse.down();
+  await page.screenshot({ path: `${SHOTS}/cold-map-focused.png` });
   const beforeTap = [...scripts];
   await page.evaluate(() => {
     const surface = window as unknown as { voiceSocketStacks: string[] };
@@ -572,7 +577,7 @@ test("a cold /map defers the voice transport chunk until the chip tap", async ({
     });
   });
   await page.screenshot({ path: `${SHOTS}/cold-map.png` });
-  await chip.click();
+  await page.mouse.up();
   await opened;
   await expect(page.locator(".palVoiceBar").getByRole("status")).toHaveText(/Ripley is (listening|talking)/);
   const stacks = await page.evaluate(() => (window as unknown as { voiceSocketStacks: string[] }).voiceSocketStacks);
@@ -583,10 +588,11 @@ test("a cold /map defers the voice transport chunk until the chip tap", async ({
     .map((frame) => frame.match(/https?:\/\/[^\s)]+/)?.[0]?.replace(/:\d+:\d+$/, ""))
     .find(Boolean);
   expect(caller, "The live voice startup must identify its transport script").toBeTruthy();
+  expect(coldScripts).not.toContain(caller);
   expect(beforeTap).not.toContain(caller);
   expect([...scripts]).toContain(caller);
   await test.info().attach("cold-map-network", {
-    body: JSON.stringify({ beforeTap, transportCaller: caller, stacks }, null, 2), contentType: "application/json",
+    body: JSON.stringify({ coldScripts, beforeTap, transportCaller: caller, stacks }, null, 2), contentType: "application/json",
   });
   await page.getByRole("button", { name: "End", exact: true }).click();
   await expect(chip).toBeVisible();
@@ -1324,6 +1330,21 @@ for (const [width, theme] of [[390, "light"], [768, "dark"], [1440, "light"], [3
     say(socket, "Hi. Where are you heading tonight?");
     await expect(page.locator(".palVoiceBar")).toContainText("Where are you heading tonight?");
     await page.screenshot({ path: `${SHOTS}/step9-${width}-${theme}-voice-in-place.png` });
+
+    const barFit = await page.locator(".palVoiceBar").evaluate((bar) => {
+      const texts = [...bar.querySelectorAll<HTMLElement>("p, button")];
+      const sizes = texts.map((text) => parseFloat(getComputedStyle(text).fontSize));
+      texts.forEach((text, index) => { text.style.fontSize = `${sizes[index]! * 1.3}px`; });
+      return {
+        bar: bar.getBoundingClientRect(),
+        end: bar.querySelector("button")!.getBoundingClientRect(),
+        viewport: window.innerWidth,
+      };
+    });
+    expect(barFit.bar.left).toBeGreaterThanOrEqual(0);
+    expect(barFit.bar.right).toBeLessThanOrEqual(barFit.viewport);
+    expect(barFit.end.right).toBeLessThanOrEqual(barFit.bar.right);
+    await page.screenshot({ path: `${SHOTS}/step9-${width}-${theme}-voice-large-text.png` });
 
     await page.getByRole("button", { name: "End", exact: true }).click();
     await expect(chip).toBeVisible();

@@ -17,7 +17,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/components/pubpal/palVoiceSessionLoader", () => ({
-  loadPalVoiceSession: vi.fn(async () => () => createElement("div", { "data-voice-session": true })),
+  loadPalVoiceSession: vi.fn(async () => function MockVoiceSession() { return createElement("div", { "data-voice-session": true }); }),
 }));
 
 import { markActivePlan, readActivePlan, setActivePlanPalContext, setActivePlanStopIndex, writeActivePlan } from "@/lib/activePlan";
