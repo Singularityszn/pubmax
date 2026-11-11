@@ -214,6 +214,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
   const [ended, setEnded] = useState<PalVoiceEnded | null>(null);
+  const [sessionActive, setSessionActive] = useState(false);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -357,6 +358,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     if (activeAttemptRef.current === attempt) {
+      setSessionActive(false);
       resetPalMap();
       currentToolCalls.current.clear();
       // A map the call was still opening stays closed once the call ends.
@@ -611,6 +613,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             : undefined,
           onConnect: () => {
             if (!ownsAttempt(attempt)) return;
+            setSessionActive(true);
             const boundId = conversationIdRef.current;
             if (boundId) void syncVoiceToolTurn({ conversationId: boundId });
             clearStartupTimer(attempt);
@@ -754,7 +757,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return () => signal.attach(null);
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
-  usePalVoiceEngaged([voiceConnecting, live, ended !== null, error !== null]);
+  // The SDK clears its live status before teardown delivers onDisconnect.
+  usePalVoiceEngaged([voiceConnecting, sessionActive, ended !== null, error !== null]);
 
   if (!panel) {
     return (
