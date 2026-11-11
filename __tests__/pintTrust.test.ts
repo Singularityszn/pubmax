@@ -278,6 +278,19 @@ const ABSENCES = [
 ];
 
 describe("pintTrustFor: seven states, one order", () => {
+  it.each(["pending", "uploading", "failed"] as const)("excludes a %s save from every price lane", (state) => {
+    const unsaved = {
+      ...uncheckedDrop({ priceGbp: 4.73 }),
+      optimistic: { state, message: "Not saved", canRetry: true, uploadProgress: null, clientRequestId: "unsaved" },
+    };
+    expect(pintTrustFor([unsaved], NOW).state).toBe("none");
+    expect(provisionalPintDropVenueIds(new Map([[VENUE_ID, [unsaved]]]), NOW).size).toBe(0);
+    const observed = drop({ priceGbp: 4.73, authorityKey: "another-drinker" });
+    expect(pintTrustFor([unsaved, observed], NOW).state).toBe("logged-once");
+    const original = venue({ cheapestPrice: 6 });
+    expect(mergeVenueDrops([original], new Map([[VENUE_ID, [unsaved, observed]]]), NOW)[0]?.cheapestPrice).toBe(6);
+  });
+
   it("names the closed set weakest last", () => {
     expect(PINT_TRUST_STATES).toEqual([
       "confirmed",
