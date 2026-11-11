@@ -161,7 +161,8 @@ try {
   });
   await command(process.execPath, [
     join(ROOT, "node_modules/@playwright/test/cli.js"),
-    "test", "e2e/plan-capability-recovery.spec.ts", "--project=chromium", "--workers=1", "--trace=off",
+    "test", "e2e/plan-capability-recovery.spec.ts", "e2e/log-intent-composer.spec.ts",
+    "--project=chromium", "--workers=1", "--trace=off",
   ], { env });
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Disposable Plan auth failed.");
