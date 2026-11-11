@@ -1,9 +1,7 @@
-// The Ledger's document title names the pub, and two pubs can share a name
-// (SEO audit #2126, D5): "The Crown" stands in many boroughs. When another
-// indexed venue carries the same reader-facing name, the title adds the pub's
-// own area. When another one also stands in the same borough, the title adds the
-// pub's street too, so each ledger page has a title of its own. A unique name
-// stays bare, because an area on every title is noise.
+// Ledger title disambiguation (SEO audit #2126, D5) uses only the venue's own
+// area and address. Missing address facts must not become invented suffixes.
+// __tests__/ledgerTitle.test.ts owns the approved collisions without postcodes.
+// Sibling comparisons use bundled facts to avoid live detail-read fan-out.
 
 import { venueStreetLabel } from "@/lib/routeStops";
 import { displayVenueName, venueAreaLabel } from "@/lib/venueDisplay";
