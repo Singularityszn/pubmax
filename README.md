@@ -130,6 +130,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   If your stored date of birth says you are under 18, you cannot create a Pal or start voice.
   An adult confirmation cannot override that date.
   If the account date cannot be checked, both actions are temporarily unavailable.
+  The map's voice chip stays hidden until the server confirms that the account date does not block voice.
+  A failed check keeps the voice chip hidden.
   Adults and accounts without a stored date keep the same setup requirements.
   Pal setup records the adult confirmation time without storing a birth date in the Pal record.
 
@@ -189,6 +191,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Map Ask uses the same safety response as Pub Pal for sobriety and getting-home questions.
   It does not assess sobriety or recommend another drink.
   It points you to **Getting Home** on the venue sheet and retains sourced transport facts.
+
+  <a id="pub-pal-map-chip"></a>
+
+  On the map, tap your unmuted Pal's chip to start voice in place when voice is available. The chip becomes the voice bar. If voice is unavailable, the chip opens `/pal` with its writing option.
+
+  Signed out, the map chip offers **Sign in to talk to your Pal**. **Close** hides this sign-in chip for the current page view. On another city's map, an unmuted Pal's chip says **Talks about London for now**.
 
   Voice starts only after your action. You can cancel startup or choose **Ask in writing** if voice cannot connect. The status line tells you when your chosen voice falls back to the default. Configured voice shows transcripts, returned pub cards and their map.
 
