@@ -130,6 +130,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   If your stored date of birth says you are under 18, you cannot create a Pal or start voice.
   An adult confirmation cannot override that date.
   If the account date cannot be checked, both actions are temporarily unavailable.
+  The map's voice chip stays hidden until the server confirms that the account date does not block voice.
+  A failed check keeps the voice chip hidden.
   Adults and accounts without a stored date keep the same setup requirements.
   Pal setup records the adult confirmation time without storing a birth date in the Pal record.
 

@@ -123,8 +123,8 @@ function OwnedPubPalSummon({ ownerId, pathname }: { ownerId: string; pathname: s
  * On the map, a tap starts voice where the person is, and the call draws as
  * the voice bar. The chip shows only once the server says the account may
  * have voice (no under-18 date of birth), and a tap never leaves the map
- * while the deployment's voice answer is still coming. Only a deployment
- * that says voice is off keeps the link to the Pal page.
+ * while the deployment's voice answer is still coming. An unavailable
+ * answer, a failed probe, or a timeout keeps the link to the Pal page.
  */
 function MapPalTalk({ ownerId, pal, genome, cheer, line }: {
   ownerId: string;
