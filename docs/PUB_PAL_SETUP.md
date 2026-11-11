@@ -185,9 +185,9 @@ agent that already exists. The captain re-runs
 changes. Do not run that command from an agent session.
 
 The map tools run in the voice browser through `client_tool_call`.
-They set `expects_response: false` and `pre_tool_speech: "off"`, so the agent neither waits nor announces a tool check.
+They set `expects_response: true` and `pre_tool_speech: "off"`, so the agent waits for the browser's answer but announces no tool check.
 [`lib/palMapClientToolCall.ts`](../lib/palMapClientToolCall.ts) owns pick and area validation.
-A refusal reaches the agent through a contextual update.
+A refusal reaches the agent as the tool result, so it never says the map moved when it did not.
 These tools are absent from the typed server tool catalog.
 The ElevenLabs typed fallback still uses the shared agent.
 If it receives a client tool call, it returns an error that asks the agent to answer in words.
@@ -240,7 +240,7 @@ It never converts reported expenditure into a pint budget.
 Voice uses the same opening builder in its first-message override.
 [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns confirmed-memory access.
 
-1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
+1. **Hosted LLM** (`gemini-2.5-flash` with `thinking_budget: 0` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
    Each tool sets `pre_tool_speech: "force"` and `execution_mode: "immediate"`,
    so the Pal says one short checking line while the tool runs instead of
@@ -442,11 +442,14 @@ the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.
 Ending a call releases its voice grant and clears its main-map picks and grounding.
 It also clears the last voice camera request and cancels pending voice navigation.
-The agent script requests a 20-second silence timeout as a provider backstop.
+After 20 seconds of silence the agent checks in once, then says goodbye and ends the call with `end_call`.
+The agent script requests a 60-second silence timeout as a provider backstop.
+`turn_timeout` and `silence_end_call_timeout` live in `scripts/pubpal/pub-pal-agent-config.json`.
 The 180-second call cap remains. These settings reach an existing agent only after the captain runs the configuration command.
 
 If a background interruption leaves the session mounted, it keeps the transcript
-and offers **Carry on** when you return. On the map, **Close voice chat** dismisses
+and offers **Carry on** when you return. When the Pal ends the call, the panel
+says so and offers **Carry on**, not an error. On the map, **Close voice chat** dismisses
 the stopped bar. **Carry on** starts a new call. Returning does not restart the
 microphone automatically.
 

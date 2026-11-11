@@ -36,7 +36,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mic, MicOff, Send } from "lucide-react";
 
-import PalVoiceBar, { useOnMapRef, usePalVoiceEngaged } from "@/components/pubpal/PalVoiceBar";
+import PalVoiceBar, { useOnMapRef, usePalVoiceEngaged, type PalVoiceEnded } from "@/components/pubpal/PalVoiceBar";
 import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVoiceMeter";
 import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
@@ -66,6 +66,7 @@ import {
   PAL_VOICE_START_TIMEOUT_ERROR,
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
+  palVoiceEndedByPal,
   palVoiceLineDropped,
   requestPalVoiceMicrophone,
   type PalVoiceMicrophoneHold,
@@ -141,6 +142,15 @@ function palVoiceMeterMode(connecting: boolean, live: boolean, speaking: boolean
   return speaking ? "speaking" : "listening";
 }
 
+/** The panel's one status line. A call the Pal ended says so, not that voice is ready. */
+function palVoicePanelStatus({ starting, live, speaking, ended, palName }: {
+  starting: boolean; live: boolean; speaking: boolean; ended: PalVoiceEnded | null; palName: string;
+}): string {
+  if (starting) return "Starting voice";
+  if (live) return speaking ? "Pal is talking" : "Pal is listening";
+  return ended === "pal" ? `${palName} ended the call` : "Voice ready when you are";
+}
+
 const silentVolume = (): number => 0;
 const silentSpectrum = (): Uint8Array => new Uint8Array(0);
 
@@ -203,7 +213,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
-  const [endedOutOfSight, setEndedOutOfSight] = useState(false);
+  const [ended, setEnded] = useState<PalVoiceEnded | null>(null);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -259,7 +269,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     openMap,
     onMap: () => onMapRef.current,
     mapOpening: () => mapTimerRef.current !== null,
-    tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
     // A tool call also gives way to anything the person did since it began:
     // a new line, a pub they picked, or a page they moved to (stayHere).
     callLive: () => {
@@ -426,7 +435,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   usePageLeft(useCallback((): void => {
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
-    if (attempt.connectedAt !== null) setEndedOutOfSight(true);
+    if (attempt.connectedAt !== null) setEnded("away");
     void stop(attempt, "background");
   }, [ownsAttempt, stop]));
 
@@ -453,7 +462,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       voiceEndReason: null,
     };
     activeAttemptRef.current = attempt;
-    setEndedOutOfSight(false);
+    setEnded(null);
     setError(null);
     setUsingFallbackVoice(false);
     setStartupStopped(false);
@@ -636,6 +645,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             if (wasLive && palVoiceLineDropped(details)) {
               setError(PAL_VOICE_LINE_DROPPED_ERROR);
               onStateChange?.("error");
+            } else if (wasLive && palVoiceEndedByPal(details)) {
+              setEnded("pal");
             }
             void finalizeSession(attempt);
           },
@@ -743,14 +754,14 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return () => signal.attach(null);
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
-  usePalVoiceEngaged([voiceConnecting, live, endedOutOfSight, error !== null]);
+  usePalVoiceEngaged([voiceConnecting, live, ended !== null, error !== null]);
 
   if (!panel) {
     return (
       <PalVoiceBar palName={palName} appearance={appearance} genome={genome} lines={lines}
-        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
+        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} ended={ended}
         onEnd={stopCurrentAttempt} onCarryOn={() => { void start(); }}
-        onClose={() => { setEndedOutOfSight(false); setError(null); }} />
+        onClose={() => { setEnded(null); setError(null); }} />
     );
   }
 
@@ -760,11 +771,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         {appearance ? <PalVoiceFace appearance={appearance} signal={signal} state={faceState} genome={genome} /> : null}
         <div className="palVoiceStatus" role="status">
           <i className={live ? "isLive" : ""} />
-          {isStarting
-            ? "Starting voice"
-            : live
-              ? isSpeaking ? "Pal is talking" : "Pal is listening"
-              : "Voice ready when you are"}
+          {palVoicePanelStatus({ starting: isStarting, live, speaking: isSpeaking, ended, palName })}
         </div>
         <PalVoiceMeter
           mode={meterMode}
@@ -820,7 +827,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             aria-busy={isStarting}
             onClick={() => { void start(); }}
           >
-            <Mic size={16} /> {isStarting ? "Starting" : endedOutOfSight ? "Carry on" : "Start voice chat"}
+            <Mic size={16} /> {isStarting ? "Starting" : ended ? "Carry on" : "Start voice chat"}
           </button>
         )}
         {voiceConnecting && (

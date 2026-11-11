@@ -24,6 +24,15 @@ export function palVoiceLineDropped(details: unknown): boolean {
   return type !== "max_duration_exceeded";
 }
 
+/**
+ * Did the Pal end the call on purpose? Its end_call tool and the provider's
+ * silence backstop both close the line with code 1000, which the SDK reports
+ * as `reason: "agent"`. The panel shows that as a friendly end, not an error.
+ */
+export function palVoiceEndedByPal(details: unknown): boolean {
+  return !!details && typeof details === "object" && (details as { reason?: unknown }).reason === "agent";
+}
+
 type VoiceProbeStream = {
   getTracks: () => Array<{ stop: () => void }>;
 };

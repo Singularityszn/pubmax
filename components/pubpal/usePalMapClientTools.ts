@@ -15,18 +15,16 @@ type MapDoor = {
   onMap: () => boolean;
   /** A move to the map is waiting to happen. */
   mapOpening: () => boolean;
-  /** Tell the agent what the map did, without interrupting it. */
-  tell: (update: string) => void;
   /** The current call's liveness check, or null with no call. */
   callLive: () => (() => boolean) | null;
 };
 
 /**
  * The voice agent's map tools (lib/palMapClientTools.mjs). They only move the
- * view. The agent does not wait for them, so a refusal reaches it as a
- * contextual update. Must render inside the call's ConversationProvider.
+ * view. The agent waits for the string each returns, so a refusal is its tool
+ * result. Must render inside the call's ConversationProvider.
  */
-export function usePalMapClientTools({ openMap, onMap, mapOpening, tell, callLive }: MapDoor): void {
+export function usePalMapClientTools({ openMap, onMap, mapOpening, callLive }: MapDoor): void {
   const [begin] = useState(createPalMapToolOrder);
   // The tool call that owns a map trip still waiting to happen. A newer map
   // tool call retires it, so an old "open pick 1" cannot land after "pick 2".
@@ -46,7 +44,6 @@ export function usePalMapClientTools({ openMap, onMap, mapOpening, tell, callLiv
     const action = palMapToolAction(tool, params, { picks: readPalMapState().picks, areas });
     switch (action.kind) {
       case "refused":
-        tell(action.update);
         return action.update;
       case "openMap":
         // A trip already on its way to the map goes on under this request.
