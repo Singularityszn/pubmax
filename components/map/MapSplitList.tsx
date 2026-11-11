@@ -220,6 +220,10 @@ export default function MapSplitList({
   const [followMap, setFollowMap] = useState(true);
   const [held, setHeld] = useState<HeldView | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Pubs keep arriving after the list first draws. A row that moved between
+  // press and release would lose the click, so the rows hold still while the
+  // pointer is over the list.
+  const [pointerInside, setPointerInside] = useState(false);
   const halo = usePinHalo(map);
   const pointedIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -236,7 +240,7 @@ export default function MapSplitList({
     }),
     [restaurantModel.rows, ukBaseModel.rows, viewportCenter, visibleVenues],
   );
-  const settled = useDebouncedValue(live, MAP_SPLIT_LIST_DEBOUNCE_MS);
+  const settled = useDebouncedValue(live, MAP_SPLIT_LIST_DEBOUNCE_MS, pointerInside);
   const settledKey = useMemo(() => liveViewKey(settled), [settled]);
   const liveKey = useMemo(() => liveViewKey(live), [live]);
   const holdView = useCallback(
@@ -445,6 +449,8 @@ export default function MapSplitList({
       className="mapSplitList"
       aria-label={`${cityName} pubs in this view`}
       tabIndex={-1}
+      onPointerEnter={() => setPointerInside(true)}
+      onPointerLeave={() => setPointerInside(false)}
       {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}
     >
       <header className="mapSplitListHead">

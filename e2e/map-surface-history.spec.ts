@@ -415,6 +415,9 @@ for (const theme of ['light', 'dark']) {
     const rows = list.locator('.mapSplitListRow');
     await expect(rows.first()).toBeVisible();
     await page.screenshot({ path: info.outputPath('split-before-selection.png') });
+    // Pubs keep streaming into the view. The rows hold still only while the
+    // pointer is over the list, so point at it before reading a row's name.
+    await list.hover();
     const first = await rows.first().locator('.mapSplitListRowName').innerText();
     await rows.first().click();
     await expectSoleDesktopDrawer(page, 'venue');
