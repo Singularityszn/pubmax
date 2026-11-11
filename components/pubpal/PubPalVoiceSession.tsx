@@ -508,7 +508,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
-        setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
+        setUsingFallbackVoice(overrides?.pickedVoiceMissing === true);
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
         startSession({

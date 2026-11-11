@@ -31,16 +31,22 @@ function readEnvVoiceId(key: string): string | null {
 export type PalVoiceSelection = {
   voiceId: string | null;
   voiceSource: "selected" | "species" | "agent-default";
+  /**
+   * The person's pick has no voice while another pick does. With no picked
+   * voice on offer at all, the Pal's own voice is simply its voice.
+   */
+  pickedVoiceMissing: boolean;
 };
 
 export function resolveElevenLabsVoiceForPal(pal: PubPal): PalVoiceSelection {
   const picked = readEnvVoiceId(PICKED_VOICE_ENV_KEYS[pal.voice.id]);
-  if (picked) return { voiceId: picked, voiceSource: "selected" };
+  if (picked) return { voiceId: picked, voiceSource: "selected", pickedVoiceMissing: false };
+  const pickedVoiceMissing = Object.values(PICKED_VOICE_ENV_KEYS).some((key) => readEnvVoiceId(key) !== null);
   const species = onboardingPalSpecies(pal.appearance.species);
   const speciesVoice = species ? readEnvVoiceId(elevenLabsVoiceEnvKeyForSpecies(species)) : null;
   return speciesVoice
-    ? { voiceId: speciesVoice, voiceSource: "species" }
-    : { voiceId: null, voiceSource: "agent-default" };
+    ? { voiceId: speciesVoice, voiceSource: "species", pickedVoiceMissing }
+    : { voiceId: null, voiceSource: "agent-default", pickedVoiceMissing };
 }
 
 export function resolveElevenLabsVoiceIdForPal(pal: PubPal): string | null {
