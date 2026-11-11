@@ -45,7 +45,9 @@ export function ComposerPriceStep({
       takeLogIntentReveal(step);
       return;
     }
-    // The venue skeleton can keep a mounted composer out of layout.
+    // The venue skeleton can keep a mounted composer out of layout. A shell
+    // or jsdom without ResizeObserver keeps the request for a later mount.
+    if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
       if (step.getClientRects().length === 0) return;
       takeLogIntentReveal(step);
