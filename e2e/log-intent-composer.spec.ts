@@ -160,6 +160,11 @@ async function quietFirstRun(page: Page): Promise<void> {
   await installDeterministicMapBasemap(page);
 }
 
+/** The client request key a multipart Pint Drop POST carried. */
+function clientRequestIdOf(body: string | null): string | undefined {
+  return /name="clientRequestId"\r\n\r\n([^\r\n]+)/.exec(body ?? "")?.[1];
+}
+
 /** Which tab of the login page the new drinker uses: the default, or the one a stranger reads as theirs. */
 type LoginDoor = "Sign in" | "New here";
 
@@ -243,25 +248,23 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   const dropPost = () => returned.waitForResponse((response) => response.request().method() === "POST"
     && new URL(response.url()).pathname === "/api/pint-drops");
   // A handle claimed without a date of birth has not yet said it is an adult.
-  // The composer closes on Log it, the refusal asks for the recorded adult
-  // tap on the pub's sheet, and the drinker opens the composer again.
+  // Log it answers the adult refusal, the pub's sheet asks for the recorded
+  // adult tap, and that tap finishes the same drop: no price is typed twice.
   const [refused] = await Promise.all([
     dropPost(),
     tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it"),
   ]);
   expect(refused.status(), "a new account owes the adult tap first").toBe(409);
   const sheet = returned.getByRole("dialog", { name: venueName!, exact: true });
-  await tap(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION }), ADULT_SELF_ASSERTION_ACTION);
-  await expect(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION })).toBeHidden();
-  await tap(sheet.getByRole("button", { name: `Log a Pint Drop at ${venueName}` }), "Log a Pint Drop");
-  const retypedPrice = returnedComposer.getByLabel("What did it cost?");
-  await tap(retypedPrice, "price field again");
-  await retypedPrice.fill(NEW_DRINKER_PRICE);
   const [posted] = await Promise.all([
     dropPost(),
-    tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it again"),
+    tap(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION }), ADULT_SELF_ASSERTION_ACTION),
   ]);
-  expect(posted.status(), "the drop is written").toBe(201);
+  expect(posted.status(), "the adult tap writes the drop").toBe(201);
+  const refusedKey = clientRequestIdOf(refused.request().postData());
+  expect(refusedKey, "Log it sends a client request key").toBeTruthy();
+  expect(clientRequestIdOf(posted.request().postData()), "the same request finishes").toBe(refusedKey);
+  await expect(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION })).toBeHidden();
 
   const feed = await returned.request.get("/api/pint-drops");
   expect(feed.ok()).toBe(true);
