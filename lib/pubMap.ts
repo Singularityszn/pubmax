@@ -532,38 +532,6 @@ export function drinkFiltersActiveFor(input: {
   );
 }
 
-/**
- * The one overlay the phone shell is showing.
- *
- * The Drop picker, the venue sheet and the planner each own the surface
- * outright while they are up, so they answer ahead of whatever chip the reader
- * last opened.
- */
-export function coordinatedMapOverlay(input: {
-  logIntentFallbackVisible: boolean;
-  detailOpen: boolean;
-  planningOpen: boolean;
-  /**
-   * The landmark story is a surface the reader is ON, so it answers here like
-   * the venue and the planner do: it hides the phone's "Describe the outing"
-   * pill (which used to paint under the opaque story sheet) and it enters the
-   * Back trail, so a pub opened from the story has the story as its parent.
-   * A venue pick still retires the story on screen; the trail keeps it.
-   */
-  storyOpen?: boolean;
-  mapOverlay: MapOverlay;
-}): MapOverlay {
-  return input.logIntentFallbackVisible
-    ? "moment"
-    : input.detailOpen
-      ? "venue"
-      : input.planningOpen
-        ? "planner"
-        : input.storyOpen
-          ? "landmark"
-          : input.mapOverlay;
-}
-
 /** Where the reader IS, for the Back/Home trail. List view is a surface too. */
 export function mapSurfaceIdFor(
   coordinatedMobileOverlay: MapOverlay,
