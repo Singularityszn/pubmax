@@ -6,7 +6,7 @@ import HandleAvatar from "@/components/profile/HandleAvatar";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
-import { displayHandle } from "@/lib/handleDisplay";
+import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { formatPrice } from "@/lib/venues";
@@ -70,7 +70,7 @@ export default function TonightBoard({
                       imageClassName="tonightAvatar"
                       size={24}
                     />
-                    <span className="tonightHandle">{displayHandle(entry.handle)}</span>
+                    <span className="tonightHandle">{dropAuthorLabel(entry.handle)}</span>
                   </span>
                 ) : (
                   <span className="tonightHandle tonightHandleAnon">anon</span>
