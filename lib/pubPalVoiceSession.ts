@@ -6,7 +6,7 @@ export const PAL_VOICE_START_TIMEOUT_ERROR =
   "Voice took too long to start. Ask in writing or try again.";
 /**
  * By default the SDK waits 3 s on Android before it opens the socket, so the
- * phone can switch its audio mode. The Pal starts at once on every platform.
+ * phone can switch its audio mode. This override removes that SDK delay.
  */
 export const PAL_VOICE_CONNECTION_DELAY = { default: 0, android: 0 } as const;
 export const PAL_VOICE_LINE_DROPPED_ERROR =

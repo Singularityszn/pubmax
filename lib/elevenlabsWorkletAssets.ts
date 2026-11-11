@@ -20,9 +20,8 @@ export const ELEVENLABS_LIBSAMPLERATE_PATH =
   "/vendor/elevenlabs/libsamplerate.worklet.js";
 
 /**
- * Warms the HTTP cache with both worklets before the tap, so a cold start does
- * not wait for them after the grant. The resampler is left out: few browsers
- * need it, and it weighs 2 MB.
+ * Starts both worklet fetches before the tap to reduce cold-start waits.
+ * The resampler stays lazy because its sample-rate fallback costs about 2 MB.
  */
 export function preloadElevenLabsWorklets(): void {
   for (const href of Object.values(ELEVENLABS_WORKLET_PATHS)) {
