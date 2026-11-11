@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Conversation } from "@elevenlabs/client";
 
 type FakeSessionOptions = {
+  connectionDelay?: { default: number; android?: number; ios?: number };
   onConversationCreated?: (conversation: FakeConversation) => void;
   onConnect?: (event: { conversationId: string }) => void;
   onDisconnect?: (event: { reason: string }) => void;
@@ -212,10 +213,28 @@ describe("Pub Pal startup with the installed React SDK", () => {
     await click("Start voice chat");
 
     expect(client.startSession).toHaveBeenCalledTimes(1);
+    // The SDK's own default holds every Android start for 3 s.
+    expect(defined(client.startSession.mock.calls[0])[0].connectionDelay).toEqual(expect.objectContaining({ default: 0, android: 0 }));
     expect(container.textContent).toContain("Pal is listening");
     expect(issuedGrants).toBe(1);
     expect(getUserMedia).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalled();
+    await click("End");
+    expect(releasedIds).toEqual(["conv_sdkfixture01"]);
+  });
+
+  it("asks for the grant without a microphone probe once access is granted", async () => {
+    const query = vi.fn(async () => ({ state: "granted" }));
+    vi.stubGlobal("navigator", Object.assign(Object.create(navigator) as Navigator, { permissions: { query } }));
+    client.startSession.mockImplementation(async (options) => connectFake(options, "conv_sdkfixture01"));
+    await act(async () => { root?.render(createElement(PubPalVoiceSession, { panel: container })); });
+
+    await click("Start voice chat");
+
+    expect(query).toHaveBeenCalledWith({ name: "microphone" });
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(issuedGrants).toBe(1);
+    expect(container.textContent).toContain("Pal is listening");
     await click("End");
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
   });

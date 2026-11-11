@@ -4,6 +4,11 @@ export const PAL_MICROPHONE_PERMISSION_ERROR =
 export const PAL_VOICE_START_TIMEOUT_MS = 20_000;
 export const PAL_VOICE_START_TIMEOUT_ERROR =
   "Voice took too long to start. Ask in writing or try again.";
+/**
+ * By default the SDK waits 3 s on Android before it opens the socket, so the
+ * phone can switch its audio mode. The Pal starts at once on every platform.
+ */
+export const PAL_VOICE_CONNECTION_DELAY = { default: 0, android: 0 } as const;
 export const PAL_VOICE_LINE_DROPPED_ERROR =
   "The voice line dropped, so the Pal stopped hearing you. Start voice chat again or ask in writing.";
 
@@ -29,7 +34,8 @@ type VoiceProbeStream = {
 };
 
 type VoiceStartAttempt<TGrant> = {
-  requestMicrophone: () => Promise<VoiceProbeStream>;
+  /** Null when no probe is needed before the grant. */
+  requestMicrophone: () => Promise<VoiceProbeStream | null>;
   issueGrant: () => Promise<TGrant>;
   connect: (grant: TGrant) => void | Promise<void>;
   onFailure?: (message: string) => void;
@@ -138,9 +144,28 @@ export function createPalVoiceMicrophoneHold(): PalVoiceMicrophoneHold {
   };
 }
 
-export function requestPalVoiceMicrophone(constraints: MediaStreamConstraints): Promise<MediaStream> {
+async function microphoneAlreadyGranted(): Promise<boolean> {
+  try {
+    const status = await navigator.permissions?.query({ name: "microphone" as PermissionName });
+    return status?.state === "granted";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The microphone check before a metered grant. While the browser cannot
+ * confirm access, this opens and returns a probe stream, so a denied
+ * microphone costs no grant. Once access is granted, it returns null: the SDK
+ * opens the microphone itself, and a second open here only slows the start.
+ */
+export async function requestPalVoiceMicrophone(): Promise<MediaStream | null> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new PubPalVoiceStartError("Can't reach your microphone. Type instead.");
+  }
+  if (await microphoneAlreadyGranted()) return null;
   const { mediaDevices, original } = installPalVoiceMicrophone();
-  return original.call(mediaDevices, constraints);
+  return original.call(mediaDevices, { audio: true });
 }
 
 export function createPubPalVoiceStartController() {
@@ -186,11 +211,8 @@ export function createPubPalVoiceStartController() {
         .then(async () => {
           try {
             const stream = await attempt.requestMicrophone();
-            if (currentStart.cancelled) {
-              stopTracks(stream);
-              return false;
-            }
-            stopTracks(stream);
+            if (stream) stopTracks(stream);
+            if (currentStart.cancelled) return false;
             currentStart.grantRequestStarted = true;
             let grant: TGrant;
             try {

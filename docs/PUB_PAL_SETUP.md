@@ -426,7 +426,8 @@ reads "Pal is listening" once the socket is up.
 
 On the first tap, the browser asks for microphone access before the server
 issues a metered voice grant. A denied request keeps the writing door open and
-can be retried. Repeated taps while voice starts use the same attempt.
+can be retried. Once the browser reports access as granted, the app skips its
+own probe and asks for the grant at once. Repeated taps while voice starts use the same attempt.
 
 ### Voice interruptions
 
