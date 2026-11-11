@@ -539,8 +539,11 @@ for (const theme of ['light', 'dark']) {
     // list says its rows are the settled view.
     await expect(list).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
     await page.screenshot({ path: info.outputPath('split-before-selection.png') });
-    const first = await rows.first().locator('.mapSplitListRowName').innerText();
-    await rows.first().click();
+    const { name: first, id: firstId } = await rows.first().evaluate((row) => ({
+      name: row.querySelector<HTMLElement>('.mapSplitListRowName')!.innerText,
+      id: row.getAttribute('data-venue-id')!,
+    }));
+    await list.locator(`.mapSplitListRow[data-venue-id=${JSON.stringify(firstId)}]`).click();
     await expectSoleDesktopDrawer(page, 'venue');
     await expect(desktopVenueDrawer(page).getByRole('heading', { name: first, exact: true })).toBeVisible();
     await expect(list).toBeVisible();
@@ -550,8 +553,11 @@ for (const theme of ['light', 'dark']) {
     await desktopVenueDrawer(page).getByRole('heading', { name: first, exact: true }).hover();
     await expect(list).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
     const secondRow = rows.filter({ hasNotText: first }).first();
-    const second = await secondRow.locator('.mapSplitListRowName').innerText();
-    await secondRow.click();
+    const { name: second, id: secondId } = await secondRow.evaluate((row) => ({
+      name: row.querySelector<HTMLElement>('.mapSplitListRowName')!.innerText,
+      id: row.getAttribute('data-venue-id')!,
+    }));
+    await list.locator(`.mapSplitListRow[data-venue-id=${JSON.stringify(secondId)}]`).click();
     await expectSoleDesktopDrawer(page, 'venue');
     await expect(desktopVenueDrawer(page).getByRole('heading', { name: second, exact: true })).toBeVisible();
     await expect(list).toBeVisible();

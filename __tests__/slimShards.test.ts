@@ -554,17 +554,16 @@ describe("createSlimShardLoader (London)", () => {
     expect(loader.coverageComplete(coreOnly)).toBe(false);
   });
 
-  it("degrades honestly: a failed shard yields [] and is retried on the next call", async () => {
+  it("keeps cached rows when a shard fails and retries it on the next call", async () => {
     installFetch({ "/data/venues_slim.greenwich.json": "fail" });
     const loader = createSlimShardLoader("london");
     await loader.core();
     const bounds = { west: 0.0, south: 51.44, east: 0.12, north: 51.53 };
-    // First attempt: shard fetch fails (no offline mirror in Node) → [].
-    expect(await loader.inBounds(bounds)).toEqual([]);
+    expect((await loader.inBounds(bounds)).map((v) => v.id)).toEqual(["c1", "c2"]);
     // The failed shard is NOT marked loaded, so it retries — now let it succeed.
     installFetch();
     const rows = await loader.inBounds(bounds);
-    expect(rows.map((v) => v.id)).toEqual(["g1"]);
+    expect(rows.map((v) => v.id)).toEqual(["c1", "c2", "g1"]);
   });
 
   it("preserves initial shard failure status for the map readiness gate", async () => {
