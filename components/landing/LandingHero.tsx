@@ -533,7 +533,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
   return (
     <section className="lpRail" aria-labelledby="lp-rail-title">
       <h2 className="lpRailTitle" id="lp-rail-title">
-        {railHeading(answer.scope, answer.area, answer.station?.zone ?? null)}
+        {railHeading(answer.scope)}
       </h2>
       <ol className="lpRailList">
         {answer.rail.map((row) => (

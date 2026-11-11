@@ -122,15 +122,14 @@ describe("landing pub card", () => {
         { venueId: "venue-eltcmh", priceGbp: 3.75, observedOn: "2015-08-05" },
         { venueId: "venue-eltcmh", priceGbp: 3.6, observedOn: "2013-07-14" },
       ]),
-      { now: NOW },
+      { now: NOW, stations: STATIONS },
     );
     expect(card).toEqual({
       id: "venue-eltcmh",
       name: "The Blackfriar",
       area: "City of London",
       primaryBorough: "City of London",
-      // Picked without a station table, so no zone claim.
-      station: null,
+      station: { name: "Chancery Lane", zone: 1 },
       priceGbp: 6.5,
       pintName: "a pint of Pravha",
       // One pub is under the drink-brand floor, so the pint stays plain text.
@@ -166,7 +165,7 @@ describe("landing pub card", () => {
       { venueId: "venue-other", priceGbp: 4, observedOn: "2018-01-01" },
       { venueId: "venue-cheap", priceGbp: 2.9, observedOn: "2016-01-01" },
     ]);
-    expect(buildLandingPubCard(venues, rows, { now: NOW })?.id).toBe("venue-cheap");
+    expect(buildLandingPubCard(venues, rows, { now: NOW, stations: STATIONS })?.id).toBe("venue-cheap");
   });
 
   it("leads with Zone 1: a cheaper pub further out never takes the card", () => {
@@ -206,7 +205,7 @@ describe("landing pub card", () => {
       { venueId: "venue-short", priceGbp: 2.5, observedOn: "2020-01-01" },
       { venueId: "venue-long", priceGbp: 2, observedOn: "2009-01-01" },
     ]);
-    const card = buildLandingPubCard(venues, rows, { now: NOW });
+    const card = buildLandingPubCard(venues, rows, { now: NOW, stations: STATIONS });
     expect(card?.id).toBe("venue-long");
     expect(card?.standing).toBe("listed");
     expect(card?.publisher).not.toBeNull();
@@ -220,7 +219,7 @@ describe("landing pub card", () => {
         locality: "Hatton Garden",
       }],
       history([{ venueId: "venue-hatton", priceGbp: 6.5, observedOn: "2026-09-01" }]),
-      { now: NOW },
+      { now: NOW, stations: STATIONS },
     );
 
     expect(card).toMatchObject({
@@ -231,16 +230,24 @@ describe("landing pub card", () => {
 
   it("chooses nothing rather than a pub missing a price or an archive row", () => {
     const rows = history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]);
-    expect(buildLandingPubCard([venue("venue-a", "Unpriced", null)], rows, { now: NOW })).toBeNull();
-    expect(buildLandingPubCard([venue("venue-b", "No archive", 5)], rows, { now: NOW })).toBeNull();
-    expect(buildLandingPubCard([], rows, { now: NOW })).toBeNull();
+    expect(buildLandingPubCard([venue("venue-a", "Unpriced", null)], rows, { now: NOW, stations: STATIONS })).toBeNull();
+    expect(buildLandingPubCard([venue("venue-b", "No archive", 5)], rows, { now: NOW, stations: STATIONS })).toBeNull();
+    expect(buildLandingPubCard([], rows, { now: NOW, stations: STATIONS })).toBeNull();
+  });
+
+  it("chooses no card when the station table is empty", () => {
+    expect(buildLandingPubCard(
+      [venue("venue-a", "Central Arms", 5)],
+      history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]),
+      { now: NOW, stations: [] },
+    )).toBeNull();
   });
 
   it("chooses no cheapest-pint card when the row carries no publisher page", () => {
     const card = buildLandingPubCard(
       [venue("venue-a", "Quiet Arms", 5, "")],
       history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]),
-      { now: NOW },
+      { now: NOW, stations: STATIONS },
     );
     expect(card).toBeNull();
   });
@@ -251,7 +258,7 @@ describe("landing pub card", () => {
     const card = buildLandingPubCard(
       [venue("venue-a", "Old Menu", 5, "https://www.pint-prices.com/pub/x", "2024-01-01T12:00:00Z")],
       history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]),
-      { now: NOW },
+      { now: NOW, stations: STATIONS },
     );
     expect(card?.standing).toBe("none");
     expect(card?.priceGbp).toBe(5);

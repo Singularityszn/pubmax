@@ -21,7 +21,7 @@
 // then the name. Deterministic, so the prerendered document and its share card
 // agree, and derived, so a re-collected dataset moves the pick.
 //
-// Where: Zone 1 only, when the caller hands in the station table (captain
+// Where: Zone 1 only (captain
 // decision D1 (a), 11 Nov 2026). Cheapest-anywhere put a Sutton pint under a
 // Kingsbury pint, both £2.43, so the London story started in the outer zones.
 // A pub takes the zone of its nearest station (lib/nearestStationZone.mjs), the
@@ -36,6 +36,7 @@ import { haystackMatchesBrand } from "@/lib/drinkBrands";
 import {
   answerEvidenceFor,
   HERO_RAIL_SIZE,
+  LANDING_HERO_ZONE,
   type LandingArchiveIndex,
   type LandingRailRow,
 } from "@/lib/landingHero";
@@ -55,30 +56,17 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import type { Venue } from "@/lib/venues";
 
-/** The fare zone the landing's pub card and its rail are drawn from. */
-const LANDING_HERO_ZONE = 1;
-
 /** The station a pub takes its fare zone from, as the card prints it. */
 export type LandingCardStation = { name: string; zone: number };
 
 type LandingPickOpts = {
   now?: number;
-  /**
-   * The station table (data/tfl_station_zones.json). With it, only pubs whose
-   * nearest station is in LANDING_HERO_ZONE may win. The landing always passes
-   * it; fixtures that test other rules may leave it out.
-   */
-  stations?: readonly StationZone[];
+  stations: readonly StationZone[];
 };
 
 function heroStation(venue: Venue, stations: readonly StationZone[]): LandingCardStation | null {
   const nearest = nearestStationZone(venue.latitude, venue.longitude, stations);
   return nearest && nearest.zone === LANDING_HERO_ZONE ? { name: nearest.station, zone: nearest.zone } : null;
-}
-
-/** True when the venue may stand in the hero: any pub without a table, else Zone 1 only. */
-function inHeroZone(venue: Venue, stations: readonly StationZone[] | undefined): boolean {
-  return !stations || heroStation(venue, stations) !== null;
 }
 
 export type LandingPubCardData = {
@@ -88,9 +76,9 @@ export type LandingPubCardData = {
   primaryBorough: string;
   /**
    * The nearest station and its fare zone, which is how the card knows it is
-   * in Zone 1. Null when the card was picked without a station table.
+   * in Zone 1.
    */
-  station: LandingCardStation | null;
+  station: LandingCardStation;
   /** Cheapest listed pint in pounds, without a claim about today's price. */
   priceGbp: number;
   /** The pint the price is for, as the dataset names it. */
@@ -151,22 +139,24 @@ function drinkHrefFor(venue: Venue, venues: readonly Venue[]): Route | null {
 export function buildLandingPubCard(
   venues: readonly Venue[],
   rawHistory: unknown,
-  opts: LandingPickOpts = {},
+  opts: LandingPickOpts,
 ): LandingPubCardData | null {
   const now = opts.now ?? Date.now();
   const history = groupPriceHistoryByVenue(parsePriceHistory(rawHistory, now));
-  const candidates = venues.filter(
-    (venue) =>
-      isPublicRankablePub(venue) &&
-      comparableVenuePint(venue, null, false, now) !== null &&
-      history.has(venue.id) &&
-      inHeroZone(venue, opts.stations),
-  );
-  if (candidates.length === 0) return null;
+  const candidates = venues.flatMap((venue) => {
+    if (
+      !isPublicRankablePub(venue) ||
+      comparableVenuePint(venue, null, false, now) === null ||
+      !history.has(venue.id)
+    ) return [];
+    const station = heroStation(venue, opts.stations);
+    return station ? [{ venue, station }] : [];
+  });
 
   // Listed first, then cheapest, then the longest archive span, then the name.
-  const ranked = candidates.map((venue) => ({
+  const ranked = candidates.map(({ venue, station }) => ({
     venue,
+    station,
     listed: answerEvidenceFor({ priceGbp: venue.cheapestPrice as number, prices: venue.prices }, now).standing === "listed",
     span: spanYears(history.get(venue.id), venue, now),
   }));
@@ -177,8 +167,9 @@ export function buildLandingPubCard(
       b.span - a.span ||
       a.venue.name.localeCompare(b.venue.name),
   );
-  const chosen = ranked[0]?.venue;
-  if (!chosen) return null;
+  const selected = ranked[0];
+  if (!selected) return null;
+  const { venue: chosen, station } = selected;
 
   // The bundled index names the cheapest pint but states neither its serving
   // nor its terms, so today's figure carries no comparison item and no movement
@@ -196,7 +187,7 @@ export function buildLandingPubCard(
     name: chosen.name,
     area: venueAreaLabel(chosen),
     primaryBorough: chosen.primaryBorough,
-    station: opts.stations ? heroStation(chosen, opts.stations) : null,
+    station,
     priceGbp: arc.nowGbp,
     pintName: pintLabel(chosen),
     drinkHref: drinkHrefFor(chosen, venues),
@@ -254,23 +245,23 @@ export function buildLandingArchiveIndex(
 
 /**
  * The rows under the anchor card when the browser has no fix, cheapest first,
- * the anchor itself left out. With the station table they follow the card:
- * the next cheapest listed pints in LANDING_HERO_ZONE, from any borough. With
- * none they are the anchor's own borough. An empty answer hides the rail rather
+ * the anchor itself left out. They follow the card:
+ * the next cheapest listed pints in LANDING_HERO_ZONE, from any borough.
+ * An empty answer hides the rail rather
  * than padding it.
  */
 export function buildLandingAnchorRail(
   venues: readonly Venue[],
-  anchor: { id: string; primaryBorough: string },
+  anchor: { id: string },
   archive: LandingArchiveIndex,
-  stations?: readonly StationZone[],
+  stations: readonly StationZone[],
 ): LandingRailRow[] {
   return venues
     .filter(
       (venue) =>
         venue.id !== anchor.id &&
         isPublicRankablePub(venue) &&
-        (stations ? inHeroZone(venue, stations) : venue.primaryBorough === anchor.primaryBorough) &&
+        heroStation(venue, stations) !== null &&
         comparableVenuePint(venue, null, false) !== null,
     )
     .sort((a, b) => (a.cheapestPrice as number) - (b.cheapestPrice as number) || a.name.localeCompare(b.name))
