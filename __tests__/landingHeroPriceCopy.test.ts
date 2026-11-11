@@ -22,6 +22,7 @@ const card: LandingPubCardData = {
   name: "The Blackfriar",
   area: "City of London",
   primaryBorough: "City of London",
+  station: { name: "Blackfriars", zone: 1 },
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
   drinkHref: "/drink/pravha" as Route,
