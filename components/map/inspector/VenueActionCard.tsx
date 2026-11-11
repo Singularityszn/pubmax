@@ -18,8 +18,11 @@
 // them, because the card's one door owns all three. Nothing on it appears
 // twice on the sheet.
 //
-// ONE CORAL. The plan door is the sheet's one painted control; "Ask for a
-// table" and Share are ghosts, and the Overview's price door is drawn in ink.
+// ONE CORAL (lib/venuePlanDoor.ts). The first row's door is the sheet's one
+// painted control: the plan door, or "Log what you paid" on a pub with no
+// drinker price from the last 30 days, when the plan door joins "Ask for a
+// table" and Share as a ghost in the second row. The Overview's price door is
+// drawn in ink.
 
 import dynamic from "next/dynamic";
 import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
@@ -46,13 +49,16 @@ const TableRequestDialog = dynamic(() => import("./TableRequestDialog"), { ssr: 
 export default function VenueActionCard({
   venue,
   summary,
+  planDoor = null,
   shareVenue,
   currentShareFeedback,
   acceptanceError = null,
 }: {
   venue: Venue;
-  /** The price, the walk and the plan door, read by the map (VenueActionSummary). */
+  /** The price, the walk and the coral door, read by the map (VenueActionSummary). */
   summary?: ReactNode;
+  /** The plan door as a ghost, when the first row's coral asks for a price. */
+  planDoor?: ReactNode;
   shareVenue: () => Promise<void>;
   currentShareFeedback: ShareFeedback | null;
   acceptanceError?: string | null;
@@ -150,6 +156,7 @@ export default function VenueActionCard({
       />
       {summary}
       <div className="venueSheetStickyBar venueActionCardActions" role="toolbar" aria-label="Venue actions">
+        {planDoor}
         {pub ? (
           <button
             type="button"
@@ -165,13 +172,14 @@ export default function VenueActionCard({
         <button
           type="button"
           className="venueSheetStickyGhost"
+          data-venue-share=""
           onClick={() => {
             void shareVenue();
           }}
           aria-label={`Share ${venue.name}`}
         >
           <Share2 size={16} aria-hidden="true" />
-          Share
+          <span>Share</span>
         </button>
         {currentShareFeedback ? (
           <span

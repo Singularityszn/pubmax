@@ -1,6 +1,6 @@
 /* THE VENUE SHEET'S ACTION CARD (VenueActionCard.tsx; launch plan 1 Nov 2026,
    section 5). One card at every width: the price with its date, the walk and
-   the ONE plan door on the first row, "Ask for a table" and Share under it.
+   the ONE coral door on the first row, "Ask for a table" and Share under it.
 
    On a phone it is the portal sheet's footer (a flex child below the scroll
    body), so it is always in view and sits above the safe area the portal
@@ -38,6 +38,41 @@
   .venueActionCardActions .venueSheetStickyGhost {
     flex: 0 0 auto;
     padding-inline: var(--control-pad-x);
+  }
+}
+
+/* THREE GHOSTS SHARE ONE ROW BY SHARE GIVING UP ITS WORD. When the coral asks
+   for a price, the plan door joins the row as a ghost. On a phone the three
+   labels need more than the row, and a wrap would stack a lone ghost on a
+   third line of the footer. Share keeps its icon and its accessible name
+   ("Share <pub>") and drops the visible word, so the two longer labels keep
+   theirs. The query is in em, so it follows the reader's text size. */
+@container venue-actions (max-width: calc(22em + 96px)) {
+  .venueActionCardActions:has(> [data-plan-door]) [data-venue-share] {
+    flex: 0 0 auto;
+    min-width: var(--control-height);
+  }
+
+  .venueActionCardActions:has(> [data-plan-door]) [data-venue-share] > span {
+    display: none;
+  }
+}
+
+/* On the narrowest phones even that is too wide, and Share fell to a line of
+   its own. The two labels break between words instead, inside their own
+   ghosts, so the row stays one row. Their icons go: a wrapped label keeps the
+   width of the line it could not fill, which parked the icon far from the
+   words. */
+@container venue-actions (max-width: calc(18em + 60px)) {
+  .venueActionCardActions:has(> [data-plan-door]) .venueSheetStickyGhost {
+    padding-inline: 8px;
+    line-height: 1.15;
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .venueActionCardActions:has(> [data-plan-door]) .venueSheetStickyGhost:not([data-venue-share]) > svg {
+    display: none;
   }
 }
 
