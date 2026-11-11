@@ -317,15 +317,17 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
   });
 
-  it("applies the follow toggle and a requested search while the pointer stays inside", () => {
+  it("applies the follow toggle and a requested search during pointer holds", () => {
     render();
     const list = host.querySelector(".mapSplitList")!;
     pointer(list, "pointerover");
     const follow = host.querySelector<HTMLInputElement>(".mapSplitListFollow input")!;
     act(() => follow.click());
     render({ visibleVenues: [LAMB] });
+    pointer(list, "pointerout");
     act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    pointer(list, "pointerover");
     act(() => button("Show pubs in this view").click());
     expect(rowNames()).toEqual(["The Lamb"]);
     render();
@@ -333,6 +335,40 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Lamb"]);
     act(() => follow.click());
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+  });
+
+  it("holds the search button's presence during a press until the pointer leaves and settles", () => {
+    const onSelectVenue = vi.fn();
+    render({ onSelectVenue });
+    const list = host.querySelector(".mapSplitList")!;
+    const follow = host.querySelector<HTMLInputElement>(".mapSplitListFollow input")!;
+    act(() => follow.click());
+    pointer(list, "pointerover");
+    const pressed = rows()[1]!;
+    act(() => pressed.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
+
+    render({ onSelectVenue, visibleVenues: [CROWN, ANCHOR, LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(host.querySelector(".mapSplitListSearchHere")).toBeNull();
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    act(() => pressed.click());
+    expect(onSelectVenue).toHaveBeenLastCalledWith(CROWN.id);
+
+    pointer(list, "pointerout");
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS - 1));
+    expect(host.querySelector(".mapSplitListSearchHere")).toBeNull();
+    act(() => vi.advanceTimersByTime(1));
+    expect(button("Show pubs in this view")).toBeDefined();
+
+    pointer(list, "pointerover");
+    render({ onSelectVenue });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(button("Show pubs in this view")).toBeDefined();
+    pointer(list, "pointerout");
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS - 1));
+    expect(button("Show pubs in this view")).toBeDefined();
+    act(() => vi.advanceTimersByTime(1));
+    expect(host.querySelector(".mapSplitListSearchHere")).toBeNull();
   });
 
   it("shows only projected venues and removes a departed venue's pin halo", () => {

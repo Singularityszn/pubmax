@@ -283,6 +283,7 @@ export default function MapSplitList({
   );
 
   const liveListKey = shownView?.key ?? settledKey;
+  const liveHeldIsStale = shownView !== null && shownView.key !== liveKey;
   const liveOrder = sort === "cheapest" ? "cheapest first" : reader ? "nearest you first" : "nearest first";
   const liveCoverageNote =
     lensPrices !== null ? drinkLensCoverageNote(lensNoun?.toLowerCase() ?? "this view", lensStatus) : null;
@@ -292,10 +293,11 @@ export default function MapSplitList({
     key: string;
     order: string;
     coverageNote: string | null;
+    heldIsStale: boolean;
   } | null>(null);
   if (!loaded && pointerView !== null) setPointerView(null);
   if (pointerInside && loaded && pointerView === null && liveGroups.total > 0) {
-    setPointerView({ groups: liveGroups, key: liveListKey, order: liveOrder, coverageNote: liveCoverageNote });
+    setPointerView({ groups: liveGroups, key: liveListKey, order: liveOrder, coverageNote: liveCoverageNote, heldIsStale: liveHeldIsStale });
   }
   useEffect(() => {
     if (pointerInside || pointerView === null) return;
@@ -399,7 +401,7 @@ export default function MapSplitList({
     setPointerView(null);
     setHeld(holdView(live, liveKey));
   };
-  const heldIsStale = shownView !== null && shownView.key !== liveKey;
+  const heldIsStale = pointerView?.heldIsStale ?? liveHeldIsStale;
 
   const total = groups.total;
   const awaiting = total === 0 && ukBaseStatus !== "unavailable" && (ukBaseStatus === "loading" || !loaded);
