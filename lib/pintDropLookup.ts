@@ -12,6 +12,8 @@ import {
   type ViewerContext,
   type Visibility,
 } from "@/lib/pintDrops";
+import { cleanDrinkMeasureLabel, statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { cleanPriceEvidence, type PriceEvidence } from "@/lib/pintDropReceipt";
 import { resolveStorageUrl } from "@/lib/pintDropsStore";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
@@ -38,7 +40,7 @@ import { resolveStoredVenue, venueMapUrl } from "@/lib/venueIndex";
 // The exact, public-only column list. NEVER add report_*/moderator_*/moderated_*
 // here — a hidden drop's photo keys and moderation trail must not leave the DB.
 const PUBLIC_COLUMNS =
-  "id,venue_id,handle,drink,price_gbp,passed_down_note,era,provenance,created_at,vibe_tags,visibility,pint_photo_key,venue_photo_key";
+  "id,venue_id,handle,drink,measure,measure_label,price_gbp,price_evidence,passed_down_note,era,provenance,created_at,vibe_tags,visibility,pint_photo_key,venue_photo_key";
 
 // The same list plus the retirement stamp (migration 0150), which decides which
 // NAME the reader is given. This lane names its columns rather than selecting
@@ -69,7 +71,12 @@ export type PublicDrop = {
   venueMapUrl: Route;
   handle: string;
   drink: string;
+  /** The serving the price is about; absent reads as a pint (lib/drinkMeasure.ts). */
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   priceGbp: number | null;
+  /** What the bill check found (lib/pintDropReceipt.ts); absent on old rows. */
+  priceEvidence?: PriceEvidence;
   note: string;
   era: string;
   provenance: string;
@@ -91,7 +98,10 @@ type VisibleRow = {
   venue_id: string;
   handle: string;
   drink: string | null;
+  measure?: unknown;
+  measure_label?: unknown;
   price_gbp: number | string | null;
+  price_evidence?: unknown;
   passed_down_note: string | null;
   era: string | null;
   provenance: string | null;
@@ -137,6 +147,22 @@ function toPrice(value: number | string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** A stated measure, and the free label only an `other` measure carries. */
+function measureFields(
+  measure: unknown,
+  label: unknown,
+): Pick<PublicDrop, "measure" | "measureLabel"> {
+  const stated = statedDrinkMeasure(measure);
+  if (!stated) return {};
+  const free = stated === "other" ? cleanDrinkMeasureLabel(label) : "";
+  return free ? { measure: stated, measureLabel: free } : { measure: stated };
+}
+
+function evidenceField(value: unknown): Pick<PublicDrop, "priceEvidence"> {
+  const evidence = cleanPriceEvidence(value);
+  return evidence ? { priceEvidence: evidence } : {};
+}
+
 function toTags(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((t): t is string => typeof t === "string");
@@ -152,7 +178,10 @@ type EnrichFields = {
   venueId: string;
   handle: string;
   drink: string;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   priceGbp: number | null;
+  priceEvidence?: PriceEvidence;
   note: string;
   era: string;
   provenance: string;
@@ -370,7 +399,9 @@ export async function getPintDropById(
             venueId: String(row.venue_id),
             handle: String(row.handle ?? ""),
             drink: String(row.drink ?? ""),
+            ...measureFields(row.measure, row.measure_label),
             priceGbp: toPrice(row.price_gbp),
+            ...evidenceField(row.price_evidence),
             note: String(row.passed_down_note ?? ""),
             era: String(row.era ?? ""),
             provenance: String(row.provenance ?? "anecdote"),
@@ -401,7 +432,9 @@ export async function getPintDropById(
       venueId: hit.venueId,
       handle: hit.handle,
       drink: hit.drink,
+      ...measureFields(hit.measure, hit.measureLabel),
       priceGbp: hit.priceGbp,
+      ...evidenceField(hit.priceEvidence),
       note: hit.passedDownNote,
       era: hit.era,
       provenance: hit.provenance,

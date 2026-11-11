@@ -76,6 +76,7 @@ import {
   photoRefusal,
   priceEvidenceFor,
 } from "@/lib/pintDropReceipt";
+import { receiptShareFromSavedDrop, type ReceiptShare } from "@/lib/pintReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
@@ -104,6 +105,8 @@ export type DropMsg = {
   ok: boolean;
   text: string;
   links?: Array<{ href: Route; label: string }>;
+  /** The receipt a saved public drop offers to share (lib/pintReceipt.ts). */
+  receipt?: ReceiptShare | null;
   accountRevision?: number;
   ageRecovery?: { accountRevision: number };
 };
@@ -903,13 +906,14 @@ export function usePintDrops(
       handedOffPreviews.forEach(revokePreview);
       void proposeWithTagsForDrop(data.drop, submittedWithHandles);
 
+      const venueLabel = options?.venueName ?? unresolvedVenueLabel(venueId);
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
       const addedToNight = await appendPintDropStopToActiveRound({
         round: submittedRound,
         currentUserId: getCurrentUserId,
         venueId,
-        venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
+        venueName: venueLabel,
         dropRef: pintDropId(data.drop),
       });
       if (submittedAccountRevision !== readProviderAccountRevision()) return;
@@ -936,6 +940,7 @@ export function usePintDrops(
         ok: true,
         text: dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
         links,
+        receipt: receiptShareFromSavedDrop(data.drop, venueLabel),
         accountRevision: submittedAccountRevision,
       });
     } catch {

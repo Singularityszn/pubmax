@@ -1,0 +1,256 @@
+/* A Pint Drop printed as a till receipt (components/pintdrop/PintReceiptPaper.tsx).
+   The paper is the raised card; it lies on a recessed "bar counter" well that
+   the caller draws. Torn edges are a mask, so the paper needs no border. */
+
+.pintReceipt {
+  --receipt-tooth: 12px;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin-inline: auto;
+  padding: calc(var(--space-6) + var(--receipt-tooth) / 2) var(--space-5);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  -webkit-mask:
+    conic-gradient(from 135deg at top, transparent, black 1deg 89deg, transparent 90deg) top /
+      var(--receipt-tooth) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, transparent, black 1deg 89deg, transparent 90deg) bottom /
+      var(--receipt-tooth) 51% repeat-x;
+  mask:
+    conic-gradient(from 135deg at top, transparent, black 1deg 89deg, transparent 90deg) top /
+      var(--receipt-tooth) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, transparent, black 1deg 89deg, transparent 90deg) bottom /
+      var(--receipt-tooth) 51% repeat-x;
+}
+
+.pintReceipt p,
+.pintReceipt h1,
+.pintReceipt dl,
+.pintReceipt dd {
+  margin: 0;
+}
+
+.pintReceipt__head {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.pintReceipt__brand {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.pintReceipt__kind {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.pintReceipt__venue {
+  margin-top: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  overflow-wrap: anywhere;
+}
+
+.pintReceipt--stub .pintReceipt__venue {
+  margin-top: 0;
+  font-size: var(--text-md);
+}
+
+.pintReceipt__figure {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.pintReceipt__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.pintReceipt__row--center {
+  justify-content: center;
+  margin-top: var(--space-1);
+  color: var(--color-text-soft);
+}
+
+.pintReceipt__row dt,
+.pintReceipt__row > span:first-child {
+  color: var(--color-text-soft);
+}
+
+.pintReceipt__row dd {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* A torn-paper dash, drawn as a gradient so it never wraps or doubles. */
+.pintReceipt__rule {
+  height: 1px;
+  margin: var(--space-4) 0;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--hairline-strong) 0 6px,
+    transparent 6px 11px
+  );
+}
+
+.pintReceipt__media {
+  margin-top: var(--space-4);
+}
+
+.pintReceipt__media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.pintReceipt__item {
+  font-size: var(--text-base);
+}
+
+.pintReceipt .pintReceipt__item > span:first-child {
+  color: var(--ink);
+}
+
+.pintReceipt__itemName {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pintReceipt__drink {
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.pintReceipt__total {
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.pintReceipt .pintReceipt__total > span:first-child {
+  color: var(--ink);
+}
+
+.pintReceipt__totalFigure {
+  display: inline-block;
+  font-size: var(--text-2xl);
+  line-height: 1;
+}
+
+.pintReceipt--stub .pintReceipt__totalFigure {
+  font-size: var(--text-xl);
+}
+
+.pintReceipt__none {
+  color: var(--color-text-soft);
+  text-align: center;
+}
+
+.pintReceipt .pintReceipt__facts {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+}
+
+.pintReceipt__listed {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pintReceipt__small {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.pintReceipt__house {
+  margin-top: var(--space-2);
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  font-style: italic;
+}
+
+.pintReceipt__extras {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.pintReceipt__foot {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+/* The receipt prints: it feeds out of the till, top line first. It is seen
+   once per page or once per logged pint, so it may take a little longer than
+   a control. The total presses in last, like the till's last line. */
+@media (prefers-reduced-motion: no-preference) {
+  .pintReceipt--full {
+    animation: pintReceiptPrint 640ms var(--ease-out-strong) both;
+  }
+
+  .pintReceipt--stub {
+    animation: pintReceiptPrint 420ms var(--ease-out-strong) both;
+  }
+
+  .pintReceipt--full .pintReceipt__totalFigure {
+    animation: pintReceiptPress 220ms var(--ease-out-strong) 520ms both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pintReceipt {
+    animation: pintReceiptFade var(--duration-slow) var(--ease-out) both;
+  }
+}
+
+@keyframes pintReceiptPrint {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-12px);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes pintReceiptPress {
+  from {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pintReceiptFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
