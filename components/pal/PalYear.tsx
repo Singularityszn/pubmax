@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PalPrint from "@/components/pal/PalPrint";
 import PalYearShare from "@/components/pal/PalYearShare";
+import { YEAR_DOOR_ID, useYearDoor } from "@/components/pal/useYearDoor";
+import YearGlass from "@/components/year/YearGlass";
 import { readProgress } from "@/lib/crawlCompletion";
 import { getAccessToken } from "@/lib/authClient";
 import { readNightsKept } from "@/lib/nightsKept";
@@ -21,7 +23,9 @@ import "./palYear.css";
 // come from the person's own public stats; at most two pub names are looked
 // up so a line can name a pub, and a name that does not arrive is left out.
 // In December it is read as the Year in Pints. "Share my year" under it
-// (PalYearShare.tsx) sends only the lines the person ticks.
+// (PalYearShare.tsx) sends only the lines the person ticks. /year-in-pints
+// lands here (useYearDoor.ts): once the year has loaded, the page settles on
+// this section and keyboard focus moves to its heading.
 
 async function venueName(venueId: string, signal: AbortSignal): Promise<string | null> {
   try {
@@ -62,6 +66,10 @@ export default function PalYear({ palName, print }: { palName: string; print: re
   const [facts, setFacts] = useState<PalYearFacts | null>(null);
   const [today, setToday] = useState("");
   const [names, setNames] = useState<Record<string, string>>({});
+  const door = useYearDoor();
+  const arrived = useRef(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -88,30 +96,52 @@ export default function PalYear({ palName, print }: { palName: string; print: re
     return () => controller.abort();
   }, [handle]);
 
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!facts || !door || !section || arrived.current) return;
+    arrived.current = true;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    section.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    headingRef.current?.focus({ preventScroll: true });
+    // The ink edge that marks the arrival (palYear.css) plays once.
+    section.dataset.arrived = "";
+  }, [facts, door]);
+
   if (!facts) return null;
   const lines = palYearLines(facts, names);
   return (
-    <section className="palYear" aria-labelledby="pal-year-title" data-testid="pal-year">
+    <section
+      ref={sectionRef}
+      id={YEAR_DOOR_ID}
+      className="palYear"
+      aria-labelledby="pal-year-title"
+      data-testid="pal-year"
+    >
       <div className="palYearHead">
         <span className="palYearStamp" aria-hidden="true">
           <PalPrint print={print} />
         </span>
         <div>
           <p className="palEyebrow">{facts.year}</p>
-          <h2 id="pal-year-title">{isYearInPintsSeason(today) ? "Your Year in Pints" : "Your year so far"}</h2>
+          <h2 id="pal-year-title" ref={headingRef} tabIndex={-1}>{isYearInPintsSeason(today) ? "Your Year in Pints" : "Your year so far"}</h2>
         </div>
       </div>
-      {lines.length > 0 ? (
-        <ol className="palYearLines">
-          {lines.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ol>
-      ) : (
-        <p className="palYearEmpty">Our year starts with your first night out. {palName} will keep it here.</p>
-      )}
-      <p className="palYearNote">Read from this device and your own mapped prices. Only you see it until you share it.</p>
-      <PalYearShare facts={facts} names={names} today={today} />
+      <div className="palYearBody">
+        <YearGlass year={facts.year} through={Number(today.slice(5, 7))} nights={facts.nightsKept} />
+        <div className="palYearRead">
+          {lines.length > 0 ? (
+            <ol className="palYearLines">
+              {lines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="palYearEmpty">Our year starts with your first night out. {palName} will keep it here.</p>
+          )}
+          <p className="palYearNote">Read from this device and your own mapped prices. Only you see it until you share it.</p>
+          <PalYearShare facts={facts} names={names} today={today} />
+        </div>
+      </div>
     </section>
   );
 }

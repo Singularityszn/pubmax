@@ -1,9 +1,12 @@
 import { daysThroughMonth, yearDotGlass } from "@/lib/yearInPintsDotGlass";
 
-// The shared year's pint glass (lib/yearInPintsDotGlass.ts owns the rules):
-// one dot per day, lit one per night out. The tones are classes, so the page's
-// own tokens paint them in both themes (yearInPints.css). The picture repeats
-// what the nights line already says, so its label says it in words too.
+import "./yearGlass.css";
+
+// The year's pint glass (lib/yearInPintsDotGlass.ts owns the rules): one dot
+// per day, lit one per night out. A shared year and the Pal's own year draw
+// the same glass. The tones are classes, so the page's own tokens paint them in
+// both themes (yearGlass.css). The picture repeats what the nights line
+// already says, so its label says it in words too.
 
 export default function YearGlass({ year, through, nights }: { year: number; through: number; nights: number }) {
   const glass = yearDotGlass({ year, through, nights, width: 160, height: 272 });
@@ -23,7 +26,7 @@ export default function YearGlass({ year, through, nights }: { year: number; thr
           <circle key={`${dot.x}-${dot.y}`} className={`yipGlassDot yipGlassDot--${dot.tone}`} cx={dot.x} cy={dot.y} r={r} />
         ))}
       </svg>
-      <figcaption className="yipNote">Each dot is a day. Lit: a night out.</figcaption>
+      <figcaption>Each dot is a day. Lit: a night out.</figcaption>
     </figure>
   );
 }
