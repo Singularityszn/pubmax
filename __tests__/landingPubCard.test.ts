@@ -103,6 +103,17 @@ function history(rows: Array<{ venueId: string; priceGbp: number; observedOn: st
   };
 }
 
+const STATION = {
+  chanceryLane: { name: "Chancery Lane", lat: 51.5185, lng: -0.1111, zone: 1 },
+  sutton: { name: "Sutton", lat: 51.3596, lng: -0.1913, zone: 5 },
+} as const;
+const STATIONS = Object.values(STATION);
+
+/** The venue standing a few doors from a station. */
+function at(base: Venue, station: { lat: number; lng: number }): Venue {
+  return { ...base, latitude: station.lat + 0.0005, longitude: station.lng + 0.0005 };
+}
+
 describe("landing pub card", () => {
   it("builds the card from the listed price, the publisher and the oldest archive row, and claims no movement", () => {
     const card = buildLandingPubCard(
@@ -154,6 +165,31 @@ describe("landing pub card", () => {
       { venueId: "venue-cheap", priceGbp: 2.9, observedOn: "2016-01-01" },
     ]);
     expect(buildLandingPubCard(venues, rows, { now: NOW })?.id).toBe("venue-cheap");
+  });
+
+  it("leads with Zone 1: a cheaper pub further out never takes the card", () => {
+    // Live on 11 Nov 2026 the card was a £2.43 pint in Sutton, and the UK card
+    // above it was a £2.43 pint in Kingsbury. The London story starts in town.
+    const venues = [
+      at(venue("venue-sutton", "The Moon on the Hill", 2.43), STATION.sutton),
+      at(venue("venue-holborn", "Holborn Arms", 4.1), STATION.chanceryLane),
+    ];
+    const rows = history([
+      { venueId: "venue-sutton", priceGbp: 1.8, observedOn: "2012-01-01" },
+      { venueId: "venue-holborn", priceGbp: 2.9, observedOn: "2014-01-01" },
+    ]);
+    const card = buildLandingPubCard(venues, rows, { now: NOW, stations: STATIONS });
+    expect(card?.id).toBe("venue-holborn");
+    expect(card?.station).toEqual({ name: "Chancery Lane", zone: 1 });
+  });
+
+  it("chooses no card rather than leave Zone 1 when no Zone 1 pub qualifies", () => {
+    const card = buildLandingPubCard(
+      [at(venue("venue-sutton", "The Moon on the Hill", 2.43), STATION.sutton)],
+      history([{ venueId: "venue-sutton", priceGbp: 1.8, observedOn: "2012-01-01" }]),
+      { now: NOW, stations: STATIONS },
+    );
+    expect(card).toBeNull();
   });
 
   it("prefers a listed figure, then breaks a price tie on the longer archive span", () => {

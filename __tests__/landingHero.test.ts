@@ -346,6 +346,27 @@ describe("landing anchor rail", () => {
     expect(rail.map((row) => row.id)).toEqual(["venue-sibling"]);
   });
 
+  it("follows a Zone 1 card with the next cheapest Zone 1 pubs, from any borough", () => {
+    const stations = [
+      { name: "Chancery Lane", lat: 51.5185, lng: -0.1111, zone: 1 },
+      { name: "Oxford Circus", lat: 51.5152, lng: -0.1419, zone: 1 },
+      { name: "Sutton", lat: 51.3596, lng: -0.1913, zone: 5 },
+    ];
+    const near = (station: (typeof stations)[number]) => ({ latitude: station.lat, longitude: station.lng });
+    const [chancery, oxford, sutton] = stations as [typeof stations[0], typeof stations[0], typeof stations[0]];
+    const venues = [
+      venue("venue-anchor", "Holborn Arms", 4.1, { primaryBorough: "Camden", ...near(chancery) }),
+      venue("venue-soho", "Soho Tap", 4.4, { primaryBorough: "Westminster", locality: "Soho", ...near(oxford) }),
+      venue("venue-camden", "Camden Next Door", 4.2, { primaryBorough: "Camden", ...near(chancery) }),
+      venue("venue-sutton", "Sutton Cheap", 2.43, { primaryBorough: "Sutton", ...near(sutton) }),
+    ];
+    const rail = buildLandingAnchorRail(venues, { id: "venue-anchor", primaryBorough: "Camden" }, {}, stations);
+    expect(rail.map((row) => [row.id, row.area])).toEqual([
+      ["venue-camden", "Camden"],
+      ["venue-soho", "Soho"],
+    ]);
+  });
+
   it("answers an empty rail rather than padding it", () => {
     expect(buildLandingAnchorRail([venue("venue-anchor", "Only", 5)], { id: "venue-anchor", primaryBorough: "City of London" }, {})).toEqual([]);
   });
