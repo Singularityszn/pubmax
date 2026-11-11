@@ -728,22 +728,34 @@ for (const detailFirst of [true, false]) {
         await expect(thanks).toHaveCount(previousThanks + 1);
         say(socket, "You are welcome.");
         await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("You are welcome.");
-        for (const followup of ["Show those pubs on the map", "Show me the map"]) {
-          if (spoken) hear(socket, followup);
-          else {
-            await page.getByPlaceholder("Or type the night you want…", { exact: true }).fill(followup);
-            await page.getByRole("button", { name: "Send message", exact: true }).click();
-          }
-          await expect(map).toBeFocused();
-          await expect(page).toHaveURL(/\/pal$/);
-          expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
-          expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(camera);
-          expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
-          await map.screenshot({ path: testInfo.outputPath(`${width}-${spoken ? "spoken" : "typed"}-${followup}-map-followup.png`) });
-        }
+        expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
+        expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(camera);
+        expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
+        await map.screenshot({ path: testInfo.outputPath(`${width}-${spoken ? "spoken" : "typed"}-after-thanks.png`) });
       }
     }
     await page.setViewportSize({ width: 390, height: 1000 });
+    // One call spans /pal and /map: a map ask, spoken or typed, opens /map on
+    // the same socket, and the way back to /pal keeps the answer.
+    let socketClosed = false;
+    socket.onClose(() => { socketClosed = true; });
+    const answerRows = await list.locator("li").count();
+    for (const [spoken, followup] of [[true, "Show those pubs on the map"], [false, "Show me the map"]] as const) {
+      if (spoken) hear(socket, followup);
+      else {
+        await page.getByPlaceholder("Or type the night you want…", { exact: true }).fill(followup);
+        await page.getByRole("button", { name: "Send message", exact: true }).click();
+      }
+      await expect(page.locator(".palVoiceMapCard")).toContainText("Opening the map");
+      await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
+      await expect(page.locator(".palVoiceBar")).toBeVisible();
+      await page.goBack();
+      await expect(page).toHaveURL(/\/pal$/);
+      await expect(list.locator("li")).toHaveCount(answerRows);
+      expect(socketClosed).toBe(false);
+    }
+    await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+    expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
     complete(request("search_venues", "changed-after-pan"), soho);
     await expect.poll(() => pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(soho.map((card: { venueId: string }) => card.venueId));
     await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
