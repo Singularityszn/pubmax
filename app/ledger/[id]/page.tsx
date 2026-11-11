@@ -9,6 +9,7 @@ import { buildVenueClaims } from "@/lib/ledger";
 import { CITIES } from "@/lib/cities";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { ledgerTitleName } from "@/lib/ledgerTitle";
 import { venueAreaLabel } from "@/lib/venueDisplay";
@@ -172,6 +173,7 @@ export default async function LedgerPage({ params }: PageProps) {
   if (read.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
   if (read.status !== "found") notFound();
   const { venue } = read;
+  redirectMergedVenueId("/ledger", id, venue.id);
   // Everything below reads/links off the canonical venue id (D1) so a merged
   // alias URL and the surviving canonical URL share the same logbook, Family
   // Table, and ratings, never the raw route param, which may be a losing

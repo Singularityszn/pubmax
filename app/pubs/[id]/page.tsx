@@ -22,6 +22,7 @@ import type { VenuePrice } from "@/lib/venues";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { priceBandLabel, type PriceBand } from "@/lib/priceBand";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueAmenityStatus, venueContacts, type Venue } from "@/lib/venues";
@@ -124,6 +125,7 @@ export default async function PubPage({ params }: PageProps) {
   }
   if (read.status !== "found") notFound();
   const { venue } = read;
+  redirectMergedVenueId("/pubs", id, venue.id);
   const pageUrl = `/pubs/${encodeURIComponent(venue.id)}`;
   const listed = await getListedBuilding(venue.id);
   const contacts = venueContacts(venue);
