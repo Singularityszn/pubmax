@@ -76,9 +76,26 @@ export const DEVICE_IDENTITY_SESSION_KEYS = [
   "pubmax:referral-follow-handle",
   // The one-shot arrival greeting names a person.
   "pubmax:arrival-welcome:v1",
+  "pubmaxx:price-mission-dismiss:v1",
+  "pubmax:ask-plan-draft:v1",
 ] as const;
 
+const DEVICE_IDENTITY_SESSION_PREFIXES = ["pubmax_pint_drop_draft:"] as const;
+
+let sessionRevision = 0;
+const sessionListeners = new Set<() => void>();
+
+export function readDeviceAccountSessionRevision(): number {
+  return sessionRevision;
+}
+
+export function subscribeDeviceAccountSession(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => { sessionListeners.delete(listener); };
+}
+
 type WritableStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type SweepableStorage = WritableStorage & Partial<Pick<Storage, "key" | "length">>;
 
 function readKey(storage: WritableStorage | null, key: string): string | null {
   if (!storage) return null;
@@ -118,7 +135,7 @@ function writeKey(
  */
 export function clearDeviceAccountArtifacts(
   local: WritableStorage | null,
-  session: WritableStorage | null = null,
+  session: SweepableStorage | null = null,
 ): void {
   for (const key of DEVICE_IDENTITY_LOCAL_KEYS) removeKey(local, key);
   clearDeviceAccountSessionArtifacts(session);
@@ -130,9 +147,22 @@ export function clearDeviceAccountArtifacts(
 }
 
 /** Clear this tab's private artifacts without changing another tab's shared owner. */
-export function clearDeviceAccountSessionArtifacts(session: WritableStorage | null): void {
+export function clearDeviceAccountSessionArtifacts(session: SweepableStorage | null): void {
   showLegRouteOnMap(null);
   for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
+  const prefixed: string[] = [];
+  try {
+    const length = session?.length ?? 0;
+    for (let index = 0; index < length; index += 1) {
+      const key = session?.key?.(index);
+      if (key && DEVICE_IDENTITY_SESSION_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+        prefixed.push(key);
+      }
+    }
+  } catch {}
+  for (const key of prefixed) removeKey(session, key);
+  sessionRevision += 1;
+  for (const listener of [...sessionListeners]) listener();
 }
 
 /**
@@ -160,7 +190,7 @@ export function liveAccountDeparted(
 export function bindDeviceAccountOwner(
   userId: string,
   local: WritableStorage | null,
-  session: WritableStorage | null = null,
+  session: SweepableStorage | null = null,
 ): boolean {
   if (!userId) return false;
   if (readKey(local, DEVICE_ACCOUNT_OWNER_KEY) === userId) return false;
@@ -172,7 +202,7 @@ export function bindDeviceAccountOwner(
 /** Sign-out: the set goes, and so does the claim that anyone owns it. */
 export function releaseDeviceAccountOwner(
   local: WritableStorage | null,
-  session: WritableStorage | null = null,
+  session: SweepableStorage | null = null,
 ): void {
   clearDeviceAccountArtifacts(local, session);
   removeKey(local, DEVICE_ACCOUNT_OWNER_KEY);

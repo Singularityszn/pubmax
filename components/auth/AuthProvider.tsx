@@ -437,7 +437,7 @@ export function AuthProvider({
         // Clear pubmaxx:plan-route-draft:v1, pubmax:plan-route-draft:v2 and
         // pubmax:plan-intake:v1 on sign-out or a shared device owner change.
         // These values describe the departing person's unpublished Plan.
-        // Keep pubmax:planning-intent:v1, pubmax:ask-plan-draft:v1 and
+        // Keep pubmax:planning-intent:v1 and
         // pubmax:onboarding:planner-handoff:v1: these are device handoffs.
         // Keep pubmaxx:plan-mutation:v1:*: request fingerprints bind retry keys.
         // Keep pubmax_active_plan, pubmax:plan-report-line:*,

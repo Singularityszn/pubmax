@@ -8,6 +8,8 @@ export type PriceRead = { owner: string; count: number };
  * upstream qualification still require the ranking behaviour tests.
  */
 export function cheapestPriceReads(source: string, path: string): PriceRead[] {
+  // Escaped property names still need the parser even without the literal spelling.
+  if (!source.includes("cheapestPrice") && !source.includes("\\")) return [];
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
   const counts = new Map<string, number>();
   function isPriceBindingName(name: ts.PropertyName): boolean {
