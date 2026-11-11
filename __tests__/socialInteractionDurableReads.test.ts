@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   calls: [] as string[],
   postStoreEdits: [] as unknown[][],
+  claimed: [] as Record<string, unknown>[],
+  completions: [] as Record<string, unknown>[],
   postRow: {
     id: "11111111-1111-4111-8111-111111111111",
     author_profile_id: "22222222-2222-4222-8222-222222222222",
@@ -61,8 +63,13 @@ vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => false,
   requiresSupabaseStore: () => true,
   requireSupabaseAdmin: () => ({
-    rpc: async (name: string) => {
+    rpc: async (name: string, args?: Record<string, unknown>) => {
       state.calls.push(name);
+      if (name === "claim_social_interaction_moderation_jobs") return { data: state.claimed, error: null };
+      if (name === "complete_social_interaction_moderation_job") {
+        state.completions.push(args ?? {});
+        return { data: true, error: null };
+      }
       if (name === "read_social_saves") {
         return {
           data: [{ post_id: state.postRow.id, saved_at: state.postRow.created_at, source_post: state.postRow }],
@@ -100,6 +107,8 @@ const viewer = { accountId: "account-c", profileId: "profile-c", handle: "carol"
 beforeEach(() => {
   state.calls = [];
   state.postStoreEdits = [];
+  state.claimed = [];
+  state.completions = [];
 });
 
 describe("durable Social interaction projections", () => {
@@ -164,5 +173,22 @@ describe("durable Social interaction projections", () => {
       mutation_version: 9,
       revision: 3,
     });
+  });
+
+  it("finishes each claimed interaction job with the lease token its claim returned", async () => {
+    const leased = { content_kind: "comment", content_id: "c-1", moderation_claim: "Good shout", attempts: 1, lease_token: "token-1" };
+    const legacy = { content_kind: "quote", content_id: "q-1", moderation_claim: "Friday", attempts: 1 };
+    state.claimed = [leased, legacy];
+    await supabaseSocialInteractionStore.processModerationQueue({
+      moderate: async ({ postId }) => {
+        if (postId === "q-1") throw new Error("offline");
+        return { decision: "needs_review" };
+      },
+    });
+
+    expect(state.completions).toEqual([
+      { p_kind: "comment", p_content_id: "c-1", p_lease_token: "token-1", p_decision: "needs_review", p_error_code: null, p_retry_at: null },
+      { p_kind: "quote", p_content_id: "q-1", p_decision: null, p_error_code: "Error", p_retry_at: expect.any(String) },
+    ]);
   });
 });
