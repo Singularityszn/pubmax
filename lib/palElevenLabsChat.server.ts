@@ -119,7 +119,7 @@ type AgentResponseEvent = {
   agent_response_event?: { agent_response?: string };
   text_response_part?: { type?: string; text?: string };
   agent_tool_request?: { tool_call_id?: string; tool_name?: string };
-  agent_tool_response?: { tool_call_id?: string; tool_name?: string };
+  agent_tool_response?: { tool_call_id?: string; tool_name?: string; is_error?: boolean };
   client_tool_call?: { tool_call_id?: string; tool_name?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
@@ -462,6 +462,7 @@ export async function runPalElevenLabsChatTurn(
     let replyGeneration = 0;
     let toolEvents = 0;
     let replyToolEvents = 0;
+    let endCallRequested = false;
     const pendingToolCalls = new Set<string>();
     const completedToolCalls = new Set<string>();
     const completeToolCall = (rawCallId: string | undefined): boolean => {
@@ -657,6 +658,13 @@ export async function runPalElevenLabsChatTurn(
         return;
       }
 
+      const tool = payload.type === "agent_tool_request" ? payload.agent_tool_request
+        : payload.type === "agent_tool_response" ? payload.agent_tool_response : undefined;
+      if (userMessageSent && tool?.tool_name === "end_call") {
+        endCallRequested = payload.type === "agent_tool_request" || payload.agent_tool_response?.is_error !== true;
+        if (endCallRequested) return;
+      }
+
       if (payload.type === "agent_tool_request") {
         if (!userMessageSent) return;
         clearSettle();
@@ -700,7 +708,12 @@ export async function runPalElevenLabsChatTurn(
     });
 
     ws.addEventListener("close", () => {
-      if (!settled) finish({ ok: false, code: "PROVIDER_UNAVAILABLE" }, "socket_close");
+      if (settled) return;
+      if (endCallRequested && latestReply && replyIsAnswer()) {
+        finishWithLatestReply();
+        return;
+      }
+      finish({ ok: false, code: "PROVIDER_UNAVAILABLE" }, "socket_close");
     });
   });
 }
