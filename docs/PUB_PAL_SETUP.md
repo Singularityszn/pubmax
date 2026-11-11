@@ -289,19 +289,13 @@ Voice uses the same opening builder in its first-message override.
    `final` line carrying the same body the JSON path returns, cards and
    proposals included. Sign-in, the rate limit and the spend ceiling answer
    before the stream opens. Any other caller still gets one JSON body.
-   One more webhook, `recall_memories`, is Pal-only. It returns the memories the
-   person confirmed or corrected (never `completed_plan` rows) for the account
-   that opened the conversation, read from the server-side conversation binding
-   and never from the request body. Typed chat puts the same lines ahead of the
-   ask on the server, or one line saying nothing is confirmed, so it does not
-   need the tool. Voice gets the same lines from the voice-token grant
-   (`context`) and sends them as one contextual update when the call connects,
-   so the first ask skips the tool when the preload contains every confirmed
-   memory. If confirmed memories exceed `PAL_RECALL_MEMORY_LIMIT`, the update labels
-   the supplied memories as a partial set and requires recall for each ask.
-   The shared reader reports completeness. A failed memory read sends no memory
-   line, and the agent still calls the tool. [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns
-   confirmed-memory access, past-night reports and the confirmation rule.
+   One more webhook, `recall_memories`, is Pal-only.
+   [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md#decision) owns
+   confirmed-memory access, selection completeness, recall requirements and confirmation.
+   The voice-token grant returns server-built memory and taste text in `context`.
+   `PubPalVoiceSession` sends this text once with `sendContextualUpdate` when the call connects.
+   A failed memory read omits memory text but can still supply taste text.
+   The field is `null` when neither read supplies text.
    A second Pal-only webhook, `propose_memory`, adds a memory card
    to a typed or voice chat for the bound account, only when that Pal has memory
    proposals on. They are on for a new Pal; a Pal saved with them off keeps
