@@ -273,6 +273,7 @@ body:has(.lp) {
 .lpPubPrice {
   margin: var(--space-1) 0 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
 }
