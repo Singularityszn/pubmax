@@ -1,5 +1,6 @@
 import "server-only";
 
+import stationTable from "@/data/tfl_station_zones.json";
 import history from "@/public/data/price_history/london.json";
 
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
@@ -60,9 +61,11 @@ let cached: Promise<LandingHeroData> | null = null;
 export function loadLandingHeroData(): Promise<LandingHeroData> {
   cached ??= getPricedVenues()
     .then((venues) => {
-      const card = buildLandingPubCard(venues, history);
+      // The card and its rail are Zone 1 pubs (lib/landingPubCard.ts).
+      const stations = stationTable.stations;
+      const card = buildLandingPubCard(venues, history, { stations });
       const archive = buildLandingArchiveIndex(venues, history);
-      const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
+      const rail = card ? buildLandingAnchorRail(venues, card, archive, stations) : [];
       // The average names its base (lib/pricedPubCount.ts): pubs in our London
       // pub list with a listed cheapest pint, the same cohort /about reads.
       const cohort = listedPriceCohort(venues);

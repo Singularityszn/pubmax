@@ -100,6 +100,7 @@ describe("landing hero policy", () => {
     expect(answerKicker("widened", "Soho")).toBe("Nearest listed pint");
     expect(railHeading("anchor", "City of London")).toBe("Cheapest listed in City of London");
     expect(railHeading("walkable", "Soho")).toBe("Next cheapest");
+    expect(railHeading("anchor", "Tower Hamlets", 1)).toBe("Cheapest listed in Zone 1");
   });
 
   it("reads publisher and standing off the price rows through the one decider", () => {

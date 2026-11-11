@@ -129,6 +129,8 @@ describe("landing pub card", () => {
       name: "The Blackfriar",
       area: "City of London",
       primaryBorough: "City of London",
+      // Picked without a station table, so no zone claim.
+      station: null,
       priceGbp: 6.5,
       pintName: "a pint of Pravha",
       // One pub is under the drink-brand floor, so the pint stays plain text.

@@ -1,4 +1,6 @@
-// Nearest-station fare-zone assignment (build-time, pure JS).
+// Nearest-station fare-zone assignment (build-time, pure JS). The rule itself
+// is lib/nearestStationZone.mjs, shared with the landing hero; this module
+// loads the table for the slim build.
 //
 // TfL fare zones are STATION-based, not area polygons, so there is no honest
 // "zone polygon" to point-in-poly a venue against. Instead every venue is
@@ -15,32 +17,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { nearestStationZone } from "../../lib/nearestStationZone.mjs";
 import { haversineKm } from "./geo.mjs";
 
-export { haversineKm };
+export { haversineKm, nearestStationZone };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STATION_ZONES_PATH = path.resolve(__dirname, "..", "..", "data", "tfl_station_zones.json");
-
-/**
- * Nearest station's zone to a point, or null when no station is comparable
- * (empty table / non-finite input). Returns the zone plus the winning station
- * name and distance so the build can log/spot-check assignments.
- */
-export function nearestStationZone(lat, lng, stations) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Array.isArray(stations)) {
-    return null;
-  }
-  let best = null;
-  for (const station of stations) {
-    if (!Number.isFinite(station.lat) || !Number.isFinite(station.lng)) continue;
-    const distanceKm = haversineKm(lat, lng, station.lat, station.lng);
-    if (!best || distanceKm < best.distanceKm) {
-      best = { zone: station.zone, station: station.name, distanceKm };
-    }
-  }
-  return best;
-}
 
 let cachedStations = null;
 

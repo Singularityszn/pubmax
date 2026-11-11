@@ -148,9 +148,25 @@ export function answerKicker(scope: LandingAnswerScope, area: string): string {
   }
 }
 
-/** The heading over the rail. */
-export function railHeading(scope: LandingAnswerScope, area: string): string {
-  return scope === "anchor" ? `Cheapest listed in ${area}` : "Next cheapest";
+/**
+ * The heading over the rail. An anchor picked in a fare zone has a rail drawn
+ * from that zone (lib/landingPubCard.ts), so the heading names the zone; an
+ * anchor without one has its own area's rail.
+ */
+export function railHeading(scope: LandingAnswerScope, area: string, zone: number | null = null): string {
+  if (scope !== "anchor") return "Next cheapest";
+  return zone === null ? `Cheapest listed in ${area}` : `Cheapest listed in Zone ${zone}`;
+}
+
+/**
+ * The anchor card's zone chip. The zone is the nearest station's, so the chip
+ * names that station: the approximation is on the page, not in a footnote.
+ */
+export function anchorZoneChip(station: { name: string; zone: number }): { text: string; label: string } {
+  return {
+    text: `Zone ${station.zone} · near ${station.name}`,
+    label: `Zone ${station.zone}, by its nearest station, ${station.name}`,
+  };
 }
 
 /**

@@ -133,46 +133,38 @@ body:has(.lp) {
 
 /* On a desktop the copy and the answer share the first screen from the top:
    the grid starts under the nav rather than floating at the vertical centre.
-   Both grids share one column template, so the rail lines up under the
-   answer. The head's third row is the flexible one, so the answer's height
-   never opens the gap between the kicker and the heading.
 
-   Beneath the head, the pub card takes the left column under the copy and
-   the rail the right one under the picture. Both used to stack in the right
-   column, so the left sat empty for some 700px under four lines of copy
-   while the page ran on down the right. DOM order (the phone order) is
+   The head's box steps aside (`display: contents`) so its children and the
+   hero's own children sit on ONE grid. The copy runs down the left column and
+   ends with the pub card. The right column holds the hunt card and, straight
+   under it, the rail. When the rail sat in its own row it lined up with the
+   pub card instead, and at 1440 it floated some 150px under the hunt card.
+
+   The answer spans the title and lede rows and sits at their foot, so the
+   rail always starts one gap under it. DOM order (the phone order) is
    untouched: this is grid areas only, never `order`. */
 @media (min-width: 960px) {
   .lpHero {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
     grid-template-areas:
-      "head head"
+      "title answer"
+      "lede answer"
+      "actions rail"
       "card rail";
+    grid-template-rows: auto auto auto 1fr;
     column-gap: clamp(28px, 4vw, 56px);
     row-gap: var(--space-4);
     align-content: start;
     align-items: start;
     padding-top: clamp(128px, 17vh, 168px);
   }
-  .lpHero .screenHead {
-    grid-area: head;
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
-    grid-template-areas:
-      "kicker answer"
-      "title answer"
-      "lede answer"
-      "actions answer";
-    grid-template-rows: auto auto auto 1fr;
-    column-gap: clamp(28px, 4vw, 56px);
-    align-items: start;
-  }
-  .lpHero .screenHead > .kicker { grid-area: kicker; }
+  .lpHero .screenHead { display: contents; }
   .lpHero .screenTitle { grid-area: title; }
   .lpHero .screenLede { grid-area: lede; max-width: 34ch; }
-  .lpHero .screenActions { grid-area: actions; align-self: start; }
-  .lpHero .screenAnswer { grid-area: answer; margin-top: 0; }
+  .lpHero .screenActions { grid-area: actions; margin-top: var(--space-2); }
+  .lpHero .screenAnswer { grid-area: answer; align-self: end; margin-top: 0; }
   .lpHero .lpAnswerCard { grid-area: card; }
-  .lpHero .lpRail { grid-area: rail; }
+  .lpHero .lpRail { grid-area: rail; margin-top: var(--space-2); }
 }
 
 /* ── The one real pub ────────────────────────────────────────────────────── */
@@ -1037,7 +1029,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 /* Optional history stays with its pub, without competing with today's price. */
-.lpEarlierPrices { margin-top: var(--space-4); }
+.lpEarlierPrices { margin-top: var(--space-1); }
 .lpEarlierPrices summary {
   width: fit-content;
   min-height: 44px;
