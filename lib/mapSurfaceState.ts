@@ -7,9 +7,9 @@ import type { MapOverlay } from "@/lib/mobileShell";
  * list beside the map is the split lane: a venue picked from it opens its
  * drawer next to the list, so no surface event ever changes the lane.
  */
-export type MapSurfaceLane = "split" | "none";
+type MapSurfaceLane = "split" | "none";
 
-export type MapSurfaceOverlay = Exclude<MapOverlay, "none" | "venue" | "planner" | "landmark">;
+type MapSurfaceOverlay = Exclude<MapOverlay, "none" | "venue" | "planner" | "landmark">;
 
 export type MapSurface =
   | { kind: "venue" }
@@ -43,7 +43,7 @@ export type MapSurfaceTransition = {
 const NONE: MapSurface = { kind: "none" };
 
 /** The surface a raw overlay value names. */
-export function surfaceForOverlay(overlay: MapOverlay): MapSurface {
+function surfaceForOverlay(overlay: MapOverlay): MapSurface {
   if (overlay === "none") return NONE;
   if (overlay === "venue" || overlay === "planner" || overlay === "landmark") return { kind: overlay };
   return { kind: "overlay", overlay };
