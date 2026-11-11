@@ -162,9 +162,11 @@ describe("ring scheduling", () => {
     expect(loader.inBounds).toHaveBeenNthCalledWith(2, ALDWYCH, 0);
 
     act(() => idle.forEach((callback) => callback()));
-    expect(loader.inBounds).toHaveBeenCalledTimes(4);
+    expect(loader.inBounds).toHaveBeenCalledTimes(6);
     expect(loader.inBounds).toHaveBeenNthCalledWith(3, WESTMINSTER, 1);
-    expect(loader.inBounds).toHaveBeenNthCalledWith(4, ALDWYCH, 1);
+    expect(loader.inBounds).toHaveBeenNthCalledWith(4, WESTMINSTER, 0);
+    expect(loader.inBounds).toHaveBeenNthCalledWith(5, ALDWYCH, 1);
+    expect(loader.inBounds).toHaveBeenNthCalledWith(6, ALDWYCH, 0);
   });
 
   it("resumes a held request against the current camera bounds", async () => {
@@ -178,8 +180,11 @@ describe("ring scheduling", () => {
     render(false, loader);
     expect(loader.inBounds).toHaveBeenCalledExactlyOnceWith(ALDWYCH, 0);
     act(() => idle.forEach((callback) => callback()));
-    expect(loader.inBounds).toHaveBeenLastCalledWith(ALDWYCH, 1);
-    await act(async () => land(0));
+    expect(loader.inBounds).toHaveBeenNthCalledWith(2, ALDWYCH, 1);
+    await act(async () => {
+      land(0);
+      land(1);
+    });
     expect(lane.viewShardsLanding).toBe(false);
   });
 
@@ -189,6 +194,8 @@ describe("ring scheduling", () => {
     act(() => lane.scheduleRingLoad(loader, WESTMINSTER));
     render(true, loader);
     act(() => lane.scheduleRingLoad(loader, WESTMINSTER));
+    expect(loader.inBounds).toHaveBeenCalledTimes(1);
+    act(() => idle.shift()?.());
     expect(loader.inBounds).toHaveBeenCalledTimes(1);
     if (landDuringHold) {
       await act(async () => land(0));
@@ -200,6 +207,78 @@ describe("ring scheduling", () => {
       land(0);
       land(1);
     });
+    expect(lane.viewShardsLanding).toBe(false);
+  });
+});
+
+describe("visible shard recovery", () => {
+  it.each([
+    { moved: false, retryFails: false },
+    { moved: false, retryFails: true },
+    { moved: true, retryFails: false },
+    { moved: true, retryFails: true },
+  ])("tracks idle recovery through merge or failure ($moved, $retryFails)", async ({ moved, retryFails }) => {
+    const centre = { west: 1.1, south: 51.1, east: 1.9, north: 51.9 };
+    const east = { west: 2.1, south: 51.1, east: 2.9, north: 51.9 };
+    const retryPath = moved ? "/data/retry-east.json" : "/data/retry-centre.json";
+    const recovered: SlimVenue = {
+      id: "recovered", name: "Recovered pub", lat: 51.5, lng: moved ? 2.5 : 1.5,
+      cheapestPrice: null, borough: "x",
+    };
+    const response = Promise.withResolvers<Response>();
+    const outsideResponse = Promise.withResolvers<Response>();
+    const retryStarted = Promise.withResolvers<void>();
+    let attempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const path = new URL(String(input), "https://pubmaxxing.com").pathname;
+      if (path.endsWith(".manifest.json")) {
+        return Response.json({
+          version: 2,
+          grid: { originLat: 0, originLon: 0, latStep: 1, lonStep: 1 },
+          shards: [
+            { id: "centre", core: true, url: "/data/retry-centre.json", count: 1, bbox: [1, 51, 2, 52] },
+            { id: "east", core: false, url: "/data/retry-east.json", count: 1, bbox: [2, 51, 3, 52] },
+            { id: "outside", core: false, url: "/data/retry-outside.json", count: 1, bbox: [0, 51, 1, 52] },
+          ],
+        });
+      }
+      if (path === retryPath) {
+        attempts += 1;
+        if (attempts === 1) return new Response(null, { status: 503 });
+        retryStarted.resolve();
+        return response.promise;
+      }
+      if (path === "/data/retry-outside.json") return outsideResponse.promise;
+      if (path === "/data/retry-centre.json" || path === "/data/retry-east.json") {
+        return Response.json([]);
+      }
+      throw new Error(`Unexpected shard: ${path}`);
+    }));
+    const loader = createSlimShardLoader("london", { bypassInFlight: true });
+    render(false, loader);
+    await act(async () => lane.scheduleRingLoad(loader, centre));
+    if (moved) await act(async () => lane.scheduleRingLoad(loader, east));
+    refs(loader).latestMapBoundsRef.current = moved ? east : centre;
+    refs(loader).latestMapBoundsCityRef.current = "london";
+    expect(attempts).toBe(1);
+    expect(lane.viewShardsLanding).toBe(false);
+
+    await act(async () => {
+      idle.shift()?.();
+      await retryStarted.promise;
+    });
+    expect(attempts).toBe(2);
+    expect(lane.viewShardsLanding).toBe(true);
+    expect(mergeSlimVenues.mock.calls.flatMap(([rows]) => rows)).not.toContainEqual(recovered);
+
+    await act(async () => response.resolve(
+      retryFails ? new Response(null, { status: 503 }) : Response.json([recovered]),
+    ));
+    expect(lane.viewShardsLanding).toBe(false);
+    expect(mergeSlimVenues.mock.calls.flatMap(([rows]) => rows)).toEqual(retryFails ? [] : [recovered]);
+    expect(attempts).toBe(2);
+
+    await act(async () => outsideResponse.resolve(Response.json([])));
     expect(lane.viewShardsLanding).toBe(false);
   });
 });

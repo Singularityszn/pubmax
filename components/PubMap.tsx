@@ -2642,6 +2642,7 @@ export default function PubMap({
       const startInitialLoad = (bounds: MapBounds) => {
         if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
         initialShardLoadStartedRef.current = true;
+        awaitViewShards();
         void loader.initialResult(bounds)
           .then((result) => {
             if (!isCurrentLoader()) return;
@@ -2862,6 +2863,8 @@ export default function PubMap({
         return;
       }
       initialShardLoadStartedRef.current = true;
+      initialShardLoadSettledRef.current = false;
+      awaitViewShards();
       void loader.initialResult(bounds)
         .then((result) => {
           if (!isCurrentLoader()) return;
@@ -2881,7 +2884,7 @@ export default function PubMap({
             setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = result.status === "ready";
             if (result.status === "ready" && isCurrentLoader()) {
-              scheduleRingLoad(loader, bounds);
+              scheduleRingLoad(loader, latestMapBoundsRef.current ?? bounds);
             } else {
               settleViewShards();
             }
@@ -2904,6 +2907,7 @@ export default function PubMap({
         });
     },
     [
+      awaitViewShards,
       cityId,
       mergeSlimVenues,
       openingLocationResolved,

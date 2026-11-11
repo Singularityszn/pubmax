@@ -86,28 +86,36 @@ export function useMapRingLoads({
       const isCurrentLoader = () =>
         slimLoaderRef.current === loader &&
         slimLoaderGenerationRef.current === loaderGeneration;
-      const loadRing = (ring: number, onSettled?: () => void) => {
-        if (!isCurrentLoader()) return;
-        void loader
-          .inBounds(bounds, ring)
+      const loadRing = (ring: number, ringBounds = bounds) => {
+        if (!isCurrentLoader()) return Promise.resolve();
+        return loader
+          .inBounds(ringBounds, ring)
           .then((rows) => {
             if (!isCurrentLoader()) return;
             mergeSlimVenues(rows);
             refreshCountCoverage();
           })
-          .catch(() => undefined)
-          .finally(() => onSettled?.());
+          .catch(() => undefined);
       };
       scheduleSlimShardRingLoads(
         () => {
           if (!isCurrentLoader()) return;
           targetViewportLoadStartedRef.current = true;
-          loadRing(VIEWPORT_SHARD_RING, viewLanded);
+          void loadRing(VIEWPORT_SHARD_RING).finally(viewLanded);
         },
-        () => loadRing(NEIGHBOUR_SHARD_RING),
+        () => {
+          if (!isCurrentLoader() || secondaryStreamsHeldRef.current) return;
+          const currentBounds =
+            latestMapBoundsCityRef.current === activeMapCityIdRef.current
+              ? latestMapBoundsRef.current ?? bounds
+              : bounds;
+          const retryLanded = awaitViewShards();
+          void loadRing(NEIGHBOUR_SHARD_RING);
+          void loadRing(VIEWPORT_SHARD_RING, currentBounds).finally(retryLanded);
+        },
       );
     },
-    [awaitViewShards, mergeSlimVenues, refreshCountCoverage, slimLoaderGenerationRef, slimLoaderRef, targetViewportLoadStartedRef],
+    [activeMapCityIdRef, awaitViewShards, latestMapBoundsCityRef, latestMapBoundsRef, mergeSlimVenues, refreshCountCoverage, slimLoaderGenerationRef, slimLoaderRef, targetViewportLoadStartedRef],
   );
 
   useEffect(() => {
