@@ -63,8 +63,8 @@ export async function providerCallRecord(
 /**
  * The call length ElevenLabs recorded for one of our conversations, in whole
  * seconds, or null while the call is running or when the provider cannot say.
- * This is the only duration the voice meter settles from: the browser's own
- * clock is never read. Null leaves the prepaid grant charged in full.
+ * A release settles only from this provider duration, never the browser's
+ * clock. Null leaves the prepaid grant charged for later settlement attempts.
  */
 export async function providerCallSeconds(
   conversationId: string,
