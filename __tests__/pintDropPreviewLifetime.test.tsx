@@ -112,40 +112,42 @@ describe("Pint Drop preview URL lifetime", () => {
     expect(io.post).toHaveBeenCalledTimes(1);
   });
 
-  it.each([true, false])("requires an explicit price retry after the shared assertion (bill: %s)", async (withBill) => {
-    io.post.mockResolvedValue(new Response("{}", { status: 200 }));
+  it.each([true, false])("finishes the refused price as the same request after the adult tap (bill: %s)", async (withBill) => {
     io.post.mockResolvedValueOnce(new Response(JSON.stringify({
       status: "adult_check_required", error: "Confirm you are 18 or over before contributing.",
     }), { status: 409 }));
     await act(async () => {
       if (withBill) drops.pickPhoto("receipt", photo("bill.jpg"), null);
-      drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" }));
+      drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale", measure: "half" }));
     });
     await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    expect(drops.dropForm.price).toBe("");
     io.post.mockResolvedValueOnce(new Response("{}", { status: 200 }));
-    await act(async () => { container.querySelector("button")!.click(); });
-    expect(io.post.mock.calls.map(([url]) => url)).toEqual(["/api/pint-drops", "/api/identity/adult-assertion"]);
-    expect(drops.dropMsg?.text).toBe("Age confirmation saved. Submit your price again.");
-    expect(container.querySelector("button")).toBeNull();
     io.post.mockResolvedValueOnce(new Response(JSON.stringify({ drop: {
-      id: "drop-retried", venueId: "venue-1", handle: "alice", priceGbp: 5.5,
-      drink: "Pale ale", passedDownNote: "", era: "", vibeTags: [],
+      id: "drop-finished", venueId: "venue-1", handle: "alice", priceGbp: 5.5,
+      drink: "Pale ale", measure: "half", passedDownNote: "", era: "", vibeTags: [],
       visibility: "public", provenance: "contributor", status: "visible",
       createdAt: new Date().toISOString(), pintPhotoUrl: null, venuePhotoUrl: null,
-      priceEvidence: withBill ? "receipt" : "unchecked",
+      priceEvidence: "unchecked",
     } }), { status: 201 }));
-    await act(async () => {
-      if (withBill) drops.pickPhoto("receipt", photo("bill.jpg"), null);
-      drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" }));
-    });
-    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
-    expect(io.post.mock.calls.filter(([url]) => url === "/api/pint-drops")).toHaveLength(2);
-    expect(io.post.mock.calls.filter(([url]) => url === "/api/identity/adult-assertion")).toHaveLength(1);
+    await act(async () => { container.querySelector("button")!.click(); });
+    expect(io.post.mock.calls.map(([url]) => url)).toEqual([
+      "/api/pint-drops", "/api/identity/adult-assertion", "/api/pint-drops",
+    ]);
+    const refused = io.post.mock.calls[0]![1].body as FormData;
+    const finished = io.post.mock.calls[2]![1].body as FormData;
+    expect(finished.get("clientRequestId")).toBe(refused.get("clientRequestId"));
+    expect(finished.get("priceGbp")).toBe("5.50");
+    expect(finished.get("measure")).toBe("half");
+    expect(finished.get("drink")).toBe("Pale ale");
+    expect(finished.has("receipt_photo")).toBe(withBill);
     expect(drops.dropMsg?.ok).toBe(true);
-    expect(drops.dropsByVenueId.get("venue-1")?.some((drop) => drop.id === "drop-retried")).toBe(true);
+    expect(container.querySelector("button")).toBeNull();
+    expect(drops.dropsByVenueId.get("venue-1")?.map((drop) => drop.id)).toEqual(["drop-finished"]);
+    expect(readOptimisticSpills(localStorage).map(({ drop }) => drop.id)).toEqual(["drop-finished"]);
   });
 
-  it("keeps a refused assertion retryable without posting another price", async () => {
+  it("posts the held price only after an assertion the server accepted", async () => {
     io.post.mockResolvedValueOnce(new Response(JSON.stringify({ status: "adult_check_required" }), { status: 409 }));
     await act(async () => { drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" })); });
     await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
@@ -153,10 +155,11 @@ describe("Pint Drop preview URL lifetime", () => {
     await act(async () => { container.querySelector("button")!.click(); });
     expect(container.querySelector('[role="alert"]')?.textContent).toBe("We could not save that just now. Try again.");
     expect(container.querySelector("button")?.disabled).toBe(false);
-    io.post.mockResolvedValueOnce(new Response("{}", { status: 200 }));
-    await act(async () => { container.querySelector("button")!.click(); });
-    expect(container.querySelector("button")).toBeNull();
     expect(io.post.mock.calls.filter(([url]) => url === "/api/pint-drops")).toHaveLength(1);
+    io.post.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    io.post.mockResolvedValueOnce(new Response(JSON.stringify({ status: "adult_check_required" }), { status: 409 }));
+    await act(async () => { container.querySelector("button")!.click(); });
+    expect(io.post.mock.calls.filter(([url]) => url === "/api/pint-drops")).toHaveLength(2);
   });
 
   it.each([[201, false], [201, true], [409, false], [409, true]] as const)(
@@ -270,6 +273,7 @@ describe("Pint Drop preview URL lifetime", () => {
       expect(asserted).not.toHaveBeenCalled();
       expect(container.querySelector('[role="alert"]')).toBeNull();
       expect(drops.dropMsg).toBeNull();
+      expect(io.post).toHaveBeenCalledTimes(2);
     } finally {
       window.removeEventListener(ADULT_ASSERTED_EVENT, asserted);
     }
