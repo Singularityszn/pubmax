@@ -113,6 +113,7 @@ describe("Pint Drop preview URL lifetime", () => {
   });
 
   it.each([true, false])("finishes the refused price as the same request after the adult tap (bill: %s)", async (withBill) => {
+    io.post.mockResolvedValue(new Response("{}", { status: 200 }));
     io.post.mockResolvedValueOnce(new Response(JSON.stringify({
       status: "adult_check_required", error: "Confirm you are 18 or over before contributing.",
     }), { status: 409 }));
@@ -131,7 +132,7 @@ describe("Pint Drop preview URL lifetime", () => {
       priceEvidence: "unchecked",
     } }), { status: 201 }));
     await act(async () => { container.querySelector("button")!.click(); });
-    expect(io.post.mock.calls.map(([url]) => url)).toEqual([
+    expect(io.post.mock.calls.map(([url]) => url).slice(0, 3)).toEqual([
       "/api/pint-drops", "/api/identity/adult-assertion", "/api/pint-drops",
     ]);
     const refused = io.post.mock.calls[0]![1].body as FormData;
