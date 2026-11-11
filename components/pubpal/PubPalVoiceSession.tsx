@@ -56,11 +56,13 @@ import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
   ELEVENLABS_LIBSAMPLERATE_PATH,
   ELEVENLABS_WORKLET_PATHS,
+  preloadElevenLabsWorklets,
 } from "@/lib/elevenlabsWorkletAssets";
 import {
   createPubPalVoiceStartController,
   createPalVoiceMicrophoneHold,
   PAL_MICROPHONE_PERMISSION_ERROR,
+  PAL_VOICE_CONNECTION_DELAY,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
   PAL_VOICE_START_TIMEOUT_ERROR,
@@ -370,6 +372,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   useEffect(() => {
     disposedRef.current = false;
+    preloadElevenLabsWorklets();
     return () => {
       disposedRef.current = true;
       const attempt = activeAttemptRef.current;
@@ -510,6 +513,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           connectionType: "websocket",
           // The SDK holds a screen wake lock from start until the session ends.
           useWakeLock: true,
+          connectionDelay: PAL_VOICE_CONNECTION_DELAY,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onStatusChange: ({ status: next }) => {
