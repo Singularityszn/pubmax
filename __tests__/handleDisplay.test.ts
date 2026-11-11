@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { displayHandle, handleOnly } from "@/lib/handleDisplay";
+import { displayHandle, dropAuthorLabel, handleOnly } from "@/lib/handleDisplay";
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 
 describe("displayHandle", () => {
   it("prepends a single @ to a bare handle", () => {
@@ -69,5 +70,17 @@ describe("handleOnly", () => {
     expect(handleOnly(null)).toBe("anon");
     expect(handleOnly("@")).toBe("anon");
     expect(handleOnly("@London_W4")).not.toContain("@");
+  });
+});
+
+describe("dropAuthorLabel", () => {
+  it("shows a withheld or missing author as the label, with no @", () => {
+    for (const raw of [ANON_HANDLE_LABEL, "", "   ", "@", null, undefined]) {
+      expect(dropAuthorLabel(raw)).toBe("a PUBMAXXER");
+    }
+  });
+
+  it("shows a named author as their @handle", () => {
+    expect(dropAuthorLabel("@London_W4")).toBe("@london_w4");
   });
 });

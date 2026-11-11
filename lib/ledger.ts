@@ -1,5 +1,5 @@
 import { buildVenueClaims, type ClaimDrop, type Provenance } from "@/lib/curation";
-import { displayHandle, handleOnly } from "@/lib/handleDisplay";
+import { dropAuthorLabel, handleOnly } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import type { PintTrustState } from "@/lib/pintTrust";
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
@@ -91,7 +91,7 @@ export function toLedgerEntry(drop: LedgerSourceDrop): LedgerEntry {
     id: drop.id,
     createdAt: drop.createdAt,
     dateLabel: formatLedgerDate(drop.createdAt),
-    handle: displayHandle(drop.handle),
+    handle: dropAuthorLabel(drop.handle),
     headline,
     note,
     priceLabel,

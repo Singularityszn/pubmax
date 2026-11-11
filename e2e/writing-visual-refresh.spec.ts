@@ -2,6 +2,8 @@ import AxeBuilder from "@axe-core/playwright";
 
 import { expect, test } from "@playwright/test";
 
+import { holdLondonEvening } from "./helpers/themeClock";
+
 for (const width of [390, 768, 1440]) {
   for (const theme of ["light", "dark"] as const) {
     test(`London journal and requested film at ${width}px in ${theme}`, async ({ page }) => {
@@ -135,6 +137,7 @@ for (const width of [320, 390]) {
         await page.setViewportSize({ width, height: 844 });
         await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
         await page.addInitScript((value) => localStorage.setItem("pubmax-theme", value), theme);
+        await holdLondonEvening(page);
         await page.goto("/about");
         const dock = page.getByRole("navigation", { name: "Primary", exact: true });
         await expect(dock).toBeVisible();

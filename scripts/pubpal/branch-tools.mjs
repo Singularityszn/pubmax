@@ -1,7 +1,8 @@
 // Which tool writes a --branch-id run may make. Workspace tools are shared by
 // every branch of an agent, so a branch run never changes a tool Main has
-// attached: a Main tool whose URL must change gets a new branch-only copy, and
-// any other change to one stops the run before its first write. Pure.
+// attached: a Main webhook whose drift stays within api_schema gets
+// a new branch-only copy, and any other change to one stops the run before
+// its first write. Pure.
 
 import { toolDrift } from "./agent-drift.mjs";
 
@@ -17,9 +18,12 @@ export function planBranchTools({ wantedTools, resolvedTools, mainToolIds, secre
   return Object.entries(wantedTools).map(([name, config]) => {
     const hit = resolvedTools[name];
     if (!hit) return { name, method: "POST", id: null, config };
-    if (toolDrift(name, config, hit, secretId).length === 0) return { name, method: "keep", id: hit.id, config };
+    const drift = toolDrift(name, config, hit, secretId);
+    if (drift.length === 0) return { name, method: "keep", id: hit.id, config };
     if (!mainToolIds.has(hit.id)) return { name, method: "PATCH", id: hit.id, config };
-    if (hit.tool_config.api_schema?.url !== config.api_schema?.url) return { name, method: "POST", id: null, config };
+    if (config.api_schema && drift.every(({ path }) => path.startsWith(`tools.${name}.api_schema.`))) {
+      return { name, method: "POST", id: null, config };
+    }
     throw new Error(`Tool ${name} (${hit.id}) is attached to Main and differs from this repo. A branch run will not change it. No update was made.`);
   });
 }

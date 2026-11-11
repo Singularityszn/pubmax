@@ -1,18 +1,9 @@
 "use client";
 
-// The live voice session, and the ONLY module that imports the ElevenLabs SDK.
-//
-// Split out because of what the gate beside it already knows: voice is
-// env-gated per deployment, so `VoiceAvailabilityGate` (PubPalVoice.tsx) asks
-// /api/pub-pal/voice-token before anything voice-shaped may render, and on a
-// deployment with voice off nothing here ever mounts. The SDK was a static
-// import all the same, so every cold /pal parsed a whole conversation runtime
-// before first paint, for a control the reader may never reach and the
-// deployment may not even offer.
-//
-// The tri-state is unchanged and stays in PubPalVoice.tsx. PalVoiceHost mounts
-// this module from the root shell, so one call carries across /pal and /map:
-// it draws into the /pal panel's slot there and as a voice bar on /map.
+// Keep the ElevenLabs runtime behind PalVoiceHost's dynamic import so a cold
+// map loads no SDK. The /pal availability gate or a map-chip tap mounts it.
+// The root host preserves one call across /pal and /map, using the panel slot
+// on /pal and the voice bar on /map.
 
 import type { Route } from "next";
 import {
@@ -36,7 +27,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mic, MicOff, Send } from "lucide-react";
 
-import PalVoiceBar, { useOnMapRef, usePalVoiceEngaged } from "@/components/pubpal/PalVoiceBar";
+import PalVoiceBar, { useOnMapRef, usePalVoiceEngaged, type PalVoiceEnded } from "@/components/pubpal/PalVoiceBar";
 import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVoiceMeter";
 import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
@@ -44,6 +35,7 @@ import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
 import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
 import { usePalMapClientTools } from "@/components/pubpal/usePalMapClientTools";
+import { usePalVoiceStartRequest } from "@/components/pubpal/usePalVoiceStartRequest";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -68,6 +60,7 @@ import {
   PAL_VOICE_START_TIMEOUT_ERROR,
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
+  palVoiceEndedByPal,
   palVoiceLineDropped,
   requestPalVoiceMicrophone,
   type PalVoiceMicrophoneHold,
@@ -143,6 +136,15 @@ function palVoiceMeterMode(connecting: boolean, live: boolean, speaking: boolean
   return speaking ? "speaking" : "listening";
 }
 
+/** The panel's one status line. A call the Pal ended says so, not that voice is ready. */
+function palVoicePanelStatus({ starting, live, speaking, ended, palName }: {
+  starting: boolean; live: boolean; speaking: boolean; ended: PalVoiceEnded | null; palName: string;
+}): string {
+  if (starting) return "Starting voice";
+  if (live) return speaking ? "Pal is talking" : "Pal is listening";
+  return ended === "pal" ? `${palName} ended the call` : "Voice ready when you are";
+}
+
 const silentVolume = (): number => 0;
 const silentSpectrum = (): Uint8Array => new Uint8Array(0);
 
@@ -205,7 +207,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
-  const [endedOutOfSight, setEndedOutOfSight] = useState(false);
+  const [ended, setEnded] = useState<PalVoiceEnded | null>(null);
+  const [sessionActive, setSessionActive] = useState(false);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -261,7 +264,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     openMap,
     onMap: () => onMapRef.current,
     mapOpening: () => mapTimerRef.current !== null,
-    tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
     // A tool call also gives way to anything the person did since it began:
     // a new line, a pub they picked, or a page they moved to (stayHere).
     callLive: () => {
@@ -350,6 +352,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     if (activeAttemptRef.current === attempt) {
+      setSessionActive(false);
       resetPalMap();
       currentToolCalls.current.clear();
       // A map the call was still opening stays closed once the call ends.
@@ -429,7 +432,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   usePageLeft(useCallback((): void => {
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
-    if (attempt.connectedAt !== null) setEndedOutOfSight(true);
+    if (attempt.connectedAt !== null) setEnded("away");
     void stop(attempt, "background");
   }, [ownsAttempt, stop]));
 
@@ -456,7 +459,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       voiceEndReason: null,
     };
     activeAttemptRef.current = attempt;
-    setEndedOutOfSight(false);
+    setEnded(null);
     setError(null);
     setUsingFallbackVoice(false);
     setStartupStopped(false);
@@ -505,7 +508,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
-        setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
+        setUsingFallbackVoice(overrides?.pickedVoiceMissing === true);
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
         startSession({
@@ -606,6 +609,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             : undefined,
           onConnect: () => {
             if (!ownsAttempt(attempt)) return;
+            setSessionActive(true);
             const boundId = conversationIdRef.current;
             if (boundId) void syncVoiceToolTurn({ conversationId: boundId });
             clearStartupTimer(attempt);
@@ -640,6 +644,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             if (wasLive && palVoiceLineDropped(details)) {
               setError(PAL_VOICE_LINE_DROPPED_ERROR);
               onStateChange?.("error");
+            } else if (wasLive && palVoiceEndedByPal(details)) {
+              setEnded("pal");
             }
             void finalizeSession(attempt);
           },
@@ -747,14 +753,16 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return () => signal.attach(null);
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
-  usePalVoiceEngaged([voiceConnecting, live, endedOutOfSight, error !== null]);
+  // The SDK clears its live status before teardown delivers onDisconnect.
+  usePalVoiceEngaged([voiceConnecting, sessionActive, ended !== null, error !== null]);
+  usePalVoiceStartRequest(start, getCurrentUserId());
 
   if (!panel) {
     return (
       <PalVoiceBar palName={palName} appearance={appearance} genome={genome} lines={lines}
-        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
+        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} ended={ended}
         onEnd={stopCurrentAttempt} onCarryOn={() => { void start(); }}
-        onClose={() => { setEndedOutOfSight(false); setError(null); }} />
+        onClose={() => { setEnded(null); setError(null); }} />
     );
   }
 
@@ -764,11 +772,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         {appearance ? <PalVoiceFace appearance={appearance} signal={signal} state={faceState} genome={genome} /> : null}
         <div className="palVoiceStatus" role="status">
           <i className={live ? "isLive" : ""} />
-          {isStarting
-            ? "Starting voice"
-            : live
-              ? isSpeaking ? "Pal is talking" : "Pal is listening"
-              : "Voice ready when you are"}
+          {palVoicePanelStatus({ starting: isStarting, live, speaking: isSpeaking, ended, palName })}
         </div>
         <PalVoiceMeter
           mode={meterMode}
@@ -824,7 +828,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             aria-busy={isStarting}
             onClick={() => { void start(); }}
           >
-            <Mic size={16} /> {isStarting ? "Starting" : endedOutOfSight ? "Carry on" : "Start voice chat"}
+            <Mic size={16} /> {isStarting ? "Starting" : ended ? "Carry on" : "Start voice chat"}
           </button>
         )}
         {voiceConnecting && (
