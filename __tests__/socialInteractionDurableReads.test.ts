@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   calls: [] as string[],
   postStoreEdits: [] as unknown[][],
+  claimed: [] as Record<string, unknown>[],
+  leasesMissing: false,
+  completions: [] as Record<string, unknown>[],
   postRow: {
     id: "11111111-1111-4111-8111-111111111111",
     author_profile_id: "22222222-2222-4222-8222-222222222222",
@@ -61,8 +64,17 @@ vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => false,
   requiresSupabaseStore: () => true,
   requireSupabaseAdmin: () => ({
-    rpc: async (name: string) => {
+    rpc: async (name: string, args?: Record<string, unknown>) => {
       state.calls.push(name);
+      if (name === "claim_social_interaction_moderation_leases") {
+        if (state.leasesMissing) return { data: null, error: { code: "PGRST202", message: "Could not find the function" } };
+        return { data: state.claimed, error: null };
+      }
+      if (name === "claim_social_interaction_moderation_jobs") return { data: state.claimed, error: null };
+      if (name === "complete_social_interaction_moderation_job") {
+        state.completions.push(args ?? {});
+        return { data: true, error: null };
+      }
       if (name === "read_social_saves") {
         return {
           data: [{ post_id: state.postRow.id, saved_at: state.postRow.created_at, source_post: state.postRow }],
@@ -100,6 +112,9 @@ const viewer = { accountId: "account-c", profileId: "profile-c", handle: "carol"
 beforeEach(() => {
   state.calls = [];
   state.postStoreEdits = [];
+  state.claimed = [];
+  state.leasesMissing = false;
+  state.completions = [];
 });
 
 describe("durable Social interaction projections", () => {
@@ -164,5 +179,34 @@ describe("durable Social interaction projections", () => {
       mutation_version: 9,
       revision: 3,
     });
+  });
+
+  it("finishes each interaction job with the lease token the 0236 claim returned", async () => {
+    state.claimed = [{ content_kind: "comment", content_id: "c-1", moderation_claim: "Good shout", attempts: 1, lease_token: "token-1" }];
+    await supabaseSocialInteractionStore.processModerationQueue({ moderate: async () => ({ decision: "needs_review" }) });
+
+    expect(state.calls).toEqual(["claim_social_interaction_moderation_leases", "complete_social_interaction_moderation_job"]);
+    expect(state.completions).toEqual([
+      { p_kind: "comment", p_content_id: "c-1", p_lease_token: "token-1", p_decision: "needs_review", p_error_code: null, p_retry_at: null },
+    ]);
+  });
+
+  it("claims and finishes without a token when 0236 is not applied", async () => {
+    state.leasesMissing = true;
+    state.claimed = [{ content_kind: "quote", content_id: "q-1", moderation_claim: "Friday", attempts: 1 }];
+    await supabaseSocialInteractionStore.processModerationQueue({
+      moderate: async () => {
+        throw new Error("offline");
+      },
+    });
+
+    expect(state.calls).toEqual([
+      "claim_social_interaction_moderation_leases",
+      "claim_social_interaction_moderation_jobs",
+      "complete_social_interaction_moderation_job",
+    ]);
+    expect(state.completions).toEqual([
+      { p_kind: "quote", p_content_id: "q-1", p_decision: null, p_error_code: "Error", p_retry_at: expect.any(String) },
+    ]);
   });
 });

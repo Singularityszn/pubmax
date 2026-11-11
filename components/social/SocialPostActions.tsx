@@ -18,7 +18,7 @@ type Comment = {
   id: string;
   body: string;
   author: { handle: string };
-  moderationState: "pending" | "approved" | "needs_review";
+  moderationState: "pending" | "approved";
   createdAt: string;
 };
 

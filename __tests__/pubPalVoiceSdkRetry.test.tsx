@@ -7,6 +7,7 @@ import { Conversation } from "@elevenlabs/client";
 
 type FakeSessionOptions = {
   connectionDelay?: { default: number; android?: number; ios?: number };
+  preferHeadphonesForIosDevices?: boolean;
   onConversationCreated?: (conversation: FakeConversation) => void;
   onConnect?: (event: { conversationId: string }) => void;
   onDisconnect?: (event: { reason: string; closeCode?: number }) => void;
@@ -259,6 +260,8 @@ describe("Pub Pal startup with the installed React SDK", () => {
     expect(client.startSession).toHaveBeenCalledTimes(1);
     // The SDK's own default holds every Android start for 3 s.
     expect(defined(client.startSession.mock.calls[0])[0].connectionDelay).toEqual(expect.objectContaining({ default: 0, android: 0 }));
+    // AirPods on an iPhone take the call, not the phone's own microphone.
+    expect(defined(client.startSession.mock.calls[0])[0].preferHeadphonesForIosDevices).toBe(true);
     expect(container.textContent).toContain("Pal is listening");
     expect(issuedGrants).toBe(1);
     expect(getUserMedia).toHaveBeenCalledTimes(1);

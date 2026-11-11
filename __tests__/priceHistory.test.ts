@@ -95,6 +95,8 @@ function slimVenuesWithCurrentPrice(): Set<string> {
   return ids;
 }
 
+const STATIONS = [{ name: "Blackfriars", lat: 51.5116, lng: -0.103, zone: 1 }];
+
 const NOW = Date.UTC(2026, 9, 17, 12);
 const HISTORY_PATH = "/data/price_history/london.json";
 const noop = () => {};
@@ -486,7 +488,7 @@ describe("price archaeology: the venue sheet", () => {
 
 describe("price archaeology: the landing pick", () => {
   it("ranks by today's listed price, never by an archived one", () => {
-    expect(buildLandingPubCard(todayVenues(), todayHistory, { now: NOW })).toMatchObject({
+    expect(buildLandingPubCard(todayVenues(), todayHistory, { now: NOW, stations: STATIONS })).toMatchObject({
       id: "venue-cheap",
       priceGbp: 3.2,
       then: { priceGbp: 4.5, observedOn: "2016-01-01" },
@@ -495,10 +497,10 @@ describe("price archaeology: the landing pick", () => {
 
   it("never stands an archived figure in for a missing price today", () => {
     const venues = todayVenues();
-    expect(buildLandingPubCard(venues.slice(2), todayHistory, { now: NOW })).toBeNull();
+    expect(buildLandingPubCard(venues.slice(2), todayHistory, { now: NOW, stations: STATIONS })).toBeNull();
     const archive = buildLandingArchiveIndex(venues, todayHistory, NOW);
     expect(Object.keys(archive).sort()).toEqual(["venue-cheap", "venue-dear"]);
-    const rail = buildLandingAnchorRail(venues, { id: "venue-cheap", primaryBorough: "Camden" }, archive);
+    const rail = buildLandingAnchorRail(venues, { id: "venue-cheap" }, archive, STATIONS);
     expect(rail.map((row) => [row.id, row.priceGbp, row.hasThen])).toEqual([["venue-dear", 6.5, true]]);
   });
 });

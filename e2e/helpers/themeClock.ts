@@ -17,3 +17,15 @@ export async function storeThemeChoice(target: Page | BrowserContext, theme: "li
 export async function holdLondonAfternoon(page: Page): Promise<void> {
   await page.clock.setFixedTime(new Date("2026-10-30T14:00:00Z"));
 }
+
+/** A London evening, when the main tab's Tonight link opens /tonight (lib/useNowHref.ts). */
+export const LONDON_EVENING = new Date("2026-10-30T19:00:00Z");
+
+/**
+ * Holds the browser clock at a London evening, for a spec that follows the
+ * main tab's Tonight link. By day that link opens /today. Call it before the
+ * first navigation.
+ */
+export async function holdLondonEvening(page: Page): Promise<void> {
+  await page.clock.setFixedTime(LONDON_EVENING);
+}

@@ -16,6 +16,8 @@ export type PalVoiceOverrides = {
   voiceId: string | null;
   /** Presentation metadata only. Older grants can omit it. */
   voiceSource?: PalVoiceSelection["voiceSource"];
+  /** Presentation metadata. See PalVoiceSelection.pickedVoiceMissing. Older grants can omit it. */
+  pickedVoiceMissing?: boolean;
   firstMessage: string;
 };
 

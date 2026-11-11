@@ -416,6 +416,15 @@ Do all of 8.2 by Sunday 15 November. The one exception is the last migrations, w
 Migration 0225 has a separate approval condition in its [header](../supabase/migrations/20261108090000_0225_open_crawl_share_card.sql).
 Without that approval, do not apply it or proceed with a release that requires it.
 
+Migration [0236](../supabase/migrations/20261111060000_0236_social_moderation_remainder.sql)
+is expand-only, so it follows the apply-first steps below: apply 0236, then
+release the code that claims interaction jobs with a lease token. The code served
+before it keeps its tokenless claim and completion, and neither door can finish a
+job the other door holds. Apply the later contract migration only after that code
+is live. That migration drops the tokenless claim and completion, adds the lease-pair CHECK,
+and narrows the comment and quote CHECKs. See the 0236 header for the deferred
+permission change.
+
 Production must hold every file in `supabase/migrations/` before Monday's release, because `npm run release:prod` refuses when the ledger lacks one ([release rule](rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)).
 
 **Apply them in the same sitting as a release, never days ahead.** `0215` replaces `create_plan_route_proposal_atomic` with a version that needs one more argument. The build that production served on 1 November (`e5da6c0`) calls the old version, so its route proposals fail from the moment `0215` is applied until a newer build is live. The best order is the launch plan's week 1: apply `0203` to `0216` and release `main` straight after. Then on Monday only the files added since then (`0217` to `0219`, and any later file) are applied, and the launch release follows at once (8.3.3).
@@ -463,7 +472,7 @@ Steps:
 3. If the dry run lists exactly the files that step 1 named, the captain can run `supabase db push --include-all`. If the dry run lists any other file, stop and do not push. The live ledger holds many older files under other version numbers, so a push compares versions and would run those files a second time. In that case, the captain can apply each missing file by hand, one at a time, in timestamp order. Agents must follow the policy in section 1.3. The migration apply policy specifies the ledger name.
 4. Run `npm run check:migration-ledger` again. It must pass. Then run `npm run release:prod` (8.3.3) in the same sitting. Write the date in O1.
 
-Apart from `0215`, the launch files add tables, columns, checks, policies or functions, and `0213` keeps the old call to `add_plan_action_idempotent_atomic` working through default values. Do not run a rollback file unless that migration is the fault. Read its header first: the `0218` rollback makes every unchecked price read as billed.
+The table above covers the original launch set. Later migrations can replace existing RPC signatures, so inspect their headers before applying them. `0213` keeps the old call to `add_plan_action_idempotent_atomic` working through default values. Do not run a rollback file unless that migration is the fault. Read its header first: the `0218` rollback makes every unchecked price read as billed.
 
 #### 8.2.2 Production environment values (Owner action)
 

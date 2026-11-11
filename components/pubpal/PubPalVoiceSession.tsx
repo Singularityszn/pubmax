@@ -79,7 +79,7 @@ import {
   type PalVoiceLine,
 } from "@/lib/palVoiceTranscript";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
-import { setPalVoiceReady, type PalVoicePanelProps } from "@/lib/palVoiceHost";
+import { setPalVoiceReady, type PalVoicePanelProps, type PalVoiceStartChime } from "@/lib/palVoiceHost";
 import { releaseVoiceSession, syncVoiceToolTurn } from "@/lib/pubPalVoiceServer";
 import { useAuth } from "@/components/auth/authContext";
 import { isPlanActiveNow, readOwnedActivePlan } from "@/lib/activePlan";
@@ -112,6 +112,7 @@ type VoiceSessionAttempt = {
   conversationId: string | null;
   sdkSessionStarted: boolean;
   microphone: PalVoiceMicrophoneHold;
+  stopStartChime: ReturnType<typeof playPalVoiceSound>;
   connectedAt: number | null;
   capTimer: number | null;
   startupTimer: number | null;
@@ -359,6 +360,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       stayHere();
     }
     clearStartupTimer(attempt);
+    attempt.stopStartChime?.();
     attempt.requestAbort.abort();
     attempt.microphone.release();
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
@@ -436,9 +438,12 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     void stop(attempt, "background");
   }, [ownsAttempt, stop]));
 
-  const start = async () => {
-    if (disposedRef.current) return;
-    if (startController.isStarting()) return;
+  const start = async (chime?: PalVoiceStartChime) => {
+    if (disposedRef.current || startController.isStarting()) {
+      chime?.stop?.();
+      return;
+    }
+    const stopStartChime = chime ? chime.stop : playPalVoiceSound("start");
     resetPalMap();
     currentToolCalls.current.clear();
     lastUserEvent.current = 0;
@@ -451,6 +456,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       conversationId: null,
       sdkSessionStarted: false,
       microphone: createPalVoiceMicrophoneHold(),
+      stopStartChime,
       connectedAt: null,
       capTimer: null,
       startupTimer: null,
@@ -508,8 +514,9 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
-        setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
+        setUsingFallbackVoice(overrides?.pickedVoiceMissing === true);
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
+        attempt.stopStartChime?.();
         attempt.sdkSessionStarted = true;
         startSession({
           signedUrl: grant.signedUrl,
@@ -517,6 +524,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           // The SDK holds a screen wake lock from start until the session ends.
           useWakeLock: true,
           connectionDelay: PAL_VOICE_CONNECTION_DELAY,
+          // Physical iOS routing still needs device verification. See docs/PUB_PAL_SETUP.md#voice-audio-cues-and-routing.
+          preferHeadphonesForIosDevices: true,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onStatusChange: ({ status: next }) => {
@@ -620,7 +629,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             // denied, and a socket that never opened are all sessions that
             // never started. `connectedAt` is null until here, so it is also
             // the latch: a reconnect on the same attempt reports once.
-            if (attempt.connectedAt === null) playPalVoiceSound("start");
             if (attempt.connectedAt === null) trackEvent("voice_started");
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);

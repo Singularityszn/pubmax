@@ -230,11 +230,11 @@ afterEach(() => {
 });
 
 describe("Pub Pal voice controls", () => {
-  it.each(["species", "agent-default"])("discloses the %s fallback without changing provider overrides", async (voiceSource) => {
+  it.each(["species", "agent-default"])("discloses a missing picked voice on the %s fallback without changing provider overrides", async (voiceSource) => {
     getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
     requests.authedActionFetch.mockResolvedValueOnce(Response.json({
       signedUrl: "wss://voice.example/session",
-      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource },
+      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource, pickedVoiceMissing: true },
     }));
     await mountAvailable();
     expect(container.textContent).not.toContain("Your chosen voice isn't available");
@@ -243,7 +243,23 @@ describe("Pub Pal voice controls", () => {
     expect(container.querySelector('[role="status"].palVoiceHint')?.textContent).toBe(
       "Your chosen voice isn't available. Using your Pal's default voice.",
     );
-    expect(JSON.stringify(defined(voice.startSession.mock.calls[0])[0])).not.toContain("voiceSource");
+    const sent = JSON.stringify(defined(voice.startSession.mock.calls[0])[0]);
+    expect(sent).not.toContain("voiceSource");
+    expect(sent).not.toContain("pickedVoiceMissing");
+  });
+
+  // With no picked voice on offer, the Pal's own voice is the only voice, so there is nothing to apologise for.
+  it.each(["species", "agent-default"])("says nothing about a pick on the %s voice when no picked voice is offered", async (voiceSource) => {
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/session",
+      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource, pickedVoiceMissing: false },
+    }));
+    await mountAvailable();
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    expect(container.textContent).not.toContain("Your chosen voice isn't available");
+    expect(voice.startSession).toHaveBeenCalledOnce();
   });
 
   it.each(["selected", "unknown", undefined])("does not claim a fallback for %s selection metadata", async (voiceSource) => {
@@ -513,7 +529,7 @@ describe("Pub Pal voice controls", () => {
   });
 
   it.each([
-    [429, "VOICE_ALLOWANCE_USED", "You've used this month's trial voice allowance."],
+    [429, "VOICE_ALLOWANCE_USED", "You've used this month's voice allowance."],
     [503, "UNAVAILABLE", "Voice isn't set up yet."],
   ])("does not release a parsed non-ok grant response (%s)", async (status, code, error) => {
     const stopTrack = vi.fn();
@@ -1703,6 +1719,43 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).not.toHaveBeenCalled();
     await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
+  });
+
+  it("chimes on the tap, while the line is still starting", async () => {
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    expect(sounds.play.mock.calls).toEqual([["start"]]);
+    expect(voice.startSession).not.toHaveBeenCalled();
+  });
+
+  it("stops the tap chime before a fast SDK connection can play the greeting", async () => {
+    const { playPalVoiceSound } = await vi.importActual<typeof import("@/components/pubpal/palVoiceSounds")>("@/components/pubpal/palVoiceSounds");
+    sounds.play.mockImplementation(playPalVoiceSound);
+    const cues: { src: string; paused: boolean }[] = [];
+    vi.stubGlobal("Audio", class {
+      paused = true;
+      volume = 1;
+      constructor(readonly src: string) { cues.push(this); }
+      play() { this.paused = false; return Promise.resolve(); }
+      pause() { this.paused = true; }
+    });
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session" }));
+    const playbackAtSdkStart: boolean[] = [];
+    voice.startSession.mockImplementation(() => { playbackAtSdkStart.push(cues.some(cue => !cue.paused)); });
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    expect(cues).toHaveLength(1);
+    expect(cues[0]).toMatchObject({ src: "/sounds/pal/voice-start.mp3", paused: false });
+
+    await act(async () => { permission.resolve({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream); });
+    await settle();
+
+    // Audit item 10 forbids overlap even when the provider greets immediately.
+    expect(playbackAtSdkStart).toEqual([false]);
   });
 
   it("chimes once when the line opens and once when it closes", async () => {
