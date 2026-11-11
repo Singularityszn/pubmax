@@ -198,7 +198,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Signed out, the map chip offers **Sign in to talk to your Pal**. **Close** hides this sign-in chip for the current page view. On another city's map, an unmuted Pal's chip says **Talks about London for now**.
 
-  Voice starts only after your action. You can cancel startup or choose **Ask in writing** if voice cannot connect. The status line tells you when your chosen voice falls back to the default. Configured voice shows transcripts, returned pub cards and their map.
+  Voice starts only after your action. You can cancel startup or choose **Ask in writing** if voice cannot connect. The status line shows a hint only when your chosen voice is not configured and another voice choice is configured. With no voice choices configured, your Pal uses its own voice without a hint. Configured voice shows transcripts, returned pub cards and their map.
 
   Grounded voice results also show numbered picks on the main map and dim the other pins. Tap a pick to open its pub. The map frames the picks unless you hold or move it. [ADR 0014](docs/adr/0014-night-os-ask-agent.md#decision) defines voice view moves and actions that still need confirmation.
 
