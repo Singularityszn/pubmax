@@ -13,6 +13,9 @@ import type { PalVoiceLine } from "@/lib/palVoiceTranscript";
 import { setPalVoiceEngaged } from "@/lib/palVoiceHost";
 import "./palVoiceBar.css";
 
+/** How a call that was live ended without an error: the page went away, or the Pal hung up. */
+export type PalVoiceEnded = "away" | "pal";
+
 /** While any of these holds, the shell keeps the call mounted off /pal. */
 export function usePalVoiceEngaged(holds: boolean[]): void {
   const engaged = holds.some(Boolean);
@@ -47,7 +50,7 @@ export default function PalVoiceBar({
   live,
   speaking,
   starting,
-  endedOutOfSight,
+  ended,
   onEnd,
   onCarryOn,
   onClose,
@@ -62,7 +65,7 @@ export default function PalVoiceBar({
   live: boolean;
   speaking: boolean;
   starting: boolean;
-  endedOutOfSight: boolean;
+  ended: PalVoiceEnded | null;
   onEnd: () => void;
   onCarryOn: () => void;
   onClose: () => void;
@@ -86,7 +89,8 @@ export default function PalVoiceBar({
     ? "Starting voice"
     : live
       ? `${palName} is ${speaking ? "talking" : "listening"}`
-      : endedOutOfSight ? `${palName} hung up while you were away` : "Voice stopped";
+      : ended === "away" ? `${palName} hung up while you were away`
+        : ended === "pal" ? `${palName} ended the call` : "Voice stopped";
   const line = lines.at(-1);
   const caption = error ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
   return (
@@ -112,7 +116,7 @@ export default function PalVoiceBar({
         </button>
       ) : (
         <>
-          {endedOutOfSight ? (
+          {ended ? (
             <button type="button" onClick={onCarryOn}>
               <Mic size={16} aria-hidden="true" /> Carry on
             </button>

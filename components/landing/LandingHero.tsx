@@ -30,7 +30,7 @@ import {
   type LandingRailRow,
 } from "@/lib/landingHero";
 import { comparatorEvidenceFor, readLandingEvidence, settleEachRead } from "@/lib/landingEvidenceRead";
-import type { LandingPubCardData } from "@/lib/landingPubCard";
+import type { LandingCardStation, LandingPubCardData } from "@/lib/landingPubCard";
 import {
   landingPhotoFor,
   type ResolvedLandingPhoto,
@@ -44,6 +44,7 @@ import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
+import LandingZoneChip from "./LandingZoneChip";
 
 // The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask,
 // trimmed after the 16 Oct 2026 UX audit, and given the hunt on 1 Nov 2026):
@@ -133,6 +134,8 @@ type Answer = {
   /** The pint's own drink page, when one publishes (lib/landingPubCard.ts). */
   drinkHref: Route | null;
   scope: LandingAnswerScope;
+  /** The anchor's nearest station and fare zone; a near-you answer has none. */
+  station: LandingCardStation | null;
   walkMinutes?: number;
   /**
    * What the near-you answer is worth against the reader's doorstep pub
@@ -167,6 +170,7 @@ function anchorAnswer(
     pintName: card.pintName,
     drinkHref: card.drinkHref,
     scope: "anchor",
+    station: card.station,
     evidence: { publisher: card.publisher, standing: card.standing, observedOn: card.observedOn },
     // The index holds the anchor's own then row with its printed labels.
     then: archive[card.id] ?? null,
@@ -190,6 +194,7 @@ function nearAnswer(
     pintName: null,
     drinkHref: null,
     scope,
+    station: null,
     walkMinutes: first.walkMinutes,
     saving: saving ? { ...saving, evidence: "loading" } : null,
     evidence: "loading",
@@ -452,6 +457,7 @@ function AnswerCard({
           {kicker}
           {walk ? <span className="lpAnswerWalk"> · {walk}</span> : null}
         </Kicker>
+        {answer.station ? <LandingZoneChip station={answer.station} /> : null}
       </div>
       <h2 className="lpPubName" id="lp-answer-name">
         <Link prefetch={false} href={venueMapUrl(answer.id)}>
@@ -527,7 +533,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
   return (
     <section className="lpRail" aria-labelledby="lp-rail-title">
       <h2 className="lpRailTitle" id="lp-rail-title">
-        {railHeading(answer.scope, answer.area)}
+        {railHeading(answer.scope)}
       </h2>
       <ol className="lpRailList">
         {answer.rail.map((row) => (
@@ -537,7 +543,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (
                   <span className="lpRailMeta">{row.walkMinutes} min walk</span>
-                ) : row.primaryBorough !== answer.primaryBorough ? (
+                ) : answer.station || row.primaryBorough !== answer.primaryBorough ? (
                   <span className="lpRailMeta">{row.area}</span>
                 ) : null}
               </span>

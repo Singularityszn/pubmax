@@ -3,8 +3,8 @@ import { PAL_MAP_MAX_PICKS, type PalMapPick } from "@/lib/palMapCommands";
 // What one map client tool call from the voice agent may do
 // (lib/palMapClientTools.mjs). The model names a pick number or an area, and
 // both are checked here against closed lists: the picks on the map now and the
-// city's night areas. A refusal is a short line for the agent, sent as a
-// contextual update, so it can tell the person what the map has.
+// city's night areas. A refusal is a short line for the agent, returned as the
+// tool result, so it can tell the person what the map has.
 
 type Area = { name: string; slug: string; aliases: readonly string[]; centre: { lat: number; lng: number }; radiusKm: number };
 

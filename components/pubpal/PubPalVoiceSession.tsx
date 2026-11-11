@@ -27,7 +27,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mic, MicOff, Send } from "lucide-react";
 
-import PalVoiceBar, { useOnMapRef, usePalVoiceEngaged } from "@/components/pubpal/PalVoiceBar";
+import PalVoiceBar, { useOnMapRef, usePalVoiceEngaged, type PalVoiceEnded } from "@/components/pubpal/PalVoiceBar";
 import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVoiceMeter";
 import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
@@ -60,6 +60,7 @@ import {
   PAL_VOICE_START_TIMEOUT_ERROR,
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
+  palVoiceEndedByPal,
   palVoiceLineDropped,
   requestPalVoiceMicrophone,
   type PalVoiceMicrophoneHold,
@@ -78,7 +79,7 @@ import {
   type PalVoiceLine,
 } from "@/lib/palVoiceTranscript";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
-import { setPalVoiceReady, type PalVoicePanelProps } from "@/lib/palVoiceHost";
+import { setPalVoiceReady, type PalVoicePanelProps, type PalVoiceStartChime } from "@/lib/palVoiceHost";
 import { releaseVoiceSession, syncVoiceToolTurn } from "@/lib/pubPalVoiceServer";
 import { useAuth } from "@/components/auth/authContext";
 import { isPlanActiveNow, readOwnedActivePlan } from "@/lib/activePlan";
@@ -111,6 +112,7 @@ type VoiceSessionAttempt = {
   conversationId: string | null;
   sdkSessionStarted: boolean;
   microphone: PalVoiceMicrophoneHold;
+  stopStartChime: ReturnType<typeof playPalVoiceSound>;
   connectedAt: number | null;
   capTimer: number | null;
   startupTimer: number | null;
@@ -133,6 +135,15 @@ function palVoiceMeterMode(connecting: boolean, live: boolean, speaking: boolean
   if (connecting) return "connecting";
   if (!live) return "idle";
   return speaking ? "speaking" : "listening";
+}
+
+/** The panel's one status line. A call the Pal ended says so, not that voice is ready. */
+function palVoicePanelStatus({ starting, live, speaking, ended, palName }: {
+  starting: boolean; live: boolean; speaking: boolean; ended: PalVoiceEnded | null; palName: string;
+}): string {
+  if (starting) return "Starting voice";
+  if (live) return speaking ? "Pal is talking" : "Pal is listening";
+  return ended === "pal" ? `${palName} ended the call` : "Voice ready when you are";
 }
 
 const silentVolume = (): number => 0;
@@ -197,7 +208,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
-  const [endedOutOfSight, setEndedOutOfSight] = useState(false);
+  const [ended, setEnded] = useState<PalVoiceEnded | null>(null);
+  const [sessionActive, setSessionActive] = useState(false);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -253,7 +265,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     openMap,
     onMap: () => onMapRef.current,
     mapOpening: () => mapTimerRef.current !== null,
-    tell: (update) => { if (liveRef.current) sendContextualUpdate?.(update); },
     // A tool call also gives way to anything the person did since it began:
     // a new line, a pub they picked, or a page they moved to (stayHere).
     callLive: () => {
@@ -342,12 +353,14 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     if (activeAttemptRef.current === attempt) {
+      setSessionActive(false);
       resetPalMap();
       currentToolCalls.current.clear();
       // A map the call was still opening stays closed once the call ends.
       stayHere();
     }
     clearStartupTimer(attempt);
+    attempt.stopStartChime?.();
     attempt.requestAbort.abort();
     attempt.microphone.release();
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
@@ -421,13 +434,16 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   usePageLeft(useCallback((): void => {
     const attempt = activeAttemptRef.current;
     if (!attempt || !ownsAttempt(attempt)) return;
-    if (attempt.connectedAt !== null) setEndedOutOfSight(true);
+    if (attempt.connectedAt !== null) setEnded("away");
     void stop(attempt, "background");
   }, [ownsAttempt, stop]));
 
-  const start = async () => {
-    if (disposedRef.current) return;
-    if (startController.isStarting()) return;
+  const start = async (chime?: PalVoiceStartChime) => {
+    if (disposedRef.current || startController.isStarting()) {
+      chime?.stop?.();
+      return;
+    }
+    const stopStartChime = chime ? chime.stop : playPalVoiceSound("start");
     resetPalMap();
     currentToolCalls.current.clear();
     lastUserEvent.current = 0;
@@ -440,6 +456,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       conversationId: null,
       sdkSessionStarted: false,
       microphone: createPalVoiceMicrophoneHold(),
+      stopStartChime,
       connectedAt: null,
       capTimer: null,
       startupTimer: null,
@@ -448,7 +465,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       voiceEndReason: null,
     };
     activeAttemptRef.current = attempt;
-    setEndedOutOfSight(false);
+    setEnded(null);
     setError(null);
     setUsingFallbackVoice(false);
     setStartupStopped(false);
@@ -497,8 +514,9 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
-        setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
+        setUsingFallbackVoice(overrides?.pickedVoiceMissing === true);
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
+        attempt.stopStartChime?.();
         attempt.sdkSessionStarted = true;
         startSession({
           signedUrl: grant.signedUrl,
@@ -506,6 +524,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           // The SDK holds a screen wake lock from start until the session ends.
           useWakeLock: true,
           connectionDelay: PAL_VOICE_CONNECTION_DELAY,
+          // Physical iOS routing still needs device verification. See docs/PUB_PAL_SETUP.md#voice-audio-cues-and-routing.
+          preferHeadphonesForIosDevices: true,
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onStatusChange: ({ status: next }) => {
@@ -598,6 +618,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             : undefined,
           onConnect: () => {
             if (!ownsAttempt(attempt)) return;
+            setSessionActive(true);
             const boundId = conversationIdRef.current;
             if (boundId) void syncVoiceToolTurn({ conversationId: boundId });
             clearStartupTimer(attempt);
@@ -608,7 +629,6 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             // denied, and a socket that never opened are all sessions that
             // never started. `connectedAt` is null until here, so it is also
             // the latch: a reconnect on the same attempt reports once.
-            if (attempt.connectedAt === null) playPalVoiceSound("start");
             if (attempt.connectedAt === null) trackEvent("voice_started");
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
@@ -632,6 +652,8 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             if (wasLive && palVoiceLineDropped(details)) {
               setError(PAL_VOICE_LINE_DROPPED_ERROR);
               onStateChange?.("error");
+            } else if (wasLive && palVoiceEndedByPal(details)) {
+              setEnded("pal");
             }
             void finalizeSession(attempt);
           },
@@ -739,15 +761,16 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
     return () => signal.attach(null);
   }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
 
-  usePalVoiceEngaged([voiceConnecting, live, endedOutOfSight, error !== null]);
+  // The SDK clears its live status before teardown delivers onDisconnect.
+  usePalVoiceEngaged([voiceConnecting, sessionActive, ended !== null, error !== null]);
   usePalVoiceStartRequest(start, getCurrentUserId());
 
   if (!panel) {
     return (
       <PalVoiceBar palName={palName} appearance={appearance} genome={genome} lines={lines}
-        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} endedOutOfSight={endedOutOfSight}
+        pick={focusedPick} error={error} live={live} speaking={isSpeaking} starting={voiceConnecting} ended={ended}
         onEnd={stopCurrentAttempt} onCarryOn={() => { void start(); }}
-        onClose={() => { setEndedOutOfSight(false); setError(null); }} />
+        onClose={() => { setEnded(null); setError(null); }} />
     );
   }
 
@@ -757,11 +780,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
         {appearance ? <PalVoiceFace appearance={appearance} signal={signal} state={faceState} genome={genome} /> : null}
         <div className="palVoiceStatus" role="status">
           <i className={live ? "isLive" : ""} />
-          {isStarting
-            ? "Starting voice"
-            : live
-              ? isSpeaking ? "Pal is talking" : "Pal is listening"
-              : "Voice ready when you are"}
+          {palVoicePanelStatus({ starting: isStarting, live, speaking: isSpeaking, ended, palName })}
         </div>
         <PalVoiceMeter
           mode={meterMode}
@@ -817,7 +836,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             aria-busy={isStarting}
             onClick={() => { void start(); }}
           >
-            <Mic size={16} /> {isStarting ? "Starting" : endedOutOfSight ? "Carry on" : "Start voice chat"}
+            <Mic size={16} /> {isStarting ? "Starting" : ended ? "Carry on" : "Start voice chat"}
           </button>
         )}
         {voiceConnecting && (

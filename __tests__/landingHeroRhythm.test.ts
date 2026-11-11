@@ -54,6 +54,7 @@ const card: LandingPubCardData = {
   name: "The Blackfriar",
   area: "City of London",
   primaryBorough: "City of London",
+  station: { name: "Blackfriars", zone: 1 },
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
   drinkHref: "/drink/pravha" as Route,
@@ -167,11 +168,11 @@ describe("landing hero rhythm", () => {
     expect(html).toContain('href="/drink/guinness"');
   });
 
-  it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {
-    expect(html).toMatch(/<h2 class="lpRailTitle" id="lp-rail-title">Cheapest listed in City of London<\/h2>/);
+  it("prints every Zone 1 rail row with its Pint Drop door, price stamp and area", () => {
+    expect(html).toMatch(/<h2 class="lpRailTitle" id="lp-rail-title">Cheapest listed in Zone 1<\/h2>/);
     expect(html.match(/class="lpRailRow"/g)).toHaveLength(3);
     expect(html).toContain('href="/map?sel=venue-1&amp;log=1&amp;price=2.99"');
-    expect(html).not.toMatch(/lpRailMeta">City of London/);
+    expect(html.match(/lpRailMeta">City of London/g)).toHaveLength(3);
   });
 
   it("renders no card, no rail and no hunt card when the data cannot back them", () => {

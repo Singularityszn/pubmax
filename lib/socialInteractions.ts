@@ -13,7 +13,18 @@ export const SOCIAL_REPORT_REASON_LABELS: Record<SocialReportReason, string> = {
   spam: "Spam",
   other: "Something else",
 };
-export type SocialModerationState = "pending" | "approved" | "needs_review";
+type SocialModerationState = "pending" | "approved";
+
+/**
+ * "needs_review" is the provider's word for a flagged comment or quote. No person reviews one, so a flagged one is
+ * hidden at once instead of waiting in a held state. Migration 0236 holds the same rule in SQL.
+ */
+export function interactionModerationOutcome(decision: "approved" | "needs_review"): {
+  moderationState: "approved";
+  hidden: boolean;
+} {
+  return { moderationState: "approved", hidden: decision !== "approved" };
+}
 
 export type SocialInteractionActor = {
   accountId: string;
@@ -51,7 +62,7 @@ export type SocialDerivativeDTO = {
   body: string | null;
   visibility: SocialPostVisibility;
   author: { handle: string };
-  moderationState: "approved" | SocialModerationState;
+  moderationState: SocialModerationState;
   createdAt: string;
 };
 

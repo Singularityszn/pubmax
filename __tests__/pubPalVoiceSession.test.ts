@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createPubPalVoiceStartController, palVoiceLineDropped } from "@/lib/pubPalVoiceSession";
+import { createPubPalVoiceStartController, palVoiceEndedByPal, palVoiceLineDropped } from "@/lib/pubPalVoiceSession";
 
 describe("a voice line that drops", () => {
   it.each([
@@ -12,6 +12,21 @@ describe("a voice line that drops", () => {
     ["no details at all", undefined, false],
   ])("reads %s", (_label, details, dropped) => {
     expect(palVoiceLineDropped(details)).toBe(dropped);
+  });
+});
+
+describe("a call the Pal ends", () => {
+  it.each([
+    // The SDK's own details when the agent's end_call tool answers.
+    ["the agent's end_call", { reason: "agent", context: { type: "end_call", reason: "Agent ended the call" } }, true],
+    // The provider's silence backstop closed the socket with 1000 on the test branch.
+    ["the provider's silence close", { reason: "agent", context: { type: "close", code: 1000 }, closeCode: 1000 }, true],
+    ["a dropped line", { reason: "error", closeCode: 1006, message: "" }, false],
+    ["the provider's session cap", { reason: "error", message: "max", context: { type: "max_duration_exceeded" } }, false],
+    ["the person ending the call", { reason: "user" }, false],
+    ["no details at all", undefined, false],
+  ])("reads %s", (_label, details, ended) => {
+    expect(palVoiceEndedByPal(details)).toBe(ended);
   });
 });
 
