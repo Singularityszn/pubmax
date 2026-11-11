@@ -101,7 +101,8 @@ import {
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
-import { floatingMapListOpen, focusMapSplitList } from "@/lib/mapSplitListFocus";
+import { floatingMapListOpen, focusMapSplitList, splitListShown } from "@/lib/mapSplitListFocus";
+import { mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
 import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
@@ -686,7 +687,6 @@ import {
   normaliseTonightVenueLookup,
   activeLensLabelFor,
   activeLensPricesFor,
-  coordinatedMapOverlay,
   drinkFiltersActiveFor,
   drinkIndexStatusFor,
   firstIdOf,
@@ -1830,6 +1830,7 @@ export default function PubMap({
   const {
     mode,
     setMode,
+    releasePlannerMode,
     builtIds,
     setBuiltIds,
     routeMapped,
@@ -2354,26 +2355,22 @@ export default function PubMap({
     onSheetDragEnd: onPlannerSheetDragEnd,
   } = useSheetDrag(() => surfaceBackRef.current());
 
-  const closePlanning = useCallback(() => {
-    setPlanningOpen(false);
-    setMapOverlay("none");
-    setPlannerSheetSnap("half");
-    setPlannerSheetDragY(null);
-  }, [setPlannerSheetDragY, setPlannerSheetSnap, setPlanningOpen]);
+  const retireMapSurfaces = useCallback((retire: readonly MapSurfaceRetirement[]) => {
+    if (retire.includes("venue")) setSelectedVenueId("");
+    if (retire.includes("planner")) { releasePlannerMode(); setPlanningOpen(false); }
+    if (retire.includes("overlay")) setMapOverlay("none");
+    if (retire.includes("planner-sheet")) {
+      setPlannerSheetSnap("half");
+      setPlannerSheetDragY(null);
+    }
+  }, [releasePlannerMode, setPlannerSheetDragY, setPlannerSheetSnap, setPlanningOpen, setSelectedVenueId]);
+  const closePlanning = useCallback(() => retireMapSurfaces(["planner", "planner-sheet", "overlay"]), [retireMapSurfaces]);
   useLayoutEffect(() => {
     closePlanningRef.current = closePlanning;
   }, [closePlanning]);
-
-  const claimMapDrawer = useCallback(
-    (owner: "planner" | "venue") => {
-      if (owner === "planner") {
-        setSelectedVenueId("");
-      } else {
-        closePlanning();
-      }
-    },
-    [closePlanning, setSelectedVenueId],
-  );
+  const mapSurfaceRef = useRef<VisibleMapSurface>({ lane: "none", surface: { kind: "none" } });
+  const claimMapSurface = useCallback((event: MapSurfaceEvent) =>
+    retireMapSurfaces(mapSurfaceTransition(mapSurfaceRef.current, event).retire), [retireMapSurfaces]);
 
   const openPlanning = useCallback(() => {
     surfaceOpenRef.current({
@@ -2381,18 +2378,17 @@ export default function PubMap({
       title: "Plan an outing",
       state: surfaceStateRef.current,
     });
-    claimMapDrawer("planner");
+    claimMapSurface({ type: "open-planner" });
     if (isMobileViewport()) {
       closeComposer();
       setSheetSnap("half");
       setSheetDragY(null);
     }
-    setMapOverlay("none");
     setPlanningOpen(true);
     setPlannerSheetSnap("half");
     setPlannerSheetDragY(null);
   }, [
-    claimMapDrawer,
+    claimMapSurface,
     closeComposer,
     setPlannerSheetDragY,
     setPlannerSheetSnap,
@@ -2403,8 +2399,7 @@ export default function PubMap({
 
   // The planner's own exits go Back when it is the top entry, so its browser entry goes too.
   const exitPlanning = useCallback(() => surfaceLeaveRef.current("planner", closePlanning), [closePlanning]);
-  const togglePlanning = useCallback(() => (planningOpen ? exitPlanning() : openPlanning()),
-    [exitPlanning, openPlanning, planningOpen]);
+  const togglePlanning = useCallback(() => (planningOpen ? exitPlanning() : openPlanning()), [exitPlanning, openPlanning, planningOpen]);
 
   // Issue #35 + location-first sharding: paint pins from the slim index cells
   // that intersect the opening viewport (or instantly from the resume
@@ -3727,8 +3722,7 @@ export default function PubMap({
       // Base pubs have no /api/venue record; prefetching one is a certain 404.
       if (!isRecordlessMapSelection(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
-      setMapOverlay("none");
-      claimMapDrawer("venue");
+      claimMapSurface({ type: "open-venue" });
       setVenueInitialTab(initialTab);
       if (initialTab === "getting-home") setGettingHomeRequestId((current) => current + 1);
       setSelectedVenueId(id);
@@ -3756,7 +3750,7 @@ export default function PubMap({
     [
       beginReveal,
       claimMapCamera,
-      claimMapDrawer,
+      claimMapSurface,
       closeComposer,
       communityPrices.byVenueId,
       experienceLens,
@@ -3872,13 +3866,18 @@ export default function PubMap({
     [activeLandmarkId, cityLandmarks],
   );
   const storyOpen = activeLandmark !== null;
-  const coordinatedMobileOverlay: MapOverlay = coordinatedMapOverlay({
+  const mapSurface = mapSurfaceStateOf({
+    splitList: splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable),
     logIntentFallbackVisible,
     detailOpen: mapSelection.detailOpen,
     planningOpen,
     storyOpen,
     mapOverlay,
   });
+  useLayoutEffect(() => {
+    mapSurfaceRef.current = mapSurface;
+  });
+  const coordinatedMobileOverlay = mapSurfaceOverlay(mapSurface);
   const { location: logPickerLocation, setLocation: setLogPickerLocation } = useLogPickerLocation(
     mobileViewport ? coordinatedMobileOverlay === "moment" : logIntentFallbackVisible,
     userLocation,
@@ -5188,18 +5187,16 @@ export default function PubMap({
     setChooseAreaOpening(false);
     // Leaving the phone "Choose a pub" sheet leaves the Drop flow (D4).
     if (next !== "moment" && !(next === "search" && hasCategoryPriceIntent)) clearLogIntent();
-    if (next !== "none" && isMobileViewport()) {
-      setPlanningOpen(false);
-      setSelectedVenueId("");
-      closeComposer();
-    }
+    const phone = isMobileViewport();
+    claimMapSurface({ type: "overlay", overlay: next, phone });
+    if (phone && next !== "none") closeComposer();
     // A manual overlay change (X, the Area button, any chip) cancels a pending
     // search auto-open and drops its searched target, so the Area button always
     // shows the area under the map centre — never a stale search result.
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
     setMapOverlay(next);
-  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, hasCategoryPriceIntent, setPlanningOpen]);
+  }, [claimMapSurface, clearAreaSheetTimer, clearLogIntent, closeComposer, hasCategoryPriceIntent]);
 
   // The bottom card's way into the list: it answers "cheapest in this view",
   // so the list it opens leads with the same ranking.
@@ -5407,10 +5404,10 @@ export default function PubMap({
     closeComposer();
     setMapOverlay("none");
     setSelectedVenueId("");
-    setPlanningOpen(false);
+    releasePlannerMode(); setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
+  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
   const closeEverySurface = useCallback(() => {
     clearLogIntent();
     closeMapSurfaces();
@@ -6732,7 +6729,7 @@ export default function PubMap({
      the way the venue sheet prices them, opened the way a pin tap opens them.
      No map, no "in view", so a canvas that cannot draw takes the list with it. */
   function renderDesktopSplitList() {
-    return railViewport && !mapCanvasErrored && !mapCanvasUnavailable ? (
+    return splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? (
       <MapSplitList
         cityName={mapContextName}
         visibleVenues={mapVenueListVenues}

@@ -1,3 +1,5 @@
+import { preload } from "react-dom";
+
 // Same-origin AudioWorklet files for a strict script-src.
 //
 // @elevenlabs/client loads its processors from blob: or data: URLs unless a
@@ -16,3 +18,13 @@ export const ELEVENLABS_WORKLET_PATHS = {
 /** Loaded only when the AudioContext sample rate differs from the session's. */
 export const ELEVENLABS_LIBSAMPLERATE_PATH =
   "/vendor/elevenlabs/libsamplerate.worklet.js";
+
+/**
+ * Starts both worklet fetches before the tap to reduce cold-start waits.
+ * The resampler stays lazy because its sample-rate fallback costs about 2 MB.
+ */
+export function preloadElevenLabsWorklets(): void {
+  for (const href of Object.values(ELEVENLABS_WORKLET_PATHS)) {
+    preload(href, { as: "fetch", crossOrigin: "anonymous" });
+  }
+}

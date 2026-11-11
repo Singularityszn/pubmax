@@ -425,9 +425,19 @@ Then open `/pal`, create a Pal, and press Start voice chat. The status line
 reads "Pal is listening" once the socket is up.
 The [map chip guide](../README.md#pub-pal-map-chip) explains how to start voice from the map.
 
-On the first tap, the browser asks for microphone access before the server
-issues a metered voice grant. A denied request keeps the writing door open and
+On every start attempt, the app checks microphone access before requesting a
+metered voice grant. The browser can show a permission prompt on the first tap.
+A denied request keeps the writing door open and
 can be retried. Repeated taps while voice starts use the same attempt.
+
+When the voice session mounts on `/pal`, it preloads the two same-origin
+worklets through `lib/elevenlabsWorkletAssets.ts`. The resampler still loads only
+when the device needs it.
+
+The SDK delay override in `lib/pubPalVoiceSession.ts` removes the default
+Android audio-mode wait. Microphone access, the grant request and the SDK
+connection still take time. Android audio routing needs
+[real-phone verification](https://github.com/Singularityszn/pubmax/issues/2741).
 
 ### Voice interruptions
 

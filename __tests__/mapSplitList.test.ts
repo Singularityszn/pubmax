@@ -14,7 +14,7 @@ import {
   sortMapSplitListRows,
   type MapSplitListInput,
 } from "@/lib/mapSplitList";
-import { floatingMapListOpen } from "@/lib/mapSplitListFocus";
+import { floatingMapListOpen, splitListShown } from "@/lib/mapSplitListFocus";
 import { projectedItemIdsInViewport } from "@/lib/mapVenueList";
 import { peekPriceChip } from "@/lib/pubMap";
 import { desktopSelectCameraOffset, restingRightDrawerLeft } from "@/lib/sheetSnap";
@@ -131,6 +131,13 @@ describe("which venues the list shows", () => {
     expect(floatingMapListOpen(true, false)).toBe(true);
     expect(floatingMapListOpen(true, true)).toBe(false);
     expect(floatingMapListOpen(false, false)).toBe(false);
+  });
+
+  it("puts the list beside the map only at split width while the map can draw", () => {
+    expect(splitListShown(true, false, false)).toBe(true);
+    expect(splitListShown(false, false, false)).toBe(false);
+    expect(splitListShown(true, true, false)).toBe(false);
+    expect(splitListShown(true, false, true)).toBe(false);
   });
 });
 
