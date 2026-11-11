@@ -1,0 +1,99 @@
+/* THE LOG DOOR (VenueLogDoor.tsx): the card's coral when a pub needs a fresh
+   drinker. It wears the plan door's coral class, so it adds no fill of its
+   own. The glass is half full at rest. It fills when the button is pressed,
+   as the press is the pint being logged. A fine pointer's hover pours a
+   little, as a hint of what the press does. */
+
+.venueLogDoor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+/* THE PRICE KEEPS ITS LINE, THE DOOR WRAPS. "Log what you paid" is longer
+   than "Make it Stop 1", and in the row's `auto` column it took the width the
+   figure needed, so "est. £6.25" broke in two at 390. The figure's column is
+   now its own width, and the door yields: it breaks once, after "Log what",
+   and takes its one line back wherever the row has room. */
+.venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
+  grid-template-columns: max-content minmax(min-content, 1fr) fit-content(14em);
+}
+
+.venueLogDoor > span {
+  min-inline-size: 4.75em;
+  text-wrap: balance;
+}
+
+/* A wrapped line keeps the width of the line it could not fill, so the two
+   short lines sat centred in a wide box, far from the glass. On a phone row,
+   where the door does wrap, the words take the measure of "Log what". */
+@container venue-peek (max-width: 30em) {
+  .venueLogDoor > span {
+    max-inline-size: 4.75em;
+  }
+}
+
+/* A NARROW ROW GIVES THE DOOR ITS OWN LINE, as large text does for the plan
+   door (mobileMapShell.css). Below 22em the three cells cannot all keep their
+   floors, so the price and the walk share the first line and the door spans
+   the second. In em, so it follows the reader's text size. */
+@container venue-peek (max-width: 22em) {
+  .venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
+    grid-template-columns: minmax(0, auto) minmax(min-content, 1fr);
+  }
+
+  .venueActionCard .mobileVenuePeekSummary > .venueLogDoor {
+    grid-column: 1 / -1;
+  }
+
+  .venueLogDoor > span {
+    max-inline-size: none;
+  }
+}
+
+.venueLogDoorGlass {
+  flex: none;
+  width: 0.95em;
+  height: 1.15em;
+  overflow: visible;
+}
+
+.venueLogDoorOutline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.venueLogDoorBeer {
+  fill: currentColor;
+  transform: translateY(9px);
+}
+
+.venueLogDoor:active .venueLogDoorBeer {
+  transform: translateY(1px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .venueLogDoor:hover .venueLogDoorBeer {
+    transform: translateY(5px);
+  }
+
+  .venueLogDoor:hover:active .venueLogDoorBeer {
+    transform: translateY(1px);
+  }
+}
+
+/* The pour is quick on the way up and quicker on the way down, so a release
+   never waits on it. Reduced motion keeps the levels and drops the travel. */
+@media (prefers-reduced-motion: no-preference) {
+  .venueLogDoorBeer {
+    transition: transform 140ms var(--ease-out-strong);
+  }
+
+  .venueLogDoor:active .venueLogDoorBeer {
+    transition-duration: 220ms;
+  }
+}

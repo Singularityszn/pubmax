@@ -300,6 +300,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Anonymous Pint Drops show "a PUBMAXXER" without an `@` instead of your handle.
 
+  After **Log it**, a saved, visible **Public** or **Anonymous** drop with a price offers **Share your receipt**.
+  The receipt shows your serving, the price you paid and the London day you logged it.
+  Choose **Open the receipt** to view its `/p/<id>` page.
+  Sharing uses the device's share sheet or copies the receipt text and link when no share sheet is available.
+  Public receipt pages use neutral share wording. Your post-save share uses **My receipt**.
+
   Choose **Friends** to share notes with people you follow who also follow you. **Legacy** keeps an entry in the pub's Ledger. Other people see the entry without your note or price. Anyone with a photo's link can open it while the link remains valid.
 
 - **Pint price census** - before the duty rise, Home shows a census card below **Tonight**, with the dates and a GOV.UK source link. Choose **Log a price** to select a pub and record what you paid. The card also appears after a successful priced Pint Drop in the map's venue sheet.

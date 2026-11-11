@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { NIGHT_AREAS } from "@/lib/nightAreas";
+
 const MOBILE = { width: 390, height: 844 };
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -22,31 +24,25 @@ test("mobile Discover shows Night Area evidence states without promising routes"
   const coverage = page.locator(".nightAreaCoverage");
   await expect(coverage).toBeVisible();
   await expect(coverage.getByRole("heading", { name: "Where you can plan a crawl tonight" })).toBeVisible();
-  await expect(coverage).toContainText("Crawl planning is available where we have enough checked information.");
-  // A route-ready row's action shares the header link's name, so each is found
-  // in its own place.
   await expect(coverage.locator("header").getByRole("link", { name: "Open planner", exact: true })).toHaveAttribute("href", "/plan");
+  // No area has a review, so no row may promise a crawl route.
+  await expect(coverage.locator('[data-route-ready="true"]')).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 
-  const plannerLink = coverage
-    .locator('[data-route-ready="true"]')
-    .getByRole("link", { name: "Open planner", exact: true })
-    .first();
-  const plannerBox = await plannerLink.boundingBox();
-  expect(plannerBox?.height ?? 0, "route-ready action should be thumb-safe").toBeGreaterThanOrEqual(44);
+  const representative = coverage.getByRole("list", { name: "Representative area coverage" });
+  const browseLink = representative.getByRole("link", { name: /See the pubs in .* on the map/ }).first();
+  await expect(browseLink).toHaveAttribute("href", /\/map\?q=/);
+  const browseBox = await browseLink.boundingBox();
+  expect(browseBox?.height ?? 0, "area action should be thumb-safe").toBeGreaterThanOrEqual(44);
 
   const details = coverage.locator("details");
   await expect(details).not.toHaveAttribute("open", "");
   await details.locator("summary").click();
   await expect(details).toHaveAttribute("open", "");
-  await expect(details.locator('[data-route-ready="true"]').first()).toBeVisible();
-  await expect(details.locator('[data-coverage-status="captured"]').first()).toBeVisible();
-  await expect(details.locator('[data-coverage-status="reviewed"]').first()).toBeVisible();
-  await expect(details.locator('[data-coverage-status="discovered"]').first()).toBeVisible();
-  await expect(details.locator('[data-coverage-status="paused"]').first()).toBeVisible();
-  await expect(details.getByRole("link", { name: /See the pubs in .* on the map/ }).first()).toHaveAttribute(
-    "href",
-    /\/map\?q=/,
-  );
+  await expect(details).toContainText("Area reviews are unavailable. You can browse pubs or make a draft.");
+  const rows = details.getByRole("list", { name: "All area coverage" }).getByRole("listitem");
+  await expect(rows).toHaveCount(NIGHT_AREAS.length);
+  await expect(rows.and(page.locator(':not([data-coverage-status="discovered"])'))).toHaveCount(0);
+  await expect(details.getByRole("link", { name: /See the pubs in .* on the map/ })).toHaveCount(NIGHT_AREAS.length);
   await expectNoHorizontalOverflow(page);
 });

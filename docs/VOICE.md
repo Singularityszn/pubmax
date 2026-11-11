@@ -115,24 +115,22 @@ Two things the fence deliberately leaves alone. A comment about a banned phrase 
 
 ---
 
-## Ten before / after, from the actual codebase
+## Before and after, from the actual codebase
 
 Some of these are lines we already own and should copy the rhythm of. Others are the plumbing-and-clinical copy this sweep replaced.
+
+For current area coverage messages, see [`NightAreaCoverage`](../components/night/NightAreaCoverage.tsx).
 
 | # | Before | After | Where |
 |---|--------|-------|-------|
 | 1 | Areas near you, with the gate visible | Where you can plan a crawl tonight | `NightAreaCoverage` heading |
 | 2 | London capture | Across London | `NightAreaCoverage` eyebrow |
-| 3 | The evidence gate is not complete yet; no route is promised. | Not enough fresh prices here yet to plan a crawl. | `NightAreaCoverage` detail |
-| 4 | Capture has not started; browse-only for now. | Haven't got to this one yet. Have a browse. | `NightAreaCoverage` detail |
-| 5 | The review window expired; browse-only until a fresh snapshot lands. | Prices here have gone stale. Have a browse while we recheck them. | `NightAreaCoverage` detail |
-| 6 | Capture and review are evidence stages, not routes. Only an area with a complete, live gate can produce a Crawl Route. | We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse. | `NightAreaCoverage` intro |
-| 7 | Reviewed nearby food recommendations are not available for this route yet. | No late food worth pointing you to round here yet. | `NightModeCard` |
-| 8 | No grounded nearby extension is available without widening the route. | Nothing close enough to add without dragging the night out. | `NightModeCard` |
-| 9 | Nearest rail signal: {station}. | Nearest station: {station}. | `NightModeCard` |
-| 10 | Kitchen hours can change; verify tonight before leaving the last pub. | Kitchens can shut early. Check tonight's hours before you leave the last pub. | `NightModeCard` |
-| 11 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | Find a pub, check its listed prices and send your mates a plan. | `/about` lede |
-| 12 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
+| 3 | Reviewed nearby food recommendations are not available for this route yet. | No late food worth pointing you to round here yet. | `NightModeCard` |
+| 4 | No grounded nearby extension is available without widening the route. | Nothing close enough to add without dragging the night out. | `NightModeCard` |
+| 5 | Nearest rail signal: {station}. | Nearest station: {station}. | `NightModeCard` |
+| 6 | Kitchen hours can change; verify tonight before leaving the last pub. | Kitchens can shut early. Check tonight's hours before you leave the last pub. | `NightModeCard` |
+| 7 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | Find a pub, check its listed prices and send your mates a plan. | `/about` lede |
+| 8 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
 
 ## Where the jokes live
 

@@ -141,7 +141,7 @@ test("Keep on Near then Make it Stop 1 shows one describe box and names the area
   await expect(page).toHaveURL(/[?&]accept=1(&|$)/);
 
   const acceptStop1 = page
-    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary')
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueActionCard')
     .getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await acceptStop1.click();
