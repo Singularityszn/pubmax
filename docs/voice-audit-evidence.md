@@ -85,7 +85,7 @@ Absolute copy is kept only when a named code or data invariant enforces it. Othe
 
 ## Indirect-source inventory
 
-This branch is a partial voice pass. It does not establish that every user-facing string has been audited. Each total below comes from current source using the shown command. “Inspected” records files read during this pass. “Not inspected” names the remaining conservative candidates; some broad candidates may contain no rendered copy, but none is silently treated as reviewed.
+This branch is a partial voice pass. It does not establish that every user-facing string has been audited. The totals and paths below record the source tree when this audit ran, using the shown commands. They are not a current file inventory. “Inspected” records files read during this pass. “Not inspected” identifies candidates from that snapshot, without a claim that they contain rendered copy or received a review.
 
 The following 25 changed candidates were inspected during this pass but were previously misclassified as not inspected. They are now counted as inspected in each inventory where they qualify:
 
@@ -880,7 +880,7 @@ Not inspected:
 
 ## Outstanding audit scope
 
-The files above remain for the follow-up audit. In particular, this pass did not audit `app/page.tsx` (its own metadata is canonical-URL only; title and description inherit the already-inspected root layout defaults), or most unchanged API routes and shared helpers. Review findings on those files should be recorded against that follow-up rather than used to widen this branch.
+The inventory above records the follow-up scope at the time of this audit. Check current source before you assign follow-up work. In particular, this pass did not audit `app/page.tsx` (its own metadata is canonical-URL only; title and description inherit the already-inspected root layout defaults), or most unchanged API routes and shared helpers. Review findings on those files should be recorded against that follow-up rather than used to widen this branch.
 
 No additional product-character judgement call was decided during this closeout. The branch applies rule-bound fixes only.
 
