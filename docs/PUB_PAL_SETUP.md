@@ -293,13 +293,13 @@ Voice uses the same opening builder in its first-message override.
    `final` line carrying the same body the JSON path returns, cards and
    proposals included. Sign-in, the rate limit and the spend ceiling answer
    before the stream opens. Any other caller still gets one JSON body.
-   One more webhook, `recall_memories`, is Pal-only. It returns the memories the
-   person confirmed or corrected (never `completed_plan` rows) for the account
-   that opened the conversation, read from the server-side conversation binding
-   and never from the request body. Typed chat puts the same lines ahead of the
-   ask on the server, or one line saying nothing is confirmed, so it does not
-   need the tool. [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns
-   confirmed-memory access, past-night reports and the confirmation rule.
+   One more webhook, `recall_memories`, is Pal-only.
+   [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md#decision) owns
+   confirmed-memory access, selection completeness, recall requirements and confirmation.
+   The voice-token grant returns server-built memory and taste text in `context`.
+   `PubPalVoiceSession` sends this text once with `sendContextualUpdate` when the call connects.
+   A failed memory read omits memory text but can still supply taste text.
+   The field is `null` when neither read supplies text.
    A second Pal-only webhook, `propose_memory`, adds a memory card
    to a typed or voice chat for the bound account, only when that Pal has memory
    proposals on. They are on for a new Pal; a Pal saved with them off keeps
@@ -332,8 +332,8 @@ Voice uses the same opening builder in its first-message override.
    excludes pubs in the diary, pint drops or the "Been here" saved list.
    This exclusion applies even when another saved list contains the pub. "Been here" adds no
    dated visits or inferred visit patterns. Typed chat puts it after the
-   memories, in the person's voice; voice gets it inside the `recall_memories`
-   answer. It runs beside the signed-URL request with a 900 ms budget and a
+   memories, in the person's voice; voice gets it in the connect update and
+   inside the `recall_memories` answer. It runs beside the signed-URL request with a 900 ms budget and a
    two-minute in-process cache, so a turn does not wait on it, and a slow or
    empty read sends no lines, which the prompt reads as "ask, do not guess".
    It is opt-out: the "Taste read" toggle on the Pal's page writes

@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { PubPalMemory, PubPalMemoryKind } from "@/lib/pubPal";
-import { palTastePreamble } from "@/lib/palTaste";
+import { palTastePreamble, type PalTaste } from "@/lib/palTaste";
 import { readPalTaste } from "@/lib/palTaste.server";
 import { listPalMemoriesResult } from "@/lib/pubPalStore";
 import { PAL_RECALL_MEMORY_LIMIT, selectPalMemoriesForAsk } from "@/lib/palMemoryRelevance";
@@ -32,6 +32,7 @@ const KIND_LABELS: Record<PubPalMemoryKind, string> = {
 };
 
 export type PalRecalledMemory = { kind: PubPalMemoryKind; label: string; value: string };
+export type PalMemorySelection = { memories: PalRecalledMemory[]; complete: boolean };
 
 function recalled(memory: PubPalMemory): PalRecalledMemory | null {
   if (!CONFIRMED_PROVENANCE.has(memory.provenance)) return null;
@@ -48,19 +49,24 @@ function recalled(memory: PubPalMemory): PalRecalledMemory | null {
  * unavailable instead of claiming nothing is confirmed. Without an ask it is
  * the pinned kinds and the newest.
  */
-export async function readConfirmedPalMemories(ownerId: string, ask = ""): Promise<PalRecalledMemory[] | null> {
+export async function readConfirmedPalMemorySelection(ownerId: string, ask = ""): Promise<PalMemorySelection | null> {
   let result: Awaited<ReturnType<typeof listPalMemoriesResult>>;
   try {
     result = await listPalMemoriesResult(ownerId);
   } catch {
     return null;
   }
-  if (!result.ok) return result.error === "not_found" ? [] : null;
+  if (!result.ok) return result.error === "not_found" ? { memories: [], complete: true } : null;
   const newestFirst = [...result.value]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map(recalled)
     .filter((line): line is PalRecalledMemory => line !== null);
-  return selectPalMemoriesForAsk(newestFirst, ask);
+  const memories = selectPalMemoriesForAsk(newestFirst, ask);
+  return { memories, complete: memories.length === newestFirst.length };
+}
+
+export async function readConfirmedPalMemories(ownerId: string, ask = ""): Promise<PalRecalledMemory[] | null> {
+  return (await readConfirmedPalMemorySelection(ownerId, ask))?.memories ?? null;
 }
 
 /**
@@ -116,19 +122,34 @@ export async function recallPalMemoriesForConversation(
   const ask = await askRead;
   const [memories, taste] = await Promise.all([readConfirmedPalMemories(ownerId, ask), readPalTaste(ownerId)]);
   if (!memories) return refuse("Saved memories are unavailable right now.");
-  // Voice has no typed preamble, so the taste read rides the recall answer.
-  const tasteLines = palTastePreamble(taste, "third");
-  const tasteHint = tasteLines.length > 0 ? ` ${tasteLines.join(" ")}` : "";
   return {
     result: {
       ok: true,
       tool: PAL_RECALL_MEMORIES_TOOL,
-      answerHint:
-        (memories.length === 0
-          ? "The person has not confirmed anything to remember yet."
-          : `The person confirmed these preferences and past-night reports: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Use preferences for picks. Past nights are personal history, including explicitly reported spend. Preserve the stated pub and date. Never infer or sum price observations into a bill, or treat memories as current facts about a pub.`) +
-        tasteHint,
+      answerHint: palRecalledContext(memories, taste),
       memories: memories.map(({ kind, value }) => ({ kind, value })),
     },
   };
+}
+
+/** What a voice call learns about the person: their confirmed memories, then the taste read, in the third person. */
+function palRecalledContext(memories: PalRecalledMemory[], taste: PalTaste | null): string {
+  const tasteLines = palTastePreamble(taste, "third");
+  return [
+    memories.length === 0
+      ? "The person has not confirmed anything to remember yet."
+      : `The person confirmed these preferences and past-night reports: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Use preferences for picks. Past nights are personal history, including explicitly reported spend. Preserve the stated pub and date. Never infer or sum price observations into a bill, or treat memories as current facts about a pub.`,
+    ...tasteLines,
+  ].join(" ");
+}
+
+export function palVoiceConnectContext(selection: PalMemorySelection | null, taste: PalTaste | null): string | null {
+  if (selection) {
+    const recallInstruction = selection.complete
+      ? "It supplies all their confirmed memories, so do not call recall_memories."
+      : "It supplies a partial set of their confirmed memories. You must still call recall_memories for each ask to retrieve relevant memories omitted here.";
+    return `App context at the start of this call, not something the person said. ${recallInstruction} ${palRecalledContext(selection.memories, taste)}`;
+  }
+  const tasteLines = palTastePreamble(taste, "third");
+  return tasteLines.length > 0 ? `App context at the start of this call, not something the person said. ${tasteLines.join(" ")}` : null;
 }
