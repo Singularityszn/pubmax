@@ -41,10 +41,16 @@ Print production, both pieces:
 
 ## QR code spec (both pieces)
 
-- Target URL: `https://pubmaxxing.com/?src=poster` (optional `utm_*` tags). The
-  site redirects that arrival to `/near` with the same query kept, so a scan
-  opens nearby prices rather than the marketing landing. Keep the same tag
-  across a partner's print run.
+- Target URL: a short link, `https://pubmaxxing.com/get/<code>`. Mint one code
+  per print run with `npm run poster:mint -- --place PUB-SLUG --medium
+  poster|beermat [--campaign CAMPAIGN]`, commit `lib/posterCodes.json`, and print
+  after the next deploy. The link opens `/near` with `src=poster` and the run's
+  `utm_*` tags, so a scan opens nearby prices rather than the marketing landing,
+  and PostHog's `poster_landing` event names the medium and the code. Use the
+  same code across a partner's whole print run.
+- A short link makes a smaller QR that scans more easily on a scuffed mat.
+  `https://pubmaxxing.com/?src=poster` with `utm_*` tags still works for codes
+  already printed.
 - Error correction: level H (30 percent). Bar-room posters get scuffed and part
   covered; H survives it.
 - Quiet zone: at least 4 modules of clear space on all sides. Do not let artwork
@@ -128,13 +134,13 @@ price printed on paper. The hunt's figure lives on the site, beside its pub,
 its source and the day the source was read. On paper it would be stale, and it
 would be a price with none of those things.
 
-Campaign tag, the same across one pub's whole order (the site keeps `src` and
-`utm_*` and drops the rest):
+Campaign code, one per pub and medium, the same across that pub's whole order:
 
-- Poster: `https://pubmaxxing.com/?src=poster&utm_campaign=launch-2026-11&utm_medium=poster&utm_source=PUB-SLUG`
-- Beer mat: `https://pubmaxxing.com/?src=poster&utm_campaign=launch-2026-11&utm_medium=beermat&utm_source=PUB-SLUG`
+- Poster: `npm run poster:mint -- --place PUB-SLUG --medium poster --campaign launch-2026-11`
+- Beer mat: `npm run poster:mint -- --place PUB-SLUG --medium beermat --campaign launch-2026-11`
 
-Replace PUB-SLUG with a short name for the pub, in lower case with hyphens.
+Replace PUB-SLUG with a short name for the pub, in lower case with hyphens. Each
+command prints the `https://pubmaxxing.com/get/<code>` link for the QR.
 
 ### A5 poster, launch copy (exact)
 

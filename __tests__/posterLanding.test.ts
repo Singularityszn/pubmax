@@ -4,7 +4,15 @@ import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { GET as getPosterCode } from "@/app/get/[code]/route";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
+import {
+  mintPosterCode,
+  parsePosterCodes,
+  posterArrival,
+  posterCodeHref,
+  type PosterCode,
+} from "@/lib/posterCodes";
 import { securityProxy } from "@/proxy";
 import {
   clearPosterLandingSession,
@@ -14,10 +22,18 @@ import {
   posterNearHref,
   POSTER_LANDING_SESSION_KEY,
   POSTER_LANDING_SRC,
+  readPosterLandingMedium,
   readPosterLandingSession,
   rememberPosterLandingSession,
   shouldKeepPosterLandingParam,
 } from "@/lib/posterLanding";
+
+const MINTED: PosterCode[] = vi.hoisted(() => [
+  { code: "h4jyp", medium: "beermat", place: "red-lion-se1", campaign: "launch-2026-11" },
+  { code: "kx7mp", medium: "poster", place: "the-crown" },
+]);
+
+vi.mock("@/lib/posterCodes.json", () => ({ default: MINTED }));
 
 const homePage = readFileSync(join(process.cwd(), "app/page.tsx"), "utf8");
 const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
@@ -80,15 +96,12 @@ describe("poster landing redirect helpers", () => {
 });
 
 describe("poster landing orientation", () => {
-  it("ships one honest VOICE-clean orientation line", () => {
-    const line = posterLandingOrientation();
-    expect(line).toBe(
-      "You scanned a pub poster. Compare listed pint prices near you, cheapest first.",
+  it("names the printed thing that was scanned", () => {
+    expect(posterLandingOrientation()).toBe(
+      "You scanned a pub poster. Listed pint prices near you are below.",
     );
-    expect(line).not.toMatch(/—|–/);
-    expect(line).not.toMatch(/!/);
-    expect(line.toLowerCase()).not.toMatch(
-      /experience|discover|seamless|curated|journey|partners?/,
+    expect(posterLandingOrientation("beermat")).toBe(
+      "You scanned a beer mat. Listed pint prices near you are below.",
     );
   });
 
@@ -135,7 +148,7 @@ describe("poster landing orientation", () => {
     expect(nearClient).toMatch(/clearPosterLandingSession/);
     expect(posterNote).toMatch(/posterLandingOrientation/);
     expect(posterNote).toMatch(/clearPosterLandingSession/);
-    expect(posterNote).toMatch(/trackEvent\("poster_landing"\)/);
+    expect(posterNote).toMatch(/trackEvent\("poster_landing"/);
   });
 
   it("spec points the printed QR at /?src=poster landing on /near", () => {
@@ -146,19 +159,109 @@ describe("poster landing orientation", () => {
 });
 
 describe("poster_landing analytics", () => {
-  it("registers a closed no-prop event", () => {
+  it("keeps a known medium and a minted code, and nothing else", () => {
     expect(sanitizeEvent("poster_landing")).toEqual({
       name: "poster_landing",
       props: {},
     });
-    expect(sanitizeEvent("poster_landing", { note: "free text" })).toEqual({
+    expect(
+      sanitizeEvent("poster_landing", { medium: "beermat", code: "h4jyp" }),
+    ).toEqual({ name: "poster_landing", props: { medium: "beermat", code: "h4jyp" } });
+    expect(
+      sanitizeEvent("poster_landing", {
+        medium: "billboard",
+        code: "not-minted",
+        note: "free text",
+        src: "poster",
+      }),
+    ).toEqual({ name: "poster_landing", props: {} });
+    expect(sanitizeEvent("poster_landing", { code: "H4JYP" })).toEqual({
       name: "poster_landing",
       props: {},
     });
-    expect(sanitizeEvent("poster_landing", { src: "poster" })).toEqual({
-      name: "poster_landing",
-      props: {},
+  });
+});
+
+describe("poster short links", () => {
+  function get(code: string) {
+    return getPosterCode(new Request(`https://pubmaxxing.com/get/${code}`), {
+      params: Promise.resolve({ code }),
     });
+  }
+
+  it("sends a minted code to /near with its campaign tags", async () => {
+    const response = await get("h4jyp");
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://pubmaxxing.com/near?src=poster&utm_source=red-lion-se1&utm_medium=beermat&utm_campaign=launch-2026-11&utm_content=h4jyp",
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-robots-tag")).toMatch(/noindex/);
+  });
+
+  it("reads a code typed in capitals or with spaces as the same code", async () => {
+    expect((await get("H4JYP")).headers.get("location")).toContain("utm_content=h4jyp");
+    expect(posterCodeHref(" kx7mp ", MINTED)).toBe(
+      "/near?src=poster&utm_source=the-crown&utm_medium=poster&utm_content=kx7mp",
+    );
+  });
+
+  it("lands an unknown code on /near as a plain poster arrival", async () => {
+    for (const code of ["nope1", "../admin", "a%20b"]) {
+      expect((await get(code)).headers.get("location"), code).toBe(
+        "https://pubmaxxing.com/near?src=poster",
+      );
+    }
+  });
+
+  it("tells analytics only what a minted code or a known medium says", () => {
+    const read = (query: string) => posterArrival(new URLSearchParams(query), MINTED);
+    expect(read("src=poster&utm_medium=poster&utm_content=h4jyp")).toEqual({
+      medium: "beermat",
+      code: "h4jyp",
+    });
+    expect(read("src=poster&utm_medium=beermat&utm_content=forged")).toEqual({
+      medium: "beermat",
+    });
+    expect(read("src=poster&utm_medium=billboard")).toEqual({ medium: "poster" });
+    expect(read("src=poster")).toEqual({ medium: "poster" });
+  });
+});
+
+describe("poster code registry", () => {
+  it("refuses a registry that would mislabel a scan", () => {
+    expect(parsePosterCodes(MINTED)).toEqual(MINTED);
+    expect(() => parsePosterCodes({})).toThrow(/array/);
+    expect(() => parsePosterCodes([MINTED[0], MINTED[0]])).toThrow(/twice/);
+    expect(() => parsePosterCodes([{ ...MINTED[0], medium: "flyer" }])).toThrow(/medium/);
+    expect(() => parsePosterCodes([{ ...MINTED[0], code: "Red Lion" }])).toThrow(/code/);
+    expect(() => parsePosterCodes([{ ...MINTED[0], place: "" }])).toThrow(/place/);
+    expect(() => parsePosterCodes([{ ...MINTED[0], campaign: "x@y" }])).toThrow(/campaign/);
+  });
+
+  it("mints a fresh code and skips one already taken", () => {
+    const candidates = ["h4jyp", "BAD!", "n3wcd"];
+    const minted = mintPosterCode(
+      MINTED,
+      { place: "the-ship", medium: "beermat" },
+      () => candidates.shift() ?? "",
+    );
+    expect(minted).toEqual({ code: "n3wcd", medium: "beermat", place: "the-ship" });
+  });
+
+  it("keeps a chosen code and campaign, and refuses bad input", () => {
+    const random = () => "zzzzz";
+    expect(
+      mintPosterCode(
+        MINTED,
+        { place: "the-ship", medium: "poster", campaign: "launch-2026-11", code: "ship" },
+        random,
+      ),
+    ).toEqual({ code: "ship", medium: "poster", place: "the-ship", campaign: "launch-2026-11" });
+    expect(() => mintPosterCode(MINTED, { place: "the-ship", medium: "poster", code: "kx7mp" }, random)).toThrow(/already minted/);
+    expect(() => mintPosterCode(MINTED, { place: "the-ship", medium: "flyer" }, random)).toThrow(/medium/);
+    expect(() => mintPosterCode(MINTED, { place: "The Ship", medium: "poster" }, random)).toThrow(/place/);
+    expect(() => mintPosterCode(MINTED, { place: "the-ship", medium: "poster" }, () => "h4jyp")).toThrow(/free code/);
   });
 });
 
@@ -182,8 +285,15 @@ describe("poster landing session flag", () => {
     expect(readPosterLandingSession()).toBe(false);
     expect(isPosterLandingArrival(null)).toBe(false);
     rememberPosterLandingSession();
-    expect(store.get(POSTER_LANDING_SESSION_KEY)).toBe("1");
+    expect(store.get(POSTER_LANDING_SESSION_KEY)).toBe("poster");
     expect(readPosterLandingSession()).toBe(true);
+    rememberPosterLandingSession("beermat");
+    expect(readPosterLandingMedium()).toBe("beermat");
+    store.set(POSTER_LANDING_SESSION_KEY, "1");
+    expect(readPosterLandingMedium()).toBe("poster");
+    store.set(POSTER_LANDING_SESSION_KEY, "junk");
+    expect(readPosterLandingSession()).toBe(false);
+    rememberPosterLandingSession();
     expect(isPosterLandingArrival(null)).toBe(true);
     expect(isPosterLandingArrival("poster")).toBe(true);
   });

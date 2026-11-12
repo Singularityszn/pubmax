@@ -259,7 +259,7 @@ vocabularies. The column here is the question the event exists to answer.
 |---|---|
 | `discovery_viewed` | How many landings happened, and at what time of day. The release metric's denominator. |
 | `landing_cta_clicked` | Which front door a visitor took. |
-| `poster_landing` | A physical QR poster sent somebody to `/near`. |
+| `poster_landing` | A printed QR sent somebody to `/near`, from a poster or a beer mat, and from which minted code. |
 | `poster_shared` | A poster or card was shared out of a surface. |
 | `pint_index_viewed` | A press arrival on the live Index or a dated edition, and whether the browser had been before. |
 | `pint_index_area_opened` | The arrival tapped through to an area. |
