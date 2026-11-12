@@ -343,6 +343,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Available Social notifications appear in **Activity** in the desktop sidebar.
 
+  In **Following**, **Your mates' pints** shows recent Pint Drops from people you follow who also follow you. You need verified Social access. The section shows five rows first. **Show more of your mates' pints** reveals the remaining rows, up to 20 per read, newest first. Each row names the mate, pub, drink and date, with the price and bill-check status when recorded. Select a row to open the pub on the map.
+
+  Muted mates and people blocked in either direction do not appear. Anonymous, hidden and demo drops stay out, as do drops from withdrawn or retired authors. Friends-only drops follow the reader's access rules. The section contains Pint Drops only. It does not publish **Been here** ticks, star ratings or completed challenges. An empty section says no pints are available. A failed read offers **Try again**.
+
   Comments and quote posts stay pending until automated moderation finishes. Flagged text is hidden without a manual-review queue. Approved text follows the post's visibility rules. The [Social interaction contract](docs/WRITE_SURFACE_CERTIFICATION.md#appapisocialinteractions---verified-social-interactions-and-governance-route-80) describes feature-request status and staff history.
 
   For open crawls, a new join request notifies the host, and an acceptance notifies the guest. Each notice links to the crawl page. Delivery uses Activity and, when [email is configured](.env.example), the recipient's account email. A decline, cancellation or replay sends no notice.
