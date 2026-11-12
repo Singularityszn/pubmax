@@ -7,8 +7,8 @@ import {
 import { MOBILE_MAP_SHELL_READY_MS } from "./helpers/mobileMapShell";
 
 // ONE PLAN DOOR, AND IT FOLLOWS THE CRAWL (owner decision option C, 16 Oct
-// 2026; lib/venuePlanDoor.ts). The phone pub sheet carries one coral plan door
-// in its peek. With no crawl in progress it is `Make it Stop 1` and hands the
+// 2026; lib/venuePlanDoor.ts). The phone pub sheet carries one plan door
+// in its action card. With no crawl in progress it is `Make it Stop 1` and hands the
 // pub to Plan. With a crawl in progress it is `Plan stop` / `In plan` and adds
 // the pub to or takes it off the crawl on the map. Removing the last stop ends
 // the crawl, so the door reads `Make it Stop 1` again with no latch between.
@@ -45,14 +45,14 @@ test("phone 390: in a crawl in progress, Plan stop adds the pub and In plan take
 
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
-  const planStop = venuePortal.locator(".mobileVenuePeekSummary button");
+  const planStop = venuePortal.locator(".venueActionCard [data-plan-door]");
   await expect(planStop).toHaveText("Plan stop", { timeout: 30_000 });
   await expect(planStop).toHaveAttribute("aria-pressed", "false");
   // One plan door on the whole phone sheet, in build mode too.
   await expect(venuePortal.getByRole("button", { name: PLAN_DOOR_NAME })).toHaveCount(1);
   await expect(
     venuePortal.getByRole("toolbar", { name: "Venue actions" }).getByRole("button"),
-  ).toHaveText(["Ask for a table", "Share"]);
+  ).toHaveText(["Plan stop", "Ask for a table", "Share"]);
 
   await expect(async () => {
     await planStop.click();
@@ -110,7 +110,7 @@ test("phone 390: with no crawl in progress, the one door is Make it Stop 1 and h
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
   const makeStop1 = venuePortal
-    .locator(".mobileVenuePeekSummary")
+    .locator(".venueActionCard")
     .getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` });
   await expect(makeStop1).toBeVisible({ timeout: 30_000 });
   await expect(makeStop1).toHaveText("Make it Stop 1");
@@ -127,7 +127,7 @@ test("phone 390: removing the last stop ends the crawl, and the door reads Make 
   await page.goto(`/map?mode=build&pubs=${VENUE_ID}&sel=${VENUE_ID}`);
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
-  const door = venuePortal.locator(".mobileVenuePeekSummary button");
+  const door = venuePortal.locator(".venueActionCard [data-plan-door]");
   await expect(door).toHaveText("In plan", { timeout: 30_000 });
   await expect(async () => {
     await door.click();
@@ -146,7 +146,7 @@ for (const width of [320, 390] as const) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto(`/map?mode=build&pubs=${CRAWL_STOP_ID}&sel=${VENUE_ID}`);
     const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-    const door = venuePortal.locator(".mobileVenuePeekSummary button");
+    const door = venuePortal.locator(".venueActionCard [data-plan-door]");
     await expect(door).toHaveText("Plan stop", { timeout: 30_000 });
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path: `artifacts/proof/one-plan-door/plan-stop-${width}.png` });

@@ -1,5 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { NIGHT_AREAS } from "@/lib/nightAreas";
+
 /**
  * /plan opens on the describe-first question (components/plan/PlanDescribeFirst.tsx).
  * These tests need the full composer (including .planComposer__coverage, which
@@ -31,32 +33,20 @@ test("mobile planner explains planning confidence and evidence warnings", async 
 
   await coverage.getByText("Area coverage", { exact: true }).click();
 
-  await expect(coverage).toContainText(
-    "We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.",
-  );
+  // No area has a review, so none is crawl-ready and every area is still to check.
+  await expect(coverage.locator("summary")).toContainText(`0 of ${NIGHT_AREAS.length} crawl-ready`);
+  await expect(coverage).toContainText("Area reviews are unavailable. You can still make a draft and check each stop.");
   await expect(coverage.getByRole("heading", { name: "Crawl-ready", exact: true })).toBeVisible();
-  await expect(coverage.getByRole("heading", { name: "Not crawl-ready yet" })).toBeVisible();
-
-  // Each row is found by the coverage state it OWNS (`data-coverage-status`,
-  // written by PlanComposer), not by the badge wording beside it. The coverage
-  // vocabulary has now been renamed twice and each rename broke this spec
-  // silently, because a locator built on display copy tests the copy.
-  const row = (status: string) => coverage.locator(`li[data-coverage-status="${status}"]`);
-
-  await expect(coverage.getByText("Clapham", { exact: true })).toBeVisible();
-  await expect(row("route_ready").first()).toContainText("Route-ready");
-  await expect(coverage.getByText("Shoreditch", { exact: true })).toBeVisible();
-  await expect(row("captured").first()).toContainText("Not all checked");
-  await expect(row("discovered").first()).toContainText("Rough guess");
-  await expect(row("paused").first()).toContainText("Gone stale");
-  await expect(coverage).toContainText("Some checks complete. Missing opening hours and route feasibility + 2 more.");
+  const ready = coverage.getByRole("region", { name: "Crawl-ready", exact: true }).getByRole("listitem");
+  await expect(ready).toHaveCount(0);
+  const progress = coverage.getByRole("region", { name: "Not crawl-ready yet", exact: true }).getByRole("listitem");
+  await expect(progress).toHaveCount(NIGHT_AREAS.length);
+  await expect(progress.and(page.locator(':not([data-coverage-status="discovered"])'))).toHaveCount(0);
+  await expect(progress.first()).toContainText("Not checked yet.");
   await expect(coverage.getByRole("link", { name: "Explore Shoreditch pubs on the map" })).toHaveAttribute(
     "href",
     "/map?q=Shoreditch",
   );
-  await expect(coverage.getByText("Last checked 13 Jul 2026 · review through 1 Jan 2027.", { exact: true }).first()).toBeVisible();
-  await expect(coverage.getByText("Not checked yet.", { exact: true }).first()).toBeVisible();
-  await expect(coverage.getByText("Last checked 1 Jan 2026 · review expired 1 Jun 2026.", { exact: true })).toBeVisible();
 });
 
 test("mobile planner announces concierge progress while it finds a route", async ({ page }) => {

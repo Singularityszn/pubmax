@@ -3,16 +3,6 @@
 # npm run gate:e2e-skips refuses a test line with no issue above it.
 # Delete a block in the pull request that fixes its tests, then close the issue.
 
-# https://github.com/Singularityszn/pubmax/issues/2655 area coverage copy
-[chromium] › mobile-discover-coverage.spec.ts › mobile Discover shows Night Area evidence states without promising routes
-[chromium] › night-area-coverage.spec.ts › mobile planner explains planning confidence and evidence warnings
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 390px in light
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 390px in dark
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 768px in light
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 768px in dark
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 1440px in light
-[chromium] › writing-visual-refresh.spec.ts › Discover coverage badges have readable contrast at 1440px in dark
-
 # https://github.com/Singularityszn/pubmax/issues/2656 the reader's own Pal map marker is missing
 [chromium] › night-ways-there.spec.ts › a routed crawl is a thick solid line with its walking minutes on a bubble on each leg, and the Pal sets off saying the first one
 [chromium] › night-ways-there.spec.ts › after the Pal led the way, a plan that ends leaves it perched beside the open pub
@@ -25,24 +15,6 @@
 [chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 1280px in dark
 [chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 1440px in dark
 [chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 390px in light with recorded roads
-
-# https://github.com/Singularityszn/pubmax/issues/2657 drink brand landing pages
-[chromium] › drink-brand-area-landing.spec.ts › 320px light governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 320px dark governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 390px light governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 390px dark governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 430px light governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 430px dark governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 1440px light governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 1440px dark governed brand area landing › answers above fold with exact touch-safe actions
-[chromium] › drink-brand-area-landing.spec.ts › 320px capped Clapham Guinness Ledger count › keeps full capped count visible without clipping
-[chromium] › drink-brand-area-landing.spec.ts › 390px capped Clapham Guinness Ledger count › keeps full capped count visible without clipping
-[chromium] › drink-brand-area-landing.spec.ts › 430px capped Clapham Guinness Ledger count › keeps full capped count visible without clipping
-[chromium] › drink-brand-landing.spec.ts › governed Guinness landing at 320px › answers above the fold with touch-safe rows
-[chromium] › drink-brand-landing.spec.ts › governed Guinness landing at 390px › answers above the fold with touch-safe rows
-[chromium] › drink-brand-landing.spec.ts › governed Guinness landing at 430px › answers above the fold with touch-safe rows
-[chromium] › drink-brand-landing.spec.ts › Guinness landing cross-surface journey › keeps brand Map state, restores Back, and arms the explicit log picker
-[chromium] › drink-brand-landing.spec.ts › Guinness landing desktop proof › keeps the ranked answer readable at 1440px
 
 # https://github.com/Singularityszn/pubmax/issues/2658 the Save to a list button takes no click
 [chromium] › profile-saved-after-reload.spec.ts › profile saved venues after a full reload › the owner sees a saved venue on a full load of their profile
@@ -220,18 +192,6 @@
 [chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 390px
 [chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 1440px
 [chromium] › account-identity-recovery.spec.ts › you: Retry recovers from 503 without reloading
-
-# https://github.com/Singularityszn/pubmax/issues/2703 expects the evening /tonight link; fails from 04:00 to 16:00 London
-[chromium] › pal-qa-isolation.spec.ts › B receives a clean choice for the same leg after A chose a way on the map
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 320px and 100% in light
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 320px and 200% in light
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 320px and 100% in dark
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 320px and 200% in dark
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 390px and 100% in light
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 390px and 200% in light
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 390px and 100% in dark
-[chromium] › writing-visual-refresh.spec.ts › navigation labels have separate space at 390px and 200% in dark
-
 
 # https://github.com/Singularityszn/pubmax/issues/2701 passed only on retry on 10 November (map-uk-base-layer, messages-thread)
 [chromium-gl] › map-uk-base-layer.spec.ts › normal London entry paints UK base pubs and takes a price

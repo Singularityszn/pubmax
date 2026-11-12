@@ -73,7 +73,7 @@ export default function PintDropsList({
         // live Getting-home session for older rows that never stored them.
         // See lib/lastTrainBadge.ts — no live kind / leave-by → no badge.
         const withSummary = summaries.get(drop.id);
-        const unchecked = uncheckedDropLine(drop);
+        const unchecked = drop.optimistic ? null : uncheckedDropLine(drop);
         const trainBadge = lastTrainBadge(
           drop.createdAt,
           drop.leaveByIso ?? lastTrainDecision?.leaveByIso,
@@ -93,14 +93,20 @@ export default function PintDropsList({
                     never trust, and a figure nobody has checked is not given
                     one (captain decision 9). Its weakness is said in words,
                     on the line below. */}
-                {drop.priceGbp === null ? null : measureIsPint(drop.measure) && !unchecked ? (
+                {drop.priceGbp === null ? null : measureIsPint(drop.measure) && !unchecked && !drop.optimistic ? (
                   <PintPriceBadge priceGbp={drop.priceGbp} venueId={venue.id} />
                 ) : (
                   <PriceBadge>{formatPrice(drop.priceGbp)}</PriceBadge>
                 )}
-                <ProvenanceChip provenance={drop.provenance} />
+                {drop.optimistic ? null : <ProvenanceChip provenance={drop.provenance} />}
               </span>
             </div>
+            {drop.optimistic ? (
+              <p className="dropCaption" role={drop.optimistic.state === "failed" ? "alert" : "status"}>
+                {drop.optimistic.state === "failed" ? "Not saved. " : "Saving. "}
+                {drop.optimistic.message}
+              </p>
+            ) : null}
             {unchecked ? (
               <p className="dropCaption" data-price-check="unchecked">
                 <small>
@@ -190,7 +196,7 @@ export default function PintDropsList({
                   </span>
                 ) : null}
               </small>
-              {drop.provenance !== "demo" ? (
+              {drop.provenance !== "demo" && !drop.optimistic ? (
                 <button
                   type="button"
                   className="reportBtn"

@@ -21,6 +21,7 @@ import { parseCityId } from "@/lib/cities";
 import { readPalVoiceHost, requestPalVoiceStart, subscribePalVoiceHost } from "@/lib/palVoiceHost";
 import { usePalVoiceAvailability } from "./usePalVoiceAvailability";
 import { usePalVoiceEligibility } from "./usePalVoiceEligibility";
+import { playPalVoiceSound } from "./palVoiceSounds";
 
 /** How long the chip celebrates a moment before it goes back to its offer. */
 export const PAL_SUMMON_CHEER_MS = 6_000;
@@ -159,6 +160,7 @@ function MapPalTalk({ ownerId, pal, genome, cheer, line }: {
     aria-busy={tap === ownerId}
     onClick={() => {
       trackEvent("pub_pal_summoned", { surface: "map" });
-      requestPalVoiceStart(ownerId, { palName: pal.name, appearance: pal.appearance, genome });
+      const stopStartChime = playPalVoiceSound("start");
+      requestPalVoiceStart(ownerId, { palName: pal.name, appearance: pal.appearance, genome }, stopStartChime);
     }}>{face}{words}</button>;
 }

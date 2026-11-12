@@ -61,7 +61,9 @@ jobs:
     name: Effective RLS (Postgres 16 + PostgREST 14)
     needs: [queue-proof]
     if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
-    runs-on: ubuntu-latest
+    # ubuntu-26.04 has no postgresql-16 package. LINUX_PINNED_JOBS in
+    # __tests__/ciRunnerIsolation.test.ts owns this pin.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:

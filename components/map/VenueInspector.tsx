@@ -63,11 +63,13 @@ export type { TabKey };
 type VenueInspectorProps = {
   venue: Venue;
   /**
-   * The action card's first row: the price, the walk and the ONE plan door,
+   * The action card's first row: the price, the walk and the ONE coral door,
    * read by the map (components/map/inspector/VenueActionSummary.tsx). The
    * card owns every plan action, so the sheet takes no crawl props of its own.
    */
   actionSummary?: ReactNode;
+  /** The plan door as a ghost, when the coral is "Log what you paid" (lib/venuePlanDoor.ts). */
+  actionPlanDoor?: ReactNode;
   latestContributorPrice: number | null | undefined;
   /** Epoch ms of the latest Pint Drop, from the unmerged drop signal - see
    *  VenueOverviewTab, which hands it to the submit receipt. */
@@ -163,6 +165,7 @@ function browserStorage(): Storage | null {
 export default function VenueInspector({
   venue,
   actionSummary,
+  actionPlanDoor,
   latestContributorPrice,
   latestPintDropAt,
   confirmedPrice,
@@ -459,12 +462,13 @@ export default function VenueInspector({
         revealCheckedLate={revealRecordLate}
       />
 
-      {/* The action card: price, walk, the one plan door, "Ask for a table"
+      {/* The action card: price, walk, the one coral door, "Ask for a table"
           and Share. On a phone it moves into the shared sheet footer; from
           641px it is the sticky top of the drawer, under this head. */}
       <VenueActionCard
         venue={venue}
         summary={actionSummary}
+        planDoor={actionPlanDoor}
         shareVenue={shareVenue}
         currentShareFeedback={currentShareFeedback}
         acceptanceError={acceptanceError}

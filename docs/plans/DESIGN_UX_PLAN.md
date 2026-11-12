@@ -62,8 +62,7 @@ The screenshot script is a scratch tool. Step 0.4 makes it a repo command.
 ### Keep these
 
 - **The venue sheet on the map.** A photo, five tabs and one action card
-  (price, "Make it Stop 1", "Ask for a table", "Share"). This is the best
-  screen in the app.
+  (see the [action-card rule](../rules/components-venue-plan-and-message-surfaces.md#the-venue-sheet-has-one-action-card-and-it-spends-the-sheet-s-one-coral)). This is the best screen in the app.
 - **The crawl route on the map.** Numbered stops, walk times between them and
   a "Show whole walk" control.
 - **Dark mode.** Deep ink, amber route, coral button. It looks like a night out.

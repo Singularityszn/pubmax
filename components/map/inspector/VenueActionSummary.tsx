@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /**
- * The action card's first row: the price, the walk and the ONE plan door
+ * The action card's first row: the price, the walk and the ONE coral door
  * (lib/venueActionCard.ts). It was the phone peek's row at the top of the
  * sheet body and it keeps that row's class names, so the price and the door
  * read the same at every width. It left the body when it joined the card:

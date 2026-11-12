@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { DEFAULT_PAL_DRAFT } from '../lib/pubPal';
 import { ACCOUNTS, AUTH_STORAGE_KEY, DEVICE_ACCOUNTS_KEY, installAuthDoubles, seedSignedIn } from './helpers/authDoubles';
 import { installDeterministicMapBasemap } from './helpers/mapNetworkFixtures';
+import { holdLondonEvening, LONDON_EVENING } from './helpers/themeClock';
 import { createPlanIntakeDraft } from '../lib/planIntake';
 
 test.describe.configure({ timeout: 120_000 });
@@ -303,8 +304,8 @@ for (const transition of ['hidden', 'removed'] as const) {
   });
 }
 
-async function seedActiveNight(page: Page) {
-  const now = new Date(Date.now()-3600000).toISOString();
+async function seedActiveNight(page: Page, clock = Date.now()) {
+  const now = new Date(clock-3600000).toISOString();
   await page.route(`**/api/plans/${PLAN_ID}/**`, route => route.fulfill({json:
     route.request().url().endsWith('/session') ? {active:true,role:'host',collaborationAuthorized:true} : {visibility:'member',pals:[],stops:[]}
   }));
@@ -340,8 +341,9 @@ test('B opens Pal and returns to the map without inheriting A\'s night', async (
 });
 
 test('B receives a clean choice for the same leg after A chose a way on the map', async ({page})=>{
+  await holdLondonEvening(page);
   await seed(page);
-  await seedActiveNight(page);
+  await seedActiveNight(page, LONDON_EVENING.getTime());
   await installDeterministicMapBasemap(page);
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.route('**/api/leg-options**',route=>{
