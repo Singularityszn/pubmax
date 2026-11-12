@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useCallback, useEffect, useState } from "react";
+import { act, createElement, useCallback, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -21,12 +21,16 @@ function Sheet({ id, initialDetails = new Map<string, Venue>() }: {
 }) {
   const [detailById, setDetailById] = useState(initialDetails);
   const [selectedVenueId, setSelectedVenueId] = useState(id);
+  const [previousId, setPreviousId] = useState(id);
   const [statuses, setDetailStatusById] = useState(new Map<string, VenueDetailStatus>());
   const [resolution, setResolution] = useState("");
   const resolveMapSelection = useCallback((requested: string, canonical: string) => {
     setResolution(`${requested}:${canonical}`);
   }, []);
-  useEffect(() => setSelectedVenueId(id), [id]);
+  if (previousId !== id) {
+    setPreviousId(id);
+    setSelectedVenueId(id);
+  }
   const savedAt = useSelectedVenueDetail({
     selectedVenueId,
     detailById,
