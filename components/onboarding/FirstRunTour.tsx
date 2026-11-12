@@ -1,11 +1,5 @@
 "use client";
 
-// First-run welcome tour on the map, after analytics consent: four short
-// steps, then it never shows again. The first teaches the pin colours from the
-// same vocabulary as MapKey. The others name the three moves the map leads to:
-// log a pint, keep a Been here list, send one Plan link. Every claim here is
-// something the app does today, and no step shows a count.
-
 import {
   useCallback,
   useEffect,
