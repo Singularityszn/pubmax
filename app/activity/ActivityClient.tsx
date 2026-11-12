@@ -22,7 +22,7 @@ import {
   mapFixOutcomeLine,
   readMapFixOutcomes,
   readMapFixSeenAt,
-  type MapFixOutcome,
+  type MapFixOutcomeRead,
 } from "@/lib/mapFixOutcomes";
 import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
 import { discardBody } from "@/lib/responseBody";
@@ -120,16 +120,20 @@ const SAMPLE_NOTIFICATIONS: readonly NotificationDTO[] = SAMPLE_KINDS.map((kind,
 
 function ignoreSampleFilter(): void {}
 
-type MapFixRead = { outcomes: MapFixOutcome[]; seenBefore: number | null };
-const NO_MAP_FIXES: MapFixRead = { outcomes: [], seenBefore: null };
+type MapFixRead = MapFixOutcomeRead & { seenBefore: number | null };
+const NO_MAP_FIXES: MapFixRead = { outcomes: [], complete: false, seenBefore: null };
 
 /** The reporter's accepted map fixes. What landed since their last visit reads in weight. */
-function MapFixList({ outcomes, seenBefore }: MapFixRead): React.JSX.Element {
+function MapFixList({ outcomes, complete, seenBefore, userId }: MapFixRead & { userId: string | null }): React.JSX.Element {
+  const [visibleCount, setVisibleCount] = useState(10);
+  useEffect(() => {
+    if (userId && visibleCount >= outcomes.length) markMapFixesSeen(userId, { outcomes, complete });
+  }, [userId, outcomes, complete, visibleCount]);
   return (
     <section className="activityFixes" aria-labelledby="activity-fixes-title">
       <h2 id="activity-fixes-title" className="activityFixesTitle">Your map fixes</h2>
       <ul className="activityList">
-        {outcomes.map((outcome) => {
+        {outcomes.slice(0, visibleCount).map((outcome) => {
           const href = mapFixOutcomeHref(outcome);
           const unread = Date.parse(outcome.decidedAt) > (seenBefore ?? 0);
           return (
@@ -147,6 +151,9 @@ function MapFixList({ outcomes, seenBefore }: MapFixRead): React.JSX.Element {
           );
         })}
       </ul>
+      {visibleCount < outcomes.length ? (
+        <Chip onClick={() => setVisibleCount((count) => count + 10)}>Show more</Chip>
+      ) : null}
     </section>
   );
 }
@@ -331,12 +338,11 @@ export default function ActivityClient(): React.JSX.Element {
         setFailed(true);
         return;
       }
-      const body = (await res.json()) as { notifications?: NotificationDTO[]; mapFixes?: unknown };
+      const body = (await res.json()) as { notifications?: NotificationDTO[]; mapFixes?: unknown; mapFixesComplete?: unknown };
       if (accountRevisionRef.current !== requestRevision) return;
       setItems(Array.isArray(body.notifications) ? body.notifications : []);
-      const outcomes = readMapFixOutcomes(body.mapFixes);
-      setMapFixes({ outcomes, seenBefore: userId ? readMapFixSeenAt(userId) : null });
-      if (userId) markMapFixesSeen(userId, outcomes);
+      const read = readMapFixOutcomes(body.mapFixes, body.mapFixesComplete);
+      setMapFixes({ ...read, seenBefore: userId ? readMapFixSeenAt(userId) : null });
       void authedActionFetch("/api/notifications", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -371,7 +377,7 @@ export default function ActivityClient(): React.JSX.Element {
   const accountItems = itemsRevision === accountRevision ? items : [];
   const accountMapFixes = itemsRevision === accountRevision ? mapFixes : NO_MAP_FIXES;
   const mapFixList =
-    accountMapFixes.outcomes.length > 0 ? <MapFixList {...accountMapFixes} /> : null;
+    accountMapFixes.outcomes.length > 0 ? <MapFixList key={accountRevision} {...accountMapFixes} userId={userId} /> : null;
   const { kindCounts, unreadCount } = activityTallies(accountItems);
   const visibleItems =
     kindFilter === "all" ? accountItems : accountItems.filter((n) => n.kind === kindFilter);

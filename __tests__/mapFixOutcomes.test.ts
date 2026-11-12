@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
-  MAP_FIX_OUTCOME_MAX,
+  markMapFixesSeen,
+  readMapFixOutcomes,
+  readMapFixSeenAt,
   mapFixOutcomesFrom,
   unseenMapFixCount,
 } from "@/lib/mapFixOutcomes";
@@ -32,27 +36,27 @@ describe("mapFixOutcomesFrom", () => {
     );
 
     expect(outcomes).toEqual([
-      { id: "pub:s1", kind: "pub_added", pubName: "The Missing Crown", venueId: null, decidedAt: daysAgo(1) },
+      { id: "pub:s1", kind: "pub_accepted", pubName: "The Missing Crown", venueId: null, decidedAt: daysAgo(1) },
       { id: "fix:c1", kind: "fact_fixed", pubName: "The Crown", venueId: "venue-crown", decidedAt: daysAgo(2) },
     ]);
   });
 
-  it("drops a decision older than the window, and one stamped in the future", () => {
+  it("retains old decisions and excludes future decisions", () => {
     const outcomes = mapFixOutcomesFrom(
       [
         { id: "old", name: "Old News", status: "accepted", reviewedAt: daysAgo(31) },
         { id: "edge", name: "Edge", status: "accepted", reviewedAt: daysAgo(30) },
         { id: "ahead", name: "Ahead", status: "accepted", reviewedAt: new Date(NOW + DAY).toISOString() },
       ],
-      [],
+      [{ id: "older-fix", venueId: "crown", status: "resolved", resolvedAt: daysAgo(60) }],
       new Map(),
       NOW,
     );
-    expect(outcomes.map((outcome) => outcome.id)).toEqual(["pub:edge"]);
+    expect(outcomes.map((outcome) => outcome.id)).toEqual(["pub:edge", "pub:old", "fix:older-fix"]);
   });
 
-  it("orders newest first across both kinds and caps the list", () => {
-    const submissions = Array.from({ length: MAP_FIX_OUTCOME_MAX }, (_, index) => ({
+  it("retains every decision in newest-first order across both kinds", () => {
+    const submissions = Array.from({ length: 101 }, (_, index) => ({
       id: `s${index}`,
       name: `Pub ${index}`,
       status: "accepted",
@@ -64,9 +68,9 @@ describe("mapFixOutcomesFrom", () => {
       new Map(),
       NOW,
     );
-    expect(outcomes).toHaveLength(MAP_FIX_OUTCOME_MAX);
+    expect(outcomes).toHaveLength(102);
     expect(outcomes[0]).toMatchObject({ id: "fix:newest", pubName: "" });
-    expect(outcomes.at(-1)?.id).toBe(`pub:s${MAP_FIX_OUTCOME_MAX - 2}`);
+    expect(outcomes.at(-1)?.id).toBe("pub:s100");
   });
 });
 
@@ -88,5 +92,30 @@ describe("unseenMapFixCount", () => {
   it("counts only what landed after the last look", () => {
     expect(unseenMapFixCount(outcomes, Date.parse(daysAgo(2)))).toBe(1);
     expect(unseenMapFixCount(outcomes, Date.parse(daysAgo(1)))).toBe(0);
+  });
+});
+
+describe("map fix acknowledgement", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("leaves omitted outcomes unread after a degraded read recovers", () => {
+    const older = { id: "fix:older", kind: "fact_fixed", pubName: "Crown", venueId: "crown", decidedAt: daysAgo(2) };
+    const newer = { id: "pub:newer", kind: "pub_accepted", pubName: "Ship", venueId: null, decidedAt: daysAgo(1) };
+    const partial = readMapFixOutcomes([newer], false);
+    markMapFixesSeen("reporter", partial);
+    expect(readMapFixSeenAt("reporter")).toBeNull();
+    const recovered = readMapFixOutcomes([newer, older], true);
+    expect(unseenMapFixCount(recovered.outcomes, readMapFixSeenAt("reporter"))).toBe(2);
+    markMapFixesSeen("reporter", recovered);
+    expect(unseenMapFixCount(recovered.outcomes, readMapFixSeenAt("reporter"))).toBe(0);
+  });
+
+  it("does not acknowledge an incomplete payload", () => {
+    const result = readMapFixOutcomes([
+      { id: "pub:new", kind: "pub_accepted", pubName: "Ship", venueId: null, decidedAt: daysAgo(1) },
+      { id: "fix:bad" },
+    ], true);
+    markMapFixesSeen("reporter", result);
+    expect(readMapFixSeenAt("reporter")).toBeNull();
   });
 });

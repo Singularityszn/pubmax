@@ -61,6 +61,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   if (originalSocialLaunch === undefined) {
     delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   } else {
@@ -91,7 +92,7 @@ describe("GET /api/notifications", () => {
     const res = await get();
     expect(res.status).toBe(200);
     expectNoStore(res);
-    expect(await res.json()).toEqual({ notifications: [], unread: 0, mapFixes: [] });
+    expect(await res.json()).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: false });
   });
 
   it("returns a handle's notifications newest-first with an unread count", async () => {
@@ -148,8 +149,64 @@ describe("GET /api/notifications", () => {
 
     expect(body.mapFixes).toEqual([
       expect.objectContaining({ kind: "fact_fixed", pubName: "The Crown", venueId: "venue-crown" }),
-      expect.objectContaining({ kind: "pub_added", pubName: "The Missing Crown", venueId: null }),
+      expect.objectContaining({ kind: "pub_accepted", pubName: "The Missing Crown", venueId: null }),
     ]);
+  });
+
+  it("returns all old decisions, including the oldest reports resolved last", async () => {
+    __seedMemoryOwnedProfile("ken", "user-ken");
+    authState.userId = "user-ken";
+    const suggestions: string[] = [];
+    const corrections: string[] = [];
+    const old = Date.now() - 90 * 24 * 60 * 60 * 1_000;
+    for (let index = 0; index < 106; index += 1) {
+      const submission = await memoryVenueSubmissionStore.create({
+        ownerUserId: "user-ken", name: `Pub ${index}`, address: "1 Example Street, London",
+        postcode: "", latitude: null, longitude: null, website: "", menuUrl: "",
+        openingHours: "", note: "", prices: [],
+      }, old + index);
+      if (submission.status !== "created") throw new Error("expected submission");
+      suggestions.push(submission.submission.id);
+      const correction = await memoryVenueCorrectionsStore.create(
+        { venueId: "venue-crown", kind: "hours", note: "", ownerUserId: "user-ken" }, old + index,
+      );
+      corrections.push(correction.id);
+      if (index > 0) {
+        await memoryVenueSubmissionStore.decide(submission.submission.id, { status: "accepted", note: null }, old + 1_000 + index);
+        await memoryVenueCorrectionsStore.decide(correction.id, "resolved", "admin", old + 1_000 + index);
+      }
+    }
+    await memoryVenueSubmissionStore.decide(suggestions[0]!, { status: "accepted", note: null }, old + 9_000);
+    await memoryVenueCorrectionsStore.decide(corrections[0]!, "resolved", "admin", old + 8_000);
+    const body = await (await get("handle=ken")).json();
+    expect(body.mapFixesComplete).toBe(true);
+    expect(body.mapFixes).toHaveLength(212);
+    expect(body.mapFixes.slice(0, 2).map((outcome: { id: string }) => outcome.id))
+      .toEqual([`pub:${suggestions[0]}`, `fix:${corrections[0]}`]);
+    expect(new Set(body.mapFixes.map((outcome: { id: string }) => outcome.id)))
+      .toEqual(new Set([...suggestions.map((id) => `pub:${id}`), ...corrections.map((id) => `fix:${id}`)]));
+    __seedMemoryOwnedProfile("sam", "user-sam");
+    authState.userId = "user-sam";
+    expect(await (await get("handle=sam")).json()).toMatchObject({ mapFixes: [], mapFixesComplete: true });
+  });
+
+  it.each(["submissions", "corrections"] as const)("preserves incomplete reads until %s recover", async (failedStore) => {
+    __seedMemoryOwnedProfile("ken", "user-ken");
+    authState.userId = "user-ken";
+    const correction = await memoryVenueCorrectionsStore.create(
+      { venueId: "venue-crown", kind: "hours", note: "", ownerUserId: "user-ken" }, 1_000,
+    );
+    await memoryVenueCorrectionsStore.decide(correction.id, "resolved", "admin", 2_000);
+    const failed = failedStore === "corrections"
+      ? vi.spyOn(memoryVenueCorrectionsStore, "listResolvedForOwner")
+        .mockResolvedValueOnce({ status: "degraded", corrections: [] })
+      : vi.spyOn(memoryVenueSubmissionStore, "listAcceptedForOwner")
+        .mockResolvedValueOnce({ status: "degraded", submissions: [] });
+    expect(await (await get("handle=ken")).json()).toMatchObject({ mapFixesComplete: false });
+    failed.mockRestore();
+    expect(await (await get("handle=ken")).json()).toMatchObject({
+      mapFixes: [expect.objectContaining({ id: `fix:${correction.id}` })], mapFixesComplete: true,
+    });
   });
 
   it("refuses a stranger the same way for an owned handle, an unowned handle and a tombstone", async () => {

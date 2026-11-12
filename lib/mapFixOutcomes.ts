@@ -19,14 +19,9 @@ import type { Route } from "next";
 
 import { safeLocalStorage } from "@/lib/safeStorage";
 
-/** An outcome older than this has had its moment. */
-const MAP_FIX_OUTCOME_WINDOW_DAYS = 30;
-/** The most outcomes one inbox read carries. */
-export const MAP_FIX_OUTCOME_MAX = 10;
+export const MAP_FIX_OUTCOME_PAGE_SIZE = 100;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-type MapFixOutcomeKind = "pub_added" | "fact_fixed";
+type MapFixOutcomeKind = "pub_accepted" | "fact_fixed";
 
 export type MapFixOutcome = {
   /** Unique across both kinds, because the two tables mint their ids apart. */
@@ -40,18 +35,20 @@ export type MapFixOutcome = {
   decidedAt: string;
 };
 
+export type MapFixOutcomeRead = { outcomes: MapFixOutcome[]; complete: boolean };
+
 type SubmissionRow = { id: string; name: string; status: string; reviewedAt: string | null };
 type CorrectionRow = { id: string; venueId: string; status: string; resolvedAt: string | null };
 
-function withinWindow(iso: string | null, now: number): iso is string {
+function isDecisionDate(iso: string | null, now: number): iso is string {
   if (!iso) return false;
   const at = Date.parse(iso);
   if (!Number.isFinite(at)) return false;
-  return at <= now && now - at <= MAP_FIX_OUTCOME_WINDOW_DAYS * DAY_MS;
+  return at <= now;
 }
 
 /**
- * The reporter's accepted reports, newest first and capped. Only an accepted
+ * The reporter's accepted reports, newest first. Only an accepted
  * pub and a fixed note count. `venueNames` maps a corrected venue id to its name.
  */
 export function mapFixOutcomesFrom(
@@ -62,17 +59,17 @@ export function mapFixOutcomesFrom(
 ): MapFixOutcome[] {
   const outcomes: MapFixOutcome[] = [];
   for (const row of submissions) {
-    if (row.status !== "accepted" || !withinWindow(row.reviewedAt, now)) continue;
+    if (row.status !== "accepted" || !isDecisionDate(row.reviewedAt, now)) continue;
     outcomes.push({
       id: `pub:${row.id}`,
-      kind: "pub_added",
+      kind: "pub_accepted",
       pubName: row.name,
       venueId: null,
       decidedAt: row.reviewedAt,
     });
   }
   for (const row of corrections) {
-    if (row.status !== "resolved" || !withinWindow(row.resolvedAt, now)) continue;
+    if (row.status !== "resolved" || !isDecisionDate(row.resolvedAt, now)) continue;
     outcomes.push({
       id: `fix:${row.id}`,
       kind: "fact_fixed",
@@ -81,15 +78,13 @@ export function mapFixOutcomesFrom(
       decidedAt: row.resolvedAt,
     });
   }
-  return outcomes
-    .sort((left, right) => Date.parse(right.decidedAt) - Date.parse(left.decidedAt))
-    .slice(0, MAP_FIX_OUTCOME_MAX);
+  return outcomes.sort((left, right) => Date.parse(right.decidedAt) - Date.parse(left.decidedAt));
 }
 
 /** What one Activity row says. */
 export function mapFixOutcomeLine(outcome: MapFixOutcome): string {
-  if (outcome.kind === "pub_added") {
-    return `${outcome.pubName} goes on the map at the next update. Thanks for telling us.`;
+  if (outcome.kind === "pub_accepted") {
+    return `We accepted ${outcome.pubName}. It goes on the map at the next update.`;
   }
   const pub = outcome.pubName || "a pub";
   return `We checked your note on ${pub} and fixed it. Thanks for telling us.`;
@@ -101,19 +96,21 @@ export function mapFixOutcomeHref(outcome: MapFixOutcome): Route | null {
 }
 
 /** Read a server answer's outcomes, dropping any row that is not the shape. */
-export function readMapFixOutcomes(value: unknown): MapFixOutcome[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((row): row is MapFixOutcome => {
+export function readMapFixOutcomes(value: unknown, complete: unknown): MapFixOutcomeRead {
+  if (!Array.isArray(value)) return { outcomes: [], complete: false };
+  const outcomes = value.filter((row): row is MapFixOutcome => {
     if (!row || typeof row !== "object") return false;
     const candidate = row as Record<string, unknown>;
     return (
       typeof candidate.id === "string" &&
-      (candidate.kind === "pub_added" || candidate.kind === "fact_fixed") &&
+      (candidate.kind === "pub_accepted" || candidate.kind === "fact_fixed") &&
       typeof candidate.pubName === "string" &&
       (candidate.venueId === null || typeof candidate.venueId === "string") &&
-      typeof candidate.decidedAt === "string"
+      typeof candidate.decidedAt === "string" &&
+      Number.isFinite(Date.parse(candidate.decidedAt))
     );
   });
+  return { outcomes, complete: complete === true && outcomes.length === value.length };
 }
 
 // ── Seen, per device ─────────────────────────────────────────────────────────
@@ -132,7 +129,8 @@ export function readMapFixSeenAt(userId: string): number | null {
 }
 
 /** Mark every outcome the reporter has now read. */
-export function markMapFixesSeen(userId: string, outcomes: readonly MapFixOutcome[]): void {
+export function markMapFixesSeen(userId: string, { outcomes, complete }: MapFixOutcomeRead): void {
+  if (!complete) return;
   const newest = outcomes.reduce((latest, outcome) => Math.max(latest, Date.parse(outcome.decidedAt) || 0), 0);
   if (newest <= 0) return;
   const seen = readMapFixSeenAt(userId) ?? 0;

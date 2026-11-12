@@ -10,7 +10,7 @@
 // vocabulary lives in lib/notifications.ts.
 //
 // `mapFixes` are the owner's accepted map fixes (lib/mapFixOutcomes.ts): a pub
-// they named that went on, or a note they left that was fixed. They ride the
+// they named that was accepted, or a note they left that was fixed. They ride the
 // bell's existing poll, so hearing back costs no extra request.
 //
 // Reads are fail-soft (the store returns an empty inbox on any error), so a
@@ -42,22 +42,22 @@ export async function GET(request: Request): Promise<Response> {
   }
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
   const handle = await resolveMessageHandle(request, asserted);
-  if (!handle) return jsonNoStore({ notifications: [], unread: 0, mapFixes: [] }, { status: 200 });
+  if (!handle) return jsonNoStore({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: false }, { status: 200 });
   const ownership = await gateHandleAction(request, handle, undefined, {
     requireAccountOwner: true,
   });
   if (!ownership.allowed) {
     // Fail-soft on store outage: empty bell keeps chrome rendering.
     if (ownership.status === 503) {
-      return jsonNoStore({ notifications: [], unread: 0, mapFixes: [] }, { status: 200 });
+      return jsonNoStore({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: false }, { status: 200 });
     }
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
   const [inbox, mapFixes] = await Promise.all([
     notificationsStore().list(handle),
-    ownership.callerUserId ? listMapFixOutcomes(ownership.callerUserId) : Promise.resolve([]),
+    ownership.callerUserId ? listMapFixOutcomes(ownership.callerUserId) : Promise.resolve({ outcomes: [], complete: false }),
   ]);
-  return jsonNoStore({ ...inbox, mapFixes }, { status: 200 });
+  return jsonNoStore({ ...inbox, mapFixes: mapFixes.outcomes, mapFixesComplete: mapFixes.complete }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {

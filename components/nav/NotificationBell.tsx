@@ -73,9 +73,9 @@ export default function NotificationBell(): React.JSX.Element | null {
         discardBody(res);
         return;
       }
-      const body = (await res.json()) as { unread?: number; mapFixes?: unknown };
+      const body = (await res.json()) as { unread?: number; mapFixes?: unknown; mapFixesComplete?: unknown };
       if (controller.signal.aborted || abortRef.current !== controller) return;
-      const unreadFixes = unseenMapFixCount(readMapFixOutcomes(body.mapFixes), readMapFixSeenAt(user.id));
+      const unreadFixes = unseenMapFixCount(readMapFixOutcomes(body.mapFixes, body.mapFixesComplete).outcomes, readMapFixSeenAt(user.id));
       setUnreadResult({
         userId: user.id,
         handle: h,
