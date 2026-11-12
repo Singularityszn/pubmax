@@ -142,13 +142,20 @@ const supabaseRatingsStore: RatingsStore = {
     const identity = await identityHandleStore().wornHandles(ownerHandle);
     const handles = [...new Set([normalizeHandle(ownerHandle), ...(identity?.handles ?? [])])].filter(Boolean);
     if (!handles.length) return 0;
-    const { count, error } = await admin()
-      .from("drink_ratings")
-      .select("id", { count: "exact", head: true })
-      .in("handle", handles);
-    if (error) throw new Error(error.message);
-    if (count === null) throw new Error("Drink review count unavailable");
-    return count;
+    const refs = new Set<string>();
+    let afterId: string | undefined;
+    for (;;) {
+      let query = admin().from("drink_ratings").select("id,drink_ref")
+        .in("handle", handles).order("id", { ascending: true }).limit(500);
+      if (afterId) query = query.gt("id", afterId);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      if (data === null) throw new Error("Drink review count unavailable");
+      if (!data.length) break;
+      for (const row of data) refs.add(row.drink_ref);
+      afterId = data[data.length - 1]!.id;
+    }
+    return refs.size;
   },
   async rate(input) {
     const handle = normalizeHandle(input.handle);
@@ -236,7 +243,7 @@ export const memoryRatingsStore: RatingsStore = {
     const identity = await identityHandleStore().wornHandles(ownerHandle);
     const handles = new Set([normalizeHandle(ownerHandle), ...(identity?.handles ?? [])]);
     return [...memoryVotes.drink.values()].reduce(
-      (total, votes) => total + [...votes.keys()].filter((handle) => handles.has(handle)).length,
+      (total, votes) => total + Number([...votes.keys()].some((handle) => handles.has(handle))),
       0,
     );
   },

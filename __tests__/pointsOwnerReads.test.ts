@@ -59,6 +59,7 @@ import { diaryStore } from "@/lib/diaryStore";
 import { defaultPassportDeps } from "@/lib/profilePassport.server";
 import { venueCorrectionsStore } from "@/lib/venueCorrectionsStore";
 import { venueSubmissionStore } from "@/lib/venueSubmissionStore";
+import { ratingsStore } from "@/lib/ratingsStore";
 
 const id = (value: number) => String(value).padStart(8, "0");
 
@@ -68,6 +69,32 @@ afterEach(() => {
 });
 
 describe("complete server owner reads for points", () => {
+  it("counts distinct reviewed drinks across historic handles and all result pages", async () => {
+    database.tables.profile_handle_aliases = [
+      { id: id(0), profile_id: "owner", handle: "old_reviewer", is_current: false },
+      { id: id(1), profile_id: "owner", handle: "new_reviewer", is_current: true },
+    ];
+    database.tables.drink_ratings = [
+      ...Array.from({ length: 201 }, (_, i) => ({
+        id: id(i), handle: "old_reviewer", drink_ref: `drink-${i}`,
+      })),
+      { id: id(201), handle: "new_reviewer", drink_ref: "drink-0" },
+      { id: id(202), handle: "new_reviewer", drink_ref: "new-drink" },
+      { id: id(203), handle: "another_reviewer", drink_ref: "other-drink" },
+    ];
+    database.tables.venue_ratings = [
+      { id: id(0), handle: "new_reviewer", venue_id: "venue-a" },
+    ];
+
+    expect(await ratingsStore().countDrinkReviews("new_reviewer")).toBe(202);
+    expect(await ratingsStore().countDrinkReviews("old_reviewer")).toBe(202);
+    expect(await ratingsStore().countDrinkReviews("another_reviewer")).toBe(1);
+    expect(await ratingsStore().countDrinkReviews("no_reviews")).toBe(0);
+
+    database.failAfterPage = true;
+    await expect(ratingsStore().countDrinkReviews("new_reviewer")).rejects.toThrow("page unavailable");
+  });
+
   it("includes owned and joined completed plans beyond 200 without duplicating shared plans", async () => {
     database.tables.plan_crew_members = Array.from({ length: 201 }, (_, i) => ({
       id: id(i), user_id: "owner", plan_id: `joined-${id(i)}`,
