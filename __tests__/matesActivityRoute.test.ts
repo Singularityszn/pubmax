@@ -76,6 +76,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   __resetPintDrops();
   __resetMemoryFollows();
   __resetMemoryProfiles();
@@ -83,10 +84,45 @@ afterEach(() => {
 });
 
 describe("GET /api/social/mates-activity", () => {
+  it.each([
+    { status: 200, body: { items: [] } },
+    { status: 403, body: { code: "SOCIAL_ADULT_VERIFICATION_REQUIRED", retryable: false } },
+    { status: 429, body: { code: "RATE_LIMITED", retryable: true } },
+    { status: 503, body: { code: "MATES_ACTIVITY_UNAVAILABLE", retryable: true } },
+  ])("returns the rotated resume cookie with a $status response", async ({ status, body }) => {
+    const resumeCookie = "pubmax_session_resume=rotated-token; Path=/; HttpOnly; SameSite=Lax";
+    routeState.access = {
+      ok: true,
+      actor: { accountId: `user-${ME}`, profileId: me.id, handle: ME },
+      resumeCookie,
+    };
+    if (status === 403) {
+      routeState.access = {
+        ok: false,
+        error: "Adult verification is needed for Social.",
+        code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
+        status,
+        resumeCookie,
+      };
+    }
+    routeState.limited = status === 429;
+    if (status === 503) {
+      vi.spyOn(followStore(), "listMutuals").mockRejectedValueOnce(new Error("Feed unavailable"));
+    }
+
+    const response = await GET(new Request("http://localhost/api/social/mates-activity"));
+
+    expect(response.status).toBe(status);
+    expect(response.headers.get("Set-Cookie")).toBe(resumeCookie);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(await response.json()).toMatchObject(body);
+  });
+
   it("refuses a reader with no verified session, privately", async () => {
     routeState.access = { ok: false, error: "Sign in to use Social.", code: "SOCIAL_SIGN_IN_REQUIRED", status: 401 };
     const response = await GET(new Request("http://localhost/api/social/mates-activity"));
     expect(response.status).toBe(401);
+    expect(response.headers.get("Set-Cookie")).toBeNull();
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
