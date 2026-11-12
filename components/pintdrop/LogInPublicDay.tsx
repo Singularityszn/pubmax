@@ -17,7 +17,7 @@ import {
   pickLogInPublicDrops,
   type LogInPublicDrop,
 } from "@/lib/logInPublicDrops";
-import { discardBody } from "@/lib/responseBody";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./logInPublicDay.css";
 
@@ -27,17 +27,6 @@ type State =
   | { status: "loading" }
   | { status: "ready"; drops: LogInPublicDrop[] }
   | { status: "error" };
-
-async function readDrops(day: string, signal: AbortSignal): Promise<LogInPublicDrop[]> {
-  const response = await fetch(LOG_IN_PUBLIC_FEED_HREF, { cache: "no-store", credentials: "omit", signal });
-  if (!response.ok) {
-    discardBody(response);
-    throw new Error("Pint Drops unavailable");
-  }
-  const drops = pickLogInPublicDrops(await response.json(), day);
-  if (!drops) throw new Error("Pint Drops malformed");
-  return drops;
-}
 
 function DropRow({ drop }: { drop: LogInPublicDrop }) {
   const serving = drop.drink ? `${drop.drink}, ${drop.measure.toLowerCase()}` : drop.measure;
@@ -67,12 +56,23 @@ export default function LogInPublicDay({ day, className }: { day: string; classN
 
   useEffect(() => {
     const controller = new AbortController();
-    readDrops(day, controller.signal)
-      .then((drops) => setState({ status: "ready", drops }))
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+    void loadSurfaceJson<unknown>(
+      LOG_IN_PUBLIC_FEED_HREF,
+      {
+        signal: controller.signal,
+        init: { cache: "no-store", credentials: "omit" },
+        validate: (body) => pickLogInPublicDrops(body, day) !== null,
+      },
+      (body) => {
+        const drops = pickLogInPublicDrops(body, day);
+        if (drops === null) return false;
+        setState({ status: "ready", drops });
+      },
+    ).then((outcome) => {
+      if (outcome === "failed" && !controller.signal.aborted) {
         setState({ status: "error" });
-      });
+      }
+    });
     return () => controller.abort();
   }, [day, attempt]);
 
