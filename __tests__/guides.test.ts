@@ -63,13 +63,20 @@ describe("pickPubOfTheWeek", () => {
     expect(pickPubOfTheWeek(pubs, new Date(start))?.pub.slug).toBe(seen[0]);
   });
 
-  it("never picks a pub that is closed, off the map or without a cited hook", () => {
+  it("never picks a pub that is closed, off the map, or without a cited sentence for its hook", () => {
     const passedOver = [
       pub({ name: "Closed Arms", venueStatus: "closed" }),
       pub({ name: "Gone Tavern", venueStatus: "demolished" }),
       pub({ name: "Unmapped Inn", venueId: null }),
       pub({ name: "Uncited Bell", facts: [] }),
       pub({ name: "Blank Hook", hook: " " }),
+      pub({
+        name: "Label Only",
+        hook: "building in United Kingdom",
+        facts: [{ source: "wikidata", fact: "building in United Kingdom", sourceRef: "https://en.wikipedia.org/wiki/Label" }],
+      }),
+      pub({ name: "Old Coaching Inn", hook: "Former coaching inn in the City of London." }),
+      pub({ name: "Gone Local", hook: "A former public house in Primrose Hill, London." }),
     ];
     const only = pub({ name: "The Only One" });
     const start = new Date("2026-11-09T08:00:00Z").getTime();
@@ -83,7 +90,7 @@ describe("pickPubOfTheWeek", () => {
 });
 
 describe("londonFamousPubs", () => {
-  it("lists dated pubs on the map, oldest first, and leaves out closed and undated ones", () => {
+  it("lists dated pubs on the map with a cited sentence, oldest first, and leaves out the rest", () => {
     const famous = londonFamousPubs([
       pub({ name: "Victorian Vaults", era: "1850" }),
       pub({ name: "Undated Swan" }),
@@ -91,7 +98,14 @@ describe("londonFamousPubs", () => {
       pub({ name: "Closed Crown", era: "1400", venueStatus: "closed" }),
       pub({ name: "Unmapped Mitre", era: "1450", venueId: null }),
       pub({ name: "Century Arms", era: "17th century" }),
+      pub({ name: "Warehouse Inn", era: "1700", hook: "Warehouse Inn occupies an 18th-century former warehouse by the docks." }),
+      pub({
+        name: "Label Tavern",
+        era: "1600",
+        hook: "18th-century tavern in Hampstead",
+        facts: [{ source: "wikidata", fact: "18th-century tavern in Hampstead", sourceRef: "https://en.wikipedia.org/wiki/Label_Tavern" }],
+      }),
     ]);
-    expect(famous.map((row) => row.name)).toEqual(["Old Wharf", "Century Arms", "Victorian Vaults"]);
+    expect(famous.map((row) => row.name)).toEqual(["Old Wharf", "Century Arms", "Warehouse Inn", "Victorian Vaults"]);
   });
 });

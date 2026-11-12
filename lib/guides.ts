@@ -9,7 +9,7 @@ import type { Route } from "next";
 import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { DAY_MS } from "@/lib/dayMs";
 import type { HistoricPub } from "@/lib/historic";
-import { citationHref, filterAndSortHistoric } from "@/lib/historicFilter";
+import { filterAndSortHistoric } from "@/lib/historicFilter";
 import { londonDayKey } from "@/lib/londonHour";
 
 export const GUIDES_PATH = "/guides" as const;
@@ -24,7 +24,7 @@ const ROTATION_STEP_START = 37;
 
 export type PubOfTheWeek = {
   pub: HistoricPub & { venueId: string };
-  /** The hook's own citation. Never null: a pub without one is passed over. */
+  /** The citation of the sentence the hook is. A pub without one is passed over. */
   sourceHref: string;
   /** Monday of the London week the pick belongs to, as YYYY-MM-DD. */
   weekStartsOn: string;
@@ -40,6 +40,27 @@ export type ShortGuide = {
 
 function isOpenAndOnTheMap(pub: HistoricPub): pub is HistoricPub & { venueId: string } {
   return typeof pub.venueId === "string" && pub.venueId.length > 0 && !pub.venueStatus;
+}
+
+/**
+ * Words that say a hook describes a pub that has stopped pouring. "A former
+ * warehouse" is a building's past, not a closed pub, so "former" counts only
+ * in front of a pub word.
+ */
+const GONE_PUB_RE = /\bformer(?:ly)?\s+(?:\w+\s+)?(?:pub|public house|tavern|inn)\b|\b(?:closed|demolished)\b/i;
+
+/**
+ * The cited fact a pub's hook is lifted from, when that fact is prose worth a
+ * week: a Wikipedia sentence or our own cited line. A Wikidata description
+ * ("building in United Kingdom") is a label, not a story, so it never leads.
+ */
+function storyFact(pub: HistoricPub): { sourceRef: string } | null {
+  const hook = pub.hook.trim();
+  if (!hook || GONE_PUB_RE.test(hook)) return null;
+  const fact = pub.facts.find(
+    (candidate) => candidate.fact.trim() === hook && candidate.source !== "wikidata",
+  );
+  return fact?.sourceRef ? { sourceRef: fact.sourceRef } : null;
 }
 
 function greatestCommonDivisor(a: number, b: number): number {
@@ -71,16 +92,19 @@ function londonWeekStartKey(week: number): string {
 }
 
 /**
- * This week's pub: one open historic pub that is on the map and carries a
- * cited hook. The list is ordered by slug, then walked with a fixed step, so
- * the pick is the same for every reader all week, changes each Monday, and
- * reaches every pub before it repeats one.
+ * This week's pub: one open historic pub that is on the map and whose hook is
+ * a cited sentence. The list is ordered by slug, then walked with a fixed
+ * step, so the pick is the same for every reader all week, changes each
+ * Monday, and reaches every pub before it repeats one.
  */
 export function pickPubOfTheWeek(pubs: readonly HistoricPub[], now: Date): PubOfTheWeek | null {
   const eligible = pubs
     .filter(isOpenAndOnTheMap)
-    .filter((pub) => pub.hook.trim().length > 0 && citationHref(pub) !== null)
-    .sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+    .flatMap((pub) => {
+      const fact = storyFact(pub);
+      return fact ? [{ pub, sourceHref: fact.sourceRef }] : [];
+    })
+    .sort((a, b) => (a.pub.slug < b.pub.slug ? -1 : a.pub.slug > b.pub.slug ? 1 : 0));
   if (eligible.length === 0) return null;
 
   let step = ROTATION_STEP_START;
@@ -88,11 +112,10 @@ export function pickPubOfTheWeek(pubs: readonly HistoricPub[], now: Date): PubOf
 
   const week = londonWeekNumber(now);
   const index = (((week * step) % eligible.length) + eligible.length) % eligible.length;
-  const pub = eligible[index];
-  if (!pub) return null;
+  const entry = eligible[index];
+  if (!entry) return null;
   return {
-    pub,
-    sourceHref: citationHref(pub) as string,
+    ...entry,
     weekStartsOn: londonWeekStartKey(week),
   };
 }
@@ -108,7 +131,7 @@ export function weekStartLabel(weekStartsOn: string): string {
 
 /**
  * London's famous pubs: open historic pubs on the map whose cited record
- * states their age, oldest first.
+ * states their age and tells their story in a sentence, oldest first.
  */
 export function londonFamousPubs(
   pubs: HistoricPub[],
@@ -121,6 +144,7 @@ export function londonFamousPubs(
     sort: "oldest",
   })
     .filter(isOpenAndOnTheMap)
+    .filter((pub) => storyFact(pub) !== null)
     .slice(0, limit);
 }
 

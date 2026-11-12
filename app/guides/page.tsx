@@ -144,8 +144,8 @@ export default async function GuidesPage() {
                 London&rsquo;s famous pubs
               </h2>
               <p className="guidesSectionDek">
-                The oldest pubs on our history list, by the date their own record gives. Each
-                one has a Wikipedia page, and we cite it.
+                The oldest pubs on our history list, by the date their own record gives. Tap
+                one for its story and its sources.
               </p>
               <RowList>
                 {famous.map((pub) => (
