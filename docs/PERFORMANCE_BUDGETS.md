@@ -187,8 +187,8 @@ deployment. A session, a caller's identity, a store read that can change
 between two requests, or a URL that can carry the viewer's own coordinates all
 disqualify it.
 
-One named exception stands, by the captain's ruling of 2026-10-03:
-`/api/auth/providers`. Its body is a store read, the Supabase Auth provider
+`/api/auth/providers` is a named exception, by the captain's ruling of
+2026-10-03. Its body is a store read, the Supabase Auth provider
 flags, so it fails the bar as written. It is allowed because the answer is the
 same for every caller and changes only when someone edits the Supabase
 dashboard. The shared copy is fresh for five minutes (`s-maxage=300`, plus a
@@ -197,10 +197,22 @@ to show or hide a button. Before OAuth starts, the client rechecks with
 `?fresh=1`, which is never cached. The exception covers this route alone. It
 does not loosen the bar for any other remote read.
 
+`/api/pint-drops/census` is the other named exception, by the captain's ruling of
+2026-11-11. It returns only the
+public aggregate count, never individual drops or author details. Its explicit
+fresh and stale windows live in the [census route](../app/api/pint-drops/census/route.ts).
+The count can lag behind submissions and removals within those windows.
+The same ruling permits the home page (`app/page.tsx`) to read the census count
+at prerender and hold it for its ISR window. The page stamps the count with
+when it was counted.
+The [census policy](../lib/dutyCensus.ts) owns count eligibility and suppression.
+This exception permits no other mutable community read.
+
 | class | contract | verdict |
 | --- | --- | --- |
 | Night Areas (list and slug) | Bundled config; changes only on deploy | Cached (`jsonCached`) |
 | Social sign-in providers (`/api/auth/providers`) | Supabase dashboard flags, the same for every caller; `?fresh=1` is the pre-OAuth recheck | Cached five minutes; `?fresh=1` no-store |
+| Pint price census | Public aggregate only | Cached under the named exception above |
 | Tonight conditions | Public and read-only, but its URL carries `lat`/`lng` | No-store, deliberately |
 | What's-On | Bundled rows plus a live layer, and it accepts `near=lat,lng` | No-store, escalated |
 | Everything actor-gated | Answer differs per caller | No-store, by law |

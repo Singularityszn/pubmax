@@ -499,6 +499,11 @@ export function listAllVisiblePintDrops(cityId?: CityId | null): PintDrop[] {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+/** Every stored drop in every city, any status, with no demo seeds. */
+export function listAllStoredPintDrops(): PintDrop[] {
+  return Array.from(drops.values()).flat();
+}
+
 // ── Visibility gating (issue #29) ────────────────────────────────────────────
 // Pure predicates over the (drop, viewer) pair. The STORE applies these after a
 // moderation-status filter, so a hidden drop never reaches them. Kept pure +

@@ -28,6 +28,13 @@ Stability and polish remain the immediate launch work. Deployment is Sol-gated.
 
 ## Next
 
+### Duty census, February comparison - next
+
+TODO: after alcohol duty rises on 1 February 2027, compare prices logged before
+and after the rise (`lib/dutyCensus.ts` owns the window). Compare only the same
+pub and the same drink. Keep the house line: "We can't tell it was the same
+pint, so we don't call it a change."
+
 ### Account-privacy wave - next
 
 IG-shaped profiles, built on the shipped public or private toggle.

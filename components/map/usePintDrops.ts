@@ -72,6 +72,7 @@ import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 import { BILL_READING_RECEIPT_LINE } from "@/lib/billCheck";
 import {
   UNCHECKED_RECEIPT_LINE,
+  isPricedWrite,
   isUncheckedPrice,
   photoRefusal,
   priceEvidenceFor,
@@ -105,6 +106,8 @@ export type DropMsg = {
   ok: boolean;
   text: string;
   links?: Array<{ href: Route; label: string }>;
+  /** A priced drop landed, so the duty census card may follow the receipt. */
+  census?: boolean;
   /** The receipt a saved public drop offers to share (lib/pintReceipt.ts). */
   receipt?: ReceiptShare | null;
   accountRevision?: number;
@@ -940,6 +943,7 @@ export function usePintDrops(
         ok: true,
         text: dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
         links,
+        census: isPricedWrite(submittedPrice),
         receipt: receiptShareFromSavedDrop(data.drop, venueLabel),
         accountRevision: submittedAccountRevision,
       });

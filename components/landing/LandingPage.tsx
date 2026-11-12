@@ -92,6 +92,7 @@ export default function LandingPage({
   huntCities = null,
   priceGlass = null,
   discoveryDrinks = [],
+  dutyCensus = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
 }: {
@@ -106,6 +107,11 @@ export default function LandingPage({
    * on the server (components/landing/LandingHuntCities.tsx).
    */
   huntCities?: ReactNode;
+  /**
+   * The before-1-February census card, drawn on the server
+   * (components/census/DutyCensusCard.tsx). Seated under Tonight.
+   */
+  dutyCensus?: ReactNode;
   /** The one real pub above the fold, or null when the data cannot back one. */
   card?: LandingPubCardData | null;
   /** The archive's then rows, keyed by venue id, built beside the card. */
@@ -241,7 +247,7 @@ export default function LandingPage({
             London's dearest pint for the press. */}
         {huntCities}
 
-        {answers ? <LandingAnswerCards answers={answers} /> : null}
+        {answers ? <LandingAnswerCards answers={answers} dutyCensus={dutyCensus} /> : null}
 
         {/* Keep the calculation and the dates behind it together. */}
         <section className="lpWorth" aria-label="What it saves you">
