@@ -1084,6 +1084,106 @@ for (const width of [390, 568, 641, 768]) {
   });
 }
 
+test.describe("cramped sheet touch scrolling", () => {
+  test.use({ hasTouch: true });
+
+  test("568px: peek has no body gap and expanded body swipes reach the footer", async ({ page }, info) => {
+    await page.setViewportSize({ width: 568, height: 844 });
+    await storeThemeChoice(page, "dark");
+    const socket = await openLiveVoice(page);
+    hear(socket, "Find four pubs in Soho");
+    const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find four pubs in Soho" } });
+    expect(response.ok()).toBe(true);
+    const answer = await response.json();
+    const index = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { rows: { id: string; lat: number; lng: number }[] };
+    const venues = index.rows.filter(venue => answer.cards.some((card: { venueId: string }) => card.venueId === venue.id));
+    const request = { tool_name: "search_venues", tool_call_id: `touch-${++eventId}`, tool_type: "webhook", event_id: eventId };
+    socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+    socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+      ...request, is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: { ok: true, tool: "search_venues", answerHint: "Recorded results.", cards: answer.cards, data: { venues } } }),
+    } }));
+    await page.getByRole("list", { name: "Pubs from the voice answer" }).getByRole("link", { name: answer.cards[0].title, exact: true }).click();
+    await expectMapLoadingFrameReleased(page);
+    const sheet = page.locator(".mobileSharedSheet");
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    const header = sheet.locator(".mobileSharedSheetHeader");
+    const handle = (await header.boundingBox())!;
+    const dimensions = await sheet.evaluate(element => ({
+      height: element.getBoundingClientRect().height,
+      chrome: [...element.children].filter(child => !child.classList.contains("mobileSharedSheetBody"))
+        .reduce((sum, child) => sum + child.getBoundingClientRect().height, 0),
+    }));
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height - 3);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height - 3 + dimensions.height - dimensions.chrome, { steps: 15 });
+    await page.mouse.up();
+    await expect(sheet).toHaveClass(/sheet-peek/);
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+      tool_name: "map_focus_pick", tool_call_id: `touch-pick-${++eventId}`, parameters: { number: 2 }, event_id: eventId,
+    } }));
+    await expect(page.locator(".palVoiceBarPick")).toContainText(answer.cards[1].title);
+    await page.setViewportSize({ width: 568, height: 320 });
+    await expect(sheet).toHaveAttribute("data-sheet-cramped", "");
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    const body = sheet.locator(".mobileSharedSheetBody");
+    await expect(body).toHaveCSS("visibility", "hidden");
+    await expect(async () => {
+      expect(await body.evaluate(element => element.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
+    }).toPass();
+    await info.attach("cramped-peek", { body: await page.screenshot({ path: `${SHOTS}/touch-cramped-peek.png` }), contentType: "image/png" });
+    await page.getByRole("button", { name: "Expand sheet", exact: true }).click();
+    await expect(sheet).toHaveClass(/sheet-full/);
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    await expect(body).toBeVisible();
+    await info.attach("expanded-geometry", { body: JSON.stringify(await sheet.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      return { box: box.toJSON(), viewport: { width: innerWidth, height: innerHeight, visual: visualViewport?.height },
+        hit: document.elementFromPoint(box.x + box.width / 2, box.bottom - 10)?.outerHTML.slice(0, 400),
+        scrollHeight: element.scrollHeight, clientHeight: element.clientHeight };
+    })), contentType: "application/json" });
+    await page.screenshot({ path: `${SHOTS}/touch-expanded-before.png` });
+    const cdp = await page.context().newCDPSession(page);
+    const swipe = async () => {
+      const box = (await sheet.boundingBox())!;
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+      for (let step = 1; step <= 12; step += 1) {
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y - step * 6 }] });
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+    await swipe();
+    await expect(async () => expect(await sheet.evaluate(element => element.scrollTop)).toBeGreaterThan(0)).toPass();
+    await expect(async () => {
+      const box = (await sheet.boundingBox())!;
+      expect(await body.evaluate((element, point) => element.contains(document.elementFromPoint(point.x, point.y)), {
+        x: box.x + box.width / 2, y: box.y + box.height / 2,
+      })).toBe(true);
+    }).toPass();
+    const beforeBodySwipe = await sheet.evaluate(element => element.scrollTop);
+    await swipe();
+    await expect(async () => expect(await sheet.evaluate(element => element.scrollTop)).toBeGreaterThan(beforeBodySwipe)).toPass();
+    const action = sheet.locator(".mobileSharedSheetFooter button").first();
+    await expect(async () => {
+      await swipe();
+      expect(await action.evaluate(button => {
+        const box = button.getBoundingClientRect();
+        return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
+    }).toPass({ intervals: [100] });
+    await info.attach("touch-footer", { body: await page.screenshot({ path: `${SHOTS}/touch-cramped-footer.png` }), contentType: "image/png" });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+    await cdp.detach();
+  });
+});
+
 test("568px: large text keeps the sheet exit and End reachable", async ({ page }, info) => {
   await page.setViewportSize({ width: 568, height: 320 });
   await storeThemeChoice(page, "light");
