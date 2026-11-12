@@ -169,24 +169,32 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/moderation queue/i);
   });
 
-  it("discloses OpenAI moderation and report/hide retention for profile pictures", () => {
-    for (const page of [privacy, terms]) {
-      expect(page).toMatch(/profile picture/i);
-      expect(page).toMatch(/OpenAI/);
-      expect(page).toMatch(/omni moderation/i);
-      expect(page).toMatch(/report/i);
-      expect(page).toMatch(/hide/i);
+  it("discloses owned-image moderation and profile-picture controls", () => {
+    const privacyDom = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage)));
+    const termsDom = new JSDOM(renderToStaticMarkup(createElement(TermsPage)));
+    try {
+      const openAiRow = [...privacyDom.window.document.querySelectorAll('[aria-labelledby="third"] dt')]
+        .find((term) => term.textContent === "OpenAI")?.nextElementSibling;
+      for (const disclosure of [
+        privacyDom.window.document.querySelector('[aria-labelledby="collect"]'),
+        openAiRow,
+        termsDom.window.document.querySelector('[aria-labelledby="posts"]'),
+      ]) {
+        const text = disclosure?.textContent?.replace(/\s+/g, " ").trim();
+        expect(text).toMatch(/Profile pictures, primary and gallery covers, private-message photos, venue photos and drink-wall photos use an advisory OpenAI moderation check\./i);
+        expect(text).toMatch(/When OpenAI is not set up, an AI model performs (the|that) check\./);
+      }
+    } finally {
+      privacyDom.window.close();
+      termsDom.window.close();
     }
-    expect(privacy).toMatch(/profile pictures go to OpenAI/i);
-    expect(privacy).toMatch(/does not hide the picture on\s+its own/i);
-    expect(privacy).toMatch(/Hiding stops public delivery/i);
-    expect(privacy).toMatch(/never deletes the stored file/i);
-    expect(privacy).toMatch(/Removing\s+the picture yourself[^]*removes the stored\s+file/i);
-    expect(terms).toMatch(/Profile pictures use an advisory OpenAI omni\s+moderation/i);
-    expect(terms).toMatch(/cannot run[^.]*upload can proceed\s+without scan approval/i);
-    expect(terms).toMatch(/hiding never deletes\s+the stored file/i);
+    expect(privacyText).toMatch(/does not hide the picture on its own/i);
+    expect(privacyText).toMatch(/Hiding stops public delivery/i);
+    expect(privacyText).toMatch(/never deletes the stored file/i);
+    expect(privacyText).toMatch(/Removing the picture yourself[^]*removes the stored file/i);
+    expect(termsText).toMatch(/Readers may report a profile picture; only a named staff member may hide or restore it/i);
+    expect(termsText).toMatch(/hiding never deletes the stored file/i);
     for (const text of [privacyText, termsText]) {
-      expect(text).toMatch(/advisory (OpenAI )?omni moderation/i);
       expect(text).toMatch(/refuses[^.]*picture, we refuse the upload/i);
       expect(text).toMatch(/cannot run or gives no usable decision, the upload can proceed without scan approval/i);
     }
