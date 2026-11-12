@@ -75,7 +75,7 @@ export function warmVenueDetail(venueId: string): Promise<VenueDetailLookupResul
   const pending = inflight.get(venueId);
   if (pending) return pending;
 
-  const request = fetch(venueDetailUrl(venueId))
+  const lookup = () => fetch(venueDetailUrl(venueId))
     .then(
       async (response): Promise<VenueDetailLookupResult> => {
         if (response.status === 404) return { status: "missing" };
@@ -98,7 +98,16 @@ export function warmVenueDetail(venueId: string): Promise<VenueDetailLookupResul
       // No answer at all, which is what a lost signal looks like.
       () => savedCopyResult(venueId),
     )
-    .catch((): VenueDetailLookupResult => ({ status: "failed" }))
+    .catch((): VenueDetailLookupResult => ({ status: "failed" }));
+
+  const request = lookup()
+    .then(async (result) => {
+      if (result.status === "found" && result.savedAt && typeof navigator !== "undefined" && navigator.onLine) {
+        const live = await lookup();
+        if (live.status === "found" && !live.savedAt) return live;
+      }
+      return result;
+    })
     .finally(() => {
       inflight.delete(venueId);
     });
