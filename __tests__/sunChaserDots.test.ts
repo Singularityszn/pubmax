@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { paintedPinIds, PUB_PIN_LAYERS, sameIds, sunDotFeatures } from "@/components/map/sunChaser/sunDots";
+import { paintedPinIds, PUB_PIN_LAYERS, sameIds } from "@/components/map/canvas/paintedPins";
+import { sunDotFeatures } from "@/components/map/sunChaser/sunDots";
 import type { SunEstimate, SunState } from "@/lib/sunChaser";
 
 const FROM = new Date("2026-06-20T15:30:00Z");

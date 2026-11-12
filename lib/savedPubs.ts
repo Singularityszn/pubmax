@@ -25,6 +25,12 @@ export type SavedPub = {
 };
 
 const STORAGE_KEY = "pubmax:savedPubs:v1";
+const savedPubsListeners = new Set<() => void>();
+
+export function subscribeSavedPubs(onChange: () => void): () => void {
+  savedPubsListeners.add(onChange);
+  return () => { savedPubsListeners.delete(onChange); };
+}
 
 // ── Pure core (no window, no storage) ────────────────────────────────────────
 // A saved entry is unique by (venueId, listType): the same pub can live in many
@@ -156,7 +162,9 @@ function write(list: SavedPub[]): void {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch {
     // Storage full / disabled / private mode — the demo degrades silently.
+    return;
   }
+  for (const listener of savedPubsListeners) listener();
 }
 
 async function setSaved(

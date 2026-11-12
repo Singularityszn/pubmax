@@ -6,6 +6,7 @@
 import { Layers, List, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
+import BeenHerePostcodesToggle from "@/components/map/beenHere/BeenHerePostcodesToggle";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import {
@@ -265,6 +266,8 @@ export default function MapLayersControl({
               );
             })}
           </div>
+
+          {cityId === "london" ? <BeenHerePostcodesToggle /> : null}
 
           {onBandChange ? (
             <div className="mapLayersStories" role="group" aria-label="Place stories">
