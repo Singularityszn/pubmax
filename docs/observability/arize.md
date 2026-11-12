@@ -43,10 +43,9 @@ environment reads and nothing else.
 | --- | --- | --- |
 | `ask/model-loop` (default), `api/ask` | `lib/ask/modelLoop.ts` tool loop. See [provider setup](../PUB_PAL_SETUP.md#typed-chat-on-claude) | one AGENT span, one LLM span per round (input: the messages added since the previous round), one TOOL span per tool call |
 | `api/pub-pal/chat` | `lib/palClaudeChat.server.ts`, or keyless `lib/ask/runAsk.ts` with `skipModel: true` | Claude: one AGENT span, one LLM span per round, one TOOL span per tool. Keyless: TOOL spans only. ElevenLabs hosted inference has no LLM span here |
-| `api/heritage` | `lib/heritage.ts` narrations | one LLM span |
-| `api/board-reads`, `api/bill-checks` | `lib/openRouterVision.server.ts`, shared by Board Reader and bill checks | one LLM span with model, token counts and fixed errors, without photos or model answers |
+| `api/board-reads`, `api/bill-checks`, `api/pub-list-import` | `lib/claudeJson.server.ts`, shared by Board Reader, bill checks and pub-list imports | one LLM span with model, token counts and fixed errors, without photos, pasted text or model answers |
 | `search-gateway` | `lib/searchProvider.server.ts` AI SDK `generateText` via the gateway | AI SDK spans (`gen_ai.agent.name = search-gateway`) |
-| `moderation/avatar` | `lib/profileAvatarModeration.ts` both adapters | one LLM span per moderation call |
+| `moderation/avatar` | `lib/profileAvatarModeration.ts` (OpenAI, or Claude through `lib/claudeJson.server.ts`) | one LLM span per moderation call |
 | `moderation/social-post` | `lib/socialPostModeration.ts` | one LLM span |
 
 Every span the helpers write carries `llm.model_name`, the route tag under `metadata.route`, the
@@ -64,8 +63,8 @@ and never on the keyless one, so its spans join the provider, the
 OpenInference filter and the masking exporter the rest of this module uses.
 
 It patches the `openai` npm SDK on require. No module in this app imports that SDK today.
-OpenRouter and moderation adapters use raw `fetch` calls.
-Claude calls use `@anthropic-ai/sdk` through `lib/claudeClient.server.ts` and the explicit model-loop tracing helper.
+The OpenAI moderation adapters use raw `fetch` calls.
+Claude calls use `@anthropic-ai/sdk` through `lib/claudeClient.server.ts` and the explicit tracing helpers. The JSON lane's client turns the SDK's own spans off, so each read is one span.
 The OpenAI instrumentation currently emits nothing. The `openai` dependency exists only so the patch target resolves.
 Do not read the table above as covering OpenAI SDK calls until one exists.
 

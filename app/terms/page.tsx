@@ -186,7 +186,8 @@ export default function TermsPage() {
           decision, the post remains held. We resize Social photos, strip their
           embedded metadata, keep them private, and send them with the post
           text to OpenAI for moderation. Profile pictures use an advisory OpenAI omni
-          moderation check on stored image bytes. If the check refuses a
+          moderation check on stored image bytes, or an Anthropic check when
+          OpenAI is not set up. If the check refuses a
           picture, we refuse the upload and keep your previous picture. If the
           check cannot run or gives no usable decision, the upload can proceed
           without scan approval. Readers may report a profile picture; only a

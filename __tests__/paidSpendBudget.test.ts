@@ -15,18 +15,8 @@ vi.mock("@/lib/ask/runAsk", () => ({
   runAsk: vi.fn(async () => ({ answer: "A quiet one.", citations: [], tools: [] })),
 }));
 
-vi.mock("@/lib/heritage", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/heritage")>();
-  return {
-    ...actual,
-    answerHeritage: vi.fn(async () => ({ answer: "Here's what's on record.", citations: [] })),
-  };
-});
-
 import { POST as ASK_POST } from "@/app/api/ask/route";
-import { POST as HERITAGE_POST } from "@/app/api/heritage/route";
 import { runAsk } from "@/lib/ask/runAsk";
-import { answerHeritage } from "@/lib/heritage";
 import {
   PAID_SPEND_BUDGET_WINDOW_MS,
   PAID_SPEND_DEFAULT_DAILY_BUDGET,
@@ -46,11 +36,10 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.useRealTimers();
   vi.mocked(runAsk).mockClear();
-  vi.mocked(answerHeritage).mockClear();
 });
 
 /** A request from one caller address, read the way every paid route reads it. */
-function from(address: string, url = "http://localhost/api/heritage"): Request {
+function from(address: string, url = "http://localhost/api/ask"): Request {
   return new Request(url, { method: "POST", headers: { "x-real-ip": address } });
 }
 
@@ -59,7 +48,7 @@ function keyless(): void {
   __resetPintDrops();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
 }
 
 describe("the budget key", () => {
@@ -129,17 +118,17 @@ describe("the address share", () => {
 
   it("refuses one address after its share while other addresses still spend the lane", async () => {
     keyless();
-    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_HERITAGE", "10");
+    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_PUB_LIST_IMPORT", "10");
     for (let call = 0; call < 5; call += 1) {
-      expect(await admitPaidSpend("heritage", from("203.0.113.10"))).toBe(true);
+      expect(await admitPaidSpend("pub-list-import", from("203.0.113.10"))).toBe(true);
     }
     for (let call = 0; call < 5; call += 1) {
-      expect(await admitPaidSpend("heritage", from("203.0.113.10"))).toBe(false);
+      expect(await admitPaidSpend("pub-list-import", from("203.0.113.10"))).toBe(false);
     }
     for (let call = 0; call < 5; call += 1) {
-      expect(await admitPaidSpend("heritage", from("198.51.100.20"))).toBe(true);
+      expect(await admitPaidSpend("pub-list-import", from("198.51.100.20"))).toBe(true);
     }
-    expect(await admitPaidSpend("heritage", from("192.0.2.30"))).toBe(false);
+    expect(await admitPaidSpend("pub-list-import", from("192.0.2.30"))).toBe(false);
   });
 
   it("answers the same sentence to every refused caller", async () => {
@@ -239,32 +228,3 @@ describe("POST /api/ask from one address", () => {
   });
 });
 
-describe("POST /api/heritage under a spent deployment ceiling", () => {
-  it("answers from the grounded facts rather than refusing", async () => {
-    keyless();
-    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_HERITAGE", "0");
-    const response = await HERITAGE_POST(
-      new Request("http://localhost/api/heritage", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-real-ip": "203.0.113.10" },
-        body: JSON.stringify({ venueName: "The Lamb", question: "How old is this pub?" }),
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ answer: "Here's what's on record.", citations: [] });
-    expect(vi.mocked(answerHeritage).mock.calls.map(([input]) => input.skipModel)).toEqual([true]);
-  });
-
-  it("lets an admitted question reach the model", async () => {
-    keyless();
-    await HERITAGE_POST(
-      new Request("http://localhost/api/heritage", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-real-ip": "203.0.113.11" },
-        body: JSON.stringify({ venueName: "The Lamb", question: "How old is this pub?" }),
-      }),
-    );
-    expect(vi.mocked(answerHeritage).mock.calls.map(([input]) => input.skipModel)).toEqual([false]);
-  });
-});

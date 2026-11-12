@@ -610,7 +610,6 @@ describe("POST /api/pub-pal/chat", () => {
     vi.setSystemTime(new Date("2026-10-22T18:00:00.000Z"));
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("TYPESAFE_API_KEY", "");
-    vi.stubEnv("OPENROUTER_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     authState.userId = "11111111-1111-4111-8111-111111111111";
     tasteState.taste = {

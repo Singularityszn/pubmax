@@ -41,16 +41,11 @@ Changing `ADMIN_TOKEN` invalidates existing sessions.
 The signed format replaces the old static token digest, so existing moderators must sign in again after this update.
 The `x-admin-token` header remains available for scripts.
 
-### Optional — The Landlord (heritage Q&A)
-
-| Var | Purpose |
-|---|---|
-| `OPENROUTER_API_KEY` | Enables heritage narration, Board Reader and [background bill checks](rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price). Without it, `/api/heritage` returns the grounded, structured-only fallback. |
-| `OPENROUTER_MODEL` | Model for heritage narration and the shared Board Reader and bill check vision client. See `.env.example` for the model setting. The optional OpenRouter tool loop on `POST /api/ask` also uses it when `ANTHROPIC_API_KEY` is unset. Pal typed chat and voice do not use OpenRouter. |
+The Landlord (`/api/heritage`) needs no key: it reads back the stored, cited heritage facts and calls no model.
 
 ### Optional user chat on Claude
 
-[Claude setup](PUB_PAL_SETUP.md#typed-chat-on-claude) owns `ANTHROPIC_API_KEY`, spend limits, and the shared `PUB_PAL_CLAUDE_MODEL` setting for Pub Pal typed chat and map Ask.
+[Claude setup](PUB_PAL_SETUP.md#typed-chat-on-claude) owns `ANTHROPIC_API_KEY`, spend limits, and the shared `PUB_PAL_CLAUDE_MODEL` setting. The same key backs Pub Pal typed chat, map Ask, Board Reader, [background bill checks](rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price), pub-list imports and, without `OPENAI_API_KEY`, owned-avatar moderation.
 
 ### Pub Pal voice and hosted typed chat (ElevenLabs)
 

@@ -40,7 +40,7 @@ async function ask(entry: typeof dataset.cases[number]): Promise<AskResponseBody
 }
 
 beforeEach(() => {
-  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubGlobal("fetch", vi.fn(() => { throw new Error("The heritage evaluator must stay offline."); }));
 });

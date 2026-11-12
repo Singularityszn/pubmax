@@ -1,0 +1,86 @@
+name: Heritage data refresh
+
+# Monthly refresh of the stored heritage facts The Landlord reads back
+# (lib/heritage.ts calls no model). Two existing scripts re-read their open
+# sources, each through its lib/harvest/sourcePolicy.ts row:
+#   - npm run build:wikidata-history: Wikidata statements for OSM-linked London
+#     pubs (wikidata-query-service row, CC0). A failed batch writes nothing.
+#   - npm run build:heritage-listings: Historic England NHLE listed buildings
+#     (historic-england-nhle row, OGL v3.0), with the points it read as evidence.
+# A change opens a review PR on its own branch. It never pushes to main. No
+# change pushes nothing. This is a GitHub schedule on purpose, not a Vercel cron.
+on:
+  schedule:
+    # 06:17 UTC on the 3rd of each month.
+    - cron: "17 6 3 * *"
+  # Allow a manual run from the Actions tab.
+  workflow_dispatch:
+
+# Nothing at the workflow level; the one job below asks for what it uses.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    # This workflow does not run on pull_request, so a fork cannot read the
+    # job token. See docs/CI_RUNBOOK.md.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the review branch
+      pull-requests: write # open the review PR
+    timeout-minutes: 30
+    env:
+      REFRESHED: public/data/wikidata_history/london.json public/data/heritage_listings.json data/heritage/nhle_london_points.json
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Refresh Wikidata history
+        run: npm run build:wikidata-history
+
+      - name: Refresh Historic England listings
+        run: npm run build:heritage-listings
+
+      - name: Validate bundled data
+        # Guard: a refresh must never ship data that fails the app's own
+        # validation. Only the refreshed files are staged below.
+        run: npm run validate-data
+
+      - name: Configure review commit identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Open review PR when the facts changed
+        env:
+          # `gh` uses this token to open the review PR, and git uses it for
+          # this step only to push the review branch.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # shellcheck disable=SC2086 # REFRESHED is a space-separated path list.
+          if git diff --quiet -- $REFRESHED; then
+            echo "Heritage facts unchanged; nothing pushed."
+            exit 0
+          fi
+          stamp="$(date -u +%Y-%m-%d)"
+          branch="heritage-refresh/${stamp}-${GITHUB_RUN_ID}"
+          git switch --create "$branch"
+          # shellcheck disable=SC2086
+          git add -- $REFRESHED
+          git commit -m "chore(heritage): refresh Wikidata and NHLE facts ${stamp}"
+          scripts/ci/with-git-token.sh git push --set-upstream origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore(heritage): refresh Wikidata and NHLE facts ${stamp}" \
+            --body "Scheduled monthly refresh of the stored heritage facts The Landlord reads back. Wikidata statements (npm run build:wikidata-history) and Historic England listings (npm run build:heritage-listings) were re-read through their sourcePolicy rows. Review the changed facts before merging."

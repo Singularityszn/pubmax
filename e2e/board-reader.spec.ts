@@ -11,7 +11,7 @@ import {
 
 // The board reader (round 5 A4) from the venue sheet, keyless.
 //
-// KEYLESS ONLY. The reader needs OPENROUTER_API_KEY on the server
+// KEYLESS ONLY. The reader needs ANTHROPIC_API_KEY on the server
 // (lib/boardRead.server.ts#boardReaderKeyed). With no key the page says one
 // line and offers no control, and that is the state this spec holds. The keyed
 // half (choose a photo, the Pal proposes rows, the drinker confirms each row)

@@ -38,7 +38,6 @@ beforeEach(() => {
   vi.stubGlobal("fetch", offlineFetch);
   isLimitedMock.mockReset().mockResolvedValue(false);
   modelLoopMock.mockReset().mockResolvedValue(null);
-  delete process.env.OPENROUTER_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -552,7 +551,7 @@ describe("POST /api/ask", () => {
   });
 
   it("refuses an area burger price before model routing or price cards", async () => {
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = "test-key";
     const result = await runAsk({ query: "How much is a burger in Camden?", cityId: "london" });
     expect(result.answer).toMatch(/meal prices|food prices|menu prices/i);
     expect(result.cards).toEqual([]);
@@ -568,7 +567,7 @@ describe("POST /api/ask", () => {
     "Coke prices at The Eagle",
     "Prices for Coke at The Eagle",
   ])("requests a pub identity for ambiguous named Coke pricing: %s", async (query) => {
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = "test-key";
     const result = await runAsk({ query, cityId: "london" });
     expect(result.answer).toMatch(/listed pub/i);
     expect(result.cards).toEqual([]);
@@ -607,7 +606,7 @@ describe("POST /api/ask", () => {
   });
 
   it("keeps a named-pub wine lookup on recorded drinks before model routing", async () => {
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = "test-key";
     const result = await runAsk({ query: "Cheapest wine at The Lamb", cityId: "london" });
     expect(result.toolsUsed).toEqual(["venue_drinks"]);
     expect(result.answer).not.toMatch(/cheapest listed pints/i);
@@ -743,7 +742,7 @@ describe("POST /api/ask", () => {
       }],
       answer: "2 grounded picks from CityMCP",
     });
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = "test-key";
 
     const result = await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
 
@@ -751,7 +750,7 @@ describe("POST /api/ask", () => {
     expect(result.answer).not.toMatch(/CityMCP|grounded/iu);
   });
 
-  it("runs the model loop on a Claude key alone, with no OpenRouter key", async () => {
+  it("runs the model loop on a Claude key", async () => {
     process.env.ANTHROPIC_API_KEY = "test-key";
 
     await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
@@ -759,7 +758,7 @@ describe("POST /api/ask", () => {
     expect(modelLoopMock).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the model loop off with neither key", async () => {
+  it("keeps the model loop off without a Claude key", async () => {
     await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
 
     expect(modelLoopMock).not.toHaveBeenCalled();

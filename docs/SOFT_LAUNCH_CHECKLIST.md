@@ -48,7 +48,7 @@ keeps preview hosts private, so open them signed in to the Vercel team.
 | # | Step | Owner | Proof | Command or page |
 |---|---|---|---|---|
 | 1.2.1 | Preview environment carries the apex site URL | Captain | `NEXT_PUBLIC_SITE_URL=https://pubmaxxing.com` in the Preview environment. A preview host in that value breaks the magic-link callback. Detail: [`docs/DEPLOYMENT.md`](DEPLOYMENT.md). | Vercel, Project, Settings, Environment Variables |
-| 1.2.2 | Preview environment carries every secret | Captain | `SUPABASE_*`, `OPENROUTER_API_KEY`, `ADMIN_TOKEN`, `RATE_LIMIT_SALT` and `CRON_SECRET` are all set in Preview. | Vercel, Project, Settings, Environment Variables |
+| 1.2.2 | Preview environment carries every secret | Captain | `SUPABASE_*`, `ANTHROPIC_API_KEY`, `ADMIN_TOKEN`, `RATE_LIMIT_SALT` and `CRON_SECRET` are all set in Preview. | Vercel, Project, Settings, Environment Variables |
 | 1.2.3 | Demo content is off | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off` in Preview and in Production. `NEXT_PUBLIC_DEMO_DRINKS` stays unset. A seeded pour beside a real Pint Drop is a trust failure. | Vercel, Project, Settings, Environment Variables |
 | 1.2.4 | The map paints | Fleet | Pins render, clusters open, the console is clean. | `<preview-url>/map` |
 | 1.2.5 | A pub sheet is honest | Fleet | The sheet shows a real figure with its lane, or one honest absence line. Never a blank. | Tap any pin on `<preview-url>/map` |

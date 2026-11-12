@@ -3,10 +3,10 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 
 import {
-  CLAUDE_CHAT_DEFAULT_MODEL,
+  CLAUDE_DEFAULT_MODEL,
   claudeApiKey,
   claudeCachedSystem,
-  claudeChatModel,
+  claudeModel,
   claudeClient,
   claudeConfigured,
   claudePromptTokens,
@@ -48,7 +48,7 @@ import { readPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurn
 // markers are shared with map Ask (lib/claudeClient.server.ts).
 const TRACE_ROUTE = "api/pub-pal/chat";
 /** A fast, low-cost model. `PUB_PAL_CLAUDE_MODEL` overrides it without a deploy of code. */
-export const PAL_CLAUDE_DEFAULT_MODEL = CLAUDE_CHAT_DEFAULT_MODEL;
+export const PAL_CLAUDE_DEFAULT_MODEL = CLAUDE_DEFAULT_MODEL;
 // Each round is one model call. Four leaves room for a memory read, two
 // factual tools and the reply; the turn deadline still bounds the whole loop.
 const MAX_ROUNDS = 4;
@@ -187,7 +187,7 @@ export async function runPalClaudeChatTurn(
 
   const client = dependencies.client ?? claudeClient(apiKey!);
   const runTool = dependencies.runTool ?? runPalTool;
-  const model = claudeChatModel();
+  const model = claudeModel();
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), Math.max(0, deadline - Date.now()));
   const onCallerAbort = () => abort.abort();

@@ -228,7 +228,7 @@ For signing-key effects on pending Pint Drop and Round retries, see the [creatio
 | 3 | `ADMIN_TOKEN`, `CRON_SECRET` | Admin routes and every mutating scheduled route | Generate with `openssl rand -hex 32`. Vercel cron picks up `CRON_SECRET` on the next deploy. |
 | 4 | `PLAN_IDEMPOTENCY_SECRET`, `SOCIAL_CONNECTION_ENCRYPTION_KEY` | Signs proofs and encrypts stored tokens | Open proofs expire. Rotating the encryption key makes stored social tokens unreadable: users reconnect. |
 | 5 | `RATE_LIMIT_SALT`, `ACTOR_HASH_SALT`, `PLAN_MEMBER_TOKEN_SALT`, `PLAN_INVITE_TOKEN_SALT` | Hash salts | Rate-limit buckets reset. `ACTOR_HASH_SALT` changes every stored actor hash, so past reactions lose their owner. `PLAN_*` salts break outstanding invite and member links. Rotate only on evidence of leak. |
-| 6 | Paid vendor keys: `ELEVENLABS_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `OPENAI_API_KEY`, `AI_GATEWAY_API_KEY`, `ELEVENLABS_LLM_SHARED_SECRET` | Money. Set a monthly cap in each vendor dashboard as well | None for users. |
+| 6 | Paid vendor keys: `ELEVENLABS_API_KEY`, `ANTHROPIC_API_KEY`, `TYPESAFE_API_KEY`, `OPENAI_API_KEY`, `AI_GATEWAY_API_KEY`, `ELEVENLABS_LLM_SHARED_SECRET` | Money. Set a monthly cap in each vendor dashboard as well | None for users. |
 | 7 | Push and mail: `APNS_PRIVATE_KEY`, `FCM_PRIVATE_KEY`, `VAPID_PRIVATE_KEY`, `RESEND_API_KEY` | Sends as the app | Rotating `VAPID_PRIVATE_KEY` drops every web push subscription. |
 | 8 | Data vendors: `TAVILY_API_KEY`, `EXA_API_KEY`, `FIRECRAWL_API_KEY`, `TICKETMASTER_API_KEY`, `GOOGLE_PLACES_API_KEY` and the rest in `.env.example` | Quota only | None. |
 | 9 | `SUPABASE_ACCESS_TOKEN` (ledger check and `cli-read-only` backup login), GitHub personal tokens, the Vercel token, `PUBMAX_ALERT_WEBHOOK_URL` | Operator access | Re-create in the vendor, update the environment that runs the backup and the repository secret. |
@@ -250,7 +250,7 @@ Fill this in at every rotation. A blank date means "never rotated".
 | `ADMIN_TOKEN` | | | |
 | `CRON_SECRET` | | | |
 | `ELEVENLABS_API_KEY` | | | |
-| `OPENROUTER_API_KEY` | | | |
+| `ANTHROPIC_API_KEY` | | | |
 | `PUBMAX_ALERT_WEBHOOK_URL` | | | |
 
 ## 6. Domain loss

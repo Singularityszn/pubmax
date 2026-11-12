@@ -15,7 +15,7 @@ const MAX_QUERY_LENGTH = 500;
 /**
  * Night OS Ask (ADR 0014) — unified grounded agent over the tool registry.
  * Keyless deterministic path always works; model tool-calling (Claude when
- * ANTHROPIC_API_KEY is set, else OpenRouter) is optional and withheld in
+ * ANTHROPIC_API_KEY is set) is optional and withheld in
  * production without a durable limiter (same fence as concierge).
  */
 export async function POST(request: Request): Promise<Response> {

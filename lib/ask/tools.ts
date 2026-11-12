@@ -960,7 +960,7 @@ const HANDLERS: Record<
   report_occupancy: toolReportOccupancy,
 };
 
-/** OpenAI/OpenRouter tool schema for the allowlisted Night OS tools. */
+/** Tool schema for the allowlisted Night OS tools. */
 export function askToolDefinitions(): Array<{
   type: "function";
   function: {

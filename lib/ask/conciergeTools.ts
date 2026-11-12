@@ -529,7 +529,7 @@ export function occupancyReportOutcome(input: {
 // ---------------------------------------------------------------------------
 
 /**
- * OpenAI/OpenRouter schemas for the five V0.1 tools. Spread into the one
+ * Tool schemas for the five V0.1 tools. Spread into the one
  * registry list in `lib/ask/tools.ts` so the allowlist stays a single place.
  *
  * `cheapest_pint_near` carries no lat/lng by design.

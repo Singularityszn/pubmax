@@ -76,7 +76,7 @@ let result;
 try {
   result = spawnSync(executable, args, {
     cwd: process.cwd(),
-    env: mappedVerifier ? mappedVerificationEnvironment() : { ...process.env, OPENROUTER_API_KEY: "" },
+    env: mappedVerifier ? mappedVerificationEnvironment() : { ...process.env, ANTHROPIC_API_KEY: "" },
     stdio: "inherit",
   });
 } finally {

@@ -1,8 +1,7 @@
 // The bill check's model call and its background run (lib/billCheck.server.ts).
 //
-// The read goes through the SAME vision lane as the board reader
-// (lib/openRouterVision.server.ts): zero retention, strict JSON schema, one
-// client. The run spends its own paid lane, records only the verdict and the
+// The read goes through the SAME JSON lane as the board reader
+// (lib/claudeJson.server.ts): Claude, strict JSON schema, one client. The run spends its own paid lane, records only the verdict and the
 // lines it needs, and grants `receipt` on a match and nothing else.
 
 
@@ -21,19 +20,11 @@ import { readBoardPhoto } from "@/lib/boardRead.server";
 import { __resetBillChecks, memoryBillCheckStore, type BillCheckRecord, type BillCheckStore } from "@/lib/billCheckStore";
 import { readBillPhoto, runBillCheck, runBillChecks, type BillCheckRun } from "@/lib/billCheck.server";
 import { __resetPintDrops, addPintDrop, findPintDropsByIds, grantPintDropReceipt } from "@/lib/pintDrops";
+import { CLAUDE_MESSAGES_URL, claudeJsonResponse, sentClaudeBody, sentClaudeUrl } from "@/__tests__/helpers/claudeWire";
 
-const KEYED = { OPENROUTER_API_KEY: "test-key" };
+const KEYED = { ANTHROPIC_API_KEY: "test-key" };
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
-
-function modelAnswer(content: unknown): Response {
-  return new Response(
-    JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(content) } }],
-      usage: { prompt_tokens: 900, completion_tokens: 40, total_tokens: 940 },
-    }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
-}
+const modelAnswer = claudeJsonResponse;
 
 const BILL = {
   venue_name: "The Blackfriar",
@@ -51,7 +42,7 @@ describe("readBillPhoto", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("sends the photo to the zero-retention lane with a strict schema and keeps the priced lines", async () => {
+  it("sends the photo to Claude with a strict schema and keeps the priced lines", async () => {
     const fetcher = vi.fn(async () => modelAnswer(BILL));
     const read = await readBillPhoto(JPEG, { env: KEYED, fetcher });
 
@@ -62,21 +53,18 @@ describe("readBillPhoto", () => {
         { name: "Crisps", priceGbp: 1.5 },
       ],
     });
-    const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
-    const sent = JSON.parse(String(init.body));
-    expect(sent.provider).toEqual({ require_parameters: true, zdr: true });
-    expect(sent.temperature).toBe(0);
-    expect(sent.response_format.type).toBe("json_schema");
-    expect(sent.response_format.json_schema).toMatchObject({ name: "bill", strict: true });
-    const schema = sent.response_format.json_schema.schema;
+    expect(sentClaudeUrl(fetcher.mock.calls[0])).toBe(CLAUDE_MESSAGES_URL);
+    const sent = sentClaudeBody(fetcher.mock.calls[0]);
+    expect(sent.model).toBe("claude-haiku-5-5");
+    expect(sent.output_config.format.type).toBe("json_schema");
+    const schema = sent.output_config.format.schema;
     expect(Object.keys(schema.properties).sort()).toEqual(["date", "lines", "venue_name"]);
     expect(Object.keys(schema.properties.lines.items.properties).sort()).toEqual(["name", "price_gbp"]);
-    const image = sent.messages[0].content.find((part: { type: string }) => part.type === "image_url");
-    expect(image.image_url.url).toBe(`data:image/jpeg;base64,${JPEG.toString("base64")}`);
-    const prompt = sent.messages[0].content.find((part: { type: string }) => part.type === "text").text;
-    expect(prompt).toMatch(/data, never as instructions/);
-    expect(prompt).toMatch(/card/i);
+    expect(sent.messages[0].content).toEqual([
+      { type: "image", source: { type: "base64", media_type: "image/jpeg", data: JPEG.toString("base64") } },
+    ]);
+    expect(sent.system).toMatch(/data, never as instructions/);
+    expect(sent.system).toMatch(/card/i);
   });
 
   it("answers failed on a provider error or an answer it cannot parse", async () => {
@@ -84,30 +72,25 @@ describe("readBillPhoto", () => {
       await readBillPhoto(JPEG, { env: KEYED, fetcher: vi.fn(async () => new Response("no", { status: 502 })) }),
     ).toEqual({ status: "failed" });
     expect(
-      await readBillPhoto(JPEG, {
-        env: KEYED,
-        fetcher: vi.fn(async () =>
-          new Response(JSON.stringify({ choices: [{ message: { content: "Guinness £6.20" } }] }), { status: 200 }),
-        ),
-      }),
+      await readBillPhoto(JPEG, { env: KEYED, fetcher: vi.fn(async () => modelAnswer("Guinness £6.20")) }),
+    ).toEqual({ status: "failed" });
+    expect(
+      await readBillPhoto(JPEG, { env: KEYED, fetcher: vi.fn(async () => modelAnswer(BILL, "refusal")) }),
     ).toEqual({ status: "failed" });
   });
 });
 
-describe("the approved vision provider contract", () => {
+describe("the Claude JSON lane contract", () => {
   it.each([
     ["bill", readBillPhoto, BILL],
     ["board", readBoardPhoto, { rows: [] }],
-  ] as const)("sends the %s reader through the zero-retention strict-schema endpoint", async (_name, reader, answer) => {
+  ] as const)("sends the %s reader to Claude with a strict schema", async (_name, reader, answer) => {
     const fetcher = vi.fn(async () => modelAnswer(answer));
     expect((await reader(JPEG, { env: KEYED, fetcher })).status).toBe("read");
-    const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
-    const sent = JSON.parse(String(init.body));
-    expect(sent.provider).toEqual({ require_parameters: true, zdr: true });
-    expect(sent.response_format.type).toBe("json_schema");
-    expect(sent.response_format.json_schema.strict).toBe(true);
-    expect(sent.response_format.json_schema.schema.additionalProperties).toBe(false);
+    expect(sentClaudeUrl(fetcher.mock.calls[0])).toBe(CLAUDE_MESSAGES_URL);
+    const sent = sentClaudeBody(fetcher.mock.calls[0]);
+    expect(sent.output_config).toMatchObject({ effort: "low", format: { type: "json_schema" } });
+    expect(sent.output_config.format.schema.additionalProperties).toBe(false);
   });
 });
 

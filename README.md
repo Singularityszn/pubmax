@@ -411,8 +411,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL + OpenFreeMap
-basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) · OpenRouter
-(Claude) for The Landlord · Vitest + Playwright · deployed on Vercel.
+basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) · Claude API
+(Anthropic) for map Ask, Pub Pal typed chat, Board Reader and bill checks ·
+Vitest + Playwright · deployed on Vercel.
 
 ## Quick start
 
@@ -423,7 +424,7 @@ npm install
 npm run dev            # http://localhost:3000 — works with NO secrets
 ```
 
-The app runs **keyless** for local dev: Pint Drops use an in-memory store and The Landlord answers in grounded/structured mode (reads the facts on record; no narration). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `OPENROUTER_API_KEY`.
+The app runs **keyless** for local dev: Pint Drops use an in-memory store and The Landlord reads back the cited facts on record (it never calls a model). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `ANTHROPIC_API_KEY`.
 
 ### WebMCP Agent Night Board
 
@@ -533,7 +534,7 @@ time, so a change needs a fresh deployment.
 - **[`docs/MOBILE_FLOW_SPEC.md`](docs/MOBILE_FLOW_SPEC.md)** - mobile transition, Back, and state-preservation principles.
 - **[`docs/MAP_URL_PARAMS.md`](docs/MAP_URL_PARAMS.md)** - map URL ownership, validation, and history rules.
 - **[`docs/specs/governed-priced-landings/PRODUCT.md`](docs/specs/governed-priced-landings/PRODUCT.md)** - the publication and redirect contract for beer and area pages.
-- **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
+- **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + Claude API runbook.
 - **[`docs/CRON_PLANE_RUNBOOK.md`](docs/CRON_PLANE_RUNBOOK.md)** - scheduler, auth, failure posture, and honest freshness boundaries.
 - **[`docs/LOCAL_REFRESH_SCHEDULER.md`](docs/LOCAL_REFRESH_SCHEDULER.md)** - local launchd acquisition, resource gates, logs, and review-PR operation.
 - **[`docs/WAYFINDER_LIVE_DATA.md`](docs/WAYFINDER_LIVE_DATA.md)** - source, cadence, gate, and staleness policy for every data class.

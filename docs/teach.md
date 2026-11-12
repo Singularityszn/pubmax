@@ -16,8 +16,8 @@ You pick a crawl style, filter, and either accept a **Suggested Crawl** or **Bui
 
 **Stack:** Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL +
 OpenFreeMap basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) ·
-OpenRouter (Claude) for The Landlord · Vitest + Playwright · deployed on
-Vercel.
+Claude API (Anthropic) for map Ask, Pub Pal typed chat, Board Reader and bill
+checks · Vitest + Playwright · deployed on Vercel.
 
 ---
 
@@ -28,7 +28,7 @@ npm install
 npm run dev            # http://localhost:3000 — works with NO secrets
 ```
 
-The app runs **keyless** for local dev: Pint Drops use an in-memory store, and The Landlord answers in "structured/grounded" mode (reads the facts on record; no narration). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `OPENROUTER_API_KEY`.
+The app runs **keyless** for local dev: Pint Drops use an in-memory store, and The Landlord reads back the cited facts on record (it never calls a model). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `ANTHROPIC_API_KEY`.
 
 Useful scripts (`package.json`):
 
@@ -79,7 +79,7 @@ PubMaxxing is a **thin, deterministic pipeline** with a small server seam. The d
 **Four ideas run through everything:**
 
 1. **Provenance never flattens.** Sourced editorial, community contributions, anecdotes, and demo seeds stay visibly distinct — the badge *is* the product's trust signal.
-2. **Seams light up with keys, honest fallbacks without.** No Supabase → in-memory + production-503; no OpenRouter → The Landlord reads facts back instead of narrating; the app never *pretends* to have data or durability it doesn't.
+2. **Seams light up with keys, honest fallbacks without.** No Supabase → in-memory + production-503; no Claude key → Ask answers from its deterministic tools and a bill stays unchecked; the app never *pretends* to have data or durability it doesn't.
 3. **Content-hashed stable ids.** A venue's id is an FNV hash of its name+address+coords, not an array index — so seeds and curated crawls survive dataset reordering.
 4. **One write path, one URL write path, one map lifecycle.** Single seams keep the invariants enforceable.
 
@@ -255,7 +255,7 @@ remote; landmark distances are straight-line by design (labelled as such).
 
 ### Overview
 
-The backend is deliberately small and seam-first: **one write path** for Pint Drops and **one Q&A path** for The Landlord, each a single Next.js route handler. The guiding ADR: **no client-side database access** — the browser never talks to Supabase directly; every write is validated, provenance-tagged, and rate-limited *before* it reaches storage, via a service-role admin client that only exists on the server (`lib/supabase.ts:7`). Two providers, both optional: **Supabase** (Postgres + Storage + RLS) and **OpenRouter** (the LLM). The single backend-selection point is `store()` (`app/api/pint-drops/route.ts:24`) — every handler talks only to the `PintDropStore` interface.
+The backend is deliberately small and seam-first: **one write path** for Pint Drops and **one Q&A path** for The Landlord, each a single Next.js route handler. The guiding ADR: **no client-side database access** — the browser never talks to Supabase directly; every write is validated, provenance-tagged, and rate-limited *before* it reaches storage, via a service-role admin client that only exists on the server (`lib/supabase.ts:7`). Two providers, both optional: **Supabase** (Postgres + Storage + RLS) and the **Claude API** (the LLM). The single backend-selection point is `store()` (`app/api/pint-drops/route.ts:24`) — every handler talks only to the `PintDropStore` interface.
 
 ### Key pieces
 
@@ -266,7 +266,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 | `lib/pintDropsStore.ts` | The `PintDropStore` interface + two implementations; photo upload, DTOs, upload cleanup, the atomic `report_pint_drop` RPC |
 | `lib/supabase.ts` | `getSupabaseAdmin` (service-role, server-only), config checks, `checkRateLimitDurable` (fail-open), and a re-export of `hashIp` |
 | `lib/rateLimitHash.ts` | The one definition of `hashIp` (salted), a pure leaf so a route needing only a limiter key traces no Supabase client |
-| `lib/heritage.ts` / `app/api/heritage/route.ts` | The Landlord: fact retrieval, provenance labelling, honest fallback, LLM bounds + phantom-fact rejection |
+| `lib/heritage.ts` / `app/api/heritage/route.ts` | The Landlord: fact retrieval, provenance labelling, a read-back of the cited facts with no model |
 | `supabase/migrations/0001–0004` | Schema + RLS (deny-all writes, public-read), `check_rate_limit` + `report_pint_drop` RPCs |
 | `app/admin/page.tsx` | The moderation console |
 
@@ -280,7 +280,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 
 **The Landlord.** [`retrieveHeritageWithStatus`](../lib/heritage.ts) reads the generated historic index by venue ID. It also reads listed-building records, Wikidata history packs, and cited harvest lore through their venue identity lookups. It no longer reads the raw heritage cache or the name-keyed `pub_heritage` table directly. A name-only request reads historic facts only when the complete venue index contains exactly one matching name. The [historic publication rules](rules/scripts-builders-and-publishers.md#the-historic-directory-publishes-through-three-gates-and-each-one-refuses-rather) govern the generated index. The [feature guide](../README.md#features) owns typed-question behaviour.
 
-[`answerHeritage`](../lib/heritage.ts) removes repeated answer facts before narration or the structured fallback. Fact deduplication ignores Unicode composition, case, extra whitespace, and trailing sentence punctuation. Citation collection uses all retrieved rows, so removing repeated text preserves distinct source references. With an OpenRouter key, the model selects one complete supplied fact. `sanitiseModelAnswer` rejects unknown fact IDs and requires the answer to match that fact exactly after citation removal and whitespace cleanup. This preserves each date's event and rejects added ages, including spelled-out ages. Without a key or after a rejected answer or model failure, the structured answer returns the facts or `NO_STORY_LINE`.
+[`answerHeritage`](../lib/heritage.ts) removes repeated answer facts before it reads them back. Fact deduplication ignores Unicode composition, case, extra whitespace, and trailing sentence punctuation. Citation collection uses all retrieved rows, so removing repeated text preserves distinct source references. No model is called: the answer is the stored facts, word for word, or `NO_STORY_LINE`, so a date always keeps its event and no age is ever calculated.
 
 ### Security posture
 
@@ -294,7 +294,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 
 ### Robustness notes & known gaps
 
-**Strengths:** the production-503 gate refuses to acknowledge writes in prod if Supabase isn't configured (the store never lies about durability); two atomic RPCs close race windows; orphan-free photo cleanup; the LLM call is bounded on every axis (`temperature: 0`, `max_tokens: 400`, 10s `AbortController`) with every failure collapsing to the honest fallback; neither AI route can 500 the demo.
+**Strengths:** the production-503 gate refuses to acknowledge writes in prod if Supabase isn't configured (the store never lies about durability); two atomic RPCs close race windows; orphan-free photo cleanup; The Landlord calls no model, and every Claude call is bounded (a token cap, a timeout, a paid-spend lane) with every failure collapsing to the honest fallback; no AI route can 500 the demo.
 
 **Honest residual risks a newcomer should watch:**
 - **Two backends, not unified** (in-memory vs Supabase, chosen per request) — a behavioural fix must be made in *both*.
@@ -364,7 +364,7 @@ Tokens in `globals.css` (`:root`, light) overridden in `theme.css` (dark): `--in
 - **E2E** — Playwright `e2e/smoke.spec.ts`: one Chromium project, a real production build on port 3100, three non-flaky checks (landing + honesty labels + CTA; `/map` mounts; theme flips/persists/survives reload). **WebGL-agnostic** — asserts canvas *or* fallback, since headless CI has no GPU.
 - **Gate** - see the [common command reference](../README.md) for `verify` and `ci`.
 - **Deploy** — Vercel; the OG route uses the Edge runtime.
-- **Env** — `.env.example`: local dev runs *without* secrets (in-memory + structured fallback); production needs Supabase, `ADMIN_TOKEN`, `RATE_LIMIT_SALT`, optionally `OPENROUTER_API_KEY`.
+- **Env** — `.env.example`: local dev runs *without* secrets (in-memory + structured fallback); production needs Supabase, `ADMIN_TOKEN`, `RATE_LIMIT_SALT`, optionally `ANTHROPIC_API_KEY`.
 
 ### Gotchas
 

@@ -24,12 +24,12 @@ ElevenLabs. Claude uses the same tools (`lib/pubPalToolCatalog.mjs`) and the
 same prompt rules (`lib/palVoicePrompt.mjs`, without the spoken parts). Our
 server runs each tool itself, so no webhook is involved.
 
-The same key also moves map Ask's model loop (`/api/ask`) from OpenRouter to
-Claude. Both paths use the shared client, model setting and prompt cache
-markers (`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling.
+The same key also runs map Ask's model loop (`/api/ask`) on Claude. Both
+paths use the shared client, model setting and prompt cache markers
+(`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling.
 
 Without a Claude key, typed chat uses the configured ElevenLabs agent, or the keyless tools when ElevenLabs is not configured.
-Map Ask uses OpenRouter when its key is set, or the keyless tools otherwise.
+Map Ask uses the keyless tools.
 A failed Claude request does not switch to another paid provider.
 Map Ask retains completed tool results or uses its keyless fallback. Typed chat returns its existing failure response.
 
