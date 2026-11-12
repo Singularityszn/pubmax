@@ -224,6 +224,7 @@ describe("rendered poster arrivals", () => {
     localStorage.clear();
     sessionStorage.clear();
     navigation.query = new URLSearchParams();
+    vi.stubGlobal("performance", { getEntriesByType: vi.fn(() => []) });
     frames = new Map();
     frameId = 0;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -283,6 +284,46 @@ describe("rendered poster arrivals", () => {
       createElement(PosterLandingAnalytics), createElement("main", null, "Tonight"),
     )));
     await act(async () => setAnalyticsConsent(true));
+
+    expect(deliveredEvents()).toEqual([{
+      url: "/api/events",
+      payload: expect.objectContaining({
+        name: "poster_landing",
+        props: { medium: "beermat", code: "h4jyp" },
+        analyticsConsent: true,
+      }),
+    }]);
+    await act(async () => setAnalyticsConsent(true));
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["before-mount", "after-mount"])("records a late-mounted arrival with consent granted %s", async (consentTiming) => {
+    // A separately hydrated Suspense boundary can mount after the route changes.
+    // The Navigation Timing entry retains the document URL across that change.
+    vi.spyOn(window.performance, "getEntriesByType").mockReturnValue([
+      {
+        name: "http://localhost:3000/near?src=poster&utm_content=h4jyp",
+        entryType: "navigation",
+        startTime: 0,
+        duration: 0,
+        toJSON: () => ({}),
+      },
+    ]);
+    window.history.replaceState(null, "", "/near?src=poster&utm_content=h4jyp");
+    navigation.query = new URLSearchParams(window.location.search);
+    await act(async () => root.render(createElement(NearPageClient)));
+    expect(host.textContent).toContain("You scanned a beer mat.");
+    expect(send).not.toHaveBeenCalled();
+
+    window.history.replaceState(null, "", "/tonight");
+    navigation.query = new URLSearchParams();
+    if (consentTiming === "before-mount") setAnalyticsConsent(true);
+    await act(async () => root.render(createElement(Fragment, null,
+      createElement(PosterLandingAnalytics), createElement("main", null, "Tonight"),
+    )));
+    if (consentTiming === "after-mount") {
+      await act(async () => setAnalyticsConsent(true));
+    }
 
     expect(deliveredEvents()).toEqual([{
       url: "/api/events",
