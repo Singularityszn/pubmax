@@ -121,9 +121,9 @@ async function refundVoiceGrant(
 }
 
 /**
- * Settles one issued grant under its owner, using a provider duration or zero
- * after proof that the call cannot start. A false result does not prove that
- * the database left the charge unchanged: a committed reply can be lost.
+ * Settles one issued grant under its owner using the provider's final duration.
+ * A false result does not prove that the charge stayed unchanged.
+ * The database can commit before its reply is lost.
  */
 async function settleConversation(
   admin: ReturnType<typeof requireSupabaseAdmin>,
