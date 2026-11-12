@@ -1,0 +1,85 @@
+/* /guides: pub of the week, short guides and London's famous pubs, under the
+   shared Screen head. Launch tokens only, so it flips light and night. */
+
+.guidesPage {
+  min-height: 100dvh;
+  color: var(--ink);
+}
+
+.guidesMain {
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
+}
+
+.guidesPick {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 40rem;
+  margin: var(--space-4) 0 0;
+}
+
+.guidesPickWeek,
+.guidesPickMeta,
+.guidesNote,
+.guidesSectionDek {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.guidesPickName {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.guidesPickHook {
+  margin: 0;
+  color: var(--ink);
+  line-height: var(--leading-normal);
+}
+
+.guidesNote a,
+.guidesMore a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.guidesSection {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 48rem;
+  margin: var(--space-8) 0 0;
+}
+
+.guidesSectionTitle {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.guidesRowDetail {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.guidesMore {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+}
+
+.guidesMore a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

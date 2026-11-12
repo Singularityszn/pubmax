@@ -71,12 +71,14 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(SITE_NAV_MORE_LINKS.map((link) => link.href)).toEqual([
       "/wall",
       "/near",
+      "/guides",
       "/historic",
       "/pal",
     ]);
     expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
       "Photos",
       "Near",
+      "Guides",
       "Historic",
       "Pal",
     ]);
@@ -87,6 +89,7 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(SITE_NAV_MORE_LINKS.map((link) => link.description)).toEqual([
       "Pints, pubs and London in photos",
       "Find priced pubs close to you",
+      "Pub of the week, short guides and famous pubs",
       "Read the stories behind old pubs",
       "Ask for a pub that fits tonight",
     ]);

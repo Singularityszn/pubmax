@@ -164,6 +164,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }]
       : []),
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
+    // Pub of the week turns each Monday through the same cited history list.
+    { path: "/guides", priority: 0.6, changeFrequency: "weekly", lastModified: historicModified },
     // The pint price time machine. Its own history file dates it: the rows are
     // curated by hand, so the page changes when the file is re-curated.
     {

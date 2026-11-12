@@ -36,6 +36,7 @@ import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 export const SITE_NAV_MORE_LINKS: readonly SiteNavMoreLinkItem[] = [
   { href: "/wall", label: "Photos", description: "Pints, pubs and London in photos" },
   { href: "/near", label: "Near", description: "Find priced pubs close to you" },
+  { href: "/guides", label: "Guides", description: "Pub of the week, short guides and famous pubs" },
   { href: "/historic", label: "Historic", description: "Read the stories behind old pubs" },
   { href: "/pal", label: "Pal", description: "Ask for a pub that fits tonight" },
 ];
