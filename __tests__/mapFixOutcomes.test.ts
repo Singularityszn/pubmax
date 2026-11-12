@@ -72,6 +72,19 @@ describe("mapFixOutcomesFrom", () => {
     expect(outcomes[0]).toMatchObject({ id: "fix:newest", pubName: "" });
     expect(outcomes.at(-1)?.id).toBe("pub:s100");
   });
+
+  it("counts each report once while keeping different report kinds distinct", () => {
+    const submission = { id: "same", name: "Crown", status: "accepted", reviewedAt: daysAgo(1) };
+    const correction = { id: "same", venueId: "crown", status: "resolved", resolvedAt: daysAgo(2) };
+    const outcomes = mapFixOutcomesFrom(
+      [submission, submission], [correction, correction], new Map(), NOW,
+    );
+    expect(outcomes.map((outcome) => outcome.id)).toEqual(["pub:same", "fix:same"]);
+    expect(unseenMapFixCount(outcomes, null)).toBe(2);
+    const read = readMapFixOutcomes([...outcomes, ...outcomes], true);
+    expect(read).toEqual({ outcomes, complete: true });
+    expect(unseenMapFixCount(read.outcomes, null)).toBe(2);
+  });
 });
 
 describe("unseenMapFixCount", () => {
@@ -97,6 +110,35 @@ describe("unseenMapFixCount", () => {
 
 describe("map fix acknowledgement", () => {
   beforeEach(() => localStorage.clear());
+
+  const history = Array.from({ length: 20 }, (_, index) => ({
+    id: `pub:old-${index}`, kind: "pub_accepted" as const, pubName: "Crown", venueId: null, decidedAt: daysAgo(index + 2),
+  }));
+
+  it("acknowledges a visible new decision without expanding read history", () => {
+    markMapFixesSeen("reporter", { outcomes: history, complete: true });
+    const newest = { ...history[0]!, id: "pub:new", decidedAt: daysAgo(1) };
+    const read = { outcomes: [newest, ...history], complete: true };
+    markMapFixesSeen("reporter", read, 10);
+    expect(readMapFixSeenAt("reporter")).toBe(Date.parse(daysAgo(1)));
+    expect(unseenMapFixCount(read.outcomes, readMapFixSeenAt("reporter"))).toBe(0);
+  });
+
+  it("keeps hidden unread decisions unread until they are shown", () => {
+    const read = { outcomes: history, complete: true };
+    markMapFixesSeen("reporter", read, 10);
+    expect(readMapFixSeenAt("reporter")).toBeNull();
+    markMapFixesSeen("reporter", read, 20);
+    expect(unseenMapFixCount(history, readMapFixSeenAt("reporter"))).toBe(0);
+  });
+
+  it("does not acknowledge a hidden decision tied with the visible newest decision", () => {
+    const read = { outcomes: [history[0]!, { ...history[0]!, id: "pub:tied" }], complete: true };
+    markMapFixesSeen("reporter", read, 1);
+    expect(readMapFixSeenAt("reporter")).toBeNull();
+    markMapFixesSeen("reporter", read, 2);
+    expect(unseenMapFixCount(read.outcomes, readMapFixSeenAt("reporter"))).toBe(0);
+  });
 
   it("leaves omitted outcomes unread after a degraded read recovers", () => {
     const older = { id: "fix:older", kind: "fact_fixed", pubName: "Crown", venueId: "crown", decidedAt: daysAgo(2) };

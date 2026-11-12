@@ -19,8 +19,6 @@ import type { Route } from "next";
 
 import { safeLocalStorage } from "@/lib/safeStorage";
 
-export const MAP_FIX_OUTCOME_PAGE_SIZE = 100;
-
 type MapFixOutcomeKind = "pub_accepted" | "fact_fixed";
 
 export type MapFixOutcome = {
@@ -39,6 +37,10 @@ export type MapFixOutcomeRead = { outcomes: MapFixOutcome[]; complete: boolean }
 
 type SubmissionRow = { id: string; name: string; status: string; reviewedAt: string | null };
 type CorrectionRow = { id: string; venueId: string; status: string; resolvedAt: string | null };
+
+function uniqueOutcomes(outcomes: MapFixOutcome[]): MapFixOutcome[] {
+  return [...new Map(outcomes.map((outcome) => [outcome.id, outcome])).values()];
+}
 
 function isDecisionDate(iso: string | null, now: number): iso is string {
   if (!iso) return false;
@@ -78,7 +80,7 @@ export function mapFixOutcomesFrom(
       decidedAt: row.resolvedAt,
     });
   }
-  return outcomes.sort((left, right) => Date.parse(right.decidedAt) - Date.parse(left.decidedAt));
+  return uniqueOutcomes(outcomes).sort((left, right) => Date.parse(right.decidedAt) - Date.parse(left.decidedAt));
 }
 
 /** What one Activity row says. */
@@ -110,7 +112,7 @@ export function readMapFixOutcomes(value: unknown, complete: unknown): MapFixOut
       Number.isFinite(Date.parse(candidate.decidedAt))
     );
   });
-  return { outcomes, complete: complete === true && outcomes.length === value.length };
+  return { outcomes: uniqueOutcomes(outcomes), complete: complete === true && outcomes.length === value.length };
 }
 
 // ── Seen, per device ─────────────────────────────────────────────────────────
@@ -129,11 +131,16 @@ export function readMapFixSeenAt(userId: string): number | null {
 }
 
 /** Mark every outcome the reporter has now read. */
-export function markMapFixesSeen(userId: string, { outcomes, complete }: MapFixOutcomeRead): void {
+export function markMapFixesSeen(
+  userId: string,
+  { outcomes, complete }: MapFixOutcomeRead,
+  visibleCount: number = outcomes.length,
+): void {
   if (!complete) return;
-  const newest = outcomes.reduce((latest, outcome) => Math.max(latest, Date.parse(outcome.decidedAt) || 0), 0);
-  if (newest <= 0) return;
   const seen = readMapFixSeenAt(userId) ?? 0;
+  if (outcomes.slice(visibleCount).some((outcome) => Date.parse(outcome.decidedAt) > seen)) return;
+  const newest = outcomes.slice(0, visibleCount).reduce((latest, outcome) => Math.max(latest, Date.parse(outcome.decidedAt) || 0), 0);
+  if (newest <= 0) return;
   if (newest <= seen) return;
   try {
     safeLocalStorage()?.setItem(`${SEEN_KEY_PREFIX}${userId}`, String(newest));

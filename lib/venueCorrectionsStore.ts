@@ -13,8 +13,6 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { MAP_FIX_OUTCOME_PAGE_SIZE } from "@/lib/mapFixOutcomes";
-
 import {
   admin,
   createDualBackendStore,
@@ -57,7 +55,7 @@ export type VenueCorrectionsStore = {
   listForReview(status: VenueCorrectionStatus): Promise<VenueCorrection[]>;
   /** The owner's own rows, newest first (account export). Fail-soft (degraded, []). */
   listForOwner(ownerUserId: string, limit?: number): Promise<VenueCorrectionListResult>;
-  listResolvedForOwner(ownerUserId: string, offset: number): Promise<VenueCorrectionListResult>;
+  listResolvedForOwner(ownerUserId: string): Promise<VenueCorrectionListResult>;
   /** Moderator lookup of one row. Fail-soft (null). */
   getById(id: string): Promise<VenueCorrection | null>;
   /** Moderator verdict on an OPEN row. False when it is unknown or already decided. THROWS on hard failure. */
@@ -105,11 +103,10 @@ export const memoryVenueCorrectionsStore: VenueCorrectionsStore = {
     return { status: "ready", corrections };
   },
 
-  async listResolvedForOwner(ownerUserId, offset) {
+  async listResolvedForOwner(ownerUserId) {
     const corrections = [...byId.values()]
       .filter((row) => row.ownerUserId === ownerUserId && row.status === "resolved" && row.resolvedAt !== null)
       .sort((left, right) => (right.resolvedAt ?? "").localeCompare(left.resolvedAt ?? "") || left.id.localeCompare(right.id))
-      .slice(offset, offset + MAP_FIX_OUTCOME_PAGE_SIZE)
       .map((row) => ({ ...row }));
     return { status: "ready", corrections };
   },
@@ -233,25 +230,24 @@ const supabaseVenueCorrectionsStore: VenueCorrectionsStore = {
     });
   },
 
-  async listResolvedForOwner(ownerUserId, offset) {
+  async listResolvedForOwner(ownerUserId) {
     return guard({
       context: "list-outcomes-owner",
       onSchemaMiss: async () => ({ status: "degraded" as const, corrections: [] }),
       onError: async () => ({ status: "degraded" as const, corrections: [] }),
       message: "owner outcomes failed",
       run: async () => {
-        const { data, error } = await admin()
+        const { data, error, count } = await admin()
           .from(TABLE)
-          .select("*")
+          .select("*", { count: "exact" })
           .eq("owner_user_id", ownerUserId)
           .eq("status", "resolved")
           .not("resolved_at", "is", null)
           .order("resolved_at", { ascending: false })
-          .order("id", { ascending: true })
-          .range(offset, offset + MAP_FIX_OUTCOME_PAGE_SIZE - 1);
+          .order("id", { ascending: true });
         if (error) throw new Error(error.message);
         const corrections = rows(data);
-        return { status: corrections.length === (data ?? []).length ? "ready" as const : "degraded" as const, corrections };
+        return { status: count !== null && corrections.length === count ? "ready" as const : "degraded" as const, corrections };
       },
     });
   },

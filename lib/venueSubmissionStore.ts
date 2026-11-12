@@ -13,8 +13,6 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { MAP_FIX_OUTCOME_PAGE_SIZE } from "@/lib/mapFixOutcomes";
-
 import {
   admin,
   createDualBackendStore,
@@ -63,7 +61,7 @@ export type VenueSubmissionStore = {
   create(fields: VenueSubmissionFields, now?: number): Promise<VenueSubmissionCreateResult>;
   /** The owner's own submissions, newest first. Fail-soft (degraded, []). */
   listForOwner(ownerUserId: string): Promise<VenueSubmissionListResult>;
-  listAcceptedForOwner(ownerUserId: string, offset: number): Promise<VenueSubmissionListResult>;
+  listAcceptedForOwner(ownerUserId: string): Promise<VenueSubmissionListResult>;
   /** One of the owner's own pending submissions, or null. Another account's reads as null. */
   getPendingForOwner(ownerUserId: string, id: string): Promise<VenueSubmission | null>;
   /** Record a stored menu file. Refuses past the per-submission cap. THROWS on hard failure. */
@@ -124,11 +122,10 @@ export const memoryVenueSubmissionStore: VenueSubmissionStore = {
     return { status: "ready", submissions };
   },
 
-  async listAcceptedForOwner(ownerUserId, offset) {
+  async listAcceptedForOwner(ownerUserId) {
     const submissions = [...byId.values()]
       .filter((row) => row.ownerUserId === ownerUserId && row.status === "accepted" && row.reviewedAt !== null)
       .sort((left, right) => (right.reviewedAt ?? "").localeCompare(left.reviewedAt ?? "") || left.id.localeCompare(right.id))
-      .slice(offset, offset + MAP_FIX_OUTCOME_PAGE_SIZE)
       .map(copy);
     return { status: "ready", submissions };
   },
@@ -330,25 +327,24 @@ const supabaseVenueSubmissionStore: VenueSubmissionStore = {
     });
   },
 
-  async listAcceptedForOwner(ownerUserId, offset) {
+  async listAcceptedForOwner(ownerUserId) {
     return guard({
       context: "list-outcomes-owner",
       onSchemaMiss: async () => ({ status: "degraded" as const, submissions: [] }),
       onError: async () => ({ status: "degraded" as const, submissions: [] }),
       message: "owner outcomes failed",
       run: async () => {
-        const { data, error } = await admin()
+        const { data, error, count } = await admin()
           .from(TABLE)
-          .select(SELECT_WITH_FILES)
+          .select(SELECT_WITH_FILES, { count: "exact" })
           .eq("owner_user_id", ownerUserId)
           .eq("status", "accepted")
           .not("reviewed_at", "is", null)
           .order("reviewed_at", { ascending: false })
-          .order("id", { ascending: true })
-          .range(offset, offset + MAP_FIX_OUTCOME_PAGE_SIZE - 1);
+          .order("id", { ascending: true });
         if (error) throw new Error(error.message);
         const submissions = rows(data);
-        return { status: submissions.length === (data ?? []).length ? "ready" as const : "degraded" as const, submissions };
+        return { status: count !== null && submissions.length === count ? "ready" as const : "degraded" as const, submissions };
       },
     });
   },

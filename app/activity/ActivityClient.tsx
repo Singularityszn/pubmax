@@ -127,7 +127,7 @@ const NO_MAP_FIXES: MapFixRead = { outcomes: [], complete: false, seenBefore: nu
 function MapFixList({ outcomes, complete, seenBefore, userId }: MapFixRead & { userId: string | null }): React.JSX.Element {
   const [visibleCount, setVisibleCount] = useState(10);
   useEffect(() => {
-    if (userId && visibleCount >= outcomes.length) markMapFixesSeen(userId, { outcomes, complete });
+    if (userId) markMapFixesSeen(userId, { outcomes, complete }, visibleCount);
   }, [userId, outcomes, complete, visibleCount]);
   return (
     <section className="activityFixes" aria-labelledby="activity-fixes-title">
