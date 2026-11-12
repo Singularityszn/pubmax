@@ -1875,7 +1875,7 @@ Both budgets use salted hashes and refuse requests when the configured durable l
 The server reads at most 48,000 bytes, then accepts up to 4,000 text characters and an optional source link.
 Unknown fields are refused. The source link carries attribution only and is never fetched.
 The response contains a temporary import ID and ordered match states with `Cache-Control: no-store`.
-The endpoint discards pasted text after matching. Short prose can use the bounded zero-retention model fallback.
+The endpoint discards pasted text after matching. Short prose can use the bounded model fallback.
 The cluster action resolves selected IDs again and excludes closed and national pubs from London crawls.
 The save action stores matched IDs and attribution as an owner-only Planned Night draft. It stores no pasted text or creator claims.
 The resume action and GET read only the verified account's drafts. Missing storage refuses a save without a memory fallback.
