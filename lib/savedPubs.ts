@@ -12,6 +12,7 @@ import { cleanText } from "@/lib/textClean";
 import type { VenueKind } from "@/lib/venues";
 import { authedFetch } from "@/lib/authedFetch";
 import { loadVenueAliasMap } from "@/lib/venueAliasMap";
+import { BEEN_HERE_LIST, emitBeenHereChanged } from "@/lib/beenHere";
 
 // A list is now free text (built-in suggestion OR a custom name).
 export type ListType = string;
@@ -189,6 +190,7 @@ async function setSaved(
         })
       : current.filter((entry) => !held(entry)),
   );
+  if (cleanedListType === BEEN_HERE_LIST) emitBeenHereChanged();
 }
 
 /**

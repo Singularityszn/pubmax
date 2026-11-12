@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import { BEEN_HERE_LIST, emitBeenHereChanged } from "@/lib/beenHere";
 import { discardBody } from "@/lib/responseBody";
 import {
   cleanListType,
@@ -231,8 +230,6 @@ export default function SaveToListControl({
       try {
         const wanted = !savedIn.includes(listType);
         const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind, wanted);
-        // The map's Been here marks read this device's list, which the toggle has just written.
-        if (listType === BEEN_HERE_LIST) emitBeenHereChanged();
         // The second press removes the save, so the toast says which happened.
         announce(
           venueId,

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { BEEN_HERE_LIST, subscribeBeenHere } from "@/lib/beenHere";
 import {
   canonicalizeStoredSaved,
   getSaved,
@@ -29,7 +30,7 @@ function makeMemoryStorage(): Storage {
 }
 
 function installWindow(storage: Storage): void {
-  (globalThis as { window?: WindowLike }).window = { localStorage: storage };
+  (globalThis as { window?: WindowLike }).window = Object.assign(new EventTarget(), { localStorage: storage });
 }
 
 function installBlockedWindow(): void {
@@ -68,6 +69,26 @@ describe("saved pubs when the browser refuses site data", () => {
 });
 
 describe("saved pubs when storage is available", () => {
+  it("publishes Been here additions and removals after the shared write", async () => {
+    installWindow(makeMemoryStorage());
+    const observed: string[][] = [];
+    const unsubscribe = subscribeBeenHere(() => {
+      observed.push(getSaved().filter((row) => row.listType === BEEN_HERE_LIST).map((row) => row.venueId));
+    });
+    try {
+      await toggleSaveDurable("", "venue-1", BEEN_HERE_LIST);
+      await toggleSaveDurable("", "venue-2", " Been here ");
+      await toggleSaveDurable("", "venue-2", BEEN_HERE_LIST);
+      await toggleSaveDurable("", "venue-3", "Want to Visit");
+      await toggleSaveDurable("", "venue-1", BEEN_HERE_LIST, undefined, "pub", false);
+      await toggleSaveDurable("", "venue-2", BEEN_HERE_LIST, undefined, "pub", false);
+
+      expect(observed).toEqual([["venue-1"], ["venue-1", "venue-2"], ["venue-2"], []]);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it("round-trips a signed-out save through localStorage", async () => {
     installWindow(makeMemoryStorage());
 
