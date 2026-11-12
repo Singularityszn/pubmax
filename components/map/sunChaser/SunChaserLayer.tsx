@@ -22,7 +22,8 @@ import { haversineKm } from "@/lib/haversine";
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { venueHasRecordedOutdoorSpace, type Venue } from "@/lib/venues";
 import { createSkyReader } from "./skyReader";
-import { paintedPinIds, sameIds, sunDotFeatures } from "./sunDots";
+import { paintedPinIds, sameIds } from "@/components/map/canvas/paintedPins";
+import { sunDotFeatures } from "./sunDots";
 import { getSunChaserState, sunChaserSelectedTime, updateSunChaser, useSunChaser } from "./sunChaserStore";
 
 /** The live map this layer reads, named here so PubMap needs no MapLibre import. */
