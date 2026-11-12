@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 
@@ -247,7 +247,10 @@ export default function MobileSharedSheet({
   useEffect(() => {
     const sheet = sheetRef.current;
     if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(recapToViewport);
+    const observer = new ResizeObserver(() => {
+      recapToViewport();
+      updateCramped();
+    });
     const portal = sheet.closest(".mobileSheetPortal");
     if (portal) observer.observe(portal);
     for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
@@ -280,7 +283,7 @@ export default function MobileSharedSheet({
   // A resting sheet too short for its own header and footer (a short
   // landscape phone under a live voice bar) scrolls as a whole, so no control
   // is cut off. Never mid-gesture: a dismiss drag keeps the footer pinned.
-  useLayoutEffect(() => {
+  const updateCramped = useEffectEvent(() => {
     const sheet = sheetRef.current;
     if (!sheet) return;
     const resting = Boolean(kind) && !dragging && !settling && !entering && !visibleExit;
@@ -288,6 +291,9 @@ export default function MobileSharedSheet({
       "data-sheet-cramped",
       resting && sheetHeight > 0 && sheetHeight + 1 < sheetChrome(sheet).chromePx,
     );
+  });
+  useLayoutEffect(() => {
+    updateCramped();
   }, [dragging, entering, footerEl, kind, settling, sheetHeight, visibleExit]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
