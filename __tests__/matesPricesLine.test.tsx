@@ -141,6 +141,31 @@ describe("matesPriceDay and matesPriceDrink", () => {
     expect(matesPriceDrink({ drink: "Cider", measure: "other", measureLabel: "Bottle" })).toBe("Cider (bottle)");
     expect(matesPriceDrink({ drink: "", measure: "other" })).toBe("a drink");
   });
+
+  it("says which glass, bottle or spirit measure the price bought", () => {
+    expect(matesPriceDrink({ drink: "House white (small)", measure: "125ml" })).toBe("House white (small) (125 ml)");
+    expect(matesPriceDrink({ drink: "House white (small)", measure: "175ml" })).toBe("House white (small) (175 ml)");
+    expect(matesPriceDrink({ drink: "House white (small)", measure: "250ml" })).toBe("House white (small) (250 ml)");
+    expect(matesPriceDrink({ drink: "House white (175ML)", measure: "175ml" })).toBe("House white (175ML)");
+    expect(matesPriceDrink({ drink: "House white (175 ml)", measure: "175ml" })).toBe("House white (175 ml)");
+    expect(matesPriceDrink({ drink: "House white (125ml)", measure: "175ml" })).toBe("House white (125ml) (175 ml)");
+    expect(matesPriceDrink({ drink: "House white (1175ml)", measure: "175ml" })).toBe("House white (1175ml) (175 ml)");
+    expect(matesPriceDrink({ drink: "Half of Peroni", measure: "bottle" })).toBe("Half of Peroni (bottle)");
+    expect(matesPriceDrink({ drink: "Peroni (BOTTLE)", measure: "bottle" })).toBe("Peroni (BOTTLE)");
+    expect(matesPriceDrink({ drink: "Double Jameson", measure: "single" })).toBe("Double Jameson (single)");
+    expect(matesPriceDrink({ drink: "Jameson (SINGLE)", measure: "single" })).toBe("Jameson (SINGLE)");
+    expect(matesPriceDrink({ drink: "Singleton", measure: "single" })).toBe("Singleton (single)");
+    expect(matesPriceDrink({ drink: "Single Jameson", measure: "double" })).toBe("Single Jameson (double)");
+    expect(matesPriceDrink({ drink: "Jameson (DOUBLE)", measure: "double" })).toBe("Jameson (DOUBLE)");
+    expect(matesPriceDrink({ drink: "Merlot", measure: "175ml" })).toBe("Merlot (175 ml)");
+    expect(matesPriceDrink({ drink: "Merlot", measure: "250ml" })).toBe("Merlot (250 ml)");
+    expect(matesPriceDrink({ drink: "Peroni", measure: "bottle" })).toBe("Peroni (bottle)");
+    expect(matesPriceDrink({ drink: "Jameson", measure: "single" })).toBe("Jameson (single)");
+    expect(matesPriceDrink({ drink: "Jameson", measure: "double" })).toBe("Jameson (double)");
+    expect(matesPriceDrink({ drink: "", measure: "125ml" })).toBe("a 125 ml glass");
+    expect(matesPriceDrink({ drink: "", measure: "bottle" })).toBe("a bottle");
+    expect(matesPriceDrink({ drink: "", measure: "double" })).toBe("a double");
+  });
 });
 
 

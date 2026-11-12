@@ -1,0 +1,30 @@
+/* Your mates' pints on the Following lane: a heading, the rows and one way to
+   see the rest. Tokens only, so it reads the same in light and night theme. */
+
+.matesActivity {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.matesActivity h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+}
+
+.matesActivityLine,
+.matesActivityBill {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.matesActivityBill {
+  margin: 0;
+}
+
+.matesActivityMore {
+  justify-self: start;
+}
