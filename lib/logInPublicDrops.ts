@@ -74,8 +74,9 @@ function pickOne(raw: unknown, day: string): LogInPublicDrop | null {
 }
 
 /**
- * The day's drops from a GET /api/pint-drops body, newest first. Null means the
- * body could not be read, which is not the same as a day with no drops.
+ * The day's drops from a GET /api/pint-drops body, newest first.
+ * Null means the body could not be read. An empty array means this response
+ * contains no eligible drops, not that the day has none.
  */
 export function pickLogInPublicDrops(body: unknown, day: string): LogInPublicDrop[] | null {
   if (!body || typeof body !== "object") return null;

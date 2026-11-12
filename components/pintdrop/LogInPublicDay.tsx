@@ -56,9 +56,8 @@ function DropRow({ drop }: { drop: LogInPublicDrop }) {
 }
 
 /**
- * THE LOG IN PUBLIC DAY (Product Hunt, lib/logInPublicDay.ts). The real public
- * Pint Drops logged in London on the day, newest first, each with its pub, its
- * price and the time it was logged. Nothing older, no demo rows and no counts.
+ * The durable public read is capped before city and visibility filtering.
+ * Empty results cannot establish that nobody logged a price.
  */
 export default function LogInPublicDay({ day, className }: { day: string; className?: string }) {
   const [state, setState] = useState<State>({ status: "loading" });
