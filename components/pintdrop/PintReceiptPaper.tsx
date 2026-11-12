@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import StarRating from "@/components/ratings/StarRating";
+
 import type { PintReceipt } from "@/lib/pintReceipt";
 
 import "./pintReceipt.css";
@@ -75,6 +77,12 @@ export default function PintReceiptPaper({
       )}
 
       <dl className="pintReceipt__facts">
+        {receipt.rating !== undefined ? (
+          <div className="pintReceipt__row">
+            <dt>Pint rating</dt>
+            <dd><StarRating value={receipt.rating} label="Pint rating" size="sm" /></dd>
+          </div>
+        ) : null}
         <div className="pintReceipt__row">
           <dt>Drinker</dt>
           <dd>{receipt.drinker}</dd>

@@ -121,6 +121,7 @@ vi.mock("@/lib/venueAliases", () => {
     ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
   ];
   return {
+    lookupCanonicalVenueId: async (id: string) => ({ status: "resolved", venueId: canonical(id) }),
     resolveCanonicalVenueId: async (id: string) => canonical(id),
     storedVenueIds: async (id: string) => storedIds(id),
     loadVenueAliasResolver: async () => ({

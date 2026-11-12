@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
+
 import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
 import ReceiptShareStep from "@/components/pintdrop/ReceiptShareStep";
 import type { DropMsg } from "@/components/map/usePintDrops";
@@ -28,7 +30,7 @@ export default function PintDropMessage({
       >
         {msg.text}
         {msg.retry ? (
-          <button type="button" onClick={() => { void msg.retry?.send(); }}>Retry</button>
+          <Button type="button" variant="secondary" onClick={() => { void msg.retry?.send(); }}>Retry</Button>
         ) : null}
         <PintDropAgeRecovery recovery={msg.ageRecovery} onAsserted={onAgeAsserted} />
         {msg.links && msg.links.length > 0 ? (
