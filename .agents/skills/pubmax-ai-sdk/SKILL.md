@@ -5,7 +5,7 @@ description: PubMaxxing's conventions for model calls, covering the Vercel AI SD
 
 # Model calls in PubMaxxing
 
-This repo calls models three ways, and every call runs on the server. The other controls differ by path today. The table under "Controls today" says which path has which. A new call must have all of them, as the rules below say.
+Every model call runs on the server. The other controls differ by path today. The table under "Controls today" says which path has which. A new call must have all of them, as the rules below say.
 
 ## TanStack AI guidance
 
@@ -21,7 +21,7 @@ If a migration is requested, preserve the controls in this skill. Port one model
 | --- | --- | --- |
 | Vercel AI SDK (`ai` v7) | `lib/searchProvider.server.ts` | `generateText` with the `gateway` provider and its `exaSearch` tool. The model is an AI Gateway id such as `openai/gpt-5-nano`. Auth is `AI_GATEWAY_API_KEY` or the Vercel OIDC token. |
 | TypeSafe (Jev) | `lib/ai/typesafe.server.ts` | `systemOne` for typed judgments, such as `lib/pubPalLlmFence.ts`. |
-| Anthropic SDK (`@anthropic-ai/sdk`) | `lib/palClaudeChat.server.ts`, `lib/ask/modelLoop.ts`, `lib/claudeJson.server.ts` | Pub Pal typed chat and map Ask use `messages.stream` with their tools, run in process. Board Reader, bill checks, pub-list imports and the avatar fallback use one non-streaming JSON read with a strict schema. `lib/claudeClient.server.ts` owns the key, host and model: `PUB_PAL_CLAUDE_MODEL` or `claude-haiku-5-5`. Auth is `ANTHROPIC_API_KEY`. |
+| Anthropic SDK (`@anthropic-ai/sdk`) | `lib/palClaudeChat.server.ts`, `lib/ask/modelLoop.ts`, `lib/claudeJson.server.ts` | Pub Pal typed chat and map Ask use `messages.stream` with their tools, run in process. Board Reader, bill checks, pub-list imports and the avatar fallback use one non-streaming JSON read with a strict schema. [Claude setup](../../../docs/PUB_PAL_SETUP.md#typed-chat-on-claude) owns the shared key and model configuration. `lib/claudeClient.server.ts` owns the client. |
 
 Moderation calls are in `lib/profileAvatarModeration.ts` and `lib/socialPostModeration.ts`.
 

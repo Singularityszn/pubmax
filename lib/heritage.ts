@@ -4,7 +4,7 @@
 // reads back the stored, cited facts on record (Historic England, Wikidata,
 // Wikipedia, OSM and cited harvest lore), or says plainly that there is no
 // fuller story. No model is called: the facts are already stored, and an
-// answer may only ever repeat one of them.
+// answer adds no facts beyond those records.
 
 import "server-only";
 

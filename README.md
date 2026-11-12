@@ -2,7 +2,7 @@
 
 **Every pint has a story.** A **price-aware, story-led London night-out map and pub-crawl planner**, with a pint-price hunt across covered UK cities. Pubs show listed pint prices; hand-curated bars, late-food institutions, and iconic restaurants use labelled, dated anchors for the item actually priced. Three layers share one living 3-D map: **price**, **setting**, and **story**, with visible provenance so history and legend never blur.
 
-Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs, or load a curated **Featured route**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**, a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
+Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs, or load a curated **Featured route**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**. See [Features](#features) for its pub-history answers.
 
 ## Features
 
@@ -424,7 +424,7 @@ npm install
 npm run dev            # http://localhost:3000 — works with NO secrets
 ```
 
-The app runs **keyless** for local dev: Pint Drops use an in-memory store and The Landlord reads back the cited facts on record (it never calls a model). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `ANTHROPIC_API_KEY`.
+The app runs **keyless** for local dev: Pint Drops use an in-memory store and The Landlord reads back the cited facts on record (it never calls a model). For persistent storage, copy `.env.example` to `.env.local` and configure Supabase. For optional model features, follow [Claude setup](docs/PUB_PAL_SETUP.md#typed-chat-on-claude).
 
 ### WebMCP Agent Night Board
 

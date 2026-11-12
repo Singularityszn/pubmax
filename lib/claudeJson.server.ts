@@ -10,8 +10,9 @@ import "server-only";
 // Every read is a non-streaming Claude call on the shared key and model
 // (lib/claudeClient.server.ts) with a strict JSON schema, low effort, a
 // timeout and a token cap, and an Arize span through `traceArizeModelCall`
-// with the caller's static route tag. Each caller spends its own paid lane
-// (lib/paidSpendBudget.ts) before it calls this.
+// with the caller's static route tag. Board reads, bill checks and pub-list
+// imports spend their paid lanes before calling this. Owned-image moderation
+// has no shared paid lane.
 //
 // FAIL CLOSED. No key answers `keyless` before anything is sent. A provider
 // error, a refusal, a cut-off answer or an answer that is not JSON answers

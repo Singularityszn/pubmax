@@ -12,23 +12,14 @@
 - **Setting** — by the water, gardens, the right room, a walkable route shape.
 - **Story** — pub heritage (era, listed status, who drank here), sourced editorial picks, and **Pint Drops** (community photos + the price you paid + a "passed-down note"), each carrying visible **provenance** so history and legend never blur.
 
-You pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs — or load a curated **Featured route** ("Victorian Soho"), or **Pubs near me**. Any crawl is captured in the URL and shareable. Tapping a pub opens **The Landlord** — a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
-
-**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL +
-OpenFreeMap basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) ·
-Claude API (Anthropic) for map Ask, Pub Pal typed chat, Board Reader and bill
-checks · Vitest + Playwright · deployed on Vercel.
+The [README](../README.md#features) owns the product overview and The Landlord behaviour.
+See its [stack](../README.md#stack) for runtime choices.
 
 ---
 
 ## Quick start (run it in 2 minutes)
 
-```sh
-npm install
-npm run dev            # http://localhost:3000 — works with NO secrets
-```
-
-The app runs **keyless** for local dev: Pint Drops use an in-memory store, and The Landlord reads back the cited facts on record (it never calls a model). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `ANTHROPIC_API_KEY`.
+Follow the [README quick start](../README.md#quick-start) for local setup.
 
 Useful scripts (`package.json`):
 
@@ -255,7 +246,7 @@ remote; landmark distances are straight-line by design (labelled as such).
 
 ### Overview
 
-The backend is deliberately small and seam-first: **one write path** for Pint Drops and **one Q&A path** for The Landlord, each a single Next.js route handler. The guiding ADR: **no client-side database access** — the browser never talks to Supabase directly; every write is validated, provenance-tagged, and rate-limited *before* it reaches storage, via a service-role admin client that only exists on the server (`lib/supabase.ts:7`). Two providers, both optional: **Supabase** (Postgres + Storage + RLS) and the **Claude API** (the LLM). The single backend-selection point is `store()` (`app/api/pint-drops/route.ts:24`) — every handler talks only to the `PintDropStore` interface.
+The backend is deliberately small and seam-first: **one write path** for Pint Drops and **one Q&A path** for The Landlord, each a single Next.js route handler. The guiding ADR: **no client-side database access** — the browser never talks to Supabase directly; every write is validated, provenance-tagged, and rate-limited *before* it reaches storage, via a service-role admin client that only exists on the server (`lib/supabase.ts:7`). The [deployment runbook](DEPLOYMENT.md) owns provider setup. The single backend-selection point is `store()` (`app/api/pint-drops/route.ts:24`) — every handler talks only to the `PintDropStore` interface.
 
 ### Key pieces
 
@@ -294,7 +285,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 
 ### Robustness notes & known gaps
 
-**Strengths:** the production-503 gate refuses to acknowledge writes in prod if Supabase isn't configured (the store never lies about durability); two atomic RPCs close race windows; orphan-free photo cleanup; The Landlord calls no model, and every Claude call is bounded (a token cap, a timeout, a paid-spend lane) with every failure collapsing to the honest fallback; no AI route can 500 the demo.
+**Strengths:** the production-503 gate refuses to acknowledge writes in prod if Supabase isn't configured (the store never lies about durability); two atomic RPCs close race windows; orphan-free photo cleanup; heritage answers follow the [retrieval contract](#heritage-retrieval-and-answers). The [model-call policy](../.agents/skills/pubmax-ai-sdk/SKILL.md#controls-today) owns model limits and fallbacks.
 
 **Honest residual risks a newcomer should watch:**
 - **Two backends, not unified** (in-memory vs Supabase, chosen per request) — a behavioural fix must be made in *both*.
@@ -364,7 +355,7 @@ Tokens in `globals.css` (`:root`, light) overridden in `theme.css` (dark): `--in
 - **E2E** — Playwright `e2e/smoke.spec.ts`: one Chromium project, a real production build on port 3100, three non-flaky checks (landing + honesty labels + CTA; `/map` mounts; theme flips/persists/survives reload). **WebGL-agnostic** — asserts canvas *or* fallback, since headless CI has no GPU.
 - **Gate** - see the [common command reference](../README.md) for `verify` and `ci`.
 - **Deploy** — Vercel; the OG route uses the Edge runtime.
-- **Env** — `.env.example`: local dev runs *without* secrets (in-memory + structured fallback); production needs Supabase, `ADMIN_TOKEN`, `RATE_LIMIT_SALT`, optionally `ANTHROPIC_API_KEY`.
+- **Env** - see the [deployment runbook](DEPLOYMENT.md) for production requirements and [.env.example](../.env.example) for configuration fields.
 
 ### Gotchas
 
@@ -392,7 +383,7 @@ A successful deployment build does not prove the full local gate passed.
 | **Map** | WebGL fallback; idempotent scene assembly; crash-proof RAF; clean teardown | Depends on remote OpenMapTiles-compatible style shapes for 3-D buildings |
 | **Writes** | Single path; server validation + DB CHECKs; orphan-free photos; production-503 (never lies about durability) | Two backends not unified — fix behaviour in both |
 | **Abuse** | Durable atomic rate-limit RPC; salted-hashed IP; constant-time admin gate | Fails **open** on a Supabase outage; `x-forwarded-for` trust relies on Vercel edge |
-| **The Landlord** | Grounded-only; rejects phantom citations; temp 0 + timeout; honest refusal | — |
+| **The Landlord** | See the [heritage retrieval contract](#heritage-retrieval-and-answers) | No facts produces the recorded refusal |
 | **Moderation** | Report ≠ hide (threshold 2); atomic increment; token-gated `/admin` | Public bucket serves hidden objects to kept URLs (needs private bucket for real takedowns) |
 | **Frontend** | Hydration-safe theme; single URL write path; reduced-motion + no-JS safe | `set-state-in-effect` is an ERROR — follow the established patterns |
 | **CI/CD** | See the [common command reference](../README.md) and [CI runbook](CI_RUNBOOK.md) | A deployment build does not prove the local gate passed. |
@@ -406,6 +397,6 @@ A successful deployment build does not prove the full local gate passed.
 - **Product vision & roadmap:** `docs/PRD_FINAL_FOR_FABLE.md`
 - **Verified build state + defect triage:** `docs/PRD_ADDENDUM_BUILD_REVIEW.md`
 - **Demo script:** `docs/DEMO_DECK.md`
-- **The honesty contract in code:** `lib/curation.ts` (`buildVenueClaims`) and `lib/heritage.ts` (`sanitiseModelAnswer`, `NO_STORY_LINE`)
+- **The honesty contract in code:** `lib/curation.ts` (`buildVenueClaims`) and `lib/heritage.ts` (`answerHeritage`, `NO_STORY_LINE`)
 - **The one write path:** `app/api/pint-drops/route.ts`
 - **The map lifecycle:** `components/PubMapCanvas.tsx` (read the guards before you touch it)

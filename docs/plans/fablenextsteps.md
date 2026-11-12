@@ -6,7 +6,7 @@
 
 **Architecture:** GitHub `main` is the only source of truth. `chengdu` is the Vercel project. Supabase is the Production Store and data-integrity authority. PostHog owns consented product analytics. London is the full market. Other cities stay honest previews until their data and complete-night journeys meet the same release gates.
 
-**Tech stack:** Next.js 16 App Router, React 19, TypeScript, MapLibre, Supabase, Vercel, PostHog, Vitest, Playwright, Capacitor, OpenRouter, and existing provider adapters.
+**Tech stack:** See the [README stack reference](../../README.md#stack).
 
 **Spec:** This file is the current handoff and next-steps specification. It supersedes stale deployment facts and stale launch decisions in `docs/plans/cursorplan.md` and `docs/RELEASE_LEDGER_2026-08-23.md`. Those files remain historical evidence.
 
@@ -282,7 +282,7 @@ Status: **TYPED PATH SHIPPED, VOICE DEFERRED**
 - Typed Pub Pal planning and venue assistance.
 - Structured, confirmed Pal Memory model.
 - Plan handoff and invitation draft.
-- Existing OpenRouter adapter and moderation model.
+- [Claude setup](../PUB_PAL_SETUP.md#typed-chat-on-claude) owns model configuration. The [image policy](../rules/lib-images-uploads-and-photo-walls.md) owns moderation behaviour.
 - Voice grant, privacy, quota, and metering schema foundations.
 - Voice release response and fallback handling.
 - No always-listening behaviour.
@@ -396,7 +396,6 @@ Any new P0 is one of:
 - Which London areas have enough demand to justify deeper venue curation.
 - Why Ticketmaster configuration does not consistently produce useful venue-matched Out rows.
 - Whether last-train latency remains under two seconds at peak TfL load.
-- Whether Social moderation can operate with current OpenRouter configuration before OpenAI or provider-specific keys are added.
 
 ### 4.5 Unknown-unknown discovery system
 
@@ -519,14 +518,13 @@ Never commit a secret. Store server secrets in Vercel or the provider secret sto
 
 ### 6.1 Present in Production
 
-Value presence was checked without reading secret values.
+Value presence was checked without reading secret values. Current model settings follow the [Claude setup guide](../PUB_PAL_SETUP.md#typed-chat-on-claude).
 
 | Capability | Environment names |
 | --- | --- |
 | Supabase Production Store | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, additional Vercel Supabase and Postgres integration variables |
 | Admin and rate limits | `ADMIN_TOKEN`, `RATE_LIMIT_SALT` |
 | PostHog browser analytics | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` |
-| OpenRouter planning and moderation | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
 | Event supply | `TICKETMASTER_API_KEY`, `EVENTBRITE_API_TOKEN` |
 | Research and menus | `EXA_API_KEY`, `FIRECRAWL_API_KEY` |
 | Walking routes | `ORS_API_KEY` |
@@ -553,7 +551,7 @@ Value presence was checked without reading secret values.
 | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | TikTok connection | Add only with approved provider application |
 | `ELEVENLABS_API_KEY`, agent and voice IDs, shared secret | Pub Pal push-to-talk | Deferred under #282 |
 | `NEXT_PUBLIC_UBER_CLIENT_ID` | Optional ride handoff | Add only if the transport product requires it |
-| `OPENAI_API_KEY` | Direct OpenAI moderation or model path | Do not add while OpenRouter satisfies measured needs |
+| `OPENAI_API_KEY` | Social and owned-image moderation | Follow the [image moderation policy](../rules/lib-images-uploads-and-photo-walls.md) |
 | `PLAN_IDEMPOTENCY_SECRET` | Explicit Plan idempotency signing | Audit current fallback, then add a rotated Production secret if required |
 | `NEXT_PUBLIC_SITE_URL` | Explicit canonical public origin | Add `https://pubmaxxing.com` if the runtime does not already derive it safely |
 

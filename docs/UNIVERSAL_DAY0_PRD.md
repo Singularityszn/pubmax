@@ -83,7 +83,7 @@ Day 7: buffer. It will be needed.
 
 1. GitHub Actions billing cap (freshness for brief + push + ingest; the habit dies without it).
 2. Apple Developer + Play enrollment (#390); TICKETMASTER_API_KEY (#385).
-3. Fund/refresh Exa + Firecrawl credits as lanes consume them; provision VAPID keypair for web push; fund OpenRouter when ready to flip narration.
+3. Fund/refresh Exa + Firecrawl credits as lanes consume them; provision VAPID keypair for web push; use [Claude setup](PUB_PAL_SETUP.md#typed-chat-on-claude) for model configuration.
 4. Choose positioning line (candidate above) for stores/landing.
 
 ## Verification bar (every lane)
