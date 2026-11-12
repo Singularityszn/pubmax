@@ -129,6 +129,7 @@ function addLayers(map: maplibregl.Map): void {
       "interpolate", ["linear"], ["zoom"], PIN_MIN_ZOOM, MARK_RADIUS_MIN_PX, 15, PROVISIONAL_BADGE_RADIUS_MAX_PX,
     ] as maplibregl.ExpressionSpecification,
     "circle-translate": translate,
+    "circle-translate-anchor": "viewport" as const,
     "circle-stroke-color": halo,
     "circle-stroke-width": 1.4,
     "circle-pitch-alignment": "viewport" as const,
