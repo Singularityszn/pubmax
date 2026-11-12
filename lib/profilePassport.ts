@@ -9,13 +9,8 @@
 //   - No aggregate score, no leaderboard, no streak, no match percentage. The
 //     overlap is lists of pub names, sorted by name so it shows neither
 //     person's order.
-//   - The diary and a completed plan are private (lib/diary.ts has one
-//     visibility, "private"). Only the owner's own Been read carries them. A
-//     mate or a reader of a public account sees the Pint Drops the drop store
-//     already lets them read, and nothing else.
-//   - The "Been here" saved list (lib/beenHere.ts) joins the owner's own read
-//     alone, as rows with NO DATE that say so. It is never given a day, and
-//     the passport never shows it to a mate or a stranger.
+//   - Source visibility follows the passport rule in
+//     docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md.
 //   - The taste card holds stored facts with a date. No inference and no
 //     personality word. An empty line is left out and an empty card is no card.
 //   - The share card carries names in rank order and nothing else: no score,

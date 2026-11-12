@@ -345,6 +345,14 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Switching accounts clears the unsent photo, caption and pub selection. Cancelling the photo form or switching accounts prevents a delayed crop from starting an upload. Results from an earlier photo selection or upload cannot change a newer account's draft.
 
+- **Friends** - use **Find your lot** on Social or your account page to search handles. **Share your add link** opens `/add/<your-handle>`. Share that link or let a mate scan its QR code. The QR code opens the same account-required add flow. Both people must add each other to become mates.
+
+  With the search field empty, **People you may know** can suggest mates of your mates. Each suggestion names shared mates. Use **Follow** or **Follow back** to add someone. No suggestions appear when the read fails or finds nobody eligible.
+
+  Open a mate's profile to see **Your Been, next to theirs**. The map and lists separate **You've both been**, **Only you** and **Only them**. Each list shows up to eight pubs first. **Show all** reveals the rest. Select a pub name or pin to open it on the main map. The lists remain available if the map cannot load.
+
+  See the [passport visibility and completeness rules](docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md#the-passport-reads-what-the-reader-may-already-read-and-scores-nothing) for the sources each side includes and when comparison is withheld.
+
 - **Social** - `/social` is the canonical mobile and desktop Social shell, live by default with chronological Following, Nearby, and Across town lanes plus public pub discovery. Full posts and private activity stay closed unless the server confirms Social access; set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only for an emergency preview rollback. `/feed` and `/stories` now lead to this shell; `/discover` and `/drinks` open its Discover view. Plan joins use the [host connection policy](docs/prd/SOCIAL_LAUNCH_PRD.md#wp7---friend-graph-formation-crews-search-invites-m-l). Each new follow created by a join gives the person followed a private follow entry in `/activity`. Notification storage failures can prevent delivery. Existing follows and join retries add no duplicate entry. The entry names the follower and carries no plan or membership details.
 
   Available Social notifications appear in **Activity** in the desktop sidebar.
