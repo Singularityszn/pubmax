@@ -258,8 +258,8 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
         return;
       }
 
-      let nearest: SheetSnap = SHEET_SNAP_ORDER[0];
-      let nearestDist = Infinity;
+      let nearest: SheetSnap = drag.startSnap;
+      let nearestDist = Math.abs(sheetTranslateY(drag.startSnap, viewportHeight, minimumY) - projectedY);
       for (const snap of SHEET_SNAP_ORDER) {
         const dist = Math.abs(sheetTranslateY(snap, viewportHeight, minimumY) - projectedY);
         if (dist < nearestDist) {

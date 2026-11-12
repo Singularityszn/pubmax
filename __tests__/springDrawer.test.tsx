@@ -219,6 +219,26 @@ describe.each(["left", "right"] as const)("%s reserved tablet drag", (side) => {
     expect(drawer.classList.contains("sheet-full")).toBe(true);
     expect(offsetY(drawer)).toBe(300);
   });
+
+  it.each([
+    { initialReserve: 400, reserve: 400 },
+    { initialReserve: 242, reserve: 400 },
+    { initialReserve: 450, reserve: 400 },
+  ])("keeps full when positions coincide with reserve $initialReserve to $reserve", async ({ initialReserve, reserve }) => {
+    const { drawer, header } = mountDrag(initialReserve);
+    act(() => drawer.querySelector("button")!.click());
+    settle();
+    pointer(header, "pointerdown", 500);
+    await act(async () => { document.body.style.setProperty("--sheet-top-reserve", `${reserve}px`); });
+    pointer(header, "pointerup", 500);
+    settle();
+    expect(drawer.classList.contains("sheet-full")).toBe(true);
+    expect(offsetY(drawer)).toBe(458);
+
+    await act(async () => { document.body.style.removeProperty("--sheet-top-reserve"); });
+    settle();
+    expect(offsetY(drawer)).toBeCloseTo(72);
+  });
 });
 
 function frame(timestamp: number): void {

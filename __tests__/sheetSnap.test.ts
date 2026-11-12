@@ -324,6 +324,23 @@ describe("sheetSnapCaps — per-snap cap heights (bottom-anchored model)", () =>
 describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)", () => {
   const caps = sheetSnapCaps(800, 0); // peek 176, half 440, full 736
 
+  describe.each(["peek", "half", "full"] as const)("coincident caps starting at %s", (startSnap) => {
+    it.each([
+      { startHeightPx: 124, releaseHeightPx: 124, cap: 124 },
+      { startHeightPx: 172, releaseHeightPx: 145, cap: 124 },
+      { startHeightPx: 124, releaseHeightPx: 124, cap: 172 },
+    ])("preserves the snap from $startHeightPx with a $cap cap", ({ startHeightPx, releaseHeightPx, cap }) => {
+      expect(resolveSheetHeightSnap({
+        viewportHeight: 320,
+        startSnap,
+        startHeightPx,
+        releaseHeightPx,
+        velocity: 0,
+        caps: { peek: cap, half: cap, full: cap },
+      })).toEqual({ snap: startSnap, dismissed: false });
+    });
+  });
+
   it("stays at the same snap when there is no drag (start height = its cap)", () => {
     for (const snap of SHEET_SNAP_ORDER) {
       const result = resolveSheetHeightSnap({
