@@ -76,6 +76,12 @@ export type PassportDeps = {
    * never calls a shared pub "only you" because an old drop fell off.
    */
   dropVenueIds(authorHandle: string, viewer: ViewerContext | undefined): Promise<string[]>;
+  /**
+   * Every venue the author has a drop at, their anonymous drops included. The
+   * author's own side only: the read above leaves anonymous drops out even
+   * for their author.
+   */
+  ownDropVenueIds(authorHandle: string): Promise<string[]>;
   plans(ownerUserId: string): Promise<BeenSighting[]>;
   /** Open Want-to-try rows; a pending paste has an empty venue id. */
   wanted(profileId: string): Promise<PassportVenue[]>;
@@ -370,7 +376,10 @@ async function comparedSide(
   if (relation !== "owner" && !viewer?.mutualHandles) return null;
   const [fold, dropIds, aliases] = await Promise.all([
     foldBeen(request, profile, relation, access, deps),
-    settle(() => deps.dropVenueIds(profile.handle, viewer), [] as string[]),
+    settle(
+      () => (relation === "owner" ? deps.ownDropVenueIds(profile.handle) : deps.dropVenueIds(profile.handle, viewer)),
+      [] as string[],
+    ),
     settle(() => deps.venueAliases(), identity),
   ]);
   // The dated drop timeline is capped, but the complete drop read below
@@ -587,6 +596,12 @@ export function defaultPassportDeps(): PassportDeps {
     async dropVenueIds(authorHandle, viewer) {
       const venues = await Promise.all(listEnabledCities().map((city) =>
         pintDropsStore().listVisibleAuthorVenueIds(authorHandle, viewer, city.id),
+      ));
+      return [...new Set(venues.flat())];
+    },
+    async ownDropVenueIds(authorHandle) {
+      const venues = await Promise.all(listEnabledCities().map((city) =>
+        pintDropsStore().listOwnVenueIds(authorHandle, city.id),
       ));
       return [...new Set(venues.flat())];
     },

@@ -72,6 +72,9 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
       profileId === OWNER.id ? rankedRows(["lamb", "stars", "mitre", "a", "b"]) : rankedRows(["stars", "z", "lamb"]),
     nightProfile: async () => ({ patch: "Soho" }),
     dropVenueIds: async () => ["lamb", "stars"],
+    // The author's own complete list answers like the public one unless a case
+    // sets it, so a case that names one author's venues covers both reads.
+    ownDropVenueIds: async (author) => (overrides.dropVenueIds ?? (async () => ["lamb", "stars"]))(author, undefined),
     venue: async (venueId) => ({ name: venueId.toUpperCase(), borough: "Camden", point: [-0.12, 51.52] }),
     heritageDateLabel: async (venueId) => (venueId === "lamb" ? "Built 1729" : null),
     venueAliases: async () => (venueId) => venueId,
@@ -356,6 +359,24 @@ describe("GET overlap", () => {
     expect(been.ok && been.body.count).toBe(3);
     const overlap = await readPassportOverlap(request(), "owner", deps("mate", "public", { venueAliases }));
     expect(overlap.ok && overlap.body.been).toBeNull();
+  });
+
+  it("counts the viewer's own anonymous drops on their side", async () => {
+    // The public venue read leaves out anonymous drops even for their author,
+    // so the viewer's side reads their own complete list instead.
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        diary: async () => [],
+        plans: async () => [],
+        drops: async () => [],
+        dropVenueIds: async (author) => (author === "owner" ? ["anchor"] : []),
+        ownDropVenueIds: async (author) => (author === "mate" ? ["anchor"] : []),
+      }),
+    );
+    expect(result.ok && result.body.been?.both.map((venue) => venue.venueId)).toEqual(["anchor"]);
+    expect(result.ok && result.body.been?.onlyThem).toEqual([]);
   });
 
   it("drops the Been comparison when the complete drop read fails", async () => {
