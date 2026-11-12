@@ -51,7 +51,7 @@ import { selectStore } from "@/lib/storeBackend";
 import { storedVenueName } from "@/lib/storedVenueRef";
 import { savedPubsStore } from "@/lib/savedPubsStore";
 import { requireSupabaseAdmin } from "@/lib/supabase";
-import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { loadVenueAliasResolver, venueAliasesReady } from "@/lib/venueAliases";
 import { resolveStoredVenue } from "@/lib/venueIndex";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -364,14 +364,18 @@ async function comparedSide(
   deps: PassportDeps,
 ): Promise<PassportVenue[] | null> {
   const viewer = relation === "owner" ? { handle: profile.handle } : await deps.dropViewer(request);
-  const [fold, dropIds, canonical] = await Promise.all([
+  // A mate's context with no mutuals lost its friends graph, so friends-only
+  // drops would be missing from this side without an error.
+  if (relation !== "owner" && !viewer?.mutualHandles) return null;
+  const [fold, dropIds, aliases] = await Promise.all([
     foldBeen(request, profile, relation, access, deps),
     settle(() => deps.dropVenueIds(profile.handle, viewer), [] as string[]),
-    canonicalizer(deps),
+    settle(() => deps.venueAliases(), identity),
   ]);
   // The dated drop timeline is capped, but the complete drop read below
   // covers its venues, so only the other sources decide completeness.
-  if (fold.degraded || !fold.complete || dropIds.failed) return null;
+  if (fold.degraded || !fold.complete || dropIds.failed || aliases.failed) return null;
+  const canonical = aliases.value;
   const known = new Set(fold.venues.map((venue) => venue.venueId));
   const missing = [...new Set(dropIds.value.map(canonical))].filter((venueId) => venueId && !known.has(venueId));
   const named = await Promise.all(
@@ -634,7 +638,11 @@ export function defaultPassportDeps(): PassportDeps {
       return { patch };
     },
     venue: venueFacts,
-    venueAliases: async () => (await loadVenueAliasResolver()).canonical,
+    async venueAliases() {
+      // Unread alias files would treat a merged pub's two ids as two pubs.
+      if (!(await venueAliasesReady())) throw new Error("venue aliases unavailable");
+      return (await loadVenueAliasResolver()).canonical;
+    },
     async heritageDateLabel(venueId) {
       const pubs = await loadHistoricPubs();
       const pub = pubs.find((entry) => entry.venueId === venueId);

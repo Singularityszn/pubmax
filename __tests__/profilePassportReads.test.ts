@@ -54,7 +54,7 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
     },
     follows: { isFollowing: async (a, b) => edges.has(`${a}>${b}`) },
     withdrawn: async () => false,
-    dropViewer: async () => (USER_FOR[reader] ? { handle: reader } : undefined),
+    dropViewer: async () => (USER_FOR[reader] ? { handle: reader, mutualHandles: new Set<string>() } : undefined),
     diary: async () => [{ venueId: "lamb", venueName: "The Lamb", date: "2026-10-01", source: "diary" }],
     drops: async () => [
       { venueId: "lamb", drink: "Guinness", createdAt: "2026-10-05T19:00:00.000Z" },
@@ -283,6 +283,28 @@ describe("GET overlap", () => {
 
     const overlap = await readPassportOverlap(request(), "owner", deps("mate", "public", override as Partial<PassportDeps>));
     expect(overlap.ok).toBe(true);
+    expect(overlap.ok && overlap.body.been).toBeNull();
+  });
+
+  it("compares nothing when the mate's drop context lost its friends graph", async () => {
+    // A graph outage leaves the context with a handle and no mutuals, so
+    // friends-only drops would vanish from the mate's side without an error.
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", { dropViewer: async () => ({ handle: "mate" }) }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.body.been).toBeNull();
+  });
+
+  it("keeps the Been read but compares nothing when venue aliases cannot be read", async () => {
+    const venueAliases = async (): Promise<(venueId: string) => string> => {
+      throw new Error("alias files unavailable");
+    };
+    const been = await readPassportBeen(request(), "owner", deps("owner", "public", { venueAliases }));
+    expect(been.ok && been.body.count).toBe(3);
+    const overlap = await readPassportOverlap(request(), "owner", deps("mate", "public", { venueAliases }));
     expect(overlap.ok && overlap.body.been).toBeNull();
   });
 
