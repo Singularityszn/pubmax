@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   __resetWarmVenueDetail,
   getWarmedVenue,
+  rememberOpenedVenue,
+  savedVenueCopyAt,
+  subscribeSavedVenueCopies,
   warmVenueDetail,
 } from "@/lib/warmVenueDetail";
 
@@ -126,4 +129,71 @@ describe("warmVenueDetail", () => {
     expect(getWarmedVenue("venue-alias")).toEqual(rebuilt);
     expect(getWarmedVenue("venue-canonical")).toEqual(rebuilt);
   });
+
+  it("reopens a pub the reader opened before from its dated device copy when the network is gone", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-10T20:15:00.000Z"));
+    vi.stubGlobal("localStorage", memoryStorage());
+    const venue = {
+      id: "venue-saved",
+      name: "The Saved Arms",
+      prices: [{ price_gbp: 5.2, source: "Menu", observed_at: "2026-11-01" }],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ venue }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await warmVenueDetail("venue-saved");
+    rememberOpenedVenue("venue-saved");
+    vi.useRealTimers();
+
+    // A fresh session with no signal.
+    __resetWarmVenueDetail();
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    const announced = vi.fn();
+    subscribeSavedVenueCopies(announced);
+
+    expect(await warmVenueDetail("venue-saved")).toEqual({
+      status: "found",
+      venue: { ...venue, ...UNKNOWN_AMENITIES },
+      savedAt: "2026-11-10T20:15:00.000Z",
+    });
+    expect(savedVenueCopyAt("venue-saved")).toBe("2026-11-10T20:15:00.000Z");
+    expect(announced).toHaveBeenCalledTimes(1);
+    // The copy is never a session hit, so the next open asks the network again.
+    expect(getWarmedVenue("venue-saved")).toBeNull();
+
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ venue }) });
+    expect(await warmVenueDetail("venue-saved")).toEqual({
+      status: "found",
+      venue: { ...venue, ...UNKNOWN_AMENITIES },
+    });
+    expect(savedVenueCopyAt("venue-saved")).toBeNull();
+    expect(announced).toHaveBeenCalledTimes(2);
+  });
+
+  it("answers only a failed lookup offline for a pub the reader never opened, or a server error", async () => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    const venue = { id: "venue-opened", name: "The Opened", prices: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ venue }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await warmVenueDetail("venue-opened");
+    rememberOpenedVenue("venue-opened");
+    __resetWarmVenueDetail();
+
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    expect(await warmVenueDetail("venue-never-opened")).toEqual({ status: "failed" });
+    // A server that answers is not a lost signal, so it never reads as offline.
+    fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    expect(await warmVenueDetail("venue-opened")).toEqual({ status: "failed" });
+    expect(savedVenueCopyAt("venue-opened")).toBeNull();
+  });
 });
+
+function memoryStorage(): Pick<Storage, "getItem" | "setItem"> {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => {
+      values.set(key, value);
+    },
+  };
+}
