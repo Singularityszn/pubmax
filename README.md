@@ -300,7 +300,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Results come from a capped public read and can omit eligible drops. **Show more prices from today** expands the returned rows. An empty result does not establish that nobody logged a price. A failed read offers **Try again**. **Log a pint** opens the map's pub picker.
 
-  After a lost response, retry the Pint Drop without changing its details or attachments. The app can return the saved drop. Changed retry details are refused. See the [creation retry contract](docs/rules/app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation) for attachment limits.
+  After a lost response, open **Social**. If your drop appears under **Unsent Pint Drops**, choose **Retry**. The app can return the saved drop. If the message says an earlier try saved other details, choose **Retry** again to submit a new drop.
+
+  Photos remain available after leaving the map within the same tab. Reloading loses local photo attachments. If a photo is no longer available, open the map composer and attach it again. See the [creation retry contract](docs/rules/app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation) for request matching and attachment limits.
 
   Anonymous Pint Drops show "a PUBMAXXER" without an `@` instead of your handle.
 

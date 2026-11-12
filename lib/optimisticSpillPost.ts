@@ -46,8 +46,8 @@ export type OptimisticSpillRetryInput = OptimisticSpillInput & {
 
 export type OptimisticSpillRetryPayload = {
   /**
-   * The first attempt's key, resent so the server answers a retry of a drop
-   * it already saved. Absent on entries stored before retries carried it.
+   * The current wire key. Conflict recovery can change it without changing
+   * the stored entry's identity. Absent on entries stored before retries carried it.
    */
   clientRequestId?: string;
   venueId: string;

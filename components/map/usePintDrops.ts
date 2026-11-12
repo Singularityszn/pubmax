@@ -501,8 +501,7 @@ export function usePintDrops(
   }, []);
 
   // Pick a photo for one slot: pre-validate (type + size) before we ever build a
-  // preview or submit, so bad files are caught client-side. Object URLs are
-  // revoked when the slot is replaced/removed and on unmount (effect below).
+  // preview or submit, so bad files are caught client-side.
   // ONE TABLE FOR THREE SLOTS. It was a pair of ternaries per function, and a
   // third slot would have made six places to keep in step.
   const photoSlots = {
