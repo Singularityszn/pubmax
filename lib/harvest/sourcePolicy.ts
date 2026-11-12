@@ -12,6 +12,7 @@ import {
   type HarvestSource,
   type HarvestSourceKind,
 } from "./sourceRegistry.ts";
+import { FULLERS_ESTATE_HOSTS, STONEGATE_ESTATE_HOSTS } from "./termsRefusedEstateHosts.ts";
 
 export {
   HARVEST_SKIP_REASONS,
@@ -197,6 +198,8 @@ const REFUSED_HOSTS = new Set([
     }
   }),
   ...REFUSED_ESTATE_HOSTS,
+  ...STONEGATE_ESTATE_HOSTS,
+  ...FULLERS_ESTATE_HOSTS,
 ]);
 
 /**

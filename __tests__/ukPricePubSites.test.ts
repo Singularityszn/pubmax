@@ -33,8 +33,8 @@ describe("a pub's own website as a crawl input", () => {
   it("renders only a site that serves exactly one pub, within --only", () => {
     const pubs = [
       pub("node/1", "Tap East", "http://www.tapeast.co.uk/"),
-      pub("node/2", "Fox & Hounds", "https://www.craftunionpubs.com/fox-and-hounds-forest-gate"),
-      pub("node/3", "Little Driver", "https://www.craftunionpubs.com/little-driver-bow"),
+      pub("node/2", "Fox & Hounds", "https://www.estate.example/fox-and-hounds-forest-gate"),
+      pub("node/3", "Little Driver", "https://www.estate.example/little-driver-bow"),
       pub("way/4", "Lvls", "https://www.lvls.london/"),
       pub("node/5", "No Site"),
     ];
@@ -43,7 +43,7 @@ describe("a pub's own website as a crawl input", () => {
       ["lvls.london", "venue-uk-w4"],
     ]);
     expect(singlePubSiteTargets(pubs, { only: ["lvls.london"] }).map((target) => target.name)).toEqual(["Lvls"]);
-    expect(singlePubSiteTargets(pubs, { only: ["craftunionpubs.com"] })).toEqual([]);
+    expect(singlePubSiteTargets(pubs, { only: ["estate.example"] })).toEqual([]);
   });
 
   it("opens only the site's own drinks links, once each, capped", () => {

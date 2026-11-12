@@ -502,6 +502,33 @@ function dropsOf(reporter: ReturnType<typeof createHarvestReporter>, sourceId: s
 }
 
 describe("London harvest lanes read where Firecrawl landed", () => {
+  it.each([
+    "https://www.the-counting-house.com/",
+    "https://www.crafted-social.co.uk/famous-cock-tavern-islington",
+  ])("events lane: refuses %s before robots or scraping", async (website) => {
+    const { client, calls } = fakeClient({});
+    const reporter = createHarvestReporter({ mode: "cli", startedAt: OBSERVED_AT });
+
+    const result = await harvestEvents({
+      client,
+      reporter,
+      robots: allowAll,
+      observedAt: OBSERVED_AT,
+      nowMs: Date.parse(OBSERVED_AT),
+      venueIndex: null,
+      dryRun: true,
+      venueLimit: 1,
+      fresh: false,
+      venues: [{ name: "Estate pub", address: "1 High St, London N1 1AA", website, lat: null, lng: null }],
+      samePauseMs: 0,
+    });
+
+    expect(result.rows).toBe(0);
+    expect(calls).toEqual([]);
+    expect(allowAll).not.toHaveBeenCalled();
+    expect(dropsOf(reporter, "venue-own-pages")).toEqual(["host-refused-by-policy"]);
+  });
+
   it("scrapeLanding refuses a landing on a refused estate and re-asks robots on a moved one", async () => {
     expect(await scrapeLanding("https://redlion.example/", { landedUrl: `https://${REFUSED_ESTATE}/` }, allowAll)).toEqual({
       ok: false,

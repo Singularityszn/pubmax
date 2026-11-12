@@ -10,6 +10,7 @@ import {
   HARVEST_SKIP_REASONS,
   HARVEST_SOURCES,
   harvestSource,
+  harvestRedirectLanding,
   harvestSourcesOfKind,
   isHarvestableChainMenuUrl,
   isHarvestableOperatorUrl,
@@ -176,6 +177,21 @@ describe("a venue's own site is harvestable; a refused host wearing its name is 
     expect(isHarvestableOperatorUrl("/whats-on")).toBe(false);
     expect(isHarvestableOperatorUrl("ftp://example.com")).toBe(false);
     expect(isHarvestableOperatorUrl(null)).toBe(false);
+  });
+
+  it.each([
+    "crafted-social.co.uk",
+    "greatukpubs.co.uk",
+    "craftunionpubs.com",
+    "the-counting-house.com",
+    "castleealing.co.uk",
+    "socialpubandkitchen.co.uk",
+  ])("refuses own-site reads and redirect landings on %s under the captain's estate ruling", (host) => {
+    for (const prefix of ["", "www.", "menus."]) {
+      const url = `https://${prefix}${host}/whats-on`;
+      expect(isHarvestableOperatorUrl(url)).toBe(false);
+      expect(harvestRedirectLanding("https://www.arnosarms.co.uk/", url)).toEqual({ outcome: "refused", url });
+    }
   });
 
   it("binds chain menu URLs to their recorded source and refuses chains with no web prices", () => {

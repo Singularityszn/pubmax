@@ -7,8 +7,8 @@ vi.mock("node:fs", () => ({
   existsSync: (file: string) => file.endsWith("uk_osm_pubs.json"),
   readFileSync: () => JSON.stringify([
     { osmId: "node/1", name: "King Edward VII", website: "https://kingeddies.co.uk/" },
-    { osmId: "node/2", name: "Fox & Hounds", website: "https://www.craftunionpubs.com/fox" },
-    { osmId: "node/3", name: "Little Driver", website: "https://www.craftunionpubs.com/driver" },
+    { osmId: "node/2", name: "Fox & Hounds", website: "https://www.estate.example/fox" },
+    { osmId: "node/3", name: "Little Driver", website: "https://www.estate.example/driver" },
     { osmId: "node/4", name: "Tap East", website: "http://www.tapeast.co.uk/" },
     { osmId: "node/5", name: "Redirected Arms", website: "https://redirectedarms.co.uk/" },
     { osmId: "node/6", name: "Timeout Tavern", website: "https://timeouttavern.co.uk/" },
