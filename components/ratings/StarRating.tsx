@@ -83,6 +83,11 @@ export default function StarRating({
 }: StarRatingProps) {
   // The keyboard-adjusted, not-yet-committed value (interactive mode only).
   const [draft, setDraft] = useState<RatingValue | null>(null);
+  const [previousValue, setPreviousValue] = useState(value);
+  if (previousValue !== value) {
+    setPreviousValue(value);
+    setDraft(null);
+  }
 
   const classes = ["starRating", `starRating--${size}`, className]
     .filter(Boolean)

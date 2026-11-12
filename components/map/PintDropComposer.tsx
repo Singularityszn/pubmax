@@ -125,8 +125,6 @@ function AccountPintDropComposer({
     dropForm,
     visibility,
     vibeTags,
-    rating,
-    setRating,
     transientVoiceNoteBaseline,
     priceSeed,
   });
@@ -318,7 +316,7 @@ function AccountPintDropComposer({
             Sign in to post
           </Link>
         ) : (
-          <button type="submit" disabled={submitting || !author.canSubmit || !hasSubmissionEvidence}>
+          <button type="submit" disabled={submitting || Boolean(dropMsg?.retry) || !author.canSubmit || !hasSubmissionEvidence}>
             <Send size={14} /> {submitting ? SPILL_LOG_ACTION_BUSY_LABEL : SPILL_LOG_ACTION_LABEL}
           </button>
         )}

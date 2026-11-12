@@ -27,6 +27,9 @@ export default function PintDropMessage({
         style={block ? { display: "block", marginTop: "8px" } : undefined}
       >
         {msg.text}
+        {msg.retry ? (
+          <button type="button" onClick={() => { void msg.retry?.send(); }}>Retry</button>
+        ) : null}
         <PintDropAgeRecovery recovery={msg.ageRecovery} onAsserted={onAgeAsserted} />
         {msg.links && msg.links.length > 0 ? (
           <span className="composerMsgLinks">

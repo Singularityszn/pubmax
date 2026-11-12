@@ -5,7 +5,6 @@ import {
   type DrinkMeasure,
 } from "@/lib/drinkMeasure";
 import { VIBE_TAGS, cleanVisibility, type VibeTag, type Visibility } from "@/lib/pintDropShared";
-import { isPintDropRating, type PintDropRating } from "@/lib/pintDropRating";
 
 export type PintDropDraftForm = {
   price: string;
@@ -26,7 +25,6 @@ export type PintDropDraft = {
   form: PintDropDraftForm;
   visibility: Visibility;
   vibeTags: VibeTag[];
-  rating?: PintDropRating | null;
   updatedAt: string;
 };
 type PintDropDraftV2 = PintDropDraft & { version: 2 };
@@ -108,7 +106,6 @@ export function normalisePintDropDraft(value: unknown): PintDropDraft | null {
     form?: Partial<Record<keyof PintDropDraftForm, unknown>>;
     visibility?: unknown;
     vibeTags?: unknown;
-    rating?: unknown;
     updatedAt?: unknown;
   };
   const form = raw.form ?? {};
@@ -126,7 +123,6 @@ export function normalisePintDropDraft(value: unknown): PintDropDraft | null {
     },
     visibility: cleanVisibility(raw.visibility),
     vibeTags: cleanVibeTags(raw.vibeTags),
-    rating: isPintDropRating(raw.rating) ? raw.rating : null,
     updatedAt: cleanUpdatedAt(raw.updatedAt),
   };
 }
@@ -139,7 +135,6 @@ export function isEmptyPintDropDraft(draft: PintDropDraft): boolean {
     draft.form.era.trim() === "" &&
     draft.form.withWho.trim() === "" &&
     draft.vibeTags.length === 0 &&
-    !isPintDropRating(draft.rating) &&
     draft.visibility === "public"
   );
 }
