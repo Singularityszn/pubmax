@@ -1,8 +1,28 @@
 import { useSyncExternalStore } from "react";
 
 import { LOG_IN_PUBLIC_DAY, logInPublicDayActive } from "@/lib/logInPublicDay";
+import { LONDON_DAY_MS, londonMsSinceMidnight } from "@/lib/londonHour";
+import { londonDayKey } from "@/lib/pintContributions";
 
-const subscribe = () => () => {};
+function subscribe(onChange: () => void): () => void {
+  let timer: ReturnType<typeof setTimeout>;
+  const refresh = () => {
+    clearTimeout(timer);
+    onChange();
+    const now = new Date();
+    const nextUtcMidnight = new Date(Date.parse(`${londonDayKey(now)}T00:00:00Z`) + LONDON_DAY_MS);
+    const nextLondonMidnight = nextUtcMidnight.getTime() - londonMsSinceMidnight(nextUtcMidnight);
+    timer = setTimeout(refresh, nextLondonMidnight - now.getTime());
+  };
+  refresh();
+  document.addEventListener("visibilitychange", refresh);
+  window.addEventListener("pageshow", refresh);
+  return () => {
+    clearTimeout(timer);
+    document.removeEventListener("visibilitychange", refresh);
+    window.removeEventListener("pageshow", refresh);
+  };
+}
 const readDay = () => (logInPublicDayActive(new Date()) ? LOG_IN_PUBLIC_DAY : null);
 const serverDay = () => null;
 

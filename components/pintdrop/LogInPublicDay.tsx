@@ -109,8 +109,8 @@ export default function LogInPublicDay({ day, className }: { day: string; classN
           }
         />
       ) : state.drops.length === 0 ? (
-        <EmptyState className="logInPublicEmpty" title="Nobody has logged a pint today yet.">
-          Log what you paid and yours is the first price on this list.
+        <EmptyState className="logInPublicEmpty" title="No prices from today in these public results.">
+          Log what you paid to add a Pint Drop.
         </EmptyState>
       ) : (
         <>
@@ -119,7 +119,7 @@ export default function LogInPublicDay({ day, className }: { day: string; classN
           </RowList>
           {!showAll && state.drops.length > MAX_ROWS ? (
             <Button type="button" variant="ghost" className="logInPublicMore" onClick={() => setShowAll(true)}>
-              Show all of today&apos;s prices
+              Show more prices from today
             </Button>
           ) : null}
         </>
