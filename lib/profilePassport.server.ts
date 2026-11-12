@@ -5,10 +5,9 @@ import "server-only";
 // "who is asking" and "what is stored", and every store sits behind a
 // dependency so the visibility matrix is proved without a database.
 //
-// WHO IS ASKING comes from the bearer, never from a query parameter, by the
-// rule lib/profileVisibilityBoundary.server.ts already keeps: the owner is the
-// stored `profiles.user_id`, a mate is a mutual follow read from both edges,
-// and every failure answers "stranger". A stranger reads less, never more.
+// Identity comes from the bearer, never from a query parameter. Access and
+// completeness follow the passport rule in
+// docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md.
 
 import { accountIsPrivate } from "@/lib/accountVisibility";
 import { callerUserId } from "@/lib/authServer";

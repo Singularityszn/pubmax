@@ -58,8 +58,8 @@ export type FollowStore = {
    */
   edgesWith(handle: string, others: readonly string[]): Promise<FollowEdges>;
   /**
-   * listMutuals for each of the given handles in two bounded reads, keyed by
-   * normalised handle. Powers "people you may know" from a viewer's lot.
+   * listMutuals for each of the given handles, keyed by normalised handle.
+   * The durable backend pages both edge directions for these handles.
    */
   mutualsAmong(handles: readonly string[]): Promise<Map<string, string[]>>;
 };
