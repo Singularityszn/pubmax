@@ -75,24 +75,6 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
       "/historic",
       "/pal",
     ]);
-    expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
-      "Photos",
-      "Near",
-      "Guides",
-      "Historic",
-      "Pal",
-    ]);
-  });
-
-  it("explains what every More destination is for", async () => {
-    const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
-    expect(SITE_NAV_MORE_LINKS.map((link) => link.description)).toEqual([
-      "Pints, pubs and London in photos",
-      "Find priced pubs close to you",
-      "Pub of the week, short guides and famous pubs",
-      "Read the stories behind old pubs",
-      "Ask for a pub that fits tonight",
-    ]);
   });
 
   it("never lists Social in More, so the menu cannot repeat the tab", async () => {

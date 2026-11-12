@@ -70,7 +70,12 @@ function current(items: HTMLAnchorElement[]): string[] {
 }
 
 describe("the More menu marks where a reader is", () => {
-  it.each(["/wall", "/near", "/historic", "/pal"])("marks the item current on %s", async (pathname) => {
+  it("includes the Guides destination when More opens", async () => {
+    const items = await openMoreOn("/tonight");
+    expect(items.map((item) => item.getAttribute("href"))).toContain("/guides");
+  });
+
+  it.each(["/wall", "/near", "/guides", "/historic", "/pal"])("marks the item current on %s", async (pathname) => {
     const items = await openMoreOn(pathname);
     expect(items.filter((item) => item.getAttribute("aria-current") === "page")).toHaveLength(1);
     expect(items.find((item) => item.getAttribute("href") === pathname)?.classList.contains("isActive")).toBe(true);

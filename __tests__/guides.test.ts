@@ -43,6 +43,15 @@ describe("londonWeekNumber", () => {
 describe("pickPubOfTheWeek", () => {
   const pubs = Array.from({ length: 12 }, (_, index) => pub({ name: `Pub ${String(index).padStart(2, "0")}` }));
 
+  it.each([
+    ["1969-12-22T12:00:00Z", "pub-04"],
+    ["1970-01-01T12:00:00Z", "pub-00"],
+    ["1970-01-05T12:00:00Z", "pub-01"],
+    ["1970-01-12T12:00:00Z", "pub-02"],
+  ])("selects the slug-sorted pub for the London week containing %s", (date, slug) => {
+    expect(pickPubOfTheWeek(pubs.slice(0, 5).reverse(), new Date(date))?.pub.slug).toBe(slug);
+  });
+
   it("gives every reader the same pub all week, and moves on the next Monday", () => {
     const monday = pickPubOfTheWeek(pubs, new Date("2026-11-09T08:00:00Z"));
     const sunday = pickPubOfTheWeek(pubs, new Date("2026-11-15T22:00:00Z"));

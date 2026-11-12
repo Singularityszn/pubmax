@@ -19,9 +19,6 @@ export const GUIDES_TITLE = "Pub of the week, guides and famous pubs";
 const SHORT_GUIDE_LIMIT = 6;
 const FAMOUS_PUB_LIMIT = 10;
 
-/** A step that is coprime with the list length visits every pub once per lap. */
-const ROTATION_STEP_START = 37;
-
 export type PubOfTheWeek = {
   pub: HistoricPub & { venueId: string };
   /** The citation of the sentence the hook is. A pub without one is passed over. */
@@ -63,13 +60,6 @@ function storyFact(pub: HistoricPub): { sourceRef: string } | null {
   return fact?.sourceRef ? { sourceRef: fact.sourceRef } : null;
 }
 
-function greatestCommonDivisor(a: number, b: number): number {
-  let x = a;
-  let y = b;
-  while (y !== 0) [x, y] = [y, x % y];
-  return x;
-}
-
 /**
  * London calendar days since 1 January 1970. The day is read on the London
  * wall clock, so the week turns at London midnight in winter and in summer.
@@ -107,11 +97,8 @@ export function pickPubOfTheWeek(pubs: readonly HistoricPub[], now: Date): PubOf
     .sort((a, b) => (a.pub.slug < b.pub.slug ? -1 : a.pub.slug > b.pub.slug ? 1 : 0));
   if (eligible.length === 0) return null;
 
-  let step = ROTATION_STEP_START;
-  while (greatestCommonDivisor(step, eligible.length) !== 1) step += 1;
-
   const week = londonWeekNumber(now);
-  const index = (((week * step) % eligible.length) + eligible.length) % eligible.length;
+  const index = ((week % eligible.length) + eligible.length) % eligible.length;
   const entry = eligible[index];
   if (!entry) return null;
   return {
@@ -135,7 +122,6 @@ export function weekStartLabel(weekStartsOn: string): string {
  */
 export function londonFamousPubs(
   pubs: HistoricPub[],
-  limit: number = FAMOUS_PUB_LIMIT,
 ): Array<HistoricPub & { venueId: string }> {
   return filterAndSortHistoric(pubs, {
     borough: null,
@@ -145,17 +131,16 @@ export function londonFamousPubs(
   })
     .filter(isOpenAndOnTheMap)
     .filter((pub) => storyFact(pub) !== null)
-    .slice(0, limit);
+    .slice(0, FAMOUS_PUB_LIMIT);
 }
 
 /** The first hand-written crawl routes, in the order they were written. */
 export function shortGuides(
   crawls: readonly CuratedCrawl[],
-  limit: number = SHORT_GUIDE_LIMIT,
 ): ShortGuide[] {
   return crawls
     .filter((crawl) => crawl.venueIds.length > 0 && crawl.blurb.trim().length > 0)
-    .slice(0, limit)
+    .slice(0, SHORT_GUIDE_LIMIT)
     .map((crawl) => ({
       id: crawl.id,
       name: crawl.name,
