@@ -59,6 +59,7 @@ import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
 
 import "./social.css";
+import PintDropRecovery from "./PintDropRecovery";
 import SocialLondonLane from "./SocialLondonLane";
 import { socialLazy } from "./SocialLazy";
 import { SocialPostEditor } from "./SocialPostEditor";
@@ -941,6 +942,7 @@ function SocialPageAccountState({
             {checkingPosts && initialState.tab === "posts" ? (
               <SampleSkeleton label="Loading post lanes"><PostsControls state={initialState} /></SampleSkeleton>
             ) : null}
+            {showViewerCards && viewerHandle ? <PintDropRecovery handle={viewerHandle} /> : null}
             {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
               if (updated) setSubmittedPost(updated);
               setFeedAttempt((value) => value + 1);
