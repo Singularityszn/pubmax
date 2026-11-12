@@ -59,6 +59,7 @@ import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
 
 import "./social.css";
+import MatesActivity from "./MatesActivity";
 import PintDropRecovery from "./PintDropRecovery";
 import SocialLondonLane from "./SocialLondonLane";
 import { socialLazy } from "./SocialLazy";
@@ -1005,6 +1006,7 @@ function SocialPageAccountState({
               <EmptyState title="Choose a nearby area." />
             </section>
           ) : (
+            <>
             <section
               className="socialFeed"
               aria-label={`${surfaceName} posts`}
@@ -1087,6 +1089,8 @@ function SocialPageAccountState({
                 </button>
               ) : null}
             </section>
+            {initialState.feed === "following" ? <MatesActivity /> : null}
+            </>
           )}
 
           </div>
