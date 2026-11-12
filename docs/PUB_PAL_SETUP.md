@@ -477,6 +477,14 @@ shell. On the map, `PalVoiceBar` shows the call status and newest transcript lin
 and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
 without starting another call. A cold `/map` loads no ElevenLabs SDK until you tap to talk.
 
+At phone widths and 641-768 px tablet widths, an open map sheet positions the
+voice bar above its top edge. The sheet's maximum height leaves space for the
+bar. This space adjusts when the bar's height changes, including during a drag.
+On phones at most 480 px tall, the pick and caption scroll inside the bar while
+**End** stays outside that scroll area. The desktop layout stays unchanged.
+The [sheet scrolling rules](rules/components-sheets-chrome-and-navigation.md#a-sheet-says-how-much-of-itself-is-off-screen-once-and-the-shell-cannot-be-scrol)
+describe the fallback when the sheet's header and footer exceed its height.
+
 Before the session consumes a map-chip tap, leaving `/pal` and `/map` routes,
 changing accounts, hiding the page, or `pagehide` cancels the pending request.
 Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.

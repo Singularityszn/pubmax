@@ -45,6 +45,14 @@ describe("sheetTranslateY", () => {
     expect(sheetTranslateY("half", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.half);
     expect(sheetTranslateY("peek", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.peek);
   });
+
+  it("keeps every tablet snap below the reserved band", () => {
+    expect(sheetTranslateY("full", 900, 102)).toBe(102);
+    expect(sheetTranslateY("half", 900, 102)).toBeCloseTo(405);
+    expect(sheetTranslateY("peek", 900, 102)).toBe(702);
+    expect(sheetTranslateY("half", 900, 500)).toBe(500);
+    expect(sheetTranslateY("peek", 900, 750)).toBe(750);
+  });
 });
 
 describe("sheetClosedTranslateY", () => {
@@ -292,10 +300,63 @@ describe("sheetSnapCaps — per-snap cap heights (bottom-anchored model)", () =>
     expect(caps.half).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.half);
     expect(caps.full).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.full - 64);
   });
+
+  it("stops full below a reserved top band, such as a live voice bar, and leaves peek and half alone", () => {
+    const caps = sheetSnapCaps(844, 98, 0, 140);
+    expect(844 - 98 - caps.full).toBe(140);
+    expect(caps.half).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.half);
+    expect(sheetSnapCaps(844, 98, 0, 20).full).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.full - 98);
+  });
+
+  it.each([0, 201])("fits every snap below the voice band on a short phone with %ipx chrome", (chromePx) => {
+    const caps = sheetSnapCaps(320, 64, chromePx, 132);
+    for (const snap of SHEET_SNAP_ORDER) {
+      expect(caps[snap]).toBeGreaterThanOrEqual(0);
+      expect(caps[snap]).toBeLessThanOrEqual(124);
+      expect(320 - 64 - caps[snap]).toBeGreaterThanOrEqual(132);
+    }
+    expect(caps.peek).toBeLessThanOrEqual(caps.half);
+    expect(caps.half).toBeLessThanOrEqual(caps.full);
+    expect(caps.full).toBe(124);
+  });
 });
 
 describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)", () => {
   const caps = sheetSnapCaps(800, 0); // peek 176, half 440, full 736
+
+  describe.each(["peek", "half", "full"] as const)("coincident caps starting at %s", (startSnap) => {
+    it.each([
+      { startHeightPx: 124, releaseHeightPx: 124, cap: 124 },
+      { startHeightPx: 172, releaseHeightPx: 145, cap: 124 },
+      { startHeightPx: 124, releaseHeightPx: 124, cap: 172 },
+      { startHeightPx: 124, releaseHeightPx: 154, cap: 172 },
+    ])("preserves the snap from $startHeightPx with a $cap cap", ({ startHeightPx, releaseHeightPx, cap }) => {
+      expect(resolveSheetHeightSnap({
+        viewportHeight: 320,
+        startSnap,
+        startHeightPx,
+        releaseHeightPx,
+        velocity: 0,
+        caps: { peek: cap, half: cap, full: cap },
+      })).toEqual({ snap: startSnap, dismissed: false });
+    });
+  });
+
+  it.each([
+    { startSnap: "half", caps: { peek: 70, half: 172, full: 172 } },
+    { startSnap: "full", caps: { peek: 70, half: 172, full: 172 } },
+    { startSnap: "peek", caps: { peek: 172, half: 172, full: 240 } },
+    { startSnap: "half", caps: { peek: 172, half: 172, full: 240 } },
+  ] as const)("keeps $startSnap when its cap matches one other snap after reserve shrinkage", ({ startSnap, caps }) => {
+    expect(resolveSheetHeightSnap({
+      viewportHeight: 320,
+      startSnap,
+      startHeightPx: 124,
+      releaseHeightPx: 154,
+      velocity: 0,
+      caps,
+    })).toEqual({ snap: startSnap, dismissed: false });
+  });
 
   it("stays at the same snap when there is no drag (start height = its cap)", () => {
     for (const snap of SHEET_SNAP_ORDER) {

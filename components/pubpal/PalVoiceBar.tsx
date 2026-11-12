@@ -95,20 +95,22 @@ export default function PalVoiceBar({
   const caption = error ?? (line ? (line.speaker === "pal" ? line.text : `You: ${line.text}`) : null);
   return (
     <section ref={barRef} className="palVoiceBar" aria-label={`Voice chat with ${palName}`} data-focus-trap-exempt="" data-live={live ? "true" : undefined}>
-      {pick ? (
-        <div className="palVoiceBarPick">
-          <span className="palVoiceBarPickNumber" aria-hidden="true">{pick.number}</span>
-          <p className="palVoiceBarPickTitle">{pick.card.title}</p>
-          <PalCardPrice card={pick.card} className="palVoiceBarPickPrice" />
-          {pick.card.provenance.url
-            ? <a className="palVoiceBarPickSource" href={pick.card.provenance.url} target="_blank" rel="noreferrer noopener">{pick.card.provenance.label}</a>
-            : <p className="palVoiceBarPickSource">{pick.card.provenance.label}</p>}
+      <div className="palVoiceBarDetails">
+        {pick ? (
+          <div className="palVoiceBarPick">
+            <span className="palVoiceBarPickNumber" aria-hidden="true">{pick.number}</span>
+            <p className="palVoiceBarPickTitle">{pick.card.title}</p>
+            <PalCardPrice card={pick.card} className="palVoiceBarPickPrice" />
+            {pick.card.provenance.url
+              ? <a className="palVoiceBarPickSource" href={pick.card.provenance.url} target="_blank" rel="noreferrer noopener">{pick.card.provenance.label}</a>
+              : <p className="palVoiceBarPickSource">{pick.card.provenance.label}</p>}
+          </div>
+        ) : null}
+        {appearance ? <PubPalAvatar appearance={appearance} name={palName} compact genome={genome} /> : null}
+        <div className="palVoiceBarText">
+          <p role="status">{status}</p>
+          {caption ? <p className="palVoiceBarCaption" role={error ? "alert" : undefined}>{caption}</p> : null}
         </div>
-      ) : null}
-      {appearance ? <PubPalAvatar appearance={appearance} name={palName} compact genome={genome} /> : null}
-      <div className="palVoiceBarText">
-        <p role="status">{status}</p>
-        {caption ? <p className="palVoiceBarCaption" role={error ? "alert" : undefined}>{caption}</p> : null}
       </div>
       {live || starting ? (
         <button type="button" onClick={onEnd} aria-label={live ? undefined : "Cancel voice startup"}>

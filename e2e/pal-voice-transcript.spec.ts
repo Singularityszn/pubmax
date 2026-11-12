@@ -5,6 +5,7 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { storeThemeChoice } from "./helpers/themeClock";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 // The voice panel on /pal, driven through the REAL ElevenLabs SDK against a
 // stand-in for the provider's socket. The stand-in speaks the provider's own
@@ -153,7 +154,7 @@ async function preparePalAccount(page: Page, memoryProposals = false, firstMessa
     return { opened };
   }
   await expect(page.getByRole("button", { name: "Account options for Karan", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: /^Pub Pal(?:,.*)?$/ }).first().click();
+  await page.getByRole("link", { name: /^Pub Pal(?:,.*)?$/ }).first().press("Enter");
   await expect(page).toHaveURL(/\/pal$/);
   await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeVisible({ timeout: 30_000 });
   // Wrapped, so awaiting the account does not also wait for the socket.
@@ -883,9 +884,9 @@ test("returning to Pal keeps the transcript and socket, then mute ends the call"
   await expect.poll(() => closed).toBe(true);
 });
 
-for (const pending of ["plan read", "redirect timer"] as const) {
-  test(`manual pub selection cancels a pending ${pending}, preserves voice, and keeps End usable`, async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+for (const [pending, width] of [["plan read", 1440], ["redirect timer", 1440], ["redirect timer", 390], ["redirect timer", 768]] as const) {
+  test(`${width}px: manual pub selection cancels a pending ${pending}, preserves voice, and keeps End usable`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const socket = await openLiveVoice(page);
     let closed = false;
     socket.onClose(() => { closed = true; });
@@ -940,8 +941,30 @@ for (const pending of ["plan read", "redirect timer"] as const) {
     await expect(page.locator(".palVoiceBar")).toContainText("Your manual choice is still open.");
     expect(closed).toBe(false);
     await test.info().attach("manual-navigation", { body: JSON.stringify({ pending, url: page.url(), socketClosed: closed, transcript: await page.locator(".palVoiceBar").innerText() }), contentType: "application/json" });
-    await expect(page.getByRole("dialog", { name: "Pub detail", exact: true })).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/cancel-${pending.replace(" ", "-")}.png` });
+    await expect(page.getByRole("dialog", { name: width === 390 ? answer.cards[0].title : "Pub detail", exact: true })).toBeVisible();
+    if (width < 1440) {
+      const sheet = width === 390 ? ".mobileSharedSheet" : ".mapDrawer.right.open";
+      await expect(async () => {
+        const dock = await page.evaluate(sheet => ({
+          bar: document.querySelector(".palVoiceBar")!.getBoundingClientRect().bottom,
+          sheet: document.querySelector(sheet)!.getBoundingClientRect().top,
+        }), sheet);
+        expect(dock.bar).toBeLessThanOrEqual(dock.sheet);
+      }).toPass();
+    }
+    await page.screenshot({ path: `${SHOTS}/cancel-${pending.replace(" ", "-")}-${width}.png` });
+    if (width === 390) {
+      await page.getByRole("button", { name: "Expand sheet", exact: true }).click();
+      await expect(page.locator('.mobileSharedSheet.sheet-full[data-sheet-motion="idle"]')).toBeVisible();
+      await expect(async () => {
+        const full = await page.evaluate(() => ({
+          bar: document.querySelector(".palVoiceBar")!.getBoundingClientRect(),
+          sheet: document.querySelector(".mobileSharedSheet")!.getBoundingClientRect().top,
+        }));
+        expect(full.bar.top).toBeGreaterThanOrEqual(0);
+        expect(full.bar.bottom).toBeLessThanOrEqual(full.sheet);
+      }).toPass();
+    }
     const end = page.getByRole("button", { name: "End", exact: true });
     const hit = await end.evaluate(button => {
       const box = button.getBoundingClientRect();
@@ -950,6 +973,344 @@ for (const pending of ["plan read", "redirect timer"] as const) {
     });
     await test.info().attach("voice-end-hit-target", { body: JSON.stringify(hit), contentType: "application/json" });
     await test.step("End remains usable beside pub details", async () => { expect(hit.reachable).toBe(true); });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect.poll(() => closed).toBe(true);
+  });
+}
+
+for (const width of [390, 568, 641, 768]) {
+  test(`${width}px: a growing voice bar stays above the sheet after a held drag`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: width === 568 ? 320 : 844 });
+    await storeThemeChoice(page, width === 641 ? "dark" : "light");
+    const socket = await openLiveVoice(page);
+    hear(socket, "Find four pubs in Soho");
+    const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find four pubs in Soho" } });
+    expect(response.ok()).toBe(true);
+    const answer = await response.json();
+    const index = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { rows: { id: string; lat: number; lng: number }[] };
+    const venues = index.rows.filter(venue => answer.cards.some((card: { venueId: string }) => card.venueId === venue.id));
+    const request = { tool_name: "search_venues", tool_call_id: `sheet-reserve-${++eventId}`, tool_type: "webhook", event_id: eventId };
+    socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+    socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+      ...request, is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: { ok: true, tool: "search_venues", answerHint: "Recorded results.", cards: answer.cards, data: { venues } } }),
+    } }));
+    await page.getByRole("list", { name: "Pubs from the voice answer" }).getByRole("link", { name: answer.cards[0].title, exact: true }).click();
+    await expect(page.locator(".palVoiceBar")).toBeVisible();
+    await expectMapLoadingFrameReleased(page);
+    const phone = width <= 640;
+    const sheet = page.locator(phone ? ".mobileSharedSheet" : ".mapDrawer.right.open");
+    const handle = sheet.locator(phone ? ".mobileSharedSheetHeader" : ".mapDrawerHead");
+    await expectLayoutSettled(sheet);
+    const dragToFull = async () => {
+      const box = await handle.boundingBox();
+      if (!box) throw new Error("The sheet has no drag handle.");
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height - 3);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2, 8, { steps: 12 });
+      await page.mouse.up();
+      await expect(sheet).toHaveClass(/sheet-full/);
+      await expectLayoutSettled(sheet);
+    };
+    if (phone) await page.getByRole("button", { name: "Expand sheet", exact: true }).click();
+    else await dragToFull();
+    if (phone) await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    const before = await sheet.boundingBox();
+    const readState = () => sheet.evaluate(element => ({
+      top: element.getBoundingClientRect().top,
+      transform: getComputedStyle(element).transform,
+      inline: element.getAttribute("style"),
+      reserve: getComputedStyle(element).getPropertyValue("--sheet-top-reserve"),
+      bottom: getComputedStyle(element).bottom,
+      height: element.getBoundingClientRect().height,
+      maxHeight: getComputedStyle(element).maxHeight,
+      scrollY,
+    }));
+    const beforeState = await readState();
+    await page.screenshot({ path: `${SHOTS}/held-drag-before-${width}.png` });
+    const box = await handle.boundingBox();
+    if (!box || !before) throw new Error("The sheet has no visible header.");
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height - 3;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    const grabbed = await sheet.boundingBox();
+    await info.attach("grab-geometry", { body: JSON.stringify({ before: beforeState, after: await readState() }), contentType: "application/json" });
+    await page.screenshot({ path: `${SHOTS}/held-drag-grabbed-${width}.png` });
+    socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+      tool_name: "map_focus_pick", tool_call_id: `grow-${++eventId}`, parameters: { number: 2 }, event_id: eventId,
+    } }));
+    await expect(page.locator(".palVoiceBarPick")).toContainText(answer.cards[1].title);
+    await page.mouse.move(x, y - 1);
+    await page.mouse.up();
+    if (phone) await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    const checkDock = async () => {
+      const geometry = await page.evaluate(selector => {
+        const bar = document.querySelector(".palVoiceBar")!.getBoundingClientRect();
+        const sheet = document.querySelector(selector)!.getBoundingClientRect();
+        const end = [...document.querySelectorAll(".palVoiceBar button")].find(button => button.textContent?.trim() === "End")!;
+        const endBox = end.getBoundingClientRect();
+        return { barTop: bar.top, barBottom: bar.bottom, sheetTop: sheet.top,
+          endReachable: end.contains(document.elementFromPoint(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2)) };
+      }, phone ? ".mobileSharedSheet" : ".mapDrawer.right.open");
+      expect(geometry.barTop).toBeGreaterThanOrEqual(0);
+      expect(geometry.barBottom).toBeLessThanOrEqual(geometry.sheetTop);
+      expect(geometry.endReachable).toBe(true);
+      return geometry;
+    };
+    await expect(checkDock).toPass();
+    await info.attach("held-drag-geometry", { body: JSON.stringify(await checkDock()), contentType: "application/json" });
+    await page.screenshot({ path: `${SHOTS}/held-drag-grown-${width}.png` });
+    if (phone) {
+      // A sheet too short for its own header and footer under the bar still
+      // lets the person scroll to every control.
+      const action = sheet.locator(".mobileSharedSheetFooter button").first();
+      const middle = (await sheet.boundingBox())!;
+      await page.mouse.move(middle.x + middle.width / 2, middle.y + middle.height / 2);
+      await expect(async () => {
+        await page.mouse.wheel(0, 400);
+        const reachable = await action.evaluate(button => {
+          const box = button.getBoundingClientRect();
+          return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+        });
+        expect(reachable).toBe(true);
+      }).toPass();
+      await page.screenshot({ path: `${SHOTS}/held-drag-footer-${width}.png` });
+    }
+    if (width !== 568) {
+      await page.evaluate(() => document.documentElement.style.fontSize = "32px");
+      await expect(checkDock).toPass();
+      await page.screenshot({ path: `${SHOTS}/held-drag-large-text-${width}.png` });
+      await page.evaluate(() => document.documentElement.style.fontSize = "");
+      await expect(checkDock).toPass();
+    }
+    let closed = false;
+    socket.onClose(() => { closed = true; });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect.poll(() => closed).toBe(true);
+    await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+    if (phone) await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    expect((await sheet.boundingBox())!.y).toBeLessThan(before.y + 1);
+    expect(Math.abs(grabbed!.y - before.y)).toBeLessThanOrEqual(1);
+  });
+}
+
+test.describe("cramped sheet touch scrolling", () => {
+  test.use({ hasTouch: true });
+
+  test("568px: peek has no body gap and expanded body swipes reach the footer", async ({ page }, info) => {
+    await page.setViewportSize({ width: 568, height: 844 });
+    await storeThemeChoice(page, "dark");
+    const socket = await openLiveVoice(page);
+    hear(socket, "Find four pubs in Soho");
+    const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find four pubs in Soho" } });
+    expect(response.ok()).toBe(true);
+    const answer = await response.json();
+    const index = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { rows: { id: string; lat: number; lng: number }[] };
+    const venues = index.rows.filter(venue => answer.cards.some((card: { venueId: string }) => card.venueId === venue.id));
+    const request = { tool_name: "search_venues", tool_call_id: `touch-${++eventId}`, tool_type: "webhook", event_id: eventId };
+    socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+    socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+      ...request, is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: { ok: true, tool: "search_venues", answerHint: "Recorded results.", cards: answer.cards, data: { venues } } }),
+    } }));
+    await page.getByRole("list", { name: "Pubs from the voice answer" }).getByRole("link", { name: answer.cards[0].title, exact: true }).click();
+    await expectMapLoadingFrameReleased(page);
+    const sheet = page.locator(".mobileSharedSheet");
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    const header = sheet.locator(".mobileSharedSheetHeader");
+    const handle = (await header.boundingBox())!;
+    const dimensions = await sheet.evaluate(element => ({
+      height: element.getBoundingClientRect().height,
+      chrome: [...element.children].filter(child => !child.classList.contains("mobileSharedSheetBody"))
+        .reduce((sum, child) => sum + child.getBoundingClientRect().height, 0),
+    }));
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height - 3);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height - 3 + dimensions.height - dimensions.chrome, { steps: 15 });
+    await page.mouse.up();
+    await expect(sheet).toHaveClass(/sheet-peek/);
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+      tool_name: "map_focus_pick", tool_call_id: `touch-pick-${++eventId}`, parameters: { number: 2 }, event_id: eventId,
+    } }));
+    await expect(page.locator(".palVoiceBarPick")).toContainText(answer.cards[1].title);
+    await page.setViewportSize({ width: 568, height: 320 });
+    await expect(sheet).toHaveAttribute("data-sheet-cramped", "");
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    const body = sheet.locator(".mobileSharedSheetBody");
+    await expect(body).toHaveCSS("visibility", "hidden");
+    await expect(async () => {
+      expect(await body.evaluate(element => element.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
+    }).toPass();
+    await info.attach("cramped-peek", { body: await page.screenshot({ path: `${SHOTS}/touch-cramped-peek.png` }), contentType: "image/png" });
+    await page.getByRole("button", { name: "Expand sheet", exact: true }).click();
+    await expect(sheet).toHaveClass(/sheet-full/);
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    await expectLayoutSettled(sheet);
+    await expect(body).toBeVisible();
+    await info.attach("expanded-geometry", { body: JSON.stringify(await sheet.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      return { box: box.toJSON(), viewport: { width: innerWidth, height: innerHeight, visual: visualViewport?.height },
+        hit: document.elementFromPoint(box.x + box.width / 2, box.bottom - 10)?.outerHTML.slice(0, 400),
+        scrollHeight: element.scrollHeight, clientHeight: element.clientHeight };
+    })), contentType: "application/json" });
+    await page.screenshot({ path: `${SHOTS}/touch-expanded-before.png` });
+    const cdp = await page.context().newCDPSession(page);
+    const swipe = async () => {
+      const box = (await sheet.boundingBox())!;
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+      for (let step = 1; step <= 12; step += 1) {
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y - step * 6 }] });
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+    await swipe();
+    await expect(async () => expect(await sheet.evaluate(element => element.scrollTop)).toBeGreaterThan(0)).toPass();
+    await expect(async () => {
+      const box = (await sheet.boundingBox())!;
+      expect(await body.evaluate((element, point) => element.contains(document.elementFromPoint(point.x, point.y)), {
+        x: box.x + box.width / 2, y: box.y + box.height / 2,
+      })).toBe(true);
+    }).toPass();
+    const beforeBodySwipe = await sheet.evaluate(element => element.scrollTop);
+    await swipe();
+    await expect(async () => expect(await sheet.evaluate(element => element.scrollTop)).toBeGreaterThan(beforeBodySwipe)).toPass();
+    const action = sheet.locator(".mobileSharedSheetFooter button").first();
+    await expect(async () => {
+      await swipe();
+      expect(await action.evaluate(button => {
+        const box = button.getBoundingClientRect();
+        return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
+    }).toPass({ intervals: [100] });
+    await info.attach("touch-footer", { body: await page.screenshot({ path: `${SHOTS}/touch-cramped-footer.png` }), contentType: "image/png" });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+    await cdp.detach();
+  });
+});
+
+test("568px: large text keeps the sheet exit and End reachable", async ({ page }, info) => {
+  await page.setViewportSize({ width: 568, height: 320 });
+  await storeThemeChoice(page, "light");
+  const socket = await openLiveVoice(page);
+  hear(socket, "Find four pubs in Soho");
+  const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find four pubs in Soho" } });
+  expect(response.ok()).toBe(true);
+  const answer = await response.json();
+  const index = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { rows: { id: string; lat: number; lng: number }[] };
+  const venues = index.rows.filter(venue => answer.cards.some((card: { venueId: string }) => card.venueId === venue.id));
+  const request = { tool_name: "search_venues", tool_call_id: `sheet-reserve-${++eventId}`, tool_type: "webhook", event_id: eventId };
+  socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+  socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+    ...request, is_error: false, is_called: true,
+    full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: { ok: true, tool: "search_venues", answerHint: "Recorded results.", cards: answer.cards, data: { venues } } }),
+  } }));
+  await page.getByRole("list", { name: "Pubs from the voice answer" }).getByRole("link", { name: answer.cards[0].title, exact: true }).click();
+  await expect(page.locator(".palVoiceBar")).toBeVisible();
+  await expectMapLoadingFrameReleased(page);
+  socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+    tool_name: "map_focus_pick", tool_call_id: `large-text-${++eventId}`, parameters: { number: 2 }, event_id: eventId,
+  } }));
+  await expect(page.locator(".palVoiceBarPick")).toContainText(answer.cards[1].title);
+  await page.evaluate(() => document.documentElement.style.fontSize = "32px");
+  const sheet = page.locator(".mobileSharedSheet");
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+  const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+  const end = page.getByRole("button", { name: "End", exact: true });
+  await expect(async () => {
+    for (const control of [close, end]) {
+      expect(await control.evaluate(button => {
+        const box = button.getBoundingClientRect();
+        return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
+    }
+    const bar = await page.locator(".palVoiceBar").boundingBox();
+    const box = await sheet.boundingBox();
+    expect(bar!.y).toBeGreaterThanOrEqual(0);
+    expect(bar!.y + bar!.height).toBeLessThanOrEqual(box!.y);
+  }).toPass({ timeout: 10_000 });
+  await info.attach("large-text-controls", { body: await page.screenshot({ path: `${SHOTS}/large-text-controls.png` }), contentType: "image/png" });
+  await page.locator(".palVoiceBarDetails").hover();
+  await expect(async () => {
+    await page.mouse.wheel(0, 400);
+    expect(await page.locator(".palVoiceBarCaption").evaluate(caption => {
+      const box = caption.getBoundingClientRect();
+      return caption.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    })).toBe(true);
+  }).toPass({ timeout: 10_000 });
+  await close.click();
+  await expect(sheet).toHaveCount(0);
+  await end.click();
+  await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+});
+
+for (const surface of ["planner", "story"] as const) {
+  test(`768px: the voice bar follows ${surface} to venue and browser Back`, async ({ page }, info) => {
+    await page.setViewportSize({ width: 768, height: 900 });
+    await storeThemeChoice(page, "light");
+    await releaseDeferredShell(page);
+    const { opened } = await preparePalAccount(page, false, undefined, false, false, true);
+    const path = surface === "planner"
+      ? "/map?mode=build&plan=1&q=Soho&pubs=venue-1ufn31x,venue-1t8siin,venue-xiesdn"
+      : "/map?landmark=big-ben";
+    await page.goto(path);
+    await expectMapLoadingFrameReleased(page);
+    const chip = page.getByRole("button", { name: "Talk to Ripley, your Pub Pal", exact: true });
+    await expect(async () => {
+      if (await chip.isVisible()) {
+        await chip.focus();
+        await page.keyboard.press("Enter");
+      }
+      await expect(page.locator(".palVoiceBar")).toBeVisible();
+    }).toPass();
+    const socket = await opened;
+    say(socket, "Your call stays with the map.");
+    const incoming = page.locator(surface === "planner" ? ".mapDrawer.left.open:not(.storyDrawer)" : ".storyDrawer.open");
+    await expectLayoutSettled(incoming);
+    const check = async () => {
+      const geometry = await incoming.evaluate(element => {
+        const bar = document.querySelector(".palVoiceBar")!.getBoundingClientRect();
+        const sheet = element.getBoundingClientRect();
+        const end = document.querySelector(".palVoiceBar button")!;
+        const button = end.getBoundingClientRect();
+        return { barBottom: bar.bottom, sheetTop: sheet.top,
+          endReachable: end.contains(document.elementFromPoint(button.x + button.width / 2, button.y + button.height / 2)) };
+      });
+      expect(geometry.barBottom).toBeLessThanOrEqual(geometry.sheetTop);
+      expect(geometry.sheetTop - geometry.barBottom).toBeLessThanOrEqual(9);
+      expect(geometry.endReachable).toBe(true);
+      return geometry;
+    };
+    await expect(check).toPass();
+    await incoming.locator(surface === "planner" ? ".routeList > li button" : ".landmarkStoryPubs button").first().click();
+    const venue = page.locator(".mapDrawer.right.open");
+    await expectLayoutSettled(venue);
+    const handle = venue.locator(".mapDrawerHead");
+    const box = await handle.boundingBox();
+    if (!box) throw new Error("The venue has no header.");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height - 3);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, 8, { steps: 12 });
+    await page.mouse.up();
+    await expect(venue).toHaveClass(/sheet-full/);
+    await expectLayoutSettled(venue);
+    await page.goBack();
+    await expectLayoutSettled(incoming);
+    await expect(page.locator(".mapDrawer.right")).toHaveCSS("will-change", "auto");
+    await expect(check).toPass();
+    await info.attach("handoff-geometry", { body: JSON.stringify(await check()), contentType: "application/json" });
+    await page.screenshot({ path: `${SHOTS}/handoff-${surface}-768.png` });
+    let closed = false;
+    socket.onClose(() => { closed = true; });
     await page.getByRole("button", { name: "End", exact: true }).click();
     await expect.poll(() => closed).toBe(true);
   });

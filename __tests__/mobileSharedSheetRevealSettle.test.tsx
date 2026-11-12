@@ -8,6 +8,7 @@ import { expect, it, vi } from "vitest";
 import { AuthContext, useAuth } from "@/components/auth/authContext";
 import MobileSharedSheet from "@/components/mobile/MobileSharedSheet";
 import type { MapSheetDetent } from "@/lib/mobileShell";
+import { SHEET_ENTRANCE_MS } from "@/lib/sheetSnap";
 
 // A second pin pick bumps the reveal-settle sequence. The sheet must settle
 // where the host asked: a base pub asks for peek so the map behind it stays
@@ -180,6 +181,107 @@ it.each(["drink", "venue", "planner"] as const)(
   },
 );
 
+
+it.each(
+  (["venue", "planner", "drink"] as const).flatMap(kind =>
+    (["Header", "Footer"] as const).map(part => ({ kind, part })),
+  ),
+)("keeps the $kind sheet scrollable when its resting $part changes without changing the cap", async ({ kind, part }) => {
+  const host = document.body.appendChild(document.createElement("div"));
+  const root = createRoot(host);
+  const environment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const previousAct = environment.IS_REACT_ACT_ENVIRONMENT;
+  environment.IS_REACT_ACT_ENVIRONMENT = true;
+  vi.useFakeTimers();
+  vi.stubGlobal("innerWidth", 568);
+  vi.stubGlobal("innerHeight", 320);
+  vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
+  const styles = document.head.appendChild(document.createElement("style"));
+  styles.textContent = ".mobileSheetPortal { bottom: 64px; padding-top: 132px; } .mobileSharedSheetBody { padding: 0; }";
+  const observers = new Set<ChromeResizeObserver>();
+  class ChromeResizeObserver implements ResizeObserver {
+    readonly targets = new Set<Element>();
+    constructor(readonly callback: ResizeObserverCallback) { observers.add(this); }
+    observe(target: Element) { this.targets.add(target); }
+    unobserve(target: Element) { this.targets.delete(target); }
+    disconnect() { this.targets.clear(); observers.delete(this); }
+  }
+  vi.stubGlobal("ResizeObserver", ChromeResizeObserver);
+  try {
+    await act(async () => root.render(
+      <MobileSharedSheet kind={kind} title="Pub detail" initialSnap="full" onClose={() => {}}>
+        Venue content
+      </MobileSharedSheet>,
+    ));
+    const sheet = document.querySelector<HTMLElement>(".mobileSharedSheet")!;
+    const header = sheet.querySelector<HTMLElement>(".mobileSharedSheetHeader")!;
+    const footer = sheet.querySelector<HTMLElement>(".mobileSharedSheetFooter")!;
+    header.setPointerCapture = () => {};
+    header.hasPointerCapture = () => true;
+    header.releasePointerCapture = () => {};
+    const pointer = (type: string, clientY: number) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        pointerId: { value: 1 }, pointerType: { value: "touch" },
+        isPrimary: { value: true }, button: { value: 0 },
+        clientX: { value: 100 }, clientY: { value: clientY },
+      });
+      return event;
+    };
+    Object.defineProperty(header, "offsetHeight", { configurable: true, value: 64 });
+    Object.defineProperty(footer, "offsetHeight", { configurable: true, value: 0 });
+    await act(async () => vi.advanceTimersByTime(SHEET_ENTRANCE_MS));
+    expect(sheet.dataset.sheetMotion).toBe("idle");
+    expect(sheet.style.maxHeight).toBe("124px");
+    expect(sheet.hasAttribute("data-sheet-cramped")).toBe(false);
+
+    const target = part === "Header" ? header : footer;
+    for (const height of [201, part === "Header" ? 64 : 0]) {
+      Object.defineProperty(target, "offsetHeight", { configurable: true, value: height });
+      await act(async () => {
+        for (const observer of [...observers]) {
+          if (observer.targets.has(target)) observer.callback([], observer);
+        }
+      });
+      expect(sheet.style.maxHeight).toBe("124px");
+      expect(sheet.dataset.sheetMotion).toBe("idle");
+      expect(sheet.hasAttribute("data-sheet-cramped")).toBe(height === 201);
+      if (height === 201) {
+        for (const snap of ["peek", "half", "full"] as const) {
+          await act(async () => root.render(
+            <MobileSharedSheet kind={kind} title="Pub detail" initialSnap="full" requestedSnap={snap} onClose={() => {}}>
+              Venue content
+            </MobileSharedSheet>,
+          ));
+          await act(async () => header.dispatchEvent(pointer("pointerdown", 100)));
+          expect(sheet.dataset.sheetMotion).toBe("idle");
+          const move = pointer("pointermove", 70);
+          await act(async () => header.dispatchEvent(move));
+          expect(move.defaultPrevented).toBe(false);
+          await act(async () => header.dispatchEvent(pointer("pointercancel", 70)));
+          await act(async () => sheet.dispatchEvent(new Event("scroll")));
+          expect(sheet.dataset.sheetMotion).toBe("idle");
+          expect(sheet.classList).toContain(`sheet-${snap}`);
+          expect(sheet.style.maxHeight).toBe("124px");
+          expect(sheet.hasAttribute("data-sheet-cramped")).toBe(true);
+        }
+      }
+    }
+    await act(async () => header.dispatchEvent(pointer("pointerdown", 100)));
+    expect(sheet.dataset.sheetMotion).toBe("dragging");
+    const move = pointer("pointermove", 70);
+    await act(async () => header.dispatchEvent(move));
+    expect(move.defaultPrevented).toBe(true);
+    await act(async () => header.dispatchEvent(pointer("pointerup", 70)));
+  } finally {
+    await act(async () => root.unmount());
+    styles.remove();
+    host.remove();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    environment.IS_REACT_ACT_ENVIRONMENT = previousAct;
+  }
+});
 
 it("releases logical Close and background focus before the exit spring rests", async () => {
   const host = document.body.appendChild(document.createElement("div"));

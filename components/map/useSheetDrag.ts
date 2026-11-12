@@ -6,6 +6,7 @@ import {
   SHEET_SNAP_FRACTIONS,
   SHEET_SNAP_ORDER,
   sheetTranslateY,
+  sheetTopReserveY,
   type SheetSnap,
 } from "@/lib/sheetSnap";
 
@@ -156,11 +157,12 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
       const now = performance.now();
       const viewportHeight = window.innerHeight;
       const baseY = sheetTranslateY(sheetSnap, viewportHeight);
+      const minimumY = sheetTopReserveY(event.currentTarget.closest<HTMLElement>(".mapDrawer"));
       // Start from the presentation value: read where the sheet actually is on
       // screen right now (mid-settle or at rest) and offset our tracking so the
       // sheet stays exactly under the finger from the first frame.
       const liveY = readLiveTranslateY(event.currentTarget as HTMLElement);
-      const originOffset = liveY === null ? 0 : liveY - baseY;
+      const originOffset = (liveY ?? sheetTranslateY(sheetSnap, viewportHeight, minimumY)) - baseY;
       dragRef.current = {
         startY: event.clientY,
         originOffset,
@@ -206,7 +208,8 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
 
     // Rubber-band past the top ("full") bound: the sheet can't reveal more than
     // the full snap, so resist progressively instead of hard-stopping.
-    const fullY = sheetTranslateY("full", drag.viewportHeight);
+    const minimumY = sheetTopReserveY(event.currentTarget.closest<HTMLElement>(".mapDrawer"));
+    const fullY = sheetTranslateY("full", drag.viewportHeight, minimumY);
     let presentedY = proposedY;
     if (proposedY < fullY) {
       const overshoot = fullY - proposedY;
@@ -246,7 +249,8 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
       // Dismiss when the projection lands well past peek — a flick or slow drag
       // off the bottom. Threshold mirrors resolveSheetSnap: half of peek's own
       // revealed height below peek's resting position.
-      const peekY = sheetTranslateY("peek", viewportHeight);
+      const minimumY = sheetTopReserveY(event.currentTarget.closest<HTMLElement>(".mapDrawer"));
+      const peekY = sheetTranslateY("peek", viewportHeight, minimumY);
       const dismissThreshold = peekY + viewportHeight * SHEET_SNAP_FRACTIONS.peek * 0.5;
       if (projectedY > dismissThreshold) {
         setRestingSnap("half");
@@ -254,10 +258,10 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
         return;
       }
 
-      let nearest: SheetSnap = SHEET_SNAP_ORDER[0];
-      let nearestDist = Infinity;
+      let nearest: SheetSnap = drag.startSnap;
+      let nearestDist = Math.abs(sheetTranslateY(drag.startSnap, viewportHeight, minimumY) - projectedY);
       for (const snap of SHEET_SNAP_ORDER) {
-        const dist = Math.abs(sheetTranslateY(snap, viewportHeight) - projectedY);
+        const dist = Math.abs(sheetTranslateY(snap, viewportHeight, minimumY) - projectedY);
         if (dist < nearestDist) {
           nearestDist = dist;
           nearest = snap;
