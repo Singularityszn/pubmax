@@ -79,6 +79,7 @@ import {
 } from "@/lib/pintDropReceipt";
 import { receiptShareFromSavedDrop, type ReceiptShare } from "@/lib/pintReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
+import { isPintDropRating, PINT_DROP_STARS_NOT_SAVED } from "@/lib/pintDropRating";
 import type { RatingValue } from "@/lib/ratings";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
@@ -89,8 +90,6 @@ export type DropWithPhotos = PintDrop & {
   /** The bill behind this price, or null (captain 7 Sept 2026). Absent on every
    *  drop written before migration 0153, and on every drop with no price. */
   receiptPhotoUrl?: string | null;
-  /** The drinker's stars for this drink here, when they gave some. */
-  rating?: RatingValue;
   optimistic?: PintDropDTO["optimistic"];
 };
 
@@ -700,6 +699,7 @@ export function usePintDrops(
       handle: submittedAuthor.handle,
       priceGbp: dropForm.price,
       drink: dropForm.drink,
+      rating: isPintDropRating(rating) ? rating : null,
       passedDownNote,
       era: dropForm.era,
       visibility,
@@ -754,7 +754,7 @@ export function usePintDrops(
       // preview the other two use, so the drinker sees their own evidence
       // before the upload lands.
       receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
-      ...(rating !== null && visibility !== "anonymous" ? { rating } : {}),
+      ...(isPintDropRating(rating) ? { rating } : {}),
       optimistic: optimisticDrop.optimistic,
       ...trainFields,
     };
@@ -900,6 +900,9 @@ export function usePintDrops(
           markFailed(answered.message, data?.status);
           return;
         }
+        const ratingNotSaved = submittedRating !== null &&
+          (data.ratingSaved === false || data.drop?.rating !== submittedRating);
+        if (ratingNotSaved) setRating((current) => current ?? submittedRating);
         trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
         notifyCheapPintPingQualified();
 
@@ -956,8 +959,8 @@ export function usePintDrops(
         const outcome = parseConfirmationOutcome(data.confirmationOutcome);
         rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
         setDropMsg({
-          ok: true,
-          text: dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
+          ok: !ratingNotSaved,
+          text: ratingNotSaved ? PINT_DROP_STARS_NOT_SAVED : dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
           links,
           census: isPricedWrite(submittedPrice),
           receipt: receiptShareFromSavedDrop(data.drop, venueLabel),

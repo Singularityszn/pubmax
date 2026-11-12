@@ -14,6 +14,7 @@ import {
 } from "@/lib/pintDrops";
 import { cleanDrinkMeasureLabel, statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { cleanPriceEvidence, type PriceEvidence } from "@/lib/pintDropReceipt";
+import { isPintDropRating, type PintDropRating } from "@/lib/pintDropRating";
 import { resolveStorageUrl } from "@/lib/pintDropsStore";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
@@ -40,9 +41,9 @@ import { resolveStoredVenue, venueMapUrl } from "@/lib/venueIndex";
 // The exact, public-only column list. NEVER add report_*/moderator_*/moderated_*
 // here — a hidden drop's photo keys and moderation trail must not leave the DB.
 const PUBLIC_COLUMNS =
-  "id,venue_id,handle,drink,measure,measure_label,price_gbp,price_evidence,passed_down_note,era,provenance,created_at,vibe_tags,visibility,pint_photo_key,venue_photo_key,author_retired_at";
+  "id,venue_id,handle,drink,measure,measure_label,price_gbp,price_evidence,rating,passed_down_note,era,provenance,created_at,vibe_tags,visibility,pint_photo_key,venue_photo_key,author_retired_at";
 
-const OPTIONAL_PUBLIC_COLUMNS = ["measure", "measure_label", "price_evidence", "author_retired_at"];
+const OPTIONAL_PUBLIC_COLUMNS = ["rating", "measure", "measure_label", "price_evidence", "author_retired_at"];
 
 function isMissingPublicColumnError(
   error: { code?: string; message?: string } | null,
@@ -65,6 +66,7 @@ export type PublicDrop = {
   venueMapUrl: Route;
   handle: string;
   drink: string;
+  rating?: PintDropRating;
   /** The serving the price is about; absent reads as a pint (lib/drinkMeasure.ts). */
   measure?: DrinkMeasure;
   measureLabel?: string;
@@ -92,6 +94,7 @@ type VisibleRow = {
   venue_id: string;
   handle: string;
   drink: string | null;
+  rating?: unknown;
   measure?: unknown;
   measure_label?: unknown;
   price_gbp: number | string | null;
@@ -172,6 +175,7 @@ type EnrichFields = {
   venueId: string;
   handle: string;
   drink: string;
+  rating?: PintDropRating;
   measure?: DrinkMeasure;
   measureLabel?: string;
   priceGbp: number | null;
@@ -399,6 +403,7 @@ export async function getPintDropById(
             venueId: String(row.venue_id),
             handle: String(row.handle ?? ""),
             drink: String(row.drink ?? ""),
+            ...(isPintDropRating(row.rating) ? { rating: row.rating } : {}),
             ...measureFields(row.measure, row.measure_label),
             priceGbp: toPrice(row.price_gbp),
             ...evidenceField(row.price_evidence),
@@ -432,6 +437,7 @@ export async function getPintDropById(
       venueId: hit.venueId,
       handle: hit.handle,
       drink: hit.drink,
+      ...(isPintDropRating(hit.rating) ? { rating: hit.rating } : {}),
       ...measureFields(hit.measure, hit.measureLabel),
       priceGbp: hit.priceGbp,
       ...evidenceField(hit.priceEvidence),

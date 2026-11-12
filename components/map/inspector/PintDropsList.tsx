@@ -188,8 +188,6 @@ export default function PintDropsList({
             ) : null}
             <div className="dropFoot">
               <small>
-                {/* The drinker's own stars for this drink here: one vote,
-                    never a count (lib/pintDropRating.server.ts). */}
                 {drop.rating !== undefined ? (
                   <StarRating
                     value={drop.rating}

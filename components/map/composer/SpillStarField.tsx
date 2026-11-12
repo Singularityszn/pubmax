@@ -19,7 +19,7 @@ export function SpillStarField({
         How was it?
       </span>
       <div className="spillStarRow">
-        <StarRating value={rating} label="Rate your drink" interactive size="lg" onRate={setRating} />
+        <StarRating value={rating} label="Rate your drink" interactive size="lg" step={1} onRate={setRating} />
         {rating !== null ? (
           <button type="button" className="spillStarClear" onClick={() => setRating(null)}>
             Clear

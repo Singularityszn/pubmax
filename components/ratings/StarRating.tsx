@@ -30,10 +30,10 @@ import "./starRating.css";
 
 const STAR_COUNT = 5;
 
-function clampToStep(value: number): RatingValue {
+function clampToStep(value: number, step: 0.5 | 1): RatingValue {
   const snapped =
-    Math.round(Math.min(RATING_MAX, Math.max(RATING_MIN, value)) / RATING_STEP) *
-    RATING_STEP;
+    Math.round(Math.min(RATING_MAX, Math.max(RATING_MIN, value)) / step) *
+    step;
   return (isRatingValue(snapped) ? snapped : RATING_MAX) as RatingValue;
 }
 
@@ -67,6 +67,7 @@ export type StarRatingProps = {
   accent?: string;
   /** Compact sizing for dense rows (the drink menu); large for a thumb. */
   size?: "sm" | "md" | "lg";
+  step?: 0.5 | 1;
   className?: string;
 };
 
@@ -77,6 +78,7 @@ export default function StarRating({
   onRate,
   accent,
   size = "md",
+  step = RATING_STEP,
   className,
 }: StarRatingProps) {
   // The keyboard-adjusted, not-yet-committed value (interactive mode only).
@@ -100,7 +102,7 @@ export default function StarRating({
     );
   }
 
-  const shown = draft ?? (value !== null ? clampToStep(value) : null);
+  const shown = draft ?? (value !== null ? clampToStep(value, step) : null);
 
   const commit = (next: RatingValue) => {
     setDraft(null);
@@ -112,11 +114,11 @@ export default function StarRating({
     switch (event.key) {
       case "ArrowRight":
       case "ArrowUp":
-        setDraft(clampToStep(current + RATING_STEP));
+        setDraft(clampToStep(current + step, step));
         break;
       case "ArrowLeft":
       case "ArrowDown":
-        setDraft(clampToStep(current - RATING_STEP));
+        setDraft(clampToStep(current - step, step));
         break;
       case "Home":
         setDraft(RATING_MIN as RatingValue);
@@ -141,7 +143,7 @@ export default function StarRating({
     const box = event.currentTarget.getBoundingClientRect();
     if (box.width <= 0) return;
     const fraction = (event.clientX - box.left) / box.width;
-    commit(clampToStep(fraction * STAR_COUNT));
+    commit(clampToStep(fraction * STAR_COUNT, step));
   };
 
   return (

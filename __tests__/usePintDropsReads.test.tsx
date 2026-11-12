@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useEffect } from "react";
+import { act, createElement, useEffect, type FormEvent } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,7 @@ vi.mock("@/components/auth/authContext", () => ({
 }));
 
 import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/components/map/usePintDrops";
+import * as actions from "@/lib/authedFetch";
 import { venuePriceFallbackPending } from "@/lib/venuePriceLane";
 
 let root: Root;
@@ -169,5 +170,34 @@ describe("a reopened pub's pending price read", () => {
     expect(container.textContent).toBe("£4.70");
     expect(drops.dropsByVenueId.get("A")).toEqual([row]);
     expect(drops.venueDropStatus.get("A")).toBe("unavailable");
+  });
+});
+
+describe("Pint Drop star save feedback", () => {
+  it.each([false, true])("keeps the selected stars only when they were not stored (%s)", async (ratingSaved) => {
+    await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
+    await act(async () => {
+      drops.setHandle("ale");
+      drops.setDropForm((current) => ({ ...current, note: "Old local." }));
+      drops.setRating(4);
+    });
+    const savedDrop = { ...pricedDrop("saved-note"), priceGbp: null, passedDownNote: "Old local.", ...(ratingSaved ? { rating: 4 } : {}) };
+    const send = vi.spyOn(actions, "authedActionFetch").mockResolvedValue(new Response(
+      JSON.stringify({ drop: savedDrop, ratingSaved }), { status: 201 },
+    ));
+    try {
+      await act(async () => {
+        await drops.submitDrop(new Event("submit", { cancelable: true }) as unknown as FormEvent, "A");
+      });
+      expect(send).toHaveBeenCalled();
+      const body = send.mock.calls[0]?.[1]?.body as FormData;
+      expect(body.get("rating")).toBe("4");
+      expect(drops.rating).toBe(ratingSaved ? null : 4);
+      expect(drops.dropMsg?.ok).toBe(ratingSaved);
+      if (!ratingSaved) expect(drops.dropMsg?.text).toBe("Your Pint Drop is saved, but the stars were not saved.");
+      expect(drops.dropsByVenueId.get("A")?.[0]?.id).toBe("saved-note");
+    } finally {
+      send.mockRestore();
+    }
   });
 });

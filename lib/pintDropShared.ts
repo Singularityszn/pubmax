@@ -9,6 +9,7 @@
 // Precedent: lib/reactions.ts (reactions) and lib/crawlStory.ts (crawls) are the
 // exact same browser-safe-twin pattern.
 
+import type { PintDropRating } from "@/lib/pintDropRating";
 import type { Provenance } from "@/lib/curation";
 // Type-only: lib/drinkMeasure.ts is a pure leaf, so this stays browser-safe.
 import type { DrinkMeasure } from "@/lib/drinkMeasure";
@@ -26,6 +27,7 @@ export type PintDropInput = {
   venueId: string;
   handle: string;
   drink?: string;
+  rating?: PintDropRating;
   /**
    * The SERVING this price is about (lib/drinkMeasure.ts). Absent reads as
    * `pint`, which is what the lane already assumed of every row written before
@@ -115,6 +117,7 @@ export type PintDrop = {
   venueId: string;
   handle: string;
   drink: string;
+  rating?: PintDropRating;
   /**
    * The SERVING the price is about (lib/drinkMeasure.ts). Optional so every row
    * written before migration 0147 reads cleanly; absent means `pint`, and

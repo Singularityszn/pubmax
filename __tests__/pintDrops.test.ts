@@ -219,7 +219,6 @@ import {
 } from "@/lib/pintDropsStore";
 import { RECEIPT_REQUIRED_LINE, isPricedWrite } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
-import { __resetMemoryRatings, ratingsStore } from "@/lib/ratingsStore";
 import { memoryPrivateIdentityStore } from "@/lib/privateIdentityStore";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -2013,61 +2012,97 @@ describe("an unchecked price before migration 0218 is applied", () => {
 });
 
 describe("Pint Drop stars", () => {
-  beforeEach(() => {
-    __resetMemoryRatings();
-  });
-
   async function listed(id: string) {
     const body = await (await get(VENUE)).json();
-    return (body.drops as Array<{ id: string; rating?: number }>).find((drop) => drop.id === id);
+    return (body.drops as Array<{ id: string; handle: string; rating?: number }>).find((drop) => drop.id === id);
   }
 
-  it("saves the stars with the drop and shows them on the list", async () => {
+  it("saves and lists the stars on their own drop", async () => {
     const res = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2, drink: "Guinness", rating: "4" });
     expect(res.status).toBe(201);
-    const { drop } = await res.json();
+    const { drop, ratingSaved } = await res.json();
+    expect(ratingSaved).toBe(true);
     expect(drop.rating).toBe(4);
     expect((await listed(drop.id))?.rating).toBe(4);
+    expect(drop.priceEvidence).toBe("unchecked");
   });
 
-  it("shows the drinker's latest vote on an earlier drop of the same drink", async () => {
-    const first = await (
-      await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2, drink: "Guinness", rating: 2 })
-    ).json();
-    const second = await post({ venueId: VENUE, handle: "ale", drink: " guinness ", passedDownNote: "Better tonight.", rating: 5 });
-    expect(second.status).toBe(201);
-    expect((await listed(first.drop.id))?.rating).toBe(5);
+  it("never rewrites an earlier drink log or gives an unrated log stars", async () => {
+    const { drop: first } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "First pint.", rating: 2 })).json();
+    const { drop: second } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Better tonight.", rating: 5 })).json();
+    const { drop: unrated } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Old local." })).json();
+    expect((await listed(first.id))?.rating).toBe(2);
+    expect((await listed(second.id))?.rating).toBe(5);
+    expect((await listed(unrated.id))?.rating).toBeUndefined();
   });
 
-  it("refuses stars off the 1 to 5 scale and saves nothing", async () => {
-    const res = await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Odd one.", rating: "6" });
+  it.each([0, 6, 2.5, true, [4]])("refuses invalid whole stars %j and saves nothing", async (rating) => {
+    const res = await post({ venueId: VENUE, handle: "ale", passedDownNote: "Odd one.", rating });
     expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Pick 1 to 5 stars.");
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
   });
 
-  it("keeps a drop with no stars unrated", async () => {
-    const { drop } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Old local." })).json();
-    expect(drop.rating).toBeUndefined();
-    expect((await listed(drop.id))?.rating).toBeUndefined();
-  });
-
-  it("never puts stars on an anonymous drop", async () => {
-    const res = await post({
-      venueId: VENUE,
-      handle: "ale",
-      drink: "Guinness",
-      passedDownNote: "Old local.",
-      visibility: "anonymous",
-      rating: 4,
-    });
+  it("keeps anonymous stars and withholds only the author", async () => {
+    const res = await post({ venueId: VENUE, handle: "ale", passedDownNote: "Old local.", visibility: "anonymous", rating: 4 });
+    expect(res.status).toBe(201);
     const { drop } = await res.json();
-    expect(drop.rating).toBeUndefined();
-    expect((await listed(drop.id))?.rating).toBeUndefined();
+    expect(drop).toMatchObject({ handle: "a PUBMAXXER", rating: 4 });
+    expect(await listed(drop.id)).toMatchObject({ handle: "a PUBMAXXER", rating: 4 });
   });
 
-  it("does not show a menu vote for the same drink on a drop", async () => {
-    await ratingsStore().rate({ kind: "drink", ref: "Guinness", venueId: VENUE, handle: "ale", rating: 1 });
-    const { drop } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Old local." })).json();
-    expect((await listed(drop.id))?.rating).toBeUndefined();
+  it.each(["friends", "legacy"])("keeps %s stars off every public drop read", async (visibility) => {
+    const { drop: publicDrop } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Public pint.", rating: 2 })).json();
+    const res = await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Private pint.", visibility, rating: 5 });
+    expect(res.status).toBe(201);
+    const { drop: privateDrop } = await res.json();
+    expect(privateDrop.rating).toBe(5);
+    for (const query of [`?venueId=${VENUE}`, "", "?author=ale"]) {
+      const response = await GET(new Request(`${URL_BASE}${query}`));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(JSON.stringify(body)).not.toContain(privateDrop.id);
+      const rows = body.drops as Array<{ id: string; rating?: number }>;
+      expect(rows.find((row) => row.id === publicDrop.id)?.rating).toBe(2);
+    }
+  });
+
+  it("keeps stars when a submitted venue alias resolves to the canonical pub", async () => {
+    const res = await post({ venueId: "legacy-pub", handle: "ale", passedDownNote: "Old local.", rating: 3 });
+    const { drop } = await res.json();
+    expect(res.status).toBe(201);
+    expect(drop).toMatchObject({ venueId: "canonical-pub", rating: 3 });
+    const body = await (await get("canonical-pub")).json();
+    expect(body.drops.find((row: { id: string }) => row.id === drop.id)?.rating).toBe(3);
+  });
+
+  it("returns the stored stars when a keyed request is replayed", async () => {
+    const input = { venueId: VENUE, handle: "ale", passedDownNote: "Old local.", rating: 4, clientRequestId: "rated-client-request-0001" };
+    const first = await (await post(input)).json();
+    const replay = await post(input);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ drop: { id: first.drop.id, rating: 4 }, ratingSaved: true });
+  });
+
+  it("saves without stars during schema lag and explicitly reports their loss", async () => {
+    supaGuard.configured = true;
+    const rows: Record<string, unknown>[] = [];
+    adminRef.client = {
+      from: () => ({ insert: async (row: Record<string, unknown>) => {
+        if ("rating" in row) return { error: { code: "PGRST204", message: "Could not find the 'rating' column of 'pint_drops' in the schema cache" } };
+        rows.push(structuredClone(row));
+        return { error: null };
+      } }),
+    };
+    const actual = await vi.importActual<typeof import("@/lib/pintDropsStore")>("@/lib/pintDropsStore");
+    storeCreate.mockImplementation((...args) => actual.supabasePintDropStore.create(...args as Parameters<typeof actual.supabasePintDropStore.create>));
+    const res = await postWithoutBill({ venueId: VENUE, handle: "ale", passedDownNote: "Old local.", rating: 4 });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.ratingSaved).toBe(false);
+    expect(body.drop.rating).toBeUndefined();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: body.drop.id, passed_down_note: "Old local." });
+    expect(rows[0]).not.toHaveProperty("rating");
   });
 });

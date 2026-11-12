@@ -6,6 +6,7 @@ import { proposeWithTagsForDrop } from "@/components/map/composer/proposeWithTag
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { readProviderAccountRevision } from "@/lib/authProviderRevision";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { PINT_DROP_STARS_NOT_SAVED } from "@/lib/pintDropRating";
 import type { PintDropDTO } from "@/lib/feed";
 import {
   RETRY_DETAILS_GONE,
@@ -56,6 +57,7 @@ export function useOptimisticSpillRetry() {
       const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = (await response.json().catch(() => ({}))) as {
         drop?: PintDropDTO;
+        ratingSaved?: boolean;
         error?: string;
         code?: string;
       };
@@ -75,6 +77,16 @@ export function useOptimisticSpillRetry() {
         ...data.drop,
         venueName: entry.retry.venueName,
         venueMapUrl: venueMapUrl(entry.retry.venueId),
+        ...(entry.retry.rating != null &&
+          (data.ratingSaved === false || data.drop.rating !== entry.retry.rating)
+          ? { optimistic: {
+              state: "failed" as const,
+              message: PINT_DROP_STARS_NOT_SAVED,
+              uploadProgress: null,
+              canRetry: false,
+              clientRequestId,
+            } }
+          : {}),
       };
       writeLocalEntries(
         reconcileOptimisticSpill(
