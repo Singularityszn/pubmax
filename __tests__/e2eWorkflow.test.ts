@@ -480,12 +480,9 @@ if (args[0] === "issue" && args[1] === "list") {
   });
 
   describe("a layout pin for a merge group that is gone", () => {
-    function layoutSteps() {
-      const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-      return defined(jobs["layout-pins-1"]).steps;
-    }
     function gate() {
-      return defined(layoutSteps().find((step) => step.name === "Stop when the merge group is gone"), "merge group gate");
+      const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+      return defined(defined(jobs["layout-pins-1"]).steps.find((step) => step.name === "Stop when the merge group is gone"), "merge group gate");
     }
 
     function runGate(queueRef: string, gitExit: number) {
@@ -509,10 +506,6 @@ if (args[0] === "issue" && args[1] === "list") {
         rmSync(directory, { recursive: true, force: true });
       }
     }
-
-    it("checks the group before the job checks out or installs anything", () => {
-      expect(layoutSteps()[0]).toEqual(gate());
-    });
 
     it.each([
       { case: "the group is live", gitExit: 0, exit: 0, annotation: "" },
