@@ -18,6 +18,7 @@
 // instead: copy / share your link so friends at the table can add you.
 
 import type { Route } from "next";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   type Dispatch,
@@ -54,6 +55,9 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { socialBoundaryCopy } from "@/lib/socialLaunch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+
+// Only your own link draws a code, so the encoder loads with that view alone.
+const AddLinkQr = dynamic(() => import("@/components/social/AddLinkQr"), { ssr: false });
 
 // `gone` is a REFUSAL and `error` is a fault: the target is not there any more,
 // so the add button leaves with it rather than inviting a retry that cannot land.
@@ -334,6 +338,10 @@ export default function ConfirmFollow({
           adds you, and you add them back, you&rsquo;re each other&rsquo;s lot.
         </p>
         <code className="confirmFollowUrl">{shareUrl}</code>
+        <figure className="confirmFollowQrFrame">
+          <AddLinkQr url={shareUrl} />
+          <figcaption className="confirmFollowQrNote">Or let them scan it. It opens the same link.</figcaption>
+        </figure>
         <button type="button" className="confirmFollowPrimary" onClick={share}>
           {copied ? "Link copied" : "Share your link"}
         </button>

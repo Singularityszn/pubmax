@@ -28,6 +28,9 @@ import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { MAY_KNOW_COPY, mayKnowLine } from "@/lib/peopleYouMayKnow";
+
+import { usePeopleYouMayKnow } from "./usePeopleYouMayKnow";
 
 import "./findYourLot.css";
 
@@ -86,6 +89,7 @@ export default function FindYourLot({
     ? normalizeHandle(identityViewerHandle ?? "")
     : "";
   const viewerKey = `${accountRevision}:${viewer}`;
+  const mayKnow = usePeopleYouMayKnow(viewerKey, socialFriendsLaunchEnabled && Boolean(viewer));
 
   useEffect(() => {
     accountRevisionRef.current = accountRevision;
@@ -259,6 +263,75 @@ export default function FindYourLot({
   const visibleInviteUrl = viewerStateReady ? inviteUrl : null;
   const visibleFollowByHandle = viewerStateReady ? followByHandle : {};
 
+  function lotRow(match: SearchMatch, via?: readonly string[]) {
+    const followState = visibleFollowByHandle[match.handle] ?? "idle";
+    const isSelf = viewer && match.handle === viewer;
+    // The edge the page was told about, moved on by a tap made since.
+    const startingRelation = match.relation ?? "none";
+    const relation: FollowRelation =
+      followState === "done"
+        ? startingRelation === "follows_you" || startingRelation === "mates"
+          ? "mates"
+          : "following"
+        : startingRelation;
+    const hint = followRelationHint(relation);
+    const alreadyFollowing = relation === "following" || relation === "mates";
+    return (
+      <li key={match.id} className="findLot__row">
+        <Link
+          className="findLot__identity"
+          href={`/u/${encodeURIComponent(match.handle)}`}
+        >
+          <span className="findLot__avatar" aria-hidden="true">
+            {match.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
+              <img src={match.avatarUrl} alt="" loading="lazy" decoding="async" />
+            ) : (
+              avatarInitial(match.handle)
+            )}
+          </span>
+          <span className="findLot__names">
+            <span className="findLot__handle">
+              {displayHandle(match.handle)}
+            </span>
+            {match.displayName ? (
+              <span className="findLot__display">{match.displayName}</span>
+            ) : null}
+            {via?.length ? (
+              <span className="findLot__display">{mayKnowLine(via)}</span>
+            ) : null}
+            {hint && !isSelf ? (
+              <span className="findLot__hint">{hint}</span>
+            ) : null}
+          </span>
+        </Link>
+        {isSelf ? (
+          <span className="findLot__self">You</span>
+        ) : !viewer ? (
+          // A stranger is not offered a sign-in door on every row: the
+          // page they are on already carries the one door. A signed-in
+          // drinker with no handle yet is told the one thing missing.
+          viewerSession.signedIn ? (
+            <Link className="findLot__ghost" href="/u/you">
+              Claim a handle to follow
+            </Link>
+          ) : null
+        ) : (
+          <button
+            type="button"
+            className="findLot__follow"
+            disabled={followState === "working" || alreadyFollowing}
+            onClick={() => void follow(match.handle)}
+          >
+            {followState === "working"
+              ? followPendingLabel(relation)
+              : followActionLabel(relation)}
+          </button>
+        )}
+      </li>
+    );
+  }
+
   const shareSelf =
     viewer && typeof window !== "undefined"
       ? `${window.location.origin}/add/${viewer}`
@@ -340,72 +413,31 @@ export default function FindYourLot({
 
       {matches.length > 0 ? (
         <ul className="findLot__list">
-          {matches.map((match) => {
-            const followState = visibleFollowByHandle[match.handle] ?? "idle";
-            const isSelf = viewer && match.handle === viewer;
-            // The edge the page was told about, moved on by a tap made since.
-            const startingRelation = match.relation ?? "none";
-            const relation: FollowRelation =
-              followState === "done"
-                ? startingRelation === "follows_you" || startingRelation === "mates"
-                  ? "mates"
-                  : "following"
-                : startingRelation;
-            const hint = followRelationHint(relation);
-            const alreadyFollowing = relation === "following" || relation === "mates";
-            return (
-              <li key={match.id} className="findLot__row">
-                <Link
-                  className="findLot__identity"
-                  href={`/u/${encodeURIComponent(match.handle)}`}
-                >
-                  <span className="findLot__avatar" aria-hidden="true">
-                    {match.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
-                      <img src={match.avatarUrl} alt="" loading="lazy" decoding="async" />
-                    ) : (
-                      avatarInitial(match.handle)
-                    )}
-                  </span>
-                  <span className="findLot__names">
-                    <span className="findLot__handle">
-                      {displayHandle(match.handle)}
-                    </span>
-                    {match.displayName ? (
-                      <span className="findLot__display">{match.displayName}</span>
-                    ) : null}
-                    {hint && !isSelf ? (
-                      <span className="findLot__hint">{hint}</span>
-                    ) : null}
-                  </span>
-                </Link>
-                {isSelf ? (
-                  <span className="findLot__self">You</span>
-                ) : !viewer ? (
-                  // A stranger is not offered a sign-in door on every row: the
-                  // page they are on already carries the one door. A signed-in
-                  // drinker with no handle yet is told the one thing missing.
-                  viewerSession.signedIn ? (
-                    <Link className="findLot__ghost" href="/u/you">
-                      Claim a handle to follow
-                    </Link>
-                  ) : null
-                ) : (
-                  <button
-                    type="button"
-                    className="findLot__follow"
-                    disabled={followState === "working" || alreadyFollowing}
-                    onClick={() => void follow(match.handle)}
-                  >
-                    {followState === "working"
-                      ? followPendingLabel(relation)
-                      : followActionLabel(relation)}
-                  </button>
-                )}
-              </li>
-            );
-          })}
+          {matches.map((match) => lotRow(match))}
         </ul>
+      ) : null}
+
+      {!query && mayKnow.length > 0 ? (
+        <section className="findLot__mayKnow" aria-labelledby="find-lot-may-know">
+          <h3 id="find-lot-may-know" className="findLot__subtitle">
+            {MAY_KNOW_COPY.title}
+          </h3>
+          <p className="findLot__muted">{MAY_KNOW_COPY.lead}</p>
+          <ul className="findLot__list">
+            {mayKnow.map((person) =>
+              lotRow(
+                {
+                  id: person.handle,
+                  handle: person.handle,
+                  displayName: person.displayName,
+                  avatarUrl: person.avatarUrl,
+                  relation: person.relation,
+                },
+                person.via,
+              ),
+            )}
+          </ul>
+        </section>
       ) : null}
 
       <div className="findLot__invite">

@@ -57,6 +57,11 @@ export type FollowStore = {
    * unknown handle.
    */
   edgesWith(handle: string, others: readonly string[]): Promise<FollowEdges>;
+  /**
+   * listMutuals for each of the given handles in two bounded reads, keyed by
+   * normalised handle. Powers "people you may know" from a viewer's lot.
+   */
+  mutualsAmong(handles: readonly string[]): Promise<Map<string, string[]>>;
 };
 
 export type FollowEdges = { following: Set<string>; followers: Set<string> };
@@ -235,6 +240,42 @@ const supabaseFollowStore: FollowStore = {
     }
     return edges;
   },
+
+  async mutualsAmong(handles) {
+    const wanted = uniqueHandles(handles);
+    if (wanted.length === 0) return new Map();
+    // The inner join filters on the named side's handle, so only edges that
+    // touch the named handles come back: who each follows, and who follows each.
+    const [out, back] = await Promise.all([
+      admin()
+        .from(TABLE)
+        .select("follower:follower_id!inner ( handle ), followee:followee_id ( handle )")
+        .in("follower.handle", wanted),
+      admin()
+        .from(TABLE)
+        .select("follower:follower_id ( handle ), followee:followee_id!inner ( handle )")
+        .in("followee.handle", wanted),
+    ]);
+    if (out.error) throw new Error(out.error.message);
+    if (back.error) throw new Error(back.error.message);
+    type Row = { follower?: { handle?: unknown } | null; followee?: { handle?: unknown } | null };
+    const pairs = (rows: unknown) =>
+      ((rows ?? []) as Row[]).map((row) => [
+        normalizeHandle(String(row.follower?.handle ?? "")),
+        normalizeHandle(String(row.followee?.handle ?? "")),
+      ] as const);
+    const following = new Map<string, string[]>();
+    const followers = new Map<string, string[]>();
+    for (const [from, to] of pairs(out.data)) {
+      if (from && to) following.set(from, [...(following.get(from) ?? []), to]);
+    }
+    for (const [from, to] of pairs(back.data)) {
+      if (from && to) followers.set(to, [...(followers.get(to) ?? []), from]);
+    }
+    return new Map(
+      wanted.map((handle) => [handle, intersectHandles(following.get(handle) ?? [], followers.get(handle) ?? [])]),
+    );
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -337,6 +378,11 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
         if (memoryEdges.has(edgeKey(target.id, profile.id))) edges.followers.add(other);
       }
       return edges;
+    },
+    async mutualsAmong(handles) {
+      const wanted = uniqueHandles(handles);
+      const lists = await Promise.all(wanted.map((handle) => this.listMutuals(handle)));
+      return new Map(wanted.map((handle, index) => [handle, lists[index] ?? []]));
     },
   };
 }

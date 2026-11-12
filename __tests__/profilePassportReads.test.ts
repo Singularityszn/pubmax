@@ -202,8 +202,55 @@ describe("GET overlap", () => {
           { venueId: "stars", venueName: "STARS" },
         ],
         wantToTry: [{ venueId: "cittie", venueName: "Cittie of Yorke" }],
+        been: {
+          both: [
+            { venueId: "lamb", venueName: "LAMB" },
+            { venueId: "stars", venueName: "STARS" },
+          ],
+          onlyYou: [{ venueId: "mitre", venueName: "Ye Olde Mitre" }],
+          onlyThem: [],
+        },
       },
     });
+  });
+
+  it("compares the viewer's whole Been list with only the mate's shared one", async () => {
+    const askedFor: string[] = [];
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "private", {
+        diary: async (userId) => (askedFor.push(`diary:${userId}`), []),
+        plans: async (userId) => (askedFor.push(`plans:${userId}`), []),
+        beenHere: async (handle) => (askedFor.push(`beenHere:${handle}`), [{ venueId: "grapes", venueName: "The Grapes" }]),
+        drops: async (author) =>
+          author === "owner"
+            ? [{ venueId: "anchor", drink: "Guinness", createdAt: "2026-10-05T19:00:00.000Z" }]
+            : [],
+      }),
+    );
+    expect(askedFor.sort()).toEqual(["beenHere:mate", "diary:u-mate", "plans:u-mate"]);
+    expect(result.ok && result.body.been).toEqual({
+      both: [],
+      onlyYou: [{ venueId: "grapes", venueName: "The Grapes" }],
+      onlyThem: [{ venueId: "anchor", venueName: "ANCHOR" }],
+    });
+  });
+
+  it("drops the Been comparison when either list could not be read whole", async () => {
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        diary: async () => {
+          throw new Error("diary down");
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.been).toBeNull();
+    expect(result.body.topFive.length).toBeGreaterThan(0);
   });
 
   it.each<Reader>(["anon", "stranger", "owner"])("refuses %s, even on a public account", async (reader) => {
@@ -332,6 +379,7 @@ describe("a former venue id and its successor are one pub", () => {
       body: {
         topFive: [{ venueId: "lamb", venueName: "LAMB" }],
         wantToTry: [{ venueId: "lamb", venueName: "The Lamb" }],
+        been: expect.any(Object),
       },
     });
   });
@@ -386,7 +434,7 @@ describe("a former venue id and its successor are one pub", () => {
     );
     expect(result).toEqual({
       ok: true,
-      body: { topFive: [{ venueId: "lamb", venueName: "LAMB-OLD" }], wantToTry: [] },
+      body: { topFive: [{ venueId: "lamb", venueName: "LAMB-OLD" }], wantToTry: [], been: expect.any(Object) },
     });
   });
 });

@@ -22,7 +22,7 @@ import {
   PASSPORT_COPY,
   TASTE_COPY,
   passportDayLabel,
-  type BeenVenue,
+  type BeenCompare,
   type PassportVenue,
   type TasteFact,
 } from "@/lib/profilePassport";
@@ -42,7 +42,7 @@ import "./passportBook.css";
 const MAP_STOPS = 7;
 const BEEN_SHOWN = 20;
 
-function mapHrefFor(venues: readonly BeenVenue[]): Route | null {
+function mapHrefFor(venues: readonly PassportVenue[]): Route | null {
   const ids = venues.slice(0, MAP_STOPS).map((venue) => venue.venueId);
   if (ids.length === 1) return venueMapUrl(ids[0]!);
   return buildCrawlMapHref(ids);
@@ -247,11 +247,71 @@ function OverlapRow({ title, venues }: { title: string; venues: readonly Passpor
   );
 }
 
-/** The two overlap rows. An empty row is left out; two empty rows are nothing. */
+const COMPARE_SHOWN = 8;
+
+function CompareColumn({ title, venues }: { title: string; venues: readonly PassportVenue[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? venues : venues.slice(0, COMPARE_SHOWN);
+  return (
+    <div className="passportCompareColumn">
+      <h3 className="passportCompareTitle">
+        {title} <span className="passportCompareCount">{venues.length}</span>
+      </h3>
+      {venues.length === 0 ? (
+        <p className="passportQuiet">{PASSPORT_COPY.compareNone}</p>
+      ) : (
+        <ul className="passportList">
+          {shown.map((venue) => (
+            <li key={venue.venueId} className="passportRow">
+              <Link prefetch={false} href={venueMapUrl(venue.venueId)} className="passportRowName">
+                {venue.venueName || "A London pub"}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!showAll && venues.length > COMPARE_SHOWN ? (
+        <Button type="button" variant="ghost" onClick={() => setShowAll(true)}>
+          Show all {venues.length}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/** The viewer's Been list next to a mate's, as three name lists. No score. */
+export function PassportBeenCompare({ been }: { been: BeenCompare }): React.JSX.Element {
+  const empty = !been.both.length && !been.onlyYou.length && !been.onlyThem.length;
+  const bothMap = mapHrefFor(been.both);
+  return (
+    <section id="passport-compare" className="passportSection" aria-labelledby="passport-compare-title">
+      <div className="passportSectionHead">
+        <h2 id="passport-compare-title" className="passportSectionTitle">
+          {PASSPORT_COPY.compareTitle}
+        </h2>
+        {bothMap ? <Link prefetch={false} href={bothMap}>{PASSPORT_COPY.showOnMap}</Link> : null}
+      </div>
+      <p className="passportQuiet">{PASSPORT_COPY.compareLine}</p>
+      {empty ? (
+        <p className="passportQuiet">{PASSPORT_COPY.compareEmpty}</p>
+      ) : (
+        <div className="passportCompare">
+          <CompareColumn title={PASSPORT_COPY.compareBoth} venues={been.both} />
+          <CompareColumn title={PASSPORT_COPY.compareOnlyYou} venues={been.onlyYou} />
+          <CompareColumn title={PASSPORT_COPY.compareOnlyThem} venues={been.onlyThem} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** The overlap rows. An empty row is left out; nothing to show is nothing. */
 export function PassportOverlapRows({ overlap }: { overlap: PassportOverlapRead }): React.JSX.Element | null {
-  if (!overlap.topFive.length && !overlap.wantToTry.length) return null;
+  const been = overlap.been ?? null;
+  if (!overlap.topFive.length && !overlap.wantToTry.length && !been) return null;
   return (
     <div id="passport-overlap">
+      {been ? <PassportBeenCompare been={been} /> : null}
       <OverlapRow title={PASSPORT_COPY.overlapTop} venues={overlap.topFive} />
       <OverlapRow title={PASSPORT_COPY.overlapWanted} venues={overlap.wantToTry} />
     </div>

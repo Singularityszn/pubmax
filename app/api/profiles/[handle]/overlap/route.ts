@@ -1,10 +1,11 @@
 // Explicit overlap on a mate's profile.
 //
-// GET /api/profiles/[handle]/overlap -> 200 { topFive, wantToTry } (mates only; 403 otherwise)
+// GET /api/profiles/[handle]/overlap -> 200 { topFive, wantToTry, been } (mates only; 403 otherwise)
 //
-// Two lists of pub names and nothing else: pubs you both rank in your top five,
-// and pubs you both want to try. No percentage and no score (ADR 0017), and
-// each list is sorted by name so it shows neither person's order.
+// Lists of pub names and nothing else: pubs you both rank in your top five,
+// pubs you both want to try, and your Been list next to theirs. No percentage
+// and no score (ADR 0017), and each list is sorted by name so it shows neither
+// person's order.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";

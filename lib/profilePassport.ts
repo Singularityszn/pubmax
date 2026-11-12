@@ -7,7 +7,7 @@
 //
 // THE FENCES (ADR 0017, docs/MASTER_PRD.md):
 //   - No aggregate score, no leaderboard, no streak, no match percentage. The
-//     overlap is two lists of pub names, sorted by name so it shows neither
+//     overlap is lists of pub names, sorted by name so it shows neither
 //     person's order.
 //   - The diary and a completed plan are private (lib/diary.ts has one
 //     visibility, "private"). Only the owner's own Been read carries them. A
@@ -194,6 +194,43 @@ export function sharedWantToTry(
   return out.sort(byName);
 }
 
+/** Two Been lists side by side: three name lists, and no score between them. */
+export type BeenCompare = {
+  both: PassportVenue[];
+  onlyYou: PassportVenue[];
+  onlyThem: PassportVenue[];
+};
+
+/**
+ * Split the viewer's own Been list and a mate's shared one into the pubs both
+ * have been to and the pubs only one has. Each list is sorted by name, so it
+ * shows neither person's order, and nothing adds them into a match figure.
+ */
+export function compareBeen(
+  viewer: readonly PassportVenue[],
+  mate: readonly PassportVenue[],
+): BeenCompare {
+  const unique = (list: readonly PassportVenue[]) => {
+    const byId = new Map<string, PassportVenue>();
+    for (const venue of list) {
+      if (venue.venueId && !byId.has(venue.venueId)) {
+        byId.set(venue.venueId, { venueId: venue.venueId, venueName: venue.venueName });
+      }
+    }
+    return byId;
+  };
+  const mine = unique(viewer);
+  const theirs = unique(mate);
+  const both: PassportVenue[] = [];
+  const onlyYou: PassportVenue[] = [];
+  for (const [venueId, venue] of mine) {
+    if (theirs.has(venueId)) both.push(venue);
+    else onlyYou.push(venue);
+  }
+  const onlyThem = [...theirs.values()].filter((venue) => !mine.has(venue.venueId));
+  return { both: both.sort(byName), onlyYou: onlyYou.sort(byName), onlyThem: onlyThem.sort(byName) };
+}
+
 // ── Your taste, in facts ─────────────────────────────────────────────────────
 
 type TasteFactKey = "drink" | "borough" | "era";
@@ -325,6 +362,13 @@ export const PASSPORT_COPY = {
   shareFailed: "That link did not work. Try again.",
   overlapTop: "Pubs you both rank in your top five",
   overlapWanted: "Pubs you both want to try",
+  compareTitle: "Your Been, next to theirs",
+  compareLine: "Their side shows the pubs they dropped a pint in. Your side is your whole Been list.",
+  compareBoth: "You've both been",
+  compareOnlyYou: "Only you",
+  compareOnlyThem: "Only them",
+  compareEmpty: "Nothing on either list yet.",
+  compareNone: "None yet.",
   /** A row only the undated Been here list holds. Never a guessed day. */
   undated: "No date",
   sourceLabel: {

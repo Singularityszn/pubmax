@@ -27,12 +27,15 @@ import {
   aggregateBeen,
   beenSourcesFor,
   buildTasteFacts,
+  compareBeen,
   passportAccess,
   passportDay,
   sharedTopFive,
   sharedWantToTry,
+  type BeenCompare,
   type BeenSighting,
   type BeenVenue,
+  type PassportAccess,
   type PassportRelation,
   type PassportVenue,
   type RankedVenue,
@@ -99,7 +102,12 @@ export type BeenBody = {
   cover: { patch: string | null } | null;
 };
 
-export type OverlapBody = { topFive: PassportVenue[]; wantToTry: PassportVenue[] };
+export type OverlapBody = {
+  topFive: PassportVenue[];
+  wantToTry: PassportVenue[];
+  /** Null when either Been list could not be read whole: a short list would say "only you" wrongly. */
+  been: BeenCompare | null;
+};
 export type TasteBody = { facts: TasteFact[] };
 export type RankedBody = { ranked: RankedVenue[] };
 
@@ -221,30 +229,30 @@ async function named(sightings: BeenSighting[], deps: PassportDeps): Promise<Bee
   );
 }
 
-/** GET /api/profiles/[handle]/been */
-export async function readPassportBeen(
+type BeenFold = { venues: BeenVenue[]; degraded: boolean };
+
+/**
+ * Every source one access may read for one profile, folded into its Been list
+ * on current venue ids. `degraded` says a source could not be read, so the
+ * list may be short.
+ */
+async function foldBeen(
   request: Request,
-  rawHandle: string,
-  deps: PassportDeps = defaultPassportDeps(),
-): Promise<PassportResult<BeenBody>> {
-  const loaded = await loadProfile(request, rawHandle, deps);
-  if (!loaded.ok) return loaded;
-  const { profile } = loaded;
-  const { relation } = await resolveViewer(request, profile, deps);
-  const access = passportAccess("been", relation, accountIsPrivate(profile.visibility));
-  if (access === "none") return PRIVATE;
+  profile: ProfileRecord,
+  relation: PassportRelation,
+  access: PassportAccess,
+  deps: PassportDeps,
+): Promise<BeenFold> {
   const sources = beenSourcesFor(access);
   const userId = profile.userId?.trim() || "";
-
-  const [diary, drops, plans, beenHere, wanted, night, canonical] = await Promise.all([
-    sources.includes("diary") && userId ? settle(() => deps.diary(userId), []) : settle(async () => [], []),
+  const none = <T>(fallback: T) => settle(async () => fallback, fallback);
+  const [diary, drops, plans, beenHere, canonical] = await Promise.all([
+    sources.includes("diary") && userId ? settle(() => deps.diary(userId), []) : none<BeenSighting[]>([]),
     settle(() => dropSightings(request, profile, relation, deps), []),
-    sources.includes("plan") && userId ? settle(() => deps.plans(userId), []) : settle(async () => [], []),
+    sources.includes("plan") && userId ? settle(() => deps.plans(userId), []) : none<BeenSighting[]>([]),
     sources.includes("been_here")
       ? settle(() => deps.beenHere(profile.handle), [] as PassportVenue[])
-      : settle(async () => [] as PassportVenue[], []),
-    settle(() => deps.wanted(profile.id), [] as PassportVenue[]),
-    access === "full" && userId ? settle(() => deps.nightProfile(userId), null) : settle(async () => null, null),
+      : none<PassportVenue[]>([]),
     canonicalizer(deps),
   ]);
 
@@ -264,13 +272,35 @@ export async function readPassportBeen(
   const venues = aggregateBeen(
     await named(onCurrentIds([...diary.value, ...dropRows, ...plans.value, ...beenHereRows], canonical), deps),
   );
+  return { venues, degraded: diary.failed || drops.failed || plans.failed || beenHere.failed };
+}
+
+/** GET /api/profiles/[handle]/been */
+export async function readPassportBeen(
+  request: Request,
+  rawHandle: string,
+  deps: PassportDeps = defaultPassportDeps(),
+): Promise<PassportResult<BeenBody>> {
+  const loaded = await loadProfile(request, rawHandle, deps);
+  if (!loaded.ok) return loaded;
+  const { profile } = loaded;
+  const { relation } = await resolveViewer(request, profile, deps);
+  const access = passportAccess("been", relation, accountIsPrivate(profile.visibility));
+  if (access === "none") return PRIVATE;
+  const userId = profile.userId?.trim() || "";
+
+  const [been, wanted, night] = await Promise.all([
+    foldBeen(request, profile, relation, access, deps),
+    settle(() => deps.wanted(profile.id), [] as PassportVenue[]),
+    access === "full" && userId ? settle(() => deps.nightProfile(userId), null) : settle(async () => null, null),
+  ]);
   return {
     ok: true,
     body: {
       access,
-      status: diary.failed || drops.failed || plans.failed || beenHere.failed ? "degraded" : "ready",
-      count: venues.length,
-      venues,
+      status: been.degraded ? "degraded" : "ready",
+      count: been.venues.length,
+      venues: been.venues,
       wantToTryCount: wanted.failed ? null : wanted.value.length,
       cover:
         access === "full"
@@ -298,18 +328,23 @@ export async function readPassportOverlap(
     return MATES_ONLY;
   }
   try {
-    const [mineRanked, theirsRanked, mineWanted, theirsWanted, canonical] = await Promise.all([
+    // The viewer's side is their own full list; the mate's side is only what
+    // the mate's Been read already gives a mate.
+    const [mineRanked, theirsRanked, mineWanted, theirsWanted, canonical, mineBeen, theirsBeen] = await Promise.all([
       rankedWithNames(viewerProfile.id, deps),
       rankedWithNames(profile.id, deps),
       deps.wanted(viewerProfile.id),
       deps.wanted(profile.id),
       canonicalizer(deps),
+      foldBeen(request, viewerProfile, "owner", "full", deps),
+      foldBeen(request, profile, relation, passportAccess("been", relation, accountIsPrivate(profile.visibility)), deps),
     ]);
     return {
       ok: true,
       body: {
         topFive: sharedTopFive(rankedOnCurrentIds(mineRanked, canonical), rankedOnCurrentIds(theirsRanked, canonical)),
         wantToTry: sharedWantToTry(onCurrentIds(mineWanted, canonical), onCurrentIds(theirsWanted, canonical)),
+        been: mineBeen.degraded || theirsBeen.degraded ? null : compareBeen(mineBeen.venues, theirsBeen.venues),
       },
     };
   } catch {
