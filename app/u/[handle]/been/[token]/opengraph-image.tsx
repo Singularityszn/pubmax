@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { BEEN_CARD_COPY, beenCardCountLine, beenCardDay } from "@/lib/beenCard";
 import { readBeenCard } from "@/lib/beenCardShare.server";
-import { OG, OG_CACHE_HEADERS, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
+import { OG, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
 import { clampOgText } from "@/lib/ogCardText";
 import { OgPintReceipt } from "@/lib/ogPintReceipt";
 
@@ -74,7 +74,7 @@ export default async function Image({ params }: ImageProps) {
             ) : null}
             {receipt ? (
               <div style={{ display: "flex", fontSize: 24, color: OG.muted }}>
-                {BEEN_CARD_COPY.cheapestLabel}
+                {`${BEEN_CARD_COPY.cheapestLabel}${receipt.loggedOn ? ` · Logged ${receipt.loggedOn}` : ""}`}
               </div>
             ) : null}
           </div>
@@ -96,6 +96,6 @@ export default async function Image({ params }: ImageProps) {
         {receipt ? <OgPintReceipt receipt={receipt} top={-30} left={640} /> : null}
       </div>
     ),
-    { ...size, fonts: loadOgFonts(), headers: OG_CACHE_HEADERS },
+    { ...size, fonts: loadOgFonts(), headers: { "Cache-Control": "private, no-store" } },
   );
 }

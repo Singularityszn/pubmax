@@ -6,7 +6,7 @@ import "server-only";
 // the API route imports this file.
 
 import { callerUserId } from "@/lib/authServer";
-import { BEEN_CARD_UNLOCK, beenCardUnlocked, cheapestBeenCardDrop, type BeenCardDrop } from "@/lib/beenCard";
+import { BEEN_CARD_UNLOCK, beenCardUnlocked, beenCardDropQualifies, type BeenCardDrop } from "@/lib/beenCard";
 import { beenCardSharePath, mintBeenCardShare } from "@/lib/beenCardShare.server";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { readPassportBeen } from "@/lib/profilePassport.server";
@@ -22,8 +22,7 @@ export type BeenCardMintDeps = {
   profile(handle: string): Promise<{ userId: string | null; tombstoned: boolean } | null>;
   /** The owner's own Been count, every source folded in, or null when a source failed. */
   beenCount(request: Request, handle: string): Promise<number | null>;
-  /** The owner's own visible drops, read as the owner. */
-  ownDrops(handle: string): Promise<BeenCardDrop[]>;
+  cheapestDrop(handle: string): Promise<BeenCardDrop | null>;
   now(): number;
 };
 
@@ -39,7 +38,7 @@ function defaultDeps(): BeenCardMintDeps {
       if (!read.ok || read.body.access !== "full" || read.body.status !== "ready") return null;
       return read.body.count;
     },
-    ownDrops: (handle) => pintDropsStore().listVisible(undefined, { handle }, handle),
+    cheapestDrop: (handle) => pintDropsStore().cheapestOwnPublicPint(handle),
     now: () => Date.now(),
   };
 }
@@ -71,9 +70,9 @@ export async function mintOwnBeenCardShare(
     return { ok: false, status: 403, code: "OWNER_ONLY", error: "Only the owner sees this." };
   }
   let pubs: number | null;
-  let drops: BeenCardDrop[];
+  let drop: BeenCardDrop | null;
   try {
-    [pubs, drops] = await Promise.all([deps.beenCount(request, handle), deps.ownDrops(handle)]);
+    [pubs, drop] = await Promise.all([deps.beenCount(request, handle), deps.cheapestDrop(handle)]);
   } catch {
     return UNAVAILABLE;
   }
@@ -82,7 +81,7 @@ export async function mintOwnBeenCardShare(
   if (!beenCardUnlocked(pubs)) {
     return { ok: false, status: 409, code: "NOT_UNLOCKED", error: `Add ${BEEN_CARD_UNLOCK} pubs to your Been list first.` };
   }
-  const cheapest = cheapestBeenCardDrop(drops, handle);
+  const cheapest = drop && beenCardDropQualifies(drop, handle) ? drop : null;
   try {
     const token = mintBeenCardShare(handle, pubs, cheapest?.id ?? null, deps.now());
     return { ok: true, path: beenCardSharePath(handle, token), pubs };

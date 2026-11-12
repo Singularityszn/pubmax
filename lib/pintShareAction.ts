@@ -1,8 +1,5 @@
 // The click half of "Share this pint", "Share your receipt" and "Share your
-// Been card", loaded only when the reader taps one (components/share/
-// SharePintButton.tsx, components/pintdrop/ReceiptShareStep.tsx and
-// components/profile/BeenCardShare.tsx import this lazily), so the surfaces
-// that offer the action carry a button and nothing else until then.
+// Been card".
 //
 // The OS sheet first (the native shell seam, then the Web Share API), and the
 // clipboard after it. A DELIBERATE EXCEPTION to lib/shareSheet.ts's wa.me
@@ -14,6 +11,7 @@ import type { Route } from "next";
 
 import { trackEvent } from "@/lib/analytics";
 import type { ContentShareSurface } from "@/lib/analyticsEvents";
+import { isNativeApp } from "@/lib/nativePlatform";
 import { shareViaNativeSheet } from "@/lib/nativeShare";
 import { beenCardShareText, beenCardTitle } from "@/lib/beenCard";
 import { buildPintShareText, pintShareUrl, type PintShare } from "@/lib/pintShare";
@@ -45,12 +43,14 @@ async function shareLinkOrCopy(
   const input = { title: request.title, text: request.text, url };
   const surface = request.surface;
 
-  const native = await (deps.shareNatively ?? shareViaNativeSheet)(input);
-  if (native === "shared") {
-    track("content_shared", { channel: "native", surface });
-    return "shared";
+  if (deps.shareNatively || isNativeApp()) {
+    const native = await (deps.shareNatively ?? shareViaNativeSheet)(input);
+    if (native === "shared") {
+      track("content_shared", { channel: "native", surface });
+      return "shared";
+    }
+    if (native === "cancelled") return "cancelled";
   }
-  if (native === "cancelled") return "cancelled";
 
   if (typeof nav?.share === "function") {
     try {

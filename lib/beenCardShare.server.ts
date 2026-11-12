@@ -10,12 +10,11 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { beenCardDropQualifies, beenCardUnlocked } from "@/lib/beenCard";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 import { buildPintReceipt, type PintReceipt } from "@/lib/pintReceipt";
 import { normalizeHandle } from "@/lib/profiles";
-import { profileStore } from "@/lib/profileStore";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 const TOKEN_VERSION = 1;
@@ -81,15 +80,14 @@ export type BeenCard = VerifiedBeenCard & {
 };
 
 export type BeenCardReadDeps = {
-  accountLeft(handle: string): Promise<boolean>;
+  accountHandle(handle: string): Promise<string | null>;
   drop(id: string): Promise<PublicDrop | null>;
 };
 
 const defaultReadDeps: BeenCardReadDeps = {
-  async accountLeft(handle) {
-    if ((await withdrawnHandles([handle])).has(handle)) return true;
-    const profile = await profileStore().getByHandle(handle);
-    return !profile || Boolean(profile.tombstonedAt);
+  async accountHandle(handle) {
+    const resolved = await identityHandleStore().resolve(handle);
+    return resolved?.status === "live" ? resolved.currentHandle : null;
   },
   // No viewer: the drop is read as a stranger would read it.
   drop: (id) => getPintDropById(id),
@@ -107,13 +105,20 @@ export async function readBeenCard(
 ): Promise<BeenCard | null> {
   const verified = verifyBeenCardShare(token, rawHandle);
   if (!verified) return null;
+  let handle: string | null;
   try {
-    if (await deps.accountLeft(verified.handle)) return null;
+    handle = await deps.accountHandle(verified.handle);
   } catch {
     return null;
   }
-  if (!verified.dropId) return { ...verified, receipt: null };
+  if (!handle) return null;
+  const card = { ...verified, handle };
+  if (!verified.dropId) return { ...card, receipt: null };
   const drop = await deps.drop(verified.dropId).catch(() => null);
-  const receipt = drop && beenCardDropQualifies(drop, verified.handle) ? buildPintReceipt(drop) : null;
-  return { ...verified, receipt };
+  const owner = drop?.visibility === "public"
+    ? await deps.accountHandle(drop.handle).catch(() => null)
+    : null;
+  const ownedDrop = drop && owner === handle ? { ...drop, handle } : null;
+  const receipt = ownedDrop && beenCardDropQualifies(ownedDrop, handle) ? buildPintReceipt(ownedDrop) : null;
+  return { ...card, receipt };
 }

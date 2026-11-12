@@ -3,14 +3,14 @@
 // The owner's Been card door in the passport's Been section (lib/beenCard.ts).
 // Below the unlock count it is one quiet line saying how many pubs are left.
 // At the unlock count it is a button: the server counts the list itself and
-// signs the link (app/api/profiles/[handle]/been-card), and the share (the OS
-// sheet, then the clipboard) is loaded on tap.
+// signs the link (app/api/profiles/[handle]/been-card).
 
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { authedFetch } from "@/lib/authedFetch";
 import { BEEN_CARD_COPY, beenCardLockedLine, beenCardUnlocked } from "@/lib/beenCard";
+import { shareBeenCard } from "@/lib/pintShareAction";
 import { discardBody } from "@/lib/responseBody";
 
 import "./beenCard.css";
@@ -24,24 +24,29 @@ export default function BeenCardShare({
 }): React.JSX.Element | null {
   const [line, setLine] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [prepared, setPrepared] = useState<{ path: string; handle: string; pubs: number } | null>(null);
 
   async function share() {
     setBusy(true);
     setLine(null);
     try {
-      const response = await authedFetch(
-        `/api/profiles/${encodeURIComponent(handle)}/been-card`,
-        { cache: "no-store" },
-        { requiresIdentity: true },
-      );
-      if (!response.ok) {
-        await discardBody(response);
-        throw new Error("mint failed");
+      let card = prepared?.handle === handle ? prepared : null;
+      if (!card) {
+        const response = await authedFetch(
+          `/api/profiles/${encodeURIComponent(handle)}/been-card`,
+          { cache: "no-store" },
+          { requiresIdentity: true },
+        );
+        if (!response.ok) {
+          await discardBody(response);
+          throw new Error("mint failed");
+        }
+        const body = (await response.json().catch(() => ({}))) as { path?: unknown; pubs?: unknown };
+        if (typeof body.path !== "string" || typeof body.pubs !== "number") throw new Error("mint failed");
+        card = { path: body.path, handle, pubs: body.pubs };
+        setPrepared(card);
       }
-      const body = (await response.json().catch(() => ({}))) as { path?: unknown; pubs?: unknown };
-      if (typeof body.path !== "string" || typeof body.pubs !== "number") throw new Error("mint failed");
-      const { shareBeenCard } = await import("@/lib/pintShareAction");
-      const outcome = await shareBeenCard({ path: body.path, handle, pubs: body.pubs });
+      const outcome = await shareBeenCard(card);
       if (outcome === "copied") setLine(BEEN_CARD_COPY.ready);
       else if (outcome === "failed") setLine(BEEN_CARD_COPY.failed);
     } catch {
