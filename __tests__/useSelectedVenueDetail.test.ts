@@ -95,3 +95,22 @@ it("saves an already hydrated stop and restores its evicted copy when reopened",
   await act(async () => root.render(createElement(Sheet, { id: "venue-plan" })));
   expect(readSavedVenueDetail("venue-plan")?.venue).toEqual(payload);
 });
+
+it("keeps a displayed saved copy dated when the reconnect read fails, and drops it only on a confirmed 404", async () => {
+  const savedAt = "2026-11-10T20:00:00.000Z";
+  saveVenueDetail("venue-kept", { id: "venue-kept", name: "Saved Kept", prices: [] }, new Date(savedAt));
+  saveVenueDetail("venue-gone", { id: "venue-gone", name: "Saved Gone", prices: [] }, new Date(savedAt));
+  const fetchMock = vi.fn().mockRejectedValue(new TypeError("Offline"));
+  vi.stubGlobal("fetch", fetchMock);
+  await act(async () => root.render(createElement(Sheet, { id: "venue-gone" })));
+  await act(async () => root.render(createElement(Sheet, { id: "venue-kept" })));
+  expect(host.querySelector("output")?.dataset.held).toBe("venue-gone,venue-kept");
+
+  fetchMock.mockImplementation(async (url: string) =>
+    url.includes("venue-gone") ? { ok: false, status: 404 } : { ok: false, status: 503 });
+  await act(async () => { window.dispatchEvent(new Event("online")); });
+
+  expect(host.textContent).toBe("Saved Kept");
+  expect(host.querySelector("output")?.dataset.savedAt).toBe(savedAt);
+  expect(host.querySelector("output")?.dataset.held).toBe("venue-kept");
+});
