@@ -123,7 +123,6 @@ function ignoreSampleFilter(): void {}
 type MapFixRead = MapFixOutcomeRead & { seenBefore: number | null };
 const NO_MAP_FIXES: MapFixRead = { outcomes: [], complete: false, seenBefore: null };
 
-/** The reporter's accepted map fixes. What landed since their last visit reads in weight. */
 function MapFixList({ outcomes, complete, seenBefore, userId }: MapFixRead & { userId: string | null }): React.JSX.Element {
   const [visibleCount, setVisibleCount] = useState(10);
   useEffect(() => {

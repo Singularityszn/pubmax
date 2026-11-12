@@ -9,8 +9,10 @@
 // dismissed report sends nothing.
 //
 // SEEN IS KEPT ON THE DEVICE. The bell counts an outcome until the reporter
-// opens Activity on that device. The in-app notifications table has a closed
-// kind CHECK, so a server-side read mark would need a migration.
+// sees every unread outcome in a complete Activity response on that device.
+// Already-read history need not be expanded. Partial reads preserve the mark.
+// The in-app notifications table has a closed kind CHECK, so these outcomes
+// use a device-local mark instead of adding a notification kind.
 //
 // Browser-safe leaf: the server builds the list and the bell and Activity read
 // it, through one shape.
@@ -119,7 +121,7 @@ export function readMapFixOutcomes(value: unknown, complete: unknown): MapFixOut
 
 const SEEN_KEY_PREFIX = "pubmax_map_fixes_seen:";
 
-/** When this account last opened Activity on this device, or null. */
+/** The newest acknowledged decision time for this account on this device, or null. */
 export function readMapFixSeenAt(userId: string): number | null {
   try {
     const raw = safeLocalStorage()?.getItem(`${SEEN_KEY_PREFIX}${userId}`);
@@ -130,7 +132,7 @@ export function readMapFixSeenAt(userId: string): number | null {
   }
 }
 
-/** Mark every outcome the reporter has now read. */
+/** Advance only when a complete read leaves no unread outcome hidden. */
 export function markMapFixesSeen(
   userId: string,
   { outcomes, complete }: MapFixOutcomeRead,

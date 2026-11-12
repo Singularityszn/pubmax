@@ -1,6 +1,7 @@
 // A handle's notifications / activity inbox (story 34 / Wave I2).
-//   GET  ?handle=<handle>            → { notifications: NotificationDTO[], unread, mapFixes }
+//   GET  ?handle=<handle>            → { notifications: NotificationDTO[], unread, mapFixes, mapFixesComplete }
 //   POST { handle, id? }             → { notifications, unread }   (marks read)
+// `unread` counts social notifications only. The client adds unread map outcomes.
 //
 // Wave I2: resolve the actor via resolveMessageHandle (JWT-linked handle wins)
 // then gateHandleAction. A read, including the inbox a mark-read returns, is
@@ -9,9 +10,7 @@
 // notification can include private crew membership activity. The event
 // vocabulary lives in lib/notifications.ts.
 //
-// `mapFixes` are the owner's accepted map fixes (lib/mapFixOutcomes.ts): a pub
-// they named that was accepted, or a note they left that was fixed. They ride the
-// bell's existing poll, so hearing back costs no extra request.
+// Map-fix eligibility and acknowledgement rules live in lib/mapFixOutcomes.ts.
 //
 // Reads are fail-soft (the store returns an empty inbox on any error), so a
 // notifications outage can never 500 the bell / activity page. Store choice is the
