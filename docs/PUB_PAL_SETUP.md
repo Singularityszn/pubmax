@@ -492,18 +492,39 @@ Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.
 A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.
-Ending a call requests [voice-grant settlement](#voice-grants) and clears its main-map picks and grounding.
+Ending a call requests [voice-grant settlement](#voice-grants). A user-ended call,
+dropped line or error clears its main-map picks and grounding.
 It also clears the last voice camera request and cancels pending voice navigation.
 The voice prompt asks the agent to check in once after silence.
 If silence continues, the prompt asks for one short goodbye followed by `end_call`.
 The [agent configuration](../scripts/pubpal/pub-pal-agent-config.json) owns `turn_timeout` and the provider backstop, `silence_end_call_timeout`.
 The 180-second call cap remains. These settings reach an existing agent only after the captain runs the configuration command.
 
-If a background interruption leaves the session mounted, it keeps the transcript
-and offers **Carry on** when you return. When the Pal ends the call or the provider closes it for silence,
-the panel shows a friendly end status and offers **Carry on**. On the map, **Close voice chat** dismisses
-the stopped bar. **Carry on** starts a new call. Returning does not restart the
-microphone automatically.
+Thirty seconds before the cap, the app tells the agent to finish in one short
+sentence and shows a countdown (`lib/palVoiceCall.ts`). A call that hits the cap,
+that the agent hangs up, or that a background interruption ends keeps its
+transcript and main-map picks, and offers **Carry on**.
+**Close voice chat** dismisses the stopped map bar and clears the picks.
+
+When usage is known, the browser shows "At least N minutes of voice left this
+month" before the **Carry on** tap. On the map, the allowance appears below
+the transcript.
+The grant reports the month's prepaid charge (`usedMinutes`) for both keyless
+and Supabase runs. The minimum is the monthly allowance minus that charge,
+with a floor of zero. Unknown usage produces no figure.
+
+Each new grant refreshes the figure, even if startup fails or is cancelled.
+The server decides whether another call can start. A zero figure does not
+disable **Carry on**.
+
+**Carry on** starts a new call that keeps the picks and cards. When an earlier-asks
+summary is available, the call uses a short resume greeting and sends the summary
+as one contextual update (`palSessionAsksSummaryTurn` in `lib/palSessionSummary.ts`).
+If there are no earlier asks or the summary module fails to load, the call uses
+the normal opening greeting and sends no resume update.
+If startup fails or is cancelled, the ended call, picks and cards remain available
+for another attempt. A successful connection clears the previous ended status.
+Returning does not restart the microphone automatically.
 
 The first microphone permission prompt does not cancel startup while the native
 app remains in the foreground. A hidden page or native background transition

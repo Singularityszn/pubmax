@@ -38,6 +38,19 @@ export function palVoiceEndedByPal(details: unknown): boolean {
   return !!details && typeof details === "object" && (details as { reason?: unknown }).reason === "agent";
 }
 
+/**
+ * A live call the provider ended on purpose, which the person can carry on
+ * from: its own session cap, or the Pal hanging up (palVoiceEndedByPal).
+ * Null for a dropped line and for an end the person chose.
+ */
+export function palVoiceProviderEnd(details: unknown): "cap" | "pal" | null {
+  if (palVoiceEndedByPal(details)) return "pal";
+  if (!details || typeof details !== "object") return null;
+  const { reason, context } = details as { reason?: unknown; context?: unknown };
+  const type = context && typeof context === "object" ? (context as { type?: unknown }).type : undefined;
+  return reason === "error" && type === "max_duration_exceeded" ? "cap" : null;
+}
+
 type VoiceProbeStream = {
   getTracks: () => Array<{ stop: () => void }>;
 };

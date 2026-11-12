@@ -203,6 +203,30 @@ async function settleIssuedGrants(
 }
 
 /**
+ * The month's charge once this grant's prepay is in, so the browser can say
+ * how many minutes are left when the call ends. Null when it cannot be read:
+ * the call still starts, and the browser shows no figure.
+ */
+async function readUsedMinutes(
+  admin: ReturnType<typeof requireSupabaseAdmin>,
+  userId: string,
+  usageMonth: string,
+): Promise<number | null> {
+  try {
+    const { data, error } = await admin
+      .from("pub_pal_voice_usage")
+      .select("used_minutes")
+      .eq("owner_id", userId)
+      .eq("usage_month", usageMonth)
+      .maybeSingle();
+    const used = (data as { used_minutes?: unknown } | null)?.used_minutes;
+    return !error && typeof used === "number" ? used : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Charges one grant against the month. `unknown` covers an error and an
  * answer that is not a boolean: the database may have committed before the
  * reply was lost, so the caller refunds it.
@@ -346,6 +370,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
     return budgetRefusal;
   }
 
+  const usedMinutesRead = admin ? readUsedMinutes(admin, userId, usageMonth) : Promise.resolve(meter.usedMinutes);
   let providerAllocated = false;
   let conversationId: string;
   let response: Response;
@@ -418,6 +443,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
       maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
       remaining: remainingMinutes,
       remainingMinutes,
+      usedMinutes: await usedMinutesRead,
       retention: "provider_default",
       mutationPolicy: "propose_then_confirm",
     });

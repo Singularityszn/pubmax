@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles } from "./helpers/authDoubles";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // D5 and the R1 decision are the oracle: leaving ends the call, permission
 // inactivity does not, and returning requires an explicit Carry on tap.
@@ -72,7 +73,7 @@ type Probe = {
 
 declare global { interface Window { lifecycleProbe: Probe } }
 
-async function setup(page: Page, native = false, deferMicrophone = false) {
+async function setup(page: Page, native = false, deferMicrophone = false, clock = false) {
   await page.addInitScript(({ native, deferMicrophone }) => {
     const probe: Probe = window.lifecycleProbe = { microphoneCalls: 0, tracks: [], listeners: {} };
     const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -107,6 +108,7 @@ async function setup(page: Page, native = false, deferMicrophone = false) {
   }, { native, deferMicrophone });
   const auth = await installAuthDoubles(page);
   await page.goto(new URL("/today", String(test.info().project.use.baseURL)).href);
+  await expect(page.locator('[data-auth-resolved="true"]').first()).toBeVisible();
   await auth.signedInAs("A");
   const stamp = "2026-11-09T12:00:00.000Z";
   const pal = {
@@ -129,21 +131,28 @@ async function setup(page: Page, native = false, deferMicrophone = false) {
   let sockets = 0;
   let holdMetadata = false;
   let pendingMetadata: (() => void) | undefined;
+  let nextGrantStatus = 200;
+  let nextUsedMinutes: number | null | undefined;
   await page.route("**/api/pub-pal/voice-token", route => {
     if (route.request().method() === "GET") return route.fulfill({ json: { available: true, retention: "provider_default" } });
     const body = route.request().postDataJSON();
     events.push({ request: body, at: Date.now() });
     if (body?.action === "release") { releases++; return route.fulfill({ status: 204 }); }
     grants++;
-    return route.fulfill({ json: { signedUrl: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=disposable", conversationId: `conv_lifecycle_${grants}`, maxSessionSeconds: 180 } });
+    const status = nextGrantStatus;
+    nextGrantStatus = 200;
+    if (status !== 200) return route.fulfill({ status, json: { error: "Disposable voice service unavailable" } });
+    return route.fulfill({ json: { signedUrl: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=disposable", conversationId: `conv_lifecycle_${grants}`, maxSessionSeconds: 180, usedMinutes: nextUsedMinutes === undefined ? 3 * grants : nextUsedMinutes, overrides: { firstMessage: "Evening. Where are we drinking?" } } });
   });
   let socket: WebSocketRoute;
+  const sent: { type?: string; text?: string; conversation_config_override?: { agent?: { first_message?: string } } }[] = [];
   await page.routeWebSocket(/api\.elevenlabs\.io/, ws => {
     socket = ws;
     sockets++;
     ws.onClose(() => { closed++; events.push({ socketClosed: closed, at: Date.now() }); });
     ws.onMessage(message => {
       const event = JSON.parse(String(message));
+      sent.push(event);
       if (event.type !== "conversation_initiation_client_data") return;
       const complete = () => ws.send(JSON.stringify({ type: "conversation_initiation_metadata", conversation_initiation_metadata_event: {
         conversation_id: `conv_lifecycle_${grants}`, agent_output_audio_format: "pcm_16000", user_input_audio_format: "pcm_16000",
@@ -152,12 +161,26 @@ async function setup(page: Page, native = false, deferMicrophone = false) {
       else complete();
     });
   });
-  await page.goto(new URL("/pal", String(test.info().project.use.baseURL)).href);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Account options for Karan", exact: true })).toBeVisible();
+  await page.locator('a[href="/pal"]:visible').first().click();
+  await expect(page).toHaveURL(/\/pal$/);
   await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeVisible();
+  if (clock) await page.clock.install();
   return {
     start: async () => { await page.getByRole("button", { name: "Start voice chat", exact: true }).click(); },
     connected: async () => { await expect(page.getByRole("status").filter({ hasText: /Pal is (listening|talking)/ })).toBeVisible(); },
     say: (text: string) => socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: 1 } })),
+    hear: (text: string) => socket.send(JSON.stringify({ type: "user_transcript", user_transcription_event: { user_transcript: text, event_id: 2 } })),
+    sent: () => sent,
+    send: (event: unknown) => socket.send(JSON.stringify(event)),
+    dropStartup: async () => {
+      holdMetadata = false;
+      pendingMetadata = undefined;
+      await socket.close({ code: 1011, reason: "Disposable provider startup failure" });
+    },
+    refuseNextGrant: (status: number) => { nextGrantStatus = status; },
+    useMinutes: (minutes: number | null) => { nextUsedMinutes = minutes; },
     speak: () => {
       const audio = Buffer.alloc(16_000);
       for (let i = 0; i < 8_000; i++) audio.writeInt16LE(Math.round(Math.sin(2 * Math.PI * 220 * i / 16_000) * 8_000), i * 2);
@@ -167,7 +190,7 @@ async function setup(page: Page, native = false, deferMicrophone = false) {
     hold: () => { holdMetadata = true; },
     pending: () => Boolean(pendingMetadata),
     finish: () => { holdMetadata = false; pendingMetadata?.(); },
-    save: async (name: string) => writeFile(`${evidence}/${name}.json`, JSON.stringify({ grants, releases, closed, sockets, microphoneCalls: await page.evaluate(() => window.lifecycleProbe.microphoneCalls), lateInputResult: await page.evaluate(() => (window as Window & { lateInputResult?: string }).lateInputResult ?? null), events, visibleButtons: await page.getByRole("button").allTextContents(), transcript: await page.getByRole("log", { name: "Voice chat transcript" }).allTextContents(), visibility: await page.evaluate(() => document.visibilityState), tracks: await page.evaluate(() => window.lifecycleProbe.tracks.map(track => ({ kind: track.kind, state: track.readyState }))) }, null, 2)),
+    save: async (name: string) => writeFile(`${evidence}/${name}.json`, JSON.stringify({ grants, releases, closed, sockets, sent, microphoneCalls: await page.evaluate(() => window.lifecycleProbe.microphoneCalls), lateInputResult: await page.evaluate(() => (window as Window & { lateInputResult?: string }).lateInputResult ?? null), events, visibleButtons: await page.getByRole("button").allTextContents(), transcript: await page.getByRole("log", { name: "Voice chat transcript" }).allTextContents(), visibility: await page.evaluate(() => document.visibilityState), tracks: await page.evaluate(() => window.lifecycleProbe.tracks.map(track => ({ kind: track.kind, state: track.readyState }))) }, null, 2)),
   };
 }
 
@@ -178,6 +201,87 @@ async function nativeEvent(page: Page, event: string, data?: unknown) {
 async function stopped(page: Page) {
   await expect.poll(() => page.evaluate(() => window.lifecycleProbe.tracks.every(track => track.readyState === "ended"))).toBe(true);
 }
+
+async function recommend(app: Awaited<ReturnType<typeof setup>>) {
+  app.hear("Cheap pints in Soho");
+  app.send({ type: "agent_tool_request", agent_tool_request: { tool_name: "search_venues", tool_call_id: "retained-pub", event_id: 2 } });
+  app.send({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+    tool_name: "search_venues", tool_call_id: "retained-pub", event_id: 2, is_error: false, is_called: true,
+    full_tool_result: JSON.stringify({ result: { ok: true, tool: "search_venues", answerHint: "A disposable pub recommendation.",
+      cards: [{ key: "retained", venueId: "qa-pub", title: "Disposable QA Pub", place: "Soho", note: "Test service data", price: 5.2,
+        provenance: { kind: "directory", label: "Disposable provider fixture, 11 November 2026" } }],
+      data: { venues: [{ id: "qa-pub", lat: 51.513, lng: -0.134 }] },
+    } }),
+  } });
+}
+
+for (const failure of ["grant", "sdk", "cancel"] as const) {
+  test(`Carry on retains the previous call after ${failure} startup failure and can retry`, async ({ page, context }) => {
+    await context.grantPermissions(["microphone"]);
+    await installDeterministicMapBasemap(page);
+    const app = await setup(page, false, false, true);
+    await app.start(); await app.connected();
+    await recommend(app);
+    await expect(page.getByRole("list", { name: "Pubs from the voice answer" })).toContainText("Disposable QA Pub");
+    await page.clock.fastForward(180_000);
+    await expect(page.getByRole("button", { name: "Carry on", exact: true })).toBeVisible();
+    if (failure === "grant") app.refuseNextGrant(503);
+    else { app.useMinutes(12); app.hold(); }
+    await page.getByRole("button", { name: "Carry on", exact: true }).click();
+    if (failure !== "grant") {
+      await expect.poll(app.pending).toBe(true);
+      if (failure === "cancel") await page.getByRole("button", { name: "Cancel voice startup" }).click();
+      else await app.dropStartup();
+      if (failure === "cancel") app.finish();
+    }
+    await expect(page.getByRole("button", { name: "Carry on", exact: true })).toBeEnabled();
+    await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
+    await expect(page.getByRole("list", { name: "Pubs from the voice answer" })).toContainText("Disposable QA Pub");
+    await expect(page.getByText(`At least ${failure === "grant" ? 27 : 18} minutes of voice left this month`, { exact: true })).toBeVisible();
+    await page.screenshot({ path: `${evidence}/resume-${failure}-retained.png`, fullPage: true });
+    await page.getByRole("button", { name: "Carry on", exact: true }).click();
+    await app.connected();
+    expect(app.sent().filter(event => event.type === "conversation_initiation_client_data").at(-1)?.conversation_config_override?.agent?.first_message).toBe("Right, where were we?");
+    await expect.poll(() => app.sent().filter(event => event.type === "contextual_update").map(event => event.text).join(" ")).toContain("Cheap pints in Soho");
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await stopped(page); await app.save(`resume-${failure}`);
+  });
+}
+
+test("Carry on without earlier asks uses the normal opening and sends no resume summary", async ({ page, context }) => {
+  await context.grantPermissions(["microphone"]);
+  const app = await setup(page, false, false, true);
+  await app.start(); await app.connected();
+  app.send({ type: "agent_tool_response", agent_tool_response: { tool_name: "end_call", is_error: false, is_called: true } });
+  await expect(page.getByRole("button", { name: "Carry on", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Carry on", exact: true }).click();
+  await app.connected();
+  expect(app.sent().filter(event => event.type === "conversation_initiation_client_data").at(-1)?.conversation_config_override?.agent?.first_message).toBe("Evening. Where are we drinking?");
+  expect(app.sent().filter(event => event.type === "contextual_update")).toEqual([]);
+  await page.screenshot({ path: `${evidence}/resume-normal-opener.png`, fullPage: true });
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await stopped(page); await app.save("resume-normal-opener");
+});
+
+test("Carry on uses the normal opener if the earlier-asks chunk cannot load", async ({ page, context }) => {
+  await context.grantPermissions(["microphone"]);
+  const app = await setup(page);
+  await app.start(); await app.connected();
+  app.hear("Cheap pints in Soho");
+  await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
+  app.send({ type: "agent_tool_response", agent_tool_response: { tool_name: "end_call", is_error: false, is_called: true } });
+  await expect(page.getByRole("button", { name: "Carry on", exact: true })).toBeVisible();
+  let blockedScripts = 0;
+  await page.route("**/_next/static/chunks/*.js*", route => { blockedScripts++; return route.abort("failed"); });
+  await page.getByRole("button", { name: "Carry on", exact: true }).click();
+  await app.connected();
+  expect(blockedScripts).toBeGreaterThan(0);
+  expect(app.sent().filter(event => event.type === "conversation_initiation_client_data").at(-1)?.conversation_config_override?.agent?.first_message).toBe("Evening. Where are we drinking?");
+  expect(app.sent().filter(event => event.type === "contextual_update")).toEqual([]);
+  await page.screenshot({ path: `${evidence}/resume-summary-unavailable.png`, fullPage: true });
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  await stopped(page); await app.save("resume-summary-unavailable");
+});
 
 // The audit requires immediate tap feedback and no second cue at connection.
 // Observe the real media element, microphone, mounted panel and installed SDK.
@@ -283,7 +387,86 @@ test("a fast voice connection does not overlap the start chime with greeting aud
 });
 
 for (const width of [390, 768, 1440]) {
-  test(`${width}px: background ends a connected call, preserves transcript and Carry on starts a fresh call`, async ({ page, context }) => {
+  test(`${width}px: the map keeps its recommendation and transcript beside the allowance after a provider end`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 950 });
+    await context.grantPermissions(["microphone"]);
+    await installDeterministicMapBasemap(page);
+    const app = await setup(page, false, false, true);
+    if (width === 1440) await page.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
+    await app.start(); await app.connected();
+    await recommend(app);
+    await expect(page.getByRole("list", { name: "Pubs from the voice answer" })).toContainText("Disposable QA Pub");
+    app.hear("Show me the map");
+    await expect(page).toHaveURL(/\/map/);
+    const paintedPicks = () => page.evaluate(() => (window as Window & {
+      __pubmaxPalPicks?: () => { picks: { venueId: string }[] };
+    }).__pubmaxPalPicks?.()?.picks.map(pick => pick.venueId));
+    await expect.poll(paintedPicks).toEqual(["qa-pub"]);
+    app.say("Your pub recommendation is still here.");
+    const bar = page.getByRole("region", { name: "Voice chat with Ripley" });
+    await expect(bar).toContainText("Your pub recommendation is still here.");
+    app.useMinutes(30);
+    app.send({ type: "agent_tool_response", agent_tool_response: { tool_name: "end_call", is_error: false, is_called: true } });
+    await expect(bar.getByRole("button", { name: "Carry on", exact: true })).toBeEnabled();
+    await expect(bar.locator(".palVoiceBarCaption")).toHaveText("Your pub recommendation is still here.");
+    await expect(bar.locator(".palVoiceBarAllowance")).toHaveText("At least 27 minutes of voice left this month");
+    await expect.poll(paintedPicks).toEqual(["qa-pub"]);
+    await page.screenshot({ path: `${evidence}/map-provider-ended-${width}.png`, fullPage: true });
+    if (width === 390) {
+      await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+      await expect(bar.getByRole("button", { name: "Carry on", exact: true })).toBeInViewport();
+      await expect(bar.locator(".palVoiceBarCaption")).toBeVisible();
+      await expect(bar.locator(".palVoiceBarAllowance")).toBeVisible();
+      await page.screenshot({ path: `${evidence}/map-large-text-390.png`, fullPage: true });
+      const allowanceLayout = await bar.locator(".palVoiceBarAllowance").evaluate(element => {
+        const text = element.getBoundingClientRect();
+        const button = element.closest("section")!.querySelector("button")!.getBoundingClientRect();
+        return {
+          availableWidth: element.parentElement!.clientWidth,
+          textWidth: element.clientWidth,
+          textRight: text.right,
+          buttonLeft: button.left,
+          overlapsButton: text.left < button.right && text.right > button.left && text.top < button.bottom && text.bottom > button.top,
+        };
+      });
+      await writeFile(`${evidence}/map-large-text-390-layout.json`, JSON.stringify(allowanceLayout, null, 2));
+      expect(allowanceLayout.overlapsButton).toBe(false);
+      await page.addStyleTag({ content: "html { font-size: 100% !important; }" });
+    }
+    await bar.getByRole("button", { name: "Carry on", exact: true }).click();
+    await expect(bar.getByRole("button", { name: "End", exact: true })).toBeVisible();
+    await expect.poll(paintedPicks).toEqual(["qa-pub"]);
+    await page.clock.fastForward(150_000);
+    await expect(bar.getByRole("timer")).toBeVisible();
+    await page.screenshot({ path: `${evidence}/map-countdown-${width}.png`, fullPage: true });
+    await page.clock.fastForward(30_000);
+    await expect(bar.locator(".palVoiceBarAllowance")).toHaveText("At least 0 minutes of voice left this month");
+    await expect.poll(paintedPicks).toEqual(["qa-pub"]);
+    await expect(bar.getByRole("button", { name: "Carry on", exact: true })).toBeEnabled();
+    app.refuseNextGrant(429);
+    await bar.getByRole("button", { name: "Carry on", exact: true }).click();
+    await expect(bar.getByRole("alert")).toBeVisible();
+    await expect(bar.getByRole("button", { name: "Carry on", exact: true })).toBeEnabled();
+    await page.screenshot({ path: `${evidence}/map-zero-allowance-${width}.png`, fullPage: true });
+    await stopped(page); await app.save(`map-provider-ended-${width}`);
+  });
+}
+
+test("a delayed wrap-up callback uses the original call deadline", async ({ page, context }) => {
+  await context.grantPermissions(["microphone"]);
+  const app = await setup(page, false, false, true);
+  await app.start(); await app.connected();
+  await page.clock.fastForward(160_000);
+  await expect(page.getByRole("timer")).toContainText("0:20");
+  await expect.poll(() => app.sent().filter(event => event.type === "contextual_update").map(event => event.text)).toContain("About 20 seconds are left in this call. Finish the answer in one short sentence.");
+  await page.screenshot({ path: `${evidence}/delayed-countdown.png`, fullPage: true });
+  await page.clock.fastForward(20_000);
+  await expect(page.getByRole("button", { name: "Carry on", exact: true })).toBeVisible();
+  await stopped(page); await app.save("delayed-countdown");
+});
+
+for (const width of [390, 768, 1440]) {
+  test(`${width}px: background ends a connected call, preserves transcript and Carry on resumes it`, async ({ page, context }) => {
     await page.setViewportSize({ width, height: 950 });
     await context.grantPermissions(["microphone"]);
     const app = await setup(page, true);
@@ -291,6 +474,8 @@ for (const width of [390, 768, 1440]) {
     await app.start(); await app.connected();
     app.say("Evening. Where are we drinking?");
     await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
+    app.hear("Cheap pints in Soho");
+    await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
     await page.screenshot({ path: `${evidence}/connected-${width}.png`, fullPage: true });
     await nativeEvent(page, "pause");
     await nativeEvent(page, "pause");
@@ -302,14 +487,45 @@ for (const width of [390, 768, 1440]) {
     expect(app.grants()).toBe(1);
     await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
     await page.screenshot({ path: `${evidence}/carry-on-${width}.png`, fullPage: true });
+    await expect(page.getByText("At least 27 minutes of voice left this month", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Carry on", exact: true }).click();
     await app.connected();
     expect(app.grants()).toBe(2);
     await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening. Where are we drinking?");
+    const starts = app.sent().filter(event => event.type === "conversation_initiation_client_data");
+    expect(starts.at(-1)?.conversation_config_override?.agent?.first_message).toBe("Right, where were we?");
+    await expect.poll(() => app.sent().filter(event => event.type === "contextual_update").map(event => event.text).join(" "))
+      .toContain("Cheap pints in Soho");
     await page.getByRole("button", { name: "End", exact: true }).click();
     await stopped(page);
     await expect.poll(app.releases).toBe(2);
     await app.save(`background-${width}`);
+  });
+}
+
+// The page clock jumps to the call's last stretch. The socket and audio stay real.
+for (const width of [390, 1440]) {
+  test(`${width}px: the Pal is told to wrap up, the last seconds count down, and the cap keeps the call on screen`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 950 });
+    await context.grantPermissions(["microphone"]);
+    const app = await setup(page, false, false, true);
+    await app.start(); await app.connected();
+    app.hear("Cheap pints in Soho");
+    await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
+    await expect(page.getByRole("timer")).toBeHidden();
+    await page.clock.fastForward(150_000);
+    await expect(page.getByRole("timer")).toBeVisible();
+    await expect.poll(() => app.sent().filter(event => event.type === "contextual_update").map(event => event.text))
+      .toContain("About 30 seconds are left in this call. Finish the answer in one short sentence.");
+    await page.screenshot({ path: `${evidence}/countdown-${width}.png`, fullPage: true });
+    await page.clock.fastForward(30_000);
+    await expect(page.getByRole("button", { name: "Carry on", exact: true })).toBeVisible();
+    await expect(page.getByRole("timer")).toBeHidden();
+    await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Cheap pints in Soho");
+    await expect(page.getByText("At least 27 minutes of voice left this month", { exact: true })).toBeVisible();
+    await page.screenshot({ path: `${evidence}/cap-ended-${width}.png`, fullPage: true });
+    await stopped(page);
+    await expect.poll(app.releases).toBe(1);
   });
 }
 
