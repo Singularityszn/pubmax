@@ -338,7 +338,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Storage limits can remove older copies. Photos and pubs you never opened can remain unavailable offline.
 
-  The selected sheet retries live detail when the connection returns. A saved copy that arrives while the browser reports a connection triggers one live retry. A successful retry replaces the copy. If that retry confirms the pub is missing, the sheet shows it as missing. A server or network failure during that retry keeps the dated copy.
+  Saved sheets retry live detail when the connection returns. Reopening a saved sheet also retries while the browser reports a connection. A saved copy that arrives while the browser reports a connection triggers one live retry. A successful refresh replaces the copy. If a refresh confirms the pub is missing, the sheet shows it as missing. A server or network failure during a refresh keeps the dated copy.
 
   Nearby links (`/near`, with or without query parameters) need a connection. When navigation fails, the service worker shows the cached offline explanation. If that page is unavailable, it shows a plain offline error.
 

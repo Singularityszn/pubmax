@@ -21,8 +21,8 @@ type SelectedVenueDetailArgs = {
 
 /**
  * Loads the selected pub's full detail into the sheet, and keeps a copy of
- * each pub opened so its sheet still reads with no signal. A sheet drawn from
- * that copy swaps to the live detail when the connection comes back.
+ * each pub opened so its sheet still reads with no signal. A displayed copy
+ * stays dated until a live read succeeds or confirms removal.
  */
 export function useSelectedVenueDetail({
   selectedVenueId,
