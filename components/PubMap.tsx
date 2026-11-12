@@ -5538,7 +5538,7 @@ export default function PubMap({
     ukBaseRestoreMissing,
   ]);
 
-  useSelectedVenueDetail({
+  const savedVenueCopyAt = useSelectedVenueDetail({
     selectedVenueId,
     detailById,
     setDetailById,
@@ -6027,7 +6027,7 @@ export default function PubMap({
             {selectedVenueLabels.unavailableLabel}
           </div>
         ) : null}
-        <SavedVenueNote venueId={selectedVenue.id} />
+        <SavedVenueNote savedAt={savedVenueCopyAt} />
         <VenueInspector
           venue={selectedVenue}
           {...venueActionCardProps(selectedVenue)}

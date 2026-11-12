@@ -1,23 +1,12 @@
-import { useCallback, useEffect, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
+import { useEffect, type Dispatch, type SetStateAction } from "react";
 
 import { isRecordlessMapSelection, type MapSelectionNotice, type VenueDetailStatus } from "@/lib/pubMap";
-import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import type { Venue } from "@/lib/venues";
 import {
   rememberOpenedVenue,
   savedVenueCopyAt,
-  subscribeSavedVenueCopies,
   warmVenueDetail,
 } from "@/lib/warmVenueDetail";
-
-/** The day a pub's sheet copy on this device was saved, while the sheet shows it. */
-export function useSavedVenueCopyAt(venueId: string): string | null {
-  return useSyncExternalStore(
-    subscribeSavedVenueCopies,
-    () => savedVenueCopyAt(venueId),
-    () => null,
-  );
-}
 
 type SelectedVenueDetailArgs = {
   selectedVenueId: string;
@@ -42,13 +31,31 @@ export function useSelectedVenueDetail({
   setSelectedVenueId,
   setSelectionNotice,
   resolveMapSelection,
-}: SelectedVenueDetailArgs): void {
+}: SelectedVenueDetailArgs): string | null {
+  useEffect(() => {
+    const discardSavedCopies = () => {
+      setDetailById((current) => {
+        const next = new Map(current);
+        for (const [id, venue] of current) {
+          if (savedVenueCopyAt(venue)) next.delete(id);
+        }
+        return next.size === current.size ? current : next;
+      });
+    };
+    window.addEventListener("online", discardSavedCopies);
+    return () => window.removeEventListener("online", discardSavedCopies);
+  }, [setDetailById]);
+
   useEffect(() => {
     if (
       !selectedVenueId ||
-      detailById.has(selectedVenueId) ||
       isRecordlessMapSelection(selectedVenueId)
     ) {
+      return;
+    }
+    const held = detailById.get(selectedVenueId);
+    if (held) {
+      if (!savedVenueCopyAt(held) && !held.retired) rememberOpenedVenue(selectedVenueId);
       return;
     }
     const requestedVenueId = selectedVenueId;
@@ -68,7 +75,7 @@ export function useSelectedVenueDetail({
         return;
       }
       const canonicalVenueId = result.venue.id;
-      if (!result.savedAt) rememberOpenedVenue(canonicalVenueId);
+      if (!result.savedAt) rememberOpenedVenue(requestedVenueId);
       resolveMapSelection(requestedVenueId, canonicalVenueId);
       setDetailById((current) => {
         const next = new Map(current);
@@ -101,14 +108,6 @@ export function useSelectedVenueDetail({
     setSelectionNotice,
   ]);
 
-  const savedCopyAt = useSavedVenueCopyAt(selectedVenueId);
-  const refreshSavedCopy = useCallback(() => {
-    const venueId = selectedVenueId;
-    void warmVenueDetail(venueId).then((result) => {
-      if (result.status !== "found" || result.savedAt) return;
-      rememberOpenedVenue(result.venue.id);
-      setDetailById((current) => new Map(current).set(result.venue.id, result.venue));
-    });
-  }, [selectedVenueId, setDetailById]);
-  useReconnectRecovery(Boolean(savedCopyAt), refreshSavedCopy, { events: ["online"] });
+  const selectedDetail = detailById.get(selectedVenueId);
+  return selectedDetail ? savedVenueCopyAt(selectedDetail) : null;
 }

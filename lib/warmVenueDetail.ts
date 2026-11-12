@@ -8,8 +8,7 @@
 //
 // With no network at all, a pub the reader opened before answers from its copy
 // on this device (lib/savedVenueDetails.ts). That answer carries `savedAt`, is
-// never held as a session hit, and is announced to subscribers until a live
-// read of the same pub replaces it.
+// never held as a session hit.
 
 import { readSavedVenueDetail, saveVenueDetail } from "@/lib/savedVenueDetails";
 import { venueFromDetailPayload, type Venue } from "@/lib/venues";
@@ -30,39 +29,21 @@ export type VenueDetailLookupResult =
 const resolved = new Map<string, Venue>();
 const payloads = new Map<string, VenueDetailPayload>();
 const inflight = new Map<string, Promise<VenueDetailLookupResult>>();
-const savedCopies = new Map<string, string>();
-const savedCopyListeners = new Set<() => void>();
-
-function setSavedCopy(ids: readonly string[], savedAt: string | null): void {
-  let changed = false;
-  for (const id of ids) {
-    if ((savedCopies.get(id) ?? null) === savedAt) continue;
-    if (savedAt) savedCopies.set(id, savedAt);
-    else savedCopies.delete(id);
-    changed = true;
-  }
-  if (changed) savedCopyListeners.forEach((listener) => listener());
-}
+let savedCopies = new WeakMap<Venue, string>();
 
 /** Return a previously warmed venue, or null when not yet resolved. */
 export function getWarmedVenue(venueId: string): Venue | null {
   return resolved.get(venueId) ?? null;
 }
 
-/** When the venue last answered from its device copy, the day that copy was saved. */
-export function savedVenueCopyAt(venueId: string): string | null {
-  return savedCopies.get(venueId) ?? null;
-}
-
-export function subscribeSavedVenueCopies(listener: () => void): () => void {
-  savedCopyListeners.add(listener);
-  return () => savedCopyListeners.delete(listener);
+export function savedVenueCopyAt(venue: Venue): string | null {
+  return savedCopies.get(venue) ?? null;
 }
 
 /** Keep the live detail of a pub the reader opened, so it reads offline later. */
 export function rememberOpenedVenue(venueId: string): void {
   const payload = payloads.get(venueId);
-  if (payload?.id) saveVenueDetail(payload.id, payload);
+  if (payload?.id) saveVenueDetail(venueId, payload);
 }
 
 function savedCopyResult(venueId: string): VenueDetailLookupResult {
@@ -77,7 +58,7 @@ function savedCopyResult(venueId: string): VenueDetailLookupResult {
     return { status: "failed" };
   }
   const venue = venueFromDetailPayload(payload);
-  setSavedCopy([venueId, venue.id], saved.savedAt);
+  savedCopies.set(venue, saved.savedAt);
   return { status: "found", venue, savedAt: saved.savedAt };
 }
 
@@ -99,7 +80,12 @@ export function warmVenueDetail(venueId: string): Promise<VenueDetailLookupResul
       async (response): Promise<VenueDetailLookupResult> => {
         if (response.status === 404) return { status: "missing" };
         if (!response.ok) return { status: "failed" };
-        const data = (await response.json()) as VenueDetailResponse;
+        let data: VenueDetailResponse;
+        try {
+          data = (await response.json()) as VenueDetailResponse;
+        } catch {
+          return savedCopyResult(venueId);
+        }
         const payload = data.venue;
         if (!payload?.id) return { status: "failed" };
         const venue = venueFromDetailPayload(payload);
@@ -107,7 +93,6 @@ export function warmVenueDetail(venueId: string): Promise<VenueDetailLookupResul
         resolved.set(venue.id, venue);
         payloads.set(venueId, payload);
         payloads.set(venue.id, payload);
-        setSavedCopy([venueId, venue.id], null);
         return { status: "found", venue };
       },
       // No answer at all, which is what a lost signal looks like.
@@ -127,6 +112,5 @@ export function __resetWarmVenueDetail(): void {
   resolved.clear();
   payloads.clear();
   inflight.clear();
-  savedCopies.clear();
-  savedCopyListeners.clear();
+  savedCopies = new WeakMap();
 }

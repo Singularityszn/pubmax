@@ -5,7 +5,6 @@ import {
   getWarmedVenue,
   rememberOpenedVenue,
   savedVenueCopyAt,
-  subscribeSavedVenueCopies,
   warmVenueDetail,
 } from "@/lib/warmVenueDetail";
 
@@ -148,26 +147,26 @@ describe("warmVenueDetail", () => {
     // A fresh session with no signal.
     __resetWarmVenueDetail();
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
-    const announced = vi.fn();
-    subscribeSavedVenueCopies(announced);
-
-    expect(await warmVenueDetail("venue-saved")).toEqual({
+    const savedResult = await warmVenueDetail("venue-saved");
+    expect(savedResult).toEqual({
       status: "found",
       venue: { ...venue, ...UNKNOWN_AMENITIES },
       savedAt: "2026-11-10T20:15:00.000Z",
     });
-    expect(savedVenueCopyAt("venue-saved")).toBe("2026-11-10T20:15:00.000Z");
-    expect(announced).toHaveBeenCalledTimes(1);
+    if (savedResult.status !== "found") throw new Error("Expected the saved venue");
+    expect(savedVenueCopyAt(savedResult.venue)).toBe("2026-11-10T20:15:00.000Z");
     // The copy is never a session hit, so the next open asks the network again.
     expect(getWarmedVenue("venue-saved")).toBeNull();
 
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ venue }) });
-    expect(await warmVenueDetail("venue-saved")).toEqual({
+    const liveResult = await warmVenueDetail("venue-saved");
+    expect(liveResult).toEqual({
       status: "found",
       venue: { ...venue, ...UNKNOWN_AMENITIES },
     });
-    expect(savedVenueCopyAt("venue-saved")).toBeNull();
-    expect(announced).toHaveBeenCalledTimes(2);
+    if (liveResult.status !== "found") throw new Error("Expected the live venue");
+    expect(savedVenueCopyAt(liveResult.venue)).toBeNull();
+    expect(savedVenueCopyAt(savedResult.venue)).toBe("2026-11-10T20:15:00.000Z");
   });
 
   it("answers only a failed lookup offline for a pub the reader never opened, or a server error", async () => {
@@ -184,7 +183,55 @@ describe("warmVenueDetail", () => {
     // A server that answers is not a lost signal, so it never reads as offline.
     fetchMock.mockResolvedValue({ ok: false, status: 503 });
     expect(await warmVenueDetail("venue-opened")).toEqual({ status: "failed" });
-    expect(savedVenueCopyAt("venue-opened")).toBeNull();
+  });
+
+  it("reopens both the requested alias and canonical pub offline", async () => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    const venue = { id: "venue-canonical", name: "The Alias Arms", prices: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ venue }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await warmVenueDetail("venue-alias");
+    rememberOpenedVenue("venue-alias");
+    rememberOpenedVenue("venue-canonical");
+    __resetWarmVenueDetail();
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    for (const id of ["venue-alias", "venue-canonical"]) {
+      expect(await warmVenueDetail(id)).toMatchObject({
+        status: "found",
+        venue: { id: "venue-canonical", name: "The Alias Arms" },
+        savedAt: expect.any(String),
+      });
+    }
+  });
+
+  it("uses a saved copy after a body read fails but preserves HTTP errors", async () => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    const venue = { id: "venue-body", name: "The Body Arms", prices: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ venue }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await warmVenueDetail("venue-body");
+    rememberOpenedVenue("venue-body");
+    __resetWarmVenueDetail();
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => { throw new TypeError("Connection lost during body read"); },
+    });
+    expect(await warmVenueDetail("venue-body")).toMatchObject({
+      status: "found",
+      venue: { id: "venue-body", name: "The Body Arms" },
+      savedAt: expect.any(String),
+    });
+    expect(getWarmedVenue("venue-body")).toBeNull();
+    expect(await warmVenueDetail("venue-never-opened")).toEqual({ status: "failed" });
+    for (const [status, expected] of [[404, "missing"], [503, "failed"]] as const) {
+      fetchMock.mockResolvedValue({ ok: false, status });
+      expect(await warmVenueDetail("venue-body")).toEqual({ status: expected });
+    }
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ venue }) });
+    expect(await warmVenueDetail("venue-body")).toMatchObject({ status: "found", venue });
   });
 });
 

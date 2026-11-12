@@ -10,7 +10,7 @@ export const SAVED_VENUE_DETAILS_MAX = 20;
 // the browser's small storage area.
 const MAX_ENTRY_CHARS = 100_000;
 
-type SavedVenueEntry = { id: string; savedAt: string; venue: unknown };
+type SavedVenueEntry = { id: string; aliases?: string[]; savedAt: string; venue: unknown };
 
 export type SavedVenueDetail = { venue: unknown; savedAt: string };
 
@@ -29,6 +29,8 @@ function isEntry(value: unknown): value is SavedVenueEntry {
   const entry = value as Partial<SavedVenueEntry>;
   return (
     typeof entry.id === "string" &&
+    (entry.aliases === undefined ||
+      (Array.isArray(entry.aliases) && entry.aliases.every((id) => typeof id === "string"))) &&
     typeof entry.savedAt === "string" &&
     Number.isFinite(Date.parse(entry.savedAt)) &&
     Boolean(entry.venue) &&
@@ -57,7 +59,12 @@ export function saveVenueDetail(
   storage: StorageLike | null = browserStorage(),
 ): void {
   if (!storage || !id || !venue || typeof venue !== "object") return;
-  const entry: SavedVenueEntry = { id, savedAt: now.toISOString(), venue };
+  const canonicalId = "id" in venue && typeof venue.id === "string" && venue.id ? venue.id : id;
+  const previous = readEntries(storage);
+  const matching = previous.filter((saved) => saved.id === canonicalId || saved.id === id || saved.aliases?.includes(id));
+  const aliases = [...new Set([id, ...matching.flatMap((saved) => [saved.id, ...(saved.aliases ?? [])])])]
+    .filter((alias) => alias !== canonicalId);
+  const entry: SavedVenueEntry = { id: canonicalId, aliases, savedAt: now.toISOString(), venue };
   let entryChars: number;
   try {
     entryChars = JSON.stringify(entry).length;
@@ -66,7 +73,7 @@ export function saveVenueDetail(
   }
   if (entryChars > MAX_ENTRY_CHARS) return;
   const entries = [
-    ...readEntries(storage).filter((saved) => saved.id !== id),
+    ...previous.filter((saved) => !matching.includes(saved)),
     entry,
   ].slice(-SAVED_VENUE_DETAILS_MAX);
   for (const kept of [entries, entries.slice(-Math.ceil(entries.length / 2))]) {
@@ -85,6 +92,6 @@ export function readSavedVenueDetail(
   storage: StorageLike | null = browserStorage(),
 ): SavedVenueDetail | null {
   if (!storage || !id) return null;
-  const entry = readEntries(storage).find((saved) => saved.id === id);
+  const entry = readEntries(storage).find((saved) => saved.id === id || saved.aliases?.includes(id));
   return entry ? { venue: entry.venue, savedAt: entry.savedAt } : null;
 }

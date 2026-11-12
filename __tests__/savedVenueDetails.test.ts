@@ -18,6 +18,32 @@ function memoryStorage(refuseOver = Infinity) {
 }
 
 describe("saved venue details", () => {
+  it("reads requested and canonical ids from one copy and keeps aliases after reopening", () => {
+    const storage = memoryStorage();
+    const venue = { id: "venue-canonical", name: "The Alias Arms" };
+    saveVenueDetail("venue-alias", venue, new Date("2026-11-10T20:00:00Z"), storage);
+    expect(readSavedVenueDetail("venue-alias", storage)?.venue).toEqual(venue);
+    expect(readSavedVenueDetail("venue-canonical", storage)?.venue).toEqual(venue);
+
+    const updated = { ...venue, name: "The Updated Arms" };
+    saveVenueDetail("venue-other-alias", updated, new Date("2026-11-11T20:00:00Z"), storage);
+    saveVenueDetail("venue-canonical", updated, new Date("2026-11-12T20:00:00Z"), storage);
+    for (const id of ["venue-alias", "venue-other-alias", "venue-canonical"]) {
+      expect(readSavedVenueDetail(id, storage)).toEqual({
+        venue: updated,
+        savedAt: "2026-11-12T20:00:00.000Z",
+      });
+    }
+    for (let index = 1; index < SAVED_VENUE_DETAILS_MAX; index += 1) {
+      saveVenueDetail(`venue-${index}`, { id: `venue-${index}` }, new Date(), storage);
+    }
+    expect(readSavedVenueDetail("venue-alias", storage)?.venue).toEqual(updated);
+    saveVenueDetail("venue-new", { id: "venue-new" }, new Date(), storage);
+    for (const id of ["venue-alias", "venue-other-alias", "venue-canonical"]) {
+      expect(readSavedVenueDetail(id, storage)).toBeNull();
+    }
+  });
+
   it("keeps the most recently opened pubs and drops the oldest past the cap", () => {
     const storage = memoryStorage();
     for (let index = 0; index <= SAVED_VENUE_DETAILS_MAX; index += 1) {
