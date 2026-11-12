@@ -23,7 +23,7 @@ export type PassportBeenRead = {
 export type PassportOverlapRead = { topFive: PassportVenue[]; wantToTry: PassportVenue[] };
 export type PassportTasteRead = { facts: TasteFact[] };
 
-type Kind = "been" | "overlap" | "taste";
+type Kind = "been" | "overlap" | "taste" | "points";
 
 const inflight = new Map<string, Promise<unknown | null>>();
 
@@ -33,6 +33,7 @@ function wellFormed(kind: Kind, body: unknown): boolean {
   const record = body as Record<string, unknown>;
   if (kind === "been") return Array.isArray(record.venues) && typeof record.count === "number";
   if (kind === "overlap") return Array.isArray(record.topFive) && Array.isArray(record.wantToTry);
+  if (kind === "points") return typeof record.total === "number" && Array.isArray(record.lines);
   return Array.isArray(record.facts);
 }
 
@@ -68,7 +69,8 @@ export function usePassportRead<T>(kind: Kind, handle: string, enabled = true): 
   // The answer on screen stays while the new one is asked for, and a failed
   // second read keeps it rather than blanking the section.
   const beenHereMoves = useSyncExternalStore(subscribeBeenHere, beenHereRevision, () => 0);
-  const asksAgain = kind === "been" ? beenHereMoves : 0;
+  // Points count the Been list too, so they ask again with it.
+  const asksAgain = kind === "been" || kind === "points" ? beenHereMoves : 0;
   const key = `${kind}:${handle}:${account}`;
   const [state, setState] = useState<{ key: string; body: T | null } | null>(null);
 

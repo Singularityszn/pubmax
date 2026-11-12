@@ -294,3 +294,7 @@ _Avoid_: ElevenLabs API key in the browser, always-listening session, durable tr
 **Nightlife Mastery**:
 Cosmetic progression earned through planning, discovery, verified contribution, heritage learning, crew coordination, and completed-night capture. Alcohol quantity never contributes.
 _Avoid_: Drinking streak, consumption score, recommendation tier
+
+**Points**:
+What a Pubmaxxer earns from their own records: a pub on their Been list, a price they logged, a price a bill or a Second Drinker checked, a London postcode district where they have been to every pub we list, and a pub they added or fixed once a person accepted it. Points set a Level. A drink never earns a point, and neither do days running. `lib/points.ts` owns the values and `lib/points.server.ts` reads the records.
+_Avoid_: XP, mastery points, points for drinks, a streak

@@ -17,6 +17,7 @@ import OutTonightBoard from "@/components/profile/OutTonightBoard";
 import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
 import OutTonightToggle from "@/components/profile/OutTonightToggle";
 import PintPassport from "@/components/profile/PintPassport";
+import PointsCard from "@/components/profile/PointsCard";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileSectionNav from "@/components/profile/ProfileSectionNav";
@@ -1667,6 +1668,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             />
           </div>
         ) : null}
+
+        {isOwnProfile ? <PointsCard handle={routeHandle} /> : null}
 
         {isOwnProfile ? (
           <YourContributionsCard

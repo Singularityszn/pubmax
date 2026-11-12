@@ -183,7 +183,7 @@ async function dropSightings(
 const identity = (venueId: string) => venueId;
 
 /** The alias map, or the identity when it cannot be read. */
-async function canonicalizer(deps: PassportDeps): Promise<(venueId: string) => string> {
+export async function canonicalizer(deps: Pick<PassportDeps, "venueAliases">): Promise<(venueId: string) => string> {
   try {
     return await deps.venueAliases();
   } catch {
@@ -211,13 +211,47 @@ function rankedOnCurrentIds(rows: readonly PassportRankedRow[], canonical: (venu
     });
 }
 
-async function named(sightings: BeenSighting[], deps: PassportDeps): Promise<BeenSighting[]> {
+async function named(sightings: BeenSighting[], deps: Pick<PassportDeps, "venue">): Promise<BeenSighting[]> {
   return Promise.all(
     sightings.map(async (sighting) => {
       if (sighting.venueName) return sighting;
       const venue = await deps.venue(sighting.venueId).catch(() => null);
       return { ...sighting, venueName: venue?.name ?? "" };
     }),
+  );
+}
+
+type BeenRecords = {
+  diary: BeenSighting[];
+  drops: ReadonlyArray<{ venueId: string; createdAt: string }>;
+  plans: BeenSighting[];
+  beenHere: PassportVenue[];
+};
+
+/**
+ * One row per pub from the four record sets, on current ids. The passport's
+ * Been list and the points read share it, so they count the same pubs.
+ */
+export async function foldBeenVenues(
+  records: BeenRecords,
+  canonical: (venueId: string) => string,
+  deps: Pick<PassportDeps, "venue">,
+): Promise<BeenVenue[]> {
+  const dropRows: BeenSighting[] = records.drops.map((drop) => ({
+    venueId: drop.venueId,
+    venueName: "",
+    date: drop.createdAt,
+    source: "pint_drop",
+  }));
+  // A Been here row carries no day, and is never given one.
+  const beenHereRows: BeenSighting[] = records.beenHere.map((venue) => ({
+    venueId: venue.venueId,
+    venueName: venue.venueName,
+    date: "",
+    source: "been_here",
+  }));
+  return aggregateBeen(
+    await named(onCurrentIds([...records.diary, ...dropRows, ...records.plans, ...beenHereRows], canonical), deps),
   );
 }
 
@@ -248,21 +282,10 @@ export async function readPassportBeen(
     canonicalizer(deps),
   ]);
 
-  const dropRows: BeenSighting[] = drops.value.map((drop) => ({
-    venueId: drop.venueId,
-    venueName: "",
-    date: drop.createdAt,
-    source: "pint_drop",
-  }));
-  // A Been here row carries no day, and is never given one.
-  const beenHereRows: BeenSighting[] = beenHere.value.map((venue) => ({
-    venueId: venue.venueId,
-    venueName: venue.venueName,
-    date: "",
-    source: "been_here",
-  }));
-  const venues = aggregateBeen(
-    await named(onCurrentIds([...diary.value, ...dropRows, ...plans.value, ...beenHereRows], canonical), deps),
+  const venues = await foldBeenVenues(
+    { diary: diary.value, drops: drops.value, plans: plans.value, beenHere: beenHere.value },
+    canonical,
+    deps,
   );
   return {
     ok: true,
