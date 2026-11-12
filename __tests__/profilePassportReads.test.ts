@@ -3,12 +3,14 @@
 // the owner, against a public and a private account. Every store is a fake, so
 // what each reader receives is the whole of the proof.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AccountVisibility } from "@/lib/accountVisibility";
+import { pintDropsStore } from "@/lib/pintDropsStore";
 import { PASSPORT_COPY, TASTE_COPY } from "@/lib/profilePassport";
 import {
   CappedRead,
+  defaultPassportDeps,
   readPassportBeen,
   readPassportOverlap,
   readPassportRanked,
@@ -238,6 +240,54 @@ describe("GET overlap", () => {
       onlyYou: [{ venueId: "grapes", venueName: "The Grapes", point: [-0.12, 51.52] }],
       onlyThem: [{ venueId: "anchor", venueName: "ANCHOR", point: [-0.12, 51.52] }],
     });
+  });
+
+  it("compares a saved Cambridge pub with a mate's drop across enabled cities", async () => {
+    const read = vi.spyOn(pintDropsStore(), "listVisibleAuthorVenueIds").mockImplementation(
+      async (author, _viewer, cityId) => {
+        if (cityId === "cambridge" && author === "owner") return ["cambridge:eagle", "lamb"];
+        return cityId === "london" ? ["lamb"] : [];
+      },
+    );
+    try {
+      const dropVenueIds = defaultPassportDeps().dropVenueIds;
+      expect((await dropVenueIds("owner", { handle: "mate" })).sort()).toEqual(["cambridge:eagle", "lamb"]);
+      const result = await readPassportOverlap(request(), "owner", deps("mate", "public", {
+        diary: async () => [],
+        plans: async () => [],
+        drops: async () => [],
+        beenHere: async () => [{ venueId: "cambridge:eagle", venueName: "The Eagle" }],
+        dropVenueIds,
+      }));
+      expect(result.ok && result.body.been).toEqual({
+        both: [
+          { venueId: "lamb", venueName: "LAMB", point: [-0.12, 51.52] },
+          { venueId: "cambridge:eagle", venueName: "The Eagle", point: [-0.12, 51.52] },
+        ],
+        onlyYou: [],
+        onlyThem: [],
+      });
+    } finally {
+      read.mockRestore();
+    }
+  });
+
+  it.each(["owner", "mate"])("compares nothing when %s's Cambridge drop read fails", async (failedAuthor) => {
+    const read = vi.spyOn(pintDropsStore(), "listVisibleAuthorVenueIds").mockImplementation(
+      async (author, _viewer, cityId) => {
+        if (author === failedAuthor && cityId === "cambridge") throw new Error("city read unavailable");
+        return cityId === "london" ? ["lamb"] : [];
+      },
+    );
+    try {
+      const result = await readPassportOverlap(request(), "owner", deps("mate", "public", {
+        dropVenueIds: defaultPassportDeps().dropVenueIds,
+      }));
+      expect(result.ok).toBe(true);
+      expect(result.ok && result.body.been).toBeNull();
+    } finally {
+      read.mockRestore();
+    }
   });
 
   it("puts a pub on the map only where the venue index places it", async () => {

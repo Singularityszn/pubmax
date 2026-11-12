@@ -13,6 +13,7 @@ import "server-only";
 import { accountIsPrivate } from "@/lib/accountVisibility";
 import { callerUserId } from "@/lib/authServer";
 import { BEEN_HERE_LIST } from "@/lib/beenHere";
+import { listEnabledCities } from "@/lib/cities";
 import { diaryStore } from "@/lib/diaryStore";
 import { isMutual, resolveFollowRelation } from "@/lib/followRelation";
 import { followStore, type FollowStore } from "@/lib/followStore";
@@ -583,7 +584,12 @@ export function defaultPassportDeps(): PassportDeps {
       if (rows.length >= POSTGREST_ROW_CAP) throw new CappedRead(rows);
       return rows;
     },
-    dropVenueIds: (authorHandle, viewer) => pintDropsStore().listVisibleAuthorVenueIds(authorHandle, viewer),
+    async dropVenueIds(authorHandle, viewer) {
+      const venues = await Promise.all(listEnabledCities().map((city) =>
+        pintDropsStore().listVisibleAuthorVenueIds(authorHandle, viewer, city.id),
+      ));
+      return [...new Set(venues.flat())];
+    },
     async drops(authorHandle, viewer) {
       const drops = await pintDropsStore().listVisible(undefined, viewer, authorHandle);
       const key = normalizeHandle(authorHandle);
