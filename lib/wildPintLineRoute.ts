@@ -13,6 +13,7 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { WALK_KMH } from "@/lib/routeLegs";
 import type { Venue } from "@/lib/venues";
 import type { WildCrawl, WildCrawlStop } from "@/lib/wildPintLineCrawl";
+import { londonDayKey } from "@/lib/londonHour";
 
 /** Whole minutes for a straight-line walk, never 0 (as `straightLineMinutesLabel`). */
 export function straightLineMinutes(km: number): number {
@@ -25,9 +26,7 @@ export function readDayLabel(readDay: string | null, now = Date.now()): string |
   // Noon UTC is the same calendar day in London in every season.
   const at = Date.parse(`${readDay}T12:00:00Z`);
   if (!Number.isFinite(at) || new Date(at).toISOString().slice(0, 10) !== readDay) return null;
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(new Date(now));
+  const today = londonDayKey(now);
   if (readDay > today) return null;
   return formatObservedDate(new Date(at));
 }

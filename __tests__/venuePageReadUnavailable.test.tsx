@@ -174,6 +174,7 @@ describe.each([
     surface: "the Bar Tab",
     page: BarTabPage,
     metadata: barTabMetadata,
+    base: "/bar-tab",
     href: `/bar-tab/${encodeURIComponent(venue.id)}`,
     notFoundLine: "on the tab",
     titleClass: "barTabEmptyTitle",
@@ -182,11 +183,12 @@ describe.each([
     surface: "the Ledger",
     page: LedgerWithBoundary,
     metadata: ledgerMetadata,
+    base: "/ledger",
     href: `/ledger/${encodeURIComponent(venue.id)}`,
     notFoundLine: "in the ledger",
     titleClass: "ledgerEmptyTitle",
   },
-])("$surface when lookupCanonicalVenueId cannot read the alias file", ({ page, metadata, href, notFoundLine, titleClass }) => {
+])("$surface when lookupCanonicalVenueId cannot read the alias file", ({ page, metadata, base, href, notFoundLine, titleClass }) => {
   it.each(["manifest", "detail rows"] as const)("recovers the rendered page after an unavailable %s read", async (failure) => {
     const dir = mkdtempSync(join(tmpdir(), "venue-page-recovery-"));
     const indexFile = join(dir, "venue_detail_index.json");
@@ -291,14 +293,12 @@ describe.each([
     expect(again).toContain("We could not load this pub");
     expect(aliases.reads).toBe(2);
 
-    // The file is readable again: the losing id opens its surviving pub.
+    // The file is readable again: the losing id is a permanent redirect to its
+    // surviving pub, so one pub has one URL.
     aliases.fail = false;
-    const resolved = await render(page, defined(mergedId));
-    expect(resolved).not.toContain("We could not load this pub");
-    // Compared as React writes it, so a name with an apostrophe still matches.
-    expect(resolved).toContain(
-      mergedCanonical.name.replace(/&/g, "&amp;").replace(/'/g, "&#x27;").replace(/"/g, "&quot;"),
-    );
+    await expect(render(page, defined(mergedId))).rejects.toMatchObject({
+      digest: `NEXT_REDIRECT;replace;${base}/${encodeURIComponent(mergedCanonical.id)};308;`,
+    });
   });
 });
 

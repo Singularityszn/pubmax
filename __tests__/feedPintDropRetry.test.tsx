@@ -27,7 +27,7 @@ import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { proposeWithTagsForDrop } from "@/components/map/composer/proposeWithTags";
 import {
-  buildOptimisticSpillDrop, buildOptimisticSpillRetryPayload,
+  buildOptimisticSpillDrop, buildOptimisticSpillRetryPayload, createOptimisticSpillPhotoPreview,
   failOptimisticSpill, readOptimisticSpills, upsertOptimisticSpill, writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
 
@@ -36,11 +36,11 @@ let requests: Request[];
 let container: HTMLDivElement;
 let root: Root;
 
-function seed(id: string) {
+function seed(id: string, receiptPhotoUrl: string | null = null) {
   const input = {
     clientRequestId: id, venueId: "venue-1", venueName: "The Pub", handle: "alice",
     priceGbp: "3.25", drink: "Pale ale", passedDownNote: "", era: "", visibility: "public" as const,
-    vibeTags: [], pintPhotoUrl: null, venuePhotoUrl: null, receiptPhotoUrl: null,
+    vibeTags: [], pintPhotoUrl: null, venuePhotoUrl: null, receiptPhotoUrl,
     measure: "half" as const, measureLabel: "", createdAt: "2026-11-10T12:00:00.000Z",
     withHandles: ["bob"],
   };
@@ -161,4 +161,44 @@ it("rejects duplicate retries and permits independent requests and later retries
     await retry.pending;
   });
   expect(readOptimisticSpills(localStorage).find((entry) => entry.clientRequestId === "request-1")?.drop.id).toBe("saved-1");
+});
+
+it("sends a conflicted retry as a new drop under one fresh key that later retries keep", async () => {
+  vi.stubGlobal("URL", Object.assign(class extends URL {}, {
+    createObjectURL: vi.fn(() => "blob:bill"),
+    revokeObjectURL: vi.fn(),
+  }));
+  const bill = new Blob(["bill"], { type: "image/jpeg" });
+  seed("request-1", createOptimisticSpillPhotoPreview(bill));
+  const entry = () => readOptimisticSpills(localStorage).find((stored) => stored.clientRequestId === "request-1");
+
+  const conflicted = await start();
+  expect(defined(requests[0]).body.get("clientRequestId")).toBe("request-1");
+  await act(async () => {
+    defined(requests[0]).resolve(Response.json(
+      { error: "That Pint Drop was already sent with other details.", code: "IDEMPOTENCY_CONFLICT" },
+      { status: 409 },
+    ));
+    await conflicted.pending;
+  });
+  expect(entry()?.drop.optimistic).toMatchObject({ state: "failed", canRetry: true });
+
+  const resent = await start();
+  const freshKey = defined(requests[1]).body.get("clientRequestId");
+  expect(freshKey).toEqual(expect.any(String));
+  expect(freshKey).not.toBe("request-1");
+  expect(defined(requests[1]).body.get("receipt_photo")).toBeInstanceOf(Blob);
+  await act(async () => {
+    defined(requests[1]).reject(new Error("Connection lost"));
+    await resent.pending;
+  });
+
+  const again = await start();
+  expect(defined(requests[2]).body.get("clientRequestId")).toBe(freshKey);
+  expect(defined(requests[2]).body.get("receipt_photo")).toBeInstanceOf(Blob);
+  await act(async () => {
+    defined(requests[2]).resolve(Response.json({ drop: saved("saved-1") }));
+    await again.pending;
+  });
+  expect(entry()?.drop.id).toBe("saved-1");
 });

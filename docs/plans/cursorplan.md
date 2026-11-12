@@ -598,7 +598,7 @@ Keep these queued. Do not start because they are exciting.
 | R-022 | Store screenshots per MODE | after R-006 |
 | R-023 | Public store release | 100 accounts |
 | R-024+ | Occupancy L3, B2B prices, D2C Plus, daytime crews, Manchester, bookings deep-link, Flat White Index, FTS search | later horizons |
-| `convex-migration-eval` | Convex vs Supabase | scout only. Not a rewrite. |
+| `convex-migration-eval` | Convex vs Supabase | Superseded by the [persistence decision](../MASTER_PRD.md#persistence). |
 | `og-cards-generative` | Data-driven OG cards | ties to leftover GNHF worktree. Do not discard that copy. |
 | `design-blueprint-texture` | Landing micro-texture | taste, after identity wave |
 | `openwiki-pubmax` | Agent docs | blocked on captain API key |
@@ -662,7 +662,7 @@ After both Wave 0 tasks are complete and verified:
 9. Wave 4.1 map-key same revision  
 10. Wave 5.1 Deal Radar  
 
-Capacitor stays parked until store enrolment. Convex stays a scout. Monetization stays frozen.
+Capacitor stays parked until store enrolment. The [persistence decision](../MASTER_PRD.md#persistence) supersedes the Convex scout. Monetization stays frozen.
 
 ---
 

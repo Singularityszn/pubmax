@@ -10,6 +10,7 @@ import {
   HARVEST_SKIP_REASONS,
   HARVEST_SOURCES,
   harvestSource,
+  harvestRedirectLanding,
   harvestSourcesOfKind,
   isHarvestableChainMenuUrl,
   isHarvestableOperatorUrl,
@@ -152,7 +153,7 @@ describe("every source is a decision with evidence", () => {
 
   it("keeps Context.dev on FIRST-PARTY venue-events pages only", () => {
     const pages = contextDevEventSources();
-    expect(pages.some((source) => source.id === "fullers-event-finder-events")).toBe(true);
+    expect(pages.some((source) => source.id === "fullers-event-finder-events")).toBe(false);
     expect(pages.every((source) => source.firstParty)).toBe(true);
     expect(allowedHarvestSources("venue-events").some((source) => source.id === "common-social-posts")).toBe(true);
     expect(pages.some((source) => source.id === "common-social-posts")).toBe(false);
@@ -167,6 +168,8 @@ describe("a venue's own site is harvestable; a refused host wearing its name is 
   it("refuses a host the policy already refused", () => {
     expect(isHarvestableOperatorUrl("https://www.skiddle.com/whats-on/London/")).toBe(false);
     expect(isHarvestableOperatorUrl("https://dice.fm/browse/london")).toBe(false);
+    expect(isHarvestableOperatorUrl("https://www.fullers.co.uk/pubs/the-dove")).toBe(false);
+    expect(isHarvestableOperatorUrl("https://www.slugandlettuce.co.uk/bars/soho/menus")).toBe(false);
   });
 
   it("refuses anything that is not an absolute http(s) url", () => {
@@ -174,6 +177,21 @@ describe("a venue's own site is harvestable; a refused host wearing its name is 
     expect(isHarvestableOperatorUrl("/whats-on")).toBe(false);
     expect(isHarvestableOperatorUrl("ftp://example.com")).toBe(false);
     expect(isHarvestableOperatorUrl(null)).toBe(false);
+  });
+
+  it.each([
+    "crafted-social.co.uk",
+    "greatukpubs.co.uk",
+    "craftunionpubs.com",
+    "the-counting-house.com",
+    "castleealing.co.uk",
+    "socialpubandkitchen.co.uk",
+  ])("refuses own-site reads and redirect landings on %s under the captain's estate ruling", (host) => {
+    for (const prefix of ["", "www.", "menus."]) {
+      const url = `https://${prefix}${host}/whats-on`;
+      expect(isHarvestableOperatorUrl(url)).toBe(false);
+      expect(harvestRedirectLanding("https://www.arnosarms.co.uk/", url)).toEqual({ outcome: "refused", url });
+    }
   });
 
   it("binds chain menu URLs to their recorded source and refuses chains with no web prices", () => {

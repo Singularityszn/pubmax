@@ -19,7 +19,7 @@
  * a list row has one line to spend on it.
  */
 
-import { LONDON_DAY_MS } from "@/lib/londonHour";
+import { LONDON_DAY_MS, londonDayKey } from "@/lib/londonHour";
 import type { MessageDTO } from "@/lib/messages";
 
 /** A pause long enough that the next bubble opens a new run. */
@@ -28,22 +28,11 @@ export const MESSAGE_RUN_GAP_MS = 10 * 60 * 1000;
 /** Under a week the inbox names the weekday; from a week on, the date. */
 const WEEK_MS = 7 * LONDON_DAY_MS;
 
-let dayKeyFormatter: Intl.DateTimeFormat | null = null;
 let clockFormatter: Intl.DateTimeFormat | null = null;
 let weekdayFormatter: Intl.DateTimeFormat | null = null;
 let weekdayShortFormatter: Intl.DateTimeFormat | null = null;
 let dateFormatter: Intl.DateTimeFormat | null = null;
 let dateWithYearFormatter: Intl.DateTimeFormat | null = null;
-
-function londonDayKeyFormatter(): Intl.DateTimeFormat {
-  dayKeyFormatter ??= new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return dayKeyFormatter;
-}
 
 function londonClock(): Intl.DateTimeFormat {
   clockFormatter ??= new Intl.DateTimeFormat("en-GB", {
@@ -96,7 +85,7 @@ function parseIso(iso: string): Date | null {
 /** `YYYY-MM-DD` in London, or "" for a date that does not parse. */
 export function messageDayKey(iso: string): string {
   const date = parseIso(iso);
-  return date ? londonDayKeyFormatter().format(date) : "";
+  return date ? londonDayKey(date) : "";
 }
 
 /** "19:42" in London, or "" for a date that does not parse. */
@@ -113,9 +102,8 @@ export function messageClock(iso: string): string {
  * apart whatever the clocks did in between.
  */
 function londonDaysBetween(earlier: Date, later: Date): number {
-  const keyOf = (date: Date) => londonDayKeyFormatter().format(date);
-  const earlierKey = keyOf(earlier);
-  const laterKey = keyOf(later);
+  const earlierKey = londonDayKey(earlier);
+  const laterKey = londonDayKey(later);
   if (earlierKey === laterKey) return 0;
   // Keys are ISO dates, so a UTC parse of each gives a day count exactly.
   const earlierDay = Date.UTC(
@@ -143,7 +131,7 @@ export function messageDayLabel(iso: string, now: Date = new Date()): string {
   if (days === 1) return "Yesterday";
   if (days < 7) return londonWeekday(false).format(date);
   const sameYear =
-    messageDayKey(iso).slice(0, 4) === londonDayKeyFormatter().format(now).slice(0, 4);
+    messageDayKey(iso).slice(0, 4) === londonDayKey(now).slice(0, 4);
   return londonDate(!sameYear).format(date);
 }
 
@@ -163,7 +151,7 @@ export function inboxTimeLabel(iso: string, now: Date = new Date()): string {
   if (days === 1) return "Yesterday";
   if (elapsed < WEEK_MS) return londonWeekday(true).format(date);
   const sameYear =
-    messageDayKey(iso).slice(0, 4) === londonDayKeyFormatter().format(now).slice(0, 4);
+    messageDayKey(iso).slice(0, 4) === londonDayKey(now).slice(0, 4);
   return londonDate(!sameYear).format(date);
 }
 

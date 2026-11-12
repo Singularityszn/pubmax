@@ -99,6 +99,7 @@ type VoiceTokenResponse = {
   signedUrl?: string;
   conversationId?: string;
   overrides?: PalVoiceOverrides;
+  context?: string | null;
   maxSessionSeconds?: number;
   error?: string;
 };
@@ -630,6 +631,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
             // never started. `connectedAt` is null until here, so it is also
             // the latch: a reconnect on the same attempt reports once.
             if (attempt.connectedAt === null) trackEvent("voice_started");
+            if (attempt.connectedAt === null && grant.context) sendContextualUpdate?.(grant.context);
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
             attempt.capTimer = window.setTimeout(() => {

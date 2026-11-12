@@ -70,6 +70,8 @@ const dealRow = () =>
     title: "Two for one burgers",
     endsAt: ACTIVE_ENDS_AT,
     source: { label: "The Test Arms", url: "https://thetestarms.example/deal" },
+    // The page renders against the real clock, and a deal read over 30 days ago is not served.
+    observedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
   });
 
 describe("whatsOnBarePriceGbp", () => {

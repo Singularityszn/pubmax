@@ -3,6 +3,7 @@ import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/leg
 export { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 import { firstHttp } from "@/lib/httpUrl";
+import { londonDayKey } from "@/lib/londonHour";
 
 // The all-drinks data model (PRD E1 — "extend, do not fork"). A venue today
 // carries `prices: VenuePrice[]` — cheapest-pint beer rows. This module
@@ -270,17 +271,10 @@ export function venueCheapestPintObservedAt(venue: {
   return row ? legacyPintPriceObservedAt(row) : null;
 }
 
-const LONDON_ISO_DAY = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Europe/London",
-});
-
 /** The `YYYY-MM-DD` London day of that read, the day every caption prints, or null. */
 export function legacyPintPriceObservedOn(price: LegacyPintPrice): string | null {
   const observedAt = legacyPintPriceObservedAt(price);
-  return observedAt ? LONDON_ISO_DAY.format(new Date(observedAt)) : null;
+  return observedAt ? londonDayKey(new Date(observedAt)) : null;
 }
 
 // A pint row → a beer Drink. Rows without a numeric price are skipped (a menu

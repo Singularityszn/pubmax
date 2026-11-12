@@ -26,9 +26,10 @@ import { VENUE_ALIAS_FILES, flattenVenueAliasChains } from "@/lib/venueAliasesFi
 // a reference to it still names that pub while the map no longer lists it.
 //
 // Reads the alias artifacts with `fs`, so import ONLY from server code (route
-// handlers, server components), same rule as lib/venueIndex.ts. Never throws: a
-// missing/corrupt alias file degrades to an identity map (ids resolve to
-// themselves) rather than 500-ing a page.
+// handlers, server components), same rule as lib/venueIndex.ts. A missing or
+// corrupt alias file returns unavailable from lookupCanonicalVenueId, so page
+// callers can preserve their recovery path. The convenience resolvers below
+// fall back to identity resolution instead.
 
 /** A pub no pack lists any more, as a stored reference to it is still answered. */
 export type RetiredVenue = { id: string; name: string; area: string; lat: number; lng: number };
@@ -91,9 +92,7 @@ async function loadAliases(): Promise<AliasLoadResult> {
     cached = maps;
     return { status: "ready", ...cached };
   } catch {
-    // No alias file (fresh checkout before generation, or a read error) — every
-    // id resolves to itself for THIS call, but nothing is cached so a later
-    // call can retry once the file exists/is readable.
+    // Cache no failure, so the next call can retry the alias read.
     return { status: "unavailable" };
   }
 }
