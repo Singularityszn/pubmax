@@ -75,9 +75,10 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
     whatsOnStatusForTonightListings(readStatus, rows.length),
     now.getTime(),
   );
-  const events = new Set([...primaryListingRows, ...musicLaneRows(withoutTonightChainRows(listingRows))]
+  const events = new Map([...primaryListingRows, ...musicLaneRows(withoutTonightChainRows(listingRows))]
     .filter((row) => row.kind !== "deal" && (row.confidence === "confirmed" || row.confidence === "listed"))
-    .map((row) => row.id));
+    .map((row) => [row.id, row.kind]));
+  const quizCount = [...events.values()].filter((kind) => kind === "quiz").length;
   // Each offer can appear at many branches. Give the deals a door without counting them as events.
   const hasDeals = listingRows.some((row) => row.kind === "deal");
   // Same page-limited pack /tonight renders, so the card cannot under-count
@@ -86,6 +87,6 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
 
   return {
     today: todayAnswer(weather, stamp),
-    tonight: tonightAnswer({ unread, count: events.size, hypedCount, hasDeals }, stamp),
+    tonight: tonightAnswer({ unread, count: events.size, quizCount, hypedCount, hasDeals }, stamp),
   };
 }
