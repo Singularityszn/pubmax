@@ -36,6 +36,7 @@ function deps(caller: string | null, overrides: Partial<PointsDeps> = {}): Point
     ],
     addedPubs: async () => 1,
     fixedPubs: async () => 2,
+    drinkReviews: async () => 2,
     londonDistricts: async () =>
       new Map([
         ["WC1", ["lamb", "mitre", "anchor"]],
@@ -64,9 +65,11 @@ describe("readPointsBreakdown", () => {
     expect(breakdown.districts).toEqual(["WC1"]);
     expect(line(breakdown, "pubAdded")).toMatchObject({ count: 1, points: 20 });
     expect(line(breakdown, "pubFixed")).toMatchObject({ count: 2, points: 10 });
-    expect(breakdown.total).toBe(140);
-    expect(breakdown.level).toBe(2);
-    expect(breakdown.nextLevelAt).toBe(150);
+    expect(line(breakdown, "drinkReview")).toMatchObject({ count: 2, points: 10 });
+    expect(line(breakdown, "letterArea")).toMatchObject({ count: 1, points: 1000 });
+    expect(breakdown.total).toBe(1150);
+    expect(breakdown.level).toBe(6);
+    expect(breakdown.nextLevelAt).toBe(1200);
   });
 
   it("gives a new account zero, level 1, and nothing invented", async () => {
@@ -79,6 +82,7 @@ describe("readPointsBreakdown", () => {
         drops: async () => [],
         addedPubs: async () => 0,
         fixedPubs: async () => 0,
+        drinkReviews: async () => 0,
       }),
     );
     expect(breakdown).toMatchObject({ status: "ready", total: 0, level: 1, nextLevelAt: 50, districts: [] });
@@ -96,7 +100,7 @@ describe("readPointsBreakdown", () => {
     );
     expect(breakdown.status).toBe("degraded");
     expect(line(breakdown, "pubAdded")).toMatchObject({ count: 0, points: 0 });
-    expect(breakdown.total).toBe(120);
+    expect(breakdown.total).toBe(1130);
   });
 
   it("finishes no district when the district list cannot be read", async () => {
@@ -116,7 +120,7 @@ describe("readPointsBreakdown", () => {
 describe("readProfilePoints", () => {
   it("gives the owner their breakdown", async () => {
     const result = await readProfilePoints(request(), "owner", deps("u-owner"));
-    expect(result.ok && result.body.total).toBe(140);
+    expect(result.ok && result.body.total).toBe(1150);
   });
 
   it.each([

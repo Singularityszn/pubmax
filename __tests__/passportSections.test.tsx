@@ -7,8 +7,13 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const reads = vi.hoisted(() => ({ get: vi.fn(), action: vi.fn() }));
+vi.mock("@/lib/authedFetch", () => ({ authedFetch: reads.get, authedActionFetch: reads.action }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null }) }));
 
+import { deleteDiaryEntry } from "@/components/diary/diaryClient";
+import { usePassportRead } from "@/components/profile/PassportData";
+import { emitBeenHereChanged } from "@/lib/beenHere";
 import { PassportOverlapRows, PassportTasteCard } from "@/components/profile/PassportSections";
 
 const roots: Array<{ unmount(): void }> = [];
@@ -60,5 +65,37 @@ describe("PassportOverlapRows", () => {
     expect(host.textContent).toContain("Pubs you both want to try");
     expect(host.textContent).not.toContain("top five");
     expect(host.textContent).not.toMatch(/\d|%/);
+  });
+});
+
+function PointsProbe({ handle }: { handle: string }) {
+  const body = usePassportRead<{ total: number; lines: unknown[] }>("points", handle);
+  return createElement("output", null, body?.total ?? "loading");
+}
+
+function points(total: number): Response {
+  return new Response(JSON.stringify({ total, lines: [] }), { status: 200 });
+}
+
+describe("passport points refresh", () => {
+  it("refreshes mounted points after a successful diary deletion", async () => {
+    reads.get.mockResolvedValueOnce(points(120)).mockResolvedValueOnce(points(60));
+    reads.action.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    let host!: HTMLDivElement;
+    await act(async () => { host = render(createElement(PointsProbe, { handle: "deletion-owner" })); });
+    expect(host.textContent).toBe("120");
+    await act(async () => { expect(await deleteDiaryEntry("owner-entry")).toEqual({ ok: true }); });
+    expect(host.textContent).toBe("60");
+  });
+
+  it("does not reuse an older in-flight read after a Been-here change", async () => {
+    let finishOld!: (response: Response) => void;
+    reads.get.mockImplementationOnce(() => new Promise<Response>((resolve) => { finishOld = resolve; }))
+      .mockResolvedValueOnce(points(70));
+    const host = render(createElement(PointsProbe, { handle: "revision-owner" }));
+    await act(async () => { emitBeenHereChanged(); });
+    expect(host.textContent).toBe("70");
+    await act(async () => { finishOld(points(10)); });
+    expect(host.textContent).toBe("70");
   });
 });

@@ -38,6 +38,16 @@ describe("ratingsStore() seam", () => {
 });
 
 describe("memory store — rate() upsert semantics", () => {
+  it("counts only the owner's stored drink reviews, once per stored review", async () => {
+    await cast("drink-a", "review_owner", 4, "drink");
+    await cast("drink-a", "review_owner", 5, "drink");
+    await cast("drink-b", "review_owner", 3, "drink");
+    await cast("venue-a", "review_owner", 4, "venue");
+    await cast("drink-c", "another_reviewer", 5, "drink");
+    expect(await memoryRatingsStore.countDrinkReviews("review_owner")).toBe(2);
+    expect(await memoryRatingsStore.countDrinkReviews("another_reviewer")).toBe(1);
+  });
+
   it("a handle's re-rating REPLACES its old vote (count stays 1)", async () => {
     await cast("venue-1", "ken", 2);
     const after = await cast("venue-1", "ken", 5);

@@ -14,6 +14,18 @@ beforeEach(() => {
 });
 
 describe("venue corrections store (memory)", () => {
+  it("counts resolved owner corrections beyond the display window", async () => {
+    for (let i = 0; i < 201; i++) {
+      const row = await store.create({ venueId: `venue-${i}`, kind: "hours", note: "", ownerUserId: ALICE });
+      await store.decide(row.id, "resolved", "admin");
+    }
+    await store.create({ venueId: "pending", kind: "hours", note: "", ownerUserId: ALICE });
+    const other = await store.create({ venueId: "other", kind: "hours", note: "", ownerUserId: BOB });
+    await store.decide(other.id, "resolved", "admin");
+    expect(await store.countResolvedForOwner(ALICE)).toBe(201);
+    expect(await store.countResolvedForOwner(BOB)).toBe(1);
+  });
+
   it("round trips a note: created open, read back in the queue, decided once", async () => {
     const created = await store.create(
       { venueId: "venue-crown", kind: "closed", note: "Boarded up since May.", ownerUserId: ALICE },

@@ -4,8 +4,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DISTRICT_MIN_PUBS,
   finishedDistricts,
+  finishedLetterAreas,
   levelFor,
   londonDistricts,
   londonPostcodeDistrict,
@@ -45,17 +45,29 @@ describe("London districts", () => {
     { id: "nopostcode", searchText: "f london" },
   ];
 
-  it("groups pubs by district and leaves out bars, unplaced pubs and small districts", () => {
+  it("groups every listed district and leaves out bars and unplaced pubs", () => {
     const districts = londonDistricts(rows);
-    expect([...districts.keys()]).toEqual(["SE1"]);
+    expect([...districts.keys()]).toEqual(["SE1", "N19"]);
     expect(districts.get("SE1")).toEqual(["a", "b", "c"]);
-    expect(DISTRICT_MIN_PUBS).toBe(3);
+    expect(districts.get("N19")).toEqual(["d", "e"]);
   });
 
   it("finishes a district only when every pub in it is on the Been list", () => {
     const districts = londonDistricts(rows);
     expect(finishedDistricts(districts, new Set(["a", "b"]))).toEqual([]);
     expect(finishedDistricts(districts, new Set(["a", "b", "c", "d"]))).toEqual(["SE1"]);
+  });
+  it("finishes small districts and requires every district for a letter area", () => {
+    const districts = londonDistricts([
+      ...rows,
+      { id: "f", searchText: "f london n11 1aa" },
+    ]);
+    const partial = finishedDistricts(districts, new Set(["a", "b", "c", "d", "e"]));
+    expect(partial).toEqual(["N19", "SE1"]);
+    expect(finishedLetterAreas(districts, partial)).toEqual(["SE"]);
+    const full = finishedDistricts(districts, new Set(["a", "b", "c", "d", "e", "f"]));
+    expect(finishedLetterAreas(districts, full)).toEqual(["N", "SE"]);
+    expect(finishedLetterAreas(new Map(), [])).toEqual([]);
   });
 });
 

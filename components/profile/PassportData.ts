@@ -37,8 +37,8 @@ function wellFormed(kind: Kind, body: unknown): boolean {
   return Array.isArray(record.facts);
 }
 
-function readOnce<T>(kind: Kind, handle: string, account: string): Promise<T | null> {
-  const key = `${kind}:${handle}:${account}`;
+function readOnce<T>(kind: Kind, handle: string, account: string, revision: number): Promise<T | null> {
+  const key = `${kind}:${handle}:${account}:${revision}`;
   const held = inflight.get(key);
   if (held) return held as Promise<T | null>;
   const read = authedFetch(
@@ -77,7 +77,7 @@ export function usePassportRead<T>(kind: Kind, handle: string, enabled = true): 
   useEffect(() => {
     if (!enabled || !handle || handle === "you") return;
     let live = true;
-    void readOnce<T>(kind, handle, account).then((body) => {
+    void readOnce<T>(kind, handle, account, asksAgain).then((body) => {
       if (!live) return;
       setState((held) => ({ key, body: body ?? (held?.key === key ? held.body : null) }));
     });

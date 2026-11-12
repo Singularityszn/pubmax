@@ -17,6 +17,7 @@ import { pintDropsStore } from "@/lib/pintDropsStore";
 import {
   buildPointsBreakdown,
   finishedDistricts,
+  finishedLetterAreas,
   londonDistricts,
   type PointsBreakdown,
 } from "@/lib/points";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/profilePassport.server";
 import { normalizeHandle } from "@/lib/profiles";
 import type { ProfileRecord } from "@/lib/profileStore";
+import { ratingsStore } from "@/lib/ratingsStore";
 import { venueCorrectionsStore } from "@/lib/venueCorrectionsStore";
 import { readCityVenueIndex, type IndexedVenue } from "@/lib/venueIndex";
 import { venueSubmissionStore } from "@/lib/venueSubmissionStore";
@@ -46,6 +48,7 @@ export type PointsDeps = Pick<
   addedPubs(ownerUserId: string): Promise<number>;
   /** Fixes the owner sent that a person resolved. */
   fixedPubs(ownerUserId: string): Promise<number>;
+  drinkReviews(ownerHandle: string): Promise<number>;
   /** The pubs we list in each London postcode district. */
   londonDistricts(): Promise<ReadonlyMap<string, readonly string[]>>;
 };
@@ -69,13 +72,14 @@ export async function readPointsBreakdown(
 ): Promise<PointsBreakdown> {
   const handle = normalizeHandle(owner.handle);
   const userId = owner.userId?.trim() || "";
-  const [diary, drops, plans, beenHere, added, fixed, districts, canonical] = await Promise.all([
+  const [diary, drops, plans, beenHere, added, fixed, reviews, districts, canonical] = await Promise.all([
     userId ? settle(() => deps.diary(userId), []) : none([]),
     handle ? settle(() => deps.drops(handle), [] as PointsDrop[]) : none([] as PointsDrop[]),
     userId ? settle(() => deps.plans(userId), []) : none([]),
     handle ? settle(() => deps.beenHere(handle), []) : none([]),
     userId ? settle(() => deps.addedPubs(userId), 0) : none(0),
     userId ? settle(() => deps.fixedPubs(userId), 0) : none(0),
+    handle ? settle(() => deps.drinkReviews(handle), 0) : none(0),
     settle(() => deps.londonDistricts(), new Map<string, readonly string[]>() as ReadonlyMap<string, readonly string[]>),
     canonicalizer(deps),
   ]);
@@ -87,14 +91,16 @@ export async function readPointsBreakdown(
   );
   const finished = finishedDistricts(districts.value, new Set(venues.map((venue) => venue.venueId)));
   const priced = drops.value.filter((drop) => drop.priced);
-  const degraded = [diary, drops, plans, beenHere, added, fixed, districts].some((read) => read.failed);
+  const degraded = [diary, drops, plans, beenHere, added, fixed, reviews, districts].some((read) => read.failed);
 
   return buildPointsBreakdown(
     {
       been: venues.length,
       priceLogged: priced.length,
+      drinkReview: reviews.value,
       priceChecked: priced.filter((drop) => drop.checked).length,
       district: finished.length,
+      letterArea: finishedLetterAreas(districts.value, finished).length,
       pubAdded: added.value,
       pubFixed: fixed.value,
     },
@@ -174,29 +180,20 @@ function defaultPointsDeps(): PointsDeps {
     venueAliases: passport.venueAliases,
     async drops(ownerHandle) {
       const key = normalizeHandle(ownerHandle);
-      const drops = await pintDropsStore().listVisible(undefined, { handle: key }, key);
-      return drops
-        .filter((drop) => normalizeHandle(drop.handle ?? "") === key && drop.venueId)
-        .map((drop) => {
-          const priced = typeof drop.priceGbp === "number" && Number.isFinite(drop.priceGbp);
-          return {
-            venueId: drop.venueId,
-            createdAt: drop.createdAt,
-            priced,
-            checked: priced && (drop.priceEvidence === "receipt" || Boolean(drop.confirmation)),
-          };
-        });
+      const drops = await pintDropsStore().listOwnContributions(key);
+      return drops.map((drop) => {
+        const priced = typeof drop.priceGbp === "number" && Number.isFinite(drop.priceGbp);
+        return {
+          venueId: drop.venueId,
+          createdAt: drop.createdAt,
+          priced,
+          checked: priced && (drop.priceEvidence === "receipt" || Boolean(drop.confirmation)),
+        };
+      });
     },
-    async addedPubs(ownerUserId) {
-      const read = await venueSubmissionStore().listForOwner(ownerUserId);
-      if (read.status !== "ready") throw new Error("venue submissions degraded");
-      return read.submissions.filter((row) => row.status === "accepted").length;
-    },
-    async fixedPubs(ownerUserId) {
-      const read = await venueCorrectionsStore().listForOwner(ownerUserId);
-      if (read.status !== "ready") throw new Error("venue corrections degraded");
-      return read.corrections.filter((row) => row.status === "resolved").length;
-    },
+    addedPubs: (ownerUserId) => venueSubmissionStore().countAcceptedForOwner(ownerUserId),
+    fixedPubs: (ownerUserId) => venueCorrectionsStore().countResolvedForOwner(ownerUserId),
+    drinkReviews: (ownerHandle) => ratingsStore().countDrinkReviews(ownerHandle),
     londonDistricts: readLondonDistricts,
   };
 }

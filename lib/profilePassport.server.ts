@@ -397,8 +397,6 @@ export async function readPassportRanked(
 
 // ── The real stores ─────────────────────────────────────────────────────────
 
-const PLAN_READ_CAP = 200;
-
 type PlanSightingsReader = (ownerUserId: string) => Promise<BeenSighting[]>;
 
 // The memory plan store keeps no account index, so a keyless demo has no
@@ -408,34 +406,62 @@ const memoryPlanSightings: PlanSightingsReader = async () => [];
 
 const supabasePlanSightings: PlanSightingsReader = async (ownerUserId) => {
   const db = requireSupabaseAdmin();
-  const [seats, owned] = await Promise.all([
-    db.from("plan_crew_members").select("plan_id").eq("user_id", ownerUserId).limit(PLAN_READ_CAP),
-    db.from("plans").select("id").eq("owner_user_id", ownerUserId).limit(PLAN_READ_CAP),
-  ]);
-  if (seats.error) throw new Error(seats.error.message);
-  if (owned.error) throw new Error(owned.error.message);
-  const planIds = [
-    ...new Set([
-      ...(seats.data ?? []).map((row) => String(row.plan_id)),
-      ...(owned.data ?? []).map((row) => String(row.id)),
-    ]),
-  ].slice(0, PLAN_READ_CAP);
-  if (!planIds.length) return [];
-  const done = await db.from("plan_completions").select("plan_id, completed_at").in("plan_id", planIds);
-  if (done.error) throw new Error(done.error.message);
-  const completedAt = new Map((done.data ?? []).map((row) => [String(row.plan_id), String(row.completed_at)]));
-  if (!completedAt.size) return [];
-  const stops = await db
-    .from("plan_stops")
-    .select("plan_id, venue_id, venue_name")
-    .in("plan_id", [...completedAt.keys()]);
-  if (stops.error) throw new Error(stops.error.message);
-  return (stops.data ?? []).map((row) => ({
-    venueId: String(row.venue_id),
-    venueName: String(row.venue_name ?? ""),
-    date: passportDay(completedAt.get(String(row.plan_id)) ?? ""),
-    source: "plan" as const,
-  }));
+  const planIds = new Set<string>();
+  let afterSeat: string | undefined;
+  for (;;) {
+    let query = db.from("plan_crew_members").select("id, plan_id")
+      .eq("user_id", ownerUserId).order("id", { ascending: true }).limit(500);
+    if (afterSeat) query = query.gt("id", afterSeat);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    if (!data?.length) break;
+    for (const row of data) planIds.add(row.plan_id);
+    const nextId = data[data.length - 1]!.id;
+    if (!nextId || (afterSeat && nextId <= afterSeat)) throw new Error("Owner plan seats did not advance");
+    afterSeat = nextId;
+  }
+  let afterPlan: string | undefined;
+  for (;;) {
+    let query = db.from("plans").select("id")
+      .eq("owner_user_id", ownerUserId).order("id", { ascending: true }).limit(500);
+    if (afterPlan) query = query.gt("id", afterPlan);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    if (!data?.length) break;
+    for (const row of data) planIds.add(row.id);
+    const nextId = data[data.length - 1]!.id;
+    if (!nextId || (afterPlan && nextId <= afterPlan)) throw new Error("Owner plans did not advance");
+    afterPlan = nextId;
+  }
+  const sightings: BeenSighting[] = [];
+  const ids = [...planIds];
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const done = await db.from("plan_completions")
+      .select("plan_id, completed_at", { count: "exact" }).in("plan_id", ids.slice(offset, offset + 100));
+    if (done.error) throw new Error(done.error.message);
+    if (!done.data || done.count !== done.data.length) throw new Error("Incomplete plan completions");
+    const completedAt = new Map(done.data.map((row) => [row.plan_id, row.completed_at]));
+    if (!completedAt.size) continue;
+    let afterStop: number | undefined;
+    for (;;) {
+      let query = db.from("plan_stops").select("id, plan_id, venue_id, venue_name")
+        .in("plan_id", [...completedAt.keys()]).order("id", { ascending: true }).limit(500);
+      if (afterStop !== undefined) query = query.gt("id", afterStop);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      if (!data?.length) break;
+      sightings.push(...data.map((row) => ({
+        venueId: row.venue_id,
+        venueName: row.venue_name ?? "",
+        date: passportDay(completedAt.get(row.plan_id) ?? ""),
+        source: "plan" as const,
+      })));
+      const nextId = data[data.length - 1]!.id;
+      if (afterStop !== undefined && nextId <= afterStop) throw new Error("Owner plan stops did not advance");
+      afterStop = nextId;
+    }
+  }
+  return sightings;
 };
 
 async function venueFacts(venueId: string): Promise<PassportVenueFacts | null> {

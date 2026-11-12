@@ -4,22 +4,18 @@
 //
 // A PURE LEAF. It imports no store and no React. lib/points.server.ts reads
 // the records; this module only counts them.
-//
-// A POINT IS A RECORD, NEVER A DRINK. A pub counts once, however many visits
-// say so, through the same fold the passport's Been list uses
-// (lib/profilePassport.ts). A price counts because it is on the map, and a pint
-// with no price earns nothing. A pub added or fixed counts once a person has
-// accepted it. Nothing counts days running.
 
 const POINTS_EACH = {
   /** A pub on the Been list: diary, Pint Drop, finished plan or Been here. */
   been: 10,
   /** A Pint Drop with a price. */
   priceLogged: 5,
+  drinkReview: 5,
   /** A price a bill check or a second drinker confirmed. On top of priceLogged. */
   priceChecked: 10,
   /** A London postcode district where you have been to every pub we list. */
   district: 50,
+  letterArea: 1000,
   /** A pub you sent in that a person accepted. */
   pubAdded: 20,
   /** A fix to a pub's details that a person resolved. */
@@ -31,8 +27,10 @@ export type PointsLineKey = keyof typeof POINTS_EACH;
 const LINE_ORDER: readonly PointsLineKey[] = [
   "been",
   "priceLogged",
+  "drinkReview",
   "priceChecked",
   "district",
+  "letterArea",
   "pubAdded",
   "pubFixed",
 ];
@@ -88,9 +86,6 @@ const LONDON_AREAS: ReadonlySet<string> = new Set(["E", "EC", "N", "NW", "SE", "
 
 const FULL_POSTCODE = /\b([a-z]{1,2})(\d{1,2})[a-z]?\s*\d[a-z]{2}\b/i;
 
-/** A district needs this many pubs on our list before it can be finished. */
-export const DISTRICT_MIN_PUBS = 3;
-
 /**
  * The London postcode district of the first full postcode in `text`, such as
  * "SE1" for "se1 9dd" and "W1" for "w1d 3aj", or null. A sub-district letter
@@ -108,8 +103,7 @@ export type DistrictVenue = { id: string; kind?: string; searchText?: string };
 
 /**
  * The pubs we list in each London postcode district, by venue id. Bars and
- * restaurants are left out, a pub with no postcode on file is left out, and so
- * is a district with fewer than DISTRICT_MIN_PUBS pubs.
+ * restaurants and pubs with no postcode on file are left out.
  */
 export function londonDistricts(venues: readonly DistrictVenue[]): Map<string, string[]> {
   const byDistrict = new Map<string, string[]>();
@@ -120,9 +114,6 @@ export function londonDistricts(venues: readonly DistrictVenue[]): Map<string, s
     const ids = byDistrict.get(district) ?? [];
     if (!ids.includes(venue.id)) ids.push(venue.id);
     byDistrict.set(district, ids);
-  }
-  for (const [district, ids] of byDistrict) {
-    if (ids.length < DISTRICT_MIN_PUBS) byDistrict.delete(district);
   }
   return byDistrict;
 }
@@ -138,6 +129,24 @@ export function finishedDistricts(
     .sort((a, b) => a.localeCompare(b, "en-GB", { numeric: true }));
 }
 
+export function finishedLetterAreas(
+  districts: ReadonlyMap<string, readonly string[]>,
+  finished: readonly string[],
+): string[] {
+  const completed = new Set(finished);
+  const areas = new Map<string, string[]>();
+  for (const [district, ids] of districts) {
+    if (!ids.length) continue;
+    const area = /^[A-Z]+/.exec(district)?.[0];
+    if (!area || !LONDON_AREAS.has(area)) continue;
+    areas.set(area, [...(areas.get(area) ?? []), district]);
+  }
+  return [...areas]
+    .filter(([, listed]) => listed.every((district) => completed.has(district)))
+    .map(([area]) => area)
+    .sort();
+}
+
 // ── Copy ────────────────────────────────────────────────────────────────────
 
 export const POINTS_COPY = {
@@ -145,8 +154,10 @@ export const POINTS_COPY = {
   lines: {
     been: "Pubs you've been to",
     priceLogged: "Prices you logged",
+    drinkReview: "Drink reviews you logged",
     priceChecked: "Prices checked",
     district: "Postcode districts finished",
+    letterArea: "Postcode letter areas finished",
     pubAdded: "Pubs you added",
     pubFixed: "Pub fixes",
   } satisfies Record<PointsLineKey, string>,
@@ -154,9 +165,11 @@ export const POINTS_COPY = {
   how: [
     "10 for each pub on your Been list, however you logged it.",
     "5 for each price you log, and 10 more when a bill or a second drinker checks it.",
+    "5 for each drink review logged to your account.",
     "50 for a London postcode district once you've been to every pub we list in it.",
+    "1,000 for a London postcode letter area once you finish every district we list in it.",
     "20 for a pub you add and 5 for a fix, once a person accepts it.",
   ],
-  fence: "Points count what you put on the map. How much you drink never counts.",
+  fence: "Points count your records, including logged drink reviews, never days running.",
   degraded: "Some of your records didn't load, so this total may be low. Try again later.",
 } as const;

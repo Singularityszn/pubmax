@@ -89,6 +89,7 @@ function seed(index: number, overrides: Partial<PintDrop> = {}): PintDrop {
     id: drop.id, handle: drop.handle, venue_id: drop.venueId,
     status: drop.status, visibility: drop.visibility, created_at: drop.createdAt,
     author_retired_at: drop.authorRetiredAt,
+    price_gbp: drop.priceGbp,
   });
   return drop;
 }
@@ -127,6 +128,18 @@ for (const [name, store] of [["memory", memoryPintDropStore], ["Supabase", supab
         expect(await store.listVisibleAuthorVenueIds(handle, { handle })).toEqual(["venue-eltcmh"]);
       });
     }
+
+    it("counts all owner contributions across cities before anonymous projection", async () => {
+      for (let i = 0; i < 501; i++) seed(i, { priceGbp: 5 });
+      seed(501, { visibility: "anonymous", venueId: "venue-mcr-owner", priceGbp: 4 });
+      seed(502, { handle: "other", priceGbp: 6 });
+      seed(503, { status: "hidden", priceGbp: 7 });
+      seed(504, { visibility: "legacy", priceGbp: 8 });
+      const records = await store.listOwnContributions(author);
+      expect(records).toHaveLength(502);
+      expect(records.filter((row) => row.priceGbp !== null)).toHaveLength(502);
+      expect(records.find((row) => row.venueId === "venue-mcr-owner")?.priceGbp).toBe(4);
+    });
 
     it("keeps an older area beyond 500 author rows with equal timestamps", async () => {
       for (let i = 0; i < 500; i++) seed(i, { venueId: "venue-1pfnt71" });
