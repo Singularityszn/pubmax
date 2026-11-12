@@ -23,7 +23,7 @@
 
 /* A picker a thumb has to hit: each star is a 44px-tall target. */
 .starRating--lg .starRatingGlyphs {
-  font-size: var(--text-3xl);
+  font-size: min(var(--text-3xl), 44px);
 }
 
 .starRating--lg.starRating--interactive {
