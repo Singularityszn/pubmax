@@ -394,6 +394,31 @@ describe("past-dated freshness guard (isPastDated / filterNotPast)", () => {
     expect(filterNotPast([boundary], NOW_GUARD)).toEqual([]);
   });
 
+  it("drops a running deal once its source read is more than 30 days old", () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const runningDeal = (id: string, observedAt: number) =>
+      makeRow({
+        id,
+        kind: "deal",
+        startsAt: "2026-07-18T11:30:00+01:00",
+        endsAt: "2026-07-19T00:00:00+01:00",
+        observedAt: new Date(observedAt).toISOString(),
+      });
+    const fresh = runningDeal("deal-30-days", NOW_GUARD - 30 * DAY);
+    const stale = runningDeal("deal-31-days", NOW_GUARD - 31 * DAY);
+    const oldQuiz = makeRow({
+      id: "quiz-old-read",
+      startsAt: "2026-07-18T22:30:00+01:00",
+      observedAt: new Date(NOW_GUARD - 90 * DAY).toISOString(),
+    });
+
+    expect(isPastDated(stale, NOW_GUARD)).toBe(true);
+    expect(filterNotPast([fresh, stale, oldQuiz], NOW_GUARD).map((r) => r.id)).toEqual([
+      "deal-30-days",
+      "quiz-old-read",
+    ]);
+  });
+
   it("filterNotPast partitions a mixed set, preserving order of the survivors", () => {
     const rows = [
       makeRow({ id: "past-point", startsAt: "2026-07-14T20:00:00+01:00" }),

@@ -155,6 +155,11 @@ html[data-text-scale="large"] .socialPage .screenHead {
   min-width: 0;
 }
 
+/* The log in public day sits under the tabs, with room on both sides. */
+.socialLogInPublic {
+  margin: var(--space-4) 0 var(--space-6);
+}
+
 /* The boundary's one line. No card: the EmptyState primitive is a title and a
    line, and the slot only keeps its size while the account answers. */
 .socialDoorSlot {

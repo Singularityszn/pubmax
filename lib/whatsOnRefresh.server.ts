@@ -35,12 +35,6 @@ import {
   type WhatsOnListingStore,
 } from "@/lib/whatsOnListingStore";
 import {
-  buildWetherspoonsDealRows,
-  filterGreaterLondonWetherspoons,
-  WETHERSPOONS_DEALS,
-  WETHERSPOONS_DEALS_OBSERVED_AT,
-} from "../scripts/whatson/dealsRefresh.mjs";
-import {
   buildMusicResidencyRows,
   MUSIC_RESIDENCIES,
 } from "../scripts/whatson/musicRefresh.mjs";
@@ -57,7 +51,6 @@ import {
   HarvestRefusal,
   permittedHarvestSource,
 } from "../scripts/lib/permittedHarvestFetch.mjs";
-import rawWetherspoons from "../public/data/wetherspoons/pubs.json";
 import rawSportAttributes from "../public/data/whats_on/sport_attributes.json";
 
 type OfficialWhatsOnProviderReport = {
@@ -439,20 +432,14 @@ export async function refreshQuestionOneQuiz(
 function defaultKindRefreshers(now: number): Record<WhatsOnKind, () => Promise<WhatsOnRow[]>> {
   const observedAt = new Date(now).toISOString();
   const venueIndex = loadCanonicalVenueIndex();
-  const wetherspoons = Array.isArray(rawWetherspoons.pubs) ? rawWetherspoons.pubs : [];
   const attributes = Array.isArray(rawSportAttributes.rows) ? rawSportAttributes.rows : [];
 
   return {
     event: async () => [],
     quiz: () => refreshQuestionOneQuiz(now),
-    deal: async () =>
-      buildWetherspoonsDealRows({
-        deals: WETHERSPOONS_DEALS,
-        venues: filterGreaterLondonWetherspoons(wetherspoons),
-        observedAt: WETHERSPOONS_DEALS_OBSERVED_AT,
-        asOf: observedAt,
-        venueIndex,
-      }) as WhatsOnRow[],
+    // No deal source is read here, so the refresh clears the kind. Deals come
+    // back only from a fresh, permitted harvest.
+    deal: async () => [],
     music: async () =>
       buildMusicResidencyRows({
         residencies: MUSIC_RESIDENCIES,

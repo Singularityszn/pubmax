@@ -48,6 +48,19 @@ export function londonMsSinceMidnight(date: Date): number {
   return ((hour * 60 + minute) * 60 + second) * 1000 + millisecond;
 }
 
+let dayKeyFormatter: Intl.DateTimeFormat | null = null;
+
+/** The Europe/London calendar day, YYYY-MM-DD. The key sorts in date order. */
+export function londonDayKey(at: Date | number): string {
+  dayKeyFormatter ??= new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return dayKeyFormatter.format(at);
+}
+
 /** The hour-of-day, 0 to 23, in the Europe/London wall clock. */
 export function londonHour(date: Date): number {
   return Math.floor(londonMsSinceMidnight(date) / (60 * 60 * 1000));

@@ -50,8 +50,7 @@ evidence limitations behind confident copy.
 - There are no streaks, freezes, drinking counts, or consumption-based rewards.
 - PUBMAXX identity remains canonical. X, Instagram, and TikTok are optional
   integrations, never identity authorities.
-- Supabase remains authoritative for v1. Convex is a reversible, server-only pilot
-  until dual-read evidence proves parity.
+- The [persistence decision](#persistence) governs backend authority and migration scope.
 
 ## 1. The problem
 
@@ -220,9 +219,10 @@ flashes a blank canvas or repeatedly re-fits after the user begins interacting.
 - Supabase remains the production system of record and server routes remain the
   authorisation boundary.
 - Keyless local stores remain honest fallbacks, not replicas of durable production.
-- A Convex pilot may implement typed server functions and dual-read comparison.
-  Cutover requires measured parity, reversible routing, and no direct privileged
-  browser-to-database access.
+- Convex is not planned (#1709, option a). The dormant `convex/` scaffold,
+  `lib/convex/`, and shadow-read migration pipeline are removed.
+  Revert the cleanup PR to restore the code from Git history.
+  Any renewed migration requires an explicit owner-approved decision.
 - Moment draft text and metadata use a versioned browser contract. Temporary media
   uses IndexedDB/object references, not localStorage.
 
