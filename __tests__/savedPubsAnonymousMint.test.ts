@@ -28,6 +28,7 @@ vi.mock("@/lib/supabase", () => ({
 function makeQuery(table: string) {
   const filters: { column: string; value: unknown }[] = [];
   let inserted: Record<string, unknown> | null = null;
+  let afterId: string | undefined;
 
   function result() {
     if (inserted) return { data: [inserted], error: null };
@@ -39,12 +40,14 @@ function makeQuery(table: string) {
     if (table === "saved_pubs") {
       const rows = recorded.inserts
         .filter((entry) => entry.table === "saved_pubs")
-        .map((entry) => ({
+        .map((entry, index) => ({
+          id: `00000000-0000-0000-0000-${String(index).padStart(12, "0")}`,
           venue_id: entry.row.venue_id,
           list_type: entry.row.list_type,
           note: entry.row.note ?? null,
           created_at: "2026-07-07T12:00:00.000Z",
-        }));
+        }))
+        .filter((row) => !afterId || row.id > afterId);
       return { data: rows, error: null, count: rows.length };
     }
     if (table === "saved_list_follows" || table === "saved_lists") {
@@ -59,6 +62,10 @@ function makeQuery(table: string) {
     },
     eq(column: string, value: unknown) {
       filters.push({ column, value });
+      return query;
+    },
+    gt(_column: string, value: string) {
+      afterId = value;
       return query;
     },
     in(column: string, value: unknown) {
