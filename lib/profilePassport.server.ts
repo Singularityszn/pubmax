@@ -229,8 +229,8 @@ type BeenRecords = {
 };
 
 /**
- * One row per pub from the four record sets, on current ids. The passport's
- * Been list and the points read share it, so they count the same pubs.
+ * The passport's Been list and the points read share the same canonicalisation
+ * and deduplication rules, even when their readers supply different records.
  */
 export async function foldBeenVenues(
   records: BeenRecords,
