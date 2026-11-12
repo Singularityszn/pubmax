@@ -70,8 +70,7 @@ function londonDayNumber(now: Date): number {
 
 /**
  * The London week, counted from the week of 1 January 1970. Weeks start on
- * Monday. 1 January 1970 was a Thursday, so the three days before it close out
- * week 0.
+ * Monday. 1 January 1970 was a Thursday, so week 0 starts three days before it.
  */
 export function londonWeekNumber(now: Date): number {
   return Math.floor((londonDayNumber(now) + 3) / 7);
@@ -83,9 +82,9 @@ function londonWeekStartKey(week: number): string {
 
 /**
  * This week's pub: one open historic pub that is on the map and whose hook is
- * a cited sentence. The list is ordered by slug, then walked with a fixed
- * step, so the pick is the same for every reader all week, changes each
- * Monday, and reaches every pub before it repeats one.
+ * a cited sentence. The London week number modulo the eligible count selects
+ * from the slug-sorted list. With the same eligible list, every reader gets
+ * the same pick all week, and every pub is reached before one repeats.
  */
 export function pickPubOfTheWeek(pubs: readonly HistoricPub[], now: Date): PubOfTheWeek | null {
   const eligible = pubs
