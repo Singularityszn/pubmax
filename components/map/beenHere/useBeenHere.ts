@@ -5,13 +5,14 @@
 // Both are this device's own. An account's list on another phone reaches this
 // one when it is saved here, the same rule the "Saved only" filter follows.
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { sameIds } from "@/components/map/canvas/paintedPins";
 import { subscribeBeenHere } from "@/lib/beenHere";
 import { beenHereIds } from "@/lib/beenHereProgress";
 import { safeLocalStorage } from "@/lib/safeStorage";
-import { getSaved, readCanonicalSaved, subscribeSavedPubs } from "@/lib/savedPubs";
+import { canonicalizeStoredSaved, getSaved, subscribeSavedPubs } from "@/lib/savedPubs";
+import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
 
 const SAVED_STORAGE_KEY = "pubmax:savedPubs:v1";
 const POSTCODES_KEY = "pubmax:been-here-postcodes:v1";
@@ -45,25 +46,36 @@ export function useHasBeenHere(): boolean {
   return useSyncExternalStore(subscribeSavedLists, deviceHasBeenHere, () => false);
 }
 
+let canonicalIds: ReadonlySet<string> = EMPTY;
+const canonicalListeners = new Set<() => void>();
+
+function readCanonicalIds(): void {
+  void loadVenueAliasMaps().then(({ read, aliases }) => {
+    if (!read) return;
+    const next = beenHereIds(canonicalizeStoredSaved((id) => aliases.get(id) ?? id));
+    if (sameIds(canonicalIds, next)) return;
+    canonicalIds = next;
+    for (const listener of canonicalListeners) listener();
+  }, () => {});
+}
+
+function subscribeCanonicalIds(listener: () => void): () => void {
+  canonicalListeners.add(listener);
+  const unsubscribe = subscribeSavedLists(readCanonicalIds);
+  return () => {
+    canonicalListeners.delete(listener);
+    unsubscribe();
+  };
+}
+
+function getCanonicalIds(): ReadonlySet<string> {
+  return canonicalIds;
+}
+
 /** The venue ids on this device's Been here list, each under the id its venue carries now. */
 export function useBeenHereVenueIds(): ReadonlySet<string> {
-  const [ids, setIds] = useState<ReadonlySet<string>>(EMPTY);
-  useEffect(() => {
-    let live = true;
-    const read = () => {
-      void readCanonicalSaved().then((saved) => {
-        if (!live) return;
-        const next = beenHereIds(saved);
-        setIds((current) => (sameIds(current, next) ? current : next));
-      });
-    };
-    read();
-    const unsubscribe = subscribeSavedLists(read);
-    return () => {
-      live = false;
-      unsubscribe();
-    };
-  }, []);
+  const ids = useSyncExternalStore(subscribeCanonicalIds, getCanonicalIds, () => EMPTY);
+  useEffect(readCanonicalIds, []);
   return ids;
 }
 
