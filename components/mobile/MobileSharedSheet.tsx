@@ -269,9 +269,8 @@ export default function MobileSharedSheet({
     };
   }, [kind]);
 
-  // A resting sheet too short for its own header and footer (a short
-  // landscape phone under a live voice bar) scrolls as a whole, so no control
-  // is cut off. Never mid-gesture: a dismiss drag keeps the footer pinned.
+  // Enable outer scrolling only at rest. A dismiss drag must keep the footer
+  // pinned, even when the header and footer exceed the available height.
   const updateCramped = useEffectEvent(() => {
     const sheet = sheetRef.current;
     if (!sheet) return;

@@ -363,8 +363,7 @@ export type ResolveHeightSnapInput = {
   /**
    * Rendered box height (px) at grab — the START snap's true resting height
    * (content-hugged when short, cap when tall). Used as the START snap's
-   * reference so a short content-hugged half stays half instead of mis-snapping
-   * to peek merely because its px height sits in peek's band.
+   * reference, limited by its current cap, so short content can keep its snap.
    */
   startHeightPx: number;
   /** Presented box height (px) at release. */
@@ -382,8 +381,10 @@ export type ResolveHeightSnapInput = {
  * Resolve a height-drag release to a snap. Mirrors resolveSheetSnap:
  *  • A flick (|velocity| ≥ threshold) projects a deceleration endpoint, so
  *    strong intent may cross more than one detent.
- *  • Otherwise nearest-neighbour on the released height, where the START snap's
- *    reference is its rendered start height and every other snap uses its cap.
+ *  • Otherwise nearest-neighbour on the released height. The start reference
+ *    is its rendered start height limited by its current cap. Other snaps use
+ *    their current caps. Ties retain the start snap, and snaps whose caps match
+ *    the start cap cannot replace it, including after a reserve change.
  *  • A physical collapse below half of the viewport-relative peek dismisses.
  * Pure; exported for tests.
  */

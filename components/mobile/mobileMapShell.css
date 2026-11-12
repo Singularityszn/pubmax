@@ -1077,8 +1077,9 @@ html:has(.appShell) {
      capped by --sheet-cap. `height:auto; max-height:<cap>` does the void-killing
      natively: short content hugs (box = header+body+footer natural height); tall
      content caps at --sheet-cap and the body (the only shrinkable child) scrolls
-     while header/footer stay pinned. The box's visible bottom edge is the
-     viewport bottom within the portal (bottom:0) — the portal itself stops above
+     while header/footer stay pinned, except in the cramped fallback below.
+     The box's visible bottom edge is the viewport bottom within the portal
+     (bottom:0). The portal itself stops above
      the primary tab bar (see .mobileSheetPortal), so NO --mobile-map-dock-clearance
      is reserved inside the sheet (that phantom band was the five-patch void).
      The portal's own bottom offset already carries the safe-area inset, so the
@@ -1178,8 +1179,8 @@ html:has(.appShell) {
   /* The sheet's way out is SurfaceNav now (components/ui/surfaceNav.css), which
      places itself in this grid and owns its own quiet resting state and focus
      ring. The bespoke close button that used to sit here is gone. */
-  /* Too short for its own header and footer (MobileSharedSheet): the whole
-     sheet scrolls, so every control stays reachable. */
+  /* Keep the reserved voice band even when the header and footer cannot fit
+     together. MobileSharedSheet enables this fallback only at rest. */
   .mobileSharedSheet.mapDrawer[data-sheet-cramped] {
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -1227,9 +1228,8 @@ html:has(.appShell) {
        under the footer (Book a table / Share, #1533). */
     scroll-padding-bottom: 12px;
   }
-  /* The venue sheet peeks at its header and command bar alone
-     (useSheetHeightDrag sizes it so). The body gives up its padding so it
-     closes to nothing, and hides at rest so no cut row shows. */
+  /* Normal venue peek shows the header and command bar. Cramped peek keeps
+     the body visible because the whole sheet uses the fallback scroller. */
   .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)) > .mobileSharedSheetBody {
     padding-block: 0;
   }

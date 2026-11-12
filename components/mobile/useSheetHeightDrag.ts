@@ -48,9 +48,8 @@ function rubberband(overshoot: number, dimension: number): number {
   );
 }
 
-// What a resting sheet must always show: its header and footer, the body's
-// own padding and the sheet's border. A sheet with a command bar in its footer
-// peeks at exactly its header and that bar, so no body row is ever cut.
+// These minimum heights can exceed the available cap. MobileSharedSheet owns
+// the cramped fallback when the header and footer cannot fit together.
 export function sheetChrome(sheet: HTMLElement | null | undefined): { chromePx: number; barsPx: number | null } {
   const body = sheet?.querySelector<HTMLElement>(":scope > .mobileSharedSheetBody");
   const footer = sheet?.querySelector<HTMLElement>(":scope > .mobileSharedSheetFooter");
