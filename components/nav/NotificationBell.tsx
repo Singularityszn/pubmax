@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readMapFixOutcomes, readMapFixSeenAt, unseenMapFixCount } from "@/lib/mapFixOutcomes";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -72,12 +73,13 @@ export default function NotificationBell(): React.JSX.Element | null {
         discardBody(res);
         return;
       }
-      const body = (await res.json()) as { unread?: number };
+      const body = (await res.json()) as { unread?: number; mapFixes?: unknown };
       if (controller.signal.aborted || abortRef.current !== controller) return;
+      const unreadFixes = unseenMapFixCount(readMapFixOutcomes(body.mapFixes), readMapFixSeenAt(user.id));
       setUnreadResult({
         userId: user.id,
         handle: h,
-        count: typeof body.unread === "number" ? body.unread : 0,
+        count: (typeof body.unread === "number" ? body.unread : 0) + unreadFixes,
       });
     } catch {
       // Aborted / offline — leave the badge as-is; the nav never breaks on this.

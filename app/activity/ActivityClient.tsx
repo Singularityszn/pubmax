@@ -16,6 +16,14 @@ import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import { profilePath } from "@/lib/appLink";
 import { authedActionFetch } from "@/lib/authedFetch";
+import {
+  markMapFixesSeen,
+  mapFixOutcomeHref,
+  mapFixOutcomeLine,
+  readMapFixOutcomes,
+  readMapFixSeenAt,
+  type MapFixOutcome,
+} from "@/lib/mapFixOutcomes";
 import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -112,6 +120,37 @@ const SAMPLE_NOTIFICATIONS: readonly NotificationDTO[] = SAMPLE_KINDS.map((kind,
 
 function ignoreSampleFilter(): void {}
 
+type MapFixRead = { outcomes: MapFixOutcome[]; seenBefore: number | null };
+const NO_MAP_FIXES: MapFixRead = { outcomes: [], seenBefore: null };
+
+/** The reporter's accepted map fixes. What landed since their last visit reads in weight. */
+function MapFixList({ outcomes, seenBefore }: MapFixRead): React.JSX.Element {
+  return (
+    <section className="activityFixes" aria-labelledby="activity-fixes-title">
+      <h2 id="activity-fixes-title" className="activityFixesTitle">Your map fixes</h2>
+      <ul className="activityList">
+        {outcomes.map((outcome) => {
+          const href = mapFixOutcomeHref(outcome);
+          const unread = Date.parse(outcome.decidedAt) > (seenBefore ?? 0);
+          return (
+            <li key={outcome.id} className={unread ? "activityItem activityFixItem isUnread" : "activityItem activityFixItem"}>
+              <span>
+                <span className="activityVerb">{mapFixOutcomeLine(outcome)}</span>
+                <span className="activityTime"> · {relativeTime(outcome.decidedAt)}</span>
+              </span>
+              {href ? (
+                <Link href={href} className="activityLink">
+                  View
+                </Link>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /**
  * The ready grid: the desktop rail (kind filters and a quick tally, hidden
  * below 1024px, so the phone layout stays the single list it always was) and
@@ -124,7 +163,9 @@ function ActivityGridBody({
   visibleItems,
   kindFilter,
   onKindFilter,
+  lead,
 }: {
+  lead?: React.ReactNode;
   total: number;
   kindCounts: Record<string, number>;
   unreadCount: number;
@@ -166,6 +207,7 @@ function ActivityGridBody({
         </dl>
       </aside>
 
+      {lead}
       <ul className="activityList">
         {visibleItems.map((n) => {
           const href = subjectHref(n);
@@ -197,13 +239,15 @@ function ActivityGridBody({
 }
 
 export default function ActivityClient(): React.JSX.Element {
-  const { accountRevision, handle: authHandle, identityResolved } = useAuth();
+  const { accountRevision, handle: authHandle, identityResolved, user } = useAuth();
+  const userId = user?.id ?? null;
   const viewerSession = useViewerSession();
   const identityReadyForSurface = identityResolved && !viewerSession.unresolved;
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [handle, setHandle] = useState("");
   const [handleReady, setHandleReady] = useState(false);
   const [items, setItems] = useState<NotificationDTO[]>([]);
+  const [mapFixes, setMapFixes] = useState<MapFixRead>(NO_MAP_FIXES);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   // Desktop-only kind filter. Defaults to "all", and the control that changes it
@@ -226,6 +270,7 @@ export default function ActivityClient(): React.JSX.Element {
         setHandleReady(true);
         setItemsRevision(accountRevision);
         setItems([]);
+        setMapFixes(NO_MAP_FIXES);
         setFailed(false);
         setLoading(false);
       });
@@ -242,6 +287,7 @@ export default function ActivityClient(): React.JSX.Element {
       setHandleReady(identityReadyForSurface);
       setItemsRevision(accountRevision);
       setItems([]);
+      setMapFixes(NO_MAP_FIXES);
       setFailed(false);
     });
     return () => {
@@ -285,9 +331,12 @@ export default function ActivityClient(): React.JSX.Element {
         setFailed(true);
         return;
       }
-      const body = (await res.json()) as { notifications?: NotificationDTO[] };
+      const body = (await res.json()) as { notifications?: NotificationDTO[]; mapFixes?: unknown };
       if (accountRevisionRef.current !== requestRevision) return;
       setItems(Array.isArray(body.notifications) ? body.notifications : []);
+      const outcomes = readMapFixOutcomes(body.mapFixes);
+      setMapFixes({ outcomes, seenBefore: userId ? readMapFixSeenAt(userId) : null });
+      if (userId) markMapFixesSeen(userId, outcomes);
       void authedActionFetch("/api/notifications", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -306,6 +355,7 @@ export default function ActivityClient(): React.JSX.Element {
     authHandle,
     identityReadyForSurface,
     socialFriendsLaunchEnabled,
+    userId,
     viewerSession.signedIn,
   ]);
 
@@ -319,6 +369,9 @@ export default function ActivityClient(): React.JSX.Element {
   // derived from the already-loaded feed (no extra fetch). The visible list is
   // the full feed unless a desktop filter narrows it.
   const accountItems = itemsRevision === accountRevision ? items : [];
+  const accountMapFixes = itemsRevision === accountRevision ? mapFixes : NO_MAP_FIXES;
+  const mapFixList =
+    accountMapFixes.outcomes.length > 0 ? <MapFixList {...accountMapFixes} /> : null;
   const { kindCounts, unreadCount } = activityTallies(accountItems);
   const visibleItems =
     kindFilter === "all" ? accountItems : accountItems.filter((n) => n.kind === kindFilter);
@@ -384,6 +437,8 @@ export default function ActivityClient(): React.JSX.Element {
               }
             />
           </div>
+        ) : items.length === 0 && mapFixList ? (
+          mapFixList
         ) : items.length === 0 ? (
           // No way onward of its own: the head's quiet "Find your lot" already
           // goes to /social, and a second door to the same place is noise.
@@ -395,6 +450,7 @@ export default function ActivityClient(): React.JSX.Element {
         ) : (
           <div className="activityGrid">
             <ActivityGridBody
+              lead={mapFixList}
               total={items.length}
               kindCounts={kindCounts}
               unreadCount={unreadCount}

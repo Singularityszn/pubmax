@@ -1,5 +1,5 @@
 // A handle's notifications / activity inbox (story 34 / Wave I2).
-//   GET  ?handle=<handle>            → { notifications: NotificationDTO[], unread }
+//   GET  ?handle=<handle>            → { notifications: NotificationDTO[], unread, mapFixes }
 //   POST { handle, id? }             → { notifications, unread }   (marks read)
 //
 // Wave I2: resolve the actor via resolveMessageHandle (JWT-linked handle wins)
@@ -9,12 +9,17 @@
 // notification can include private crew membership activity. The event
 // vocabulary lives in lib/notifications.ts.
 //
+// `mapFixes` are the owner's accepted map fixes (lib/mapFixOutcomes.ts): a pub
+// they named that went on, or a note they left that was fixed. They ride the
+// bell's existing poll, so hearing back costs no extra request.
+//
 // Reads are fail-soft (the store returns an empty inbox on any error), so a
 // notifications outage can never 500 the bell / activity page. Store choice is the
 // usual seam: Supabase when configured, process-memory otherwise.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { listMapFixOutcomes } from "@/lib/mapFixOutcomes.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { notificationsStore } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -37,19 +42,22 @@ export async function GET(request: Request): Promise<Response> {
   }
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
   const handle = await resolveMessageHandle(request, asserted);
-  if (!handle) return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
+  if (!handle) return jsonNoStore({ notifications: [], unread: 0, mapFixes: [] }, { status: 200 });
   const ownership = await gateHandleAction(request, handle, undefined, {
     requireAccountOwner: true,
   });
   if (!ownership.allowed) {
     // Fail-soft on store outage: empty bell keeps chrome rendering.
     if (ownership.status === 503) {
-      return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
+      return jsonNoStore({ notifications: [], unread: 0, mapFixes: [] }, { status: 200 });
     }
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
-  const inbox = await notificationsStore().list(handle);
-  return jsonNoStore(inbox, { status: 200 });
+  const [inbox, mapFixes] = await Promise.all([
+    notificationsStore().list(handle),
+    ownership.callerUserId ? listMapFixOutcomes(ownership.callerUserId) : Promise.resolve([]),
+  ]);
+  return jsonNoStore({ ...inbox, mapFixes }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {

@@ -11,6 +11,13 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/venueIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
+  return {
+    ...actual,
+    resolveStoredVenue: async (id: string) => (id === "venue-crown" ? { id, name: "The Crown" } : null),
+  };
+});
 
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
@@ -20,6 +27,8 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 
 import { GET, POST } from "@/app/api/notifications/route";
 import { __resetMemoryNotifications, notificationsStore } from "@/lib/notificationsStore";
+import { __resetVenueCorrections, memoryVenueCorrectionsStore } from "@/lib/venueCorrectionsStore";
+import { __resetVenueSubmissions, memoryVenueSubmissionStore } from "@/lib/venueSubmissionStore";
 import {
   __resetMemoryProfiles,
   __seedMemoryLegacyProfile,
@@ -47,6 +56,8 @@ beforeEach(() => {
   authState.userId = null;
   __resetMemoryNotifications();
   __resetMemoryProfiles();
+  __resetVenueCorrections();
+  __resetVenueSubmissions();
 });
 
 afterEach(() => {
@@ -80,7 +91,7 @@ describe("GET /api/notifications", () => {
     const res = await get();
     expect(res.status).toBe(200);
     expectNoStore(res);
-    expect(await res.json()).toEqual({ notifications: [], unread: 0 });
+    expect(await res.json()).toEqual({ notifications: [], unread: 0, mapFixes: [] });
   });
 
   it("returns a handle's notifications newest-first with an unread count", async () => {
@@ -98,6 +109,47 @@ describe("GET /api/notifications", () => {
     const body = (await res.json()) as { notifications: unknown[]; unread: number };
     expect(body.notifications).toHaveLength(2);
     expect(body.unread).toBe(2);
+  });
+
+  it("tells the owner about their own accepted pub and fixed note, and nobody else's", async () => {
+    __seedMemoryOwnedProfile("ken", "user-ken");
+    __seedMemoryOwnedProfile("sam", "user-sam");
+    const now = Date.now();
+    const submission = (ownerUserId: string, name: string) => ({
+      ownerUserId,
+      name,
+      address: "1 Example Street, London",
+      postcode: "",
+      latitude: null,
+      longitude: null,
+      website: "",
+      menuUrl: "",
+      openingHours: "",
+      note: "",
+      prices: [],
+    });
+    const kens = await memoryVenueSubmissionStore.create(submission("user-ken", "The Missing Crown"), now - 3_000);
+    const declined = await memoryVenueSubmissionStore.create(submission("user-ken", "Not A Pub"), now - 3_000);
+    const sams = await memoryVenueSubmissionStore.create(submission("user-sam", "Sam's Local"), now - 3_000);
+    if (kens.status !== "created" || declined.status !== "created" || sams.status !== "created") {
+      throw new Error("seed submissions were refused");
+    }
+    await memoryVenueSubmissionStore.decide(kens.submission.id, { status: "accepted", note: null }, now - 2_000);
+    await memoryVenueSubmissionStore.decide(declined.submission.id, { status: "declined", note: null }, now - 2_000);
+    await memoryVenueSubmissionStore.decide(sams.submission.id, { status: "accepted", note: null }, now - 2_000);
+    const note = await memoryVenueCorrectionsStore.create(
+      { venueId: "venue-crown", kind: "hours", note: "", ownerUserId: "user-ken" },
+      now - 3_000,
+    );
+    await memoryVenueCorrectionsStore.decide(note.id, "resolved", "admin", now - 1_000);
+
+    authState.userId = "user-ken";
+    const body = (await (await get("handle=ken")).json()) as { mapFixes: unknown[] };
+
+    expect(body.mapFixes).toEqual([
+      expect.objectContaining({ kind: "fact_fixed", pubName: "The Crown", venueId: "venue-crown" }),
+      expect.objectContaining({ kind: "pub_added", pubName: "The Missing Crown", venueId: null }),
+    ]);
   });
 
   it("refuses a stranger the same way for an owned handle, an unowned handle and a tombstone", async () => {
