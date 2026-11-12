@@ -303,7 +303,7 @@
   border: 2px solid var(--ink);
   border-radius: 50%;
   background: var(--paper);
-  box-shadow: 0 0 0 2px var(--paper);
+  outline: 2px solid var(--paper);
 }
 
 .beenComparePin--both::before {
@@ -313,7 +313,7 @@
 .beenComparePin--them::before {
   inset: 2px;
   border-color: var(--ink-soft);
-  border-radius: 1px;
+  border-radius: 0;
   background: var(--ink-soft);
   transform: rotate(45deg);
 }

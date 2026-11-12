@@ -10,9 +10,9 @@ import { Component, useCallback, useMemo, useState, type ReactNode } from "react
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import { PASSPORT_COPY, type BeenCompare, type ComparedVenue } from "@/lib/profilePassport";
 
-import type { BeenComparePin } from "./BeenCompareMapCanvas";
+import type { BeenComparePin } from "@/components/map/BeenCompareMapCanvas";
 
-const MapCanvas = dynamic(() => import("./BeenCompareMapCanvas"), {
+const MapCanvas = dynamic(() => import("@/components/map/BeenCompareMapCanvas"), {
   ssr: false,
   loading: () => (
     <div className="beenCompareMapCanvas">
