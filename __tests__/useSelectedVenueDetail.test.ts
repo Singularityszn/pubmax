@@ -72,7 +72,8 @@ it("keeps the displayed copy dated after prefetch and refreshes every saved shee
   await act(async () => { window.dispatchEvent(new Event("online")); });
   expect(host.textContent).toBe("Live venue-b");
   expect(host.querySelector("output")?.dataset.savedAt).toBe("");
-  expect(host.querySelector("output")?.dataset.held).toBe("venue-b");
+  // Every saved sheet refreshes in place, so a reopened one is already live.
+  expect(host.querySelector("output")?.dataset.held).toBe("venue-a,venue-b");
   await act(async () => root.render(createElement(Sheet, { id: "venue-a" })));
   expect(host.textContent).toBe("Live venue-a");
   expect(host.querySelector("output")?.dataset.savedAt).toBe("");

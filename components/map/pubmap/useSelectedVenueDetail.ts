@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 
 import { isRecordlessMapSelection, type MapSelectionNotice, type VenueDetailStatus } from "@/lib/pubMap";
 import type { Venue } from "@/lib/venues";
@@ -32,19 +32,38 @@ export function useSelectedVenueDetail({
   setSelectionNotice,
   resolveMapSelection,
 }: SelectedVenueDetailArgs): string | null {
+  const detailByIdRef = useRef(detailById);
   useEffect(() => {
-    const discardSavedCopies = () => {
-      setDetailById((current) => {
-        const next = new Map(current);
-        for (const [id, venue] of current) {
-          if (savedVenueCopyAt(venue)) next.delete(id);
-        }
-        return next.size === current.size ? current : next;
-      });
+    detailByIdRef.current = detailById;
+  }, [detailById]);
+
+  // A saved copy stays on screen, dated, until a live read replaces it. Only a
+  // confirmed 404 takes it away; a 5xx or no answer keeps it.
+  useEffect(() => {
+    const refreshSavedCopies = () => {
+      for (const [id, saved] of detailByIdRef.current) {
+        if (!savedVenueCopyAt(saved)) continue;
+        void warmVenueDetail(id).then((result) => {
+          if (result.status === "missing") {
+            setDetailById((current) => {
+              if (current.get(id) !== saved) return current;
+              const next = new Map(current);
+              next.delete(id);
+              return next;
+            });
+            setDetailStatusById((current) => new Map(current).set(id, "missing"));
+            return;
+          }
+          if (result.status !== "found" || result.savedAt) return;
+          setDetailById((current) =>
+            current.get(id) === saved ? new Map(current).set(id, result.venue) : current,
+          );
+        });
+      }
     };
-    window.addEventListener("online", discardSavedCopies);
-    return () => window.removeEventListener("online", discardSavedCopies);
-  }, [setDetailById]);
+    window.addEventListener("online", refreshSavedCopies);
+    return () => window.removeEventListener("online", refreshSavedCopies);
+  }, [setDetailById, setDetailStatusById]);
 
   useEffect(() => {
     if (
