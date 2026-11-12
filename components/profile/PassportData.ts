@@ -10,7 +10,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
 import { beenHereRevision, subscribeBeenHere } from "@/lib/beenHere";
-import type { BeenCompare, BeenVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";
+import type { BeenCompare, BeenVenue, ComparedVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";
 
 export type PassportBeenRead = {
   access: "full" | "shared";
@@ -24,7 +24,7 @@ export type PassportOverlapRead = {
   topFive: PassportVenue[];
   wantToTry: PassportVenue[];
   /** Absent from an older server, null when either Been list was short. */
-  been?: BeenCompare | null;
+  been?: BeenCompare<ComparedVenue> | null;
 };
 export type PassportTasteRead = { facts: TasteFact[] };
 

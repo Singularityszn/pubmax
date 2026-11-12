@@ -34,6 +34,8 @@ import {
   sharedWantToTry,
   type BeenCompare,
   type BeenSighting,
+  type ComparedVenue,
+  type MapPoint,
   type BeenVenue,
   type PassportAccess,
   type PassportRelation,
@@ -55,7 +57,7 @@ import { wantedStore } from "@/lib/wantedStore";
 
 export type PassportRankedRow = RankedVenue & { updatedAt: string };
 type PassportNightProfile = { patch: string | null };
-type PassportVenueFacts = { name: string; borough: string | null };
+type PassportVenueFacts = { name: string; borough: string | null; point?: MapPoint | null };
 
 export type PassportDeps = {
   verifyCaller(request: Request): Promise<string | null>;
@@ -67,6 +69,12 @@ export type PassportDeps = {
   dropViewer(request: Request): Promise<ViewerContext | undefined>;
   diary(ownerUserId: string): Promise<BeenSighting[]>;
   drops(authorHandle: string, viewer: ViewerContext | undefined): Promise<Array<{ venueId: string; drink: string; createdAt: string }>>;
+  /**
+   * Every venue the author has a drop at that this viewer may read. Complete,
+   * where the dated timeline above stops at its cap, so the Been comparison
+   * never calls a shared pub "only you" because an old drop fell off.
+   */
+  dropVenueIds(authorHandle: string, viewer: ViewerContext | undefined): Promise<string[]>;
   plans(ownerUserId: string): Promise<BeenSighting[]>;
   /** Open Want-to-try rows; a pending paste has an empty venue id. */
   wanted(profileId: string): Promise<PassportVenue[]>;
@@ -106,7 +114,7 @@ export type OverlapBody = {
   topFive: PassportVenue[];
   wantToTry: PassportVenue[];
   /** Null when either Been list could not be read whole: a short list would say "only you" wrongly. */
-  been: BeenCompare | null;
+  been: BeenCompare<ComparedVenue> | null;
 };
 export type TasteBody = { facts: TasteFact[] };
 export type RankedBody = { ranked: RankedVenue[] };
@@ -314,6 +322,61 @@ async function rankedWithNames(profileId: string, deps: PassportDeps): Promise<P
   return deps.rankings(profileId);
 }
 
+/**
+ * One side of the comparison: the folded Been list plus every venue the
+ * complete drop read names, on current ids. Null when any source failed.
+ */
+async function comparedSide(
+  request: Request,
+  profile: ProfileRecord,
+  relation: PassportRelation,
+  access: PassportAccess,
+  deps: PassportDeps,
+): Promise<PassportVenue[] | null> {
+  const viewer = relation === "owner" ? { handle: profile.handle } : await deps.dropViewer(request);
+  const [fold, dropIds, canonical] = await Promise.all([
+    foldBeen(request, profile, relation, access, deps),
+    settle(() => deps.dropVenueIds(profile.handle, viewer), [] as string[]),
+    canonicalizer(deps),
+  ]);
+  if (fold.degraded || dropIds.failed) return null;
+  const known = new Set(fold.venues.map((venue) => venue.venueId));
+  const missing = [...new Set(dropIds.value.map(canonical))].filter((venueId) => venueId && !known.has(venueId));
+  const named = await Promise.all(
+    missing.map(async (venueId) => ({ venueId, venueName: (await deps.venue(venueId).catch(() => null))?.name ?? "" })),
+  );
+  return [...fold.venues, ...named];
+}
+
+/**
+ * The viewer's whole Been list next to the mate's shared one, each pub with
+ * the point the venue index gives it. A pub the index cannot place keeps its
+ * row and gets no pin.
+ */
+async function beenComparison(
+  request: Request,
+  viewerProfile: ProfileRecord,
+  profile: ProfileRecord,
+  relation: PassportRelation,
+  deps: PassportDeps,
+): Promise<BeenCompare<ComparedVenue> | null> {
+  const [mine, theirs] = await Promise.all([
+    comparedSide(request, viewerProfile, "owner", "full", deps),
+    comparedSide(request, profile, relation, passportAccess("been", relation, accountIsPrivate(profile.visibility)), deps),
+  ]);
+  if (!mine || !theirs) return null;
+  const split = compareBeen(mine, theirs);
+  const points = new Map<string, MapPoint | null>();
+  await Promise.all(
+    [...split.both, ...split.onlyYou, ...split.onlyThem].map(async ({ venueId }) => {
+      const facts = await deps.venue(venueId).catch(() => null);
+      points.set(venueId, facts?.point ?? null);
+    }),
+  );
+  const placed = (list: PassportVenue[]) => list.map((venue) => ({ ...venue, point: points.get(venue.venueId) ?? null }));
+  return { both: placed(split.both), onlyYou: placed(split.onlyYou), onlyThem: placed(split.onlyThem) };
+}
+
 /** GET /api/profiles/[handle]/overlap */
 export async function readPassportOverlap(
   request: Request,
@@ -328,23 +391,20 @@ export async function readPassportOverlap(
     return MATES_ONLY;
   }
   try {
-    // The viewer's side is their own full list; the mate's side is only what
-    // the mate's Been read already gives a mate.
-    const [mineRanked, theirsRanked, mineWanted, theirsWanted, canonical, mineBeen, theirsBeen] = await Promise.all([
+    const [mineRanked, theirsRanked, mineWanted, theirsWanted, canonical, been] = await Promise.all([
       rankedWithNames(viewerProfile.id, deps),
       rankedWithNames(profile.id, deps),
       deps.wanted(viewerProfile.id),
       deps.wanted(profile.id),
       canonicalizer(deps),
-      foldBeen(request, viewerProfile, "owner", "full", deps),
-      foldBeen(request, profile, relation, passportAccess("been", relation, accountIsPrivate(profile.visibility)), deps),
+      beenComparison(request, viewerProfile, profile, relation, deps),
     ]);
     return {
       ok: true,
       body: {
         topFive: sharedTopFive(rankedOnCurrentIds(mineRanked, canonical), rankedOnCurrentIds(theirsRanked, canonical)),
         wantToTry: sharedWantToTry(onCurrentIds(mineWanted, canonical), onCurrentIds(theirsWanted, canonical)),
-        been: mineBeen.degraded || theirsBeen.degraded ? null : compareBeen(mineBeen.venues, theirsBeen.venues),
+        been,
       },
     };
   } catch {
@@ -452,7 +512,10 @@ const supabasePlanSightings: PlanSightingsReader = async (ownerUserId) => {
 
 async function venueFacts(venueId: string): Promise<PassportVenueFacts | null> {
   const venue = await resolveStoredVenue(venueId);
-  return venue ? { name: storedVenueName(venue), borough: venue.borough || null } : null;
+  if (!venue) return null;
+  // A retired pub keeps its name but is never drawn on a map.
+  const placed = !("retired" in venue && venue.retired) && Number.isFinite(venue.lng) && Number.isFinite(venue.lat);
+  return { name: storedVenueName(venue), borough: venue.borough || null, point: placed ? [venue.lng, venue.lat] : null };
 }
 
 export function defaultPassportDeps(): PassportDeps {
@@ -472,6 +535,7 @@ export function defaultPassportDeps(): PassportDeps {
         source: "diary" as const,
       }));
     },
+    dropVenueIds: (authorHandle, viewer) => pintDropsStore().listVisibleAuthorVenueIds(authorHandle, viewer),
     async drops(authorHandle, viewer) {
       const drops = await pintDropsStore().listVisible(undefined, viewer, authorHandle);
       const key = normalizeHandle(authorHandle);

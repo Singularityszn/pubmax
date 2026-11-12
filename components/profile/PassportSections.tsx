@@ -23,12 +23,15 @@ import {
   TASTE_COPY,
   passportDayLabel,
   type BeenCompare,
+  type BeenVenue,
+  type ComparedVenue,
   type PassportVenue,
   type TasteFact,
 } from "@/lib/profilePassport";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import BeenCardShare from "./BeenCardShare";
+import BeenCompareMap from "./BeenCompareMap";
 import {
   usePassportRead,
   type PassportBeenRead,
@@ -42,7 +45,7 @@ import "./passportBook.css";
 const MAP_STOPS = 7;
 const BEEN_SHOWN = 20;
 
-function mapHrefFor(venues: readonly PassportVenue[]): Route | null {
+function mapHrefFor(venues: readonly BeenVenue[]): Route | null {
   const ids = venues.slice(0, MAP_STOPS).map((venue) => venue.venueId);
   if (ids.length === 1) return venueMapUrl(ids[0]!);
   return buildCrawlMapHref(ids);
@@ -280,22 +283,19 @@ function CompareColumn({ title, venues }: { title: string; venues: readonly Pass
 }
 
 /** The viewer's Been list next to a mate's, as three name lists. No score. */
-function PassportBeenCompare({ been }: { been: BeenCompare }): React.JSX.Element {
+function PassportBeenCompare({ been }: { been: BeenCompare<ComparedVenue> }): React.JSX.Element {
   const empty = !been.both.length && !been.onlyYou.length && !been.onlyThem.length;
-  const bothMap = mapHrefFor(been.both);
   return (
     <section id="passport-compare" className="passportSection" aria-labelledby="passport-compare-title">
-      <div className="passportSectionHead">
-        <h2 id="passport-compare-title" className="passportSectionTitle">
-          {PASSPORT_COPY.compareTitle}
-        </h2>
-        {bothMap ? <Link prefetch={false} href={bothMap}>{PASSPORT_COPY.showOnMap}</Link> : null}
-      </div>
+      <h2 id="passport-compare-title" className="passportSectionTitle">
+        {PASSPORT_COPY.compareTitle}
+      </h2>
       <p className="passportQuiet">{PASSPORT_COPY.compareLine}</p>
       {empty ? (
         <p className="passportQuiet">{PASSPORT_COPY.compareEmpty}</p>
       ) : (
         <div className="passportCompare">
+          <BeenCompareMap been={been} />
           <CompareColumn title={PASSPORT_COPY.compareBoth} venues={been.both} />
           <CompareColumn title={PASSPORT_COPY.compareOnlyYou} venues={been.onlyYou} />
           <CompareColumn title={PASSPORT_COPY.compareOnlyThem} venues={been.onlyThem} />

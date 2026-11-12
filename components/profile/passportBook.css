@@ -245,3 +245,92 @@
   text-underline-offset: 3px;
   overflow-wrap: anywhere;
 }
+
+.beenCompareMap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.beenCompareMapFrame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+}
+
+.beenCompareMapCanvas {
+  position: relative;
+  width: 100%;
+  height: clamp(15rem, 40vw, 20rem);
+}
+
+.beenCompareMapLoading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.beenCompareMapCanvas[data-map-ready="true"] + .beenCompareMapLoading {
+  display: none;
+}
+
+.beenCompareMapCanvas:not([data-map-ready="true"]) .beenComparePin {
+  visibility: hidden;
+}
+
+/* Three quiet shapes, so the sides read without colour: a filled dot for both,
+   a ring for yours, a diamond for theirs. The map moves a marker by its own
+   transform, so the shape is drawn on ::before. */
+.beenComparePin {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.beenComparePin::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+.beenComparePin--both::before {
+  background: var(--ink);
+}
+
+.beenComparePin--them::before {
+  inset: 2px;
+  border-color: var(--ink-soft);
+  border-radius: 1px;
+  background: var(--ink-soft);
+  transform: rotate(45deg);
+}
+
+.beenCompareLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.beenCompareLegend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

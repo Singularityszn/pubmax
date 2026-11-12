@@ -68,7 +68,8 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
     rankings: async (profileId) =>
       profileId === OWNER.id ? rankedRows(["lamb", "stars", "mitre", "a", "b"]) : rankedRows(["stars", "z", "lamb"]),
     nightProfile: async () => ({ patch: "Soho" }),
-    venue: async (venueId) => ({ name: venueId.toUpperCase(), borough: "Camden" }),
+    dropVenueIds: async () => ["lamb", "stars"],
+    venue: async (venueId) => ({ name: venueId.toUpperCase(), borough: "Camden", point: [-0.12, 51.52] }),
     heritageDateLabel: async (venueId) => (venueId === "lamb" ? "Built 1729" : null),
     venueAliases: async () => (venueId) => venueId,
     ...overrides,
@@ -204,10 +205,10 @@ describe("GET overlap", () => {
         wantToTry: [{ venueId: "cittie", venueName: "Cittie of Yorke" }],
         been: {
           both: [
-            { venueId: "lamb", venueName: "LAMB" },
-            { venueId: "stars", venueName: "STARS" },
+            { venueId: "lamb", venueName: "LAMB", point: [-0.12, 51.52] },
+            { venueId: "stars", venueName: "STARS", point: [-0.12, 51.52] },
           ],
-          onlyYou: [{ venueId: "mitre", venueName: "Ye Olde Mitre" }],
+          onlyYou: [{ venueId: "mitre", venueName: "Ye Olde Mitre", point: [-0.12, 51.52] }],
           onlyThem: [],
         },
       },
@@ -227,14 +228,60 @@ describe("GET overlap", () => {
           author === "owner"
             ? [{ venueId: "anchor", drink: "Guinness", createdAt: "2026-10-05T19:00:00.000Z" }]
             : [],
+        dropVenueIds: async (author) => (author === "owner" ? ["anchor"] : []),
       }),
     );
     expect(askedFor.sort()).toEqual(["beenHere:mate", "diary:u-mate", "plans:u-mate"]);
     expect(result.ok && result.body.been).toEqual({
       both: [],
-      onlyYou: [{ venueId: "grapes", venueName: "The Grapes" }],
-      onlyThem: [{ venueId: "anchor", venueName: "ANCHOR" }],
+      onlyYou: [{ venueId: "grapes", venueName: "The Grapes", point: [-0.12, 51.52] }],
+      onlyThem: [{ venueId: "anchor", venueName: "ANCHOR", point: [-0.12, 51.52] }],
     });
+  });
+
+  it("puts a pub on the map only where the venue index places it", async () => {
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        venue: async (venueId) =>
+          venueId === "stars" ? { name: "STARS", borough: "Camden", point: null } : { name: venueId.toUpperCase(), borough: "Camden", point: [-0.1, 51.5] },
+      }),
+    );
+    expect(result.ok && result.body.been?.both).toEqual([
+      { venueId: "lamb", venueName: "LAMB", point: [-0.1, 51.5] },
+      { venueId: "stars", venueName: "STARS", point: null },
+    ]);
+  });
+
+  it("counts a mate's pub that fell off their capped drop timeline", async () => {
+    // The timeline read stops at its cap, so the mate's old drop at the Anchor is
+    // missing from it. The complete venue read still has it, so the Anchor is a
+    // pub you have both been to, never "only you".
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        plans: async () => [{ venueId: "anchor", venueName: "Anchor", date: "2026-09-01", source: "plan" }],
+        drops: async () => [{ venueId: "stars", drink: "Guinness", createdAt: "2026-10-06T19:00:00.000Z" }],
+        dropVenueIds: async (author) => (author === "owner" ? ["stars", "anchor"] : ["stars"]),
+      }),
+    );
+    expect(result.ok && result.body.been?.both.map((venue) => venue.venueId)).toEqual(["anchor", "stars"]);
+    expect(result.ok && result.body.been?.onlyYou.map((venue) => venue.venueId)).toEqual(["lamb"]);
+  });
+
+  it("drops the Been comparison when the complete drop read fails", async () => {
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        dropVenueIds: async () => {
+          throw new Error("drops down");
+        },
+      }),
+    );
+    expect(result.ok && result.body.been).toBeNull();
   });
 
   it("drops the Been comparison when either list could not be read whole", async () => {

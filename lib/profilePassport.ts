@@ -195,11 +195,17 @@ export function sharedWantToTry(
 }
 
 /** Two Been lists side by side: three name lists, and no score between them. */
-export type BeenCompare = {
-  both: PassportVenue[];
-  onlyYou: PassportVenue[];
-  onlyThem: PassportVenue[];
+export type BeenCompare<T extends PassportVenue = PassportVenue> = {
+  both: T[];
+  onlyYou: T[];
+  onlyThem: T[];
 };
+
+/** [longitude, latitude] from the venue index, or null when it places the pub nowhere. */
+export type MapPoint = [number, number];
+
+/** A compared pub with the one point the map may draw it at. */
+export type ComparedVenue = PassportVenue & { point: MapPoint | null };
 
 /**
  * Split the viewer's own Been list and a mate's shared one into the pubs both
@@ -369,6 +375,7 @@ export const PASSPORT_COPY = {
   compareOnlyThem: "Only them",
   compareEmpty: "Nothing on either list yet.",
   compareNone: "None yet.",
+  compareMapUnavailable: "The map can't load here. The lists below have every pub.",
   /** A row only the undated Been here list holds. Never a guessed day. */
   undated: "No date",
   sourceLabel: {

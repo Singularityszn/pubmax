@@ -92,6 +92,30 @@ function intersectHandles(following: string[], followers: string[]): string[] {
 
 const TABLE = "follows";
 
+/** Rows asked for per request. The server may answer fewer, so paging advances by what came back. */
+const PAGE_ROWS = 1000;
+
+type EdgeRow = { follower?: { handle?: unknown } | null; followee?: { handle?: unknown } | null };
+type EdgePage = PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
+
+/**
+ * Every row a read matches. PostgREST caps each response without an error, so
+ * one request can drop edges. Pages run in a stable order until one is empty.
+ */
+async function allEdgeRows(page: (from: number, to: number) => EdgePage): Promise<EdgeRow[]> {
+  const rows: EdgeRow[] = [];
+  for (;;) {
+    const { data, error } = await page(rows.length, rows.length + PAGE_ROWS - 1);
+    if (error) throw new Error(error.message);
+    if (!data?.length) return rows;
+    rows.push(...(data as EdgeRow[]));
+  }
+}
+
+function edgeHandle(side: EdgeRow["follower"]): string {
+  return normalizeHandle(String(side?.handle ?? ""));
+}
+
 // A self-follow is nonsense (and rejected by follows_no_self_chk). Normalise both
 // handles and report when they collapse to the same identity so callers can 400.
 export function isSelfFollow(a: string, b: string): boolean {
@@ -169,17 +193,15 @@ const supabaseFollowStore: FollowStore = {
     if (!profile) return [];
     // One join: the followee rows this profile follows, embedding each followee's
     // handle from public.profiles (the FK follows.followee_id → profiles.id).
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("followee:followee_id ( handle )")
-      .eq("follower_id", profile.id);
-    if (error) throw new Error(error.message);
-    const handles: string[] = [];
-    for (const row of (data ?? []) as { followee?: { handle?: unknown } | null }[]) {
-      const h = normalizeHandle(String(row.followee?.handle ?? ""));
-      if (h) handles.push(h);
-    }
-    return handles;
+    const rows = await allEdgeRows((from, to) =>
+      admin()
+        .from(TABLE)
+        .select("followee:followee_id ( handle )")
+        .eq("follower_id", profile.id)
+        .order("id")
+        .range(from, to),
+    );
+    return rows.map((row) => edgeHandle(row.followee)).filter(Boolean);
   },
 
   async listFollowers(handle) {
@@ -187,17 +209,15 @@ const supabaseFollowStore: FollowStore = {
     if (!profile) return [];
     // The mirror join: the follower rows pointing AT this profile, embedding each
     // follower's handle (FK follows.follower_id → profiles.id).
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("follower:follower_id ( handle )")
-      .eq("followee_id", profile.id);
-    if (error) throw new Error(error.message);
-    const handles: string[] = [];
-    for (const row of (data ?? []) as { follower?: { handle?: unknown } | null }[]) {
-      const h = normalizeHandle(String(row.follower?.handle ?? ""));
-      if (h) handles.push(h);
-    }
-    return handles;
+    const rows = await allEdgeRows((from, to) =>
+      admin()
+        .from(TABLE)
+        .select("follower:follower_id ( handle )")
+        .eq("followee_id", profile.id)
+        .order("id")
+        .range(from, to),
+    );
+    return rows.map((row) => edgeHandle(row.follower)).filter(Boolean);
   },
 
   async listMutuals(handle) {
@@ -247,31 +267,33 @@ const supabaseFollowStore: FollowStore = {
     // The inner join filters on the named side's handle, so only edges that
     // touch the named handles come back: who each follows, and who follows each.
     const [out, back] = await Promise.all([
-      admin()
-        .from(TABLE)
-        .select("follower:follower_id!inner ( handle ), followee:followee_id ( handle )")
-        .in("follower.handle", wanted),
-      admin()
-        .from(TABLE)
-        .select("follower:follower_id ( handle ), followee:followee_id!inner ( handle )")
-        .in("followee.handle", wanted),
+      allEdgeRows((from, to) =>
+        admin()
+          .from(TABLE)
+          .select("follower:follower_id!inner ( handle ), followee:followee_id ( handle )")
+          .in("follower.handle", wanted)
+          .order("id")
+          .range(from, to),
+      ),
+      allEdgeRows((from, to) =>
+        admin()
+          .from(TABLE)
+          .select("follower:follower_id ( handle ), followee:followee_id!inner ( handle )")
+          .in("followee.handle", wanted)
+          .order("id")
+          .range(from, to),
+      ),
     ]);
-    if (out.error) throw new Error(out.error.message);
-    if (back.error) throw new Error(back.error.message);
-    type Row = { follower?: { handle?: unknown } | null; followee?: { handle?: unknown } | null };
-    const pairs = (rows: unknown) =>
-      ((rows ?? []) as Row[]).map((row) => [
-        normalizeHandle(String(row.follower?.handle ?? "")),
-        normalizeHandle(String(row.followee?.handle ?? "")),
-      ] as const);
+    const pairs = (rows: EdgeRow[]) => rows.map((row) => [edgeHandle(row.follower), edgeHandle(row.followee)] as const);
     const following = new Map<string, string[]>();
     const followers = new Map<string, string[]>();
-    for (const [from, to] of pairs(out.data)) {
-      if (from && to) following.set(from, [...(following.get(from) ?? []), to]);
-    }
-    for (const [from, to] of pairs(back.data)) {
-      if (from && to) followers.set(to, [...(followers.get(to) ?? []), from]);
-    }
+    const add = (map: Map<string, string[]>, key: string, value: string) => {
+      const list = map.get(key);
+      if (list) list.push(value);
+      else map.set(key, [value]);
+    };
+    for (const [from, to] of pairs(out)) if (from && to) add(following, from, to);
+    for (const [from, to] of pairs(back)) if (from && to) add(followers, to, from);
     return new Map(
       wanted.map((handle) => [handle, intersectHandles(following.get(handle) ?? [], followers.get(handle) ?? [])]),
     );
