@@ -58,8 +58,8 @@
       "url": "https://www.slugandlettuce.co.uk/sitemap.xml",
       "kind": "first-party-chain",
       "licence": "All rights reserved - first-party publisher of its own menus; read-only, attributed price facts only.",
-      "permissible": true,
-      "notes": "robots.txt re-read 2026-09-22: HTTP 200; User-agent * allows / and disallows /home only. Menu rows require a verified London venue match and a price stated beside a soft-drink label."
+      "permissible": false,
+      "notes": "REFUSED 2026-11-12. The Stonegate Group terms that Slug and Lettuce links (https://www.stonegategroup.co.uk/terms-conditions/) forbid text or data mining, web scraping and commercial use of the content. Captain ruling, 7 Nov 2026: such terms refuse the source. robots.txt (re-read 2026-09-22) would permit the menus, but the narrower terms rule binds. Retained as a visible decision."
     },
     {
       "id": "brewdog-menu-prices",
