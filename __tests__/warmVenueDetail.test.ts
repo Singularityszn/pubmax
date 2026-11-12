@@ -272,7 +272,27 @@ describe("warmVenueDetail", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["fetch", "body", "missing", "server"] as const)("keeps the dated copy when the single online retry fails at %s", async (failure) => {
+  it.each(["fetch", "body"] as const)("answers missing when the online retry confirms 404 after %s rejection", async (failure) => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    vi.stubGlobal("navigator", { onLine: true });
+    const venue = { id: "venue-canonical", name: "Saved Arms", prices: [] };
+    saveVenueDetail("venue-alias", venue, new Date("2026-11-10T20:00:00.000Z"));
+    const fetchMock = vi.fn();
+    if (failure === "fetch") {
+      fetchMock.mockRejectedValueOnce(new TypeError("Connection lost"));
+    } else {
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => { throw new TypeError("Body interrupted"); } });
+    }
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404 });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await warmVenueDetail("venue-alias")).toEqual({ status: "missing" });
+    expect(getWarmedVenue("venue-alias")).toBeNull();
+    expect(getWarmedVenue(venue.id)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["fetch", "body", "server"] as const)("keeps the dated copy when the single online retry fails at %s", async (failure) => {
     vi.stubGlobal("localStorage", memoryStorage());
     vi.stubGlobal("navigator", { onLine: true });
     const venue = { id: "venue-saved", name: "Saved Arms", prices: [] };
@@ -284,7 +304,7 @@ describe("warmVenueDetail", () => {
     } else if (failure === "body") {
       fetchMock.mockResolvedValue({ ok: true, json: async () => { throw new TypeError("Body interrupted"); } });
     } else {
-      fetchMock.mockResolvedValue({ ok: false, status: failure === "missing" ? 404 : 503 });
+      fetchMock.mockResolvedValue({ ok: false, status: 503 });
     }
     vi.stubGlobal("fetch", fetchMock);
 

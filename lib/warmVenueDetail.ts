@@ -104,7 +104,7 @@ export function warmVenueDetail(venueId: string): Promise<VenueDetailLookupResul
     .then(async (result) => {
       if (result.status === "found" && result.savedAt && typeof navigator !== "undefined" && navigator.onLine) {
         const live = await lookup();
-        if (live.status === "found" && !live.savedAt) return live;
+        if (live.status === "missing" || (live.status === "found" && !live.savedAt)) return live;
       }
       return result;
     })
