@@ -148,7 +148,12 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   );
 
   // Without a fresh drinker price, logging leads and the plan door joins the toolbar.
-  expect(actions.map((action) => action.name)).toEqual(["Make it Stop 1: Arnos Arms", "Ask for a table at Arnos Arms", "Share Arnos Arms"]);
+  expect(actions.map((action) => action.name)).toEqual([
+    "Make it Stop 1: Arnos Arms",
+    "Ask for a table at Arnos Arms",
+    "Summon mates to Arnos Arms",
+    "Share Arnos Arms",
+  ]);
   const planDoors = page
     .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
     .getByRole("button", { name: /^Make it Stop 1: .+$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });

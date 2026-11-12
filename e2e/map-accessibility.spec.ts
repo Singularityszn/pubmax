@@ -707,7 +707,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
       await expect(logDoor).toBeVisible();
       await expect(priceDoor).toHaveCount(1);
       await expect(actions.getByRole("button")).toHaveText([
-        crawlInProgress ? "Plan stop" : "Make it Stop 1", "Ask for a table", "Share",
+        crawlInProgress ? "Plan stop" : "Make it Stop 1", "Ask for a table", "Summon mates", "Share",
       ]);
       // Without a fresh drinker price, logging spends the card's one coral.
       for (const theme of ["light", "dark"] as const) {
