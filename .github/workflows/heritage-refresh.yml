@@ -35,8 +35,6 @@ jobs:
       contents: write # push the review branch
       pull-requests: write # open the review PR
     timeout-minutes: 30
-    env:
-      REFRESHED: public/data/wikidata_history/london.json public/data/heritage_listings.json data/heritage/nhle_london_points.json public/data/heritage_cache.json public/data/historic_pubs.json data/freshness_registry.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,32 +59,12 @@ jobs:
 
       - name: Validate bundled data
         # Guard: a refresh must never ship data that fails the app's own
-        # validation. Only the refreshed files are staged below.
+        # validation. The publisher stages only the refreshed files.
         run: npm run validate-data
-
-      - name: Configure review commit identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Open review PR when the facts changed
         env:
           # `gh` uses this token to open the review PR, and git uses it for
           # this step only to push the review branch.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # shellcheck disable=SC2086 # REFRESHED is a space-separated path list.
-          if git diff --quiet -- $REFRESHED; then
-            echo "Heritage facts unchanged; nothing pushed."
-            exit 0
-          fi
-          stamp="$(date -u +%Y-%m-%d)"
-          branch="heritage-refresh/${stamp}-${GITHUB_RUN_ID}"
-          git switch --create "$branch"
-          # shellcheck disable=SC2086
-          git add -- $REFRESHED
-          git commit -m "chore(heritage): refresh heritage facts and historic index ${stamp}"
-          scripts/ci/with-git-token.sh git push --set-upstream origin "$branch"
-          gh pr create --base main --head "$branch" \
-            --title "chore(heritage): refresh heritage facts and historic index ${stamp}" \
-            --body "Scheduled monthly refresh of the stored heritage facts The Landlord reads back. Wikidata statements (npm run build:wikidata-history) and Historic England listings (npm run build:heritage-listings) were re-read through their sourcePolicy rows. The historic index was rebuilt from the committed heritage cache (node scripts/build_historic_index.mjs). Wikipedia acquisition was not run because scripts/integrate_wikipedia_london_pubs.mjs fetches outside sourcePolicy. Follow-up: fence that producer before scheduling Wikipedia cache refreshes. Review the changed facts before merging."
+        run: node scripts/publish_heritage_refresh.mjs

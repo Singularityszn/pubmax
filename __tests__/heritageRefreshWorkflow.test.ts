@@ -4,20 +4,8 @@ import { devNull } from "node:os";
 import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { parse } from "yaml";
 
 import { defined } from "@/__tests__/helpers/defined";
-
-type WorkflowStep = {
-  name?: string;
-  run?: string;
-  if?: string;
-  env?: Record<string, string>;
-};
-
-type Workflow = {
-  jobs: { refresh: { env: Record<string, string>; steps: WorkflowStep[] } };
-};
 
 type BoundaryCall = {
   command: string;
@@ -41,19 +29,9 @@ describe("heritage refresh publication", () => {
     { name: "unchanged facts", changed: [] },
     { name: "unrelated changes only", changed: ["unrelated.txt"] },
     { name: "all refreshed outputs", changed: refreshedPaths },
-    { name: "only the freshness stamp", changed: ["data/freshness_registry.json"] },
-  ])("publishes only approved changes with $name", ({ changed }) => {
-    const workflow = parse(readFileSync(join(process.cwd(), ".github/workflows/heritage-refresh.yml"), "utf8")) as Workflow;
-    const job = workflow.jobs.refresh;
-    const steps = job.steps.filter((step) =>
-      ["Configure review commit identity", "Open review PR when the facts changed"].includes(step.name ?? ""),
-    );
-    expect(steps.map((step) => step.name)).toEqual([
-      "Configure review commit identity",
-      "Open review PR when the facts changed",
-    ]);
-    expect(steps[1]?.env?.GH_TOKEN).toBe("${{ secrets.GITHUB_TOKEN }}");
-
+    ...refreshedPaths.map((path) => ({ name: `only ${path}`, changed: [path] })),
+    { name: "staged facts", changed: ["public/data/historic_pubs.json"], staged: true },
+  ])("publishes only approved changes with $name", ({ changed, staged = false }) => {
     const realGit = execFileSync("which", ["git"], { encoding: "utf8" }).trim();
     const root = mkdtempSync(join(process.cwd(), ".heritage-workflow-"));
     try {
@@ -63,6 +41,7 @@ describe("heritage refresh publication", () => {
       writeFileSync(join(root, "calls.jsonl"), "");
       mkdirSync(join(root, "scripts/ci"), { recursive: true });
       copyFileSync(join(process.cwd(), "scripts/ci/with-git-token.sh"), join(root, "scripts/ci/with-git-token.sh"));
+      copyFileSync(join(process.cwd(), "scripts/publish_heritage_refresh.mjs"), join(root, "scripts/publish_heritage_refresh.mjs"));
 
       writeFileSync(join(bin, "git"), `#!${process.execPath}
 const { spawnSync } = require("node:child_process");
@@ -81,17 +60,14 @@ if (args[0] === "push") {
   process.exit(result.status ?? 1);
 }
 `, { mode: 0o755 });
-      for (const command of ["npm", "gh"]) {
-        writeFileSync(join(bin, command), `#!${process.execPath}
+      writeFileSync(join(bin, "gh"), `#!${process.execPath}
 const { appendFileSync } = require("node:fs");
-appendFileSync("calls.jsonl", JSON.stringify({ command: ${JSON.stringify(command)}, args: process.argv.slice(2) }) + "\\n");
+appendFileSync("calls.jsonl", JSON.stringify({ command: "gh", args: process.argv.slice(2) }) + "\\n");
 `, { mode: 0o755 });
-      }
       writeFileSync(join(bin, "date"), '#!/bin/sh\nprintf "%s\\n" "2026-11-12"\n', { mode: 0o755 });
 
       const env = {
         ...process.env,
-        ...job.env,
         PATH: `${bin}:${process.env.PATH}`,
         GIT_DIR: join(root, ".git"),
         GIT_WORK_TREE: root,
@@ -116,15 +92,14 @@ appendFileSync("calls.jsonl", JSON.stringify({ command: ${JSON.stringify(command
       git("commit", "--quiet", "-m", "Fixture baseline");
       const baseline = git("rev-parse", "HEAD");
       for (const path of changed) writeFileSync(join(root, path), "refreshed\n");
+      if (staged) git("add", "--", ...changed);
       writeFileSync(join(root, "untracked.txt"), "Do not publish\n");
       if (changed.some((path) => refreshedPaths.includes(path))) {
         writeFileSync(join(root, "unrelated.txt"), "Do not publish\n");
+        git("add", "--", "unrelated.txt");
       }
 
-      for (const step of steps) {
-        expect(step.if).toBeUndefined();
-        execFileSync("bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", defined(step.run)], { cwd: root, env, encoding: "utf8" });
-      }
+      execFileSync(process.execPath, ["scripts/publish_heritage_refresh.mjs"], { cwd: root, env, encoding: "utf8" });
 
       const calls: BoundaryCall[] = readFileSync(join(root, "calls.jsonl"), "utf8")
         .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
@@ -144,6 +119,9 @@ appendFileSync("calls.jsonl", JSON.stringify({ command: ${JSON.stringify(command
           .toEqual([...expectedChanges].sort());
         expect(git("show", "--format=%an <%ae>", "--no-patch", "HEAD"))
           .toBe("github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>");
+        expect(git("diff", "--cached", "--name-only")).toBe("unrelated.txt");
+        expect(git("show", "HEAD:unrelated.txt")).toBe("original");
+        expect(git("show", `HEAD:${expectedChanges[0]}`)).toBe("refreshed");
         expect(calls).toHaveLength(2);
         expect(calls[0]).toEqual({
           command: "git",
