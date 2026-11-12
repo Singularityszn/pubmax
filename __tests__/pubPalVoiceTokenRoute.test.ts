@@ -22,8 +22,6 @@ const voiceState = vi.hoisted(() => ({
   dateOfBirth: null as string | null,
   identityThrows: false,
   rpc: vi.fn(),
-  /** Rows of pub_pal_voice_grants as the service role reads them. */
-  grantRows: [] as Array<{ owner_id: string; state: string; conversation_id: string | null; created_at: string }>,
   userId: "11111111-1111-4111-8111-111111111111",
   pal: {
     id: "pal-1",
@@ -85,7 +83,7 @@ vi.mock("@/lib/privateIdentityStore", () => ({
 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => voiceState.configured,
-  requireSupabaseAdmin: () => ({ rpc: voiceState.rpc, from: grantTable }),
+  requireSupabaseAdmin: () => ({ rpc: voiceState.rpc }),
   clientIp: () => "203.0.113.10",
   hashIp: (ip: string) => `hashed:${ip}`,
   // The only durable-limiter key the deployment ceiling uses starts `paid-spend:`,
@@ -96,22 +94,6 @@ vi.mock("@/lib/supabase", () => ({
     return { verdict: voiceState.ceilingSpent, reason: "counted" };
   },
 }));
-
-/** A read of pub_pal_voice_grants: select, then eq and in filters, awaited. */
-function grantTable(table: string) {
-  if (table !== "pub_pal_voice_grants") throw new Error(`Unexpected table ${table}`);
-  const filters: Array<(row: Record<string, unknown>) => boolean> = [];
-  const query = {
-    select: () => query,
-    eq: (column: string, value: unknown) => { filters.push((row) => row[column] === value); return query; },
-    in: (column: string, values: unknown[]) => { filters.push((row) => values.includes(row[column])); return query; },
-    then: (resolve: (value: { data: unknown[]; error: null }) => unknown) => {
-      voiceState.events.push("read_grant_ages");
-      return Promise.resolve(resolve({ data: voiceState.grantRows.filter((row) => filters.every((keep) => keep(row))), error: null }));
-    },
-  };
-  return query;
-}
 
 const voiceBind = vi.hoisted(() => vi.fn(async () => {}));
 const tasteRead = vi.hoisted(() => vi.fn<
@@ -179,7 +161,6 @@ describe("Pub Pal voice token route", () => {
     voiceState.pal.muted = false;
     voiceState.pal.hidden = false;
     voiceState.rpc.mockReset();
-    voiceState.grantRows = [];
     afterTasks.length = 0;
     voiceBind.mockReset();
     voiceBind.mockResolvedValue(undefined);
@@ -580,9 +561,7 @@ describe("Pub Pal voice token route", () => {
     const USER = "11111111-1111-4111-8111-111111111111";
     const EARLIER = "conv_earlierCall01";
     const NEW = CONVERSATION_ID;
-    const MINUTE = 60_000;
-
-    type Grant = { id: string; prepaid: number; state: string; conversationId: string | null; createdAt: number };
+    type Grant = { id: string; prepaid: number; state: string; conversationId: string | null };
 
     /**
      * pub_pal_voice_grants and pub_pal_voice_usage for one owner and month, as
@@ -596,13 +575,6 @@ describe("Pub Pal voice token route", () => {
         used: usedMinutes,
         grants: earlier.map((grant, index): Grant => ({ ...grant, id: `earlier-${index}`, state: "issued", prepaid: PAL_VOICE_GRANT_MINUTES })),
       };
-      const sync = () => {
-        voiceState.grantRows = db.grants.map((grant) => ({
-          owner_id: USER, state: grant.state, conversation_id: grant.conversationId,
-          created_at: new Date(grant.createdAt).toISOString(),
-        }));
-      };
-      sync();
       voiceState.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
         voiceState.events.push(name);
         const grant = (id: unknown) => db.grants.find((row) => row.id === id);
@@ -611,7 +583,7 @@ describe("Pub Pal voice token route", () => {
         if (name === "prepay_pub_pal_voice_grant") {
           if (!grant(args.p_grant_id) && db.used < Number(args.p_limit)) {
             db.used += Number(args.p_minutes);
-            db.grants.push({ id: String(args.p_grant_id), prepaid: Number(args.p_minutes), state: "reserved", conversationId: null, createdAt: Date.now() });
+            db.grants.push({ id: String(args.p_grant_id), prepaid: Number(args.p_minutes), state: "reserved", conversationId: null });
             data = true;
           }
         } else if (name === "refund_pub_pal_voice_grant") {
@@ -642,7 +614,6 @@ describe("Pub Pal voice token route", () => {
             data = true;
           }
         }
-        sync();
         return { data, error: null };
       });
       return db;
@@ -679,7 +650,7 @@ describe("Pub Pal voice token route", () => {
     });
 
     it("admits a session without asking the provider about earlier calls, then settles them after the response", async () => {
-      const db = meteredMonth(PAL_VOICE_GRANT_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - 2 * MINUTE }]);
+      const db = meteredMonth(PAL_VOICE_GRANT_MINUTES, [{ conversationId: EARLIER }]);
       const asked = provider({ [EARLIER]: { status: "done", seconds: 20 } });
 
       const response = await POST(issueRequest());
@@ -697,7 +668,7 @@ describe("Pub Pal voice token route", () => {
     });
 
     it("settles earlier calls and admits when the stale charge alone would refuse", async () => {
-      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - 2 * MINUTE }]);
+      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER }]);
       provider({ [EARLIER]: { status: "done", seconds: 20 } });
 
       const response = await POST(issueRequest());
@@ -717,7 +688,7 @@ describe("Pub Pal voice token route", () => {
     });
 
     it.each(["lost reply", "concurrent release"])("admits after a %s hides the settlement result", async (failure) => {
-      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - 2 * MINUTE }]);
+      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER }]);
       provider({ [EARLIER]: { status: "done", seconds: 20 } });
       const rpc = voiceState.rpc.getMockImplementation()!;
       voiceState.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
@@ -755,7 +726,7 @@ describe("Pub Pal voice token route", () => {
     });
 
     it("refuses with the earlier grant still charged when the provider does not answer in time", async () => {
-      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - 2 * MINUTE }]);
+      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER }]);
       provider({ [EARLIER]: "silent" });
 
       const { response } = await postOnFakeClock(issueRequest());
@@ -768,8 +739,8 @@ describe("Pub Pal voice token route", () => {
     });
 
     // Under zero retention mode a 404 cannot tell an unused URL from a finished call whose record is gone.
-    it.each([14, 21, 60])("keeps charging a %i-minute-old grant the provider has no record of", async (age) => {
-      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - age * MINUTE }]);
+    it("keeps charging a grant the provider has no record of", async () => {
+      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER }]);
       provider({ [EARLIER]: "missing" });
 
       const response = await POST(issueRequest());
@@ -781,7 +752,7 @@ describe("Pub Pal voice token route", () => {
     });
 
     it("keeps charging a call the provider still reports as running", async () => {
-      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - 40 * MINUTE }]);
+      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER }]);
       provider({ [EARLIER]: { status: "in-progress", seconds: 120 } });
 
       const response = await POST(issueRequest());
