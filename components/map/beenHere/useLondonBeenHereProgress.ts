@@ -8,16 +8,26 @@ import { useEffect, useMemo, useState } from "react";
 
 import { beenHereProgress, type BeenHereProgress, type DistrictPub } from "@/lib/beenHereProgress";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
-import { loadSlimVenues } from "@/lib/venuesSlim";
+import { loadSlimVenuesForCityResult } from "@/lib/venuesSlim";
 
-let londonPubs: Promise<DistrictPub[]> | null = null;
+let londonPubs: Promise<DistrictPub[] | null> | null = null;
 
-function loadLondonPubs(): Promise<DistrictPub[]> {
-  londonPubs ??= loadSlimVenues().then(
-    (rows) =>
-      rows
+function loadLondonPubs(): Promise<DistrictPub[] | null> {
+  londonPubs ??= loadSlimVenuesForCityResult("london").then(
+    ({ rows, status }) => {
+      if (status !== "ready") {
+        londonPubs = null;
+        return null;
+      }
+      const pubs = rows
         .filter((row) => !row.retired && isPubVenueKind(row.kind))
-        .map((row) => ({ id: row.id, lat: row.lat, lng: row.lng, searchText: row.filterHints?.searchText })),
+        .map((row) => ({ id: row.id, lat: row.lat, lng: row.lng, searchText: row.filterHints?.searchText }));
+      if (pubs.length === 0) {
+        londonPubs = null;
+        return null;
+      }
+      return pubs;
+    },
     (error: unknown) => {
       londonPubs = null;
       throw error;

@@ -224,37 +224,48 @@ export default function BeenHereLayer({ map, venues }: { map: maplibregl.Map; ve
   const [painted, setPainted] = useState<ReadonlyMap<string, PaintedPinShape>>(() => new Map());
   const marks = useMemo(() => markFeatures(visited, painted, byId), [visited, painted, byId]);
   const districts = useMemo(() => districtFeatures(postcodesOn ? progress : null), [postcodesOn, progress]);
-  const latest = useRef({ marks, districts });
+  const settled = useRef(false);
+  const latestDistricts = useRef(districts);
   useEffect(() => {
-    latest.current = { marks, districts };
-  }, [marks, districts]);
+    latestDistricts.current = districts;
+  }, [districts]);
 
   useEffect(() => {
+    const clearPainted = () => {
+      settled.current = false;
+      setData(map, MARK_SOURCE, EMPTY);
+      setPainted((current) => (current.size === 0 ? current : new Map()));
+    };
     const draw = () => {
       addLayers(map);
-      setData(map, MARK_SOURCE, latest.current.marks);
-      setData(map, DISTRICT_SOURCE, latest.current.districts);
+      clearPainted();
+      setData(map, DISTRICT_SOURCE, latestDistricts.current);
     };
     const readPainted = () => {
+      if (map.isMoving()) return;
       // A style still loading its sources at mount fires no second style.load.
       if (!map.getLayer(MARK_LAYER)) draw();
       else placeLayers(map);
       const next = paintedPinShapes(map);
+      settled.current = true;
       setPainted((current) => (sameShapes(current, next) ? current : next));
     };
     if (map.isStyleLoaded()) readPainted();
     map.on("style.load", draw);
+    map.on("movestart", clearPainted);
     map.on("idle", readPainted);
     return () => {
       map.off("style.load", draw);
+      map.off("movestart", clearPainted);
       map.off("idle", readPainted);
+      settled.current = false;
       removeLayers(map);
     };
   }, [map]);
 
   useEffect(() => {
     if (!map.getSource(MARK_SOURCE)) return;
-    setData(map, MARK_SOURCE, marks);
+    setData(map, MARK_SOURCE, settled.current ? marks : EMPTY);
   }, [map, marks]);
 
   useEffect(() => {

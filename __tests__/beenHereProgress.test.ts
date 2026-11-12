@@ -63,6 +63,19 @@ describe("beenHereProgress", () => {
     expect(beenHereProgress(many, visited).districts[0]?.percent).toBe(99);
   });
 
+  it("reports 58 percent for 29 visits among 50 pubs", () => {
+    const pubs = Array.from({ length: 50 }, (_, i) => ({
+      id: `se1-${i}`,
+      lat: 51.5,
+      lng: -0.1,
+      searchText: "se1 9dd",
+    }));
+    const visited = new Set(pubs.slice(0, 29).map((pub) => pub.id));
+    expect(beenHereProgress(pubs, visited).districts[0]).toMatchObject({
+      district: "SE1", visited: 29, total: 50, percent: 58,
+    });
+  });
+
   it("leaves out districts with no visit and never places a pub with no postcode", () => {
     const result = beenHereProgress(pubs, new Set(["no-postcode", "somewhere-else"]));
     expect(result.districts).toEqual([]);

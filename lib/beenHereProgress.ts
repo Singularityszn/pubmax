@@ -84,7 +84,7 @@ export function beenHereProgress(
       district,
       visited: row.visited,
       total: row.total,
-      percent: Math.floor((row.visited / row.total) * 100),
+      percent: Math.floor((row.visited * 100) / row.total),
       lng: row.lng / row.total,
       lat: row.lat / row.total,
     });
