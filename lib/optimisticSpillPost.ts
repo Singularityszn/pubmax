@@ -88,7 +88,7 @@ export function createOptimisticSpillPhotoPreview(photo: Blob): string {
 }
 
 export function revokeOptimisticSpillPhotoPreview(url: string): void {
-  livePhotoPreviews.delete(url);
+  if (!livePhotoPreviews.delete(url)) return;
   URL.revokeObjectURL(url);
 }
 
@@ -268,7 +268,7 @@ function appendRetryPhoto(
   if (!url) return;
   if (!url.startsWith("blob:")) return;
   // CSP allows blob images but not blob fetches. Keep the original bytes
-  // only while the composer still owns the preview.
+  // while the composer or a stored retry owns the preview.
   const blob = livePhotoPreviews.get(url);
   if (!blob) throw new Error(PHOTO_PREVIEW_GONE);
   const extension = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
@@ -387,6 +387,14 @@ export function writeOptimisticSpills(
   const retries = new Map<string, OptimisticSpillRetryPayload>();
   for (const entry of retained) {
     if (entry.retry) retries.set(entry.clientRequestId, { ...entry.retry });
+  }
+  const retainedPhotos = new Set([...retries.values()].flatMap((retry) =>
+    [retry.pintPhotoUrl, retry.venuePhotoUrl, retry.receiptPhotoUrl],
+  ));
+  for (const retry of liveRetries.get(storage)?.values() ?? []) {
+    for (const url of [retry.pintPhotoUrl, retry.venuePhotoUrl, retry.receiptPhotoUrl]) {
+      if (url && !retainedPhotos.has(url)) revokeOptimisticSpillPhotoPreview(url);
+    }
   }
   liveRetries.set(storage, retries);
   try {

@@ -388,8 +388,8 @@ export function usePintDrops(
   // EVERY PREVIEW URL THIS HOOK HAS MINTED AND NOT YET REVOKED. A slot's URL
   // is revoked when the slot is replaced or removed; a URL handed to an
   // optimistic row (map drop, feed spill) outlives the composer and is revoked
-  // when the server row replaces it. Whatever is still held at unmount goes
-  // then. One set, so nothing is revoked twice and nothing still on screen is
+  // when the server row replaces it. Stored retries retain their URLs across
+  // unmount. One set, so nothing is revoked twice and nothing still on screen is
   // revoked by a sibling slot changing.
   const livePreviewUrls = useRef(new Set<string>());
   // Ref guard + optimistic removal is the whole "pending state" for reports —
@@ -592,13 +592,19 @@ export function usePintDrops(
     void Promise.resolve().then(() => resetComposer());
   }, [accountRevision, resetComposer]);
 
-  // Revoke every preview URL still held when the component unmounts. Empty
+  // Revoke composer previews on unmount, but leave stored retries their photos. Empty
   // deps on purpose: a cleanup keyed on the slots ran with the previous
   // closure, so changing ONE slot revoked all three (review finding CMP-2).
   useEffect(() => {
     const held = livePreviewUrls.current;
     return () => {
-      for (const url of held) revokeOptimisticSpillPhotoPreview(url);
+      const storage = safeLocalStorage();
+      const retained = new Set(storage ? readOptimisticSpills(storage).flatMap(({ retry }) =>
+        retry ? [retry.pintPhotoUrl, retry.venuePhotoUrl, retry.receiptPhotoUrl] : [],
+      ) : []);
+      for (const url of held) {
+        if (!retained.has(url)) revokeOptimisticSpillPhotoPreview(url);
+      }
       held.clear();
     };
   }, []);
