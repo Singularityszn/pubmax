@@ -114,8 +114,10 @@ async function allEdgeRows(page: () => EdgePage): Promise<EdgeRow[]> {
     const { data, error } = await (cursor ? query.gt("id", cursor) : query);
     if (error) throw new Error(error.message);
     if (!data?.length) return rows;
-    rows.push(...(data as EdgeRow[]));
-    cursor = rows[rows.length - 1].id;
+    for (const row of data as EdgeRow[]) {
+      rows.push(row);
+      cursor = row.id;
+    }
   }
 }
 

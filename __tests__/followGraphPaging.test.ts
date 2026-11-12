@@ -121,9 +121,10 @@ describe("durable follow graph reads past the response cap", () => {
       }
       const side = reader === "followers" || reader === "mutuals-back" ? "followee" : "follower";
       backend.afterPage = (rows) => {
-        if (rows[0]?.[side] !== "amy") return;
+        const first = rows[0];
+        if (!first || first[side] !== "amy") return;
         backend.afterPage = undefined;
-        backend.edges = backend.edges.filter((edge) => edge.id !== rows[0].id);
+        backend.edges = backend.edges.filter((edge) => edge.id !== first.id);
       };
 
       const store = followStore();
