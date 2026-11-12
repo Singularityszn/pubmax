@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  LOG_IN_PUBLIC_DAY,
-  logInPublicDayActive,
-  logInPublicTime,
-  pickLogInPublicDrops,
-} from "@/lib/logInPublicDay";
+import { LOG_IN_PUBLIC_DAY, logInPublicDayActive } from "@/lib/logInPublicDay";
+import { logInPublicTime, pickLogInPublicDrops } from "@/lib/logInPublicDrops";
 
 // The Product Hunt "log in public" day shows only real, priced, public Pint
 // Drops logged on that London day. A demo seed, an unpriced note, a friends-only
