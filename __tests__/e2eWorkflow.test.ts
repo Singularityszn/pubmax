@@ -43,8 +43,6 @@ type CommandCall = { command: string; args: string[]; env: Record<string, string
 const MERGE_GROUP_CONTEXT = {
   event_name: "merge_group",
   event: { merge_group: { head_ref: "refs/heads/gh-readonly-queue/main/pr-1-abc123" } },
-  token: "token",
-  api_url: "https://api.github.com",
   repository: "Singularityszn/pubmax",
 };
 
@@ -77,8 +75,8 @@ appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringi
 `);
       chmodSync(path, 0o755);
     }
-    writeFileSync(join(directory, "curl"), "#!/bin/sh\nprintf 200\n");
-    chmodSync(join(directory, "curl"), 0o755);
+    writeFileSync(join(directory, "git"), "#!/bin/sh\nexit 0\n");
+    chmodSync(join(directory, "git"), 0o755);
     for (const step of job.steps) {
       if (step.if && !evaluate(step.if)) continue;
       if (step.uses) {
@@ -490,18 +488,17 @@ if (args[0] === "issue" && args[1] === "list") {
       return defined(layoutSteps().find((step) => step.name === "Stop when the merge group is gone"), "merge group gate");
     }
 
-    function runGate(queueRef: string, curl: { status: string; exit: number }) {
+    function runGate(queueRef: string, gitExit: number) {
       const directory = mkdtempSync(join(process.cwd(), ".merge-group-gate-test-"));
       try {
         const calls = join(directory, "calls");
         writeFileSync(calls, "");
-        writeFileSync(join(directory, "curl"), `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nprintf '${curl.status}'\nexit ${curl.exit}\n`);
-        chmodSync(join(directory, "curl"), 0o755);
+        writeFileSync(join(directory, "git"), `#!/bin/sh\nprintf '%s\\n' "$@" >> "${calls}"\nexit ${gitExit}\n`);
+        chmodSync(join(directory, "git"), 0o755);
         const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-c", defined(gate().run)], {
           env: {
+            NODE_ENV: "test",
             PATH: `${directory}:${process.env.PATH}`,
-            GH_TOKEN: "token",
-            API_URL: "https://api.github.com",
             REPO: "Singularityszn/pubmax",
             QUEUE_REF: queueRef,
           },
@@ -518,19 +515,22 @@ if (args[0] === "issue" && args[1] === "list") {
     });
 
     it.each([
-      { case: "the group is live", curl: { status: "200", exit: 0 }, exit: 0, annotation: "" },
-      { case: "the group is gone", curl: { status: "404", exit: 0 }, exit: 1, annotation: "::error::" },
-      { case: "GitHub answers with an error", curl: { status: "502", exit: 0 }, exit: 0, annotation: "::warning::" },
-      { case: "GitHub cannot be reached", curl: { status: "000", exit: 7 }, exit: 0, annotation: "::warning::" },
-    ])("stops only when $case says so", ({ curl, exit, annotation }) => {
-      const { result, calls } = runGate("refs/heads/gh-readonly-queue/main/pr-1-abc123", curl);
+      { case: "the group is live", gitExit: 0, exit: 0, annotation: "" },
+      { case: "the group is gone", gitExit: 2, exit: 1, annotation: "::error::" },
+      { case: "GitHub cannot be reached", gitExit: 128, exit: 0, annotation: "::warning::" },
+    ])("stops only when $case says so", ({ gitExit, exit, annotation }) => {
+      const queueRef = "refs/heads/gh-readonly-queue/main/pr-1-abc123";
+      const { result, calls } = runGate(queueRef, gitExit);
       expect(result.status, result.stderr).toBe(exit);
       if (annotation) expect(result.stdout).toContain(annotation);
-      expect(calls).toContain("https://api.github.com/repos/Singularityszn/pubmax/git/ref/heads/gh-readonly-queue/main/pr-1-abc123");
+      else expect(result.stdout).not.toMatch(/::(?:error|warning)::/);
+      expect(calls.split("\n")).toEqual([
+        "ls-remote", "--exit-code", "https://github.com/Singularityszn/pubmax", queueRef,
+      ]);
     });
 
     it("runs a pull request's layout pins without asking for a group", () => {
-      const { result, calls } = runGate("", { status: "404", exit: 0 });
+      const { result, calls } = runGate("", 2);
       expect(result.status, result.stderr).toBe(0);
       expect(calls).toBe("");
     });

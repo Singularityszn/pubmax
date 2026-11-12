@@ -279,14 +279,12 @@ jobs:
     timeout-minutes: 40
     env:
       LAYOUT_SHARD: 1
+    # Only a confirmed missing ref may stop this job. Lookup failures must not
+    # block a live group (docs/CI_RUNBOOK.md, "The required checks and the
+    # merge queue").
     steps: &layout-pin-steps
-      # Only a confirmed missing ref may stop this job. API failures must not
-      # block a live group (docs/CI_RUNBOOK.md, "The required checks and the
-      # merge queue").
       - name: Stop when the merge group is gone
         env:
-          GH_TOKEN: ${{ github.token }}
-          API_URL: ${{ github.api_url }}
           REPO: ${{ github.repository }}
           QUEUE_REF: ${{ github.event.merge_group.head_ref }}
         run: |
@@ -295,17 +293,15 @@ jobs:
             echo "Not a merge group run."
             exit 0
           fi
-          status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "$API_URL/repos/$REPO/git/ref/${QUEUE_REF#refs/}")" || status="error"
+          status=0
+          git ls-remote --exit-code "https://github.com/$REPO" "$QUEUE_REF" > /dev/null || status=$?
           case "$status" in
-            200) echo "Merge group $QUEUE_REF is live." ;;
-            404)
+            0) echo "Merge group $QUEUE_REF is live." ;;
+            2)
               echo "::error::Merge group $QUEUE_REF is gone, so this job stops before setup and tests."
               exit 1
               ;;
-            *) echo "::warning::Could not read $QUEUE_REF (HTTP $status), so the job runs." ;;
+            *) echo "::warning::Could not read $QUEUE_REF (git exit $status), so the job runs." ;;
           esac
 
       - name: Checkout
