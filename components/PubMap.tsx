@@ -507,6 +507,8 @@ import {
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
+import { useSelectedVenueDetail } from "@/components/map/pubmap/useSelectedVenueDetail";
+import SavedVenueNote from "@/components/map/SavedVenueNote";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   createMapResumeWriter,
@@ -5536,54 +5538,15 @@ export default function PubMap({
     ukBaseRestoreMissing,
   ]);
 
-  useEffect(() => {
-    if (
-      !selectedVenueId ||
-      detailById.has(selectedVenueId) ||
-      isRecordlessMapSelection(selectedVenueId)
-    ) {
-      return;
-    }
-    const requestedVenueId = selectedVenueId;
-    let cancelled = false;
-    warmVenueDetail(requestedVenueId).then((result) => {
-      if (cancelled) return;
-      if (result.status !== "found") {
-        setDetailStatusById((current) => {
-          const next = new Map(current);
-          next.set(requestedVenueId, result.status === "missing" ? "missing" : "unavailable");
-          return next;
-        });
-        return;
-      }
-      if (result.venue.retired) {
-        setDetailById((current) => new Map(current).set(requestedVenueId, result.venue));
-        return;
-      }
-      const canonicalVenueId = result.venue.id;
-      resolveMapSelection(requestedVenueId, canonicalVenueId);
-      setDetailById((current) => {
-        const next = new Map(current);
-        next.set(canonicalVenueId, result.venue);
-        return next;
-      });
-      setDetailStatusById((current) => {
-        const next = new Map(current);
-        next.delete(requestedVenueId);
-        next.delete(canonicalVenueId);
-        return next;
-      });
-      setSelectionNotice(null);
-      if (canonicalVenueId !== requestedVenueId) {
-        setSelectedVenueId((current) =>
-          current === requestedVenueId ? canonicalVenueId : current,
-        );
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [detailById, resolveMapSelection, selectedVenueId]);
+  useSelectedVenueDetail({
+    selectedVenueId,
+    detailById,
+    setDetailById,
+    setDetailStatusById,
+    setSelectedVenueId,
+    setSelectionNotice,
+    resolveMapSelection,
+  });
 
   useEffect(() => {
     const notice = mapSelectionNotice({
@@ -6064,6 +6027,7 @@ export default function PubMap({
             {selectedVenueLabels.unavailableLabel}
           </div>
         ) : null}
+        <SavedVenueNote venueId={selectedVenue.id} />
         <VenueInspector
           venue={selectedVenue}
           {...venueActionCardProps(selectedVenue)}
