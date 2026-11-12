@@ -4919,10 +4919,9 @@ it.each([
           String(input) === "/api/plans" ? createdAcceptedPlan(generated) : {},
         ));
         await act(async () => lockButton().click());
-        await settle();
+        await vi.waitFor(() => expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]));
         expect(fetchMock.mock.calls.some(([input, init]) =>
           String(input) === "/api/plans/accepted-lock-plan" && init?.method === "PATCH")).toBe(true);
-        expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]);
         expect(document.querySelector("#plan-composer-error")).toBeNull();
       }
       return;
@@ -5440,7 +5439,10 @@ it.each((["sign-out", "account switch"] as const).flatMap((departure) =>
         await editInput("#plan-title", "Do not replace the newer night");
       } else {
         await act(async () => lockButton().click());
-        await settle();
+        await vi.waitFor(() => {
+          if (step === "owned Lock") expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]);
+          else expect(document.querySelector("#plan-composer-error")?.textContent).toContain("The saved planning request changed");
+        });
       }
     }
     if (step === "owned Lock") {
@@ -5506,6 +5508,7 @@ it("preserves intake replaced after Lock removes the legacy route", async () => 
   ));
   try {
     await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(newerIntake).not.toBeNull());
     await settle();
   } finally {
     interpose.mockRestore();
@@ -5581,10 +5584,9 @@ it.each(
   });
   if (when === "before Lock") replaceRecord();
   await act(async () => lockButton().click());
-  await settle();
+  await vi.waitFor(() => expect(document.querySelector("#plan-composer-error")?.textContent).toContain("The saved planning request changed"));
   expect(newerRecords).not.toBeNull();
   expect(acceptanceRecords()).toEqual(newerRecords);
-  expect(document.querySelector("#plan-composer-error")?.textContent).toContain("The saved planning request changed");
   const posts = fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans");
   expect(posts).toHaveLength(when === "before Lock" ? 0 : 1);
   const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
@@ -5609,9 +5611,8 @@ it("clears owned acceptance records only after Lock metadata succeeds", async ()
     return Response.json([]);
   });
   await act(async () => lockButton().click());
-  await settle();
+  await vi.waitFor(() => expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]));
   expect(patched).toBe(true);
-  expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]);
   expect(document.querySelector("#plan-composer-error")).toBeNull();
 });
 
