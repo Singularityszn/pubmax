@@ -7,9 +7,8 @@ import "server-only";
 // leaderboard or league can call it for any account it may show. The profile
 // card asks through readProfilePoints, which lets the owner alone read it.
 //
-// Every store sits behind a dependency, like the passport reads beside it
-// (lib/profilePassport.server.ts), and every store that fails counts 0 and
-// marks the answer degraded. A failed read never becomes a guessed count.
+// Failed record reads contribute zero. A failed record, district or alias
+// read marks the answer degraded, including the identity fallback for aliases.
 
 import { callerUserId } from "@/lib/authServer";
 import { getCity } from "@/lib/cities";

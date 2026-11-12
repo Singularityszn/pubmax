@@ -2,8 +2,8 @@
 
 // The owner's points and level on their own profile. The server counts the
 // records (lib/points.server.ts) and lets the owner alone read them; this card
-// prints what came back and nothing else. While the read is out, refused or
-// failed, there is no card: a total it cannot show is never guessed.
+// prints what came back and nothing else. It stays hidden until an answer
+// arrives. A failed refresh keeps the previous answer for the same account.
 
 import Kicker from "@/components/ui/kicker";
 import { POINTS_COPY, type PointsBreakdown } from "@/lib/points";

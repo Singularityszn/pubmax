@@ -38,7 +38,7 @@ const LINE_ORDER: readonly PointsLineKey[] = [
 type PointsLine = { key: PointsLineKey; count: number; each: number; points: number };
 
 export type PointsBreakdown = {
-  /** "degraded" when a store did not answer: its line counts 0, never a guess. */
+  /** "degraded" when a record, district or alias read fails. */
   status: "ready" | "degraded";
   total: number;
   level: number;
