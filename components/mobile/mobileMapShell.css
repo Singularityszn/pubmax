@@ -1185,7 +1185,13 @@ html:has(.appShell) {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .mobileSharedSheet[data-sheet-cramped] > .mobileSharedSheetBody { flex: none; }
+  /* Above peek the body takes its full height and stops being a scroller, so
+     a swipe over it moves the sheet. A cramped peek keeps the body hidden and
+     gives it no room. */
+  .mobileSharedSheet[data-sheet-cramped]:not(.sheet-peek) > .mobileSharedSheetBody {
+    flex: none;
+    overflow: visible;
+  }
   .mobileSharedSheet[data-sheet-cramped] > .mobileSharedSheetHeader { touch-action: pan-y; }
   .mobileSharedSheetBody {
     flex: 1 1 auto;
@@ -1233,7 +1239,7 @@ html:has(.appShell) {
   .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)) > .mobileSharedSheetBody {
     padding-block: 0;
   }
-  .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)):not(.sheet-dragging):not(.sheet-settling):not([data-sheet-cramped]) > .mobileSharedSheetBody {
+  .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)):not(.sheet-dragging):not(.sheet-settling) > .mobileSharedSheetBody {
     visibility: hidden;
   }
   /* THE LOADING PANEL FILLS THE SHEET. This box is content-driven under
