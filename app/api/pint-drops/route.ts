@@ -55,6 +55,8 @@ import {
 } from "@/lib/pintDropConfirm.server";
 import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
+import { pintDropRatings, ratePintDrop } from "@/lib/pintDropRating.server";
+import { parseRating } from "@/lib/ratings";
 import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
@@ -491,6 +493,11 @@ export async function POST(request: Request): Promise<Response> {
   const canonicalResult = await validateCanonicalPintDrop(fields);
   if (!canonicalResult.ok) return canonicalResult.response;
   const canonicalDrop = canonicalResult.value;
+  const hasStars = fields.rating !== undefined && fields.rating !== "";
+  const stars = hasStars ? parseRating(fields.rating) : null;
+  if (hasStars && stars === null) {
+    return publicApiError("Pick 1 to 5 stars.", "INVALID_REQUEST", 400);
+  }
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.
   // Signed-in users must finish handle onboarding. Signed-out requests keep
@@ -584,12 +591,13 @@ export async function POST(request: Request): Promise<Response> {
     // The second-reporter pass, awaited so the drinker's own answer carries the
     // standing their report just earned. It never throws and never fails the
     // drop: when it cannot read or write, the pill stays grey and the drop
-    // stands. Only a priced drop can complete a pair.
-    const { confirmation, confirmationOutcome } = await settleConfirmation(
-      drop,
-      dropPayload.priceGbp,
-      dropPayload.authorityKey,
-    );
+    // stands. Only a priced drop can complete a pair. The stars save beside it
+    // and fail the same soft way.
+    const [{ confirmation, confirmationOutcome }, rating] = await Promise.all([
+      settleConfirmation(drop, dropPayload.priceGbp, dropPayload.authorityKey),
+      stars === null ? null : ratePintDrop(dropPayload, stars),
+    ]);
+    if (rating !== null && drop.visibility !== "anonymous") drop.rating = rating;
     if (ownership.callerUserId) {
       void qualifyCheapPintForAccountId(ownership.callerUserId);
     }
@@ -700,7 +708,15 @@ export async function GET(request: Request): Promise<Response> {
       author,
       cityId,
     );
-    const enriched = await enrichItemsWithAvatarUrls(await withVenueNames(drops));
+    const named = await withVenueNames(drops);
+    const [withAvatars, ratings] = await Promise.all([
+      enrichItemsWithAvatarUrls(named),
+      pintDropRatings(named),
+    ]);
+    const enriched = withAvatars.map((drop) => {
+      const rating = ratings.get(drop.id);
+      return rating === undefined ? drop : { ...drop, rating };
+    });
     // Geography uses the complete attributed history, independently of the feed cap.
     // A failed page fails this response rather than publishing a partial lifetime count.
     let passportAreas: string[] | undefined;

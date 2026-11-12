@@ -79,6 +79,7 @@ import {
 } from "@/lib/pintDropReceipt";
 import { receiptShareFromSavedDrop, type ReceiptShare } from "@/lib/pintReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
+import type { RatingValue } from "@/lib/ratings";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -88,6 +89,8 @@ export type DropWithPhotos = PintDrop & {
   /** The bill behind this price, or null (captain 7 Sept 2026). Absent on every
    *  drop written before migration 0153, and on every drop with no price. */
   receiptPhotoUrl?: string | null;
+  /** The drinker's stars for this drink here, when they gave some. */
+  rating?: RatingValue;
   optimistic?: PintDropDTO["optimistic"];
 };
 
@@ -359,6 +362,7 @@ export function usePintDrops(
   // Selected vibe tags (client-side UX only — the server re-filters against its
   // own allowlist). Multi-select, capped at MAX_VIBE_TAGS by toggleVibeTag.
   const [vibeTags, setVibeTags] = useState<VibeTag[]>([]);
+  const [rating, setRating] = useState<RatingValue | null>(null);
   const [pintPhoto, setPintPhoto] = useState<PhotoSlot | null>(null);
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
@@ -581,6 +585,7 @@ export function usePintDrops(
       withWho: "",
     });
     setVibeTags([]);
+    setRating(null);
     setVisibility(DEFAULT_VISIBILITY);
     if (pintInputRef.current) pintInputRef.current.value = "";
     if (venueInputRef.current) venueInputRef.current.value = "";
@@ -749,6 +754,7 @@ export function usePintDrops(
       // preview the other two use, so the drinker sees their own evidence
       // before the upload lands.
       receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
+      ...(rating !== null && visibility !== "anonymous" ? { rating } : {}),
       optimistic: optimisticDrop.optimistic,
       ...trainFields,
     };
@@ -768,6 +774,7 @@ export function usePintDrops(
     const submittedEra = dropForm.era;
     const submittedVisibility = visibility;
     const submittedVibeTags = [...vibeTags];
+    const submittedRating = rating;
     const submittedPintFile = fileOfPhoto(pintPhoto);
     const submittedVenueFile = fileOfPhoto(venuePhoto);
     const submittedReceiptFile = fileOfPhoto(receiptPhoto);
@@ -862,6 +869,7 @@ export function usePintDrops(
     // Repeated field entries — the route also accepts one comma-separated
     // value; the server re-filters against its allowlist either way.
     for (const tag of submittedVibeTags) body.append("vibe_tags", tag);
+    if (submittedRating !== null) body.set("rating", String(submittedRating));
     if (trainFields) {
       body.set("leaveByIso", trainFields.leaveByIso);
       body.set("lastTrainDecision", trainFields.lastTrainDecision);
@@ -1145,6 +1153,8 @@ export function usePintDrops(
     vibeTags,
     setVibeTags,
     toggleVibeTag,
+    rating,
+    setRating,
     visibility,
     setVisibility,
     pintPhoto,

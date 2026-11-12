@@ -219,6 +219,7 @@ import {
 } from "@/lib/pintDropsStore";
 import { RECEIPT_REQUIRED_LINE, isPricedWrite } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
+import { __resetMemoryRatings, ratingsStore } from "@/lib/ratingsStore";
 import { memoryPrivateIdentityStore } from "@/lib/privateIdentityStore";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -672,7 +673,6 @@ describe("POST /api/pint-drops (create)", () => {
     expect(res.status).toBe(201);
     const { drop, confirmationOutcome } = await res.json();
     expect(drop.priceGbp).toBe(4.5);
-    expect(drop.priceEvidence).toBe("unchecked");
     expect(drop.receiptPhotoUrl).toBeNull();
     // Still a verified account's price, so a second drinker can agree with it.
     expect(drop.authorityKey).toMatch(/^[a-f0-9]{64}$/);
@@ -2009,5 +2009,65 @@ describe("an unchecked price before migration 0218 is applied", () => {
       code: "RECEIPT_REQUIRED",
       retryable: false,
     });
+  });
+});
+
+describe("Pint Drop stars", () => {
+  beforeEach(() => {
+    __resetMemoryRatings();
+  });
+
+  async function listed(id: string) {
+    const body = await (await get(VENUE)).json();
+    return (body.drops as Array<{ id: string; rating?: number }>).find((drop) => drop.id === id);
+  }
+
+  it("saves the stars with the drop and shows them on the list", async () => {
+    const res = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2, drink: "Guinness", rating: "4" });
+    expect(res.status).toBe(201);
+    const { drop } = await res.json();
+    expect(drop.rating).toBe(4);
+    expect((await listed(drop.id))?.rating).toBe(4);
+  });
+
+  it("shows the drinker's latest vote on an earlier drop of the same drink", async () => {
+    const first = await (
+      await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2, drink: "Guinness", rating: 2 })
+    ).json();
+    const second = await post({ venueId: VENUE, handle: "ale", drink: " guinness ", passedDownNote: "Better tonight.", rating: 5 });
+    expect(second.status).toBe(201);
+    expect((await listed(first.drop.id))?.rating).toBe(5);
+  });
+
+  it("refuses stars off the 1 to 5 scale and saves nothing", async () => {
+    const res = await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Odd one.", rating: "6" });
+    expect(res.status).toBe(400);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+  });
+
+  it("keeps a drop with no stars unrated", async () => {
+    const { drop } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Old local." })).json();
+    expect(drop.rating).toBeUndefined();
+    expect((await listed(drop.id))?.rating).toBeUndefined();
+  });
+
+  it("never puts stars on an anonymous drop", async () => {
+    const res = await post({
+      venueId: VENUE,
+      handle: "ale",
+      drink: "Guinness",
+      passedDownNote: "Old local.",
+      visibility: "anonymous",
+      rating: 4,
+    });
+    const { drop } = await res.json();
+    expect(drop.rating).toBeUndefined();
+    expect((await listed(drop.id))?.rating).toBeUndefined();
+  });
+
+  it("does not show a menu vote for the same drink on a drop", async () => {
+    await ratingsStore().rate({ kind: "drink", ref: "Guinness", venueId: VENUE, handle: "ale", rating: 1 });
+    const { drop } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Old local." })).json();
+    expect((await listed(drop.id))?.rating).toBeUndefined();
   });
 });

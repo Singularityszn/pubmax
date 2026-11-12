@@ -2,6 +2,7 @@
 
 import VenueImage from "@/components/media/VenueImage";
 import PintDropWithLine from "@/components/map/composer/PintDropWithLine";
+import StarRating from "@/components/ratings/StarRating";
 import { useWithSummaries, type WithSummaryMap } from "@/components/map/composer/useWithSummaries";
 import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
 import { ProvenanceChip } from "@/components/map/venueInspectorBits";
@@ -187,6 +188,16 @@ export default function PintDropsList({
             ) : null}
             <div className="dropFoot">
               <small>
+                {/* The drinker's own stars for this drink here: one vote,
+                    never a count (lib/pintDropRating.server.ts). */}
+                {drop.rating !== undefined ? (
+                  <StarRating
+                    value={drop.rating}
+                    label={`${drop.handle} rated it`}
+                    size="sm"
+                    className="dropStars"
+                  />
+                ) : null}
                 {[nonPintMeasureName(drop), drop.drink, drop.era]
                   .filter(Boolean)
                   .join(" · ") || "Visit report"}

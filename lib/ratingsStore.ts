@@ -58,7 +58,16 @@ export type RatingsStore = {
   /** Batch summaries for a list of refs. Fail-soft: an unknown ref maps to
    *  the honest empty summary; a storage error returns all-empty. */
   summaryFor(kind: RatingKind, refs: string[]): Promise<Record<string, RatingSummary>>;
+  /** Each handle's own current vote per ref, for a surface that shows one
+   *  drinker's stars. Fail-soft: a storage error returns no votes. */
+  handleVotes(kind: RatingKind, refs: string[]): Promise<HandleVotes>;
 };
+
+/** ref → normalised handle → that handle's current star value. */
+export type HandleVotes = Record<string, Record<string, number>>;
+
+// Keeps one `in (...)` read inside a safe request-URL length.
+const HANDLE_VOTES_CHUNK = 100;
 
 const TABLES: Record<RatingKind, { table: string; refColumn: string }> = {
   drink: { table: "drink_ratings", refColumn: "drink_ref" },
@@ -206,6 +215,43 @@ const supabaseRatingsStore: RatingsStore = {
       return emptySummaries(refs);
     }
   },
+
+  async handleVotes(kind, refs) {
+    const unique = [...new Set(refs)];
+    if (unique.length === 0) return {};
+    const { table, refColumn } = TABLES[kind];
+    const chunks: string[][] = [];
+    for (let at = 0; at < unique.length; at += HANDLE_VOTES_CHUNK) {
+      chunks.push(unique.slice(at, at + HANDLE_VOTES_CHUNK));
+    }
+    try {
+      const columns: string = `${refColumn}, handle, rating, created_at`;
+      const pages = await Promise.all(
+        chunks.map(async (chunk) => {
+          const { data, error } = await admin().from(table).select(columns).in(refColumn, chunk);
+          if (error) throw new Error(error.message);
+          return data ?? [];
+        }),
+      );
+      const out: HandleVotes = {};
+      for (const raw of pages.flat()) {
+        const row = normalizeRatingRow(raw, refColumn);
+        if (!row?.handle) continue;
+        (out[row.ref] ??= {})[normalizeHandle(row.handle)] = row.rating;
+      }
+      return out;
+    } catch (err) {
+      if (isMissingRatingsSchema(err)) {
+        warnSchemaMiss("handleVotes", err);
+        return memoryRatingsStore.handleVotes(kind, refs);
+      }
+      console.error(
+        "[ratings] handleVotes failed — returning no votes:",
+        err instanceof Error ? err.message : err,
+      );
+      return {};
+    }
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -244,6 +290,16 @@ export const memoryRatingsStore: RatingsStore = {
         })),
       );
       out[ref] = aggregateRatings(newestVotePerHandle(rows), { now });
+    }
+    return out;
+  },
+
+  async handleVotes(kind, refs) {
+    const out: HandleVotes = {};
+    for (const ref of new Set(refs)) {
+      const votes = memoryVotes[kind].get(ref);
+      if (!votes) continue;
+      out[ref] = Object.fromEntries([...votes].map(([handle, vote]) => [handle, vote.rating]));
     }
     return out;
   },

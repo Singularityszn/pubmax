@@ -21,6 +21,15 @@
   font-size: var(--text-sm);
 }
 
+/* A picker a thumb has to hit: each star is a 44px-tall target. */
+.starRating--lg .starRatingGlyphs {
+  font-size: var(--text-3xl);
+}
+
+.starRating--lg.starRating--interactive {
+  padding-block: 6px;
+}
+
 .starRatingRow {
   display: block;
   white-space: nowrap;

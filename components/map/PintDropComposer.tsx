@@ -30,6 +30,7 @@ import { SpillCameraStep } from "@/components/map/composer/SpillCameraStep";
 import { SpillDesktopCapture } from "@/components/map/composer/SpillDesktopCapture";
 import { SpillPreviewCard } from "@/components/map/composer/SpillPreviewCard";
 import { SpillReceiptStep } from "@/components/map/composer/SpillReceiptStep";
+import { SpillStarField } from "@/components/map/composer/SpillStarField";
 import { useActiveRound } from "@/components/map/composer/useActiveRound";
 import { useIsMobileComposer } from "@/components/map/composer/useIsMobileComposer";
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
@@ -80,6 +81,8 @@ function AccountPintDropComposer({
     vibeTags,
     setVibeTags,
     toggleVibeTag,
+    rating,
+    setRating,
     visibility,
     setVisibility,
     pintPhoto,
@@ -268,6 +271,8 @@ function AccountPintDropComposer({
         priceQuickAdds={priceQuickAdds}
         lastKnownPrice={lastKnownPrice}
       />
+
+      <SpillStarField rating={rating} setRating={setRating} />
 
       {/* THE BILL, under the price and never behind the disclosure, because it
           is evidence about this figure and nothing else. OPTIONAL since

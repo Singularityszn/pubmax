@@ -65,8 +65,8 @@ export type StarRatingProps = {
   onRate?: (value: RatingValue) => void;
   /** Optional accent override (a category colour); defaults to brass via CSS. */
   accent?: string;
-  /** Compact sizing for dense rows (the drink menu). */
-  size?: "sm" | "md";
+  /** Compact sizing for dense rows (the drink menu); large for a thumb. */
+  size?: "sm" | "md" | "lg";
   className?: string;
 };
 

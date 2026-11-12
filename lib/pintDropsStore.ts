@@ -95,6 +95,7 @@ import { proveUploadedImageWrite, readUploadedImageObject, uploadUploadedImageOb
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
+import type { RatingValue } from "@/lib/ratings";
 
 import {
   PintDropDailyCapError,
@@ -139,6 +140,8 @@ export type PintDropDTO = Omit<
   /** The bill behind this price, signed, or null (migration 0153). */
   receiptPhotoUrl: string | null;
   reportCount?: number;
+  /** The drinker's stars for this drink here (lib/pintDropRating.server.ts). */
+  rating?: RatingValue;
 };
 
 // Moderator read shape. Same photo-URL swap, but a moderator must see the
