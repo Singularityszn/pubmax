@@ -215,6 +215,23 @@ export function failOptimisticSpill(
   });
 }
 
+/**
+ * The server refused the retry key because it already saved other details
+ * under it. The entry keeps its identity and its photos, and its next retry
+ * sends the drop under the new key.
+ */
+export function rotateOptimisticSpillRetryKey(
+  stored: StoredOptimisticSpill[],
+  clientRequestId: string,
+  nextKey: string,
+): StoredOptimisticSpill[] {
+  return stored.map((entry) =>
+    entry.clientRequestId === clientRequestId && entry.retry
+      ? { ...entry, retry: { ...entry.retry, clientRequestId: nextKey } }
+      : entry,
+  );
+}
+
 export function markOptimisticSpillRetrying(
   stored: StoredOptimisticSpill[],
   clientRequestId: string,

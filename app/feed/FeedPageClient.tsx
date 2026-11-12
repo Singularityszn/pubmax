@@ -37,8 +37,10 @@ import {
   emitOptimisticSpillChange,
   failOptimisticSpill,
   markOptimisticSpillRetrying,
+  newOptimisticSpillClientId,
   readOptimisticSpills,
   reconcileOptimisticSpill,
+  rotateOptimisticSpillRetryKey,
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
 import { postReactionToggle } from "@/lib/optimisticToggle";
@@ -693,6 +695,7 @@ export default function FeedPageClient({
 
     const submittedAccountRevision = readProviderAccountRevision();
     let submission = startPintDropSubmission(clientRequestId, submittedAccountRevision);
+    let keySpent = false;
     retriesInFlight.current.add(clientRequestId);
 
     try {
@@ -703,7 +706,12 @@ export default function FeedPageClient({
       const data = (await response.json().catch(() => ({}))) as {
         drop?: PintDropDTO;
         error?: string;
+        code?: string;
       };
+      if (response.status === 409 && data.code === "IDEMPOTENCY_CONFLICT") {
+        keySpent = true;
+        throw new Error("An earlier try saved this Spill with other details. Retry to post it as a new one.");
+      }
       if (!response.ok || !data.drop) {
         throw new Error(errorMessageFrom(data, "Could not save that Spill."));
       }
@@ -738,8 +746,13 @@ export default function FeedPageClient({
         accountRevision: readProviderAccountRevision(), message, canRetry: true,
       });
       if (submission.phase !== "failed") return;
+      const current = readOptimisticSpills(window.localStorage);
       writeLocalEntries(
-        failOptimisticSpill(readOptimisticSpills(window.localStorage), clientRequestId, submission.message),
+        failOptimisticSpill(
+          keySpent ? rotateOptimisticSpillRetryKey(current, clientRequestId, newOptimisticSpillClientId()) : current,
+          clientRequestId,
+          submission.message,
+        ),
       );
     } finally {
       retriesInFlight.current.delete(clientRequestId);
