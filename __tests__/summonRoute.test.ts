@@ -61,7 +61,7 @@ async function mates(): Promise<string[]> {
   return ((await response.json()) as { mates: string[] }).mates;
 }
 
-function summon(body: Record<string, unknown>): Promise<Response> {
+function summon(body: unknown): Promise<Response> {
   return POST(
     new Request("http://localhost/api/summon", {
       method: "POST",
@@ -196,6 +196,23 @@ describe("GET /api/summon", () => {
 });
 
 describe("POST /api/summon", () => {
+  it.each([
+    { label: "null", body: null },
+    { label: "an array", body: [] },
+    { label: "a string", body: "pub" },
+    { label: "a number", body: 42 },
+    { label: "a boolean", body: true },
+  ])("rejects $label as a malformed request body", async ({ body }) => {
+    const response = await summon(body);
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(await response.json()).toMatchObject({
+      error: "Malformed request body.",
+      code: "MALFORMED_REQUEST",
+    });
+  });
+
   it("sends each picked mate one message with the pub attached and the pub's own name", async () => {
     await mate("summon_ann_12");
     await mate("summon_bo_12");
