@@ -153,6 +153,19 @@ function rowTrustLine(row: MapSplitListRow): string {
   return `${caption}${day ? ` · ${day}` : ""}${aging ? PEEK_AGING_SUFFIX : ""}`;
 }
 
+/**
+ * Readiness describes the current view. Later shard retries can change its
+ * rows again, so consumers must not treat readiness as a stable row identity.
+ */
+function rowsSettled(
+  loaded: boolean,
+  viewLanding: boolean,
+  readCaughtUp: boolean,
+  rowsCurrent: boolean,
+): boolean {
+  return loaded && !viewLanding && readCaughtUp && rowsCurrent;
+}
+
 const GROUP_TITLES = {
   venue: "Listed pubs and venues",
   base: "Other pubs and bars · no listed price",
@@ -189,6 +202,7 @@ export default function MapSplitList({
   viewportCenter,
   reader,
   loaded,
+  viewLanding,
   map,
   onSelectVenue,
   onSelectUkBasePub,
@@ -213,6 +227,8 @@ export default function MapSplitList({
   reader: Point | null;
   /** The venue index and the view's projection have both landed for this city. */
   loaded: boolean;
+  /** The view's own shards are still on their way, so the venues in view are a partial set. */
+  viewLanding: boolean;
   /** The live map, for the halo; null until the canvas hands it over. */
   map: MapSplitListMap | null;
   onSelectVenue: (id: string) => void;
@@ -398,6 +414,7 @@ export default function MapSplitList({
     setHeld(holdView(live, liveKey));
   };
 
+  const busy = !rowsSettled(loaded, viewLanding, settled === live, groups === liveGroups);
   const total = groups.total;
   const awaiting = total === 0 && ukBaseStatus !== "unavailable" && (ukBaseStatus === "loading" || !loaded);
   const status = awaiting
@@ -465,6 +482,7 @@ export default function MapSplitList({
       id={MAP_SPLIT_LIST_ID}
       className="mapSplitList"
       aria-label={`${cityName} pubs in this view`}
+      aria-busy={busy}
       tabIndex={-1}
       onPointerEnter={() => setPointerInside(true)}
       onPointerLeave={() => setPointerInside(false)}
