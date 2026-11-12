@@ -57,7 +57,7 @@ export function transitionSubmission(state: SubmissionState, event: SubmissionEv
 5. **Scope fencing.** An event that ends an `await` carries its scope: account revision, plan id, venue id or conversation id. The function returns the old state when the scope is stale. Precedent: `contributionGateReducer` in `components/identity/ContributionGateDialog.tsx`.
 6. **A refused event returns the same object.** React then skips the render, and a test can assert `toBe(state)`.
 7. **Effects stay in the hook or the route.** They turn results into events. They never call a raw `setX` for the machine's state.
-8. **Idempotency keys belong to the attempt.** Mint the key once when the attempt starts. Rotate it only when the payload changes. Send it on every retry. Precedent: the draft's `requestKey` in `app/social/SocialComposer.tsx`.
+8. **Idempotency keys belong to the attempt.** Mint the key once when the attempt starts. Send it on every retry. A changed payload starts a new attempt. Pint Drop conflict recovery follows the [creation retry contract](app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation). Precedent: the draft's `requestKey` in `app/social/SocialComposer.tsx`.
 9. **Storage and URL.**
    - Persist a machine through one versioned serialiser.
    - A key that holds account data is account-scoped or follows the [device account cleanup contract](lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device).

@@ -26,9 +26,13 @@ Each photo slot, pint, venue and receipt, compares attachment presence against t
 
 Round creation matches the stored creator handle and title. Durable creation and replay complete creator membership and confirm it appears in the returned state before reporting success. A membership failure returns `503`, allowing the same keyed retry to finish creation.
 
-The map Pint Drop composer and retained Spill retries send their attempt's key. Older retained Spill entries without a key remain unkeyed. `RoundStarter` retains its key after failure while the handle, title and ordered seed-stop IDs remain unchanged. It clears the attempt on success or an identity-owner change. Reloading the starter does not preserve the attempt.
+The map Pint Drop composer and retained Spill retries send their attempt's key. Feed and Social share `useOptimisticSpillRetry`. On `409 IDEMPOTENCY_CONFLICT`, it stores a fresh key for the next retry without changing the entry's local identity or attachments. Later failures retain that replacement key unless another explicit idempotency conflict occurs. Other failures, including unreadable responses, retain the current key. Older retained Spill entries without a key remain unkeyed.
 
-Regression coverage: `__tests__/pintDrops.test.ts`, `__tests__/pintDropsStore.test.ts`, `__tests__/optimisticSpillPost.test.ts`, `__tests__/roundStarterRetry.test.tsx`, `__tests__/roundsRoute.test.ts` and `__tests__/roundsReceiptStore.test.ts`.
+The [Pint Drop guide](../../README.md#features) owns the recovery steps and local photo limits.
+
+`RoundStarter` retains its key after failure while the handle, title and ordered seed-stop IDs remain unchanged. It clears the attempt on success or an identity-owner change. Reloading the starter does not preserve the attempt.
+
+Regression coverage: `__tests__/pintDrops.test.ts`, `__tests__/pintDropsStore.test.ts`, `__tests__/optimisticSpillPost.test.ts`, `__tests__/feedPintDropRetry.test.tsx`, `__tests__/socialLondonLanePage.test.tsx`, `__tests__/pintDropPreviewLifetime.test.tsx`, `__tests__/roundStarterRetry.test.tsx`, `__tests__/roundsRoute.test.ts` and `__tests__/roundsReceiptStore.test.ts`.
 
 <a id="an-api-error-is-one-envelope-and-every-mutating-route-is-rate-limited"></a>
 

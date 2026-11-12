@@ -48,6 +48,7 @@ vi.mock("@/app/social/SocialComposer", () => { loadedPrivateTools.composer++; re
 vi.mock("@/app/social/SocialOutbox", () => { loadedPrivateTools.outbox++; return { default: () => null }; });
 vi.mock("@/app/social/SocialTagInbox", () => { loadedPrivateTools.tags++; return { default: () => null }; });
 
+import { buildOptimisticSpillDrop, buildOptimisticSpillRetryPayload, createOptimisticSpillPhotoPreview, revokeOptimisticSpillPhotoPreview, failOptimisticSpill, readOptimisticSpills, upsertOptimisticSpill, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
 import { SOCIAL_LONDON_LANE_COPY } from "@/lib/socialLondonLane";
@@ -301,4 +302,67 @@ describe("/social while the session is still answering", () => {
     expect(laneRequests).toEqual([]);
     expect(host.querySelector('section[aria-labelledby="social-london-lane-title"]')).toBeNull();
   });
+});
+
+// Issue 2721 requires recovery through the canonical Social surface. A hidden
+// legacy Feed handler cannot satisfy this contract, even if its unit tests pass.
+it("recovers a stored Pint Drop on Social with its bill and a stable replacement key", async () => {
+  localStorage.clear();
+  setSession("signed-in");
+  vi.stubGlobal("URL", Object.assign(class extends URL {}, {
+    createObjectURL: () => "blob:social-bill",
+    revokeObjectURL: vi.fn(),
+  }));
+  const billUrl = createOptimisticSpillPhotoPreview(new Blob(["bill"], { type: "image/jpeg" }));
+  const input = {
+    clientRequestId: "lost-drop", venueId: "venue-lamb", venueName: "The Lamb", handle: "alice",
+    priceGbp: "5.50", drink: "Pale ale", passedDownNote: "", era: "", visibility: "public" as const,
+    vibeTags: [], pintPhotoUrl: null, venuePhotoUrl: null,
+    receiptPhotoUrl: billUrl, measure: "pint" as const, measureLabel: "",
+    createdAt: new Date().toISOString(),
+  };
+  writeOptimisticSpills(localStorage, failOptimisticSpill(
+    upsertOptimisticSpill([], buildOptimisticSpillDrop(input), buildOptimisticSpillRetryPayload(input)),
+    input.clientRequestId, "Connection lost",
+  ));
+  const otherInput = { ...input, clientRequestId: "other-account", handle: "bob", venueName: "Other account pub" };
+  writeOptimisticSpills(localStorage, [
+    ...readOptimisticSpills(localStorage),
+    ...failOptimisticSpill(upsertOptimisticSpill([], buildOptimisticSpillDrop(otherInput), buildOptimisticSpillRetryPayload(otherInput)), "other-account", "Offline"),
+  ]);
+  const requests: FormData[] = [];
+  transport.request.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url === "/api/social/access") return Response.json({ state: "verified", viewerHandle: "alice" });
+    if (url === "/api/pint-drops" && init?.method === "POST") {
+      requests.push(init.body as FormData);
+      if (requests.length === 1) return Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 });
+      if (requests.length === 2) throw new Error("Connection lost again");
+      return Response.json({ drop: { ...buildOptimisticSpillDrop(input), id: "saved-drop", optimistic: undefined } });
+    }
+    return Response.json({ posts: [], items: [], nextCursor: null });
+  });
+  await renderSocial(true);
+  const recovery = () => host.querySelector('section[aria-label="Unsent Pint Drops"]');
+  expect(recovery()?.textContent).toContain("The Lamb");
+  expect(recovery()?.textContent).not.toContain("Other account pub");
+  const retry = async () => {
+    const button = recovery()?.querySelector("button");
+    expect(button).not.toBeNull();
+    await act(async () => button!.click());
+  };
+  await retry();
+  expect(requests[0]!.get("clientRequestId")).toBe("lost-drop");
+  const freshKey = readOptimisticSpills(localStorage)[0]!.retry!.clientRequestId;
+  expect(freshKey).toEqual(expect.any(String));
+  expect(freshKey).not.toBe("lost-drop");
+  await retry();
+  expect(requests[1]!.get("clientRequestId")).toBe(freshKey);
+  expect(requests[1]!.get("receipt_photo")).toBeInstanceOf(Blob);
+  await retry();
+  expect(requests[2]!.get("clientRequestId")).toBe(freshKey);
+  expect(requests[2]!.get("receipt_photo")).toBeInstanceOf(Blob);
+  expect(readOptimisticSpills(localStorage)[0]!.drop.id).toBe("saved-drop");
+  expect(recovery()).toBeNull();
+  revokeOptimisticSpillPhotoPreview(billUrl);
+  localStorage.clear();
 });

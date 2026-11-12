@@ -3,7 +3,7 @@
 // A PREVIEW URL LIVES AS LONG AS SOMETHING SHOWS IT (review findings CMP-2 and
 // NEW-1). Changing one photo slot may not revoke another slot's preview,
 // posting may not revoke the previews the optimistic row is about to render,
-// and unmount revokes whatever is still held.
+// and unmount preserves photos retained for a stored retry.
 
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -30,6 +30,7 @@ vi.mock("@/components/map/VenuePriceStory", () => ({ default: () => null }));
 
 import { usePintDrops, type PintDropsState } from "@/components/map/usePintDrops";
 import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
+import { useOptimisticSpillRetry } from "@/components/feed/useOptimisticSpillRetry";
 import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
 import PintDropsList from "@/components/map/inspector/PintDropsList";
 import { ADULT_ASSERTED_EVENT } from "@/lib/contributionGateStatus";
@@ -46,6 +47,11 @@ function DropProbe() {
   return state.dropMsg ? createElement(PintDropAgeRecovery, {
     recovery: state.dropMsg.ageRecovery, onAsserted: state.ageAsserted,
   }) : null;
+}
+
+function RetryProbe({ id }: { id: string }) {
+  const retry = useOptimisticSpillRetry();
+  return createElement("button", { onClick: () => retry(id) }, "Retry");
 }
 
 function ComposerProbe({ open }: { open: boolean }) {
@@ -342,7 +348,7 @@ describe("Pint Drop preview URL lifetime", () => {
     },
   );
 
-  it("retries a failed half with its original bill without fetching the preview", async () => {
+  it("retries a failed half with its original bill after leaving Map", async () => {
     // A live bill must survive retry, even when CSP blocks blob fetches.
     const bill = new File(["original bill bytes"], "bill.jpg", { type: "image/jpeg" });
     io.post.mockRejectedValueOnce(new TypeError("Offline"));
@@ -369,6 +375,24 @@ describe("Pint Drop preview URL lifetime", () => {
 
     await act(async () => root.unmount());
     root = createRoot(container);
+    io.post.mockResolvedValueOnce(Response.json({ drop: {
+      ...entry.drop, id: "recovered-drop", optimistic: undefined,
+    } }));
+    await act(async () => root.render(createElement(RetryProbe, { id: entry.clientRequestId })));
+    await act(async () => container.querySelector("button")!.click());
+    expect(io.post).toHaveBeenCalledTimes(2);
+    const retried = io.post.mock.calls[1]![1].body as FormData;
+    expect(retried.get("clientRequestId")).toBe(entry.clientRequestId);
+    expect(retried.get("measure")).toBe("half");
+    expect(retried.get("priceGbp")).toBe("3.40");
+    expect(await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsText(retried.get("receipt_photo") as File);
+    })).toBe("original bill bytes");
+    expect(readOptimisticSpills(localStorage)[0]?.drop.id).toBe("recovered-drop");
+    expect(revoked()).toEqual(["blob:preview-1"]);
     await expect(buildOptimisticSpillRetryFormData(entry.retry!)).rejects.toThrow("Photo preview is no longer available.");
   });
 
