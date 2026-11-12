@@ -144,6 +144,7 @@ describe("GET /api/social/mates-activity", () => {
     addPintDrop(drop("b-new", "mate_b", "2026-11-11T20:00:00.000Z", { visibility: "friends", priceGbp: null, priceEvidence: undefined }));
     addPintDrop(drop("a-anon", "mate_a", "2026-11-11T21:00:00.000Z", { visibility: "anonymous" }));
     addPintDrop(drop("a-hidden", "mate_a", "2026-11-11T22:00:00.000Z", { status: "hidden" }));
+    addPintDrop(drop("a-demo", "mate_a", "2026-11-11T23:00:00.000Z", { provenance: "demo" }));
     addPintDrop(drop("one-way", "one_way", "2026-11-11T22:00:00.000Z"));
     addPintDrop(drop("stranger", "stranger", "2026-11-11T22:00:00.000Z"));
     addPintDrop(drop("mine", ME, "2026-11-11T23:00:00.000Z"));

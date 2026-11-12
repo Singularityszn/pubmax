@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SocialPostDTO } from "@/lib/socialPosts";
+import type { MatesActivityPint } from "@/lib/matesActivity";
 
 const authState = vi.hoisted(() => ({
   accountRevision: 1,
@@ -150,6 +151,24 @@ const B_OUTBOX_POST: SocialPostDTO = {
   author: { handle: "bob" },
 };
 
+const A_MATES_PINT: MatesActivityPint = {
+  id: "a-mates-pint",
+  handle: "alice_mate",
+  venueId: "venue-1yd70c7",
+  venueName: "The Lamb",
+  venueMapUrl: "/?venue=venue-1yd70c7",
+  drink: "Guinness",
+  measure: "pint",
+  priceGbp: 6.2,
+  loggedAt: "2026-11-11T20:00:00.000Z",
+};
+
+const B_MATES_PINT: MatesActivityPint = {
+  ...A_MATES_PINT,
+  id: "b-mates-pint",
+  handle: "bob_mate",
+};
+
 type Deferred<T> = {
   promise: Promise<T>;
   resolve: (value: T) => void;
@@ -286,11 +305,34 @@ describe("Social account boundary", () => {
   });
 
   it("never renders account A Social state after account B becomes current", async () => {
+    const bMatesReply = deferred<Response>();
+    const accountARequest = transport.authedActionFetch.getMockImplementation()!;
+    transport.authedActionFetch.mockImplementation((input: RequestInfo | URL) => {
+      const href = String(input);
+      if (authState.user?.id === "account-a") {
+        if (href === "/api/social/mates-activity") return Promise.resolve(json({ items: [A_MATES_PINT] }));
+        return accountARequest(input);
+      }
+      if (href === "/api/social/access") {
+        return Promise.resolve(json({
+          state: "verified",
+          draftScope: "b".repeat(43),
+          viewerHandle: "bob",
+        }));
+      }
+      if (href === "/api/social/mates-activity") return bMatesReply.promise;
+      if (href.startsWith("/api/social/interactions")) return Promise.resolve(json({ items: [] }));
+      if (href.startsWith("/api/social/posts")) return Promise.resolve(json({ posts: [B_FEED_POST], nextCursor: null }));
+      if (href.startsWith("/api/social/outbox")) return Promise.resolve(json({ posts: [B_OUTBOX_POST], nextCursor: null }));
+      throw new Error(`Unexpected request: ${href}`);
+    });
+
     await flushAccountA();
     // The crews card is lazy, so wait for its real import to land.
     await vi.waitFor(async () => {
-      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      await act(async () => { await Promise.resolve(); });
       expect(host.textContent).toContain("crew:account-a:alice");
+      expect(host.textContent).toContain(`@${A_MATES_PINT.handle} logged`);
     });
 
     expect(host.textContent).toContain(A_FEED_POST.body);
@@ -317,6 +359,23 @@ describe("Social account boundary", () => {
     expect(host.textContent).not.toContain(A_FEED_POST.body);
     expect(host.textContent).not.toContain(A_OUTBOX_POST.body);
     expect(host.textContent).not.toContain(A_SUBMITTED_POST.body);
+    expect(host.textContent).not.toContain(`@${A_MATES_PINT.handle} logged`);
+
+    await vi.waitFor(async () => {
+      await act(async () => { await Promise.resolve(); });
+      expect(host.textContent).toContain(B_FEED_POST.body);
+      expect(host.textContent).toContain("Reading your mates' pints.");
+    });
+    expect(host.textContent).not.toContain(`@${A_MATES_PINT.handle} logged`);
+    expect(host.textContent).not.toContain(`@${B_MATES_PINT.handle} logged`);
+
+    await act(async () => {
+      bMatesReply.resolve(json({ items: [B_MATES_PINT] }));
+    });
+    await vi.waitFor(() => {
+      expect(host.textContent).toContain(`@${B_MATES_PINT.handle} logged`);
+      expect(host.textContent).not.toContain(`@${A_MATES_PINT.handle} logged`);
+    });
   });
 
   it("loads the outbox through bearer auth without a cookie fallback", async () => {
