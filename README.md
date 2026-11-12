@@ -340,6 +340,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   A change requires the same named drink and serving, positive prices, named publishers and valid dates in order. The report must follow the earlier record and remain within the [community-price freshness window](lib/priceAuthorityWindow.ts). Demo prices and anecdotes cannot establish a change. Otherwise, two displayed records show **Price comparison unavailable**, without an arrow, comparison bars, percentage or spoken change claim. A memory's era does not date its logged price, so the story shows no inflation adjustment. Source reads and reports do not confirm today's price.
 - **Offline pages** - with a registered service worker, previously cached public `/plan/<id>` previews can reopen without signal. Cached landing, Map, Tonight and offline fallback pages can also reopen.
 
+  Opening a Map pub sheet with live detail saves a copy on this device when browser storage permits. Prefetch alone does not save a copy. If a later detail request or response body read fails, the sheet can show the saved copy with its save date. Each copied price keeps its source and date, so the save date does not confirm today's price.
+
+  Storage limits can remove older copies. Photos and pubs you never opened can remain unavailable offline.
+
+  Saved sheets retry live detail when the connection returns. Reopening a saved sheet also retries while the browser reports a connection. A saved copy that arrives while the browser reports a connection triggers one live retry. A successful refresh replaces the copy. If a refresh confirms the pub is missing, the sheet shows it as missing. A server or network failure during a refresh keeps the dated copy.
+
   Nearby links (`/near`, with or without query parameters) need a connection. When navigation fails, the service worker shows the cached offline explanation. If that page is unavailable, it shows a plain offline error.
 
   A Map link for a town, national browse or share card needs a cached document with the exact same query. If that document is absent when the network fails, the worker uses the cached landing page or offline fallback. These Map links wait for the network result and never use the timed cache fallback.
