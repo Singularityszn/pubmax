@@ -65,10 +65,9 @@ export function matesPriceDay(loggedAt: string, now: Date = new Date()): string 
 }
 
 /**
- * What the price bought, in the words the mate logged it with. A drink that
- * already names its measure ("Half of lager") reads as written. A half, a glass,
- * a bottle, a spirit measure or a named measure is said beside the drink, so a
- * single never reads like a double. A pint is the default nobody says out loud.
+ * Wine, bottle and spirit labels must name the recorded measure, even when
+ * the drink text names a different serving. A generic word such as "small"
+ * cannot replace a recorded volume. A pint is the implicit default.
  */
 export function matesPriceDrink(price: Pick<MatesPrice, "drink" | "measure" | "measureLabel">): string {
   const drink = price.drink.replace(/\s+/g, " ").trim();
