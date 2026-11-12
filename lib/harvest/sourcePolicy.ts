@@ -12,6 +12,7 @@ import {
   type HarvestSource,
   type HarvestSourceKind,
 } from "./sourceRegistry.ts";
+import { FULLERS_ESTATE_HOSTS, STONEGATE_ESTATE_HOSTS } from "./termsRefusedEstateHosts.ts";
 
 export {
   HARVEST_SKIP_REASONS,
@@ -197,6 +198,8 @@ const REFUSED_HOSTS = new Set([
     }
   }),
   ...REFUSED_ESTATE_HOSTS,
+  ...STONEGATE_ESTATE_HOSTS,
+  ...FULLERS_ESTATE_HOSTS,
 ]);
 
 /**
@@ -423,7 +426,8 @@ export function harvestRedirectLanding(
   return { outcome: landed === askedUrl ? "same" : "redirected", url: landed };
 }
 
-export function isHarvestableOperatorUrl(value: unknown): value is string {
+/** An attributable public URL. This does not grant permission to fetch it. */
+export function isPublicHttpUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.trim().length === 0) return false;
   let url: URL;
   try {
@@ -436,7 +440,11 @@ export function isHarvestableOperatorUrl(value: unknown): value is string {
   // is somebody else's secret heading for somebody else's host.
   if (url.username || url.password) return false;
   if (namesOurOwnNetwork(url.hostname)) return false;
-  return !underRefusedHost(url.hostname);
+  return true;
+}
+
+export function isHarvestableOperatorUrl(value: unknown): value is string {
+  return isPublicHttpUrl(value) && !underRefusedHost(new URL(value.trim()).hostname);
 }
 
 /**

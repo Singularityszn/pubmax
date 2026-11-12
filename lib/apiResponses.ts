@@ -9,18 +9,14 @@ export function jsonNoStore(body: unknown, init: ResponseInit = {}): Response {
 }
 
 /**
- * JSON response for reads that are derived from SHIPPED / STATIC bundled data
- * (not per-user, not live) and are therefore safe to hold at the CDN edge for a
- * short window. Use ONLY when the body is a pure function of the request URL and
- * the deployment — never for anything that reads mutable per-request state.
+ * Shared responses must satisfy the eligibility rules and named exceptions in
+ * docs/PERFORMANCE_BUDGETS.md#which-api-reads-may-sit-at-the-edge.
+ * Never cache a caller's identity, private content or location here.
  *
- * Vercel purges the edge on every deploy, so `s-maxage` can be generous without
- * risking a stale response surviving a data change; a redeploy busts it. The
- * browser `max-age` stays 0 so returning clients revalidate while the edge still
- * answers instantly, and `stale-while-revalidate` widens the instant-serve
- * window. Defaults match the codebase convention (pint-index CSV, last-train
- * timetable answer): 1h edge, 1d SWR. Query-string variants cache independently
- * because the CDN keys on the full URL.
+ * Vercel purges the edge on deploy. Mutable exceptions need explicit cache
+ * windows because their data can change without a deploy. The browser
+ * revalidates while the CDN may serve its shared copy. Query-string variants
+ * cache independently because the CDN keys on the full URL.
  */
 export function jsonCached(
   body: unknown,

@@ -534,19 +534,30 @@ for (const theme of ['light', 'dark']) {
     await expect(list).toBeVisible();
     const rows = list.locator('.mapSplitListRow');
     await expect(rows.first()).toBeVisible();
+    // The first rows are the opening shard alone. The rest of the view streams
+    // in after the pins paint and replaces them, so read a row only once the
+    // list says its rows are the settled view.
+    await expect(list).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
     await page.screenshot({ path: info.outputPath('split-before-selection.png') });
-    // Pubs keep streaming into the view. The rows hold still only while the
-    // pointer is over the list, so point at it before reading a row's name.
-    await list.hover();
-    const first = await rows.first().locator('.mapSplitListRowName').innerText();
-    await rows.first().click();
+    const { name: first, id: firstId } = await rows.first().evaluate((row) => ({
+      name: row.querySelector<HTMLElement>('.mapSplitListRowName')!.innerText,
+      id: row.getAttribute('data-venue-id')!,
+    }));
+    await list.locator(`.mapSplitListRow[data-venue-id=${JSON.stringify(firstId)}]`).click();
     await expectSoleDesktopDrawer(page, 'venue');
     await expect(desktopVenueDrawer(page).getByRole('heading', { name: first, exact: true })).toBeVisible();
     await expect(list).toBeVisible();
     await page.screenshot({ path: info.outputPath('split-and-venue.png') });
+    // Opening a pub moves the camera. Point away so the list lets go of the
+    // view it held under the pointer, and wait for the new view to settle.
+    await desktopVenueDrawer(page).getByRole('heading', { name: first, exact: true }).hover();
+    await expect(list).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
     const secondRow = rows.filter({ hasNotText: first }).first();
-    const second = await secondRow.locator('.mapSplitListRowName').innerText();
-    await secondRow.click();
+    const { name: second, id: secondId } = await secondRow.evaluate((row) => ({
+      name: row.querySelector<HTMLElement>('.mapSplitListRowName')!.innerText,
+      id: row.getAttribute('data-venue-id')!,
+    }));
+    await list.locator(`.mapSplitListRow[data-venue-id=${JSON.stringify(secondId)}]`).click();
     await expectSoleDesktopDrawer(page, 'venue');
     await expect(desktopVenueDrawer(page).getByRole('heading', { name: second, exact: true })).toBeVisible();
     await expect(list).toBeVisible();

@@ -7,6 +7,12 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 import * as contextDev from "@/lib/contextDev";
 import { runEventsRefresh } from "../scripts/whatson/eventsRefresh.mjs";
 
+vi.mock("@/lib/harvest/sourceRegistry.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/harvest/sourceRegistry")>();
+  const { PUBCO_EVENTS_SOURCE } = await import("@/__tests__/helpers/contextDevEventSourceFixture");
+  return { ...actual, HARVEST_SOURCES: [...actual.HARVEST_SOURCES, PUBCO_EVENTS_SOURCE] };
+});
+
 const temporaryDirs: string[] = [];
 afterAll(() => {
   for (const dir of temporaryDirs) rmSync(dir, { recursive: true, force: true });
@@ -21,12 +27,12 @@ function temporaryOutPath() {
   return join(dir, "events_london.json");
 }
 
-const heldFullersRow = (id: string) => ({
+const heldPubcoRow = (id: string) => ({
   id,
   placeName: "The Dove",
   kind: "event",
   title: "Held quiz",
-  source: { label: "Fuller's", url: "https://www.fullers.co.uk/pubs/the-dove/event/quiz" },
+  source: { label: "Example Pub Co", url: "https://www.example-pubco.co.uk/pubs/the-dove/event/quiz" },
   observedAt,
   confidence: "listed",
   startsAt: "2026-08-16T19:00:00.000Z",
@@ -59,20 +65,20 @@ describe("eventsRefresh Context.dev lane", () => {
   it("runs with only CONTEXT_DEV_API_KEY and merges rows into the file", async () => {
     const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "ok",
-      url: "https://www.fullers.co.uk/event-finder",
+      url: "https://www.example-pubco.co.uk/event-finder",
       data: {
         events: [
           {
             title: "Open mic",
             placeName: "The Counting House",
             kind: "music",
-            sourceUrl: "https://www.fullers.co.uk/pubs/counting-house/event/open-mic",
+            sourceUrl: "https://www.example-pubco.co.uk/pubs/counting-house/event/open-mic",
             startsAt: "2026-08-16T19:00:00Z",
           },
         ],
       },
       markdown: "# Events\nOpen mic at The Counting House on 16 August 2026 at 20:00.",
-      urlsAnalyzed: ["https://www.fullers.co.uk/event-finder"],
+      urlsAnalyzed: ["https://www.example-pubco.co.uk/event-finder"],
     });
 
     const outPath = temporaryOutPath();
@@ -97,7 +103,7 @@ describe("eventsRefresh Context.dev lane", () => {
 
   it("refuses the write when Context.dev is the only lane and it fails", async () => {
     const outPath = temporaryOutPath();
-    writeHeldFile(outPath, [heldFullersRow("events-cd-held")]);
+    writeHeldFile(outPath, [heldPubcoRow("events-cd-held")]);
 
     const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "error",
@@ -124,9 +130,9 @@ describe("eventsRefresh Context.dev lane", () => {
     extractSpy.mockRestore();
   });
 
-  it("carries held Fuller's rows when Context.dev fails and another lane answers", async () => {
+  it("carries held Example Pub Co rows when Context.dev fails and another lane answers", async () => {
     const outPath = temporaryOutPath();
-    writeHeldFile(outPath, [heldFullersRow("events-cd-held")]);
+    writeHeldFile(outPath, [heldPubcoRow("events-cd-held")]);
 
     const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "error",
@@ -156,7 +162,7 @@ describe("eventsRefresh Context.dev lane", () => {
     ["blank", {}],
     ["malformed", { events: "not an array" }],
     ["empty", { events: [] }],
-    ["unusable", { events: [{ title: "Undated quiz", placeName: "The Dove", kind: "event", sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/quiz" }] }],
+    ["unusable", { events: [{ title: "Undated quiz", placeName: "The Dove", kind: "event", sourceUrl: "https://www.example-pubco.co.uk/pubs/the-dove/event/quiz" }] }],
     ["cross-record", { events: [{ title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" }] },
       "## Upcoming Events\nOpen mic at The Swan on 19 August 2026 at 20:00.\nQuiz at The Dove on 18 August 2026 at 20:00."],
     ["partially grounded", { events: [
@@ -171,11 +177,11 @@ describe("eventsRefresh Context.dev lane", () => {
       { title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z" },
       { title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-19", sourceUrl: "https://example.com/event" },
     ] }, "Quiz at The Dove on 18 August 2026 at 20:00.\nOpen mic at The Dove on 19 August 2026."],
-  ])("retains held Fuller's rows when its JSON capture is %s while Ticketmaster updates", async (_case, data, markdown = "") => {
+  ])("retains held Example Pub Co rows when its JSON capture is %s while Ticketmaster updates", async (_case, data, markdown = "") => {
     const outPath = temporaryOutPath();
     const held = [
-      { ...heldFullersRow("events-cd-blank-held"), observedAt: heldGeneratedAt },
-      { ...heldFullersRow("events-cd-mic-held"), title: "Held open mic", observedAt: heldGeneratedAt },
+      { ...heldPubcoRow("events-cd-blank-held"), observedAt: heldGeneratedAt },
+      { ...heldPubcoRow("events-cd-mic-held"), title: "Held open mic", observedAt: heldGeneratedAt },
     ];
     writeHeldFile(outPath, held);
     const fetched = vi.fn(async (input: RequestInfo | URL) => {
@@ -183,7 +189,7 @@ describe("eventsRefresh Context.dev lane", () => {
       if (url.startsWith("https://api.context.dev/")) {
         return new Response(
           JSON.stringify({
-            url: "https://www.fullers.co.uk/event-finder",
+            url: "https://www.example-pubco.co.uk/event-finder",
             json: { requested: true, success: true, data },
             markdown: { requested: true, success: true, data: markdown },
           }),
@@ -211,16 +217,16 @@ describe("eventsRefresh Context.dev lane", () => {
     expect(written.rows.map((row: { id: string }) => row.id)).toContain("events-cd-blank-held");
     expect(written.rows.some((row: { source: { label: string } }) => row.source.label === "Ticketmaster")).toBe(true);
     expect(written.rows.find((row: { id: string }) => row.id === "events-cd-blank-held")?.observedAt).toBe(heldGeneratedAt);
-    expect(written.rows.filter((row: { source: { label: string } }) => row.source.label === "Fuller's")).toEqual(held);
-    expect(result.provider.failures).toEqual([expect.stringContaining("fullers-event-finder-events: Extract returned")]);
+    expect(written.rows.filter((row: { source: { label: string } }) => row.source.label === "Example Pub Co")).toEqual(held);
+    expect(result.provider.failures).toEqual([expect.stringContaining("example-pubco-events: Extract returned")]);
   });
 
   it("leaves held bytes and timestamps untouched when a partial capture is the only lane", async () => {
     const outPath = temporaryOutPath();
-    writeHeldFile(outPath, [heldFullersRow("held-quiz"), { ...heldFullersRow("held-mic"), title: "Open mic" }]);
+    writeHeldFile(outPath, [heldPubcoRow("held-quiz"), { ...heldPubcoRow("held-mic"), title: "Open mic" }]);
     const before = readFileSync(outPath, "utf8");
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: "https://www.fullers.co.uk/event-finder",
+      url: "https://www.example-pubco.co.uk/event-finder",
       markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026.\nOpen mic at The Swan on 19 August 2026." },
       json: { requested: true, success: true, data: { events: [
         { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-18" },
@@ -246,14 +252,14 @@ describe("eventsRefresh Context.dev lane", () => {
   it("retains both held records and observation times when SDK marks one captured event partial", async () => {
     const outPath = temporaryOutPath();
     const held = [
-      { ...heldFullersRow("held-quiz"), observedAt: heldGeneratedAt },
-      { ...heldFullersRow("held-mic"), title: "Open mic", observedAt: heldGeneratedAt },
+      { ...heldPubcoRow("held-quiz"), observedAt: heldGeneratedAt },
+      { ...heldPubcoRow("held-mic"), title: "Open mic", observedAt: heldGeneratedAt },
     ];
     writeHeldFile(outPath, held);
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).startsWith("https://api.context.dev/")) {
         return new Response(JSON.stringify({
-          url: "https://www.fullers.co.uk/event-finder",
+          url: "https://www.example-pubco.co.uk/event-finder",
           isPartial: true,
           markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026." },
           json: { requested: true, success: true, data: { events: [
@@ -276,36 +282,36 @@ describe("eventsRefresh Context.dev lane", () => {
     });
     expect(result.provider.status).toBe("wrote");
     const written = JSON.parse(readFileSync(outPath, "utf8"));
-    expect(written.rows.filter((row: { source: { label: string } }) => row.source.label === "Fuller's")
+    expect(written.rows.filter((row: { source: { label: string } }) => row.source.label === "Example Pub Co")
       .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id)))
       .toEqual([...held].sort((a, b) => a.id.localeCompare(b.id)));
     expect(written.rows.some((row: { source: { label: string } }) => row.source.label === "Ticketmaster")).toBe(true);
-    expect(result.provider.failures).toEqual([expect.stringContaining("fullers-event-finder-events")]);
+    expect(result.provider.failures).toEqual([expect.stringContaining("example-pubco-events")]);
   });
 
   it("counts the drops of a source that yielded no rows at all", async () => {
     const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "ok",
-      url: "https://www.fullers.co.uk/event-finder",
+      url: "https://www.example-pubco.co.uk/event-finder",
       data: {
         events: [
           {
             title: "Film screening",
             placeName: "The Dove",
             kind: "film",
-            sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/film",
+            sourceUrl: "https://www.example-pubco.co.uk/pubs/the-dove/event/film",
             startsAt: "2026-08-16T20:00:00Z",
           },
           {
             title: "Undated quiz",
             placeName: "The Dove",
             kind: "event",
-            sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/quiz",
+            sourceUrl: "https://www.example-pubco.co.uk/pubs/the-dove/event/quiz",
           },
         ],
       },
       markdown: "# Events\nFilm screening at The Dove on 16 August 2026 at 20:00.",
-      urlsAnalyzed: ["https://www.fullers.co.uk/event-finder"],
+      urlsAnalyzed: ["https://www.example-pubco.co.uk/event-finder"],
     });
 
     const lines: string[] = [];
@@ -330,7 +336,7 @@ describe("eventsRefresh Context.dev lane", () => {
 
   it("carries held rows across a lane-level crash", async () => {
     const outPath = temporaryOutPath();
-    writeHeldFile(outPath, [heldFullersRow("events-cd-crash-held")]);
+    writeHeldFile(outPath, [heldPubcoRow("events-cd-crash-held")]);
 
     const extractSpy = vi.spyOn(contextDev, "extract").mockImplementation(() => {
       throw new Error("lane blew up");

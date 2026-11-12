@@ -34,6 +34,16 @@
         "a signed-in host who lost the capability cookie recovers it on the Plan page",
         "recovers lost capability on the mounted Plan after a crew status action"
       ]
+    },
+    {
+      "file": "e2e/log-intent-composer.spec.ts",
+      "condition": "process.env.PW_DISPOSABLE_PLAN_AUTH !== \"1\"",
+      "reason": "A new account needs real local Supabase Auth. The keyless server cannot verify an account. The disposable auth runner creates a real local account and runs both login doors of this journey.",
+      "ends": "Run npm run test:e2e:plan-auth with DOCKER_HOST set to the configured local Docker socket.",
+      "tests": [
+        "a new phone account goes from Log what you paid to a public Pint Drop",
+        "a new phone account that picks New here still lands back on its Pint Drop"
+      ]
     }
   ]
 }

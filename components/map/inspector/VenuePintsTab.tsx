@@ -1,13 +1,13 @@
-import Link from "next/link";
 import { PlusCircle, Quote } from "lucide-react";
 
 import type { Venue } from "@/lib/venues";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { DropWithPhotos, PintDropsState } from "@/components/map/usePintDrops";
 import PintDropComposer from "@/components/map/PintDropComposer";
-import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
+import PintDropMessage from "@/components/map/PintDropMessage";
 import VenuePriceStory from "@/components/map/VenuePriceStory";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import DutyCensusAfterLog from "@/components/census/DutyCensusAfterLog";
 import PintDropsList from "./PintDropsList";
 
 export default function VenuePintsTab({
@@ -83,26 +83,15 @@ export default function VenuePintsTab({
                 <PlusCircle size={16} /> Log a Pint Drop
               </button>
               {dropMsg ? (
-                <span
-                  role={dropMsg.ok ? "status" : "alert"}
-                  className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
-                  style={{ display: "block", marginTop: "8px" }}
-                >
-                  {dropMsg.text}
-                  <PintDropAgeRecovery recovery={dropMsg.ageRecovery} onAsserted={pintDrops.ageAsserted} />
-                  {dropMsg.links && dropMsg.links.length > 0 ? (
-                    <span className="composerMsgLinks">
-                      {dropMsg.links.map((link) => (
-                        <Link key={link.href} href={link.href} className="composerMsgLink">
-                          {link.label}
-                        </Link>
-                      ))}
-                    </span>
-                  ) : null}
-                </span>
+                <PintDropMessage
+                  msg={dropMsg}
+                  onAgeAsserted={pintDrops.ageAsserted}
+                  block
+                />
               ) : null}
             </div>
           )}
+          {!composerOpen && dropMsg?.ok && dropMsg.census ? <DutyCensusAfterLog /> : null}
           {drops.length === 0 ? (
             <p className="description muted">
               No Pint Drops yet at {venue.name}. Be the first. Log tonight&rsquo;s price or pass

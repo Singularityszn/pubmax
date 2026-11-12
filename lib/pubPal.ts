@@ -116,7 +116,7 @@ export type PubPalAppearance = {
   accessory: "none" | "collar" | "monocle" | "signal-ring";
 };
 
-export type PubPalVoice = {
+type PubPalVoice = {
   id: PubPalVoiceId;
   pace: number;
   warmth: number;
@@ -172,14 +172,6 @@ export type PubPalMemory = {
   createdAt: string;
   updatedAt: string;
 };
-
-export type MasteryEventKind =
-  | "plan_completed"
-  | "venue_discovered"
-  | "pint_drop_verified"
-  | "heritage_read"
-  | "crew_coordinated"
-  | "night_captured";
 
 export type PalUnlock = {
   id: string;

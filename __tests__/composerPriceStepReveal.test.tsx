@@ -49,6 +49,9 @@ beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
     .IS_REACT_ACT_ENVIRONMENT = true;
   scrolled = [];
+  vi.spyOn(Element.prototype, "getClientRects").mockReturnValue(
+    Object.assign([new DOMRect(0, 0, 300, 200)], { item: () => null }),
+  );
   Element.prototype.scrollIntoView = vi.fn(function (this: Element, options?: unknown) {
     scrolled.push({ element: this, options });
   });
@@ -61,10 +64,34 @@ afterEach(() => {
   unmountStep();
   host.remove();
   cancelLogIntentReveal();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   delete (Element.prototype as Partial<Element>).scrollIntoView;
 });
 
 describe("the price step takes the waiting reveal as it mounts", () => {
+  it("waits for a hidden step to enter layout before it scrolls", () => {
+    let notifyResize = () => {};
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: () => void) { notifyResize = callback; }
+      observe() {}
+      disconnect() {}
+    });
+    const rects = vi.spyOn(Element.prototype, "getClientRects");
+    rects.mockReturnValue(Object.assign([], { item: () => null }));
+    requestLogIntentReveal(document, true, () => {});
+    const step = mountStep();
+    expect(scrolled).toEqual([]);
+    act(() => notifyResize());
+    expect(scrolled).toEqual([]);
+
+    rects.mockReturnValue(Object.assign([new DOMRect(0, 0, 300, 200)], { item: () => null }));
+    act(() => notifyResize());
+    expect(scrolled).toEqual([{ element: step, options: { behavior: "auto", block: "start" } }]);
+    act(() => notifyResize());
+    expect(scrolled).toHaveLength(1);
+  });
+
   it("scrolls itself into view once when a log intent asked before it existed", () => {
     requestLogIntentReveal(document, false, () => {});
     const step = mountStep();

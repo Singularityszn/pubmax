@@ -10,7 +10,7 @@ import {
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
 import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS, PAL_MASCOT_TALK } from "./lib/palMascotAssets.mjs";
-import { cdnEdgeHeaderRules } from "./lib/cdnDocumentEdge.mjs";
+import { cdnEdgeHeaderRules, ISR_EXPIRE_SECONDS } from "./lib/cdnDocumentEdge.mjs";
 import { cdnDocumentContentSecurityPolicy } from "./lib/contentSecurityPolicy.mjs";
 import { MAPLIBRE_VERSION } from "./lib/maplibreVendor.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
@@ -221,7 +221,7 @@ const nextConfig = {
   // up to 60 more (65 in all); the hourly routes get a 5-minute stale window.
   // These are the windows the header asks for, not a promise about age: a
   // regeneration that fails can leave older content in place for longer.
-  expireTime: 3900,
+  expireTime: ISR_EXPIRE_SECONDS,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],

@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 
+import DutyCensusCard from "@/components/census/DutyCensusCard";
 import LandingHuntCard from "@/components/landing/LandingHuntCard";
 import LandingHuntCities from "@/components/landing/LandingHuntCities";
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { huntSourceVerb, type HuntPint } from "@/lib/cheapestHunt";
 import { loadCheapestHunt } from "@/lib/cheapestHunt.server";
+import { loadDutyCensusView } from "@/lib/dutyCensus.server";
+import { ISR_EXPIRE_SECONDS } from "@/lib/cdnDocumentEdge.mjs";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
+import { LANDING_FALLBACK_RECEIPT_HREF } from "@/lib/landingHero";
 import { loadLandingDrinkLinks } from "@/lib/landingDiscovery.server";
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
@@ -104,7 +108,13 @@ export default async function Home() {
   // price archive. A null card renders no card and the plain receipt door,
   // never an invented pub. Passed as plain serialisable props into the client
   // LandingPage.
-  const [{ card, archive, rail, averages, priceReadLine, collagePrices }, answers, hunt, discoveryDrinks] = await Promise.all([
+  const [
+    { card, archive, rail, averages, priceReadLine, collagePrices },
+    answers,
+    hunt,
+    discoveryDrinks,
+    census,
+  ] = await Promise.all([
     loadLandingHeroData(),
     // What is on today and what is on tonight, read at prerender from the same
     // lanes /today and /tonight read. Both fail soft to an honest line, so a
@@ -115,6 +125,7 @@ export default async function Home() {
     // claim and no city rows, never an invented pint.
     loadCheapestHunt(),
     loadLandingDrinkLinks(),
+    loadDutyCensusView(ISR_EXPIRE_SECONDS * 1000),
   ]);
   // The Price Glass's pours (round-two wild idea 01, lib/wildPriceGlass.ts):
   // London's average, its cheapest and dearest pints from the hunt above, and
@@ -154,6 +165,15 @@ export default async function Home() {
         // the landing no client JavaScript (perf/route-budgets.json).
         huntCard={hunt.britain ? <LandingHuntCard pint={hunt.britain} /> : null}
         huntCities={<LandingHuntCities hunt={hunt} />}
+        dutyCensus={
+          census ? (
+            <DutyCensusCard
+              view={census}
+              logHref={LANDING_FALLBACK_RECEIPT_HREF}
+              className="dutyCensus--tile lpAnswerTileWide"
+            />
+          ) : null
+        }
         priceGlass={priceGlass}
       />
     </>

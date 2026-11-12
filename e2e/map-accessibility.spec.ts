@@ -103,13 +103,7 @@ function cssColourChannels(cssColour: string): { rgb: [number, number, number]; 
   return { rgb: [red, green, blue], alpha };
 }
 
-/**
- * The sticky bar carries NO primary: the phone peek's "Plan stop" is the one
- * painted plan action and the Overview's price door the one painted price
- * action (lib/pintTrust.ts, `overviewPriceDoor`), so "Make it Stop 1" reads as
- * a ghost over the sheet's own panel. What it still owes is ordinary readable
- * contrast against the surface it actually renders on.
- */
+/** Secondary actions need readable contrast against their actual surface. */
 async function expectReadableGhostContrast(control: Locator): Promise<void> {
   const computed = await control.evaluate((node) => {
     // A clear fill is `transparent`, `rgba(0, 0, 0, 0)`, or the modern
@@ -684,7 +678,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
       .toBe(`map-venue-list-item-${secondVenueId}`);
   });
 
-  test("keeps locked coral Plan CTA above 5.96:1 contrast", async ({
+  test("keeps locked coral map and logging actions above 5.96:1 contrast", async ({
     page,
   }) => {
     await page.goto("/map");
@@ -706,16 +700,20 @@ test.describe("map keyboard and screen-reader venue path", () => {
         exact: true,
       });
       const priceDoor = portal.locator("[data-price-door]");
+      const logDoor = portal.locator(".venueActionCard [data-log-door]");
       const actions = portal.getByRole("toolbar", { name: "Venue actions" });
       const share = actions.getByRole("button", { name: "Share Arnos Arms", exact: true });
       await expect(planDoor).toBeVisible();
+      await expect(logDoor).toBeVisible();
       await expect(priceDoor).toHaveCount(1);
-      await expect(actions.getByRole("button")).toHaveText(["Ask for a table", "Share"]);
-      // ONE coral on the sheet: the action card's plan door. The price door is
-      // drawn in ink beside it since the card (lib/venueActionCard.ts).
+      await expect(actions.getByRole("button")).toHaveText([
+        crawlInProgress ? "Plan stop" : "Make it Stop 1", "Ask for a table", "Share",
+      ]);
+      // Without a fresh drinker price, logging spends the card's one coral.
       for (const theme of ["light", "dark"] as const) {
-        await applyTheme(page, theme, [planDoor, priceDoor, share]);
-        await expectLockedCoralContrast(planDoor);
+        await applyTheme(page, theme, [logDoor, planDoor, priceDoor, share]);
+        await expectLockedCoralContrast(logDoor);
+        await expectReadableGhostContrast(planDoor);
         await expectReadableGhostContrast(priceDoor);
         await expectReadableGhostContrast(share);
       }

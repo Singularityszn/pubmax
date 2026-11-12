@@ -430,11 +430,8 @@ import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
   boundsNameNowhere,
-  NEIGHBOUR_SHARD_RING,
   openingLoadViewportFor,
   openingLocationCancellationAfterAttempt,
-  scheduleSlimShardRingLoads,
-  VIEWPORT_SHARD_RING,
   type MapBounds,
   type SlimShardLoader,
 } from "@/lib/slimShards";
@@ -548,6 +545,7 @@ import { usePrivateMapCamera } from "@/components/map/usePrivateMapCamera";
 import { mapAreaOpeningView } from "@/lib/mapAreaArrival";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { useMapSecondaryStreamHold } from "@/components/map/useMapSecondaryStreamHold";
+import { useMapRingLoads } from "@/components/map/pubmap/useMapRingLoads";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   drinkLensPriceNoun,
@@ -748,8 +746,7 @@ import {
   type AcceptedArrivalInput,
 } from "@/lib/mapAcceptance";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
-import { phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
-import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
+import { venueActionDoors } from "@/components/map/inspector/venueActionDoors";
 import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
 import { venueActionCardPriceDate, venueActionCardWalkMinutes } from "@/lib/venueActionCard";
 import { useLastOrdersVenueIds } from "@/components/map/pubmap/useLastOrdersVenueIds";
@@ -2422,17 +2419,7 @@ export default function PubMap({
   useEffect(() => {
     activeMapCityIdRef.current = cityId;
   }, [cityId]);
-  const ringLoadPendingKeyRef = useRef<string | null>(null);
   const targetViewportLoadStartedRef = useRef(false);
-  // Until the pins have painted, the wire belongs to the pins
-  // (lib/mapFirstPinStreams.ts). A ring asked for while the hold is on is
-  // remembered rather than dropped, and runs against the camera the reader is
-  // actually looking at once the hold ends.
-  const secondaryStreamsHeldRef = useRef(true);
-  const heldRingLoadRef = useRef<{
-    loader: SlimShardLoader;
-    bounds: MapBounds;
-  } | null>(null);
   const [deferInitialSpatialLoad] = useState(() => {
     try {
       return window.localStorage.getItem(FIRST_PINS_SEEN_KEY) !== "1";
@@ -2488,56 +2475,6 @@ export default function PubMap({
     });
   }, []);
 
-  const scheduleRingLoad = useCallback(
-    (
-      loader: SlimShardLoader,
-      bounds: MapBounds,
-    ) => {
-      if (secondaryStreamsHeldRef.current) {
-        heldRingLoadRef.current = { loader, bounds };
-        return;
-      }
-      const key = JSON.stringify([
-        bounds.west,
-        bounds.south,
-        bounds.east,
-        bounds.north,
-      ]);
-      if (ringLoadPendingKeyRef.current === key) return;
-      ringLoadPendingKeyRef.current = key;
-      const loaderGeneration = slimLoaderGenerationRef.current;
-      const isCurrentLoader = () =>
-        slimLoaderRef.current === loader &&
-        slimLoaderGenerationRef.current === loaderGeneration;
-      const loadRing = (ring: number, onSettled?: () => void) => {
-        if (!isCurrentLoader()) return;
-        void loader
-          .inBounds(bounds, ring)
-          .then((rows) => {
-            if (!isCurrentLoader()) return;
-            mergeSlimVenues(rows);
-            refreshCountCoverage();
-          })
-          .catch(() => undefined)
-          .finally(() => onSettled?.());
-      };
-      scheduleSlimShardRingLoads(
-        () => {
-          if (!isCurrentLoader()) return;
-          targetViewportLoadStartedRef.current = true;
-          loadRing(VIEWPORT_SHARD_RING);
-        },
-        () =>
-          loadRing(NEIGHBOUR_SHARD_RING, () => {
-            if (isCurrentLoader() && ringLoadPendingKeyRef.current === key) {
-              ringLoadPendingKeyRef.current = null;
-            }
-          }),
-      );
-    },
-    [mergeSlimVenues, refreshCountCoverage],
-  );
-
   // A canvas that reports itself no longer ready has been torn down and is
   // re-initialising (Retry, soft retry, context loss). Its painted pins are
   // gone with it, so the reveal latch drops and the held frame comes back
@@ -2584,21 +2521,19 @@ export default function PubMap({
     pinsRevealed,
     canvasUnavailable: mapCanvasUnavailable,
   });
-  useEffect(() => {
-    secondaryStreamsHeldRef.current = secondaryStreamsHeld;
-    if (secondaryStreamsHeld) return;
-    const held = heldRingLoadRef.current;
-    heldRingLoadRef.current = null;
-    if (!held) return;
-    // The camera may have settled somewhere else while the hold was on, so the
-    // released ring reads the CURRENT view when the map has named one.
-    const bounds =
-      latestMapBoundsCityRef.current === activeMapCityIdRef.current &&
-      latestMapBoundsRef.current
-        ? latestMapBoundsRef.current
-        : held.bounds;
-    scheduleRingLoad(held.loader, bounds);
-  }, [scheduleRingLoad, secondaryStreamsHeld]);
+  const { scheduleRingLoad, viewShardsLanding, awaitViewShards, settleViewShards } = useMapRingLoads({
+    secondaryStreamsHeld,
+    refs: {
+      slimLoaderRef,
+      slimLoaderGenerationRef,
+      targetViewportLoadStartedRef,
+      latestMapBoundsRef,
+      latestMapBoundsCityRef,
+      activeMapCityIdRef,
+    },
+    mergeSlimVenues,
+    refreshCountCoverage,
+  });
   // The ambient lane describes the MAP. With the map's own venue view in the
   // canvas's place, a road-closure or another-city banner is a claim about
   // something the reader cannot see, and at 1440 it landed straight over the
@@ -2671,7 +2606,6 @@ export default function PubMap({
     initialShardLoadSettledRef.current = false;
     liveShardLoadStatusRef.current = "pending";
     liveShardRowsCommittedRef.current = false;
-    ringLoadPendingKeyRef.current = null;
     targetViewportLoadStartedRef.current = false;
     const preserveSyncResume =
       !mapResumeSeedConsumedRef.current && Boolean(mapResumeSeed);
@@ -2679,6 +2613,7 @@ export default function PubMap({
     let resumeRefreshVersion = 0;
     void Promise.resolve().then(() => {
       if (cancelled) return;
+      awaitViewShards();
       setVenueIndexFailed(false);
       setCompleteCountSlugs(null);
       if (!preserveSyncResume) {
@@ -2707,6 +2642,7 @@ export default function PubMap({
       const startInitialLoad = (bounds: MapBounds) => {
         if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
         initialShardLoadStartedRef.current = true;
+        awaitViewShards();
         void loader.initialResult(bounds)
           .then((result) => {
             if (!isCurrentLoader()) return;
@@ -2725,6 +2661,7 @@ export default function PubMap({
             setLoaded(true);
             setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = result.status === "ready";
+            if (result.status !== "ready") settleViewShards();
             if (result.status === "ready") {
               const targetBounds =
                 latestMapBoundsCityRef.current === cityId
@@ -2744,6 +2681,7 @@ export default function PubMap({
             if (!isCurrentLoader()) return;
             liveShardLoadStatusRef.current = "unavailable";
             initialShardLoadSettledRef.current = true;
+            settleViewShards();
             setVenueIndexFailed(true);
             setLoadedCityId(cityId);
             setLoaded(true);
@@ -2844,15 +2782,14 @@ export default function PubMap({
       initialShardLoadSettledRef.current = false;
       liveShardLoadStatusRef.current = "pending";
       liveShardRowsCommittedRef.current = false;
-      ringLoadPendingKeyRef.current = null;
       targetViewportLoadStartedRef.current = false;
     };
-  }, [arrivalSearch, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
+  }, [arrivalSearch, awaitViewShards, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, settleViewShards, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
-  // it intersects and merge their pins. Already-loaded shards are skipped by
-  // the loader; a failed shard is not marked loaded, so a later moveend retries
-  // it — the map keeps working with whatever loaded.
+  // it intersects and merge their pins. The loader skips shards whose rows
+  // were delivered, but waits for undelivered shards already in flight. Failed
+  // shards remain eligible for retry, so partial results do not prevent recovery.
   // A canvas is the ONLY thing that ever reports map bounds, and three arrival
   // lanes (a search arrival, a UK place arrival, national browse) deliberately
   // wait for that report before reading a single shard, so the pubs land where
@@ -2926,6 +2863,8 @@ export default function PubMap({
         return;
       }
       initialShardLoadStartedRef.current = true;
+      initialShardLoadSettledRef.current = false;
+      awaitViewShards();
       void loader.initialResult(bounds)
         .then((result) => {
           if (!isCurrentLoader()) return;
@@ -2945,7 +2884,9 @@ export default function PubMap({
             setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = result.status === "ready";
             if (result.status === "ready" && isCurrentLoader()) {
-              scheduleRingLoad(loader, bounds);
+              scheduleRingLoad(loader, latestMapBoundsRef.current ?? bounds);
+            } else {
+              settleViewShards();
             }
           }
           refreshCountCoverage();
@@ -2955,6 +2896,7 @@ export default function PubMap({
           liveShardLoadStatusRef.current = "unavailable";
           if (firstLoad) {
             initialShardLoadSettledRef.current = true;
+            settleViewShards();
             setVenueIndexFailed(true);
             setLoadedCityId(cityId);
             setLoaded(true);
@@ -2965,11 +2907,13 @@ export default function PubMap({
         });
     },
     [
+      awaitViewShards,
       cityId,
       mergeSlimVenues,
       openingLocationResolved,
       refreshCountCoverage,
       scheduleRingLoad,
+      settleViewShards,
       shouldResolveOpeningLocation,
     ],
   );
@@ -5987,10 +5931,9 @@ export default function PubMap({
 
   /* The action card's first row (components/map/inspector/VenueActionCard.tsx):
      the price this lens can vouch for, with its date, the walk from the
-     reader's own point, and the sheet's ONE plan door (lib/venuePlanDoor.ts).
-     It was the phone peek's row at the top of the body; it now rides in the
-     card at every width, so it renders nowhere else. */
-  function renderVenueActionSummary(selectedVenue: Venue) {
+     reader's own point, and the sheet's ONE coral door (lib/venuePlanDoor.ts),
+     with the plan door as a ghost when the coral asks for a price. */
+  function venueActionCardProps(selectedVenue: Venue) {
     const selectedLensPrice = activeLensPrices?.get(selectedVenue.id) ?? null;
     // THE PEEK ASKS THE ONE PRECEDENCE. It used to test `cheapestPrice` itself
     // and word every other answer as "No price yet", so a pub carrying one
@@ -6002,6 +5945,11 @@ export default function PubMap({
     // ONE builder for the three drop-lane inputs, shared with the sheet below,
     // so an unchecked figure is named and unbanded on both (decision 9).
     const peekDropLanes = dropLaneInputsFor(peekDropSignal);
+    const doors = venueActionDoors({
+      venueId: selectedVenue.id, venueName: selectedVenue.name, isPub: selectedVenueIsPub, mode, builtIds,
+      drops: dropsByVenueId.get(selectedVenue.id), communityPrices: communityPrices.byVenueId.get(selectedVenue.id),
+      onLog: openComposerForLog, onAcceptStop1: acceptStop1, onToggleStop: toggleBuiltStop,
+    });
     const peekLane = venuePriceLane(
       selectedVenue,
       peekDropSignal?.latestContributorPrice,
@@ -6013,7 +5961,7 @@ export default function PubMap({
     );
     // The frame is the row's size container: the row measures itself in em, so
     // large text moves the plan door onto its own line (mobileMapShell.css).
-    return (
+    const actionSummary = (
       <VenueActionSummary
         label={selectedVenueLabels.summaryLabel}
         walkMinutes={venueActionCardWalkMinutes(userLocation, selectedVenue)}
@@ -6051,31 +5999,15 @@ export default function PubMap({
               detailLoading={selectedDetailStatus === "loading"}
               priceReadStatus={communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle"}
               dropReadStatus={pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle"}
-              onLog={openComposerForLog}
+              onLog={doors.logFirst ? undefined : openComposerForLog}
               dated={venueActionCardPriceDate(peekLane, selectedVenue)}
             />
           )
         }
-        planDoor={
-          // ONE plan door, and it follows the crawl (lib/venuePlanDoor.ts): no
-          // crawl in progress hands the pub to Plan as Stop 1, a crawl in
-          // progress adds it to or takes it off the crawl on the map.
-          <VenuePeekPlanDoor
-            door={phoneVenuePlanDoor({
-              isPub: selectedVenueIsPub,
-              mode,
-              builtIds,
-              venueId: selectedVenue.id,
-              canAcceptStop1: selectedVenueIsPub,
-            })}
-            venueId={selectedVenue.id}
-            venueName={selectedVenue.name}
-            onAcceptStop1={acceptStop1}
-            onToggleStop={toggleBuiltStop}
-          />
-        }
+        planDoor={doors.coral}
       />
     );
+    return { actionSummary, actionPlanDoor: doors.ghost };
   }
 
   function renderVenuePanel() {
@@ -6134,7 +6066,7 @@ export default function PubMap({
         ) : null}
         <VenueInspector
           venue={selectedVenue}
-          actionSummary={renderVenueActionSummary(selectedVenue)}
+          {...venueActionCardProps(selectedVenue)}
           // The UNMERGED drop signal on purpose: the sheet gives every source its
           // own row, so the "Latest Pint Drop price" line must stay the Pint Drop
           // price. The community submission gets its own dated row alongside it.
@@ -6749,6 +6681,7 @@ export default function PubMap({
           loadedCityId === cityId &&
           visibleVenueState?.cityId === cityId
         }
+        viewLanding={viewShardsLanding}
         map={liveMap}
         onSelectVenue={handleVenueClick}
         onSelectUkBasePub={handleUkBasePubClick}

@@ -15,13 +15,18 @@ import {
 // with a hand-run `next dev`). Assertions are WebGL-agnostic so headless boxes
 // with no GPU don't false-fail — see e2e/smoke.spec.ts.
 const PORT = Number(process.env.PW_PORT ?? 3100);
-const BASE_URL = `http://${process.env.PW_DISPOSABLE_PLAN_DB === "1" ? "127.0.0.1" : "localhost"}:${PORT}`;
+// next dev hands its own redirects back on localhost, so its journeys stay there.
+const BASE_URL = `http://${process.env.PW_DISPOSABLE_PLAN_DB === "1" && process.env.PW_DEV_SERVER !== "1" ? "127.0.0.1" : "localhost"}:${PORT}`;
 const KEYLESS_PORT = Number(process.env.PW_KEYLESS_PORT ?? PORT + 1);
 const KEYLESS_BASE_URL = `http://localhost:${KEYLESS_PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
 const SKIP_KEYLESS_WEBSERVER = process.env.PW_SKIP_KEYLESS_WEBSERVER === "1";
 const DISPOSABLE_PLAN_DB = process.env.PW_DISPOSABLE_PLAN_DB === "1";
+// Only the disposable runner serves next dev: it is how a real emailed link
+// reaches a local GoTrue (scripts/e2e/run-disposable-plan-auth.mjs). It runs
+// Turbopack, not `npm run dev`'s webpack, so cold routes compile inside a test.
+const DISPOSABLE_DEV_SERVER = DISPOSABLE_PLAN_DB && process.env.PW_DEV_SERVER === "1";
 const DISPOSABLE_SUPABASE_URL = process.env.PW_DISPOSABLE_SUPABASE_URL;
 const DISPOSABLE_SERVICE_ROLE_KEY = process.env.PW_DISPOSABLE_SERVICE_ROLE_KEY;
 const DISPOSABLE_PLAN_AUTH = process.env.PW_DISPOSABLE_PLAN_AUTH === "1";
@@ -505,7 +510,9 @@ export default defineConfig({
         cwd: PUBLIC_EVIDENCE_PHASE ? PUBLIC_EVIDENCE_ROOT : undefined,
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
-          : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
+          : DISPOSABLE_DEV_SERVER
+            ? `npm run prepare:maplibre-worker && npm run build:places-enrichment && next dev --port ${PORT} --hostname localhost`
+            : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {

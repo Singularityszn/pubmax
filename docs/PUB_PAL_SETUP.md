@@ -477,6 +477,14 @@ shell. On the map, `PalVoiceBar` shows the call status and newest transcript lin
 and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
 without starting another call. A cold `/map` loads no ElevenLabs SDK until you tap to talk.
 
+At phone widths and 641-768 px tablet widths, an open map sheet positions the
+voice bar above its top edge. The sheet's maximum height leaves space for the
+bar. This space adjusts when the bar's height changes, including during a drag.
+On phones at most 480 px tall, the pick and caption scroll inside the bar while
+**End** stays outside that scroll area. The desktop layout stays unchanged.
+The [sheet scrolling rules](rules/components-sheets-chrome-and-navigation.md#a-sheet-says-how-much-of-itself-is-off-screen-once-and-the-shell-cannot-be-scrol)
+describe the fallback when the sheet's header and footer exceed its height.
+
 Before the session consumes a map-chip tap, leaving `/pal` and `/map` routes,
 changing accounts, hiding the page, or `pagehide` cancels the pending request.
 Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.
@@ -484,8 +492,8 @@ Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.
 A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.
-Ending a call releases its voice grant. A user-ended call, dropped line or error
-clears its main-map picks and grounding.
+Ending a call requests [voice-grant settlement](#voice-grants). A user-ended call,
+dropped line or error clears its main-map picks and grounding.
 It also clears the last voice camera request and cancels pending voice navigation.
 The voice prompt asks the agent to check in once after silence.
 If silence continues, the prompt asks for one short goodbye followed by `end_call`.
@@ -551,13 +559,62 @@ configuration and reads no account, which is the whole reason the Pal can
 explain itself before the tap. Issuing a voice token follows the
 [account age requirements](../README.md#pub-pal-age-requirements) before quota or provider allocation.
 An accepted request prepays a three-minute grant (`lib/palVoiceMetering.ts`).
-The server settles that grant from the call length ElevenLabs records, never from a duration the browser
-sends. When the browser releases a session, the server asks ElevenLabs for up
-to five seconds until it reports the call ended. If the call is still running
-then, the grant stays charged at three minutes until the same account next
-asks for voice: that request settles it before the allowance check. A call
-ElevenLabs never reports as ended stays charged at three minutes. Migration
-`0176` must be applied before the deploy that calls it.
+`prepay_pub_pal_voice_grant` checks the monthly allowance and charges the grant
+atomically. Admission requires usage below `PAL_VOICE_MONTHLY_MINUTES`, rather
+than room for the whole grant. Concurrent requests cannot bypass that check.
+
+The browser's `durationSeconds` never changes the meter. A release names only
+the issued `conversationId`. The server checks ownership with
+`owns_issued_pub_pal_voice_conversation` before it asks ElevenLabs about the call.
+An invented or already settled conversation causes no provider request.
+
+`lib/pubPalVoiceProviderDuration.server.ts` accepts a final duration only for
+provider states `processing`, `done`, or `failed`. During release, it asks
+ElevenLabs again once a second for up to five seconds. If the provider cannot
+confirm the call ended, the grant stays issued and charged in full.
+
+An ordinary voice start does not wait for earlier calls to settle.
+After a successful response, Next.js `after()` settles the owner's issued
+grants for that month, excluding the new conversation. If prepayment initially
+refuses admission, the request attempts settlement first, then retries prepayment
+once regardless of the settlement result. This retry uses the database's
+current usage even when a settlement reply was lost or another request settled
+the grant. A provider timeout leaves the unsettled grant charged in full.
+No cron or webhook settles voice grants.
+
+`settle_pub_pal_voice_conversation` replaces the prepayment with the provider's
+recorded duration, rounded up to started minutes. Zero seconds costs nothing.
+A call beyond the cap charges the difference. Settlement applies once under
+the caller's own grant. A repeated settlement cannot change the meter again.
+
+A grant settles only from a final duration that ElevenLabs reports. An HTTP
+404 does not settle the grant, however old the grant is. The agent runs in zero
+retention mode, so a 404 can also come from a finished call whose record is
+gone. A browser cancellation cannot prove that the signed URL was not used. A
+running call, an unreadable provider response, or a missing final duration
+also leaves the grant charged in full.
+
+`refund_pub_pal_voice_grant` handles server failures before the server hands out
+a signed URL. It accepts reserved or issued grants, including a link that
+committed before its reply was lost. It rejects settled or already refunded
+grants. An ambiguous prepayment result also triggers a refund, because the
+database may already have committed the charge. Once the session is linked
+and allocated, a failure to schedule `after()` does not refund that grant.
+
+Migration `0176` restricts these operations to the service role and closes
+`consume_pub_pal_voice_trial`, `release_pub_pal_voice_trial`, and
+`record_pub_pal_voice_minutes` to that role. An older application therefore
+cannot use the browser-trusted meter. The keyless in-memory meter prepays and
+refunds grants but does not settle them.
+
+The captain must apply `0176` before deploying code that calls it. A deployment
+without the migration returns 503 and offers text. Roll back the application
+before the migration, because its rollback reopens the browser-trusted meter.
+This settlement change needs no new migration.
+
+Regression coverage lives in `__tests__/pubPalVoiceTokenRoute.test.ts` and
+`__tests__/pubPalVoiceGrantsMigrationEffective.test.ts`. The latter exercises
+the route, concurrency, permissions, and rollback against PostgreSQL 16.
 
 ---
 

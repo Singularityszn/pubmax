@@ -17,6 +17,7 @@ import {
 import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { isUncheckedPrice, type PriceEvidence } from "@/lib/pintDropReceipt";
 import { formatGbp } from "@/lib/formatGbp";
+import type { OptimisticSpillState } from "@/lib/feed";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 import {
@@ -735,6 +736,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
 
 // The minimal drop shape mergeVenueDrops needs — the client DTO satisfies it.
 export type SummaryDrop = {
+  optimistic?: OptimisticSpillState;
   drink: string;
   /**
    * The SERVING this price is about (lib/drinkMeasure.ts). Absent reads as
@@ -860,6 +862,7 @@ export function formatObservedAt(iso: string | null | undefined, now: Date = new
 // paid under the word of the drinker who paid the other one.
 function isPintPricedDrop(drop: SummaryDrop): boolean {
   return (
+    !drop.optimistic &&
     drop.provenance !== "demo" &&
     typeof drop.priceGbp === "number" &&
     Number.isFinite(drop.priceGbp) &&

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 
@@ -10,10 +10,11 @@ import { useSpringValue } from "@/lib/useSpringValue";
 import Kicker from "@/components/ui/kicker";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel } from "@/lib/surfaceStack";
-import { useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
+import { sheetChrome, useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { mobileSheetFocusContained, mobileSheetIsModal } from "@/lib/mobileSheetA11y";
+import { publishMapSheetClearance, releaseMapSheetClearance } from "@/lib/mapSheetClearance";
 import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
 // The module that paints `.mobileSheetPortal` and `.mobileSharedSheet` owns the
@@ -243,10 +244,49 @@ export default function MobileSharedSheet({
     };
   }, [initialSnap, kind, openAtSnap, requestEscape]);
 
+  // How far the sheet's top edge sits above the viewport bottom, for chrome
+  // that docks on it (the live voice bar). Layout height, not the rect: the
+  // entrance slide is a transform, and the dock waits where the sheet will rest.
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    const portal = sheet?.closest<HTMLElement>(".mobileSheetPortal");
+    if (!kind || !sheet || !portal || typeof ResizeObserver === "undefined") return;
+    const header = sheet.querySelector<HTMLElement>(".mobileSharedSheetHeader");
+    const publish = () => {
+      document.body.style.setProperty("--map-sheet-header-h", `${header?.offsetHeight ?? 64}px`);
+      const top = portal.getBoundingClientRect().bottom - sheet.offsetHeight;
+      publishMapSheetClearance(sheet, window.innerHeight - top);
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(sheet);
+    observer.observe(portal);
+    if (header) observer.observe(header);
+    return () => {
+      observer.disconnect();
+      releaseMapSheetClearance(sheet);
+      document.body.style.removeProperty("--map-sheet-header-h");
+    };
+  }, [kind]);
+
+  // Enable outer scrolling only at rest. A dismiss drag must keep the footer
+  // pinned, even when the header and footer exceed the available height.
+  const updateCramped = useEffectEvent(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const resting = Boolean(kind) && !dragging && !settling && !entering && !visibleExit;
+    sheet.toggleAttribute(
+      "data-sheet-cramped",
+      resting && sheetHeight > 0 && sheetHeight + 1 < sheetChrome(sheet).chromePx,
+    );
+  });
   useEffect(() => {
     const sheet = sheetRef.current;
     if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(recapToViewport);
+    const observer = new ResizeObserver(() => {
+      recapToViewport();
+      updateCramped();
+    });
     const portal = sheet.closest(".mobileSheetPortal");
     if (portal) observer.observe(portal);
     for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
@@ -254,6 +294,10 @@ export default function MobileSharedSheet({
     }
     return () => observer.disconnect();
   }, [footerEl, kind, recapToViewport]);
+
+  useLayoutEffect(() => {
+    updateCramped();
+  }, [dragging, entering, footerEl, kind, settling, sheetHeight, visibleExit]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
@@ -341,6 +385,7 @@ export default function MobileSharedSheet({
         <header
           className="mobileSharedSheetHeader sheetDragHandle"
           onPointerDown={(event) => {
+            if (sheetRef.current?.hasAttribute("data-sheet-cramped")) return;
             onInterruptRevealRef.current?.();
             onSheetDragStart(event);
           }}

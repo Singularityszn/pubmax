@@ -279,7 +279,31 @@ jobs:
     timeout-minutes: 40
     env:
       LAYOUT_SHARD: 1
+    # Only a confirmed missing ref may stop this job. Lookup failures must not
+    # block a live group (docs/CI_RUNBOOK.md, "The required checks and the
+    # merge queue").
     steps: &layout-pin-steps
+      - name: Stop when the merge group is gone
+        env:
+          REPO: ${{ github.repository }}
+          QUEUE_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -euo pipefail
+          if [ -z "$QUEUE_REF" ]; then
+            echo "Not a merge group run."
+            exit 0
+          fi
+          status=0
+          git ls-remote --exit-code "https://github.com/$REPO" "$QUEUE_REF" > /dev/null || status=$?
+          case "$status" in
+            0) echo "Merge group $QUEUE_REF is live." ;;
+            2)
+              echo "::error::Merge group $QUEUE_REF is gone, so this job stops before setup and tests."
+              exit 1
+              ;;
+            *) echo "::warning::Could not read $QUEUE_REF (git exit $status), so the job runs." ;;
+          esac
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

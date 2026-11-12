@@ -11,6 +11,7 @@ export const GENERIC_NAME_WORDS: Set<string>;
 export function words(value: unknown): string[];
 export function ownSiteFor(name: unknown, landedUrl: string, city: { displayName: string }): string | null;
 export function allowedEvidenceUrl(value: unknown): boolean;
+export function attributableEvidenceUrl(value: unknown): boolean;
 export function withoutName(quotes: string, name: unknown): string;
 export function statesDrinking(kind: string, quotes: string, name: unknown): boolean;
 export function discoveredKind<K extends string | undefined>(row: { name: unknown; kind: K; evidence?: Array<{ url: string; excerpt: string }> }): Exclude<K, "club"> | "bar" | "club";

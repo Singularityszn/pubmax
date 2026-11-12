@@ -5,19 +5,17 @@ import Link from "next/link";
 
 import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
 import CommentThread from "@/components/pintdrop/CommentThread";
-import HandleAvatar from "@/components/profile/HandleAvatar";
+import PintReceiptPaper from "@/components/pintdrop/PintReceiptPaper";
 import ShareBar from "@/components/share/ShareBar";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
-import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
-import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
-import { formatGbp } from "@/lib/formatGbp";
+import { buildPintReceipt, buildReceiptShareText, formatReceiptItem, type PintReceipt } from "@/lib/pintReceipt";
 
 import "./permalink.css";
 
-// Standalone Pint Drop permalink (PRD §8): share ONE pint as a real collectible
-// memory. A server component so it can read the drop directly, emit rich OG /
+// Standalone Pint Drop permalink (PRD §8): share ONE pint as an honest
+// receipt. A server component so it can read the drop directly, emit rich OG /
 // Twitter tags, and render a per-drop share image (opengraph-image.tsx) — no
 // client fetch, no id ever visible to the crawler as anything but a pub name.
 //
@@ -48,23 +46,17 @@ async function resolveViewer(
   return resolveViewerContextFromRequest(request, queryViewer);
 }
 
-function formatDropPrice(value: number | null): string | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? formatGbp(value)
-    : null;
+// "a PUBMAXXER's pint at The Hatton, £4.70": the drinker as the receipt shows them.
+function receiptTitle(receipt: PintReceipt): string {
+  const item = receipt.measure === "Pint" ? "pint" : formatReceiptItem(receipt);
+  return `${receipt.drinker}'s ${item} at ${receipt.venueName}${receipt.price ? `, ${receipt.price}` : ""}`;
 }
 
-function formatDate(iso: string): string | null {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
-  // Rendered on the server, so the London calendar is named rather than left to
-  // the host's zone: a drop logged at 00:30 BST belongs to that day.
-  return new Date(t).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/London",
-  });
+function receiptDescription(receipt: PintReceipt): string {
+  const what = formatReceiptItem(receipt);
+  const price = receipt.price ? ` for ${receipt.price}` : "";
+  const day = receipt.loggedOn ? `, logged ${receipt.loggedOn}` : "";
+  return `${what} at ${receipt.venueName}${price}${day}. A pint receipt on PUBMAXX.`;
 }
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
@@ -78,14 +70,9 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     };
   }
 
-  const price = formatDropPrice(drop.priceGbp);
-  const priceBit = price ? `, ${price}` : "";
-  const title = `${dropAuthorLabel(drop.handle)}'s pint at ${drop.venueName}${priceBit}`;
-  const description =
-    drop.note ||
-    (drop.drink
-      ? `${drop.drink} at ${drop.venueName}${price ? ` for ${price}` : ""}.`
-      : `A Pint Drop at ${drop.venueName} on PUBMAXX.`);
+  const receipt = buildPintReceipt(drop);
+  const title = receiptTitle(receipt);
+  const description = [receiptDescription(receipt), drop.note].filter(Boolean).join(" ");
 
   // opengraph-image.tsx sits beside this route, so Next auto-attaches it; we
   // still name the canonical url + card type here for a complete lockup.
@@ -133,87 +120,54 @@ export default async function PintDropPermalink({ params, searchParams }: PagePr
 
   if (!drop) return <NotOnTheWall />;
 
-  return <MemoryCard drop={drop} id={id} />;
+  return <ReceiptCard drop={drop} id={id} />;
 }
 
-// ── The collectible pint memory card ─────────────────────────────────────────
-function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
-  const price = formatDropPrice(drop.priceGbp);
-  const date = formatDate(drop.createdAt);
-  const headline = drop.drink || "A pint worth remembering";
-  const hasPhoto = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
-
-  // Share lockup: a nostalgic one-liner that carries the pint into a group chat.
-  const shareTitle = `${dropAuthorLabel(drop.handle)}'s pint at ${drop.venueName}${price ? `, ${price}` : ""}`;
-  const shareText = buildPintDropShareText({
-    venueName: drop.venueName,
-    priceGbp: drop.priceGbp,
-  });
+function ReceiptCard({ drop, id }: { drop: PublicDrop; id: string }) {
+  const receipt = buildPintReceipt(drop);
+  const photoUrl = drop.pintPhotoUrl || drop.venuePhotoUrl;
+  const shareTitle = receiptTitle(receipt);
+  const shareText = buildReceiptShareText(receipt);
+  const hasExtras = Boolean(drop.note || drop.era || drop.vibeTags.length);
 
   return (
     <main id="main" className="permalink">
       <div className="permalink__mat">
-        {/* Kicker: brand + edition line */}
-        <div className="permalink__kicker">
-          <Link className="permalink__brand" href="/">
-            PUBMAXX
-          </Link>
-          <span className="permalink__edition">A Pint Drop</span>
-        </div>
-
-        {/* The pub snapshot, framed like a pub photo. Price stamp pressed over it. */}
-        {hasPhoto ? (
-          <figure className="permalink__frame">
-            <Image
-              className="permalink__photo"
-              src={(drop.pintPhotoUrl || drop.venuePhotoUrl) as string}
-              alt={`A pint at ${drop.venueName}`}
-              width={720}
-              height={720}
-              sizes="(max-width: 640px) 100vw, 560px"
-              unoptimized
-            />
-            {price ? <PriceStamp price={price} /> : null}
-          </figure>
-        ) : price ? (
-          <div className="permalink__stampRow">
-            <PriceStamp price={price} />
-          </div>
-        ) : null}
-
-        {/* The pint itself */}
-        <p className="permalink__eyebrow">{drop.venueName}</p>
-        <h1 className="permalink__pint">{headline}</h1>
-
-        {/* The note, as a serif caption — the passed-down memory */}
-        {drop.note ? <p className="permalink__note">&ldquo;{drop.note}&rdquo;</p> : null}
-
-        {/* Vibe tags as little pressed stamps */}
-        {drop.vibeTags.length ? (
-          <ul className="permalink__tags" aria-label="Vibe tags">
-            {drop.vibeTags.map((tag) => (
-              <li className="permalink__tag" key={tag}>
-                {tag}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {/* Signature line: handle · era · date */}
-        <div className="permalink__signature">
-          <HandleAvatar
-            handle={drop.handle}
-            avatarUrl={drop.avatarUrl}
-            className="permalink__avatar"
-            imageClassName="permalink__avatar"
-            size={32}
+        <div className="permalink__counter">
+          <PintReceiptPaper
+            receipt={receipt}
+            media={
+              photoUrl ? (
+                <Image
+                  src={photoUrl}
+                  alt={`A pint at ${drop.venueName}`}
+                  width={720}
+                  height={720}
+                  sizes="(max-width: 640px) 100vw, 360px"
+                  unoptimized
+                />
+              ) : null
+            }
+            extras={
+              hasExtras ? (
+                <>
+                  {drop.note ? <p className="permalink__note">&ldquo;{drop.note}&rdquo;</p> : null}
+                  {drop.era ? <p className="permalink__era">{drop.era}</p> : null}
+                  {drop.vibeTags.length ? (
+                    <ul className="permalink__tags" aria-label="Vibe tags">
+                      {drop.vibeTags.map((tag) => (
+                        <li className="permalink__tag" key={tag}>
+                          {tag}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              ) : null
+            }
           />
-          <span className="permalink__handle">{dropAuthorLabel(drop.handle)}</span>
-          {drop.era ? <span className="permalink__meta">· {drop.era}</span> : null}
-          {date ? <span className="permalink__meta">· {date}</span> : null}
         </div>
 
-        {/* Actions: copy link + open on the map */}
         <div className="permalink__actions">
           <CrawlStoryCopyButton className="permalink__primary" />
           <Link className="permalink__ghost" href={drop.venueMapUrl}>
@@ -224,27 +178,14 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
           </Link>
         </div>
 
-        {/* Share strip — the pint spreads across X, WhatsApp, and group chats. */}
         <div className="permalink__share">
           <ShareBar url={`/p/${id}`} title={shareTitle} text={shareText} />
         </div>
       </div>
 
-      {/* Comments (delivered by a sibling agent at components/pintdrop/CommentThread) */}
       <section className="permalink__comments" aria-label="Comments">
         <CommentThread dropId={id} />
       </section>
     </main>
-  );
-}
-
-// The pressed brass price stamp — the one bold signature element (rotated badge).
-function PriceStamp({ price }: { price: string }) {
-  return (
-    <div className="permalink__stamp" aria-label={`Paid ${price} a pint`}>
-      <span className="permalink__stampLabel">Paid</span>
-      <span className="permalink__stampPrice">{price}</span>
-      <span className="permalink__stampUnit">a pint</span>
-    </div>
   );
 }

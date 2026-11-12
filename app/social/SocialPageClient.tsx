@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
@@ -55,10 +56,20 @@ import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { SocialPostLane } from "@/lib/socialPostReason";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 
+import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
+
 import "./social.css";
+import PintDropRecovery from "./PintDropRecovery";
 import SocialLondonLane from "./SocialLondonLane";
 import { socialLazy } from "./SocialLazy";
 import { SocialPostEditor } from "./SocialPostEditor";
+
+// The Product Hunt log in public day (lib/logInPublicDay.ts): that day's real
+// Pint Drops, above the posts. Its chunk loads only on the day.
+const LogInPublicDay = dynamic(() => import("@/components/pintdrop/LogInPublicDay"), {
+  ssr: false,
+  loading: () => null,
+});
 
 // The wait keeps the shape of what it stands for: the Post door keeps its
 // word and width, and tools that often draw nothing (an empty tag inbox, no
@@ -702,6 +713,10 @@ function SocialPageAccountState({
   }, [access, initialState, loadingMore, nextCursor]);
 
   const isPosts = initialState.tab === "posts";
+  const logInPublicDay = useLogInPublicDay();
+  const logInPublicSection = isPosts && logInPublicDay
+    ? <LogInPublicDay day={logInPublicDay} className="socialLogInPublic" />
+    : null;
   const activeTag = initialState.tab === "posts" && initialState.feed === "discover" ? initialState.tag ?? null : null;
   const visibleActivityStatus = activityRevision === accountRevision ? activityStatus : "idle";
   const visibleActivityItems = activityRevision === accountRevision ? activityItems : [];
@@ -858,6 +873,7 @@ function SocialPageAccountState({
         {doorMode ? (
           <div className="socialDoor">
             {switcher}
+            {logInPublicSection}
             {londonLane ? (
               <SocialLondonLane
                 alternatives={publicAlternatives}
@@ -921,10 +937,12 @@ function SocialPageAccountState({
         </div>
         <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
           <div className="socialFeedColumn">
+            {logInPublicSection}
             {showPostsControls ? <PostsControls state={initialState} /> : null}
             {checkingPosts && initialState.tab === "posts" ? (
               <SampleSkeleton label="Loading post lanes"><PostsControls state={initialState} /></SampleSkeleton>
             ) : null}
+            {showViewerCards && viewerHandle ? <PintDropRecovery handle={viewerHandle} /> : null}
             {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
               if (updated) setSubmittedPost(updated);
               setFeedAttempt((value) => value + 1);

@@ -635,7 +635,7 @@ Walk every row on `https://pubmaxxing.com` after the release, on a phone and on 
 | 4 | Sign-in journey | Section 2 row. The magic link arrives within a minute and signs the browser in | | | | |
 | 5 | Handle claim | Section 2 row | | | | |
 | 6 | Map paint | Section 2 row, and the first pin within a few seconds on a phone on mobile data | | | | |
-| 7 | Venue sheet | Section 2 row. The action card shows the price with its date, the plan door, "Ask for a table" and Share | | | | |
+| 7 | Venue sheet | Section 2 row. Check the action card against the [action-card rule](rules/components-venue-plan-and-message-surfaces.md#the-venue-sheet-has-one-action-card-and-it-spends-the-sheet-s-one-coral) | | | | |
 | 8 | Plan generate | Section 2 row | | | | |
 | 9 | Plan invite share | Section 2 row | | | | |
 | 10 | Public invite RSVP | Section 2 row, for a three-stop invite and for a one-stop invite, which opens `/map?sel=<id>` | | | | |

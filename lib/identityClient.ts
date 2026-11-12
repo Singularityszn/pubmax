@@ -5,6 +5,7 @@ import {
   captureAccountAuth,
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
+import { safePintDropDoorReturnTo } from "@/lib/accountClaimReturnTo";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import {
   deviceAccountOwner,
@@ -155,10 +156,10 @@ export async function resolveCanonicalIdentity(
  * Post-callback routing. Creating the account comes first and choosing a
  * handle is the step after, and /u/you is the only surface carrying the claim
  * form, so a freshly established session with no claimed handle routes there.
+ * Only a validated Pint Drop door is retained through the claim.
  * Returns the destination path, or null to stay put. Never bounces the user on
- * doubt: a return target (an add link or Plan) owns the destination, a device
- * handle THIS ACCOUNT owns means /u/you would just redirect back out, and a
- * failed or unreadable server answer is not evidence the account has no handle.
+ * doubt: a device handle THIS ACCOUNT owns means /u/you would redirect back out.
+ * A failed or unreadable server answer is not evidence the account has no handle.
  * When the server already owns a handle, sync it onto this device before
  * staying put.
  *
@@ -177,10 +178,12 @@ export async function handleClaimRouteAfterSignIn(
   if (!current()) return null;
   const userId = session?.user?.id;
   if (!userId) return null;
+  let returnTo: string | null;
   try {
     const landed = new URL(landedUrl, "https://pubmax.invalid");
     if (landed.hash) return null;
     if (landed.pathname === HANDLE_CLAIM_NEXT) return null;
+    returnTo = safePintDropDoorReturnTo(`${landed.pathname}${landed.search}`);
   } catch {
     return null;
   }
@@ -203,5 +206,5 @@ export async function handleClaimRouteAfterSignIn(
     current,
   ).catch(() => null);
   if (!current() || !resolution?.ok || resolution.identity) return null;
-  return HANDLE_CLAIM_NEXT;
+  return returnTo ? `${HANDLE_CLAIM_NEXT}?returnTo=${encodeURIComponent(returnTo)}` : HANDLE_CLAIM_NEXT;
 }

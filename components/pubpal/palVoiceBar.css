@@ -20,6 +20,7 @@
   box-shadow: var(--shadow-sm);
   color: var(--ink);
 }
+.palVoiceBarDetails { display: contents; }
 .palVoiceBar[data-live="true"] {
   border-color: var(--state-selected-border);
 }
@@ -76,6 +77,25 @@ body:has(.palVoiceBar) .palSummon {
     bottom: 22px;
   }
 }
+/* While a call is on screen, a map sheet at full height stops below the bar's
+   band, and an open sheet carries the bar on its top edge, so the caption and
+   End stay in reach. The sheets publish --map-sheet-clearance-h. Registered so
+   the tablet drawer reads the band in px. */
+@property --sheet-top-reserve {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+body:has(.palVoiceBar):has(.mobileSheetPortal, .mapDrawer.springDrawer[data-spring-axis="vertical"]) {
+  --sheet-top-reserve: calc(var(--topbar-inset) + var(--pal-voice-bar-h, 60px) + 8px);
+}
+body:has(.mobileSheetPortal:not([data-sheet-exiting="true"]), .mapDrawer.springDrawer.open[data-spring-axis="vertical"]) .palVoiceBar {
+  bottom: min(
+    calc(var(--map-sheet-clearance-h, 0px) + 8px),
+    calc(100dvh - var(--topbar-inset) - var(--pal-voice-bar-h, 60px))
+  );
+  z-index: var(--z-context-prompt);
+}
 /* The map pick the Pal is naming, above the call row. */
 .palVoiceBarPick {
   flex: 1 0 100%;
@@ -121,4 +141,23 @@ body:has(.palVoiceBar) .palSummon {
   font: 700 var(--text-xs) / 1.3 var(--font-data);
   font-variant-numeric: tabular-nums;
   color: var(--muted);
+}
+
+/* Keep the measured sheet header below the call on a short phone. Call
+   details scroll together while End stays outside the scroller. */
+@media (max-width: 640px) and (max-height: 480px) {
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .palVoiceBar {
+    flex-wrap: nowrap;
+  }
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .palVoiceBarDetails {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    max-height: calc(100dvh - var(--topbar-inset) - var(--tabbar-h) - env(safe-area-inset-bottom, 0px) - var(--map-sheet-header-h, 64px) - 34px);
+    overflow-y: auto;
+  }
+  .palVoiceBarDetails > .palVoiceBarPick { grid-column: 1 / -1; }
 }

@@ -1,10 +1,8 @@
 import { formatGbp } from "@/lib/formatGbp";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 
-// WhatsApp-native share artifacts — one pure text builder per shareable night
-// object. Every object that can leave the site as a group-chat message builds
-// its copy HERE, so the tone, honesty rules, and wa.me idiom can never drift
-// between call sites.
+// Pure text builders for shareable night objects. Pint receipt text is owned
+// by lib/pintReceipt.ts.
 //
 // Rules (mirroring lib/tfl.ts's buildLastPintShareText on the guardian lane):
 // - Pure functions only — no window, no navigator, no Date.now. Call sites own
@@ -15,10 +13,8 @@ import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 //   texting the group, closed with the brand line where the object is a story
 //   artifact ("Every pint has a story.").
 //
-// Current shareable night objects (audit, 2026-07-17) — every call site now
-// builds its message here:
+// Callers of the night-object builders:
 //   plan invite  app/plan/[id]        → ShareBar (via shareCopyForPlan)
-//   pint drop    app/p/[id] + FeedCard → ShareBar (one builder, both cards)
 //   crawl story  app/crawls/[slug]    → ShareBar
 //   bar tab      app/bar-tab/[id]     → ShareBar
 //   venue        map VenueInspector   → useVenueShare
@@ -99,13 +95,12 @@ export function buildPlanInviteShareText(input: PlanInviteShareInput): string {
   return `${parts.join(" · ")}. Open the link and tap Going.`;
 }
 
-// ── Pint drop (permalink card + feed card share the same message) ────────────
+// ── Pint drop ──────────────────────────────────────────────────────────────
 
 export type PintDropShareInput = {
   venueName: string;
   priceGbp?: number | null;
-  // Display handle ("@old_ken" already resolved by the call site). Omitted on
-  // the drinker's own permalink where "Logged a pint…" reads first-person.
+  // Display handle ("@old_ken" already resolved by the call site).
   handle?: string | null;
 };
 

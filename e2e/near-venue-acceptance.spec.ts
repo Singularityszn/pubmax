@@ -127,12 +127,12 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page },
   await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=[^&]+&accept=1&src=near/);
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
   const acceptStop1 = page
-    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary')
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueActionCard')
     .getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(acceptStop1).toHaveText("Make it Stop 1");
   // The receipt names ONE door, and the phone sheet has exactly one: the
-  // peek's coral plan door (lib/venuePlanDoor.ts), never a footer ghost too.
+  // card's plan door (lib/venuePlanDoor.ts), regardless of its action priority.
   await expect(
     page
       .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
@@ -233,7 +233,7 @@ test("Map rejects forged Near acceptance markers", async ({ page }) => {
   await page.goto(forgedUrl.toString());
 
   const acceptStop1 = page
-    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary')
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueActionCard')
     .getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 45_000 });
   await expect(page.locator(".venueAcceptanceReceipt")).toHaveCount(0);
