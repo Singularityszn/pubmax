@@ -151,7 +151,7 @@ describe("plan-join Activity", () => {
           expect(await memoryFollowStore.isFollowing("host", "guest")).toBe(hostFollowsGuest);
           expect(await memoryFollowStore.isFollowing("guest", "host")).toBe(guestFollowsHost);
           for (const handle of ["host", "guest", "mate", "stranger"]) {
-            expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0 });
+            expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
           }
         }
         expect(relationshipRpc.query.mock.calls).toEqual([
@@ -165,7 +165,7 @@ describe("plan-join Activity", () => {
         expect(await memoryFollowStore.isFollowing("host", "guest")).toBe(hostFollowsGuest);
         expect(await memoryFollowStore.isFollowing("guest", "host")).toBe(guestFollowsHost);
         for (const handle of ["host", "guest"]) {
-          expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0 });
+          expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
         }
 
         relationshipRpc.query.mockResolvedValue(existingFollower === "mutual" ? "mutual" : "not_mutual");
@@ -182,7 +182,7 @@ describe("plan-join Activity", () => {
         );
         for (const handle of ["mate", "stranger"]) {
           expect(await memoryFollowStore.listMutuals(handle)).toEqual([]);
-          expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0 });
+          expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
         }
       });
     });
@@ -225,7 +225,7 @@ describe("plan-join Activity", () => {
       for (const handle of ["host", "guest", "mate", "stranger"]) {
         const result = await inbox(`local-${handle}`, handle);
         expect(result.status).toBe(200);
-        expect(result.body).toEqual({ notifications: [], unread: 0 });
+        expect(result.body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
       }
     });
   });
@@ -234,8 +234,8 @@ describe("plan-join Activity", () => {
     const plan = await createPlan();
     expect((await join(plan.id, plan.inviteToken, crypto.randomUUID(), token)).status).toBe(200);
     expect(await memoryFollowStore.listMutuals("host")).toEqual([]);
-    expect((await inbox("local-host", "host")).body).toEqual({ notifications: [], unread: 0 });
-    expect((await inbox("local-guest", "guest")).body).toEqual({ notifications: [], unread: 0 });
+    expect((await inbox("local-host", "host")).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
+    expect((await inbox("local-guest", "guest")).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
   });
 
   it.each(["classic", "collaboration"] as const)("connects a later %s joiner only with the host and leaves peer follows explicit", async (kind) => {
@@ -262,8 +262,8 @@ describe("plan-join Activity", () => {
     expect((await inbox("local-host", "host")).body.notifications).toHaveLength(2);
     expect((await inbox("local-guest", "guest")).body.notifications).toEqual([expect.objectContaining(signal("host"))]);
     expect((await inbox("local-mate", "mate")).body.notifications).toEqual([expect.objectContaining(signal("host"))]);
-    expect((await inbox("local-stranger", "host")).body).toEqual({ notifications: [], unread: 0 });
-    expect((await inbox("local-stranger", "mate")).body).toEqual({ notifications: [], unread: 0 });
+    expect((await inbox("local-stranger", "host")).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
+    expect((await inbox("local-stranger", "mate")).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
 
     const followed = await FOLLOW(new Request("http://localhost/api/profiles/guest/follow", {
       method: "POST",
@@ -286,7 +286,7 @@ describe("plan-join Activity", () => {
     expect((await join(plan.id, plan.inviteToken, crypto.randomUUID(), "local-mate")).status).toBe(200);
     for (const handle of ["host", "guest", "mate"]) {
       expect(await memoryFollowStore.listMutuals(handle)).toEqual([]);
-      expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0 });
+      expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
     }
   });
 
@@ -301,7 +301,7 @@ describe("plan-join Activity", () => {
     expect(await joined.json()).toMatchObject({ friendEdgesFormed: 0 });
     expect(await memoryFollowStore.listMutuals("mate")).toEqual([]);
     expect(await memoryFollowStore.listMutuals("guest")).toEqual(["host"]);
-    expect((await inbox("local-mate", "mate")).body).toEqual({ notifications: [], unread: 0 });
+    expect((await inbox("local-mate", "mate")).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
     expect((await inbox("local-host", "host")).body.notifications).toEqual([expect.objectContaining(signal("guest"))]);
     expect((await inbox("local-guest", "guest")).body.notifications).toEqual([expect.objectContaining(signal("host"))]);
   });
@@ -330,7 +330,7 @@ describe("plan-join Activity", () => {
     expect(hostInbox.body.unread).toBe(1);
     expect(guestInbox.body.unread).toBe(1);
     // A query handle cannot substitute for the verified account's inbox.
-    expect((await inbox("local-stranger", "host")).body).toEqual({ notifications: [], unread: 0 });
+    expect((await inbox("local-stranger", "host")).body).toEqual({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: true });
     expect((await inbox(null, "host")).status).toBe(403);
     expect((await inbox("invalid", "host")).status).toBe(403);
   });

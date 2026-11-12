@@ -55,6 +55,7 @@ export type VenueCorrectionsStore = {
   listForReview(status: VenueCorrectionStatus): Promise<VenueCorrection[]>;
   /** The owner's own rows, newest first (account export). Fail-soft (degraded, []). */
   listForOwner(ownerUserId: string, limit?: number): Promise<VenueCorrectionListResult>;
+  listResolvedForOwner(ownerUserId: string): Promise<VenueCorrectionListResult>;
   /** Moderator lookup of one row. Fail-soft (null). */
   getById(id: string): Promise<VenueCorrection | null>;
   /** Moderator verdict on an OPEN row. False when it is unknown or already decided. THROWS on hard failure. */
@@ -98,6 +99,14 @@ export const memoryVenueCorrectionsStore: VenueCorrectionsStore = {
       .filter((row) => row.ownerUserId === ownerUserId)
       .sort(byNewest)
       .slice(0, Math.max(1, Math.floor(limit)))
+      .map((row) => ({ ...row }));
+    return { status: "ready", corrections };
+  },
+
+  async listResolvedForOwner(ownerUserId) {
+    const corrections = [...byId.values()]
+      .filter((row) => row.ownerUserId === ownerUserId && row.status === "resolved" && row.resolvedAt !== null)
+      .sort((left, right) => (right.resolvedAt ?? "").localeCompare(left.resolvedAt ?? "") || left.id.localeCompare(right.id))
       .map((row) => ({ ...row }));
     return { status: "ready", corrections };
   },
@@ -217,6 +226,28 @@ const supabaseVenueCorrectionsStore: VenueCorrectionsStore = {
           .limit(Math.max(1, Math.floor(limit)));
         if (error) throw new Error(error.message);
         return { status: "ready" as const, corrections: rows(data) };
+      },
+    });
+  },
+
+  async listResolvedForOwner(ownerUserId) {
+    return guard({
+      context: "list-outcomes-owner",
+      onSchemaMiss: async () => ({ status: "degraded" as const, corrections: [] }),
+      onError: async () => ({ status: "degraded" as const, corrections: [] }),
+      message: "owner outcomes failed",
+      run: async () => {
+        const { data, error, count } = await admin()
+          .from(TABLE)
+          .select("*", { count: "exact" })
+          .eq("owner_user_id", ownerUserId)
+          .eq("status", "resolved")
+          .not("resolved_at", "is", null)
+          .order("resolved_at", { ascending: false })
+          .order("id", { ascending: true });
+        if (error) throw new Error(error.message);
+        const corrections = rows(data);
+        return { status: count !== null && corrections.length === count ? "ready" as const : "degraded" as const, corrections };
       },
     });
   },
