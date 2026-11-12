@@ -3,6 +3,7 @@ import { pintObservationTime } from "@/lib/comparablePint.mjs";
 import { DRINK_MEASURE_LABEL, statedDrinkMeasure } from "@/lib/drinkMeasure";
 import { formatDrinkTagName } from "@/lib/drinkTagName";
 import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
+import { londonDayKey } from "@/lib/londonHour";
 
 export type VenuePriceEvidence = {
   priceGbp: number;
@@ -13,10 +14,6 @@ export type VenuePriceEvidence = {
   observedAt: string | null;
   observedOn: string | null;
 };
-
-const LONDON_DAY = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/London",
-});
 
 /** Read only the evidence belonging to the amount this surface selected. */
 export function venuePriceEvidence(
@@ -48,6 +45,6 @@ export function venuePriceEvidence(
     publisher: named ?? (sourceLabel ? { label: sourceLabel, url: null } : null),
     sourceKind: contributor ? "reported" : "listed",
     observedAt,
-    observedOn: read === null ? null : LONDON_DAY.format(new Date(read)),
+    observedOn: read === null ? null : londonDayKey(new Date(read)),
   };
 }

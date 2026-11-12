@@ -20,6 +20,7 @@
 
 import type { OperatorProposal, OperatorProposalType } from "@/lib/operatorProposals";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
+import { londonDayKey } from "@/lib/londonHour";
 
 export type OperatorFactKind = OperatorProposalType;
 
@@ -130,21 +131,12 @@ export function toPublicOperatorFact(fact: OperatorFact): PublicOperatorFact {
   };
 }
 
-function londonYmd(ms: number): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(ms));
-}
-
 /**
  * Tonight's London service day, YYYY-MM-DD: the evening that started at 16:00,
  * which is still yesterday's until 04:00 (lib/nightServiceHours.ts).
  */
 export function operatorServiceDay(now: number): string {
-  return londonYmd(Date.parse(londonServiceDayBounds(now).start));
+  return londonDayKey(Date.parse(londonServiceDayBounds(now).start));
 }
 
 function byNewest(left: { publishedAt: string }, right: { publishedAt: string }): number {
