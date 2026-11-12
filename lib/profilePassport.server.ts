@@ -183,7 +183,7 @@ async function dropSightings(
 const identity = (venueId: string) => venueId;
 
 /** The alias map, or the identity when it cannot be read. */
-export async function canonicalizer(deps: Pick<PassportDeps, "venueAliases">): Promise<(venueId: string) => string> {
+async function canonicalizer(deps: Pick<PassportDeps, "venueAliases">): Promise<(venueId: string) => string> {
   try {
     return await deps.venueAliases();
   } catch {
