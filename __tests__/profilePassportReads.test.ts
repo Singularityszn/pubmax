@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import type { AccountVisibility } from "@/lib/accountVisibility";
 import { PASSPORT_COPY, TASTE_COPY } from "@/lib/profilePassport";
 import {
+  CappedRead,
   readPassportBeen,
   readPassportOverlap,
   readPassportRanked,
@@ -269,6 +270,20 @@ describe("GET overlap", () => {
     );
     expect(result.ok && result.body.been?.both.map((venue) => venue.venueId)).toEqual(["anchor", "stars"]);
     expect(result.ok && result.body.been?.onlyYou.map((venue) => venue.venueId)).toEqual(["lamb"]);
+  });
+
+  it.each([
+    ["diary", { diary: async () => { throw new CappedRead([{ venueId: "lamb", venueName: "The Lamb", date: "2026-10-01", source: "diary" }]); } }],
+    ["plans", { plans: async () => { throw new CappedRead([{ venueId: "mitre", venueName: "Ye Olde Mitre", date: "2026-09-01", source: "plan" }]); } }],
+    ["Been here", { beenHere: async () => { throw new CappedRead([{ venueId: "grapes", venueName: "The Grapes" }]); } }],
+  ] as const)("keeps a capped %s read in the Been list but compares nothing", async (_source, override) => {
+    const been = await readPassportBeen(request(), "owner", deps("owner", "public", override as Partial<PassportDeps>));
+    expect(been.ok && been.body.status).toBe("ready");
+    expect(been.ok && been.body.count).toBeGreaterThan(0);
+
+    const overlap = await readPassportOverlap(request(), "owner", deps("mate", "public", override as Partial<PassportDeps>));
+    expect(overlap.ok).toBe(true);
+    expect(overlap.ok && overlap.body.been).toBeNull();
   });
 
   it("drops the Been comparison when the complete drop read fails", async () => {

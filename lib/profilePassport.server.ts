@@ -184,6 +184,29 @@ async function settle<T>(read: () => Promise<T>, fallback: T): Promise<{ value: 
   }
 }
 
+/** Hosted PostgREST answers at most this many rows to one request, without an error. */
+const POSTGREST_ROW_CAP = 1000;
+
+/**
+ * A source read that reached its limit. Its rows are real, so the Been list
+ * keeps them, but there may be more, so nothing compares against them.
+ */
+export class CappedRead<T> extends Error {
+  constructor(readonly rows: T[]) {
+    super("The read reached its limit.");
+  }
+}
+
+/** Like settle, but a capped read keeps its rows and says it may be short. */
+async function settleRows<T>(read: () => Promise<T[]>): Promise<{ value: T[]; failed: boolean; capped: boolean }> {
+  try {
+    return { value: await read(), failed: false, capped: false };
+  } catch (error) {
+    if (error instanceof CappedRead) return { value: error.rows as T[], failed: false, capped: true };
+    return { value: [], failed: true, capped: false };
+  }
+}
+
 async function dropSightings(
   request: Request,
   profile: ProfileRecord,
@@ -237,7 +260,12 @@ async function named(sightings: BeenSighting[], deps: PassportDeps): Promise<Bee
   );
 }
 
-type BeenFold = { venues: BeenVenue[]; degraded: boolean };
+type BeenFold = {
+  venues: BeenVenue[];
+  degraded: boolean;
+  /** False when a source reached its limit, so the list may be short. */
+  complete: boolean;
+};
 
 /**
  * Every source one access may read for one profile, folded into its Been list
@@ -253,14 +281,12 @@ async function foldBeen(
 ): Promise<BeenFold> {
   const sources = beenSourcesFor(access);
   const userId = profile.userId?.trim() || "";
-  const none = <T>(fallback: T) => settle(async () => fallback, fallback);
+  const none = <T>() => settleRows<T>(async () => []);
   const [diary, drops, plans, beenHere, canonical] = await Promise.all([
-    sources.includes("diary") && userId ? settle(() => deps.diary(userId), []) : none<BeenSighting[]>([]),
+    sources.includes("diary") && userId ? settleRows(() => deps.diary(userId)) : none<BeenSighting>(),
     settle(() => dropSightings(request, profile, relation, deps), []),
-    sources.includes("plan") && userId ? settle(() => deps.plans(userId), []) : none<BeenSighting[]>([]),
-    sources.includes("been_here")
-      ? settle(() => deps.beenHere(profile.handle), [] as PassportVenue[])
-      : none<PassportVenue[]>([]),
+    sources.includes("plan") && userId ? settleRows(() => deps.plans(userId)) : none<BeenSighting>(),
+    sources.includes("been_here") ? settleRows(() => deps.beenHere(profile.handle)) : none<PassportVenue>(),
     canonicalizer(deps),
   ]);
 
@@ -280,7 +306,11 @@ async function foldBeen(
   const venues = aggregateBeen(
     await named(onCurrentIds([...diary.value, ...dropRows, ...plans.value, ...beenHereRows], canonical), deps),
   );
-  return { venues, degraded: diary.failed || drops.failed || plans.failed || beenHere.failed };
+  return {
+    venues,
+    degraded: diary.failed || drops.failed || plans.failed || beenHere.failed,
+    complete: !diary.capped && !plans.capped && !beenHere.capped,
+  };
 }
 
 /** GET /api/profiles/[handle]/been */
@@ -339,7 +369,9 @@ async function comparedSide(
     settle(() => deps.dropVenueIds(profile.handle, viewer), [] as string[]),
     canonicalizer(deps),
   ]);
-  if (fold.degraded || dropIds.failed) return null;
+  // The dated drop timeline is capped, but the complete drop read below
+  // covers its venues, so only the other sources decide completeness.
+  if (fold.degraded || !fold.complete || dropIds.failed) return null;
   const known = new Set(fold.venues.map((venue) => venue.venueId));
   const missing = [...new Set(dropIds.value.map(canonical))].filter((venueId) => venueId && !known.has(venueId));
   const named = await Promise.all(
@@ -486,28 +518,38 @@ const supabasePlanSightings: PlanSightingsReader = async (ownerUserId) => {
   ]);
   if (seats.error) throw new Error(seats.error.message);
   if (owned.error) throw new Error(owned.error.message);
-  const planIds = [
+  const allIds = [
     ...new Set([
       ...(seats.data ?? []).map((row) => String(row.plan_id)),
       ...(owned.data ?? []).map((row) => String(row.id)),
     ]),
-  ].slice(0, PLAN_READ_CAP);
-  if (!planIds.length) return [];
+  ];
+  let capped =
+    (seats.data ?? []).length >= PLAN_READ_CAP || (owned.data ?? []).length >= PLAN_READ_CAP || allIds.length > PLAN_READ_CAP;
+  const finish = (rows: BeenSighting[]): BeenSighting[] => {
+    if (capped) throw new CappedRead(rows);
+    return rows;
+  };
+  const planIds = allIds.slice(0, PLAN_READ_CAP);
+  if (!planIds.length) return finish([]);
   const done = await db.from("plan_completions").select("plan_id, completed_at").in("plan_id", planIds);
   if (done.error) throw new Error(done.error.message);
   const completedAt = new Map((done.data ?? []).map((row) => [String(row.plan_id), String(row.completed_at)]));
-  if (!completedAt.size) return [];
+  if (!completedAt.size) return finish([]);
   const stops = await db
     .from("plan_stops")
     .select("plan_id, venue_id, venue_name")
     .in("plan_id", [...completedAt.keys()]);
   if (stops.error) throw new Error(stops.error.message);
-  return (stops.data ?? []).map((row) => ({
-    venueId: String(row.venue_id),
-    venueName: String(row.venue_name ?? ""),
-    date: passportDay(completedAt.get(String(row.plan_id)) ?? ""),
-    source: "plan" as const,
-  }));
+  if ((stops.data ?? []).length >= POSTGREST_ROW_CAP) capped = true;
+  return finish(
+    (stops.data ?? []).map((row) => ({
+      venueId: String(row.venue_id),
+      venueName: String(row.venue_name ?? ""),
+      date: passportDay(completedAt.get(String(row.plan_id)) ?? ""),
+      source: "plan" as const,
+    })),
+  );
 };
 
 async function venueFacts(venueId: string): Promise<PassportVenueFacts | null> {
@@ -528,12 +570,14 @@ export function defaultPassportDeps(): PassportDeps {
     async diary(ownerUserId) {
       const result = await diaryStore().listForOwner(ownerUserId);
       if (result.status === "degraded") throw new Error("diary degraded");
-      return result.entries.map((entry) => ({
+      const rows = result.entries.map((entry) => ({
         venueId: entry.venueId,
         venueName: entry.venueName,
         date: entry.visitedOn,
         source: "diary" as const,
       }));
+      if (rows.length >= POSTGREST_ROW_CAP) throw new CappedRead(rows);
+      return rows;
     },
     dropVenueIds: (authorHandle, viewer) => pintDropsStore().listVisibleAuthorVenueIds(authorHandle, viewer),
     async drops(authorHandle, viewer) {
@@ -553,9 +597,12 @@ export function defaultPassportDeps(): PassportDeps {
       // The owner reads their own list, so a withdrawn handle is still theirs.
       const read = await savedPubsStore(ownerHandle).readSaved({ handle: ownerHandle });
       if (read.status !== "ready") throw new Error("saved lists unavailable");
-      return read.rows
+      const rows = read.rows
         .filter((row) => row.listType === BEEN_HERE_LIST)
         .map((row) => ({ venueId: row.venueId, venueName: row.venueName }));
+      // The read holds every saved list, so a full answer may hide Been rows.
+      if (read.rows.length >= POSTGREST_ROW_CAP) throw new CappedRead(rows);
+      return rows;
     },
     async rankings(profileId) {
       const rows = await socialPubRankingStore().read({ profileId });
