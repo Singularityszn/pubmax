@@ -4,6 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
+import { BEEN_HERE_LIST, subscribeBeenHere } from "@/lib/beenHere";
+import { getSaved, subscribeSavedPubs } from "@/lib/savedPubs";
 
 // A list chip is a switch: the first press saves, the second removes. It used
 // to look the same both ways and the removal said nothing, so a person who
@@ -56,6 +58,38 @@ function chip(name: string): HTMLButtonElement {
 }
 
 describe("SaveToListControl chips", () => {
+  it.each(["", "mia"])("keeps uncommitted Been here changes on the device for handle %j", async (handle) => {
+    if (handle) window.localStorage.setItem("pubmax_handle", handle);
+    authedFetch.mockImplementation(async (_input: string, init?: { method?: string }) =>
+      init?.method === "POST"
+        ? new Response(null, { status: 503 })
+        : new Response(JSON.stringify({ lists: [], saved: [] }), { status: 200 }),
+    );
+    await open();
+    const accountChanges = vi.fn();
+    const observed: string[][] = [];
+    const unsubscribeAccount = subscribeBeenHere(accountChanges);
+    const unsubscribeDevice = subscribeSavedPubs(() => {
+      observed.push(getSaved().filter((row) => row.listType === BEEN_HERE_LIST).map((row) => row.venueId));
+    });
+    try {
+      expect(chip(BEEN_HERE_LIST).disabled).toBe(false);
+      await act(async () => { chip(BEEN_HERE_LIST).click(); });
+      expect(observed).toEqual([["venue-1"]]);
+      expect(accountChanges).not.toHaveBeenCalled();
+      if (!handle) {
+        expect(chip(BEEN_HERE_LIST).getAttribute("aria-pressed")).toBe("true");
+        await act(async () => { chip(BEEN_HERE_LIST).click(); });
+        expect(observed).toEqual([["venue-1"], []]);
+        expect(chip(BEEN_HERE_LIST).getAttribute("aria-pressed")).toBe("false");
+        expect(accountChanges).not.toHaveBeenCalled();
+      }
+    } finally {
+      unsubscribeAccount();
+      unsubscribeDevice();
+    }
+  });
+
   it("shows the saved state, announces it, and says so when a second press removes the save", async () => {
     await open();
     expect(chip("Want to Visit").getAttribute("aria-pressed")).toBe("false");

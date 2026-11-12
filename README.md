@@ -36,6 +36,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Your profile has a cover, personal details, statistics and section links. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.
 
+  In your passport's **Been** section, **Share your Been card** unlocks when the list shows five pubs. Before five, a non-empty list shows how many more pubs you need. The shared card shows that list's count and the day it was counted. It does not name pubs from the list.
+
+  If you logged a qualifying public pint, the card includes your cheapest one across all cities, with its receipt and logged day. Anonymous and friends-only drops are excluded. A hidden, deleted or restricted drop loses its receipt from the card. The dated count stays. Old links follow a handle rename. Withdrawn or deleted accounts no longer show a card. Sharing opens the device's share sheet or copies the text and link. If sharing fails after preparing the link, tap again to share the retained link.
+
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
 
   If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.
@@ -85,6 +89,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   The [saved map view rules](docs/MAP_URL_PARAMS.md#saved-map-views-and-location-privacy) explain which views can return and how location requests clear stored views.
 
   The map planner's toggle and desktop map button return to the previous sheet or the map root. On phones, **Map the route** does the same. A planner opened over a venue returns to that venue. **Home** returns to the map root, even after you reopen an earlier sheet.
+
+- **Been here map** - save a pub to the **Been here** list to mark it on the map. A muted dot appears beside its visible pin after the map settles. The marks read this device's saved list.
+
+  On the London map, open **Layers**. Select **Your postcodes** to show district discs and percentages. On phones, **Layers** is inside **More map controls**. Each percentage counts your marked pubs against our London pub list, independently of map filters or the current view. Only districts with a marked pub appear, with percentages rounded down.
+
+  Sub-districts such as W1F count under W1. A pub without a recorded full postcode stays outside district totals. The caption counts marked London pubs with no postcode separately. If the London list cannot load, no progress figures appear. **Your postcodes** is off by default. It remembers your choice when device storage is available.
 
 - **Pub features** - open **Filters** on desktop or phone to select the following choices.
 
@@ -330,6 +340,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   A change requires the same named drink and serving, positive prices, named publishers and valid dates in order. The report must follow the earlier record and remain within the [community-price freshness window](lib/priceAuthorityWindow.ts). Demo prices and anecdotes cannot establish a change. Otherwise, two displayed records show **Price comparison unavailable**, without an arrow, comparison bars, percentage or spoken change claim. A memory's era does not date its logged price, so the story shows no inflation adjustment. Source reads and reports do not confirm today's price.
 - **Offline pages** - with a registered service worker, previously cached public `/plan/<id>` previews can reopen without signal. Cached landing, Map, Tonight and offline fallback pages can also reopen.
 
+  Opening a Map pub sheet with live detail saves a copy on this device when browser storage permits. Prefetch alone does not save a copy. If a later detail request or response body read fails, the sheet can show the saved copy with its save date. Each copied price keeps its source and date, so the save date does not confirm today's price.
+
+  Storage limits can remove older copies. Photos and pubs you never opened can remain unavailable offline.
+
+  Saved sheets retry live detail when the connection returns. Reopening a saved sheet also retries while the browser reports a connection. A saved copy that arrives while the browser reports a connection triggers one live retry. A successful refresh replaces the copy. If a refresh confirms the pub is missing, the sheet shows it as missing. A server or network failure during a refresh keeps the dated copy.
+
   Nearby links (`/near`, with or without query parameters) need a connection. When navigation fails, the service worker shows the cached offline explanation. If that page is unavailable, it shows a plain offline error.
 
   A Map link for a town, national browse or share card needs a cached document with the exact same query. If that document is absent when the network fails, the worker uses the cached landing page or offline fallback. These Map links wait for the network result and never use the timed cache fallback.
@@ -398,8 +414,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   A suspended account cannot start a conversation or send a message. If PUBMAXX cannot check suspension, it refuses the send and asks you to retry.
 
+- **Your map fixes** - when signed in, open `/activity` to see accepted pub suggestions and resolved correction reports. **Show more** reveals older outcomes. **View** opens the pub on the map for a resolved correction. Acceptance confirms a suggestion's approval. The pub reaches the map through a later data update, and publication does not send a separate notice.
+
+  The bell includes unread map outcomes. Read status stays on this device for your account. Activity marks outcomes read only after a complete response shows every unread outcome. You do not need to expand history you already read. An incomplete response leaves the read status unchanged.
+
 - **Founders wall** - `/founders` keeps the first hundred claimed handles on public record. Social Posts and Your PUBMAXX link to it.
-- **Log tonight's price** - on the mobile map, open **More map controls**, choose **Layers**, then **Log a price** to keep the map's city and selected drink. Choose a pub if none is selected. **Search pubs** keeps the request active while you search; **Show all pubs** clears constraints but keeps the drink category. Wine and cocktail requests open their own price forms, and sign-in returns to the same city, pub, and drink. You can also tap **Add price** from a pub's sheet, choose a category, and enter the price. Each accepted submission shows on the pub's own page instantly, on its own dated row, never overwriting the price on record. The [paired-save rules](docs/rules/lib-prices-trust-and-drinks.md#what-a-community-price-is-allowed-to-move-is-a-policy-not-an-implementation-deta) explain how pint prices and Pint Drops save together, including failed saves and older-price refusals. [Contribution access rules](docs/rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s) govern the sign-in, handle and age checks. A first pint report also marks the pub's pin at once with a small unconfirmed dot, but the pin's colour and card restamp with a dated community badge only once a second independent drinker logs the same figure, and a community price over 30 days old hands the map back to the price on record.
+- **Log tonight's price** - on the mobile map, open **More map controls**, choose **Layers**, then **Log a price** to keep the map's city and selected drink. Choose a pub if none is selected. **Search pubs** keeps the request active while you search; **Show all pubs** clears constraints but keeps the drink category. Wine and cocktail requests open their own price forms, and sign-in returns to the same city, pub, and drink. You can also tap **Add price** from a pub's sheet, choose a category, and enter the price. Each accepted submission shows on the pub's own page instantly, on its own dated row, never overwriting the price on record. The [paired-save rules](docs/rules/lib-prices-trust-and-drinks.md#what-a-community-price-is-allowed-to-move-is-a-policy-not-an-implementation-deta) explain how pint prices and Pint Drops save together, including failed saves and older-price refusals. [Contribution access rules](docs/rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s) govern the sign-in, handle and age checks. The [bill-check rule](docs/rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price) explains when a Pint Drop earns receipt evidence. The [map authority rule](docs/rules/lib-prices-trust-and-drinks.md#what-a-community-price-is-allowed-to-move-is-a-policy-not-an-implementation-deta) separates provisional marks from changes to the pin's price and colour.
 
   The [price mission rules](docs/rules/lib-prices-trust-and-drinks.md#a-price-evidence-mission-is-one-useful-community-price-task-never-a-reservation) explain which tasks remain available after you contribute.
 
@@ -413,6 +433,14 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **The Landlord** - pub-history answers use recorded facts and keep dates attached to their sourced events, without calculating present-day ages. For typed history questions, use a complete listed pub name or recorded alias. A shared name such as The Lamb asks you to choose a pub on the map. An unlisted name produces no pub card. An unlisted or ambiguous name does not discard another uniquely matched pub in the same question.
 - **Report a person** - when signed in, open **Report @handle** on a profile or crew page and choose a reason. If several people are listed, open **Report someone** and choose the person first. The public crew preview offers a report for its host. A report enters the moderation queue without blocking the person or removing content.
 - **Moderation** - reports from two distinct signed-in accounts hide a Pint Drop; anonymous reports queue it for moderator review without auto-hiding it. The `/admin` console reviews hidden drops. A community price or a drinker's pub observation can also be reported by anyone, but never auto-hides: only a moderator hides it (hide, never delete) through the moderator-gated admin API, one queue for both shapes. Social reports and flagged DMs have separate queues in the same console. The [Social moderation guide](docs/SOFT_LAUNCH_RUNBOOK.md#52-social-moderation-rota) covers those controls.
+
+### Welcome tour
+
+An eligible first visit to `/map` or a city map can show the welcome tour after you accept or decline analytics. The [prompt rules](docs/PROMPT_ORCHESTRATION.md#the-contract) determine when it can appear. A link that opens a pub or a Plan bypasses the tour for that arrival.
+
+The four steps explain pin colours, logging a pint, saving pubs to **Been here**, and sharing a Plan link. Use **Next** and **Back**, or the right and left arrow keys, to move between steps. Choose **Got it** on the last step to finish. You can dismiss the tour with **Skip** on the first step, the close button, Escape, or the backdrop.
+
+Finishing or dismissing saves your choice in this browser when storage is available. The tour also respects a saved dismissal from the earlier tour. Returning users do not need to repeat it.
 
 ## Stack
 

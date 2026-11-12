@@ -10,6 +10,8 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import sharp from "sharp";
 
+import { cheapestBeenCardDrop, type BeenCardDrop } from "@/lib/beenCard";
+import { demoContentEnabled } from "@/lib/demoContent";
 import { oneTapPriceDropId } from "@/lib/oneTapPriceDropId";
 import { duplicateOneTapDrop } from "@/lib/oneTapDuplicate";
 import { submitMemoryCommunityPrice, resetCommunityPriceCategoryIndexMemo } from "@/lib/communityPriceStore";
@@ -35,7 +37,7 @@ import {
 } from "@/lib/identityHandleStore";
 import { log } from "@/lib/log";
 import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
-import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
+import { demoDropsFor, demoPintDrops, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
   confirmationIsLive,
   isPintDropConfirmationBasis,
@@ -64,6 +66,7 @@ import {
   keepHiddenPintDrop,
   listReportedPintDrops,
   listAllVisiblePintDrops,
+  listAllStoredPintDrops,
   listByStatus,
   listLegacyPintDropsForVenue,
   listVisiblePintDrops,
@@ -231,6 +234,7 @@ export type PintDropStore = {
    * included. The author's own read only, for "somewhere new".
    */
   listOwnVenueIds(authorHandle: string): Promise<string[]>;
+  cheapestOwnPublicPint(authorHandle: string): Promise<BeenCardDrop | null>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
    * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
@@ -854,6 +858,19 @@ async function attributedAuthorVenueIds(
   return [...new Set(published.map((drop) => drop.venueId))].sort();
 }
 
+async function cheapestPublicAuthorPint(
+  rows: PersistableDrop[],
+  author: AuthorIdentity,
+): Promise<BeenCardDrop | null> {
+  const attributed = asAuthorDrops(rows, author)
+    .filter((drop) => matchesAttributedAuthor(drop, author.current))
+    .map((drop) => ({ ...drop, visibility: visibilityOf(drop) }));
+  const cheapest = cheapestBeenCardDrop(attributed, author.current);
+  if (!cheapest) return null;
+  const published = await dropWithdrawnAuthors([cheapest], (drop) => drop.handle);
+  return published[0] ?? null;
+}
+
 async function durableCreatedDrop(id: string): Promise<PersistableDrop | undefined> {
   const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
   if (error) throw new Error(error.message);
@@ -982,6 +999,12 @@ export const memoryPintDropStore: PintDropStore = {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
     if (!author) return [];
     return attributedAuthorVenueIds(listAllVisiblePintDrops(null), author, { handle: author.current }, true);
+  },
+  async cheapestOwnPublicPint(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    if (!author) return null;
+    const rows = listAllStoredPintDrops().concat(demoContentEnabled() ? demoPintDrops : []);
+    return cheapestPublicAuthorPint(rows, author);
   },
   async listLegacyForVenue(venueId) {
     const published = await dropWithdrawnAuthors(
@@ -1742,6 +1765,26 @@ export const supabasePintDropStore: PintDropStore = {
   },
   async listOwnVenueIds(authorHandle) {
     return durableAuthorVenueIds(authorHandle, undefined, null, undefined, true);
+  },
+
+  async cheapestOwnPublicPint(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+    if (!author) return null;
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("id,handle,price_gbp,measure,visibility,status,created_at,author_retired_at")
+      .in("handle", wornHandleList(author))
+      .eq("status", "visible")
+      .eq("visibility", "public")
+      .eq("measure", "pint")
+      .is("author_retired_at", null)
+      .gt("price_gbp", 0)
+      .order("price_gbp", { ascending: true })
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []).map(fromRow).concat(demoContentEnabled() ? demoPintDrops : []);
+    return cheapestPublicAuthorPint(rows, author);
   },
 
   /** The LEGACY lane for one venue (ledger-only capability for issue #27).
