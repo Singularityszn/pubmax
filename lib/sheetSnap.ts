@@ -411,11 +411,11 @@ export function resolveSheetHeightSnap({
     return { snap: "peek", dismissed: true };
   }
 
-  const ref = (snap: SheetSnap) => (snap === startSnap ? Math.min(startHeightPx, caps[snap]) : caps[snap]);
   let nearest: SheetSnap = startSnap;
-  let nearestDist = Math.abs(ref(startSnap) - projectedHeight);
+  let nearestDist = Math.abs(Math.min(startHeightPx, caps[startSnap]) - projectedHeight);
   for (const snap of SHEET_SNAP_ORDER) {
-    const dist = Math.abs(ref(snap) - projectedHeight);
+    if (caps[snap] === caps[startSnap]) continue;
+    const dist = Math.abs(caps[snap] - projectedHeight);
     if (dist < nearestDist) {
       nearestDist = dist;
       nearest = snap;

@@ -329,6 +329,7 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
       { startHeightPx: 124, releaseHeightPx: 124, cap: 124 },
       { startHeightPx: 172, releaseHeightPx: 145, cap: 124 },
       { startHeightPx: 124, releaseHeightPx: 124, cap: 172 },
+      { startHeightPx: 124, releaseHeightPx: 154, cap: 172 },
     ])("preserves the snap from $startHeightPx with a $cap cap", ({ startHeightPx, releaseHeightPx, cap }) => {
       expect(resolveSheetHeightSnap({
         viewportHeight: 320,
@@ -339,6 +340,22 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
         caps: { peek: cap, half: cap, full: cap },
       })).toEqual({ snap: startSnap, dismissed: false });
     });
+  });
+
+  it.each([
+    { startSnap: "half", caps: { peek: 70, half: 172, full: 172 } },
+    { startSnap: "full", caps: { peek: 70, half: 172, full: 172 } },
+    { startSnap: "peek", caps: { peek: 172, half: 172, full: 240 } },
+    { startSnap: "half", caps: { peek: 172, half: 172, full: 240 } },
+  ] as const)("keeps $startSnap when its cap matches one other snap after reserve shrinkage", ({ startSnap, caps }) => {
+    expect(resolveSheetHeightSnap({
+      viewportHeight: 320,
+      startSnap,
+      startHeightPx: 124,
+      releaseHeightPx: 154,
+      velocity: 0,
+      caps,
+    })).toEqual({ snap: startSnap, dismissed: false });
   });
 
   it("stays at the same snap when there is no drag (start height = its cap)", () => {
