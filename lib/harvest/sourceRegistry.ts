@@ -148,6 +148,12 @@ const QUIZ_CHECKED_ON = "2026-10-28";
 // The Guinndex price index, read against its live robots.txt, /terms,
 // /voice.txt and /llms.txt on this day.
 const GUINNDEX_CHECKED_ON = "2026-11-09";
+// The Fuller's and Stonegate terms of use, read live on this day under the
+// captain's 7 Nov 2026 ruling that a pub group whose terms forbid commercial
+// use or scraping is a refused source.
+const TERMS_CHECKED_ON = "2026-11-12";
+const FULLERS_TERMS_EVIDENCE =
+  "Captain ruling, 7 Nov 2026: a pub group whose terms forbid commercial use or scraping is refused. Fuller's terms of use (https://www.fullers.co.uk/corporate/terms-of-use), read live on 12 Nov 2026, cover `this website or any site which we own` and say `You must not use any part of the content on our site for commercial purposes without obtaining a licence to do so from us or our licensors` and `You agree not to use our site for any commercial or business purposes`. PUBMAXX is commercial. robots.txt disallows /sitecore/, /homepage/ and three internal paths only and would permit the page, but the narrower terms rule binds.";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -188,12 +194,13 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "chain-deals",
     firstParty: true,
     access: {
-      allowed: true,
-      evidence: "robots.txt disallows /sitecore/, /homepage/ and three internal paths only.",
-      checkedOn: CHECKED_ON,
+      allowed: false,
+      reason: "terms-forbid-commercial-use",
+      evidence: FULLERS_TERMS_EVIDENCE,
+      checkedOn: TERMS_CHECKED_ON,
     },
     notes:
-      "Checked 2026-08-09: the event finder renders its results in the browser, so the served document lists no event, and the programme pages behind it (for example Laughs On Tap) give a season rather than a date. Expect zero rows until Fuller's publishes dates in the document.",
+      "The chain-deals entry for Fuller's event finder. See fullers-event-finder-events for the terms refusal shared by both event lanes.",
   },
   {
     id: "youngs-offers",
@@ -316,12 +323,14 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "chain-menu-prices",
     firstParty: true,
     access: {
-      allowed: true,
+      allowed: false,
+      reason: "terms-forbid-commercial-use",
       evidence:
-        "robots.txt re-read 2026-09-22: HTTP 200, `User-agent: *` `Allow: /` with `Disallow: /home` only. Menu paths are still checked against their own live robots response before each request.",
-      checkedOn: "2026-09-22",
+        "Captain ruling, 7 Nov 2026: a pub group whose terms forbid commercial use or scraping is refused. The Slug and Lettuce footer links its terms to the Stonegate Group terms (https://www.stonegategroup.co.uk/terms-conditions/), read live on 12 Nov 2026. They say `No text or data mining, or web scraping. You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping in relation to our Websites and Apps`, name any `robot`, `bot`, `spider`, `scraper` or other automated tool, and say `You must not use any part of the content on our Websites and Apps for commercial purposes without obtaining a licence`. robots.txt re-read 2026-09-22 (HTTP 200, `User-agent: *` `Allow: /` with `Disallow: /home` only) would permit the menus, but the narrower terms rule binds.",
+      checkedOn: TERMS_CHECKED_ON,
     },
-    notes: "Slug and Lettuce /menus paths; prices only when printed on the page.",
+    notes:
+      "Slug and Lettuce /menus paths. Refused on terms, not on robots. Reading it needs Stonegate's written licence or a feed, not a crawler.",
   },
   {
     id: "brewdog-menu-prices",
@@ -364,12 +373,13 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "venue-events",
     firstParty: true,
     access: {
-      allowed: true,
-      evidence: "robots.txt disallows /sitecore/, /homepage/ and three internal paths only.",
-      checkedOn: CHECKED_ON,
+      allowed: false,
+      reason: "terms-forbid-commercial-use",
+      evidence: FULLERS_TERMS_EVIDENCE,
+      checkedOn: TERMS_CHECKED_ON,
     },
     notes:
-      "The operator's own event finder. Checked 2026-08-09: results render in the browser, so a markdown read may yield zero dated rows until Fuller's publishes dates in the document. Context.dev events lane reads this page; the chain-deals lane reads the same URL separately.",
+      "The operator's own event finder. The Context.dev events lane and the chain-deals lane refuse this page because Fuller's terms forbid commercial use.",
   },
   {
     id: "common-social-posts",

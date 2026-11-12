@@ -7,6 +7,7 @@ import PintDropComposer from "@/components/map/PintDropComposer";
 import PintDropMessage from "@/components/map/PintDropMessage";
 import VenuePriceStory from "@/components/map/VenuePriceStory";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import DutyCensusAfterLog from "@/components/census/DutyCensusAfterLog";
 import PintDropsList from "./PintDropsList";
 
 export default function VenuePintsTab({
@@ -90,6 +91,7 @@ export default function VenuePintsTab({
               ) : null}
             </div>
           )}
+          {!composerOpen && dropMsg?.ok && dropMsg.census ? <DutyCensusAfterLog /> : null}
           {drops.length === 0 ? (
             <p className="description muted">
               No Pint Drops yet at {venue.name}. Be the first. Log tonight&rsquo;s price or pass

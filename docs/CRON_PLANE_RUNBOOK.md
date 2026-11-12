@@ -31,7 +31,7 @@ in the same commit.
 | Route | Schedule (UTC) | London (BST / GMT) | Purpose | maxDuration |
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
-| `GET /api/cron/refresh-whats-on` | `30 5 * * *` and `0 15 * * *` | **06:30** and **16:00** / 05:30 and 15:00 | Refresh bounded quiz, deal, music, and sport lanes plus official Ticketmaster / Skiddle events into `whats_on_listings`; readers prefer non-expired durable rows and fall back to bundled files | 60s |
+| `GET /api/cron/refresh-whats-on` | `30 5 * * *` and `0 15 * * *` | **06:30** and **16:00** / 05:30 and 15:00 | Refresh `whats_on_listings` through the [bounded lanes and official events](#which-keys-enable-each-job). Readers prefer eligible durable rows and fall back to eligible bundled rows | 60s |
 | `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine and report stale feeds and unresolvable feeds separately. See [failure posture](#failure-posture-never-fake-success) for alert delivery. | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
@@ -104,7 +104,7 @@ own observation times and bundled files remain the fallback.
 | Job | Provider | Env key(s) | Behaviour without the key |
 |---|---|---|---|
 | **Weather** | Open-Meteo | **none** (keyless) | Always runs. No skip branch. |
-| What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, deal, music, and sport into `whats_on_listings`; a failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
+| What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, music, and sport into `whats_on_listings`. It clears stored deal rows because it reads no deal source. A failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Cron persists live rows to `whats_on_listings`. Without an official provider key, that event lane is skipped while bounded lanes can still refresh. Skiddle also needs **written commercial approval** (email dev@skiddle.com) and `SKIDDLE_BRAND_ASSET_PRESENT`. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
 | **Social text moderation** | OpenAI | `OPENAI_API_KEY` | See [failure posture](#failure-posture-never-fake-success) for missing-key responses, held content and production diagnostics. |
@@ -192,8 +192,9 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   The cron and the bundled-pack command share
   [`questionOneDirectory.mjs`](../scripts/whatson/questionOneDirectory.mjs),
   which owns pagination and the page limit. A failed or over-limit read keeps
-  the stored quiz rows. Deal, music and sport use existing first-party
-  definitions and bundled venue inputs.
+  the stored quiz rows. Music uses first-party definitions and bundled venue
+  inputs. Sport reads live fixtures and bundled venue attributes. The
+  [bounded-lane contract](#which-keys-enable-each-job) owns deal handling.
 - The GitHub events-refresh workflow writes the same committed file. Keep it
   in the tree so it can resume when Actions billing returns. It is not the
   live path; Vercel Cron is the reliable refresh path.

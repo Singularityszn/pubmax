@@ -10,7 +10,7 @@
 // The rules are pure and live here; `scripts/harvest_london_restaurant_drinks.mjs`
 // does the reading, and `scripts/build_london_venue_shards.mjs` publishes.
 
-import { allowedEvidenceUrl, ownSiteFor, withoutName } from "./parallelVenueDiscovery.mjs";
+import { allowedEvidenceUrl, attributableEvidenceUrl, ownSiteFor, withoutName } from "./parallelVenueDiscovery.mjs";
 import { pageText, readFailureIsDefinitive } from "./webVenueDiscovery.mjs";
 
 export const LONDON = { id: "london", displayName: "London" };
@@ -269,13 +269,13 @@ export function restaurantCandidate(element, { statesAlcohol, excluded }) {
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const OSM_ID = /^(?:node|way|relation)\/\d+$/;
 
-const ownSite = (url) => allowedEvidenceUrl(url) && !NOT_OWN_SITE.test(hostOf(url));
+const ownSite = (url) => attributableEvidenceUrl(url) && !NOT_OWN_SITE.test(hostOf(url));
 
 function evidenceProblems(entry, row) {
   const excerpt = String(entry?.excerpt ?? "");
   return [
-    (!ownSite(row.website) || !allowedEvidenceUrl(entry?.url) || hostOf(entry.url) !== hostOf(row.website)) && `evidence ${entry?.url} is not on the restaurant's own site`,
-    allowedEvidenceUrl(entry?.url) && offPremisesUrl(entry.url) && `evidence ${entry.url} is a shop page`,
+    (!ownSite(row.website) || !attributableEvidenceUrl(entry?.url) || hostOf(entry.url) !== hostOf(row.website)) && `evidence ${entry?.url} is not on the restaurant's own site`,
+    attributableEvidenceUrl(entry?.url) && offPremisesUrl(entry.url) && `evidence ${entry.url} is a shop page`,
     !statesRestaurantDrinks(excerpt, row.name) && "excerpt does not state alcohol without the name",
     REFUSES_ALCOHOL.test(fold(excerpt)) && "excerpt refuses alcohol",
     FURNITURE.test(fold(excerpt)) && "excerpt is page furniture",
@@ -292,7 +292,7 @@ function rowProblems(row, inGreaterLondon) {
     row?.kind !== "restaurant" && "kind must be restaurant",
     (typeof row?.name !== "string" || !row.name.trim()) && "no name",
     !inGreaterLondon(Number(row?.lat), Number(row?.lng)) && "outside Greater London",
-    !ownSite(row?.website) && "website is not an own site the fence permits",
+    !ownSite(row?.website) && "website is not an attributable own site",
     !evidence.length && "no evidence",
     ...evidence.flatMap((entry) => evidenceProblems(entry, row)),
   ].filter(Boolean);
@@ -315,10 +315,11 @@ export function excludedOsmIds(exclusions) {
 
 /**
  * Every published row, checked again on every build: an OSM identity inside
- * Greater London and not excluded, an own-site evidence URL the fence permits,
+ * Greater London and not excluded, an attributable own-site evidence URL,
  * a recorded robots permission, a quote that states alcohol without the
  * venue's name and a read date. Returns the problems; an empty list is a valid
  * pack.
+ * Stored reads keep their provenance when later policy refuses another read.
  */
 export function validateRestaurantDrinksPack(pack, { inGreaterLondon, exclusions }) {
   const excluded = excludedOsmIds(exclusions);

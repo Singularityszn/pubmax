@@ -25,13 +25,9 @@
 
 > **Update 2026-08-24 (does not rewrite the inventory below).** The What's-On
 > inventory below predates migration `0119` and the all-lane Vercel refresh.
-> `GET /api/cron/refresh-whats-on` now refreshes bounded quiz, deal, music, and
-> sport lanes plus configured official event lanes into durable
-> `whats_on_listings`; readers prefer non-expired durable rows and use bundled
-> files as fallback. Full harvested breadth remains a separate recovery path.
-> The current contract is owned by [`docs/CRON_PLANE_RUNBOOK.md`](./CRON_PLANE_RUNBOOK.md),
-> [`data/freshness_registry.json`](../data/freshness_registry.json), and
-> [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md).
+> The [cron lane contract](./CRON_PLANE_RUNBOOK.md#which-keys-enable-each-job)
+> owns current refresh coverage. The
+> [freshness registry](../data/freshness_registry.json) owns feed budgets.
 
 > **Update 2026-08-28 (does not rewrite the inventory below).** Area news now
 > has a repeatable manual Keenable refresh and a 504-hour registry budget. The

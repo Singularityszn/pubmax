@@ -9,8 +9,10 @@ import { buildVenueClaims } from "@/lib/ledger";
 import { CITIES } from "@/lib/cities";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { ledgerTitleName } from "@/lib/ledgerTitle";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { type Venue } from "@/lib/venues";
 import JsonLd from "@/components/seo/JsonLd";
@@ -83,7 +85,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // The layout's template adds the brand to the document title. The share
   // card is not templated, so it keeps the branded form.
-  const title = `The Ledger: ${ledgerTitleName(venue, await getVenueIndex())}`;
+  const [index, bundledVenues] = await Promise.all([getVenueIndex(), getPricedVenues()]);
+  const title = `The Ledger: ${ledgerTitleName(venue, index, bundledVenues)}`;
   const cardTitle = `${title}. ${BRAND_NAME}`;
   const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
@@ -172,10 +175,7 @@ export default async function LedgerPage({ params }: PageProps) {
   if (read.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
   if (read.status !== "found") notFound();
   const { venue } = read;
-  // Everything below reads/links off the canonical venue id (D1) so a merged
-  // alias URL and the surviving canonical URL share the same logbook, Family
-  // Table, and ratings, never the raw route param, which may be a losing
-  // duplicate id.
+  redirectMergedVenueId("/ledger", id, venue.id);
   const canonicalId = venue.id;
 
   const curation = venue.curation;

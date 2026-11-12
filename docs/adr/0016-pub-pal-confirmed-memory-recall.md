@@ -18,13 +18,22 @@ had to say it again every night.
    voice may read the person's durable `pub_pal_memories`. Only
    `user_confirmed` and `user_correction` rows are read. A `completed_plan` row
    was inferred, not confirmed, so it never reaches the agent.
-2. **The owner comes from the server-side conversation binding.** The account
-   is the one that opened the conversation, never a value in a request or
-   webhook body, so one conversation can only read its own account's Pal.
+2. **Server-side identity determines the owner.** Typed preambles and voice
+   preloads use the authenticated account. The recall webhook uses the account
+   that opened the conversation, from the server-side conversation binding.
+   Neither path accepts an owner from a request or webhook body.
 3. **Two read paths.** Typed chat puts the confirmed lines ahead of the ask on
-   the server (the typed preamble). Voice calls the Pal-only `recall_memories`
-   webhook. Signed-in text and voice openings can also reference confirmed context
-   when the taste read permits it. All paths read through `lib/palConfirmedMemories.server.ts`.
+   the server (the typed preamble). Voice receives confirmed memories when the call connects.
+   The prompt skips the Pal-only `recall_memories` webhook only when the preload contains every confirmed memory.
+   This includes a successful read with no confirmed memories.
+   `readConfirmedPalMemorySelection` reports completeness from the shared reader in `lib/palConfirmedMemories.server.ts`.
+   The preload has no ask, so selection uses pinned kinds and the newest memories.
+   If `PAL_RECALL_MEMORY_LIMIT` truncates the selection, the preload labels its memories as a partial set.
+   The prompt then requires recall for each substantive request, using the server's stored latest user line for selection.
+   A failed read leaves recall enabled on the first substantive request.
+   Signed-in text and voice openings can also reference confirmed context when the taste read permits it.
+   The taste setting does not disable confirmed-memory context for voice requests.
+   All paths read through `lib/palConfirmedMemories.server.ts`.
 4. **Writes stay confirm-gated.** The Pal-only `propose_memory` webhook adds
    a visible card to typed and voice chat. The webhook saves nothing.
    Only the person's confirmation can create, update or delete a memory through

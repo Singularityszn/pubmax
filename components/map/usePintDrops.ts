@@ -72,6 +72,7 @@ import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 import { BILL_READING_RECEIPT_LINE } from "@/lib/billCheck";
 import {
   UNCHECKED_RECEIPT_LINE,
+  isPricedWrite,
   isUncheckedPrice,
   photoRefusal,
   priceEvidenceFor,
@@ -105,6 +106,8 @@ export type DropMsg = {
   ok: boolean;
   text: string;
   links?: Array<{ href: Route; label: string }>;
+  /** A priced drop landed, so the duty census card may follow the receipt. */
+  census?: boolean;
   /** The receipt a saved public drop offers to share (lib/pintReceipt.ts). */
   receipt?: ReceiptShare | null;
   accountRevision?: number;
@@ -391,8 +394,8 @@ export function usePintDrops(
   // EVERY PREVIEW URL THIS HOOK HAS MINTED AND NOT YET REVOKED. A slot's URL
   // is revoked when the slot is replaced or removed; a URL handed to an
   // optimistic row (map drop, feed spill) outlives the composer and is revoked
-  // when the server row replaces it. Whatever is still held at unmount goes
-  // then. One set, so nothing is revoked twice and nothing still on screen is
+  // when the server row replaces it. Stored retries retain their URLs across
+  // unmount. One set, so nothing is revoked twice and nothing still on screen is
   // revoked by a sibling slot changing.
   const livePreviewUrls = useRef(new Set<string>());
   // Ref guard + optimistic removal is the whole "pending state" for reports —
@@ -504,8 +507,7 @@ export function usePintDrops(
   }, []);
 
   // Pick a photo for one slot: pre-validate (type + size) before we ever build a
-  // preview or submit, so bad files are caught client-side. Object URLs are
-  // revoked when the slot is replaced/removed and on unmount (effect below).
+  // preview or submit, so bad files are caught client-side.
   // ONE TABLE FOR THREE SLOTS. It was a pair of ternaries per function, and a
   // third slot would have made six places to keep in step.
   const photoSlots = {
@@ -595,13 +597,19 @@ export function usePintDrops(
     void Promise.resolve().then(() => resetComposer());
   }, [accountRevision, resetComposer]);
 
-  // Revoke every preview URL still held when the component unmounts. Empty
+  // Revoke composer previews on unmount, but leave stored retries their photos. Empty
   // deps on purpose: a cleanup keyed on the slots ran with the previous
   // closure, so changing ONE slot revoked all three (review finding CMP-2).
   useEffect(() => {
     const held = livePreviewUrls.current;
     return () => {
-      for (const url of held) revokeOptimisticSpillPhotoPreview(url);
+      const storage = safeLocalStorage();
+      const retained = new Set(storage ? readOptimisticSpills(storage).flatMap(({ retry }) =>
+        retry ? [retry.pintPhotoUrl, retry.venuePhotoUrl, retry.receiptPhotoUrl] : [],
+      ) : []);
+      for (const url of held) {
+        if (!retained.has(url)) revokeOptimisticSpillPhotoPreview(url);
+      }
       held.clear();
     };
   }, []);
@@ -943,6 +951,7 @@ export function usePintDrops(
           ok: true,
           text: dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
           links,
+          census: isPricedWrite(submittedPrice),
           receipt: receiptShareFromSavedDrop(data.drop, venueLabel),
           accountRevision: submittedAccountRevision,
         });

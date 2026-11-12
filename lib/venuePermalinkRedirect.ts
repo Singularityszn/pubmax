@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { NextResponse } from "next/server";
 
 import { resolveVenuePermalinkSlug, venueMapUrl } from "@/lib/venueIndex";
@@ -29,4 +29,17 @@ export async function venuePermalinkRedirect(
 
   const destination = new URL(venueMapUrl(venueId), request.url);
   return NextResponse.redirect(destination, 308);
+}
+
+/**
+ * Call only after a successful detail lookup. An unavailable alias read must
+ * keep its recovery path rather than establish a permanent destination.
+ */
+export function redirectMergedVenueId(
+  basePath: "/ledger" | "/bar-tab" | "/pubs",
+  requestedId: string,
+  canonicalId: string,
+): void {
+  if (requestedId === canonicalId) return;
+  permanentRedirect(`${basePath}/${encodeURIComponent(canonicalId)}`);
 }

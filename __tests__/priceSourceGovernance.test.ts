@@ -151,7 +151,7 @@ describe("the two price governance tables", () => {
     }
   });
 
-  it.each(["youngs-menu-prices", "stonegate-menu-prices", "brewdog-menu-prices"])(
+  it.each(["youngs-menu-prices", "brewdog-menu-prices"])(
     "%s records the day its robots evidence was re-read",
     (sourceId) => {
       const source = HARVEST_SOURCES.find((candidate) => candidate.id === sourceId);

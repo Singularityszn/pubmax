@@ -58,8 +58,8 @@ export async function providerCallSeconds(
  * `providerCallSeconds`, asked again once a second for at most
  * `PROVIDER_SETTLE_WINDOW_MS`, because a browser releases the moment it hangs
  * up and ElevenLabs reports the call as running for a moment after that. Null
- * when the window closes first: the grant stays issued, charged in full, and
- * is settled before the owner's next session is admitted.
+ * when the window closes first: the grant stays issued and charged in full.
+ * The voice-token route owns later settlement attempts.
  */
 export async function providerCallSecondsOnceEnded(
   conversationId: string,

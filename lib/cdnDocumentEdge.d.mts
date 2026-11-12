@@ -1,6 +1,7 @@
 export type CdnEdgeQueryCondition = { type: "query"; key: string };
 export type CdnEdgeHeaderCondition = { type: "header"; key: string };
 
+export declare const ISR_EXPIRE_SECONDS: number;
 export declare const CDN_EDGE_DOCUMENT_PATHS: readonly string[];
 export declare const CDN_EDGE_PROXY_QUERY_KEYS: Readonly<Record<string, readonly string[]>>;
 export declare function cdnEdgeMatcherAlternatives(): string;

@@ -15,6 +15,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueMenuLookupKeys } from "@/lib/venueMenu";
 import { isVerifiedClosedCuratedVenue, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 import type { Venue } from "@/lib/venues";
+import { londonDayKey } from "@/lib/londonHour";
 
 /** Public menu facts only. No post, account, crew or viewer fields cross here. */
 export type SocialAlternatives = {
@@ -31,10 +32,6 @@ export type SocialAlternatives = {
   }[];
   priceRead: "ready" | "unavailable";
 };
-
-const LONDON_DAY = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/London",
-});
 
 type SocialAlternativeVenue = Pick<Venue,
   "id" | "name" | "address" | "latitude" | "longitude" | "kind" | "sourceName" | "prices"
@@ -90,7 +87,7 @@ export function buildSocialAlternatives(
     prices.push({
       venueId: venue.id, name: venue.name, href: venueMapUrl(venue.id), drink: update.drinkName.trim(),
       serving, priceGbp: update.priceGbp, publisher: { label: publisher, url: sourceUrl },
-      observedOn: LONDON_DAY.format(new Date(update.observedAt)),
+      observedOn: londonDayKey(new Date(update.observedAt)),
     });
     if (prices.length === 2) break;
   }

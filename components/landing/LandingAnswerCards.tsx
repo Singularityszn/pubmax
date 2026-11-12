@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { LandingAnswers } from "@/lib/landingAnswers";
@@ -18,7 +19,14 @@ import type { LandingAnswers } from "@/lib/landingAnswers";
 // carries no figure and no day, and it spans the grid rather than sitting
 // beside a sentence about tonight.
 
-export default function LandingAnswerCards({ answers }: { answers: LandingAnswers }) {
+export default function LandingAnswerCards({
+  answers,
+  dutyCensus = null,
+}: {
+  answers: LandingAnswers;
+  /** The duty census card, under Tonight and spanning the grid. */
+  dutyCensus?: ReactNode;
+}) {
   return (
     <section className="lpAnswers" aria-labelledby="lp-answers-title">
       <h2 className="lpAnswersTitle" id="lp-answers-title">
@@ -42,6 +50,7 @@ export default function LandingAnswerCards({ answers }: { answers: LandingAnswer
           <span className="lpAnswerTileLine">{answers.tonight.line}</span>
           <span className="lpAnswerTileStamp">{answers.tonight.stamp}</span>
         </Link>
+        {dutyCensus}
         <Link
           prefetch={false}
           href="/pal"

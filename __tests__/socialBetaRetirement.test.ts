@@ -18,7 +18,6 @@ const RETIREMENT_SCAN_PATHS = [
   "app",
   "components",
   "lib",
-  "convex",
   "docs",
   "supabase",
   "app/api/identity/adult-assertion/route.ts",
@@ -38,13 +37,12 @@ const RETIREMENT_SCAN_PATHS = [
 ];
 
 const ACTIVE_DEPLOYMENT_SCAN_PATHS = ["vercel.json", ".github/workflows"] as const;
-const ACTIVE_APPLICATION_SCAN_PATHS = ["app", "components", "lib", "convex"] as const;
+const ACTIVE_APPLICATION_SCAN_PATHS = ["app", "components", "lib"] as const;
 
 const SOCIAL_ACCESS_CODE_PATHS = [
   "app/api/social",
   "app/social",
   "components/social",
-  "convex",
   "lib/socialAccess.ts",
   "lib/socialAccessServer.ts",
   "lib/socialLaunch.ts",
@@ -212,15 +210,6 @@ describe("retired Social beta access boundary", () => {
         LEGACY_SOCIAL_REFERENCE,
       );
     }
-  });
-
-  it("scans active Convex backend paths", () => {
-    const activeSources = sourceFiles(RETIREMENT_SCAN_PATHS);
-    expect(
-      Array.from(activeSources.keys()).some((relativePath) =>
-        relativePath.startsWith("convex/"),
-      ),
-    ).toBe(true);
   });
 
   it.each(LEGACY_SOCIAL_REFERENCE_FIXTURES)(
