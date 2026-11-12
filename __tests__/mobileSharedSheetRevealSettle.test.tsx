@@ -182,7 +182,11 @@ it.each(["drink", "venue", "planner"] as const)(
 );
 
 
-it.each(["Header", "Footer"])("updates whole-sheet scrolling when the resting %s changes without changing the cap", async (part) => {
+it.each(
+  (["venue", "planner", "drink"] as const).flatMap(kind =>
+    (["Header", "Footer"] as const).map(part => ({ kind, part })),
+  ),
+)("keeps the $kind sheet scrollable when its resting $part changes without changing the cap", async ({ kind, part }) => {
   const host = document.body.appendChild(document.createElement("div"));
   const root = createRoot(host);
   const environment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -205,13 +209,25 @@ it.each(["Header", "Footer"])("updates whole-sheet scrolling when the resting %s
   vi.stubGlobal("ResizeObserver", ChromeResizeObserver);
   try {
     await act(async () => root.render(
-      <MobileSharedSheet kind="venue" title="Pub detail" initialSnap="full" onClose={() => {}}>
+      <MobileSharedSheet kind={kind} title="Pub detail" initialSnap="full" onClose={() => {}}>
         Venue content
       </MobileSharedSheet>,
     ));
     const sheet = document.querySelector<HTMLElement>(".mobileSharedSheet")!;
     const header = sheet.querySelector<HTMLElement>(".mobileSharedSheetHeader")!;
     const footer = sheet.querySelector<HTMLElement>(".mobileSharedSheetFooter")!;
+    header.setPointerCapture = () => {};
+    header.hasPointerCapture = () => true;
+    header.releasePointerCapture = () => {};
+    const pointer = (type: string, clientY: number) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        pointerId: { value: 1 }, pointerType: { value: "touch" },
+        isPrimary: { value: true }, button: { value: 0 },
+        clientX: { value: 100 }, clientY: { value: clientY },
+      });
+      return event;
+    };
     Object.defineProperty(header, "offsetHeight", { configurable: true, value: 64 });
     Object.defineProperty(footer, "offsetHeight", { configurable: true, value: 0 });
     await act(async () => vi.advanceTimersByTime(SHEET_ENTRANCE_MS));
@@ -230,7 +246,33 @@ it.each(["Header", "Footer"])("updates whole-sheet scrolling when the resting %s
       expect(sheet.style.maxHeight).toBe("124px");
       expect(sheet.dataset.sheetMotion).toBe("idle");
       expect(sheet.hasAttribute("data-sheet-cramped")).toBe(height === 201);
+      if (height === 201) {
+        for (const snap of ["peek", "half", "full"] as const) {
+          await act(async () => root.render(
+            <MobileSharedSheet kind={kind} title="Pub detail" initialSnap="full" requestedSnap={snap} onClose={() => {}}>
+              Venue content
+            </MobileSharedSheet>,
+          ));
+          await act(async () => header.dispatchEvent(pointer("pointerdown", 100)));
+          expect(sheet.dataset.sheetMotion).toBe("idle");
+          const move = pointer("pointermove", 70);
+          await act(async () => header.dispatchEvent(move));
+          expect(move.defaultPrevented).toBe(false);
+          await act(async () => header.dispatchEvent(pointer("pointercancel", 70)));
+          await act(async () => sheet.dispatchEvent(new Event("scroll")));
+          expect(sheet.dataset.sheetMotion).toBe("idle");
+          expect(sheet.classList).toContain(`sheet-${snap}`);
+          expect(sheet.style.maxHeight).toBe("124px");
+          expect(sheet.hasAttribute("data-sheet-cramped")).toBe(true);
+        }
+      }
     }
+    await act(async () => header.dispatchEvent(pointer("pointerdown", 100)));
+    expect(sheet.dataset.sheetMotion).toBe("dragging");
+    const move = pointer("pointermove", 70);
+    await act(async () => header.dispatchEvent(move));
+    expect(move.defaultPrevented).toBe(true);
+    await act(async () => header.dispatchEvent(pointer("pointerup", 70)));
   } finally {
     await act(async () => root.unmount());
     styles.remove();

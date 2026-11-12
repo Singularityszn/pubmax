@@ -1185,6 +1185,7 @@ html:has(.appShell) {
     overscroll-behavior: contain;
   }
   .mobileSharedSheet[data-sheet-cramped] > .mobileSharedSheetBody { flex: none; }
+  .mobileSharedSheet[data-sheet-cramped] > .mobileSharedSheetHeader { touch-action: pan-y; }
   .mobileSharedSheetBody {
     flex: 1 1 auto;
     min-height: 0;
@@ -1232,7 +1233,7 @@ html:has(.appShell) {
   .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)) > .mobileSharedSheetBody {
     padding-block: 0;
   }
-  .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)):not(.sheet-dragging):not(.sheet-settling) > .mobileSharedSheetBody {
+  .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)):not(.sheet-dragging):not(.sheet-settling):not([data-sheet-cramped]) > .mobileSharedSheetBody {
     visibility: hidden;
   }
   /* THE LOADING PANEL FILLS THE SHEET. This box is content-driven under

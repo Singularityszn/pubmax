@@ -382,6 +382,7 @@ export default function MobileSharedSheet({
         <header
           className="mobileSharedSheetHeader sheetDragHandle"
           onPointerDown={(event) => {
+            if (sheetRef.current?.hasAttribute("data-sheet-cramped")) return;
             onInterruptRevealRef.current?.();
             onSheetDragStart(event);
           }}
