@@ -141,6 +141,17 @@ describe("matesPriceDay and matesPriceDrink", () => {
     expect(matesPriceDrink({ drink: "Cider", measure: "other", measureLabel: "Bottle" })).toBe("Cider (bottle)");
     expect(matesPriceDrink({ drink: "", measure: "other" })).toBe("a drink");
   });
+
+  it("says which glass, bottle or spirit measure the price bought", () => {
+    expect(matesPriceDrink({ drink: "Merlot", measure: "175ml" })).toBe("Merlot (175 ml)");
+    expect(matesPriceDrink({ drink: "Merlot", measure: "250ml" })).toBe("Merlot (250 ml)");
+    expect(matesPriceDrink({ drink: "Peroni", measure: "bottle" })).toBe("Peroni (bottle)");
+    expect(matesPriceDrink({ drink: "Jameson", measure: "single" })).toBe("Jameson (single)");
+    expect(matesPriceDrink({ drink: "Jameson", measure: "double" })).toBe("Jameson (double)");
+    expect(matesPriceDrink({ drink: "", measure: "125ml" })).toBe("a 125 ml glass");
+    expect(matesPriceDrink({ drink: "", measure: "bottle" })).toBe("a bottle");
+    expect(matesPriceDrink({ drink: "", measure: "double" })).toBe("a double");
+  });
 });
 
 
