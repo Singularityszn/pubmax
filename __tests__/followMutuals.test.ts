@@ -42,4 +42,18 @@ describe("followStore mutuals (the 'your lot' graph)", () => {
     await store.unfollow("amy", "karan");
     expect(await store.listMutuals("karan")).toEqual([]);
   });
+
+  it("mutualsAmong answers each named handle's lot, and an empty lot for a stranger", async () => {
+    const store = followStore();
+    await store.follow("karan", "amy");
+    await store.follow("amy", "karan");
+    await store.follow("amy", "ben");
+    await store.follow("ben", "amy");
+    await store.follow("amy", "zoe");
+
+    const lots = await store.mutualsAmong(["@Amy", "ben", "nobody"]);
+    expect(lots.get("amy")?.sort()).toEqual(["ben", "karan"]);
+    expect(lots.get("ben")).toEqual(["amy"]);
+    expect(lots.get("nobody")).toEqual([]);
+  });
 });

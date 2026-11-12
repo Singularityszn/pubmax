@@ -122,6 +122,29 @@
   word-break: break-all;
 }
 
+.confirmFollowQrFrame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.confirmFollowQr {
+  display: block;
+  width: min(100%, 200px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+}
+
+.confirmFollowQrNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
 .confirmFollowError {
   margin: 0;
   font-weight: 600;

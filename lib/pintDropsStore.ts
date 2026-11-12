@@ -233,7 +233,7 @@ export type PintDropStore = {
    * Every venue the author has a visible drop at, their anonymous drops
    * included. The author's own read only, for "somewhere new".
    */
-  listOwnVenueIds(authorHandle: string): Promise<string[]>;
+  listOwnVenueIds(authorHandle: string, cityId?: CityId | null): Promise<string[]>;
   cheapestOwnPublicPint(authorHandle: string): Promise<BeenCardDrop | null>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
@@ -995,10 +995,10 @@ export const memoryPintDropStore: PintDropStore = {
       : listAllVisiblePintDrops(cityId);
     return attributedAuthorVenueIds(rows, author, viewer);
   },
-  async listOwnVenueIds(authorHandle) {
+  async listOwnVenueIds(authorHandle, cityId) {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
     if (!author) return [];
-    return attributedAuthorVenueIds(listAllVisiblePintDrops(null), author, { handle: author.current }, true);
+    return attributedAuthorVenueIds(listAllVisiblePintDrops(cityId ?? null), author, { handle: author.current }, true);
   },
   async cheapestOwnPublicPint(authorHandle) {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
@@ -1763,8 +1763,8 @@ export const supabasePintDropStore: PintDropStore = {
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
     return durableAuthorVenueIds(authorHandle, viewer, cityId, venueId, false);
   },
-  async listOwnVenueIds(authorHandle) {
-    return durableAuthorVenueIds(authorHandle, undefined, null, undefined, true);
+  async listOwnVenueIds(authorHandle, cityId) {
+    return durableAuthorVenueIds(authorHandle, undefined, cityId ?? null, undefined, true);
   },
 
   async cheapestOwnPublicPint(authorHandle) {

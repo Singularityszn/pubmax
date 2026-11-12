@@ -5,14 +5,14 @@ import "server-only";
 // "who is asking" and "what is stored", and every store sits behind a
 // dependency so the visibility matrix is proved without a database.
 //
-// WHO IS ASKING comes from the bearer, never from a query parameter, by the
-// rule lib/profileVisibilityBoundary.server.ts already keeps: the owner is the
-// stored `profiles.user_id`, a mate is a mutual follow read from both edges,
-// and every failure answers "stranger". A stranger reads less, never more.
+// Identity comes from the bearer, never from a query parameter. Access and
+// completeness follow the passport rule in
+// docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md.
 
 import { accountIsPrivate } from "@/lib/accountVisibility";
 import { callerUserId } from "@/lib/authServer";
 import { BEEN_HERE_LIST } from "@/lib/beenHere";
+import { listEnabledCities } from "@/lib/cities";
 import { diaryStore } from "@/lib/diaryStore";
 import { isMutual, resolveFollowRelation } from "@/lib/followRelation";
 import { followStore, type FollowStore } from "@/lib/followStore";
@@ -27,12 +27,17 @@ import {
   aggregateBeen,
   beenSourcesFor,
   buildTasteFacts,
+  compareBeen,
   passportAccess,
   passportDay,
   sharedTopFive,
   sharedWantToTry,
+  type BeenCompare,
   type BeenSighting,
+  type ComparedVenue,
+  type MapPoint,
   type BeenVenue,
+  type PassportAccess,
   type PassportRelation,
   type PassportVenue,
   type RankedVenue,
@@ -40,30 +45,44 @@ import {
 } from "@/lib/profilePassport";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore, type ProfileRecord, type ProfileStore } from "@/lib/profileStore";
+import { isLiveMutual } from "@/lib/socialMutual.server";
 import { socialPubRankingStore } from "@/lib/socialPubRankingStore";
 import { socialPubRankingEntries } from "@/lib/socialPubRankings";
 import { selectStore } from "@/lib/storeBackend";
 import { storedVenueName } from "@/lib/storedVenueRef";
 import { savedPubsStore } from "@/lib/savedPubsStore";
 import { requireSupabaseAdmin } from "@/lib/supabase";
-import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { loadVenueAliasResolver, venueAliasesReady } from "@/lib/venueAliases";
 import { resolveStoredVenue } from "@/lib/venueIndex";
 import { wantedStore } from "@/lib/wantedStore";
 
 export type PassportRankedRow = RankedVenue & { updatedAt: string };
 type PassportNightProfile = { patch: string | null };
-type PassportVenueFacts = { name: string; borough: string | null };
+type PassportVenueFacts = { name: string; borough: string | null; point?: MapPoint | null };
 
 export type PassportDeps = {
   verifyCaller(request: Request): Promise<string | null>;
   profiles: Pick<ProfileStore, "getByHandle" | "getByUserId">;
   follows: Pick<FollowStore, "isFollowing">;
+  liveMutual(viewer: ProfileRecord, ownerHandle: string): Promise<boolean>;
   /** A withdrawn handle reads as an unknown one, except to its owner. */
   withdrawn(request: Request, handle: string): Promise<boolean>;
   /** The drop store's own reader context for this request. */
   dropViewer(request: Request): Promise<ViewerContext | undefined>;
   diary(ownerUserId: string): Promise<BeenSighting[]>;
   drops(authorHandle: string, viewer: ViewerContext | undefined): Promise<Array<{ venueId: string; drink: string; createdAt: string }>>;
+  /**
+   * Every venue the author has a drop at that this viewer may read. Complete,
+   * where the dated timeline above stops at its cap, so the Been comparison
+   * never calls a shared pub "only you" because an old drop fell off.
+   */
+  dropVenueIds(authorHandle: string, viewer: ViewerContext | undefined): Promise<string[]>;
+  /**
+   * Every venue the author has a drop at, their anonymous drops included. The
+   * author's own side only: the read above leaves anonymous drops out even
+   * for their author.
+   */
+  ownDropVenueIds(authorHandle: string): Promise<string[]>;
   plans(ownerUserId: string): Promise<BeenSighting[]>;
   /** Open Want-to-try rows; a pending paste has an empty venue id. */
   wanted(profileId: string): Promise<PassportVenue[]>;
@@ -99,7 +118,12 @@ export type BeenBody = {
   cover: { patch: string | null } | null;
 };
 
-export type OverlapBody = { topFive: PassportVenue[]; wantToTry: PassportVenue[] };
+export type OverlapBody = {
+  topFive: PassportVenue[];
+  wantToTry: PassportVenue[];
+  /** Null when either Been list could not be read whole: a short list would say "only you" wrongly. */
+  been: BeenCompare<ComparedVenue> | null;
+};
 export type TasteBody = { facts: TasteFact[] };
 export type RankedBody = { ranked: RankedVenue[] };
 
@@ -168,6 +192,29 @@ async function settle<T>(read: () => Promise<T>, fallback: T): Promise<{ value: 
   }
 }
 
+/** Hosted PostgREST answers at most this many rows to one request, without an error. */
+const POSTGREST_ROW_CAP = 1000;
+
+/**
+ * A source read that reached its limit. Its rows are real, so the Been list
+ * keeps them, but there may be more, so nothing compares against them.
+ */
+export class CappedRead<T> extends Error {
+  constructor(readonly rows: T[]) {
+    super("The read reached its limit.");
+  }
+}
+
+/** Like settle, but a capped read keeps its rows and says it may be short. */
+async function settleRows<T>(read: () => Promise<T[]>): Promise<{ value: T[]; failed: boolean; capped: boolean }> {
+  try {
+    return { value: await read(), failed: false, capped: false };
+  } catch (error) {
+    if (error instanceof CappedRead) return { value: error.rows as T[], failed: false, capped: true };
+    return { value: [], failed: true, capped: false };
+  }
+}
+
 async function dropSightings(
   request: Request,
   profile: ProfileRecord,
@@ -221,30 +268,33 @@ async function named(sightings: BeenSighting[], deps: PassportDeps): Promise<Bee
   );
 }
 
-/** GET /api/profiles/[handle]/been */
-export async function readPassportBeen(
+type BeenFold = {
+  venues: BeenVenue[];
+  degraded: boolean;
+  /** False when a source reached its limit, so the list may be short. */
+  complete: boolean;
+};
+
+/**
+ * Every source one access may read for one profile, folded into its Been list
+ * on current venue ids. `degraded` says a source could not be read, so the
+ * list may be short.
+ */
+async function foldBeen(
   request: Request,
-  rawHandle: string,
-  deps: PassportDeps = defaultPassportDeps(),
-): Promise<PassportResult<BeenBody>> {
-  const loaded = await loadProfile(request, rawHandle, deps);
-  if (!loaded.ok) return loaded;
-  const { profile } = loaded;
-  const { relation } = await resolveViewer(request, profile, deps);
-  const access = passportAccess("been", relation, accountIsPrivate(profile.visibility));
-  if (access === "none") return PRIVATE;
+  profile: ProfileRecord,
+  relation: PassportRelation,
+  access: PassportAccess,
+  deps: PassportDeps,
+): Promise<BeenFold> {
   const sources = beenSourcesFor(access);
   const userId = profile.userId?.trim() || "";
-
-  const [diary, drops, plans, beenHere, wanted, night, canonical] = await Promise.all([
-    sources.includes("diary") && userId ? settle(() => deps.diary(userId), []) : settle(async () => [], []),
+  const none = <T>() => settleRows<T>(async () => []);
+  const [diary, drops, plans, beenHere, canonical] = await Promise.all([
+    sources.includes("diary") && userId ? settleRows(() => deps.diary(userId)) : none<BeenSighting>(),
     settle(() => dropSightings(request, profile, relation, deps), []),
-    sources.includes("plan") && userId ? settle(() => deps.plans(userId), []) : settle(async () => [], []),
-    sources.includes("been_here")
-      ? settle(() => deps.beenHere(profile.handle), [] as PassportVenue[])
-      : settle(async () => [] as PassportVenue[], []),
-    settle(() => deps.wanted(profile.id), [] as PassportVenue[]),
-    access === "full" && userId ? settle(() => deps.nightProfile(userId), null) : settle(async () => null, null),
+    sources.includes("plan") && userId ? settleRows(() => deps.plans(userId)) : none<BeenSighting>(),
+    sources.includes("been_here") ? settleRows(() => deps.beenHere(profile.handle)) : none<PassportVenue>(),
     canonicalizer(deps),
   ]);
 
@@ -265,12 +315,38 @@ export async function readPassportBeen(
     await named(onCurrentIds([...diary.value, ...dropRows, ...plans.value, ...beenHereRows], canonical), deps),
   );
   return {
+    venues,
+    degraded: diary.failed || drops.failed || plans.failed || beenHere.failed,
+    complete: !diary.capped && !plans.capped && !beenHere.capped,
+  };
+}
+
+/** GET /api/profiles/[handle]/been */
+export async function readPassportBeen(
+  request: Request,
+  rawHandle: string,
+  deps: PassportDeps = defaultPassportDeps(),
+): Promise<PassportResult<BeenBody>> {
+  const loaded = await loadProfile(request, rawHandle, deps);
+  if (!loaded.ok) return loaded;
+  const { profile } = loaded;
+  const { relation } = await resolveViewer(request, profile, deps);
+  const access = passportAccess("been", relation, accountIsPrivate(profile.visibility));
+  if (access === "none") return PRIVATE;
+  const userId = profile.userId?.trim() || "";
+
+  const [been, wanted, night] = await Promise.all([
+    foldBeen(request, profile, relation, access, deps),
+    settle(() => deps.wanted(profile.id), [] as PassportVenue[]),
+    access === "full" && userId ? settle(() => deps.nightProfile(userId), null) : settle(async () => null, null),
+  ]);
+  return {
     ok: true,
     body: {
       access,
-      status: diary.failed || drops.failed || plans.failed || beenHere.failed ? "degraded" : "ready",
-      count: venues.length,
-      venues,
+      status: been.degraded ? "degraded" : "ready",
+      count: been.venues.length,
+      venues: been.venues,
       wantToTryCount: wanted.failed ? null : wanted.value.length,
       cover:
         access === "full"
@@ -282,6 +358,70 @@ export async function readPassportBeen(
 
 async function rankedWithNames(profileId: string, deps: PassportDeps): Promise<PassportRankedRow[]> {
   return deps.rankings(profileId);
+}
+
+/**
+ * One side of the comparison: the folded Been list plus every venue the
+ * complete drop read names, on current ids. Null when any source failed.
+ */
+async function comparedSide(
+  request: Request,
+  profile: ProfileRecord,
+  relation: PassportRelation,
+  access: PassportAccess,
+  deps: PassportDeps,
+): Promise<PassportVenue[] | null> {
+  const viewer = relation === "owner" ? { handle: profile.handle } : await deps.dropViewer(request);
+  // A mate's context with no mutuals lost its friends graph, so friends-only
+  // drops would be missing from this side without an error.
+  if (relation !== "owner" && !viewer?.mutualHandles) return null;
+  const [fold, dropIds, aliases] = await Promise.all([
+    foldBeen(request, profile, relation, access, deps),
+    settle(
+      () => (relation === "owner" ? deps.ownDropVenueIds(profile.handle) : deps.dropVenueIds(profile.handle, viewer)),
+      [] as string[],
+    ),
+    settle(() => deps.venueAliases(), identity),
+  ]);
+  // The dated drop timeline is capped, but the complete drop read below
+  // covers its venues, so only the other sources decide completeness.
+  if (fold.degraded || !fold.complete || dropIds.failed || aliases.failed) return null;
+  const canonical = aliases.value;
+  const known = new Set(fold.venues.map((venue) => venue.venueId));
+  const missing = [...new Set(dropIds.value.map(canonical))].filter((venueId) => venueId && !known.has(venueId));
+  const named = await Promise.all(
+    missing.map(async (venueId) => ({ venueId, venueName: (await deps.venue(venueId).catch(() => null))?.name ?? "" })),
+  );
+  return [...fold.venues, ...named];
+}
+
+/**
+ * The viewer's whole Been list next to the mate's shared one, each pub with
+ * the point the venue index gives it. A pub the index cannot place keeps its
+ * row and gets no pin.
+ */
+async function beenComparison(
+  request: Request,
+  viewerProfile: ProfileRecord,
+  profile: ProfileRecord,
+  relation: PassportRelation,
+  deps: PassportDeps,
+): Promise<BeenCompare<ComparedVenue> | null> {
+  const [mine, theirs] = await Promise.all([
+    comparedSide(request, viewerProfile, "owner", "full", deps),
+    comparedSide(request, profile, relation, passportAccess("been", relation, accountIsPrivate(profile.visibility)), deps),
+  ]);
+  if (!mine || !theirs) return null;
+  const split = compareBeen(mine, theirs);
+  const points = new Map<string, MapPoint | null>();
+  await Promise.all(
+    [...split.both, ...split.onlyYou, ...split.onlyThem].map(async ({ venueId }) => {
+      const facts = await deps.venue(venueId).catch(() => null);
+      points.set(venueId, facts?.point ?? null);
+    }),
+  );
+  const placed = (list: PassportVenue[]) => list.map((venue) => ({ ...venue, point: points.get(venue.venueId) ?? null }));
+  return { both: placed(split.both), onlyYou: placed(split.onlyYou), onlyThem: placed(split.onlyThem) };
 }
 
 /** GET /api/profiles/[handle]/overlap */
@@ -298,18 +438,25 @@ export async function readPassportOverlap(
     return MATES_ONLY;
   }
   try {
-    const [mineRanked, theirsRanked, mineWanted, theirsWanted, canonical] = await Promise.all([
+    if (!(await deps.liveMutual(viewerProfile, profile.handle))) return MATES_ONLY;
+  } catch {
+    return MATES_ONLY;
+  }
+  try {
+    const [mineRanked, theirsRanked, mineWanted, theirsWanted, canonical, been] = await Promise.all([
       rankedWithNames(viewerProfile.id, deps),
       rankedWithNames(profile.id, deps),
       deps.wanted(viewerProfile.id),
       deps.wanted(profile.id),
       canonicalizer(deps),
+      beenComparison(request, viewerProfile, profile, relation, deps),
     ]);
     return {
       ok: true,
       body: {
         topFive: sharedTopFive(rankedOnCurrentIds(mineRanked, canonical), rankedOnCurrentIds(theirsRanked, canonical)),
         wantToTry: sharedWantToTry(onCurrentIds(mineWanted, canonical), onCurrentIds(theirsWanted, canonical)),
+        been,
       },
     };
   } catch {
@@ -391,33 +538,46 @@ const supabasePlanSightings: PlanSightingsReader = async (ownerUserId) => {
   ]);
   if (seats.error) throw new Error(seats.error.message);
   if (owned.error) throw new Error(owned.error.message);
-  const planIds = [
+  const allIds = [
     ...new Set([
       ...(seats.data ?? []).map((row) => String(row.plan_id)),
       ...(owned.data ?? []).map((row) => String(row.id)),
     ]),
-  ].slice(0, PLAN_READ_CAP);
-  if (!planIds.length) return [];
+  ];
+  let capped =
+    (seats.data ?? []).length >= PLAN_READ_CAP || (owned.data ?? []).length >= PLAN_READ_CAP || allIds.length > PLAN_READ_CAP;
+  const finish = (rows: BeenSighting[]): BeenSighting[] => {
+    if (capped) throw new CappedRead(rows);
+    return rows;
+  };
+  const planIds = allIds.slice(0, PLAN_READ_CAP);
+  if (!planIds.length) return finish([]);
   const done = await db.from("plan_completions").select("plan_id, completed_at").in("plan_id", planIds);
   if (done.error) throw new Error(done.error.message);
   const completedAt = new Map((done.data ?? []).map((row) => [String(row.plan_id), String(row.completed_at)]));
-  if (!completedAt.size) return [];
+  if (!completedAt.size) return finish([]);
   const stops = await db
     .from("plan_stops")
     .select("plan_id, venue_id, venue_name")
     .in("plan_id", [...completedAt.keys()]);
   if (stops.error) throw new Error(stops.error.message);
-  return (stops.data ?? []).map((row) => ({
-    venueId: String(row.venue_id),
-    venueName: String(row.venue_name ?? ""),
-    date: passportDay(completedAt.get(String(row.plan_id)) ?? ""),
-    source: "plan" as const,
-  }));
+  if ((stops.data ?? []).length >= POSTGREST_ROW_CAP) capped = true;
+  return finish(
+    (stops.data ?? []).map((row) => ({
+      venueId: String(row.venue_id),
+      venueName: String(row.venue_name ?? ""),
+      date: passportDay(completedAt.get(String(row.plan_id)) ?? ""),
+      source: "plan" as const,
+    })),
+  );
 };
 
 async function venueFacts(venueId: string): Promise<PassportVenueFacts | null> {
   const venue = await resolveStoredVenue(venueId);
-  return venue ? { name: storedVenueName(venue), borough: venue.borough || null } : null;
+  if (!venue) return null;
+  // A retired pub keeps its name but is never drawn on a map.
+  const placed = !("retired" in venue && venue.retired) && Number.isFinite(venue.lng) && Number.isFinite(venue.lat);
+  return { name: storedVenueName(venue), borough: venue.borough || null, point: placed ? [venue.lng, venue.lat] : null };
 }
 
 export function defaultPassportDeps(): PassportDeps {
@@ -425,17 +585,32 @@ export function defaultPassportDeps(): PassportDeps {
     verifyCaller: callerUserId,
     profiles: profileStore(),
     follows: followStore(),
+    liveMutual: (viewer, ownerHandle) => isLiveMutual({ profileId: viewer.id, handle: viewer.handle }, ownerHandle),
     withdrawn: handleWithdrawnFromCaller,
     dropViewer: (request) => resolveViewerContextFromRequest(request),
     async diary(ownerUserId) {
       const result = await diaryStore().listForOwner(ownerUserId);
       if (result.status === "degraded") throw new Error("diary degraded");
-      return result.entries.map((entry) => ({
+      const rows = result.entries.map((entry) => ({
         venueId: entry.venueId,
         venueName: entry.venueName,
         date: entry.visitedOn,
         source: "diary" as const,
       }));
+      if (rows.length >= POSTGREST_ROW_CAP) throw new CappedRead(rows);
+      return rows;
+    },
+    async dropVenueIds(authorHandle, viewer) {
+      const venues = await Promise.all(listEnabledCities().map((city) =>
+        pintDropsStore().listVisibleAuthorVenueIds(authorHandle, viewer, city.id),
+      ));
+      return [...new Set(venues.flat())];
+    },
+    async ownDropVenueIds(authorHandle) {
+      const venues = await Promise.all(listEnabledCities().map((city) =>
+        pintDropsStore().listOwnVenueIds(authorHandle, city.id),
+      ));
+      return [...new Set(venues.flat())];
     },
     async drops(authorHandle, viewer) {
       const drops = await pintDropsStore().listVisible(undefined, viewer, authorHandle);
@@ -454,9 +629,12 @@ export function defaultPassportDeps(): PassportDeps {
       // The owner reads their own list, so a withdrawn handle is still theirs.
       const read = await savedPubsStore(ownerHandle).readSaved({ handle: ownerHandle });
       if (read.status !== "ready") throw new Error("saved lists unavailable");
-      return read.rows
+      const rows = read.rows
         .filter((row) => row.listType === BEEN_HERE_LIST)
         .map((row) => ({ venueId: row.venueId, venueName: row.venueName }));
+      // The read holds every saved list, so a full answer may hide Been rows.
+      if (read.rows.length >= POSTGREST_ROW_CAP) throw new CappedRead(rows);
+      return rows;
     },
     async rankings(profileId) {
       const rows = await socialPubRankingStore().read({ profileId });
@@ -488,7 +666,11 @@ export function defaultPassportDeps(): PassportDeps {
       return { patch };
     },
     venue: venueFacts,
-    venueAliases: async () => (await loadVenueAliasResolver()).canonical,
+    async venueAliases() {
+      // Unread alias files would treat a merged pub's two ids as two pubs.
+      if (!(await venueAliasesReady())) throw new Error("venue aliases unavailable");
+      return (await loadVenueAliasResolver()).canonical;
+    },
     async heritageDateLabel(venueId) {
       const pubs = await loadHistoricPubs();
       const pub = pubs.find((entry) => entry.venueId === venueId);

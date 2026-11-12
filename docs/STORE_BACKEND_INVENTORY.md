@@ -210,6 +210,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/operatorAccountAddress.server.ts",
     "lib/operatorProposalsStore.ts",
     "lib/pendingPlanRecapStore.ts",
+    "lib/peopleYouMayKnow.server.ts",
     "lib/pintDropLookup.ts",
     "lib/pintDropWithTagsStore.ts",
     "lib/pintDrops.ts",

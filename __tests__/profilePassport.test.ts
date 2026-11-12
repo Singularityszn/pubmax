@@ -11,6 +11,7 @@ import {
   passportAccess,
   sharedTopFive,
   sharedWantToTry,
+  compareBeen,
   topTenForShare,
   topTenTitle,
   type BeenSighting,
@@ -168,5 +169,24 @@ describe("topTenForShare", () => {
 
   it("titles the page in the owner's words", () => {
     expect(topTenTitle("sam")).toBe("@sam's top ten, in their order");
+  });
+});
+
+describe("compareBeen", () => {
+  it("splits two Been lists into both, only you and only them, by name and once each", () => {
+    const lamb = { venueId: "lamb", venueName: "The Lamb" };
+    const anchor = { venueId: "anchor", venueName: "Anchor" };
+    const grapes = { venueId: "grapes", venueName: "The Grapes" };
+    const mitre = { venueId: "mitre", venueName: "Ye Olde Mitre" };
+    expect(
+      compareBeen(
+        [mitre, lamb, lamb, { venueId: "", venueName: "Pending paste" }, anchor],
+        [grapes, anchor, lamb, grapes],
+      ),
+    ).toEqual({
+      both: [anchor, lamb],
+      onlyYou: [mitre],
+      onlyThem: [grapes],
+    });
   });
 });

@@ -8,6 +8,7 @@ import {
   resolveCanonicalVenueId,
   resetVenueAliasesForTests,
   setVenueAliasesPathForTests,
+  venueAliasesReady,
 } from "@/lib/venueAliases";
 
 async function writeAliasFile(doc: unknown): Promise<string> {
@@ -31,6 +32,7 @@ describe("resolveCanonicalVenueId", () => {
 
     expect(await resolveCanonicalVenueId("venue-dupe1")).toBe("venue-canon");
     expect(await resolveCanonicalVenueId("venue-dupe2")).toBe("venue-canon");
+    expect(await venueAliasesReady()).toBe(true);
   });
 
   it("returns the id unchanged when it has no alias", async () => {
@@ -57,6 +59,7 @@ describe("resolveCanonicalVenueId", () => {
     setVenueAliasesPathForTests(path.join(os.tmpdir(), "does-not-exist-venue-aliases.json"));
     expect(await resolveCanonicalVenueId("venue-anything")).toBe("venue-anything");
     expect(await lookupCanonicalVenueId("venue-anything")).toEqual({ status: "unavailable" });
+    expect(await venueAliasesReady()).toBe(false);
   });
 
   it("recovers once a previously-missing alias file is created (no cached-empty poisoning)", async () => {

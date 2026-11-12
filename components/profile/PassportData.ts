@@ -10,7 +10,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
 import { beenHereRevision, subscribeBeenHere } from "@/lib/beenHere";
-import type { BeenVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";
+import type { BeenCompare, BeenVenue, ComparedVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";
 
 export type PassportBeenRead = {
   access: "full" | "shared";
@@ -20,7 +20,12 @@ export type PassportBeenRead = {
   wantToTryCount: number | null;
   cover: { patch: string | null } | null;
 };
-export type PassportOverlapRead = { topFive: PassportVenue[]; wantToTry: PassportVenue[] };
+export type PassportOverlapRead = {
+  topFive: PassportVenue[];
+  wantToTry: PassportVenue[];
+  /** Absent from an older server, null when either Been list was short. */
+  been?: BeenCompare<ComparedVenue> | null;
+};
 export type PassportTasteRead = { facts: TasteFact[] };
 
 type Kind = "been" | "overlap" | "taste";
@@ -32,7 +37,13 @@ function wellFormed(kind: Kind, body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
   const record = body as Record<string, unknown>;
   if (kind === "been") return Array.isArray(record.venues) && typeof record.count === "number";
-  if (kind === "overlap") return Array.isArray(record.topFive) && Array.isArray(record.wantToTry);
+  if (kind === "overlap") {
+    const been = record.been as Record<string, unknown> | null | undefined;
+    const beenOk =
+      been == null ||
+      (Array.isArray(been.both) && Array.isArray(been.onlyYou) && Array.isArray(been.onlyThem));
+    return Array.isArray(record.topFive) && Array.isArray(record.wantToTry) && beenOk;
+  }
   return Array.isArray(record.facts);
 }
 
