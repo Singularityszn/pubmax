@@ -1048,6 +1048,22 @@ for (const width of [390, 568, 641, 768]) {
     await expect(checkDock).toPass();
     await info.attach("held-drag-geometry", { body: JSON.stringify(await checkDock()), contentType: "application/json" });
     await page.screenshot({ path: `${SHOTS}/held-drag-grown-${width}.png` });
+    if (phone) {
+      // A sheet too short for its own header and footer under the bar still
+      // lets the person scroll to every control.
+      const action = sheet.locator(".mobileSharedSheetFooter button").first();
+      const middle = (await sheet.boundingBox())!;
+      await page.mouse.move(middle.x + middle.width / 2, middle.y + middle.height / 2);
+      await expect(async () => {
+        await page.mouse.wheel(0, 400);
+        const reachable = await action.evaluate(button => {
+          const box = button.getBoundingClientRect();
+          return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+        });
+        expect(reachable).toBe(true);
+      }).toPass();
+      await page.screenshot({ path: `${SHOTS}/held-drag-footer-${width}.png` });
+    }
     if (width !== 568) {
       await page.evaluate(() => document.documentElement.style.fontSize = "32px");
       await expect(checkDock).toPass();

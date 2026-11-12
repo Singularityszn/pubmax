@@ -1178,6 +1178,13 @@ html:has(.appShell) {
   /* The sheet's way out is SurfaceNav now (components/ui/surfaceNav.css), which
      places itself in this grid and owns its own quiet resting state and focus
      ring. The bespoke close button that used to sit here is gone. */
+  /* Too short for its own header and footer (MobileSharedSheet): the whole
+     sheet scrolls, so every control stays reachable. */
+  .mobileSharedSheet.mapDrawer[data-sheet-cramped] {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .mobileSharedSheet[data-sheet-cramped] > .mobileSharedSheetBody { flex: none; }
   .mobileSharedSheetBody {
     flex: 1 1 auto;
     min-height: 0;

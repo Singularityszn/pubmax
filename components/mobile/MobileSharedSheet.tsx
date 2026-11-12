@@ -10,7 +10,7 @@ import { useSpringValue } from "@/lib/useSpringValue";
 import Kicker from "@/components/ui/kicker";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel } from "@/lib/surfaceStack";
-import { useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
+import { sheetChrome, useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { mobileSheetFocusContained, mobileSheetIsModal } from "@/lib/mobileSheetA11y";
@@ -276,6 +276,19 @@ export default function MobileSharedSheet({
       releaseMapSheetClearance(sheet);
     };
   }, [kind]);
+
+  // A resting sheet too short for its own header and footer (a short
+  // landscape phone under a live voice bar) scrolls as a whole, so no control
+  // is cut off. Never mid-gesture: a dismiss drag keeps the footer pinned.
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const resting = Boolean(kind) && !dragging && !settling && !entering && !visibleExit;
+    sheet.toggleAttribute(
+      "data-sheet-cramped",
+      resting && sheetHeight > 0 && sheetHeight + 1 < sheetChrome(sheet).chromePx,
+    );
+  }, [dragging, entering, footerEl, kind, settling, sheetHeight, visibleExit]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
