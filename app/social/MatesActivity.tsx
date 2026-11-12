@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import PriceBadge from "@/components/PriceBadge";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
-import Kicker from "@/components/ui/kicker";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { formatGbp } from "@/lib/formatGbp";
@@ -85,7 +84,6 @@ export default function MatesActivity() {
       aria-busy={state.status === "loading"}
     >
       <header>
-        <Kicker>Your mates</Kicker>
         <h2 id="mates-activity-title">Your mates&apos; pints</h2>
         <p className="matesActivityLine">
           Pints your mates logged in London, newest first. Each price is as they logged it.
@@ -106,9 +104,9 @@ export default function MatesActivity() {
           }
         />
       ) : state.items.length === 0 ? (
-        <EmptyState title="No pints from your mates yet.">
-          When a mate logs a pint, it lands here.
-        </EmptyState>
+        <p className="matesActivityLine" role="status">
+          No pints from your mates yet. When a mate logs a pint, it lands here.
+        </p>
       ) : (
         <>
           <RowList label="Pints your mates logged">
