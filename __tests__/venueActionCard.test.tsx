@@ -31,6 +31,10 @@ const tableFetch = vi.hoisted(() => vi.fn());
 const emailSignIn = vi.hoisted(() => vi.fn(async () => ({ status: "sent", message: "Link sent" })));
 vi.mock("@/lib/analytics", () => ({ trackEvent: tableTrack }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: tableFetch }));
+vi.mock("next/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/navigation")>();
+  return { ...actual, useSearchParams: () => new URLSearchParams(window.location.search) };
+});
 const dynamicDialog = vi.hoisted(() => ({ component: null as React.ComponentType<never> | null }));
 vi.mock("next/dynamic", async () => {
   const { createElement: create } = await import("react");
@@ -163,6 +167,36 @@ describe("table request arrival", () => {
       new Event("submit", { bubbles: true, cancelable: true }),
     ));
   };
+
+  it("does not retain an invitation after selecting another pub and returning without meet", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", "/map?sel=other-pub");
+    await show(venue({ id: "other-pub" }));
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+  });
+
+  it.each(["", "&meet=late", "&meet=24:00", "&meet=20:60"])("clears the invitation when the same pub's URL changes to %s", async (search) => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}${search}`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+  });
+
+  it("updates the invitation when the same pub's URL names a new time", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=21:30`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 9:30pm.");
+  });
 
   it("opens the named pub with the party prefilled, consumes the intent and does not reopen", async () => {
     window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);

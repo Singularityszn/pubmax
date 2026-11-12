@@ -15,8 +15,11 @@ import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadca
 import { messagesStore } from "@/lib/messagesStore";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
-import { isLiveMutual, type MutualViewer } from "@/lib/socialMutual.server";
+import type { MutualViewer } from "@/lib/socialMutual.server";
+import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
+import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
 import { socialInteractionStore } from "@/lib/socialInteractionStore";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { SUMMON_MAX_MATES, summonText } from "@/lib/summonMates";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -34,11 +37,6 @@ type SummonPub =
 
 export type SummonDependencies = {
   listMutuals(handle: string): Promise<string[]>;
-  /**
-   * True when neither side blocks the other. Ask it only about a handle from
-   * listMutuals: without Supabase it does not check the follow graph itself.
-   */
-  isLiveMutual(viewer: MutualViewer, handle: string): Promise<boolean>;
   /** True when either side has muted the other. Throws when it cannot tell. */
   eitherMutes(viewer: SummonViewer, handle: string): Promise<boolean>;
   lookupPub(venueId: string): Promise<SummonPub>;
@@ -81,7 +79,6 @@ async function deliver(sender: string, mate: string, body: string, venueId: stri
 
 const defaultDependencies = (): SummonDependencies => ({
   listMutuals: (handle) => followStore().listMutuals(handle),
-  isLiveMutual,
   eitherMutes,
   lookupPub,
   deliver,
@@ -92,7 +89,14 @@ async function summonable(
   handle: string,
   deps: SummonDependencies,
 ): Promise<boolean> {
-  if (!(await deps.isLiveMutual(viewer, handle))) return false;
+  const mate = await profileStore().getByHandle(handle);
+  if (!mate || !mate.userId || isProfileTombstoned(mate)) return false;
+  if (mate.id === viewer.profileId || socialMemoryBlocked(viewer.profileId, mate.id)) return false;
+  if (isSupabaseConfigured()) {
+    const relationship = await socialRelationshipBetweenProfiles(viewer.profileId, mate.id);
+    if (relationship === "unavailable") throw new Error("Summon relationship unavailable");
+    if (relationship !== "mutual") return false;
+  }
   return !(await deps.eitherMutes(viewer, handle));
 }
 

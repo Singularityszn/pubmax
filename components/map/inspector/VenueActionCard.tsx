@@ -24,6 +24,7 @@
 // and the treatment of secondary actions.
 
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useEffectEvent, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Megaphone, Share2, Users } from "lucide-react";
@@ -73,16 +74,16 @@ export default function VenueActionCard({
   const { configured, loading, user, handle } = useAuth();
   const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
   const pub = isPubVenue(venue);
+  const search = useSearchParams();
   // Kept by venue id, so selecting another pub never carries a half-typed
   // request or an open gate across.
   const [tableVenueId, setTableVenueId] = useState<string | null>(null);
   const [initialPartySize, setInitialPartySize] = useState<number | undefined>();
   const [gate, setGate] = useState<{ venueId: string; status: ContributionGateStatus } | null>(null);
   const [summonVenueId, setSummonVenueId] = useState<string | null>(null);
-  const [arrival, setArrival] = useState<{ venueId: string; time: string } | null>(null);
   const tableOpen = tableVenueId === venue.id;
   const summonOpen = summonVenueId === venue.id;
-  const arrivalTime = arrival?.venueId === venue.id ? arrival.time : null;
+  const arrivalTime = pub ? summonTimeFromSearch(search?.toString() ?? "", venue.id) : null;
   const gateStatus = gate?.venueId === venue.id ? gate.status : null;
 
   // Signed in with a handle, or a deployment with no sign-in at all (where the
@@ -149,15 +150,6 @@ export default function VenueActionCard({
     });
     return () => { active = false; };
   }, [venue.id, pub, loading, user?.id, handle]);
-
-  // A summon link names a time for this pub. The address keeps it while this
-  // pub stays selected; a new selection drops it (lib/mapSelectionHistory.ts).
-  useEffect(() => {
-    if (!pub) return;
-    const time = summonTimeFromSearch(window.location.search, venue.id);
-    if (!time) return;
-    queueMicrotask(() => setArrival({ venueId: venue.id, time }));
-  }, [venue.id, pub]);
 
   const card = (
     <div

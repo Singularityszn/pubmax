@@ -35,6 +35,8 @@ import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { __resetMemoryMessages, messagesStore } from "@/lib/messagesStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { socialInteractionStore } from "@/lib/socialInteractionStore";
+import * as supabase from "@/lib/supabase";
+import * as relationships from "@/lib/socialRelationships.server";
 import {
   clearSocialMemoryBlocks,
   setSocialMemoryBlock,
@@ -90,6 +92,32 @@ afterEach(() => {
 });
 
 describe("GET /api/summon", () => {
+  it.each(["GET", "POST"])("returns unavailable before delivery when the live-mutual read is unavailable during %s", async (method) => {
+    await mate("summon_ann_12");
+    const bo = await mate("summon_bo_12");
+    const profileStore = (await import("@/lib/profileStore")).profileStore();
+    const mutualStore = followStore();
+    const interactionStore = socialInteractionStore();
+    const messageStore = messagesStore();
+    vi.spyOn(await import("@/lib/profileStore"), "profileStore").mockReturnValue(profileStore);
+    vi.spyOn(await import("@/lib/followStore"), "followStore").mockReturnValue(mutualStore);
+    vi.spyOn(await import("@/lib/socialInteractionStore"), "socialInteractionStore").mockReturnValue(interactionStore);
+    vi.spyOn(await import("@/lib/messagesStore"), "messagesStore").mockReturnValue(messageStore);
+    vi.spyOn(supabase, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(relationships, "socialRelationshipBetweenProfiles").mockImplementation(async (_, target) =>
+      target === bo.id ? "unavailable" : "mutual",
+    );
+
+    const response = method === "GET"
+      ? await GET(new Request("http://localhost/api/summon"))
+      : await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12", "summon_bo_12"] });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    expect(await inbox("summon_ann_12")).toEqual([]);
+    expect(await inbox("summon_bo_12")).toEqual([]);
+  });
+
   it.each([
     ["GET", "mine"], ["GET", "theirs"],
     ["POST", "mine"], ["POST", "theirs"],
