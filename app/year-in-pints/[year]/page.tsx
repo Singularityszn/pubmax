@@ -4,6 +4,7 @@ import Link from "next/link";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
+import YearGlass from "@/components/year/YearGlass";
 import { londonDayKey } from "@/lib/pintContributions";
 import {
   parseYearShare,
@@ -15,7 +16,6 @@ import {
 } from "@/lib/yearInPints";
 import { yearShareVenueNames } from "@/lib/yearInPints.server";
 
-import YearGlass from "./YearGlass";
 import "./yearInPints.css";
 
 // A shared Year in Pints: /year-in-pints/[year]?to=..&n=.. (lib/yearInPints.ts).
@@ -78,7 +78,7 @@ export default async function YearInPintsPage(props: Props) {
         titleId="yip-title"
         lede={share ? yearShareSpan(share) : "This link holds no year we can read."}
         actionsAfterContent
-        primary={<IntentLink href="/pal">Read your own year</IntentLink>}
+        primary={<IntentLink href="/pal#year-in-pints">Read your own year</IntentLink>}
         secondary={<Link href="/">Find a pint tonight</Link>}
       >
         {lines.length > 0 ? (

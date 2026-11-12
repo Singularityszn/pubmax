@@ -359,6 +359,8 @@ const nextConfig = {
       { source: "/crews", destination: "/social", permanent: false },
       { source: "/coffee", destination: "/map?drink=coffee", permanent: false },
       { source: "/gardens", destination: "/map?garden=1", permanent: false },
+      // Reuse the Pal's year instead of adding a separate public page.
+      { source: "/year-in-pints", destination: "/pal#year-in-pints", permanent: false },
     ];
   },
   async headers() {

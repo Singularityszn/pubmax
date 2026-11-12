@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import YearGlass from "@/app/year-in-pints/[year]/YearGlass";
+import YearGlass from "@/components/year/YearGlass";
 import { daysInYear, daysThroughMonth, yearDotGlass } from "@/lib/yearInPintsDotGlass";
 
 // The Year in Pints glass (lib/yearInPintsDotGlass.ts): one dot per day of the

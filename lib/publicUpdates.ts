@@ -8,6 +8,14 @@
  */
 export const PUBLIC_UPDATES = [
   {
+    id: "2026-11-11-year-in-pints-door",
+    date: "2026-11-11",
+    title: "A way in to your Year in Pints",
+    changes: [
+      "Type /year-in-pints and it opens your year on the Pub Pal page, with a pint glass of the nights you kept.",
+    ],
+  },
+  {
     id: "2026-11-10-guinness-prices-and-zone-estimates",
     date: "2026-11-10",
     title: "Guinness prices across the UK, and London zone estimates",
@@ -78,7 +86,7 @@ export const PUBLIC_UPDATES = [
     date: "2026-10-28",
     title: "Share your Year in Pints, and steadier listings",
     changes: [
-      "You can share your Year in Pints, free.",
+      "Your Pub Pal can show your year so far, and you can share it, free. In December it becomes your Year in Pints.",
       "Sourced pub quiz listings are back, and each pub keeps its own card.",
       "The map no longer opens on another town from a saved page.",
       "Public holiday opening hours are kept, and midnight closing times read correctly.",
