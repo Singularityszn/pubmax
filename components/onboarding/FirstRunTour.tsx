@@ -54,7 +54,7 @@ const STEPS: readonly TourStep[] = [
   {
     eyebrow: "Log a pint",
     title: "Paid for a pint? Log it",
-    body: "Open a pub and log what you paid. Add the bill if you have it. The price shows on the map once we check a bill that matches it, or a second drinker confirms it.",
+    body: "Open a pub and log what you paid. A bill that matches your price puts a mark on the pin. The price itself shows once a second drinker agrees.",
   },
   {
     eyebrow: "Been here",
