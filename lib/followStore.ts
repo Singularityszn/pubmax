@@ -95,20 +95,27 @@ const TABLE = "follows";
 /** Rows asked for per request. The server may answer fewer, so paging advances by what came back. */
 const PAGE_ROWS = 1000;
 
-type EdgeRow = { follower?: { handle?: unknown } | null; followee?: { handle?: unknown } | null };
-type EdgePage = PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
+type EdgeRow = { id: string; follower?: { handle?: unknown } | null; followee?: { handle?: unknown } | null };
+type EdgePage = PromiseLike<{ data: unknown[] | null; error: { message: string } | null }> & {
+  order(column: "id"): EdgePage;
+  limit(rows: number): EdgePage;
+  gt(column: "id", id: string): EdgePage;
+};
 
 /**
  * Every row a read matches. PostgREST caps each response without an error, so
  * one request can drop edges. Pages run in a stable order until one is empty.
  */
-async function allEdgeRows(page: (from: number, to: number) => EdgePage): Promise<EdgeRow[]> {
+async function allEdgeRows(page: () => EdgePage): Promise<EdgeRow[]> {
   const rows: EdgeRow[] = [];
+  let cursor: string | undefined;
   for (;;) {
-    const { data, error } = await page(rows.length, rows.length + PAGE_ROWS - 1);
+    const query = page().order("id").limit(PAGE_ROWS);
+    const { data, error } = await (cursor ? query.gt("id", cursor) : query);
     if (error) throw new Error(error.message);
     if (!data?.length) return rows;
     rows.push(...(data as EdgeRow[]));
+    cursor = rows[rows.length - 1].id;
   }
 }
 
@@ -193,13 +200,11 @@ const supabaseFollowStore: FollowStore = {
     if (!profile) return [];
     // One join: the followee rows this profile follows, embedding each followee's
     // handle from public.profiles (the FK follows.followee_id → profiles.id).
-    const rows = await allEdgeRows((from, to) =>
+    const rows = await allEdgeRows(() =>
       admin()
         .from(TABLE)
-        .select("followee:followee_id ( handle )")
-        .eq("follower_id", profile.id)
-        .order("id")
-        .range(from, to),
+        .select("id, followee:followee_id ( handle )")
+        .eq("follower_id", profile.id),
     );
     return rows.map((row) => edgeHandle(row.followee)).filter(Boolean);
   },
@@ -209,13 +214,11 @@ const supabaseFollowStore: FollowStore = {
     if (!profile) return [];
     // The mirror join: the follower rows pointing AT this profile, embedding each
     // follower's handle (FK follows.follower_id → profiles.id).
-    const rows = await allEdgeRows((from, to) =>
+    const rows = await allEdgeRows(() =>
       admin()
         .from(TABLE)
-        .select("follower:follower_id ( handle )")
-        .eq("followee_id", profile.id)
-        .order("id")
-        .range(from, to),
+        .select("id, follower:follower_id ( handle )")
+        .eq("followee_id", profile.id),
     );
     return rows.map((row) => edgeHandle(row.follower)).filter(Boolean);
   },
@@ -267,21 +270,17 @@ const supabaseFollowStore: FollowStore = {
     // The inner join filters on the named side's handle, so only edges that
     // touch the named handles come back: who each follows, and who follows each.
     const [out, back] = await Promise.all([
-      allEdgeRows((from, to) =>
+      allEdgeRows(() =>
         admin()
           .from(TABLE)
-          .select("follower:follower_id!inner ( handle ), followee:followee_id ( handle )")
-          .in("follower.handle", wanted)
-          .order("id")
-          .range(from, to),
+          .select("id, follower:follower_id!inner ( handle ), followee:followee_id ( handle )")
+          .in("follower.handle", wanted),
       ),
-      allEdgeRows((from, to) =>
+      allEdgeRows(() =>
         admin()
           .from(TABLE)
-          .select("follower:follower_id ( handle ), followee:followee_id!inner ( handle )")
-          .in("followee.handle", wanted)
-          .order("id")
-          .range(from, to),
+          .select("id, follower:follower_id ( handle ), followee:followee_id!inner ( handle )")
+          .in("followee.handle", wanted),
       ),
     ]);
     const pairs = (rows: EdgeRow[]) => rows.map((row) => [edgeHandle(row.follower), edgeHandle(row.followee)] as const);

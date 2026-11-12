@@ -108,6 +108,91 @@ describe("readPeopleYouMayKnow", () => {
     expect(result.ok && result.people[0]?.via).toEqual(["amy"]);
   });
 
+  it.each([
+    ["me", "amy"],
+    ["amy", "me"],
+  ])("does not suggest through a block from %s to %s", async (blocker, blocked) => {
+    const result = await readPeopleYouMayKnow(
+      request(),
+      deps({
+        blocked: async (first, second) =>
+          (first.handle === blocker && second.handle === blocked) ||
+          (second.handle === blocker && first.handle === blocked),
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      people: [
+        { handle: "cat", via: ["ben"], relation: "none" },
+        { handle: "fay", via: ["ben"], relation: "none" },
+      ],
+    });
+  });
+
+  it.each(["blocked", "unavailable"])("removes %s shared links before ranking", async (state) => {
+    const result = await readPeopleYouMayKnow(
+      request(),
+      deps({
+        blocked: async (first, second) => {
+          if (first.handle !== "amy" || !["cat", "eve"].includes(second.handle)) return false;
+          if (state === "unavailable") throw new Error("down");
+          return true;
+        },
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      people: [
+        { handle: "cat", via: ["ben"], relation: "none" },
+        { handle: "fay", via: ["ben"], relation: "none" },
+      ],
+    });
+  });
+
+  it("drops a mate when the viewer-to-mate block check fails", async () => {
+    const result = await readPeopleYouMayKnow(
+      request(),
+      deps({
+        blocked: async (first, second) => {
+          if (first.handle === "me" && second.handle === "amy") throw new Error("down");
+          return false;
+        },
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      people: [
+        { handle: "cat", via: ["ben"], relation: "none" },
+        { handle: "fay", via: ["ben"], relation: "none" },
+      ],
+    });
+  });
+
+  it("ranks candidates by the shared links that remain unblocked", async () => {
+    const dependencies = deps();
+    const result = await readPeopleYouMayKnow(
+      request(),
+      {
+        ...dependencies,
+        follows: {
+          ...dependencies.follows,
+          mutualsAmong: async () => new Map([
+            ["amy", ["cat", "fay"]],
+            ["ben", ["cat", "fay"]],
+          ]),
+        },
+        blocked: async (first, second) => first.handle === "amy" && second.handle === "cat",
+      },
+    );
+    expect(result).toEqual({
+      ok: true,
+      people: [
+        { handle: "fay", via: ["amy", "ben"], relation: "none" },
+        { handle: "cat", via: ["ben"], relation: "none" },
+      ],
+    });
+  });
+
   it("answers unavailable when the graph cannot be read", async () => {
     const result = await readPeopleYouMayKnow(
       request(),

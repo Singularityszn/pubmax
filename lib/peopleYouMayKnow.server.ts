@@ -23,6 +23,7 @@ import {
   publicOwnedImageUrl,
   type ProfileRecord,
 } from "@/lib/profileStore";
+import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
 import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
@@ -46,7 +47,7 @@ export type MayKnowDeps = {
   withdrawn(handles: readonly string[]): Promise<ReadonlySet<string>>;
   profile(handle: string): Promise<ProfileRecord | null>;
   /** True when either side blocked the other, or the check could not answer. */
-  blocked(viewer: ProfileRecord, other: ProfileRecord): Promise<boolean>;
+  blocked(first: ProfileRecord, second: ProfileRecord): Promise<boolean>;
 };
 
 const SIGN_IN: MayKnowResult = {
@@ -73,6 +74,7 @@ function defaultMayKnowDeps(): MayKnowDeps {
     withdrawn: withdrawnHandles,
     profile: (handle) => profileStore().getByHandle(handle),
     async blocked(viewer, other) {
+      if (socialMemoryBlocked(viewer.id, other.id)) return true;
       // The block lives in the Social tables, which a keyless build has none of.
       if (!isSupabaseConfigured()) return false;
       const relationship = await socialRelationshipBetweenProfiles(viewer.id, other.id);
@@ -106,6 +108,15 @@ export async function readPeopleYouMayKnow(
   if (!viewer) return SIGN_IN;
 
   try {
+    const viewerProfile = await deps.profile(viewer);
+    if (!viewerProfile) return { ok: true, people: [] };
+    const blocked = async (first: ProfileRecord, second: ProfileRecord): Promise<boolean> => {
+      try {
+        return await deps.blocked(first, second);
+      } catch {
+        return true;
+      }
+    };
     const [following, followers] = await Promise.all([
       deps.follows.listFollowing(viewer),
       deps.follows.listFollowers(viewer),
@@ -113,10 +124,18 @@ export async function readPeopleYouMayKnow(
     const followerSet = new Set(followers.map((handle) => normalizeHandle(handle)));
     const mutuals = following.map((handle) => normalizeHandle(handle)).filter((handle) => followerSet.has(handle));
     const hiddenMates = await deps.withdrawn(mutuals);
-    const mates = [...new Set(mutuals)]
+    const mateHandles = [...new Set(mutuals)]
       .filter((handle) => handle && !hiddenMates.has(handle))
       .sort()
       .slice(0, MAY_KNOW_MATES_READ);
+    const mateProfiles = new Map<string, ProfileRecord>();
+    for (const handle of mateHandles) {
+      const profile = await deps.profile(handle);
+      if (profile && !isProfileTombstoned(profile) && !(await blocked(viewerProfile, profile))) {
+        mateProfiles.set(handle, profile);
+      }
+    }
+    const mates = [...mateProfiles.keys()];
     if (mates.length === 0) return { ok: true, people: [] };
 
     const ranked = rankMayKnow({
@@ -131,21 +150,31 @@ export async function readPeopleYouMayKnow(
     if (shortlist.length === 0) return { ok: true, people: [] };
 
     const hidden = await deps.withdrawn(shortlist.map((candidate) => candidate.handle));
-    const viewerProfile = await deps.profile(viewer);
-    if (!viewerProfile) return { ok: true, people: [] };
-    const people: MayKnowPerson[] = [];
+    const cards = new Map<string, ReturnType<typeof card>>();
+    const verifiedLinks = new Map<string, string[]>();
     for (const candidate of shortlist) {
-      if (people.length >= MAY_KNOW_MAX) break;
       if (hidden.has(candidate.handle)) continue;
       const profile = await deps.profile(candidate.handle);
-      if (!shownToStrangers(profile) || (await deps.blocked(viewerProfile, profile))) continue;
-      people.push({
-        handle: candidate.handle,
-        ...card(profile),
-        via: candidate.via,
-        relation: followerSet.has(candidate.handle) ? "follows_you" : "none",
-      });
+      if (!shownToStrangers(profile) || (await blocked(viewerProfile, profile))) continue;
+      cards.set(candidate.handle, card(profile));
+      for (const mate of candidate.via) {
+        const mateProfile = mateProfiles.get(mate);
+        if (!mateProfile || (await blocked(mateProfile, profile))) continue;
+        const links = verifiedLinks.get(mate) ?? [];
+        links.push(candidate.handle);
+        verifiedLinks.set(mate, links);
+      }
     }
+    const people: MayKnowPerson[] = rankMayKnow({
+      viewer,
+      mates,
+      matesOfMates: verifiedLinks,
+      viewerFollowing: following,
+    }).slice(0, MAY_KNOW_MAX).map((candidate) => ({
+      ...candidate,
+      ...cards.get(candidate.handle),
+      relation: followerSet.has(candidate.handle) ? "follows_you" : "none",
+    }));
     return { ok: true, people };
   } catch {
     return UNAVAILABLE;

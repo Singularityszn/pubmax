@@ -4,15 +4,36 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // default, answers at most 1,000 rows per request. A read that trusts one
 // answer drops edges without an error; the graph readers must page.
 
-type Edge = { id: number; follower_id: string; followee_id: string; follower: string; followee: string };
+type Edge = { id: string; follower_id: string; followee_id: string; follower: string; followee: string };
 
-const backend = vi.hoisted(() => ({ edges: [] as Edge[], maxRows: 1000 }));
+const backend = vi.hoisted(() => ({
+  edges: [] as Edge[],
+  maxRows: 1000,
+  afterPage: undefined as ((rows: Edge[]) => void) | undefined,
+}));
 
 function query() {
   const filters: Array<(edge: Edge) => boolean> = [];
   let ordered = false;
+  let rowLimit = Infinity;
+  let columns = "";
+  function read() {
+    const matched = backend.edges.filter((edge) => filters.every((keep) => keep(edge)));
+    const page = (ordered ? [...matched].sort((a, b) => a.id.localeCompare(b.id)) : matched)
+      .slice(0, Math.min(backend.maxRows, rowLimit));
+    const rows = page.map((edge) => ({
+      ...(columns.split(",").map((column) => column.trim()).includes("id") ? { id: edge.id } : {}),
+      follower: { handle: edge.follower },
+      followee: { handle: edge.followee },
+    }));
+    backend.afterPage?.(page);
+    return { data: rows, error: null };
+  }
   const builder = {
-    select: () => builder,
+    select(value: string) {
+      columns = value;
+      return builder;
+    },
     eq(column: keyof Edge, value: string) {
       filters.push((edge) => edge[column] === value);
       return builder;
@@ -26,19 +47,16 @@ function query() {
       ordered = true;
       return builder;
     },
-    range(from: number, to: number) {
-      const matched = backend.edges.filter((edge) => filters.every((keep) => keep(edge)));
-      const rows = (ordered ? [...matched].sort((a, b) => a.id - b.id) : matched)
-        .slice(from, Math.min(to + 1, from + backend.maxRows))
-        .map((edge) => ({ follower: { handle: edge.follower }, followee: { handle: edge.followee } }));
-      return Promise.resolve({ data: rows, error: null });
+    gt(_column: "id", value: string) {
+      filters.push((edge) => edge.id > value);
+      return builder;
+    },
+    limit(value: number) {
+      rowLimit = value;
+      return builder;
     },
     then(resolve: (value: unknown) => unknown) {
-      const rows = backend.edges
-        .filter((edge) => filters.every((keep) => keep(edge)))
-        .slice(0, backend.maxRows)
-        .map((edge) => ({ follower: { handle: edge.follower }, followee: { handle: edge.followee } }));
-      return Promise.resolve({ data: rows, error: null }).then(resolve);
+      return Promise.resolve(read()).then(resolve);
     },
   };
   return builder;
@@ -62,12 +80,14 @@ import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 async function follow(from: string, to: string): Promise<void> {
   const [a, b] = await Promise.all([memoryProfileStore.ensure(from), memoryProfileStore.ensure(to)]);
-  backend.edges.push({ id: backend.edges.length + 1, follower_id: a.id, followee_id: b.id, follower: from, followee: to });
+  const id = `00000000-0000-0000-0000-${String(backend.edges.length + 1).padStart(12, "0")}`;
+  backend.edges.push({ id, follower_id: a.id, followee_id: b.id, follower: from, followee: to });
 }
 
 beforeEach(() => {
   backend.edges = [];
   backend.maxRows = 1000;
+  backend.afterPage = undefined;
   __resetMemoryProfiles();
 });
 
@@ -91,4 +111,30 @@ describe("durable follow graph reads past the response cap", () => {
     for (let index = 0; index < 700; index += 1) await follow("amy", `mate${index}`);
     expect(await followStore().listFollowing("amy")).toHaveLength(700);
   });
+
+  it.each(["following", "followers", "mutuals-out", "mutuals-back"])(
+    "keeps every unchanged edge after an earlier deletion during %s",
+    async (reader) => {
+      for (let index = 0; index < 1002; index += 1) {
+        await follow("amy", `mate${index}`);
+        await follow(`mate${index}`, "amy");
+      }
+      const side = reader === "followers" || reader === "mutuals-back" ? "followee" : "follower";
+      backend.afterPage = (rows) => {
+        if (rows[0]?.[side] !== "amy") return;
+        backend.afterPage = undefined;
+        backend.edges = backend.edges.filter((edge) => edge.id !== rows[0].id);
+      };
+
+      const store = followStore();
+      const handles = reader === "following"
+        ? await store.listFollowing("amy")
+        : reader === "followers"
+          ? await store.listFollowers("amy")
+          : (await store.mutualsAmong(["amy"])).get("amy");
+
+      expect(handles).toHaveLength(1002);
+      expect(handles).toEqual(expect.arrayContaining(["mate1000", "mate1001"]));
+    },
+  );
 });
