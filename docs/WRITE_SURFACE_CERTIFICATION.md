@@ -189,6 +189,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/social/tags/with`
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
+- `POST app/api/summon`
 - `POST app/api/table-requests`
 - `POST app/api/venue-corrections`
 - `POST app/api/regular-nights`
@@ -901,6 +902,22 @@ owns receipt counting and deduplication rules.
   `auth.users` with ON DELETE CASCADE and the confirmer with ON DELETE SET
   NULL, and has no browser grant. A hard store failure answers 503, never a
   fake success. No admin verb: a report is two fixed words and no free text.
+
+### `app/api/summon` - invite mates to a pub
+
+`POST app/api/summon/route.ts` accepts `{ venueId, time, mates }`.
+The [summon usage guide](../README.md#features) owns the reader journey.
+`requireVerifiedSocialActor` derives the sender from the session.
+Access refusals preserve the error code and include `details.gate` when available.
+The dialog uses that gate to offer account setup or the adult check.
+GET and POST use separate profile-based `isLimited` budgets and private, no-store responses.
+POST also honours `socialFreezeResponse`.
+`lib/summonMates.server.ts` checks every candidate's current eligibility before delivery starts.
+Unavailable relationship or mute reads return retryable `503 UNAVAILABLE`, without sending any messages.
+Definite eligibility refusals are omitted without identifying which side blocked or muted.
+Successful sends return `201` with `sent` and `failed` handles.
+If every attempted delivery fails, the route returns `503 UNAVAILABLE`.
+Regression coverage lives in `__tests__/summonRoute.test.ts`.
 
 ### `app/api/table-requests` - a crew asks a pub for a table
 

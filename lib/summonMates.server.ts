@@ -4,9 +4,8 @@ import "server-only";
 // time and lands in each chosen mate's direct messages with the pub attached,
 // so it reaches the same inbox, unread badge and realtime nudge a message does.
 //
-// A mate here is a live mutual follow (lib/socialMutual.server.ts: no block
-// either way) that neither side has muted. A mute is a person saying "less of
-// this account", so a summon never crosses one in either direction. The send
+// A mate here is a live mutual follow with no block or mute either way.
+// A mute requests fewer interactions, so a summon never crosses one. The send
 // asks the same question again for every handle it is given, so a list read a
 // minute ago, or a hand-made request, cannot reach somebody the check refuses.
 
@@ -126,7 +125,8 @@ export type SummonSendResult =
 /**
  * Send one summon to each handle that is still a summonable mate. A handle
  * the check refuses is dropped without a word, so the answer never says which
- * side blocked or muted. `sent` names only the messages that landed.
+ * side blocked or muted. An unavailable eligibility read aborts before delivery.
+ * `sent` names only the messages that landed.
  */
 export async function sendSummon(
   viewer: SummonViewer,
@@ -144,8 +144,6 @@ export async function sendSummon(
   if (pub.status === "unknown") return { status: "unknown_pub" };
   if (pub.status === "unavailable") return { status: "unavailable" };
 
-  // The mutual list comes first: the live-mate check asks only about blocks
-  // and assumes the pair is already known to be mutual.
   const mutuals = new Set((await deps.listMutuals(viewer.handle)).map(normalizeViewerHandle));
   const candidates = asked.filter((handle) => mutuals.has(handle));
   const allowed = await Promise.all(candidates.map((handle) => summonable(viewer, handle, deps)));
