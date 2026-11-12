@@ -166,10 +166,8 @@ export default function PrivacyPage() {
           Your public profile may also contain a display name, home city and
           short bio. A profile picture is an optional upload you choose: we
           store the normalised JPEG under our own private storage (not a
-          hotlinked URL), strip embedded metadata before it is saved, and send
-          a short-lived signed copy to OpenAI for an advisory omni moderation
-          check, or to Anthropic for the same check when OpenAI is not set up,
-          before the picture is publicly addressable. If the check
+          hotlinked URL), strip embedded metadata before it is saved, and scan
+          a short-lived signed copy before the picture is publicly addressable. If the check
           refuses the picture, we refuse the upload and keep your previous
           picture (or none). If the check cannot run or gives no usable
           decision, the upload can proceed without scan approval. Readers may
@@ -181,6 +179,11 @@ export default function PrivacyPage() {
           file from our storage. If you connect an external social profile (X,
           Instagram, TikTok) we store the account details you connected and any
           provider tokens encrypted at rest.
+        </p>
+        <p className="legalBody">
+          Profile pictures, primary and gallery covers, private-message photos,
+          venue photos and drink-wall photos use an advisory OpenAI moderation check.
+          When OpenAI is not set up, an AI model performs the check.
         </p>
 
         <h3 className="legalH3">If you use an invite link</h3>
@@ -734,11 +737,12 @@ export default function PrivacyPage() {
               Social post text goes to OpenAI for omni moderation after the
               post enters our moderation queue. It stays held until OpenAI
               returns a decision. We don&rsquo;t send the Social account ID,
-              handle, area or venue with that text. Normalised Social photos and
-              profile pictures go to OpenAI through short-lived signed links for
-              the same moderation decision. A profile picture is scanned before
-              it is publicly addressable; a Social post stays held until a
-              usable decision returns.
+              handle, area or venue with that text. Normalised Social photos go
+              to OpenAI through short-lived signed links for the same moderation
+              decision. Profile pictures, primary and gallery covers, private-message
+              photos, venue photos and drink-wall photos use an advisory OpenAI
+              moderation check. When OpenAI is not set up, an AI model performs
+              that check. A Social post stays held until a usable decision returns.
             </dd>
           </div>
           <div className="legalRow">
@@ -804,7 +808,7 @@ export default function PrivacyPage() {
             <dt>Imported pub lists</dt>
             <dd>
               We match the pub names in a caption, note or message you paste.
-              Short prose you paste may be read by our AI provider, Anthropic.
+              Short prose you paste may be read by an AI model.
               We discard the pasted text after matching and exclude it from logs and analytics.
               If you save the list, we keep its matched pub IDs, your optional source link,
               its creator handle when the link names one, and the save date in a private night draft.
@@ -815,7 +819,7 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Board photos</dt>
             <dd>
-              Photos you send for a board price check are read by our AI provider, Anthropic.
+              Photos you send for a board price check are read by an AI model.
               We do not keep the photo from that read. Each price you then confirm is logged like any
               other price you log, with the photo as its bill.
             </dd>
@@ -823,7 +827,7 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Bill photos</dt>
             <dd>
-              Photos you send for a bill check are read by our AI provider, Anthropic.
+              Photos you send for a bill check are read by an AI model.
               We keep only the result and the item lines and prices the check needs.
               We do not keep names, card numbers or the date read from the bill.
             </dd>

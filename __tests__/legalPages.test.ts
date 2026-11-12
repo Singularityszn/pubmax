@@ -338,11 +338,12 @@ describe("legal content pages", () => {
   });
 
   it.each(["Imported pub lists", "Board photos", "Bill photos"])(
-    "names the processor for %s in the rendered disclosure",
+    "discloses AI processing for %s without naming a provider",
     (label) => {
       const page = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage))).window.document;
       const row = [...page.querySelectorAll("dt")].find((term) => term.textContent === label);
-      expect(row?.nextElementSibling?.textContent).toContain("Anthropic");
+      expect(row?.nextElementSibling?.textContent).toContain("AI model");
+      expect(row?.nextElementSibling?.textContent).not.toContain("Anthropic");
     },
   );
 

@@ -76,14 +76,14 @@ Pal's `venue_prices` tool also reads the venue's public Pint Drops before estima
 <a id="a-bill-earns-receipt-only-when-it-shows-the-price"></a>
 
 - **A BILL EARNS `receipt` ONLY WHEN IT SHOWS THE PRICE, AND IT IS READ AFTER THE ANSWER.**
-  Anthropic reads submitted bill and board photos through the shared Claude client.
+  An AI model reads submitted bill and board photos through the shared JSON client.
   `lib/billCheck.ts` owns the verdicts, and `lib/billCheck.server.ts` runs the checks.
 
   1. `lib/claudeJson.server.ts` owns the shared JSON request settings.
      It sends a strict JSON schema at low effort, with a timeout and a token cap, and treats a refusal or a cut-off answer as a failure.
      Photos and model answers never enter logs or traces.
   2. The Pint Drop and one-tap price routes schedule checks with `scheduleBillCheck` after the response.
-     Their response includes `billCheck: "reading"` only when they schedule a check on a deployment with a Claude key.
+     Their response includes `billCheck: "reading"` only when they schedule a check on a deployment with a model key.
      The Pint Drop composer then prints `BILL_READING_RECEIPT_LINE`.
      A paired pint repeat inside the six-second duplicate window schedules no check for the new photo.
      The existing drop keeps its own photo and check.

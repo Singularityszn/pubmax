@@ -185,10 +185,11 @@ export default function TermsPage() {
           returns a decision. If that check is unavailable or gives no usable
           decision, the post remains held. We resize Social photos, strip their
           embedded metadata, keep them private, and send them with the post
-          text to OpenAI for moderation. Profile pictures use an advisory OpenAI omni
-          moderation check on stored image bytes, or an Anthropic check when
-          OpenAI is not set up. If the check refuses a
-          picture, we refuse the upload and keep your previous picture. If the
+          text to OpenAI for moderation. Profile pictures, primary and gallery
+          covers, private-message photos, venue photos and drink-wall photos use
+          an advisory OpenAI moderation check. When OpenAI is not set up, an AI
+          model performs the check. If the check refuses a profile picture,
+          we refuse the upload and keep your previous picture. If the
           check cannot run or gives no usable decision, the upload can proceed
           without scan approval. Readers may report a profile picture; only a
           named staff member may hide or restore it, and hiding never deletes
