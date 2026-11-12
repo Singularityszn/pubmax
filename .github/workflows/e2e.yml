@@ -280,12 +280,9 @@ jobs:
     env:
       LAYOUT_SHARD: 1
     steps: &layout-pin-steps
-      # When an entry ahead fails or leaves, the queue drops the groups behind
-      # it and deletes their branches, but GitHub keeps their runs queued. Those
-      # runs held the three Mac places and starved the live groups. A job for a
-      # group that is gone stops here, in seconds, before setup and tests. When
-      # the branch cannot be read, the job runs, so an API fault never fails a
-      # live group.
+      # Only a confirmed missing ref may stop this job. API failures must not
+      # block a live group (docs/CI_RUNBOOK.md, "The required checks and the
+      # merge queue").
       - name: Stop when the merge group is gone
         env:
           GH_TOKEN: ${{ github.token }}

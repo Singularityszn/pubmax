@@ -48,10 +48,13 @@ settings assume three Mac places. A pull request waited about an hour for one,
 and each push used about 42 Mac minutes. In the queue they test the exact commit
 that lands, which before ran them only after it was on `main`.
 `Browser tests check` still needs them, so a layout failure ejects its queue
-entry. A layout pin whose merge group the queue has dropped stops in its first
-step, so dead groups do not hold the Mac places. To request an early run, add
-the `layout-pins` label to a pull request from this repository. The label cancels the older browser run and starts a
-new one. Each later push runs the pins again while the label stays.
+entry. Each layout job checks its merge-group branch after it receives a Mac
+runner, before checkout or setup. A `404` fails the job and releases the runner
+without installation or tests. Other API responses and connection failures
+allow the job to continue. Pull request jobs do not query a merge-group branch.
+To request an early run, add the `layout-pins` label to a pull request from this
+repository. The label cancels the older browser run and starts a new one.
+Each later push runs the pins again while the label stays.
 On labelled pull requests, the pins skip changes with no screen code unless
 classification fails.
 See [What a pull request runs](#what-a-pull-request-runs) for the classifier.
@@ -384,7 +387,7 @@ A dispatch skips the layout-pin jobs to avoid duplicate runs on the Mac pool.
 [The nightly full suite](#the-nightly-full-suite) owns dispatch timing and
 quarantine exclusions.
 
-Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite, manual dispatches and merge queue runs never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
+Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite, manual dispatches and merge queue runs each get a separate concurrency group (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
 Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. The group was set when each main push started three layout-pin jobs. Since 9 Nov 2026 a main push starts no Mac job. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
