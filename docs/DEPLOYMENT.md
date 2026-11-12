@@ -360,7 +360,7 @@ account allocation before calling the release gate green.
 
 ### Manual deploy and promote
 
-There is no manual production path. Production ships through the [one release command](#one-release-command), `npm run release:prod`, and nothing else.
+Production ships through the [one release command](#one-release-command), `npm run release:prod`, or through the [gated API deploy](#gated-api-deploy). There is no other production path.
 
 Never promote a Preview build. `npm run deploy:preview` followed by `vercel promote <deployment-url>` puts a Preview-built artifact in front of production, and [promotion does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment): it keeps `VERCEL_ENV=preview` and every Preview environment value. The release command stages with `scripts/deploy-vercel.mjs --prod --skip-domain` instead, so the artifact it promotes was built with Production values.
 
@@ -401,6 +401,29 @@ A failed smoke run exits non-zero. If the live deployment changed or cannot be r
 `npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint and compares by migration NAME, never by version, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names only the ledger holds are listed and are not a failure. It needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. `SUPABASE_PROJECT_REF` overrides the production project.
 
 The command needs `gh` signed in with permission to run workflows in `Singularityszn/pubmax`, and a Vercel CLI session (`PUBMAX_VERCEL_BIN` names an installed one; otherwise npx runs the exact version pinned in `scripts/lib/vercelCli.mjs`, never `latest`). The ordered steps are `scripts/lib/releaseProduction.mjs`. Pin: `__tests__/releaseProduction.test.ts`.
+
+### Gated API deploy
+
+A deploy made through the Vercel API runs none of the release checks. Migrations apply before the deploy that needs them, so run the gate first:
+
+1. Pick the main commit that the deploy will ship.
+2. Start the gate for that commit:
+
+   ```sh
+   gh workflow run predeploy-gate.yml --ref main -f sha=<40-character sha>
+   ```
+
+3. Wait for the run named `Pre-deploy gate <sha>` to finish green. If it is red, do not deploy. A missing migration is applied first, on the captain's word.
+4. Deploy that same commit through the Vercel API.
+5. Wait until `https://pubmaxxing.com/api/version` names the new deployment. Then start the smoke run with that deployment ID:
+
+   ```sh
+   gh workflow run prod-smoke.yml --ref main -f deployment_id=dpl_...
+   ```
+
+   The smoke run checks out the tip of `main`, so the deployed commit must be that tip. The [smoke runbook](../e2e/prod-smoke/README.md#after-every-deploy) owns the rest.
+
+`.github/workflows/predeploy-gate.yml` refuses a commit that `main` does not hold. Then it runs `npm run check:migration-ledger` and the freshness gate, the same commands as steps 2 and 3 of the release command. Both checks only read production. The ledger check needs the `SUPABASE_ACCESS_TOKEN` repository secret. Without it, the run is red.
 
 ### Uptime monitor
 

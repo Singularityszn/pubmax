@@ -1,0 +1,88 @@
+name: Pre-deploy gate
+run-name: Pre-deploy gate ${{ inputs.sha }}
+
+# Run by hand before a production deploy made through the Vercel API. It runs
+# the release checks of `npm run release:prod` for one main commit: the
+# migration ledger and the freshness gate. A deploy goes ahead only when this
+# run is green for the exact commit it ships. docs/DEPLOYMENT.md owns the
+# recipe. Both checks only read production.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: The full 40-character main commit that the deploy will ship.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  commit:
+    name: Commit is on main
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check the commit is on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::The sha input must be a full 40-character lowercase commit, not '$SHA'."
+            exit 1
+          fi
+          status=$(gh api "repos/$REPO/compare/main...$SHA" --jq .status)
+          if [ "$status" != identical ] && [ "$status" != behind ]; then
+            echo "::error::$SHA is not on main (compare status: $status). Deploy only a commit that main holds."
+            exit 1
+          fi
+          echo "$SHA is on main."
+
+  ledger:
+    name: Migration ledger
+    needs: commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # One fixed SELECT through the Management API read-only query endpoint.
+      # A missing secret fails the run.
+      - name: Check production holds every migration this commit ships
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: npm run check:migration-ledger
+
+  freshness:
+    name: Freshness gate
+    needs: commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # The same two commands as freshness.yml and `npm run release:prod`.
+      - name: Check every tracked feed
+        run: |
+          node scripts/check_freshness.mjs --artifacts-only
+          node scripts/check-production-store-freshness.mjs
