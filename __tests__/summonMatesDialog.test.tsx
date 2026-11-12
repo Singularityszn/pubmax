@@ -13,6 +13,8 @@ const state = vi.hoisted(() => ({
   mates: [] as string[],
   posted: [] as unknown[],
   answer: { sent: [] as string[], failed: [] as string[] },
+  read: null as null | (() => Promise<Response>),
+  send: null as null | (() => Promise<Response>),
 }));
 
 vi.mock("@/components/auth/useViewerSession", () => ({
@@ -24,17 +26,20 @@ vi.mock("@/components/auth/useViewerSession", () => ({
   }),
 }));
 vi.mock("@/components/identity/ContributionGateDialog", () => ({
-  ContributionGateDialog: () => null,
+  ContributionGateDialog: ({ mode, onAsserted }: { mode: string; onAsserted: () => void }) =>
+    createElement("button", { "data-gate": mode, onClick: onAsserted }, "Complete gate"),
 }));
 vi.mock("@/lib/authedFetch", () => ({
-  signedInActionFetch: async () => Response.json({ mates: state.mates }),
+  signedInActionFetch: async () => state.read ? state.read() : Response.json({ mates: state.mates }),
   authedActionFetch: async (_input: string, init: RequestInit) => {
     state.posted.push(JSON.parse(String(init.body)));
+    if (state.send) return state.send();
     return Response.json(state.answer, { status: 201 });
   },
 }));
 
 import SummonMatesDialog from "@/components/map/inspector/SummonMatesDialog";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 import type { Venue } from "@/lib/venues";
 
 const venue = { id: "pub-lamb", name: "The Lamb", kind: "pub" } as Venue;
@@ -65,15 +70,90 @@ beforeEach(() => {
   state.mates = [];
   state.posted = [];
   state.answer = { sent: [], failed: [] };
+  state.read = null;
+  state.send = null;
+  setProviderIdentity("supabase", "account-a");
+  setProviderIdentity("clerk", null);
 });
 
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  setProviderIdentity("supabase", null);
   vi.unstubAllGlobals();
 });
 
 describe("SummonMatesDialog", () => {
+  it("clears selections and receipts when the provider account changes or signs out", async () => {
+    state.mates = ["ann"];
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+    act(() => document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    state.mates = ["bo"];
+    await act(async () => { setProviderIdentity("supabase", "account-b"); });
+    expect(document.body.textContent).not.toContain("@ann");
+    expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(false);
+    expect(button(/^Send$/).disabled).toBe(true);
+    act(() => document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    state.answer = { sent: ["bo"], failed: [] };
+    await act(async () => button(/Send to 1 mate/).click());
+    expect(document.querySelector('[data-summon-outcome="sent"]')).not.toBeNull();
+    state.phase = "signed-out";
+    await act(async () => { setProviderIdentity("supabase", null); });
+    expect(document.querySelector('[data-summon-outcome="sent"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("@bo");
+    expect(button(/^Sign in$/)).toBeTruthy();
+  });
+
+  it.each(["read", "send"] as const)("discards a late %s response after an account change", async (operation) => {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    state.mates = ["ann"];
+    if (operation === "read") state.read = () => pending;
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+    if (operation === "send") {
+      state.send = () => pending;
+      act(() => document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+      await act(async () => button(/Send to 1 mate/).click());
+    }
+    state.read = null;
+    state.mates = ["bo"];
+    await act(async () => { setProviderIdentity("supabase", "account-b"); });
+    await act(async () => finish(Response.json(
+      operation === "read" ? { mates: ["ann"] } : { sent: ["ann"], failed: [] },
+    )));
+    expect(document.body.textContent).not.toContain("@ann");
+    expect(document.body.textContent).toContain("@bo");
+    expect(document.querySelector('[data-summon-outcome="sent"]')).toBeNull();
+  });
+
+  it.each([
+    ["read", "adult_check_required"],
+    ["read", "onboarding_required"],
+    ["send", "adult_check_required"],
+    ["send", "onboarding_required"],
+  ])("opens the %s refusal's %s gate and reloads after assertion", async (operation, gate) => {
+    const refusal = () => Promise.resolve(Response.json({
+      code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
+      error: "Access required",
+      details: { gate },
+    }, { status: 403 }));
+    state.mates = ["ann"];
+    if (operation === "read") state.read = refusal;
+    else state.send = refusal;
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+    if (operation === "send") {
+      act(() => document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+      await act(async () => button(/Send to 1 mate/).click());
+    }
+    expect(document.querySelector('[data-gate]')?.getAttribute("data-gate")).toBe(gate);
+    state.read = null;
+    state.mates = ["bo"];
+    await act(async () => button(/Complete gate/).click());
+    expect(document.querySelector('[data-gate]')).toBeNull();
+    expect(document.body.textContent).toContain("@bo");
+    expect(document.body.textContent).not.toContain("@ann");
+  });
+
   it("sends the ticked mates and names only the ones the server reached", async () => {
     state.mates = ["ann", "bo", "cy"];
     state.answer = { sent: ["ann"], failed: ["cy"] };

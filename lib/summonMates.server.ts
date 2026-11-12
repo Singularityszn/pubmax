@@ -92,13 +92,8 @@ async function summonable(
   handle: string,
   deps: SummonDependencies,
 ): Promise<boolean> {
-  try {
-    if (!(await deps.isLiveMutual(viewer, handle))) return false;
-    return !(await deps.eitherMutes(viewer, handle));
-  } catch {
-    // A check that could not run is not a yes.
-    return false;
-  }
+  if (!(await deps.isLiveMutual(viewer, handle))) return false;
+  return !(await deps.eitherMutes(viewer, handle));
 }
 
 /** The mates this viewer may summon, sorted by handle. */

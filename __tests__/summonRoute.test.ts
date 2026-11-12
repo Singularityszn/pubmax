@@ -34,6 +34,7 @@ import { GET, POST } from "@/app/api/summon/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { __resetMemoryMessages, messagesStore } from "@/lib/messagesStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { socialInteractionStore } from "@/lib/socialInteractionStore";
 import {
   clearSocialMemoryBlocks,
   setSocialMemoryBlock,
@@ -81,6 +82,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   __resetMemoryFollows();
   __resetMemoryProfiles();
   __resetMemoryMessages();
@@ -88,6 +90,51 @@ afterEach(() => {
 });
 
 describe("GET /api/summon", () => {
+  it.each([
+    ["GET", "mine"], ["GET", "theirs"],
+    ["POST", "mine"], ["POST", "theirs"],
+  ])("returns unavailable when a relationship read fails during %s (%s)", async (method, direction) => {
+    await mate("summon_ann_12");
+    const bo = await mate("summon_bo_12");
+    const store = socialInteractionStore();
+    const relationship = store.relationship.bind(store);
+    vi.spyOn(store, "relationship").mockImplementation(async (actor, target) => {
+      if (direction === "mine" ? target === bo.id : actor.profileId === bo.id) {
+        throw new Error("Relationship unavailable");
+      }
+      return relationship(actor, target);
+    });
+
+    const response = method === "GET"
+      ? await GET(new Request("http://localhost/api/summon"))
+      : await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12", "summon_bo_12"] });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    expect(await inbox("summon_ann_12")).toEqual([]);
+    expect(await inbox("summon_bo_12")).toEqual([]);
+  });
+
+  it.each(["GET", "POST"])("preserves access recovery details during %s", async (method) => {
+    for (const gate of ["onboarding_required", "adult_check_required", "adult_check_failed"]) {
+      routeState.access = {
+        ok: false,
+        status: 403,
+        code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
+        error: "Adult verification is needed for Social.",
+        gate,
+      };
+      const response = method === "GET"
+        ? await GET(new Request("http://localhost/api/summon"))
+        : await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12"] });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+        code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
+        details: { gate },
+      });
+    }
+  });
+
   it("refuses a reader with no verified session, privately", async () => {
     routeState.access = { ok: false, error: "Sign in to use Social.", code: "SOCIAL_SIGN_IN_REQUIRED", status: 401 };
     const response = await GET(new Request("http://localhost/api/summon"));

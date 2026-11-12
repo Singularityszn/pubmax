@@ -24,7 +24,7 @@
 // and the treatment of secondary actions.
 
 import dynamic from "next/dynamic";
-import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Megaphone, Share2, Users } from "lucide-react";
 
@@ -33,6 +33,7 @@ import { ContributionGateDialog } from "@/components/identity/ContributionGateDi
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
 import type { ContributionGateStatus } from "@/lib/contributionGateStatus";
+import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { TABLE_REQUEST_ACTION_LABEL } from "@/lib/tableRequests";
 import { consumeTableRequestIntent } from "@/lib/tableRequestIntent";
 import { venueTableRequestUrl } from "@/lib/venueMapUrl";
@@ -70,6 +71,7 @@ export default function VenueActionCard({
 }) {
   const footerSlot = useSheetFooterSlot();
   const { configured, loading, user, handle } = useAuth();
+  const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
   const pub = isPubVenue(venue);
   // Kept by venue id, so selecting another pub never carries a half-typed
   // request or an open gate across.
@@ -241,7 +243,7 @@ export default function VenueActionCard({
         />
       ) : null}
       {summonOpen ? (
-        <SummonMatesDialog key={venue.id} venue={venue} onClose={() => setSummonVenueId(null)} />
+        <SummonMatesDialog key={`${venue.id}:${accountRevision}`} venue={venue} onClose={() => setSummonVenueId(null)} />
       ) : null}
       {gateStatus ? (
         <ContributionGateDialog

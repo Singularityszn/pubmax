@@ -34,6 +34,7 @@ type Access = Awaited<ReturnType<typeof requireVerifiedSocialActor>>;
 function accessError(access: Exclude<Access, { ok: true }>): Response {
   return publicApiError(access.error, access.code, access.status, {
     retryable: access.retryable === true,
+    ...(access.gate ? { details: { gate: access.gate } } : {}),
     headers: NO_STORE,
   });
 }

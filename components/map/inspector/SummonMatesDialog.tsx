@@ -9,7 +9,7 @@
 // (lib/summonMates.server.ts). The receipt names only the mates the server says
 // it reached. Nothing here counts who is coming.
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -17,6 +17,8 @@ import { ContributionGateDialog } from "@/components/identity/ContributionGateDi
 import { Button } from "@/components/ui/button";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { authedActionFetch, signedInActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountRevision, readProviderAccountSignal, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
+import { readContributionGateStatus, type ContributionGateStatus } from "@/lib/contributionGateStatus";
 import { shareNightObject } from "@/lib/shareSheet";
 import {
   defaultSummonTime,
@@ -53,14 +55,25 @@ function readHandles(body: unknown, key: "mates" | "sent" | "failed"): string[] 
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 }
 
-export default function SummonMatesDialog({
-  venue,
-  onClose,
-}: {
+type Props = {
   venue: Venue;
   onClose: () => void;
-}) {
-  const { signedOut } = useViewerSession();
+};
+
+function accessGate(body: unknown): ContributionGateStatus | null {
+  const error = body as { code?: unknown; details?: { gate?: unknown } } | null;
+  if (error?.code === "SOCIAL_SIGN_IN_REQUIRED") return "sign_in_required";
+  if (error?.code !== "SOCIAL_ADULT_VERIFICATION_REQUIRED") return null;
+  return readContributionGateStatus(error.details?.gate) ?? null;
+}
+
+export default function SummonMatesDialog(props: Props) {
+  const { signedOut, phase } = useViewerSession();
+  const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
+  return <SummonMatesForm key={`${props.venue.id}:${accountRevision}:${phase}`} {...props} signedOut={signedOut} accountRevision={accountRevision} />;
+}
+
+function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props & { signedOut: boolean; accountRevision: number }) {
   const titleId = useId();
   const errorId = useId();
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -70,43 +83,52 @@ export default function SummonMatesDialog({
   const [stage, setStage] = useState<Stage>({ kind: "form" });
   const [error, setError] = useState<string | null>(null);
   const [shareNote, setShareNote] = useState<string | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
+  const [gate, setGate] = useState<ContributionGateStatus | null>(null);
+  const [reload, setReload] = useState(0);
 
-  useDismissOnEscape(!signingIn, onClose);
-  useFocusTrap(!signingIn, dialogRef, "strict-modal");
+  useDismissOnEscape(!gate, onClose);
+  useFocusTrap(!gate, dialogRef, "strict-modal");
   useEffect(() => {
     dialogRef.current?.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => {
-    if (signedOut) return;
+    if (signedOut || readProviderAccountRevision() !== accountRevision) return;
     const controller = new AbortController();
+    const accountSignal = readProviderAccountSignal();
+    const abort = () => controller.abort();
+    accountSignal.addEventListener("abort", abort, { once: true });
+    const live = () => !controller.signal.aborted && !accountSignal.aborted && readProviderAccountRevision() === accountRevision;
     void signedInActionFetch("/api/summon", {
       credentials: "same-origin",
       cache: "no-store",
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (controller.signal.aborted) return;
+        if (!live()) return;
         if (!response) {
           setMates({ kind: "signed-out" });
           return;
         }
         const body = (await response.json().catch(() => null)) as unknown;
-        if (controller.signal.aborted) return;
+        if (!live()) return;
         if (!response.ok) {
+          setGate(accessGate(body));
           setMates({ kind: "unavailable", text: errorMessageFrom(body, "Your mates are unavailable right now.") });
           return;
         }
         setMates({ kind: "ready", handles: readHandles(body, "mates") });
       })
       .catch(() => {
-        if (!controller.signal.aborted) {
+        if (live()) {
           setMates({ kind: "unavailable", text: "We couldn't reach PUBMAXX. Check your signal." });
         }
       });
-    return () => controller.abort();
-  }, [signedOut]);
+    return () => {
+      accountSignal.removeEventListener("abort", abort);
+      controller.abort();
+    };
+  }, [signedOut, accountRevision, reload]);
 
   const listed: Mates = signedOut ? { kind: "signed-out" } : mates;
   const validTime = parseSummonTime(time);
@@ -121,6 +143,9 @@ export default function SummonMatesDialog({
   }
 
   async function send(): Promise<void> {
+    const accountSignal = readProviderAccountSignal();
+    const live = () => !accountSignal.aborted && readProviderAccountRevision() === accountRevision && dialogRef.current !== null;
+    if (signedOut || !live()) return;
     if (!validTime) {
       setError("Pick a time.");
       return;
@@ -136,19 +161,23 @@ export default function SummonMatesDialog({
         "/api/summon",
         {
           method: "POST",
+          signal: accountSignal,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ venueId: venue.id, time: validTime, mates: [...picked] }),
         },
         { requiresIdentity: true },
       );
       const body = (await response.json().catch(() => null)) as unknown;
+      if (!live()) return;
       if (response.ok) {
         setStage({ kind: "sent", sent: readHandles(body, "sent"), failed: readHandles(body, "failed") });
         return;
       }
       setStage({ kind: "form" });
+      setGate(accessGate(body));
       setError(errorMessageFrom(body, SUMMON_SEND_FAILED_LINE));
     } catch {
+      if (!live()) return;
       setStage({ kind: "form" });
       setError("We couldn't reach PUBMAXX. Check your signal and try again.");
     }
@@ -291,7 +320,7 @@ export default function SummonMatesDialog({
                 type="button"
                 variant="secondary"
                 className="tableRequestPrimary"
-                onClick={() => setSigningIn(true)}
+                onClick={() => setGate("sign_in_required")}
               >
                 Sign in
               </Button>
@@ -302,11 +331,19 @@ export default function SummonMatesDialog({
           {stage.kind === "sent" ? "Done" : "Not now"}
         </Button>
       </section>
-      {signingIn ? (
+      {gate ? (
         <ContributionGateDialog
-          mode="sign_in_required"
+          mode={gate}
           error={null}
-          onClose={() => setSigningIn(false)}
+          onClose={() => setGate(null)}
+          onAsserted={() => {
+            if (readProviderAccountRevision() !== accountRevision) return;
+            setGate(null);
+            setError(null);
+            setPicked(new Set());
+            setMates({ kind: "loading" });
+            setReload((current) => current + 1);
+          }}
           returnTo={venueMapUrl(venue.id)}
         />
       ) : null}
