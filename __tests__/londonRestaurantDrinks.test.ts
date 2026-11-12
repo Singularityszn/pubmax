@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy";
 import { inGreaterLondon } from "../scripts/build_london_venue_shards.mjs";
 import {
   drinkLinks,
@@ -237,6 +238,31 @@ describe("London restaurant drinks evidence", () => {
     expect(excludedOsmIds(exclusions).size).toBe(12);
     expect(pack.rows.some((row: { osmId: string }) => excludedOsmIds(exclusions).has(row.osmId))).toBe(false);
     expect(pack.rows.length).toBeGreaterThan(0);
+  });
+
+  it("retains recorded own-site evidence when later terms refuse another harvest", () => {
+    // The captain retained stored rows while refusing new estate reads.
+    const website = "https://www.theleatherexchange.co.uk/";
+    const evidence = [{ ...row().evidence[0], url: website }];
+    expect(validateRestaurantDrinksPack({ rows: [row({ website, evidence })] }, {
+      inGreaterLondon, exclusions: { rows: [] },
+    })).toEqual([]);
+    expect(isHarvestableOperatorUrl(website)).toBe(false);
+    expect(taggedOwnSite(website)).toBeNull();
+    expect(drinkLinks("[Drinks](/drinks)", website)).toEqual([]);
+  });
+
+  it.each([
+    "https://www.facebook.com/trattoria",
+    "https://www.tripadvisor.co.uk/trattoria",
+    "http://127.0.0.1/drinks",
+    "https://user:secret@trattoriaexample.co.uk/drinks",
+    "ftp://trattoriaexample.co.uk/drinks",
+    "not a URL",
+  ])("rejects stored evidence without an attributable own-site URL: %s", (website) => {
+    expect(validateRestaurantDrinksPack({ rows: [row({
+      website, evidence: [{ ...row().evidence[0], url: website }],
+    })] }, { inGreaterLondon, exclusions: { rows: [] } })).not.toEqual([]);
   });
   it("does not take a class held at the restaurant as the restaurant pouring", () => {
     expect(drinksEvidence("Master the roll and sip on MOTH: cocktails at our exclusive adults only sushi schools.", "YO! Sushi")).toEqual({});
