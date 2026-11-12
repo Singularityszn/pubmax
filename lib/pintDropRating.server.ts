@@ -19,7 +19,7 @@ const MAX_REF_LENGTH = 200;
 
 type RatedDropKey = { venueId: string; drink: string; measure?: unknown };
 
-export function pintDropRatingRef(drop: RatedDropKey): string {
+function pintDropRatingRef(drop: RatedDropKey): string {
   const subject =
     drop.drink.trim().toLowerCase().replace(/\s+/g, " ") || cleanDrinkMeasure(drop.measure);
   return `${REF_PREFIX}:${drop.venueId}:${subject}`.slice(0, MAX_REF_LENGTH);

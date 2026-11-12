@@ -64,7 +64,7 @@ export type RatingsStore = {
 };
 
 /** ref → normalised handle → that handle's current star value. */
-export type HandleVotes = Record<string, Record<string, number>>;
+type HandleVotes = Record<string, Record<string, number>>;
 
 // Keeps one `in (...)` read inside a safe request-URL length.
 const HANDLE_VOTES_CHUNK = 100;
