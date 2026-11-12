@@ -10,13 +10,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   phase: "signed-in" as "signed-in" | "signed-out",
+  identityResolved: true,
   mates: [] as string[],
   posted: [] as unknown[],
   answer: { sent: [] as string[], failed: [] as string[] },
-  read: null as null | (() => Promise<Response>),
+  read: null as null | (() => Promise<Response | null>),
   send: null as null | (() => Promise<Response>),
 }));
 
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ identityResolved: state.identityResolved }),
+}));
+vi.mock("@/lib/authClient", () => ({
+  getAccessToken: async () => "test-token",
+}));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({
     phase: state.phase,
@@ -67,6 +74,7 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   state.phase = "signed-in";
+  state.identityResolved = true;
   state.mates = [];
   state.posted = [];
   state.answer = { sent: [], failed: [] };
@@ -80,10 +88,38 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   setProviderIdentity("supabase", null);
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe("SummonMatesDialog", () => {
+  it.each([false, true])("loads the new account after slow identity resolution (old read pending: %s)", async (pendingRead) => {
+    const auth = await vi.importActual<typeof import("@/lib/authedFetch")>("@/lib/authedFetch");
+    let finishRead!: (response: Response) => void;
+    if (pendingRead) state.read = () => new Promise<Response>((resolve) => { finishRead = resolve; });
+    state.mates = ["ann"];
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+
+    vi.useFakeTimers();
+    state.identityResolved = false;
+    auth.publishAuthActionState({ status: "signed-in", identityResolved: false });
+    state.read = () => auth.signedInActionFetch("/api/summon");
+    vi.stubGlobal("fetch", async () => Response.json({ mates: ["bo"] }));
+    await act(async () => { setProviderIdentity("supabase", "account-b"); });
+    if (pendingRead) await act(async () => finishRead(Response.json({ mates: ["ann"] })));
+    // The previous live failure exceeded the request helper's two-second readiness window.
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_001); });
+    expect(document.body.textContent).not.toContain("@ann");
+    expect(() => button(/^Sign in$/)).toThrow();
+
+    state.identityResolved = true;
+    auth.publishAuthActionState({ status: "signed-in", identityResolved: true });
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+    expect(document.body.textContent).toContain("@bo");
+    expect(() => button(/^Sign in$/)).toThrow();
+    expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(false);
+  });
+
   it("clears selections and receipts when the provider account changes or signs out", async () => {
     state.mates = ["ann"];
     await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));

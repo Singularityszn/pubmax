@@ -12,6 +12,7 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
+import { useAuth } from "@/components/auth/authContext";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ export default function SummonMatesDialog(props: Props) {
 }
 
 function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props & { signedOut: boolean; accountRevision: number }) {
+  const { identityResolved } = useAuth();
   const titleId = useId();
   const errorId = useId();
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -93,7 +95,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
   }, []);
 
   useEffect(() => {
-    if (signedOut || readProviderAccountRevision() !== accountRevision) return;
+    if (signedOut || !identityResolved || readProviderAccountRevision() !== accountRevision) return;
     const controller = new AbortController();
     const accountSignal = readProviderAccountSignal();
     const abort = () => controller.abort();
@@ -106,10 +108,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
     })
       .then(async (response) => {
         if (!live()) return;
-        if (!response) {
-          setMates({ kind: "signed-out" });
-          return;
-        }
+        if (!response) return;
         const body = (await response.json().catch(() => null)) as unknown;
         if (!live()) return;
         if (!response.ok) {
@@ -128,7 +127,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
       accountSignal.removeEventListener("abort", abort);
       controller.abort();
     };
-  }, [signedOut, accountRevision, reload]);
+  }, [signedOut, identityResolved, accountRevision, reload]);
 
   const listed: Mates = signedOut ? { kind: "signed-out" } : mates;
   const validTime = parseSummonTime(time);
