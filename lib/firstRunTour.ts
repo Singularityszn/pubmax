@@ -1,8 +1,8 @@
 // First-run onboarding tour gate — localStorage-backed, SSR-safe.
 //
-// A one-time welcome overlay orients a first-timer to the three core moves
-// (the map, DROP, Discover). Once dismissed — by Skip, close, backdrop, Esc,
-// or finishing — it is marked done and never shows again. Mirrors the
+// A one-time welcome overlay on the map: pin colours, logging a pint, Been
+// here and the Plan link. Once dismissed (Skip, close, backdrop, Esc, or
+// finishing) it is marked done and never shows again. Mirrors the
 // storage idiom in lib/cityPreference.ts (hasStorage guard, try/catch, a
 // same-tab CHANGE_EVENT so useSyncExternalStore clients re-read after a write).
 //

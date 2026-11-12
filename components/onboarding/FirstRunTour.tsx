@@ -1,9 +1,10 @@
 "use client";
 
-// First-run map orientation — one band-colour beat after analytics consent.
-// Landing acquisition W3: teach green / amber / dear / grey from the same
-// vocabulary as MapKey, then dismiss. Moment/Social and the
-// multi-step welcome are demoted; curated crawl waits until this is done.
+// First-run welcome tour on the map, after analytics consent: four short
+// steps, then it never shows again. The first teaches the pin colours from the
+// same vocabulary as MapKey. The others name the three moves the map leads to:
+// log a pint, keep a Been here list, send one Plan link. Every claim here is
+// something the app does today, and no step shows a count.
 
 import {
   useCallback,
@@ -41,6 +42,39 @@ import "./firstRunTour.css";
 const EXIT_MS = 260;
 
 const LEGEND_ROWS = orientationLegendRows();
+
+type TourStep = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  legend?: true;
+};
+
+const STEPS: readonly TourStep[] = [
+  {
+    eyebrow: "The map",
+    title: ORIENTATION_LEGEND_TITLE,
+    body: "Pin colour is the listed pint band. Grey means nobody has logged a price the map can trust yet.",
+    legend: true,
+  },
+  {
+    eyebrow: "Log a pint",
+    title: "Paid for a pint? Log it",
+    body: "Open a pub and log what you paid. Add the bill if you have it. A price counts on the map once we read the bill or a second drinker agrees.",
+  },
+  {
+    eyebrow: "Been here",
+    title: "Tick off your pubs",
+    body: "Open a pub and save it to Been here. No dates, just the pubs. Signed in, the list shows on your profile.",
+  },
+  {
+    eyebrow: "Plan",
+    title: "One link for your mates",
+    body: "Plan a crawl on listed prices and send one link to the group chat. Nobody needs an account to open it.",
+  },
+];
+
+const LAST_STEP = STEPS.length - 1;
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -80,6 +114,9 @@ export default function FirstRunTour(): React.JSX.Element | null {
     );
   });
   const [closing, setClosing] = useState(false);
+  const [step, setStep] = useState(0);
+  // 1 = forward, -1 = back. Picks the slide direction in firstRunTour.css.
+  const [dir, setDir] = useState<1 | -1>(1);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -106,8 +143,8 @@ export default function FirstRunTour(): React.JSX.Element | null {
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.
-  // `completed` distinguishes finishing (Got it) from an early skip/close/
-  // backdrop/Esc dismissal, for the tour_complete event.
+  // `completed` distinguishes finishing the last step (Got it) from an early
+  // skip/close/backdrop/Esc dismissal, for the tour_complete event.
   const dismiss = useCallback((completed: boolean = false) => {
     if (finalizedRef.current) return;
     setClosing(true);
@@ -119,6 +156,21 @@ export default function FirstRunTour(): React.JSX.Element | null {
     };
     window.setTimeout(finalize, prefersReducedMotion() ? 0 : EXIT_MS);
   }, []);
+
+  const goNext = useCallback(() => {
+    if (step >= LAST_STEP) {
+      dismiss(true);
+      return;
+    }
+    setDir(1);
+    setStep(step + 1);
+  }, [step, dismiss]);
+
+  const goBack = useCallback(() => {
+    if (step <= 0) return;
+    setDir(-1);
+    setStep(step - 1);
+  }, [step]);
 
   // Remember the pre-open focus so we can restore it on dismiss.
   useEffect(() => {
@@ -138,12 +190,22 @@ export default function FirstRunTour(): React.JSX.Element | null {
     }
   }, [seen]);
 
-  // Esc closes; Tab is trapped within the card.
+  // Esc closes, the arrow keys move between steps, Tab is trapped in the card.
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === "Escape") {
         e.stopPropagation();
         dismiss(false);
+        return;
+      }
+      if (e.key === "ArrowRight" && step < LAST_STEP) {
+        e.preventDefault();
+        goNext();
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goBack();
         return;
       }
       if (e.key !== "Tab") return;
@@ -166,13 +228,16 @@ export default function FirstRunTour(): React.JSX.Element | null {
         first.focus();
       }
     },
-    [dismiss],
+    [dismiss, goBack, goNext, step],
   );
 
   const titleId = useId();
   const bodyId = useId();
 
   if (!active) return null;
+
+  const current = STEPS[step]!;
+  const isLast = step === LAST_STEP;
 
   return (
     <div
@@ -208,39 +273,60 @@ export default function FirstRunTour(): React.JSX.Element | null {
           </svg>
         </button>
 
-        <div className="tourStep">
-          <p className="tourEyebrow">The map</p>
-          <h2 id={titleId} className="tourTitle">
-            {ORIENTATION_LEGEND_TITLE}
-          </h2>
-          <p id={bodyId} className="tourBody">
-            Pin colour is the listed pint band. Grey means nobody has logged a
-            price the map can trust yet.
-          </p>
-          <ul className="tourLegend" aria-label="Pint price colours">
-            {LEGEND_ROWS.map((row) => (
-              <li key={row.tone} className="tourLegendRow">
-                <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
-                <span>{row.label}</span>
-              </li>
-            ))}
-          </ul>
+        {/* The live region stays mounted so a screen reader hears each new
+            step; the keyed child remounts to replay the step slide. */}
+        <div aria-live="polite">
+          <div className="tourStep" key={step} data-dir={dir}>
+            <p className="tourEyebrow">{current.eyebrow}</p>
+            <h2 id={titleId} className="tourTitle">
+              {current.title}
+            </h2>
+            <p id={bodyId} className="tourBody">
+              {current.body}
+            </p>
+            {current.legend ? (
+              <ul className="tourLegend" aria-label="Pint price colours">
+                {LEGEND_ROWS.map((row) => (
+                  <li key={row.tone} className="tourLegendRow">
+                    <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
+                    <span>{row.label}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </div>
+
+        <div
+          className="tourDots"
+          role="img"
+          aria-label={`Step ${step + 1} of ${STEPS.length}`}
+        >
+          {STEPS.map((s, i) => (
+            <span
+              key={s.eyebrow}
+              className={`tourDot${i === step ? " isActive" : ""}`}
+              aria-hidden="true"
+            />
+          ))}
         </div>
 
         <div className="tourActions">
-          <button
-            type="button"
-            className="tourSkip pressable"
-            onClick={() => dismiss(false)}
-          >
-            Skip
-          </button>
-          <button
-            type="button"
-            className="tourNext pressable"
-            onClick={() => dismiss(true)}
-          >
-            Got it
+          {step === 0 ? (
+            <button
+              type="button"
+              className="tourSkip pressable"
+              onClick={() => dismiss(false)}
+            >
+              Skip
+            </button>
+          ) : (
+            <button type="button" className="tourSkip pressable" onClick={goBack}>
+              Back
+            </button>
+          )}
+          <button type="button" className="tourNext pressable" onClick={goNext}>
+            {isLast ? "Got it" : "Next"}
           </button>
         </div>
       </div>
