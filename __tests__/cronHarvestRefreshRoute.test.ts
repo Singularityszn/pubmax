@@ -99,6 +99,28 @@ describe("the scheduled run cannot burn the account", () => {
     expect(body.ok).toBe(true);
   }, 30_000);
 
+  it("never sends a chain page its own terms refuse to Firecrawl", async () => {
+    process.env.CRON_SECRET = "top-secret";
+    process.env.FIRECRAWL_API_KEY = "fc-test";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(
+        JSON.stringify({ success: true, data: { markdown: "# No offers", metadata: { statusCode: 200 } } }),
+        { status: 200 },
+      ),
+    );
+
+    const response = await GET(request({ authorization: "Bearer top-secret" }));
+    const body = await response.json();
+    const byId = new Map(body.sources.map((s: { sourceId: string }) => [s.sourceId, s]));
+
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(JSON.stringify(fetchSpy.mock.calls)).not.toContain("fullers.co.uk");
+    expect(byId.get("fullers-whats-on")).toMatchObject({
+      status: "skipped",
+      skipReason: "terms-forbid-commercial-use",
+    });
+  });
+
   it("reports a real page as harvested and an empty one as empty", async () => {
     process.env.CRON_SECRET = "top-secret";
     process.env.FIRECRAWL_API_KEY = "fc-test";

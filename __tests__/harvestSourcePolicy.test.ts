@@ -152,7 +152,7 @@ describe("every source is a decision with evidence", () => {
 
   it("keeps Context.dev on FIRST-PARTY venue-events pages only", () => {
     const pages = contextDevEventSources();
-    expect(pages.some((source) => source.id === "fullers-event-finder-events")).toBe(true);
+    expect(pages.some((source) => source.id === "fullers-event-finder-events")).toBe(false);
     expect(pages.every((source) => source.firstParty)).toBe(true);
     expect(allowedHarvestSources("venue-events").some((source) => source.id === "common-social-posts")).toBe(true);
     expect(pages.some((source) => source.id === "common-social-posts")).toBe(false);
@@ -167,6 +167,8 @@ describe("a venue's own site is harvestable; a refused host wearing its name is 
   it("refuses a host the policy already refused", () => {
     expect(isHarvestableOperatorUrl("https://www.skiddle.com/whats-on/London/")).toBe(false);
     expect(isHarvestableOperatorUrl("https://dice.fm/browse/london")).toBe(false);
+    expect(isHarvestableOperatorUrl("https://www.fullers.co.uk/pubs/the-dove")).toBe(false);
+    expect(isHarvestableOperatorUrl("https://www.slugandlettuce.co.uk/bars/soho/menus")).toBe(false);
   });
 
   it("refuses anything that is not an absolute http(s) url", () => {

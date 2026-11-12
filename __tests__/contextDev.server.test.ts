@@ -22,7 +22,7 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 
 function markdownResponse(markdown: string) {
   return jsonResponse({
-    url: "https://www.fullers.co.uk/event-finder",
+    url: "https://www.youngs.co.uk/event-finder",
     markdown: { requested: true, success: true, data: markdown },
   });
 }
@@ -37,13 +37,13 @@ describe("contextDev key configuration", () => {
     expect(contextDevApiKey({} as unknown as NodeJS.ProcessEnv)).toBeNull();
     expect(isContextDevConfigured({ CONTEXT_DEV_API_KEY: "  " } as unknown as NodeJS.ProcessEnv)).toBe(false);
     await expect(
-      scrapeMarkdown("https://www.fullers.co.uk", { env: {} as unknown as NodeJS.ProcessEnv }),
+      scrapeMarkdown("https://www.youngs.co.uk", { env: {} as unknown as NodeJS.ProcessEnv }),
     ).resolves.toEqual({ status: "not-configured" });
   });
 });
 
 describe("empty successful SDK responses", () => {
-  const url = "https://www.fullers.co.uk/events";
+  const url = "https://www.youngs.co.uk/events";
   const readers = [
     { name: "Markdown", read: (options: Parameters<typeof scrapeMarkdown>[1]) => scrapeMarkdown(url, options) },
     { name: "HTML", read: (options: Parameters<typeof scrapeHtml>[1]) => scrapeHtml(url, options) },
@@ -81,14 +81,14 @@ describe("scrapeMarkdown", () => {
     const fetchImpl = vi.fn(async () =>
       markdownResponse("# Hello"),
     );
-    const result = await scrapeMarkdown("https://www.fullers.co.uk/event-finder", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk/event-finder", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
     });
     expect(result).toEqual({
       status: "ok",
-      url: "https://www.fullers.co.uk/event-finder",
+      url: "https://www.youngs.co.uk/event-finder",
       markdown: "# Hello",
     });
   });
@@ -104,7 +104,7 @@ describe("scrapeMarkdown", () => {
       )
       .mockResolvedValueOnce(markdownResponse("ok"));
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -128,7 +128,7 @@ describe("scrapeMarkdown", () => {
       )
       .mockResolvedValueOnce(markdownResponse("ok"));
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -148,7 +148,7 @@ describe("scrapeMarkdown", () => {
           headers: { "content-type": "text/html" },
         }),
     );
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -168,7 +168,7 @@ describe("scrapeMarkdown", () => {
       jsonResponse({ error: "slow down" }, 429, { "retry-after": String(askedSeconds) }),
     );
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -197,7 +197,7 @@ describe("scrapeMarkdown", () => {
       )
       .mockResolvedValueOnce(markdownResponse("ok"));
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -213,7 +213,7 @@ describe("scrapeMarkdown", () => {
   it("retries 5xx with bounded backoff then fails", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const sleeps: number[] = [];
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
@@ -230,7 +230,7 @@ describe("scrapeMarkdown", () => {
 
   it("does not retry validation errors", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ error: "bad schema" }, 400));
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -247,7 +247,7 @@ describe("run request budget", () => {
   it("counts retries against the budget and stops sending once it is spent", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const budget = createContextDevBudget(2);
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -268,7 +268,7 @@ describe("run request budget", () => {
   it("names the budget alone when the ceiling stopped the FIRST attempt", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const budget = createContextDevBudget(1);
-    await scrapeMarkdown("https://www.fullers.co.uk/first", {
+    await scrapeMarkdown("https://www.youngs.co.uk/first", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -277,7 +277,7 @@ describe("run request budget", () => {
     });
     fetchImpl.mockClear();
 
-    const result = await scrapeMarkdown("https://www.fullers.co.uk/second", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk/second", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -294,7 +294,7 @@ describe("run request budget", () => {
   it("sends nothing at all once a shared budget is spent", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const budget = createContextDevBudget(1);
-    await scrapeMarkdown("https://www.fullers.co.uk/one", {
+    await scrapeMarkdown("https://www.youngs.co.uk/one", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -302,7 +302,7 @@ describe("run request budget", () => {
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 
-    const second = await extract("https://www.fullers.co.uk/two", { type: "object" }, {
+    const second = await extract("https://www.youngs.co.uk/two", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -316,7 +316,7 @@ describe("run request budget", () => {
 
   it("spends nothing when the key is absent, because nothing is sent", async () => {
     const budget = createContextDevBudget(2);
-    const result = await scrapeMarkdown("https://www.fullers.co.uk", {
+    const result = await scrapeMarkdown("https://www.youngs.co.uk", {
       env: {} as unknown as NodeJS.ProcessEnv,
       budget,
     });
@@ -329,7 +329,7 @@ describe("extract", () => {
   it.each([undefined, 0, 43_200_000])("collects fresh joint extraction despite cache preference %s", async (maxAgeMs) => {
     const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
       jsonResponse({
-        url: "https://www.fullers.co.uk/events",
+        url: "https://www.youngs.co.uk/events",
         json: { requested: true, success: true, data: {
           events: [
             {
@@ -343,7 +343,7 @@ describe("extract", () => {
         markdown: { requested: true, success: true, data: "# Events\nQuiz night at The Red Lion" },
       }),
     );
-    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+    const result = await extract("https://www.youngs.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -354,11 +354,11 @@ describe("extract", () => {
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.data.events).toHaveLength(1);
     expect(result.markdown).toContain("Quiz night");
-    expect(result.urlsAnalyzed).toEqual(["https://www.fullers.co.uk/events"]);
+    expect(result.urlsAnalyzed).toEqual(["https://www.youngs.co.uk/events"]);
     expect(String(fetchImpl.mock.calls[0]?.[0])).toContain("/v1/web/scrape");
     expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("POST");
     expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
-      url: "https://www.fullers.co.uk/events",
+      url: "https://www.youngs.co.uk/events",
       formats: { json: true, markdown: true },
       jsonParams: { schema: { type: "object" }, instructions: "Use only page evidence." },
       maxAgeMs: 0,
@@ -367,12 +367,12 @@ describe("extract", () => {
 
   it("fails closed when JSON extraction failed despite a successful page scrape", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({
-      url: "https://www.fullers.co.uk/events",
+      url: "https://www.youngs.co.uk/events",
       markdown: { requested: true, success: true, data: "# Events" },
       json: { requested: true, success: false, data: null },
       isPartial: true,
     }));
-    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+    const result = await extract("https://www.youngs.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -385,12 +385,12 @@ describe("extract", () => {
 
   it("refuses a successful but partial joint extraction without retry", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({
-      url: "https://www.fullers.co.uk/events",
+      url: "https://www.youngs.co.uk/events",
       markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026." },
       json: { requested: true, success: true, data: { events: [{ title: "Quiz" }] } },
       isPartial: true,
     }));
-    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+    const result = await extract("https://www.youngs.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -403,12 +403,12 @@ describe("extract", () => {
 
   it("fails closed when JSON succeeds but same-scrape Markdown evidence is absent", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({
-      url: "https://www.fullers.co.uk/events",
+      url: "https://www.youngs.co.uk/events",
       json: { requested: true, success: true, data: { events: [{ title: "Quiz" }] } },
       markdown: { requested: true, success: false, data: null },
       isPartial: true,
     }));
-    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+    const result = await extract("https://www.youngs.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -423,7 +423,7 @@ describe("extract", () => {
       json: { requested: true, success: true, data: { events: [] } },
       markdown: { requested: true, success: true, data: "# Events" },
     }));
-    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+    const result = await extract("https://www.youngs.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,

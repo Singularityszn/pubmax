@@ -17,7 +17,7 @@ const KEY = { CONTEXT_DEV_API_KEY: "ctx-key" } as unknown as NodeJS.ProcessEnv;
 const noSleep = async () => {};
 
 /** A host the table records a permission for, so the gate needs no live check. */
-const PERMITTED = "https://www.fullers.co.uk/event-finder";
+const PERMITTED = "https://www.youngs.co.uk/event-finder";
 /** A host lib/harvest/sourcePolicy.ts refuses outright. */
 const REFUSED = "https://www.vintageinn.co.uk/pub/menu";
 /** A host nobody has written an answer down for. */
@@ -202,8 +202,8 @@ describe("sitemapUrls", () => {
     const fetchImpl = vi.fn<(input: unknown) => Promise<Response>>(async () =>
       jsonResponse({
         success: true,
-        domain: "www.fullers.co.uk",
-        urls: [{ url: "https://www.fullers.co.uk/a", title: "A" }, { url: "https://www.fullers.co.uk/b" }],
+        domain: "www.youngs.co.uk",
+        urls: [{ url: "https://www.youngs.co.uk/a", title: "A" }, { url: "https://www.youngs.co.uk/b" }],
       }),
     );
     const result = await sitemapUrls(PERMITTED, {
@@ -213,10 +213,10 @@ describe("sitemapUrls", () => {
     });
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");
-    expect(result.urls).toEqual(["https://www.fullers.co.uk/a", "https://www.fullers.co.uk/b"]);
+    expect(result.urls).toEqual(["https://www.youngs.co.uk/a", "https://www.youngs.co.uk/b"]);
     const request = new URL(String(fetchImpl.mock.calls[0]?.[0]));
     expect(request.pathname).toBe("/v1/web/urls");
-    expect(request.searchParams.get("domain")).toBe("www.fullers.co.uk");
+    expect(request.searchParams.get("domain")).toBe("www.youngs.co.uk");
   });
 
   it("refuses a value that is not a url without sending anything", async () => {
@@ -239,9 +239,9 @@ describe("crawlMarkdown", () => {
         results: [
           {
             markdown: "# One",
-            metadata: { finalUrl: "https://www.fullers.co.uk/one", sourceUrl: "https://www.fullers.co.uk/1" },
+            metadata: { finalUrl: "https://www.youngs.co.uk/one", sourceUrl: "https://www.youngs.co.uk/1" },
           },
-          { markdown: "# Two", metadata: { sourceUrl: "https://www.fullers.co.uk/two" } },
+          { markdown: "# Two", metadata: { sourceUrl: "https://www.youngs.co.uk/two" } },
         ],
       }),
     );
@@ -254,8 +254,8 @@ describe("crawlMarkdown", () => {
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.pages).toEqual([
-      { url: "https://www.fullers.co.uk/one", markdown: "# One" },
-      { url: "https://www.fullers.co.uk/two", markdown: "# Two" },
+      { url: "https://www.youngs.co.uk/one", markdown: "# One" },
+      { url: "https://www.youngs.co.uk/two", markdown: "# Two" },
     ]);
   });
 });
@@ -266,7 +266,7 @@ describe("searchWeb", () => {
       jsonResponse({
         query: "cheapest pint",
         results: [
-          { url: "https://www.fullers.co.uk/a", title: "A", description: "d", markdown: { markdown: "# A" } },
+          { url: "https://www.youngs.co.uk/a", title: "A", description: "d", markdown: { markdown: "# A" } },
           { url: REFUSED, title: "B", description: "d", markdown: { markdown: "# B" } },
         ],
       }),
@@ -279,14 +279,14 @@ describe("searchWeb", () => {
     });
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");
-    expect(result.results.map((hit) => hit.url)).toEqual(["https://www.fullers.co.uk/a"]);
+    expect(result.results.map((hit) => hit.url)).toEqual(["https://www.youngs.co.uk/a"]);
     expect(result.results[0]?.markdown).toBe("# A");
   });
 });
 
 describe("brandRetrieve", () => {
   it("returns the brand record for the url's domain", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ status: "ok", brand: { title: "Fuller's" } }));
+    const fetchImpl = vi.fn(async () => jsonResponse({ status: "ok", brand: { title: "Young's" } }));
     const result = await brandRetrieve(PERMITTED, {
       env: KEY,
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -294,8 +294,8 @@ describe("brandRetrieve", () => {
     });
     expect(result).toEqual({
       status: "ok",
-      domain: "www.fullers.co.uk",
-      brand: { title: "Fuller's" },
+      domain: "www.youngs.co.uk",
+      brand: { title: "Young's" },
     });
   });
 });
@@ -303,9 +303,9 @@ describe("brandRetrieve", () => {
 describe("batchSubmit", () => {
   it("submits a permitted list and reports what was taken", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ id: "batch_1", invalid_urls: [{ url: "https://www.fullers.co.uk/b" }] }),
+      jsonResponse({ id: "batch_1", invalid_urls: [{ url: "https://www.youngs.co.uk/b" }] }),
     );
-    const result = await batchSubmit(["https://www.fullers.co.uk/a", "https://www.fullers.co.uk/b"], {
+    const result = await batchSubmit(["https://www.youngs.co.uk/a", "https://www.youngs.co.uk/b"], {
       env: KEY,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -320,7 +320,7 @@ describe("batchSubmit", () => {
 
   it("refuses the WHOLE submission when one url is refused", async () => {
     const fetchImpl = vi.fn();
-    const result = await batchSubmit(["https://www.fullers.co.uk/a", REFUSED], {
+    const result = await batchSubmit(["https://www.youngs.co.uk/a", REFUSED], {
       env: KEY,
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
@@ -335,7 +335,7 @@ describe("batchSubmit", () => {
     const empty = await batchSubmit([], { env: KEY, fetchImpl: fetchImpl as unknown as typeof fetch });
     expect(empty.status).toBe("error");
     const overflow = await batchSubmit(
-      Array.from({ length: CONTEXT_DEV_BATCH_MAX_URLS + 1 }, () => "https://www.fullers.co.uk/a"),
+      Array.from({ length: CONTEXT_DEV_BATCH_MAX_URLS + 1 }, () => "https://www.youngs.co.uk/a"),
       { env: KEY, fetchImpl: fetchImpl as unknown as typeof fetch },
     );
     expect(overflow.status).toBe("error");
