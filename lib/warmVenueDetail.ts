@@ -6,9 +6,9 @@
 // painting the sheet. This module keeps one in-flight Promise + resolved Venue
 // per id for the session so the sheet can open from memory when warm.
 //
-// With no network at all, a pub the reader opened before answers from its copy
-// on this device (lib/savedVenueDetails.ts). That answer carries `savedAt`, is
-// never held as a session hit.
+// A rejected request or body read can use the device copy from
+// lib/savedVenueDetails.ts. Its `savedAt` distinguishes it from a live read,
+// and it never becomes a session cache hit.
 
 import { readSavedVenueDetail, saveVenueDetail } from "@/lib/savedVenueDetails";
 import { venueFromDetailPayload, type Venue } from "@/lib/venues";
@@ -104,6 +104,8 @@ export function warmVenueDetail(venueId: string): Promise<VenueDetailLookupResul
     .then(async (result) => {
       if (result.status === "found" && result.savedAt && typeof navigator !== "undefined" && navigator.onLine) {
         const live = await lookup();
+        // A retry that confirms removal overrides the copy. Other failures
+        // retain its savedAt so the sheet still identifies the saved copy.
         if (live.status === "missing" || (live.status === "found" && !live.savedAt)) return live;
       }
       return result;
