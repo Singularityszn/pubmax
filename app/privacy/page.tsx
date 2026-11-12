@@ -804,7 +804,7 @@ export default function PrivacyPage() {
             <dt>Imported pub lists</dt>
             <dd>
               We match the pub names in a caption, note or message you paste.
-              Short prose may go to Anthropic at <code>api.anthropic.com</code>.
+              Short prose you paste may be read by our AI provider, Anthropic.
               We discard the pasted text after matching and exclude it from logs and analytics.
               If you save the list, we keep its matched pub IDs, your optional source link,
               its creator handle when the link names one, and the save date in a private night draft.
@@ -815,8 +815,7 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Board photos</dt>
             <dd>
-              If you photograph a pub&rsquo;s price board, we strip the photo&rsquo;s metadata and send it to
-              Anthropic at <code>api.anthropic.com</code> so the Pal can read the prices.
+              Photos you send for a board price check are read by our AI provider, Anthropic.
               We do not keep the photo from that read. Each price you then confirm is logged like any
               other price you log, with the photo as its bill.
             </dd>
@@ -824,10 +823,9 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Bill photos</dt>
             <dd>
-              When you send a photo of your bill with a price, we strip the photo&rsquo;s metadata and
-              send it to Anthropic at <code>api.anthropic.com</code> to check that the bill shows
-              the price you typed. We keep only the result and the item lines and prices the check
-              needs. We do not keep names, card numbers or the date read from the bill.
+              Photos you send for a bill check are read by our AI provider, Anthropic.
+              We keep only the result and the item lines and prices the check needs.
+              We do not keep names, card numbers or the date read from the bill.
             </dd>
           </div>
           <div className="legalRow">

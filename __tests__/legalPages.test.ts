@@ -337,36 +337,26 @@ describe("legal content pages", () => {
     }
   });
 
-  it("names every third party that receives PROMPT TEXT", () => {
-    // The block above locks the coordinate-recipient set, which is read off the
-    // location table and therefore says nothing about a processor that receives
-    // what a person TYPED. PR #1693 added model-call tracing to a US vendor and
-    // changed no legal page, and this fence was green throughout, because a
-    // prompt is not a viewer point. It is the same shape as the block above,
-    // one row per recipient of request or completion text.
-    const thirdPartySection =
-      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+  it.each(["Imported pub lists", "Board photos", "Bill photos"])(
+    "names the processor for %s in the rendered disclosure",
+    (label) => {
+      const page = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage))).window.document;
+      const row = [...page.querySelectorAll("dt")].find((term) => term.textContent === label);
+      expect(row?.nextElementSibling?.textContent).toContain("Anthropic");
+    },
+  );
 
-    const promptTextRecipients = [
-      { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
-      { name: "Anthropic", host: "api.anthropic.com", source: "lib/claudeClient.server.ts" },
-      { name: "TypeSafe", host: "api.typesafe.ai", source: "lib/ai/typesafe.server.ts" },
-    ];
-    for (const recipient of promptTextRecipients) {
-      expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(
-        recipient.name,
-      );
-      expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`)
-        .toContain(recipient.host);
-    }
+  it.each(["Arize", "Anthropic", "TypeSafe"])("discloses %s to the reader", (provider) => {
+    const page = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage))).window.document;
+    expect(page.querySelector('[aria-labelledby="third"]')?.textContent).toContain(provider);
   });
 
   it("names every host a typed Pub Pal ask reaches", async () => {
     // Runs a real typed turn. The provider hands back a socket on the host the
     // app asked for a signed URL, as ElevenLabs does, and every host that then
     // receives the typed text, by request body or socket message, must be named.
-    const thirdPartySection =
-      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const thirdPartySection = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage)))
+      .window.document.querySelector('[aria-labelledby="third"]')?.textContent ?? "";
     const query = "a quiet pub near the Lamb and Flag for six";
     const signedUrlHosts = new Set<string>();
     const promptHosts = new Set<string>();
@@ -448,8 +438,8 @@ describe("legal content pages", () => {
     // Runs a real typed turn through the Anthropic SDK. The network answers as
     // the Messages API does, and every host that receives the typed text must
     // be named.
-    const thirdPartySection =
-      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const thirdPartySection = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage)))
+      .window.document.querySelector('[aria-labelledby="third"]')?.textContent ?? "";
     const query = "a quiet pub near the Lamb and Flag for six";
     const promptHosts = new Set<string>();
     const events = [

@@ -7,6 +7,9 @@ name: Heritage data refresh
 #     pubs (wikidata-query-service row, CC0). A failed batch writes nothing.
 #   - npm run build:heritage-listings: Historic England NHLE listed buildings
 #     (historic-england-nhle row, OGL v3.0), with the points it read as evidence.
+# Wikipedia acquisition is excluded: integrate_wikipedia_london_pubs.mjs fetches
+# outside sourcePolicy. Follow-up: fence that producer before scheduling it.
+# The historic index is rebuilt offline from the committed heritage cache.
 # A change opens a review PR on its own branch. It never pushes to main. No
 # change pushes nothing. This is a GitHub schedule on purpose, not a Vercel cron.
 on:
@@ -33,7 +36,7 @@ jobs:
       pull-requests: write # open the review PR
     timeout-minutes: 30
     env:
-      REFRESHED: public/data/wikidata_history/london.json public/data/heritage_listings.json data/heritage/nhle_london_points.json
+      REFRESHED: public/data/wikidata_history/london.json public/data/heritage_listings.json data/heritage/nhle_london_points.json public/data/heritage_cache.json public/data/historic_pubs.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -52,6 +55,9 @@ jobs:
 
       - name: Refresh Historic England listings
         run: npm run build:heritage-listings
+
+      - name: Rebuild historic pubs index from stored facts
+        run: node scripts/build_historic_index.mjs
 
       - name: Validate bundled data
         # Guard: a refresh must never ship data that fails the app's own
@@ -79,8 +85,8 @@ jobs:
           git switch --create "$branch"
           # shellcheck disable=SC2086
           git add -- $REFRESHED
-          git commit -m "chore(heritage): refresh Wikidata and NHLE facts ${stamp}"
+          git commit -m "chore(heritage): refresh heritage facts and historic index ${stamp}"
           scripts/ci/with-git-token.sh git push --set-upstream origin "$branch"
           gh pr create --base main --head "$branch" \
-            --title "chore(heritage): refresh Wikidata and NHLE facts ${stamp}" \
-            --body "Scheduled monthly refresh of the stored heritage facts The Landlord reads back. Wikidata statements (npm run build:wikidata-history) and Historic England listings (npm run build:heritage-listings) were re-read through their sourcePolicy rows. Review the changed facts before merging."
+            --title "chore(heritage): refresh heritage facts and historic index ${stamp}" \
+            --body "Scheduled monthly refresh of the stored heritage facts The Landlord reads back. Wikidata statements (npm run build:wikidata-history) and Historic England listings (npm run build:heritage-listings) were re-read through their sourcePolicy rows. The historic index was rebuilt from the committed heritage cache (node scripts/build_historic_index.mjs). Wikipedia acquisition was not run because scripts/integrate_wikipedia_london_pubs.mjs fetches outside sourcePolicy. Follow-up: fence that producer before scheduling Wikipedia cache refreshes. Review the changed facts before merging."

@@ -76,7 +76,7 @@ Pal's `venue_prices` tool also reads the venue's public Pint Drops before estima
 <a id="a-bill-earns-receipt-only-when-it-shows-the-price"></a>
 
 - **A BILL EARNS `receipt` ONLY WHEN IT SHOWS THE PRICE, AND IT IS READ AFTER THE ANSWER.**
-  The bill check reads submitted bill photos through the Board Reader's Claude client.
+  Anthropic reads submitted bill and board photos through the shared Claude client.
   `lib/billCheck.ts` owns the verdicts, and `lib/billCheck.server.ts` runs the checks.
 
   1. `lib/claudeJson.server.ts` owns the shared JSON request settings.
