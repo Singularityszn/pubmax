@@ -152,8 +152,8 @@ function addLayers(map: maplibregl.Map): void {
 }
 
 /**
- * Keep the stack honest: discs under every pin, dots and district labels over
- * them. The map's own pin layers can arrive after ours, so this runs on every
+ * Keep discs and district labels under every pin, with visit dots over pins.
+ * The map's own pin layers can arrive after ours, so this runs on every
  * settled frame and moves a layer only when it is out of place.
  */
 function placeLayers(map: maplibregl.Map): void {

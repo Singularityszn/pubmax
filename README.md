@@ -86,6 +86,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   The map planner's toggle and desktop map button return to the previous sheet or the map root. On phones, **Map the route** does the same. A planner opened over a venue returns to that venue. **Home** returns to the map root, even after you reopen an earlier sheet.
 
+- **Been here map** - save a pub to the **Been here** list to mark it on the map. A muted dot appears beside its visible pin after the map settles. The marks read this device's saved list.
+
+  On the London map, open **Layers**. Select **Your postcodes** to show district discs and percentages. On phones, **Layers** is inside **More map controls**. Each percentage counts your marked pubs against our London pub list, independently of map filters or the current view. Only districts with a marked pub appear, with percentages rounded down.
+
+  Sub-districts such as W1F count under W1. A pub without a recorded full postcode stays outside district totals. The caption counts marked London pubs with no postcode separately. If the London list cannot load, no progress figures appear. **Your postcodes** is off by default. It remembers your choice when device storage is available.
+
 - **Pub features** - open **Filters** on desktop or phone to select the following choices.
 
   - **Beer garden** uses listed pub records and dated OpenStreetMap facts.
