@@ -1844,6 +1844,32 @@ describe("Pub Pal voice transcript", () => {
     expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
   });
 
+  it("lets a later Carry on start when the earlier-asks summary never loads", async () => {
+    vi.useFakeTimers();
+    const session = await startLiveSession();
+    await act(async () => { session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 }); });
+    await endLiveCall(session, "cap");
+    // The summary chunk request stalls, so this Carry on reaches the startup timeout.
+    vi.doMock("@/lib/palSessionSummary", () => new Promise(() => {}));
+    const tapCarryOn = async () => {
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/again", conversationId: "conv_voiceSession2" }));
+      const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+      expect(carryOn).toBeTruthy();
+      await act(async () => { carryOn?.click(); });
+      await settle();
+    };
+    await tapCarryOn();
+    await act(async () => { await vi.advanceTimersByTimeAsync(PAL_VOICE_START_TIMEOUT_MS); });
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    vi.doUnmock("@/lib/palSessionSummary");
+    vi.resetModules();
+    await tapCarryOn();
+    await act(async () => { await vi.dynamicImportSettled(); });
+    await settle();
+    expect(voice.startSession).toHaveBeenCalledTimes(2);
+  });
+
   it.each(["search_venues", "cheapest_pint_near"])("retains choices until a completed %s replaces them and rejects stale responses", async (replacementTool) => {
     const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     venuesRead.read.mockReturnValue(new Promise(() => {}));
