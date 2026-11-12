@@ -82,6 +82,13 @@ import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/
 import { isPintDropRating, PINT_DROP_STARS_NOT_SAVED } from "@/lib/pintDropRating";
 import type { RatingValue } from "@/lib/ratings";
 
+function submittedRatingNotSaved(
+  rating: RatingValue | null,
+  data: { ratingSaved?: unknown; drop?: { rating?: unknown } | null },
+): boolean {
+  return rating !== null && (data.ratingSaved === false || data.drop?.rating !== rating);
+}
+
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
 export type DropWithPhotos = PintDrop & {
@@ -915,8 +922,7 @@ export function usePintDrops(
           markFailed(answered.message, data?.status);
           return;
         }
-        const ratingNotSaved = submittedRating !== null &&
-          (data.ratingSaved === false || data.drop?.rating !== submittedRating);
+        const ratingNotSaved = submittedRatingNotSaved(submittedRating, data);
         trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
         notifyCheapPintPingQualified();
 

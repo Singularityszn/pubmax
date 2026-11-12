@@ -409,6 +409,10 @@ async function priceAdultRefusal(priceGbp: number | null, callerUserId: string |
   }
 }
 
+function requestedRatingSaved(drop: PintDropDTO, requestedRating: PintDrop["rating"]): boolean {
+  return requestedRating === undefined || drop.rating === requestedRating;
+}
+
 // A RETRY IS ANSWERED, NOT COUNTED AGAIN. A keyed drop that already landed is
 // the same observation, so the drinker gets it back rather than a daily-cap
 // refusal or a second note. The lookup fails open: the id is still the keyed
@@ -420,7 +424,7 @@ async function keyedReplay(drop: PintDrop, photos: PintDropPhotos, mintedId: str
     if (prior === "conflict") {
       return publicApiError("That Pint Drop was already sent with other details.", "IDEMPOTENCY_CONFLICT", 409);
     }
-    return prior ? jsonNoStore({ drop: prior, ratingSaved: drop.rating === undefined || prior.rating === drop.rating }, { status: 200 }) : null;
+    return prior ? jsonNoStore({ drop: prior, ratingSaved: requestedRatingSaved(prior, drop.rating) }, { status: 200 }) : null;
   } catch (err) {
     log("warn", "pint_drops.replay_check_failed", {
       route: "POST /api/pint-drops",
@@ -579,7 +583,7 @@ export async function POST(request: Request): Promise<Response> {
     const { created, ...drop } = await pintDropsStore().create(dropPayload, photos, {
       underDailyPriceCap: true,
     });
-    if (!created) return jsonNoStore({ drop, ratingSaved: dropPayload.rating === undefined || drop.rating === dropPayload.rating }, { status: 200 });
+    if (!created) return jsonNoStore({ drop, ratingSaved: requestedRatingSaved(drop, dropPayload.rating) }, { status: 200 });
     signalPintDropLanded();
     const { confirmation, confirmationOutcome } = await settleConfirmation(
       drop,
@@ -596,7 +600,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore(
       {
         drop,
-        ratingSaved: dropPayload.rating === undefined || drop.rating === dropPayload.rating,
+        ratingSaved: requestedRatingSaved(drop, dropPayload.rating),
         ...(confirmation ? { confirmation } : {}),
         ...(confirmationOutcome ? { confirmationOutcome } : {}),
         ...(billCheck ? { billCheck } : {}),
