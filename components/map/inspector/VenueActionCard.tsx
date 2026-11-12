@@ -53,6 +53,15 @@ import "./venueActionCard.css";
 const TableRequestDialog = dynamic(() => import("./TableRequestDialog"), { ssr: false });
 const SummonMatesDialog = dynamic(() => import("./SummonMatesDialog"), { ssr: false });
 
+function subscribeArrivalSearch(onChange: () => void): () => void {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+}
+
+function readArrivalSearch(): string {
+  return window.location.search;
+}
+
 export default function VenueActionCard({
   venue,
   summary,
@@ -75,6 +84,8 @@ export default function VenueActionCard({
   const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
   const pub = isPubVenue(venue);
   const search = useSearchParams();
+  // Map-owned history retains Next's marker, so router search can lag the address bar.
+  const arrivalSearch = useSyncExternalStore(subscribeArrivalSearch, readArrivalSearch, () => search?.toString() ?? "");
   // Kept by venue id, so selecting another pub never carries a half-typed
   // request or an open gate across.
   const [tableVenueId, setTableVenueId] = useState<string | null>(null);
@@ -83,7 +94,7 @@ export default function VenueActionCard({
   const [summonVenueId, setSummonVenueId] = useState<string | null>(null);
   const tableOpen = tableVenueId === venue.id;
   const summonOpen = summonVenueId === venue.id;
-  const arrivalTime = pub ? summonTimeFromSearch(search?.toString() ?? "", venue.id) : null;
+  const arrivalTime = pub ? summonTimeFromSearch(arrivalSearch, venue.id) : null;
   const gateStatus = gate?.venueId === venue.id ? gate.status : null;
 
   // Signed in with a handle, or a deployment with no sign-in at all (where the

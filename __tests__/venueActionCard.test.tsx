@@ -29,11 +29,12 @@ const tableAuth = vi.hoisted(() => ({
 const tableTrack = vi.hoisted(() => vi.fn());
 const tableFetch = vi.hoisted(() => vi.fn());
 const emailSignIn = vi.hoisted(() => vi.fn(async () => ({ status: "sent", message: "Link sent" })));
+const routerSearch = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: tableTrack }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: tableFetch }));
 vi.mock("next/navigation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/navigation")>();
-  return { ...actual, useSearchParams: () => new URLSearchParams(window.location.search) };
+  return { ...actual, useSearchParams: () => new URLSearchParams(routerSearch.value ?? window.location.search) };
 });
 const dynamicDialog = vi.hoisted(() => ({ component: null as React.ComponentType<never> | null }));
 vi.mock("next/dynamic", async () => {
@@ -97,6 +98,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   window.history.replaceState(null, "", "/");
+  routerSearch.value = null;
   tableAuth.configured = false;
   tableAuth.loading = false;
   tableAuth.user = null;
@@ -170,6 +172,8 @@ describe("table request arrival", () => {
 
   it("does not retain an invitation after selecting another pub and returning without meet", async () => {
     window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    // Map-owned history writes keep Next's router search at the original arrival.
+    routerSearch.value = window.location.search;
     await show();
     expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
     window.history.replaceState(null, "", "/map?sel=other-pub");
