@@ -9,9 +9,8 @@
 // route driven end to end over the real functions fills the allowance whatever
 // the browser says, the settle really reads only the provider's duration (on
 // release, or after the owner's next session starts when the call was still
-// running), a grant the provider never saw settles free only once its signed
-// URL has expired, and the old client-trusted functions really are closed to
-// every role.
+// running), a grant the provider has no record of stays charged however old it
+// is, and the old client-trusted functions really are closed to every role.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -370,7 +369,7 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     expect(usedMinutes(uuid(8))).toBe(billableVoiceMinutes(41) + PAL_VOICE_GRANT_MINUTES);
   });
 
-  it("settles earlier calls before it refuses on the allowance, and frees a grant the provider never saw only after its URL expired", async () => {
+  it("keeps a grant the provider has no record of charged, even after its signed URL expired", async () => {
     harness.userId = uuid(9);
     const ids: string[] = [];
     for (let i = 0; i < PAL_VOICE_MONTHLY_MINUTES / PAL_VOICE_GRANT_MINUTES; i += 1) {
@@ -384,19 +383,16 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     const young = defined(ids[1]);
     const rest = ids.slice(2);
     for (const id of rest) harness.conversations.set(id, { status: "in-progress", seconds: 30 });
-    // Neither call ever reached the provider. Only the old one's URL has expired.
+    // The provider answers 404 for both. Under zero retention mode that can be
+    // a finished call whose record is gone, so neither is refunded.
     db().sql(`update public.pub_pal_voice_grants set created_at = now() - interval '21 minutes' where conversation_id = '${unused}'`);
     db().sql(`update public.pub_pal_voice_grants set created_at = now() - interval '14 minutes' where conversation_id = '${young}'`);
 
-    const admitted = await issue();
-
-    expect(admitted.status).toBe(200);
-    expect(grantRow(uuid(9), unused)).toBe("settled|0");
-    expect(grantRow(uuid(9), young)).toBe("issued|-");
-    expect(usedMinutes(uuid(9))).toBe(PAL_VOICE_MONTHLY_MINUTES);
-
     const refused = await issue();
+
     expect(refused.status).toBe(429);
+    expect(grantRow(uuid(9), unused)).toBe("issued|-");
+    expect(grantRow(uuid(9), young)).toBe("issued|-");
     expect(usedMinutes(uuid(9))).toBe(PAL_VOICE_MONTHLY_MINUTES);
   });
 

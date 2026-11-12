@@ -767,23 +767,9 @@ describe("Pub Pal voice token route", () => {
       expect(db.grants.find((grant) => grant.conversationId === EARLIER)?.state).toBe("issued");
     });
 
-    it("settles a grant free once its signed URL can no longer start a call and the provider has no record of it", async () => {
-      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - 21 * MINUTE }]);
-      provider({ [EARLIER]: "missing" });
-
-      const response = await POST(issueRequest());
-
-      expect(response.status).toBe(200);
-      expect(voiceState.rpc).toHaveBeenCalledWith("settle_pub_pal_voice_conversation", {
-        p_owner_id: USER,
-        p_conversation_id: EARLIER,
-        p_seconds: 0,
-      });
-      expect(db.used).toBe(PAL_VOICE_MONTHLY_MINUTES);
-    });
-
-    it("keeps charging a grant the provider has no record of while its signed URL could still start a call", async () => {
-      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - 14 * MINUTE }]);
+    // Under zero retention mode a 404 cannot tell an unused URL from a finished call whose record is gone.
+    it.each([14, 21, 60])("keeps charging a %i-minute-old grant the provider has no record of", async (age) => {
+      const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - age * MINUTE }]);
       provider({ [EARLIER]: "missing" });
 
       const response = await POST(issueRequest());
@@ -791,9 +777,10 @@ describe("Pub Pal voice token route", () => {
       expect(response.status).toBe(429);
       expect(voiceState.rpc).not.toHaveBeenCalledWith("settle_pub_pal_voice_conversation", expect.anything());
       expect(db.used).toBe(PAL_VOICE_MONTHLY_MINUTES);
+      expect(db.grants.find((grant) => grant.conversationId === EARLIER)?.state).toBe("issued");
     });
 
-    it("never takes a running call for a missing one", async () => {
+    it("keeps charging a call the provider still reports as running", async () => {
       const db = meteredMonth(PAL_VOICE_MONTHLY_MINUTES, [{ conversationId: EARLIER, createdAt: Date.now() - 40 * MINUTE }]);
       provider({ [EARLIER]: { status: "in-progress", seconds: 120 } });
 
