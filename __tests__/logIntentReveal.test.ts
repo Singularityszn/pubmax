@@ -17,8 +17,11 @@ import {
   takeLogIntentReveal,
 } from "@/lib/logIntentReveal";
 
-function stepWith(scrollIntoView: unknown): HTMLElement {
-  return { scrollIntoView } as unknown as HTMLElement;
+function stepWith(scrollIntoView: unknown, visible = true): HTMLElement {
+  return {
+    scrollIntoView,
+    getClientRects: () => visible ? [{}] : [],
+  } as unknown as HTMLElement;
 }
 
 function rootWith(step: HTMLElement | null) {
@@ -53,6 +56,15 @@ describe("reduced motion changes the glide, never the move", () => {
 });
 
 describe("waiting for the composer", () => {
+  it("keeps the reveal until the mounted price step is visible", () => {
+    requestLogIntentReveal(rootWith(null), true, () => {});
+    const scrollIntoView = vi.fn();
+    expect(takeLogIntentReveal(stepWith(scrollIntoView, false))).toBe(false);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(takeLogIntentReveal(stepWith(scrollIntoView))).toBe(true);
+    expect(scrollIntoView).toHaveBeenCalledOnce();
+  });
+
   it("reveals the price step when it mounts, however late that is", () => {
     // The old reveal polled against a 1.5s clock and gave up when the
     // composer mounted later, which a loaded machine did one arrival in four.

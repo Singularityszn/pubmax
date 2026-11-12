@@ -1,4 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { randomBytes } from "node:crypto";
+
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
+import { MAGIC_LINK_SENT_MESSAGE } from "@/lib/passwordlessAuth";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
@@ -100,4 +105,209 @@ test("the log intent lands the reader on the composer's price step", async ({ pa
     await priceStep.evaluate((step) => step.contains(document.activeElement)),
     "the reveal moves no focus into the price step",
   ).toBe(false);
+});
+
+const NEW_DRINKER_PRICE = "5.20";
+
+/**
+ * The sign-in link local Supabase Auth emailed to this address, read from the
+ * disposable project's mail catcher (Mailpit).
+ */
+async function emailedSignInLink(page: Page, address: string): Promise<string> {
+  const mail = process.env.PW_DISPOSABLE_MAIL_URL;
+  expect(mail, "the disposable runner names its mail catcher").toBeTruthy();
+  let link = "";
+  await expect(async () => {
+    const search = await page.request.get(`${mail}/api/v1/search`, { params: { query: `to:"${address}"` } });
+    expect(search.ok()).toBe(true);
+    const { messages } = (await search.json()) as { messages: Array<{ ID: string }> };
+    expect(messages, "one email reached the new address").toHaveLength(1);
+    const message = await page.request.get(`${mail}/api/v1/message/${messages[0]!.ID}`);
+    const { HTML, Text } = (await message.json()) as { HTML: string; Text: string };
+    const body = `${Text}\n${HTML}`.replaceAll("&amp;", "&");
+    link = /https?:\/\/[^\s"'<>]+\/auth\/v1\/verify\?[^\s"'<>]+/.exec(body)?.[0] ?? "";
+    expect(link, "the email carries a verify link").not.toBe("");
+  }).toPass({ timeout: 30_000 });
+  return link;
+}
+
+/** Counts each deliberate tap a drinker makes, so the journey reports its length. */
+function tapCounter() {
+  const taps: string[] = [];
+  return {
+    taps,
+    async tap(target: Locator, label: string) {
+      await target.click();
+      taps.push(label);
+    },
+    /** A tap on a control painted before hydration, retried until it lands. */
+    async tapUntil(target: Locator, label: string, landed: Locator) {
+      await expect(async () => {
+        if (await target.isVisible()) {
+          await target.click({ timeout: 2_000 });
+          taps.push(label);
+        }
+        await expect(landed).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 45_000 });
+    },
+  };
+}
+
+async function quietFirstRun(page: Page): Promise<void> {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  // A production build sends sign-in to the live site. This journey never leaves the box.
+  await page.context().route(/^https:\/\/([a-z0-9-]+\.)*pubmaxxing\.com\//, (route) => route.abort());
+  await page.context().addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  await installDeterministicMapBasemap(page);
+}
+
+/** The client request key a multipart Pint Drop POST carried. */
+function clientRequestIdOf(body: string | null): string | undefined {
+  return /name="clientRequestId"\r\n\r\n([^\r\n]+)/.exec(body ?? "")?.[1];
+}
+
+/** Which tab of the login page the new drinker uses: the default, or the one a stranger reads as theirs. */
+type LoginDoor = "Sign in" | "New here";
+
+async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<string[]> {
+  const { taps, tap, tapUntil } = tapCounter();
+  const email = `new-drinker-${randomBytes(8).toString("hex")}@example.test`;
+  const handle = `drinker_${randomBytes(5).toString("hex")}`;
+  await quietFirstRun(page);
+
+  await page.goto("/");
+  const picker = page.locator(".logIntentNearbyBtn").first();
+  await tapUntil(
+    page.locator(".lpHero").getByRole("link", { name: "Log what you paid" }),
+    "Log what you paid",
+    picker,
+  );
+  await expect(page).toHaveURL(/\/map\?log=1$/);
+
+  const priceStep = page.getByTestId("spill-price-step");
+  await tapUntil(picker, "pick the pub", priceStep);
+  await expect(page, "the picked pub rides in the address").toHaveURL(/[?&]sel=/);
+  const venueId = new URL(page.url()).searchParams.get("sel");
+
+  const composer = page.getByRole("form", { name: "Pint Drop composer" });
+  const venueName = (await composer.locator(".spillComposerIntro strong").textContent())?.trim();
+  expect(venueName, "the composer names the pub").toBeTruthy();
+  const price = priceStep.getByLabel("What did it cost?");
+  await tap(price, "price field");
+  await price.fill(NEW_DRINKER_PRICE);
+  const pint = priceStep.getByRole("radio", { name: "Pint", exact: true });
+  await tap(pint, "Pint");
+  await expect(pint).toHaveAttribute("aria-checked", "true");
+
+  await tapUntil(
+    composer.getByRole("link", { name: "Sign in to post" }),
+    "Sign in to post",
+    page.getByRole("heading", { name: "Sign in or create your account", exact: true }),
+  );
+  await expect(page).toHaveURL(/\/login\?/);
+  if (door === "New here") {
+    const tab = page.getByRole("tab", { name: "New here", exact: true });
+    await tapUntil(tab, "New here", page.getByRole("heading", { name: "Make an account" }));
+  }
+  const emailForm = page.locator("form.authMagicLink");
+  const emailField = emailForm.locator('input[type="email"]');
+  await tap(emailField, "email field");
+  await emailField.fill(email);
+  await tap(emailForm.locator('button[type="submit"]'), "Email me a link");
+  await expect(page.getByText(MAGIC_LINK_SENT_MESSAGE)).toBeVisible();
+
+  // A phone mail app opens the link in a fresh tab: same browser storage, no
+  // tab state from the page that asked for it. The account stays: it owns the
+  // drop this journey proves, and the runner drops the whole database after.
+  const link = await emailedSignInLink(page, email);
+  const returned = await page.context().newPage();
+  await installDeterministicMapBasemap(returned);
+  await returned.goto(link);
+  taps.push("open the emailed link");
+
+  const onboarding = returned.getByRole("dialog", { name: "Let's get you in", exact: true });
+  await expect(onboarding).toBeVisible({ timeout: 30_000 });
+  const handleField = onboarding.getByRole("textbox", { name: "Your handle", exact: true });
+  await tap(handleField, "handle field");
+  await handleField.fill(handle);
+  await expect(onboarding.getByText("Handle available.", { exact: true })).toBeVisible();
+  const [claimed] = await Promise.all([
+    returned.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname === "/api/identity/onboarding"),
+    tap(onboarding.getByRole("button", { name: "Claim handle", exact: true }), "Claim handle"),
+  ]);
+  expect(claimed.ok(), "the new account claims its handle").toBe(true);
+  await expect(onboarding).toBeHidden();
+  await expect(returned, "the new account is back at the pub it was logging").toHaveURL(
+    (url) => url.pathname === "/map" && url.searchParams.get("sel") === venueId && url.searchParams.get("log") === "1",
+    { timeout: 30_000 },
+  );
+
+  const returnedComposer = returned.getByRole("form", { name: "Pint Drop composer" });
+  await expect(returnedComposer.locator(".spillComposerIntro")).toContainText(venueName!);
+  await expect(returnedComposer.getByLabel("What did it cost?")).toHaveValue(NEW_DRINKER_PRICE);
+  await expect(returnedComposer.getByRole("radio", { name: "Pint", exact: true }))
+    .toHaveAttribute("aria-checked", "true");
+  await expect(returnedComposer.getByText(`@${handle}`)).toBeVisible();
+
+  const dropPost = () => returned.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/pint-drops");
+  // A handle claimed without a date of birth has not yet said it is an adult.
+  // Log it answers the adult refusal, the pub's sheet asks for the recorded
+  // adult tap, and that tap finishes the same drop: no price is typed twice.
+  const [refused] = await Promise.all([
+    dropPost(),
+    tap(returnedComposer.getByRole("button", { name: "Log it" }), "Log it"),
+  ]);
+  expect(refused.status(), "a new account owes the adult tap first").toBe(409);
+  const sheet = returned.getByRole("dialog", { name: venueName!, exact: true });
+  const [posted] = await Promise.all([
+    dropPost(),
+    tap(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION }), ADULT_SELF_ASSERTION_ACTION),
+  ]);
+  expect(posted.status(), "the adult tap writes the drop").toBe(201);
+  const refusedKey = clientRequestIdOf(refused.request().postData());
+  expect(refusedKey, "Log it sends a client request key").toBeTruthy();
+  expect(clientRequestIdOf(posted.request().postData()), "the same request finishes").toBe(refusedKey);
+  await expect(sheet.getByRole("button", { name: ADULT_SELF_ASSERTION_ACTION })).toBeHidden();
+
+  const feed = await returned.request.get("/api/pint-drops");
+  expect(feed.ok()).toBe(true);
+  const { drops } = (await feed.json()) as {
+    drops: Array<{ venueId: string; handle: string; priceGbp: number | null; measure?: string }>;
+  };
+  expect(
+    drops.filter((drop) => drop.venueId === venueId
+      && drop.handle.replace(/^@+/, "") === handle
+      && drop.priceGbp === Number(NEW_DRINKER_PRICE)
+      && (drop.measure ?? "pint") === "pint"),
+    "a signed-out reader sees the new drinker's public drop",
+  ).toHaveLength(1);
+  return taps;
+}
+
+test("a new phone account goes from Log what you paid to a public Pint Drop", async ({ page }, testInfo) => {
+  test.skip(
+    process.env.PW_DISPOSABLE_PLAN_AUTH !== "1",
+    "A new account needs real local Supabase Auth. The keyless server cannot verify an account.",
+  );
+  test.slow();
+  const taps = await newDrinkerLogsFirstPint(page, "Sign in");
+  testInfo.annotations.push({ type: "taps", description: `${taps.length}: ${taps.join(" > ")}` });
+  console.log(`new drinker taps (Sign in door): ${taps.length}: ${taps.join(" > ")}`);
+});
+
+test("a new phone account that picks New here still lands back on its Pint Drop", async ({ page }, testInfo) => {
+  test.skip(
+    process.env.PW_DISPOSABLE_PLAN_AUTH !== "1",
+    "A new account needs real local Supabase Auth. The keyless server cannot verify an account.",
+  );
+  test.slow();
+  const taps = await newDrinkerLogsFirstPint(page, "New here");
+  testInfo.annotations.push({ type: "taps", description: `${taps.length}: ${taps.join(" > ")}` });
+  console.log(`new drinker taps (New here door): ${taps.length}: ${taps.join(" > ")}`);
 });

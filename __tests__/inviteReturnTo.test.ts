@@ -35,6 +35,28 @@ describe("invite return navigation", () => {
   });
 
   it.each([
+    "/map?sel=venue-12ino21&log=1",
+    "/map?sel=venue-12ino21&log=1&price=5.20",
+    "/map/manchester?sel=venue-mcr-1lwo5lo&log=1&price=4.85",
+  ])("keeps a Pint Drop composer door through account claim: %s", (target) => {
+    const url = `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(target)}`;
+    expect(accountClaimReturnToFromUrl(url)).toBe(target);
+    expect(defaultEmailAuthNext(url)).toBe(`/u/you?returnTo=${encodeURIComponent(target)}`);
+    for (const unsafe of [
+      "//evil.test/map?sel=a&log=1", "/map?sel=a", "/map?log=1",
+      "/map?sel=a&log=2", "/map?sel=a&log=1&next=https://evil.test",
+      "/map?sel=a&log=1#other", "/map?sel=a&log=1&log=1",
+      "/map?sel=a&log=1&price=-1", "/map?sel=a&log=1&price=abc",
+      "/map/unknown?sel=a&log=1", "/map/manchester/extra?sel=a&log=1",
+      "/map/../map?sel=a&log=1", "/map//evil.test?sel=a&log=1",
+    ]) {
+      expect(accountClaimReturnToFromUrl(
+        `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(unsafe)}`,
+      )).toBeNull();
+    }
+  });
+
+  it.each([
     "https://example.com/add/karan",
     "//example.com/add/karan",
     "javascript:alert(1)",

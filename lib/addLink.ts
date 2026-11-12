@@ -17,6 +17,7 @@ import { profilePath } from "@/lib/appLink";
 import type { FollowRelation } from "@/lib/followRelation";
 import { arrivalDestination, type ArrivalIntent } from "@/lib/arrivalWelcome";
 import { displayHandle } from "@/lib/handleDisplay";
+import { safePintDropDoorReturnTo } from "@/lib/accountClaimReturnTo";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -74,16 +75,18 @@ export function addLinkDoors(handle: string): AddLinkDoors | null {
  * handle yet. An add link may not be dropped with it: the claim surface and the
  * onboarding sheet both hand a person back to their `?returnTo=`, so threading
  * it through is what brings a stranger back to the friend they came to add.
- * A `from` that is not an add link changes nothing.
+ * The Pint Drop composer's door rides the same way, so a new drinker who
+ * picks "New here" still lands back on the pub and price they set. Any other
+ * `from` changes nothing.
  */
 export function addLinkAwareDestination(
   intent: ArrivalIntent,
   from: string | null,
   accountPath: string,
 ): string {
-  const inviteReturnTo = safeInviteReturnTo(from);
-  const claimNext = inviteReturnTo
-    ? `${accountPath}?returnTo=${encodeURIComponent(inviteReturnTo)}`
+  const claimReturnTo = safeInviteReturnTo(from) ?? safePintDropDoorReturnTo(from);
+  const claimNext = claimReturnTo
+    ? `${accountPath}?returnTo=${encodeURIComponent(claimReturnTo)}`
     : accountPath;
   return arrivalDestination(intent, from, claimNext);
 }
