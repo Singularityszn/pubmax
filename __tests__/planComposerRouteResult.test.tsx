@@ -277,14 +277,20 @@ async function nameRouteCreator(): Promise<void> {
   });
 }
 
+// Submit hashes the payload for its idempotency key before it posts. That hash
+// ends on the thread pool, after act() has flushed, so wait for the post itself.
+async function submitAndReadCreation(): Promise<Parameters<typeof fetch>> {
+  await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+  return vi.waitFor(() => {
+    const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans");
+    if (!creation) throw new Error("the plan has not been posted");
+    return creation;
+  });
+}
+
 async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
   await nameRouteCreator();
-  await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
-  await vi.waitFor(() => {
-    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/plans")).toBe(true);
-  });
-  const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
-  expect(creation).toBeDefined();
+  const creation = await submitAndReadCreation();
   return JSON.parse(String(creation[1]?.body));
 }
 
@@ -1332,8 +1338,7 @@ describe("the Plan result", () => {
     expect(sent.context.nightArea).toBe("clapham");
     expect(sent.context.transportConstraints).toEqual([]);
     expect(sent.anchor).toBeUndefined();
-    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
-    const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
+    const creation = await submitAndReadCreation();
     const saved = JSON.parse(String(creation[1]?.body));
     expect(saved.stops).toEqual(newStops);
     expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: requested, transportConstraints: [] });
@@ -1466,8 +1471,7 @@ describe("the Plan result", () => {
     expect(sent.context.stopCount).toBe(requested);
     expect(sent.intake.stopCount).toBe(requested);
     expect(sent.anchor).toBeUndefined();
-    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
-    const creation = fetchMock.mock.calls.find(([input]) => String(input) === "/api/plans")!;
+    const creation = await submitAndReadCreation();
     const saved = JSON.parse(String(creation[1]?.body));
     expect(saved.stops).toEqual(newStops);
     expect(saved.context).toMatchObject({ nightArea: "clapham", stopCount: requested ?? 3, transportConstraints: [] });
