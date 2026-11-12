@@ -11,6 +11,8 @@
 // honest and PII-free even as new events are added.
 
 import { CONTRIBUTION_GATE_STATUSES } from "@/lib/contributionGateStatus";
+import { findPosterCode } from "@/lib/posterCodes";
+import { isPosterMedium } from "@/lib/posterLanding";
 import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
 import { CREW_ARRIVED_BANDS } from "@/lib/crew";
 import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
@@ -144,9 +146,10 @@ export const ANALYTICS_EVENTS = {
   // Wave D — sharing is a return-loop signal; alcohol quantity is never
   // represented as progression telemetry.
   poster_shared: ["surface"],
-  // PLG Wave 2 physical QR: a drinker landed on /near from /?src=poster.
-  // No props — the closed name is the whole signal (no free text, no UTM).
-  poster_landing: [],
+  // A drinker landed on /near from a printed QR (/get/<code> or /?src=poster).
+  // `medium` is poster or beermat. `code` is sent only when it is a minted code
+  // in lib/posterCodes.json, so it names a print run and never free text.
+  poster_landing: ["medium", "code"],
   // Metrics funnel (Wave M) — nights planned/week reuses plan_created (create)
   // and crew_committed (join, source: "shared-plan") from R3/Wave F above; see
   // docs/METRICS_FUNNEL.md for the full computation. The events below are new.
@@ -333,8 +336,7 @@ export const ANALYTICS_EVENTS = {
   // says WHICH area or topic is muted, because a mute list is a small set that
   // names a person's own patch. `briefing_opened` carries no props at all: it
   // fires only on an arrival from the daily-brief notification itself
-  // (lib/briefingArrival.ts), so the closed name is the whole signal, the same
-  // reading poster_landing takes.
+  // (lib/briefingArrival.ts), so the closed name is the whole signal.
   briefing_viewed: ["personalized", "muted"],
   briefing_opened: [],
   // A Pub Pal voice session really connected. No props on purpose: a session
@@ -838,6 +840,13 @@ const CUSTOM_PROP_VALIDATORS: Partial<Record<string, (value: unknown) => value i
   // below owns that check.
 };
 
+/** poster_landing's props are checked against the medium list and the minted codes. */
+function isAllowedPosterLandingProp(key: string, value: unknown): boolean {
+  if (key === "medium") return isPosterMedium(value);
+  if (key === "code") return typeof value === "string" && findPosterCode(value) !== null;
+  return false;
+}
+
 function isAllowedLandingCtaProp(
   name: AnalyticsEventName,
   key: string,
@@ -1085,6 +1094,8 @@ export function sanitizeEvent(
         : key === "target" && name === "landing_cta_clicked"
           ? typeof value === "string"
             && isAllowedLandingCtaProp(name, key, value)
+          : name === "poster_landing"
+            ? isAllowedPosterLandingProp(key, value)
           : customValidator
             ? customValidator(value)
             : isSafeValue(value)
