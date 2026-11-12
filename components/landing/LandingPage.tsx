@@ -34,6 +34,7 @@ import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import type { UkDirectoryCoverage } from "@/lib/ukDirectoryCoverage";
 import { UK_NATIONAL_ENTRY_LABEL, UK_NATIONAL_MAP_HREF } from "@/lib/ukNationalBrowse";
+import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
 import { useWildMode } from "@/lib/useWildMode";
 import type { WildPriceGlass } from "@/lib/wildPriceGlass";
 import type { DotFooterCount } from "@/components/wild/DotFooter";
@@ -55,6 +56,12 @@ function trackLandingCta(target: LandingCtaTarget) {
 // empty, and a grey band that only a later fetch can clear is a placeholder
 // that ships for ever when the chunk or the feed never arrives.
 const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
+  ssr: false,
+  loading: () => null,
+});
+// On the log in public day (lib/logInPublicDay.ts) the day's own drops take the
+// strip's place, so the front door shows nothing older than that day.
+const LogInPublicDay = dynamic(() => import("@/components/pintdrop/LogInPublicDay"), {
   ssr: false,
   loading: () => null,
 });
@@ -145,6 +152,7 @@ export default function LandingPage({
 
   const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
   const wild = useWildMode();
+  const logInPublicDay = useLogInPublicDay();
   // The dot footer's one line repeats counts this page already prints, from
   // the same figures and in the same words.
   const dotCounts: DotFooterCount[] = [
@@ -268,7 +276,7 @@ export default function LandingPage({
         <LandingDiscoveryLinks drinks={discoveryDrinks} />
 
         <div className="lpDrops">
-          <PintDropStrip />
+          {logInPublicDay ? <LogInPublicDay day={logInPublicDay} /> : <PintDropStrip />}
         </div>
 
         <LandingFaq />
