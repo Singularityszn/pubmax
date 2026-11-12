@@ -2041,6 +2041,7 @@ export type Database = {
           author_retired_at: string | null;
           receipt_photo_key: string | null;
           price_evidence: string | null;
+          rating: number | null;
         };
         Insert: {
           id?: string;
@@ -2076,6 +2077,7 @@ export type Database = {
           author_retired_at?: string | null;
           receipt_photo_key?: string | null;
           price_evidence?: string | null;
+          rating?: number | null;
         };
         Update: {
           id?: string;
@@ -2111,6 +2113,7 @@ export type Database = {
           author_retired_at?: string | null;
           receipt_photo_key?: string | null;
           price_evidence?: string | null;
+          rating?: number | null;
         };
         Relationships: [];
       };

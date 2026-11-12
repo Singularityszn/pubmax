@@ -202,6 +202,25 @@ describe("getPintDropById with optional database columns", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  it.each(["public", "anonymous"])("keeps per-drop %s stars behind the permalink gate", async (visibility) => {
+    database([], { rating: 4, visibility });
+    expect(await getPintDropById(stored.id)).toMatchObject({
+      id: stored.id, rating: 4, handle: visibility === "anonymous" ? ANON_HANDLE_LABEL : "receipt_author",
+    });
+  });
+
+  it.each(["friends", "legacy"])("withholds %s stars from a stranger", async (visibility) => {
+    database([], { rating: 4, visibility });
+    expect(await getPintDropById(stored.id)).toBeNull();
+  });
+
+  it.each(["42703", "PGRST204"])("keeps the permalink available without the rating column (%s)", async (code) => {
+    database(["rating"], {}, code);
+    const drop = await getPintDropById(stored.id);
+    expect(drop).toMatchObject({ id: stored.id, priceGbp: 4.7 });
+    expect(drop).not.toHaveProperty("rating");
+  });
+
   it("keeps the stated serving and evidence on a current database", async () => {
     database([], { measure: "half", price_gbp: 2.35 });
     expect(await getPintDropById(stored.id)).toMatchObject({

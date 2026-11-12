@@ -27,6 +27,14 @@ const drop: PintReceiptDrop = {
 };
 
 describe("buildPintReceipt", () => {
+  it("keeps a saved drop's stars on its anonymous receipt", () => {
+    const rated = { ...drop, rating: 4 as const, visibility: "anonymous" as const };
+    expect(buildPintReceipt(rated)).toMatchObject({ rating: 4, drinker: ANON_HANDLE_LABEL });
+    expect(receiptShareFromSavedDrop({ ...rated, id: "rated-drop", status: "visible" }, rated.venueName)?.receipt)
+      .toMatchObject({ rating: 4, drinker: ANON_HANDLE_LABEL });
+    expect(buildPintReceipt(drop)).not.toHaveProperty("rating");
+  });
+
   it("prints the pub, the drink, the measure, the price, the London day and the drinker", () => {
     expect(buildPintReceipt(drop)).toEqual({
       venueName: "The Sir Christopher Hatton",

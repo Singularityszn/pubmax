@@ -7,14 +7,13 @@
 //     the accessible name. `value: null` renders nothing filled — an unrated
 //     item is honestly blank, never zero stars.
 //   • INTERACTIVE — a keyboard-accessible picker: role="slider",
-//     aria-valuenow/-min/-max/-text; ← ↓ / → ↑ adjust by half a star,
+//     aria-valuenow/-min/-max/-text. Arrows adjust by `step` (default 0.5).
 //     Home/End jump to 1/5, Enter or Space commits, Escape reverts. Pointer:
-//     click anywhere on the row — the position snaps to the nearest half star
+//     click anywhere on the row. The position snaps to the configured step
 //     and commits immediately.
 //
-// Colour rides ONE CSS custom property, `--rating-accent`, defaulting to the
-// app's brass accent — a category surface (wine burgundy, whisky amber, …)
-// re-tints stars by setting the var, never by new CSS.
+// starRating.css owns the default `--rating-accent` colour. Categories change
+// that property instead of adding CSS.
 
 import { useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 
@@ -30,10 +29,10 @@ import "./starRating.css";
 
 const STAR_COUNT = 5;
 
-function clampToStep(value: number): RatingValue {
+function clampToStep(value: number, step: 0.5 | 1): RatingValue {
   const snapped =
-    Math.round(Math.min(RATING_MAX, Math.max(RATING_MIN, value)) / RATING_STEP) *
-    RATING_STEP;
+    Math.round(Math.min(RATING_MAX, Math.max(RATING_MIN, value)) / step) *
+    step;
   return (isRatingValue(snapped) ? snapped : RATING_MAX) as RatingValue;
 }
 
@@ -63,10 +62,11 @@ export type StarRatingProps = {
   interactive?: boolean;
   /** Called with the committed value (Enter/Space, or a click). */
   onRate?: (value: RatingValue) => void;
-  /** Optional accent override (a category colour); defaults to brass via CSS. */
+  /** Optional category colour override. */
   accent?: string;
-  /** Compact sizing for dense rows (the drink menu). */
-  size?: "sm" | "md";
+  /** Compact sizing for dense rows (the drink menu); large for a thumb. */
+  size?: "sm" | "md" | "lg";
+  step?: 0.5 | 1;
   className?: string;
 };
 
@@ -77,10 +77,16 @@ export default function StarRating({
   onRate,
   accent,
   size = "md",
+  step = RATING_STEP,
   className,
 }: StarRatingProps) {
   // The keyboard-adjusted, not-yet-committed value (interactive mode only).
   const [draft, setDraft] = useState<RatingValue | null>(null);
+  const [previousValue, setPreviousValue] = useState(value);
+  if (previousValue !== value) {
+    setPreviousValue(value);
+    setDraft(null);
+  }
 
   const classes = ["starRating", `starRating--${size}`, className]
     .filter(Boolean)
@@ -100,7 +106,7 @@ export default function StarRating({
     );
   }
 
-  const shown = draft ?? (value !== null ? clampToStep(value) : null);
+  const shown = draft ?? (value !== null ? clampToStep(value, step) : null);
 
   const commit = (next: RatingValue) => {
     setDraft(null);
@@ -112,11 +118,11 @@ export default function StarRating({
     switch (event.key) {
       case "ArrowRight":
       case "ArrowUp":
-        setDraft(clampToStep(current + RATING_STEP));
+        setDraft(clampToStep(current + step, step));
         break;
       case "ArrowLeft":
       case "ArrowDown":
-        setDraft(clampToStep(current - RATING_STEP));
+        setDraft(clampToStep(current - step, step));
         break;
       case "Home":
         setDraft(RATING_MIN as RatingValue);
@@ -141,7 +147,7 @@ export default function StarRating({
     const box = event.currentTarget.getBoundingClientRect();
     if (box.width <= 0) return;
     const fraction = (event.clientX - box.left) / box.width;
-    commit(clampToStep(fraction * STAR_COUNT));
+    commit(clampToStep(fraction * STAR_COUNT, step));
   };
 
   return (

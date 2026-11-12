@@ -197,6 +197,14 @@ function drop(overrides: Partial<PersistableDrop> = {}): PersistableDrop {
 describe("replayBeforeCap", () => {
   const noPhotos = { pint: null, venue: null, receipt: null };
 
+  it("replays stored stars and refuses replacing them under the same key", () => {
+    const existing = drop({ rating: 4 });
+    expect(replayBeforeCap(existing, drop({ rating: 4 }), noPhotos)?.rating).toBe(4);
+    expect(() => replayBeforeCap(existing, drop({ rating: 2 }), noPhotos)).toThrow(PintDropReplayConflictError);
+    expect(() => replayBeforeCap(existing, drop(), noPhotos)).toThrow(PintDropReplayConflictError);
+    expect(replayBeforeCap(drop(), drop({ rating: 4 }), noPhotos)?.rating).toBeUndefined();
+  });
+
   it("allows a new observation only when the cap permits it", () => {
     const input = drop();
     expect(replayBeforeCap(undefined, input, noPhotos)).toBeUndefined();
@@ -624,6 +632,57 @@ describe("Pint Drop creation ownership", () => {
       expect(removeMock).not.toHaveBeenCalled();
     } finally {
       lookup.mockRestore();
+    }
+  });
+
+  it("stores stars in the drop insert and returns those stars on a durable replay", async () => {
+    let stored: Record<string, unknown> | null = null;
+    insertMock.mockImplementation(async (row: Record<string, unknown>) => {
+      stored = structuredClone(row);
+      return { error: null };
+    });
+    const lookup = vi.spyOn(selectChain, "maybeSingle").mockImplementation(async () => ({ data: stored, error: null }));
+    try {
+      const input = drop({ id: "rated-drop", rating: 4 });
+      expect(await supabasePintDropStore.create(input, noPhotos)).toMatchObject({ rating: 4, created: true });
+      expect(stored).toMatchObject({ rating: 4 });
+      expect(await supabasePintDropStore.findCreated(input, noPhotos)).toMatchObject({ id: "rated-drop", rating: 4 });
+      expect(await supabasePintDropStore.findCreated({ ...input, rating: 2 }, noPhotos)).toBe("conflict");
+    } finally {
+      lookup.mockRestore();
+      insertMock.mockReset();
+    }
+  });
+
+  it.each(["42703", "PGRST204"])("reports stored stars honestly during schema lag (%s)", async (code) => {
+    const rows: Record<string, unknown>[] = [];
+    insertMock.mockImplementation(async (row: Record<string, unknown>) => {
+      if ("rating" in row) return { error: { code, message: 'column "rating" does not exist' } };
+      rows.push(structuredClone(row));
+      return { error: null };
+    });
+    const lookup = vi.spyOn(selectChain, "maybeSingle").mockImplementation(async () => ({ data: rows[0] ?? null, error: null }));
+    try {
+      const input = drop({ id: "lagged-stars", rating: 4 });
+      const saved = await supabasePintDropStore.create(input, noPhotos);
+      expect(saved.rating).toBeUndefined();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).not.toHaveProperty("rating");
+      const replay = await supabasePintDropStore.findCreated(input, noPhotos);
+      expect(replay).toMatchObject({ id: "lagged-stars" });
+      expect(replay).not.toHaveProperty("rating");
+    } finally {
+      lookup.mockRestore();
+      insertMock.mockReset();
+    }
+  });
+
+  it("fails the whole rated drop on an insert outage", async () => {
+    insertMock.mockResolvedValue({ error: { code: "08006", message: "connection lost" } });
+    try {
+      await expect(supabasePintDropStore.create(drop({ rating: 4 }), noPhotos)).rejects.toThrow("connection lost");
+    } finally {
+      insertMock.mockReset();
     }
   });
 

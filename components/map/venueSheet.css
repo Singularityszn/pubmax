@@ -764,6 +764,11 @@
 }
 
 
+.dropStars {
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
 /* ── Last-train badge (IDEAS A5) ─────────────────────────────────────────────
    A small candle-lit chip stamped on a Pint Drop's foot when the Getting-home
    tab has loaded a live Last Pint decision AND the drop's post time backs an
