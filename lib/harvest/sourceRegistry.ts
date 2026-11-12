@@ -200,7 +200,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       checkedOn: TERMS_CHECKED_ON,
     },
     notes:
-      "Checked 2026-08-09: the event finder renders its results in the browser, so the served document lists no event, and the programme pages behind it (for example Laughs On Tap) give a season rather than a date. Expect zero rows until Fuller's publishes dates in the document.",
+      "The chain-deals entry for Fuller's event finder. See fullers-event-finder-events for the terms refusal shared by both event lanes.",
   },
   {
     id: "youngs-offers",
@@ -379,7 +379,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       checkedOn: TERMS_CHECKED_ON,
     },
     notes:
-      "The operator's own event finder. Checked 2026-08-09: results render in the browser, so a markdown read may yield zero dated rows until Fuller's publishes dates in the document. Context.dev events lane reads this page; the chain-deals lane reads the same URL separately.",
+      "The operator's own event finder. The Context.dev events lane and the chain-deals lane refuse this page because Fuller's terms forbid commercial use.",
   },
   {
     id: "common-social-posts",
