@@ -40,6 +40,14 @@ const FULL_SUITE_JOBS = ["full-suite", "full-suite-gl"];
 
 type CommandCall = { command: string; args: string[]; env: Record<string, string> };
 
+const MERGE_GROUP_CONTEXT = {
+  event_name: "merge_group",
+  event: { merge_group: { head_ref: "refs/heads/gh-readonly-queue/main/pr-1-abc123" } },
+  token: "token",
+  api_url: "https://api.github.com",
+  repository: "Singularityszn/pubmax",
+};
+
 function recordBrowserJob(job: WorkflowJob): CommandCall[] {
   const directory = mkdtempSync(join(process.cwd(), ".browser-command-test-"));
   const log = join(directory, "commands.jsonl");
@@ -47,7 +55,7 @@ function recordBrowserJob(job: WorkflowJob): CommandCall[] {
   const outputs: Record<string, { outputs: Record<string, string> }> = {};
   const evaluate = (expression: string) => runInNewContext(
     `(${expression.replace(/^\s*\$\{\{([\s\S]*)\}\}\s*$/, "$1")})`,
-    { env: job.env ?? {}, matrix: { shard: 1 }, github: { event_name: "merge_group" }, steps: outputs },
+    { env: job.env ?? {}, matrix: { shard: 1 }, github: MERGE_GROUP_CONTEXT, steps: outputs },
     { timeout: 1000 },
   );
   const interpolate = (value: string) => value.replace(/\$\{\{([\s\S]*?)\}\}/g, (_, expression: string) => String(evaluate(expression)));
@@ -69,6 +77,8 @@ appendFileSync(process.env.COMMAND_LOG, JSON.stringify({ command: ${JSON.stringi
 `);
       chmodSync(path, 0o755);
     }
+    writeFileSync(join(directory, "curl"), "#!/bin/sh\nprintf 200\n");
+    chmodSync(join(directory, "curl"), 0o755);
     for (const step of job.steps) {
       if (step.if && !evaluate(step.if)) continue;
       if (step.uses) {
@@ -469,6 +479,61 @@ if (args[0] === "issue" && args[1] === "list") {
       expect(calls.indexOf(defined(gates[0]))).toBeGreaterThan(calls.indexOf(test));
     }
     for (const spec of requiredSpecs) expect(executedSpecs.filter((file) => file === spec), spec).toHaveLength(1);
+  });
+
+  describe("a layout pin for a merge group that is gone", () => {
+    function layoutSteps() {
+      const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+      return defined(jobs["layout-pins-1"]).steps;
+    }
+    function gate() {
+      return defined(layoutSteps().find((step) => step.name === "Stop when the merge group is gone"), "merge group gate");
+    }
+
+    function runGate(queueRef: string, curl: { status: string; exit: number }) {
+      const directory = mkdtempSync(join(process.cwd(), ".merge-group-gate-test-"));
+      try {
+        const calls = join(directory, "calls");
+        writeFileSync(calls, "");
+        writeFileSync(join(directory, "curl"), `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nprintf '${curl.status}'\nexit ${curl.exit}\n`);
+        chmodSync(join(directory, "curl"), 0o755);
+        const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-c", defined(gate().run)], {
+          env: {
+            PATH: `${directory}:${process.env.PATH}`,
+            GH_TOKEN: "token",
+            API_URL: "https://api.github.com",
+            REPO: "Singularityszn/pubmax",
+            QUEUE_REF: queueRef,
+          },
+          encoding: "utf8",
+        });
+        return { result, calls: readFileSync(calls, "utf8").trim() };
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    }
+
+    it("checks the group before the job checks out or installs anything", () => {
+      expect(layoutSteps()[0]).toEqual(gate());
+    });
+
+    it.each([
+      { case: "the group is live", curl: { status: "200", exit: 0 }, exit: 0, annotation: "" },
+      { case: "the group is gone", curl: { status: "404", exit: 0 }, exit: 1, annotation: "::error::" },
+      { case: "GitHub answers with an error", curl: { status: "502", exit: 0 }, exit: 0, annotation: "::warning::" },
+      { case: "GitHub cannot be reached", curl: { status: "000", exit: 7 }, exit: 0, annotation: "::warning::" },
+    ])("stops only when $case says so", ({ curl, exit, annotation }) => {
+      const { result, calls } = runGate("refs/heads/gh-readonly-queue/main/pr-1-abc123", curl);
+      expect(result.status, result.stderr).toBe(exit);
+      if (annotation) expect(result.stdout).toContain(annotation);
+      expect(calls).toContain("https://api.github.com/repos/Singularityszn/pubmax/git/ref/heads/gh-readonly-queue/main/pr-1-abc123");
+    });
+
+    it("runs a pull request's layout pins without asking for a group", () => {
+      const { result, calls } = runGate("", { status: "404", exit: 0 });
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls).toBe("");
+    });
   });
 
   it("runs the same layout steps for every pull request branch", () => {

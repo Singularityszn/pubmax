@@ -48,8 +48,9 @@ settings assume three Mac places. A pull request waited about an hour for one,
 and each push used about 42 Mac minutes. In the queue they test the exact commit
 that lands, which before ran them only after it was on `main`.
 `Browser tests check` still needs them, so a layout failure ejects its queue
-entry. To request an early run, add the `layout-pins` label to a pull request
-from this repository. The label cancels the older browser run and starts a
+entry. A layout pin whose merge group the queue has dropped stops in its first
+step, so dead groups do not hold the Mac places. To request an early run, add
+the `layout-pins` label to a pull request from this repository. The label cancels the older browser run and starts a
 new one. Each later push runs the pins again while the label stays.
 On labelled pull requests, the pins skip changes with no screen code unless
 classification fails.

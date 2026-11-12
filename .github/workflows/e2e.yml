@@ -280,6 +280,37 @@ jobs:
     env:
       LAYOUT_SHARD: 1
     steps: &layout-pin-steps
+      # When an entry ahead fails or leaves, the queue drops the groups behind
+      # it and deletes their branches, but GitHub keeps their runs queued. Those
+      # runs held the three Mac places and starved the live groups. A job for a
+      # group that is gone stops here, in seconds, before setup and tests. When
+      # the branch cannot be read, the job runs, so an API fault never fails a
+      # live group.
+      - name: Stop when the merge group is gone
+        env:
+          GH_TOKEN: ${{ github.token }}
+          API_URL: ${{ github.api_url }}
+          REPO: ${{ github.repository }}
+          QUEUE_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -euo pipefail
+          if [ -z "$QUEUE_REF" ]; then
+            echo "Not a merge group run."
+            exit 0
+          fi
+          status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$API_URL/repos/$REPO/git/ref/${QUEUE_REF#refs/}")" || status="error"
+          case "$status" in
+            200) echo "Merge group $QUEUE_REF is live." ;;
+            404)
+              echo "::error::Merge group $QUEUE_REF is gone, so this job stops before setup and tests."
+              exit 1
+              ;;
+            *) echo "::warning::Could not read $QUEUE_REF (HTTP $status), so the job runs." ;;
+          esac
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
