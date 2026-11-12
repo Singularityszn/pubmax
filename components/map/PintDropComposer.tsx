@@ -125,6 +125,8 @@ function AccountPintDropComposer({
     dropForm,
     visibility,
     vibeTags,
+    rating,
+    setRating,
     transientVoiceNoteBaseline,
     priceSeed,
   });

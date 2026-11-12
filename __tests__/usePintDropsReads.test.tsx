@@ -14,6 +14,7 @@ vi.mock("@/components/auth/authContext", () => ({
 import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/components/map/usePintDrops";
 import * as actions from "@/lib/authedFetch";
 import { venuePriceFallbackPending } from "@/lib/venuePriceLane";
+import { readPintDropDraft } from "@/lib/pintDropDraft";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -174,7 +175,7 @@ describe("a reopened pub's pending price read", () => {
 });
 
 describe("Pint Drop star save feedback", () => {
-  it.each([false, true])("keeps the selected stars only when they were not stored (%s)", async (ratingSaved) => {
+  it.each([false, true])("keeps unsaved stars in the submitted pub's draft (%s)", async (ratingSaved) => {
     await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
     await act(async () => {
       drops.setHandle("ale");
@@ -192,7 +193,8 @@ describe("Pint Drop star save feedback", () => {
       expect(send).toHaveBeenCalled();
       const body = send.mock.calls[0]?.[1]?.body as FormData;
       expect(body.get("rating")).toBe("4");
-      expect(drops.rating).toBe(ratingSaved ? null : 4);
+      expect(drops.rating).toBeNull();
+      expect(readPintDropDraft(sessionStorage, "A")?.rating ?? null).toBe(ratingSaved ? null : 4);
       expect(drops.dropMsg?.ok).toBe(ratingSaved);
       if (!ratingSaved) expect(drops.dropMsg?.text).toBe("Your Pint Drop is saved, but the stars were not saved.");
       expect(drops.dropsByVenueId.get("A")?.[0]?.id).toBe("saved-note");

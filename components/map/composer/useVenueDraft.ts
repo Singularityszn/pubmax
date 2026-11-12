@@ -10,6 +10,7 @@ import { readDeviceAccountSessionRevision } from "@/lib/deviceAccountIdentity";
 import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { safeSessionStorage } from "@/lib/safeStorage";
+import { isPintDropRating } from "@/lib/pintDropRating";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
 type UseVenueDraftArgs = {
@@ -18,9 +19,11 @@ type UseVenueDraftArgs = {
   setDropForm: PintDropsState["setDropForm"];
   setVisibility: PintDropsState["setVisibility"];
   setVibeTags: PintDropsState["setVibeTags"];
+  setRating: PintDropsState["setRating"];
   dropForm: PintDropsState["dropForm"];
   visibility: PintDropsState["visibility"];
   vibeTags: PintDropsState["vibeTags"];
+  rating: PintDropsState["rating"];
   transientVoiceNoteBaseline: string | null;
   /**
    * #1462 — the figure the log intent carried, or null. Applied INSIDE the
@@ -43,9 +46,11 @@ export function useVenueDraft({
   setDropForm,
   setVisibility,
   setVibeTags,
+  setRating,
   dropForm,
   visibility,
   vibeTags,
+  rating,
   transientVoiceNoteBaseline,
   priceSeed = null,
 }: UseVenueDraftArgs): boolean {
@@ -71,6 +76,7 @@ export function useVenueDraft({
         if (seeded) setDropForm(seeded);
         setVisibility(draft.visibility);
         setVibeTags(draft.vibeTags);
+        setRating(draft.rating ?? null);
         trackEvent("draft_recovered", { kind: "pint-drop", surface: "map" });
       } else if (seeded) {
         setDropForm(seeded);
@@ -81,7 +87,7 @@ export function useVenueDraft({
     return () => {
       active = false;
     };
-  }, [venueId, priceSeed, resetComposer, setDropForm, setVisibility, setVibeTags]);
+  }, [venueId, priceSeed, resetComposer, setDropForm, setVisibility, setVibeTags, setRating]);
 
   useEffect(() => {
     if (revision !== readDeviceAccountSessionRevision() || draftReadyVenueId !== venueId) return;
@@ -92,10 +98,11 @@ export function useVenueDraft({
         form: dropForm,
         visibility,
         vibeTags,
+        rating: isPintDropRating(rating) ? rating : null,
         updatedAt: new Date().toISOString(),
       }, transientVoiceNoteBaseline),
     );
-  }, [revision, venueId, draftReadyVenueId, dropForm, transientVoiceNoteBaseline, visibility, vibeTags]);
+  }, [revision, venueId, draftReadyVenueId, dropForm, transientVoiceNoteBaseline, visibility, vibeTags, rating]);
 
   useEffect(() => {
     if (draftReady) markPubmaxTiming("pubmax:composer-interactive");

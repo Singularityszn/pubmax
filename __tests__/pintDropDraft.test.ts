@@ -82,6 +82,7 @@ describe("pint drop drafts", () => {
       },
       visibility: "public",
       vibeTags: ["cheap", "last train", "hidden gem", "date night"],
+      rating: null,
       updatedAt: "1970-01-01T00:00:00.000Z",
     });
   });
@@ -108,6 +109,20 @@ describe("pint drop drafts", () => {
 
     writePintDropDraft(storage, "venue-a", emptyDraft);
     expect(readPintDropDraft(storage, "venue-a")).toBeNull();
+  });
+
+  it("retains a rating-only draft and rejects invalid stored stars", () => {
+    const storage = makeStorage();
+    const draft = normalisePintDropDraft({ rating: 4 });
+    if (!draft) throw new Error("The rating draft must be readable.");
+    writePintDropDraft(storage, "venue-a", draft);
+    expect(readPintDropDraft(storage, "venue-a")?.rating).toBe(4);
+    expect(readPintDropDraft(storage, "venue-b")).toBeNull();
+    writePintDropDraft(storage, "venue-a", { ...draft, rating: null });
+    expect(readPintDropDraft(storage, "venue-a")).toBeNull();
+    for (const rating of [0, 6, 3.5, "4"]) {
+      expect(normalisePintDropDraft({ rating })?.rating).toBeNull();
+    }
   });
 
   it("never serialises voice-derived text, including after a manual edit", () => {

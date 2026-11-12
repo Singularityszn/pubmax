@@ -63,11 +63,11 @@ const otherPending: DropWithPhotos = {
   },
 };
 
-function Probe({ composer = false }: { composer?: boolean }) {
+function Probe({ composer = false, venueId = "venue-1" }: { composer?: boolean | "when-open"; venueId?: string }) {
   const state = usePintDrops();
   useEffect(() => { drops = state; }, [state]);
-  return composer
-    ? createElement(PintDropComposer, { venueId: "venue-1", state })
+  return composer && (composer === true || state.composerOpen)
+    ? createElement(PintDropComposer, { venueId, state })
     : createElement("p", { role: "status" }, state.dropMsg?.text);
 }
 
@@ -336,6 +336,81 @@ it.each(["owner-change", "tab-departure", "sign-out"])(
     expect(drops.dropForm.note).toBe("B's new note");
   },
 );
+
+it.each([false, true])("restores only unsaved stars when the submitted pub's composer reopens (%s)", async (ratingSaved) => {
+  await act(async () => {
+    root.render(createElement(Probe, { composer: "when-open" }));
+    drops.setComposerOpen(true);
+  });
+  await act(async () => {
+    const picker = defined(container.querySelector('[role="slider"]') ?? undefined);
+    picker.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+  });
+  await act(async () => {
+    defined(container.querySelector('[role="slider"]') ?? undefined)
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  });
+  expect(drops.rating).toBe(4);
+  const { pending } = await startPrice(false, false);
+  expect(container.querySelector('[role="slider"]')).toBeNull();
+  expect(defined(requests[0]).body.get("rating")).toBe("4");
+
+  await act(async () => {
+    root.render(createElement(Probe, { composer: "when-open", venueId: "venue-2" }));
+    drops.setComposerOpen(true);
+  });
+  expect(drops.rating).toBeNull();
+  await act(async () => { drops.setRating(2); });
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({
+      drop: { ...serverDrop("rated-drop"), ...(ratingSaved ? { rating: 4 } : {}) },
+      ratingSaved,
+    }), { status: 201 }));
+    await pending;
+  });
+  expect(drops.rating).toBe(2);
+  expect(container.querySelector('[role="slider"]')?.getAttribute("aria-valuetext")).toBe("2 out of 5 stars");
+  expect(readPintDropDraft(sessionStorage, "venue-2")?.rating).toBe(2);
+
+  await act(async () => { drops.setComposerOpen(false); });
+  await act(async () => {
+    root.render(createElement(Probe, { composer: "when-open" }));
+    drops.setComposerOpen(true);
+  });
+  expect(drops.rating).toBe(ratingSaved ? null : 4);
+  expect(container.querySelector('[role="slider"]')?.getAttribute("aria-valuetext")).toBe(
+    ratingSaved ? "Not rated yet. Use arrow keys to pick, Enter to save" : "4 out of 5 stars",
+  );
+  expect(drops.dropForm.price).toBe("");
+  await act(async () => { drops.setComposerOpen(false); });
+  await act(async () => { drops.setComposerOpen(true); });
+  expect(drops.rating).toBe(ratingSaved ? null : 4);
+});
+
+it("preserves a newer draft when the same pub's earlier stars were not saved", async () => {
+  await act(async () => {
+    root.render(createElement(Probe, { composer: "when-open" }));
+    drops.setComposerOpen(true);
+  });
+  await act(async () => { drops.setRating(4); });
+  const { pending } = await startPrice(false, false);
+  await act(async () => { drops.setComposerOpen(true); });
+  await act(async () => {
+    drops.setRating(2);
+    drops.setDropForm((form) => ({ ...form, drink: "Porter", price: "6.00" }));
+  });
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({
+      drop: serverDrop("earlier-drop"), ratingSaved: false,
+    }), { status: 201 }));
+    await pending;
+  });
+  expect(drops.rating).toBe(2);
+  await act(async () => { drops.setComposerOpen(false); });
+  await act(async () => { drops.setComposerOpen(true); });
+  expect(drops.rating).toBe(2);
+  expect(drops.dropForm).toMatchObject({ drink: "Porter", price: "6.00" });
+});
 
 it("today: the composer never reads submitting while the price POST is in flight (W1)", async () => {
   const { pending } = await startPrice(false);

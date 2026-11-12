@@ -45,7 +45,7 @@ import {
   type VenueDropRead,
   type VenueDropReadStatus,
 } from "@/lib/venueDropRead";
-import { clearPintDropDraft } from "@/lib/pintDropDraft";
+import { clearPintDropDraft, readPintDropDraft, writePintDropDraft } from "@/lib/pintDropDraft";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
@@ -902,7 +902,25 @@ export function usePintDrops(
         }
         const ratingNotSaved = submittedRating !== null &&
           (data.ratingSaved === false || data.drop?.rating !== submittedRating);
-        if (ratingNotSaved) setRating((current) => current ?? submittedRating);
+        if (ratingNotSaved && isPintDropRating(submittedRating)) {
+          const storage = safeSessionStorage();
+          if (!readPintDropDraft(storage, venueId)) {
+            writePintDropDraft(storage, venueId, {
+              form: {
+                price: "",
+                drink: submittedDrink,
+                ...submittedMeasure,
+                note: "",
+                era: "",
+                withWho: "",
+              },
+              visibility: submittedVisibility,
+              vibeTags: [],
+              rating: submittedRating,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
         trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
         notifyCheapPintPingQualified();
 
