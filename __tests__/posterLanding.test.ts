@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, Fragment } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import { NextRequest } from "next/server";
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET as getPosterCode } from "@/app/get/[code]/route";
 import NearPageClient from "@/components/nearme/NearPageClient";
+import PosterLandingAnalytics from "@/components/PosterLandingAnalytics";
 import { setAnalyticsConsent } from "@/lib/analytics";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import {
@@ -43,7 +44,7 @@ const navigation = vi.hoisted(() => ({ query: new URLSearchParams() }));
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => navigation.query,
-  usePathname: () => "/near",
+  usePathname: () => window.location.pathname,
   useRouter: () => ({ replace: vi.fn() }),
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
@@ -250,7 +251,9 @@ describe("rendered poster arrivals", () => {
   async function renderArrival(href: string) {
     window.history.replaceState(null, "", href);
     navigation.query = new URLSearchParams(window.location.search);
-    await act(async () => root.render(createElement(NearPageClient)));
+    await act(async () => root.render(createElement(Fragment, null,
+      createElement(PosterLandingAnalytics), createElement(NearPageClient),
+    )));
     await act(async () => {
       const pending = [...frames.values()];
       frames.clear();
@@ -264,6 +267,34 @@ describe("rendered poster arrivals", () => {
       payload: JSON.parse(String(init?.body)) as Record<string, unknown>,
     }));
   }
+
+  it("records a first scan after navigation when consent is granted", async () => {
+    const response = await getPosterCode(new Request("https://pubmaxxing.com/get/h4jyp"), {
+      params: Promise.resolve({ code: "h4jyp" }),
+    });
+    const destination = new URL(response.headers.get("location") ?? "");
+    await renderArrival(destination.pathname + destination.search);
+    expect(host.textContent).toContain("You scanned a beer mat.");
+    expect(send).not.toHaveBeenCalled();
+
+    window.history.replaceState(null, "", "/tonight");
+    navigation.query = new URLSearchParams();
+    await act(async () => root.render(createElement(Fragment, null,
+      createElement(PosterLandingAnalytics), createElement("main", null, "Tonight"),
+    )));
+    await act(async () => setAnalyticsConsent(true));
+
+    expect(deliveredEvents()).toEqual([{
+      url: "/api/events",
+      payload: expect.objectContaining({
+        name: "poster_landing",
+        props: { medium: "beermat", code: "h4jyp" },
+        analyticsConsent: true,
+      }),
+    }]);
+    await act(async () => setAnalyticsConsent(true));
+    expect(send).toHaveBeenCalledTimes(1);
+  });
 
   it.each([
     ["h4jyp", "beer mat", "beermat"],

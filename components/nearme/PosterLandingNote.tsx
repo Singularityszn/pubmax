@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { analyticsCollectionAllowed, trackEvent } from "@/lib/analytics";
 import { posterArrival } from "@/lib/posterCodes";
 import {
   clearPosterLandingSession,
@@ -16,9 +15,8 @@ import {
 type QueryReader = { get(name: string): string | null };
 
 /**
- * One orientation line + poster_landing beacon when /near was reached from a
- * printed QR (`src=poster`). The beacon names the medium and, for a minted
- * code, which poster or mat it was. Session remembers the arrival so a later
+ * One orientation line when /near was reached from a printed QR (`src=poster`).
+ * Session remembers the arrival so a later
  * patch URL rewrite cannot hide the line in the same tab; organic /near loads
  * without src clear any stale session.
  */
@@ -26,9 +24,7 @@ export default function PosterLandingNote({ query }: { query: QueryReader | null
   const fromQuery = isPosterLandingSrc(query?.get("src"));
   const arrival = fromQuery && query ? posterArrival(query) : null;
   const medium = arrival?.medium ?? null;
-  const code = arrival?.code ?? null;
   const [sessionMedium, setSessionMedium] = useState<PosterMedium | null>(null);
-  const recorded = useRef(false);
   const sawPosterSrc = useRef(false);
 
   useEffect(() => {
@@ -49,13 +45,6 @@ export default function PosterLandingNote({ query }: { query: QueryReader | null
     const frame = window.requestAnimationFrame(() => setSessionMedium(next));
     return () => window.cancelAnimationFrame(frame);
   }, [medium]);
-
-  useEffect(() => {
-    if (!medium || recorded.current) return;
-    recorded.current = true;
-    if (!analyticsCollectionAllowed()) return;
-    trackEvent("poster_landing", code ? { medium, code } : { medium });
-  }, [medium, code]);
 
   const shown = medium ?? sessionMedium;
   if (!shown) return null;

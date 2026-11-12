@@ -31,6 +31,7 @@ import ThemeAttribute from "@/components/ThemeAttribute";
 import A2HSTracking from "@/components/A2HSTracking";
 import AnalyticsConsentPrompt from "@/components/AnalyticsConsentPrompt";
 import PosthogPageviews from "@/components/PosthogPageviews";
+import PosterLandingAnalytics from "@/components/PosterLandingAnalytics";
 import SkipLink from "@/components/a11y/SkipLink";
 import SplashAperture from "@/components/splash/SplashAperture";
 import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
@@ -483,6 +484,7 @@ export default async function RootLayout({
         <ConsentAwareVercelSpeedInsights />
         <Suspense fallback={null}>
           <PosthogPageviews />
+          <PosterLandingAnalytics />
         </Suspense>
         <AnalyticsConsentPrompt />
         <DeploymentSkewRecovery />
