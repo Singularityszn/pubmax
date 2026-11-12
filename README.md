@@ -302,6 +302,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Anonymous Pint Drops show "a PUBMAXXER" without an `@` instead of your handle.
 
+  After **Log it**, a saved, visible **Public** or **Anonymous** drop with a price offers **Share your receipt**.
+  The receipt shows your serving, the price you paid and the London day you logged it.
+  Choose **Open the receipt** to view its `/p/<id>` page.
+  Sharing uses the device's share sheet or copies the receipt text and link when no share sheet is available.
+  Public receipt pages use neutral share wording. Your post-save share uses **My receipt**.
+
   Choose **Friends** to share notes with people you follow who also follow you. **Legacy** keeps an entry in the pub's Ledger. Other people see the entry without your note or price. Anyone with a photo's link can open it while the link remains valid.
 
 - **Venue price stories** - open a pub's **Prices** tab to see **The Golden Thread**. Each listed or updated price keeps its own drink, serving, publisher and source-read day. A drinker report keeps its own drink, serving, attribution and log date. Missing facts are labelled. Another row never supplies missing evidence, even when its price matches. Only reports for the selected pub count.

@@ -27,11 +27,11 @@ vi.mock("@/components/map/composer/useSpeechDictation", () => ({
 }));
 vi.mock("@/components/map/composer/useActiveRound", () => ({ useActiveRound: () => false }));
 vi.mock("@/components/map/VenuePriceStory", () => ({ default: () => null }));
-vi.mock("@/components/map/inspector/PintDropsList", () => ({ default: () => null }));
 
 import { usePintDrops, type PintDropsState } from "@/components/map/usePintDrops";
 import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
 import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
+import PintDropsList from "@/components/map/inspector/PintDropsList";
 import { ADULT_ASSERTED_EVENT } from "@/lib/contributionGateStatus";
 import { buildOptimisticSpillRetryFormData, readOptimisticSpills } from "@/lib/optimisticSpillPost";
 
@@ -54,6 +54,18 @@ function ComposerProbe({ open }: { open: boolean }) {
   return createElement(VenuePintsTab, {
     venue: { id: "venue-1", name: "The Crown" } as never,
     tab: "pints", pintDrops: { ...state, composerOpen: open }, drops: [], lastTrainDecision: null,
+  });
+}
+
+function DropListProbe() {
+  const state = usePintDrops();
+  useEffect(() => { drops = state; }, [state]);
+  return createElement(PintDropsList, {
+    venue: { id: "venue-1", name: "The Crown" } as never,
+    drops: state.dropsByVenueId.get("venue-1") ?? [],
+    lastTrainDecision: null,
+    reportDrop: state.reportDrop,
+    withSummaries: new Map(),
   });
 }
 
@@ -96,6 +108,36 @@ afterEach(async () => {
 });
 
 describe("Pint Drop preview URL lifetime", () => {
+  it("keeps a rejected price visibly unsaved after a later unpriced save", async () => {
+    await act(async () => root.render(createElement(DropListProbe)));
+    io.post.mockResolvedValue(new Response("{}", { status: 200 }));
+    io.post.mockResolvedValueOnce(new Response(JSON.stringify({
+      error: "Sign in to post a price under your name.",
+    }), { status: 401 }));
+    await act(async () => drops.setDropForm((form) => ({ ...form, price: "4.73", drink: "Guinness" })));
+    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    const assertUnsaved = () => {
+      const row = [...container.querySelectorAll(".dropCard")].find((card) => card.textContent?.includes("£4.73"))!;
+      expect(row).toBeTruthy();
+      expect.soft(row.textContent).toContain("Not saved");
+      expect.soft(row.textContent).not.toContain("Contributor");
+      expect.soft(drops.venueSignals.get("venue-1")?.pintTrust).toBe("none");
+      expect.soft(drops.venueSignals.get("venue-1")?.provisionalContributorPrice).toBeNull();
+    };
+    assertUnsaved();
+    io.post.mockResolvedValueOnce(new Response(JSON.stringify({ drop: {
+      id: "saved-note", venueId: "venue-1", handle: "alice", priceGbp: null,
+      drink: "", passedDownNote: "A note without a price", era: "", vibeTags: [],
+      visibility: "public", provenance: "anecdote", status: "visible",
+      createdAt: new Date().toISOString(), pintPhotoUrl: null, venuePhotoUrl: null,
+    } }), { status: 201 }));
+    await act(async () => drops.setDropForm((form) => ({ ...form, price: "", note: "A note without a price" })));
+    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    expect(drops.dropMsg).toMatchObject({ ok: true });
+    expect(container.textContent).toContain("A note without a price");
+    assertUnsaved();
+  });
+
   // Account ownership applies to the displayed refusal, not only its action.
   it.each([
     [true, "adult_check_required", "Confirm you are 18 or over before contributing."],

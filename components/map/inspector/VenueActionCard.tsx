@@ -3,14 +3,14 @@
 // THE VENUE SHEET'S ACTION CARD (launch plan 1 Nov 2026, section 5). Airbnb's
 // reservation card for a pub: one compact card that stays in view while the
 // Overview scrolls. Its first row is the price with its trust words and date,
-// the walk if known and the ONE plan door (VenueActionSummary, built by the map
+// the walk if known and the ONE coral door (VenueActionSummary, built by the map
 // from the sheet's own readings); under it, "Ask for a table" and Share.
 //
 // WHERE IT SITS. Inside the phone's portal sheet it renders into the footer
 // slot (components/mobile/sheetFooterContext.ts), a flex child below the
 // scroll body, so it rides with the sheet and sits above the safe area. With
 // no footer slot (641px and wider) it renders in place under the sheet's head
-// and venueSheet.css makes it the sticky top of the drawer.
+// and venueActionCard.css makes it the sticky top of the drawer.
 //
 // IT ADDS NO BLOCK. It is the peek row and the old command bar made one: the
 // plan door, the price and the walk left the top of the body, and the
@@ -18,8 +18,9 @@
 // them, because the card's one door owns all three. Nothing on it appears
 // twice on the sheet.
 //
-// ONE CORAL. The plan door is the sheet's one painted control; "Ask for a
-// table" and Share are ghosts, and the Overview's price door is drawn in ink.
+// lib/venuePlanDoor.ts decides the primary action. The action-card rule in
+// docs/rules/components-venue-plan-and-message-surfaces.md owns its priority
+// and the treatment of secondary actions.
 
 import dynamic from "next/dynamic";
 import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
@@ -46,13 +47,16 @@ const TableRequestDialog = dynamic(() => import("./TableRequestDialog"), { ssr: 
 export default function VenueActionCard({
   venue,
   summary,
+  planDoor = null,
   shareVenue,
   currentShareFeedback,
   acceptanceError = null,
 }: {
   venue: Venue;
-  /** The price, the walk and the plan door, read by the map (VenueActionSummary). */
+  /** The price, the walk and the coral door, read by the map (VenueActionSummary). */
   summary?: ReactNode;
+  /** The plan door as a ghost, when the first row's coral asks for a price. */
+  planDoor?: ReactNode;
   shareVenue: () => Promise<void>;
   currentShareFeedback: ShareFeedback | null;
   acceptanceError?: string | null;
@@ -150,6 +154,7 @@ export default function VenueActionCard({
       />
       {summary}
       <div className="venueSheetStickyBar venueActionCardActions" role="toolbar" aria-label="Venue actions">
+        {planDoor}
         {pub ? (
           <button
             type="button"
@@ -165,13 +170,14 @@ export default function VenueActionCard({
         <button
           type="button"
           className="venueSheetStickyGhost"
+          data-venue-share=""
           onClick={() => {
             void shareVenue();
           }}
           aria-label={`Share ${venue.name}`}
         >
           <Share2 size={16} aria-hidden="true" />
-          Share
+          <span>Share</span>
         </button>
         {currentShareFeedback ? (
           <span

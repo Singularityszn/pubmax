@@ -1,7 +1,7 @@
 // THE VENUE SHEET'S ACTION CARD (launch plan 1 Nov 2026, section 5: Airbnb's
 // reservation card). One compact card that stays in view while the Overview
 // scrolls: the pub's best honest price with its trust words and its date, the
-// walk if known, the ONE plan door and "Ask for a table", with Share beside it.
+// walk if known, the ONE coral door and "Ask for a table", with Share beside it.
 // On a phone it is the sheet's footer, above the safe area; from 641px it is
 // the sticky top of the drawer, under its head.
 //
@@ -13,7 +13,8 @@
 //      already decided (lib/venuePriceLane.ts) and decides no price itself.
 //      A baseline's caption already names its collection day, and a modelled
 //      figure was observed by nobody, so both answer null here.
-//   2. THE CARD SPENDS THE SHEET'S ONE CORAL. The plan door is the one painted
+//   2. THE CARD SPENDS THE SHEET'S ONE CORAL. Its first row's door (the plan
+//      door, or "Log what you paid", lib/venuePlanDoor.ts) is the one painted
 //      control on the venue sheet at every width; the Overview's price door is
 //      drawn in ink beside it (app/globals.css `.priceDoor`), so exactly one
 //      coral button is ever in view (docs/DESIGN_SYSTEM.md, "Coral is spent

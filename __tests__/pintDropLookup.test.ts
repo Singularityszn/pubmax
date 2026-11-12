@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // getPintDropById is the single leak-proof permalink read (/p/[id] + its OG
 // card). It has two paths chosen by isSupabaseConfigured(): a Supabase read that
@@ -14,6 +14,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getPintDropById } from "@/lib/pintDropLookup";
 import { demoPintDrops } from "@/lib/pintDropSeeds";
 import { getVenueIndex } from "@/lib/venueIndex";
+import * as supabase from "@/lib/supabase";
+import * as publicAccess from "@/lib/accountPublicAccess.server";
+import * as avatars from "@/lib/avatarResolve";
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { defined } from "@/__tests__/helpers/defined";
 
 // A real demo seed that always rides the in-memory read path. Its venueId
@@ -131,5 +135,132 @@ describe("PublicDrop DTO — leak-proof by column selection", () => {
   it("normalizes vibeTags to an array (never undefined) on a tagless seed", async () => {
     const drop = await getPintDropById(SEED.id);
     expect(Array.isArray(drop!.vibeTags)).toBe(true);
+  });
+});
+
+describe("getPintDropById with optional database columns", () => {
+  const stored = {
+    id: "receipt-database-drop",
+    venue_id: SEED.venueId,
+    handle: "receipt_author",
+    drink: "Guinness",
+    measure: "pint",
+    measure_label: null,
+    price_gbp: 4.7,
+    price_evidence: "unchecked",
+    passed_down_note: "",
+    era: "",
+    provenance: "contributor",
+    created_at: "2026-11-10T21:14:00.000Z",
+    vibe_tags: [],
+    visibility: "public",
+    status: "visible",
+    pint_photo_key: null,
+    venue_photo_key: null,
+    author_retired_at: null,
+  };
+
+  function database(
+    missing: string[],
+    overrides: Record<string, unknown> = {},
+    code = "42703",
+  ) {
+    const row: Record<string, unknown> = { ...stored, ...overrides };
+    const admin = {
+      from: () => ({
+        select: (selection: string) => {
+          const columns = selection.split(",");
+          const filters = new Map<string, unknown>();
+          const query = {
+            eq(column: string, value: unknown) {
+              filters.set(column, value);
+              return this;
+            },
+            maybeSingle: async () => {
+              const absent = columns.find((column) => missing.includes(column));
+              if (absent) {
+                return { data: null, error: { code, message: `column pint_drops.${absent} does not exist` } };
+              }
+              const matches = [...filters].every(([column, value]) => row[column] === value);
+              return {
+                data: matches ? Object.fromEntries(columns.map((column) => [column, row[column]])) : null,
+                error: null,
+              };
+            },
+          };
+          return query;
+        },
+      }),
+    };
+    vi.spyOn(supabase, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(supabase, "getSupabaseAdmin").mockReturnValue(
+      admin as unknown as NonNullable<ReturnType<typeof supabase.getSupabaseAdmin>>,
+    );
+    vi.spyOn(publicAccess, "withdrawnHandles").mockResolvedValue(new Set<string>());
+    vi.spyOn(avatars, "resolveAvatarUrlsForHandles").mockResolvedValue(new Map<string, string>());
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("keeps the stated serving and evidence on a current database", async () => {
+    database([], { measure: "half", price_gbp: 2.35 });
+    expect(await getPintDropById(stored.id)).toMatchObject({
+      id: stored.id, measure: "half", priceGbp: 2.35, priceEvidence: "unchecked", handle: "receipt_author",
+    });
+  });
+
+  it("keeps serving and evidence when only retirement is unavailable", async () => {
+    database(["author_retired_at"], { measure: "half", price_gbp: 2.35 });
+    expect(await getPintDropById(stored.id)).toMatchObject({
+      id: stored.id, measure: "half", priceGbp: 2.35, priceEvidence: "unchecked", handle: "receipt_author",
+    });
+  });
+
+  it.each(["42703", "PGRST204"])("resolves old schemas after %s missing-column errors", async (code) => {
+    database(["measure", "measure_label", "price_evidence", "author_retired_at"], {}, code);
+    const drop = await getPintDropById(stored.id);
+    expect(drop).toMatchObject({
+      id: stored.id, priceGbp: 4.7, handle: "receipt_author", createdAt: stored.created_at,
+    });
+    expect(drop).not.toHaveProperty("measure");
+    expect(drop).not.toHaveProperty("measureLabel");
+    expect(drop).not.toHaveProperty("priceEvidence");
+  });
+
+  it.each(["measure", "measure_label", "price_evidence"])("preserves retired anonymity without %s", async (column) => {
+    database([column], { author_retired_at: "2026-11-11T00:00:00.000Z" });
+    expect(await getPintDropById(stored.id)).toMatchObject({ id: stored.id, handle: ANON_HANDLE_LABEL });
+  });
+
+  it("keeps a non-pint measure when only price evidence is unavailable", async () => {
+    database(["price_evidence"], { measure: "half", price_gbp: 2.35 });
+    const drop = await getPintDropById(stored.id);
+    expect(drop).toMatchObject({ measure: "half", priceGbp: 2.35 });
+    expect(drop).not.toHaveProperty("priceEvidence");
+  });
+
+  it.each(["hidden", "pending"])("still refuses a %s drop after fallback", async (status) => {
+    database(["price_evidence"], { status });
+    expect(await getPintDropById(stored.id)).toBeNull();
+  });
+
+  it.each(["friends", "legacy"])("still refuses a stranger's %s drop after fallback", async (visibility) => {
+    database(["price_evidence"], { visibility });
+    expect(await getPintDropById(stored.id)).toBeNull();
+  });
+
+  it.each(["friends", "legacy"])("still permits the author of a %s drop after fallback", async (visibility) => {
+    database(["price_evidence"], { visibility });
+    expect(await getPintDropById(stored.id, { handle: "receipt_author" })).toMatchObject({ id: stored.id });
+  });
+
+  it("keeps anonymous authors withheld after fallback", async () => {
+    database(["price_evidence"], { visibility: "anonymous" });
+    expect(await getPintDropById(stored.id)).toMatchObject({ id: stored.id, handle: ANON_HANDLE_LABEL });
+  });
+
+  it("does not treat other database failures as missing columns", async () => {
+    database(["price_evidence"], {}, "42501");
+    expect(await getPintDropById(stored.id)).toBeNull();
   });
 });
