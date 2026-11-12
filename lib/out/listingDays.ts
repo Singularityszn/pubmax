@@ -17,6 +17,7 @@ import {
   type WhatsOnListedWindow,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
+import { londonDayKey } from "@/lib/londonHour";
 
 export type OutListingDayGroup = {
   /** Stable key: the London service date, or the provider's listed window. */
@@ -33,15 +34,6 @@ const LISTED_WINDOW_LABEL: Record<WhatsOnListedWindow, string> = {
 
 const UNDATED_LABEL = "Date not published";
 
-function londonYmd(ms: number): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(ms));
-}
-
 function londonNightName(ms: number): string {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
@@ -55,7 +47,7 @@ function londonNightName(ms: number): string {
 function outListingServiceDay(row: WhatsOnRow): string | null {
   const stated = rowStatedInterval(row);
   if (!stated || !Number.isFinite(stated.startMs)) return null;
-  return londonYmd(tonightServiceWindow(stated.startMs).startMs);
+  return londonDayKey(tonightServiceWindow(stated.startMs).startMs);
 }
 
 function rowSortTime(row: WhatsOnRow): number {
@@ -76,9 +68,9 @@ const EVENING_PROBE_MS = 4 * 60 * 60 * 1000;
  * that matter most on this page.
  */
 export function outListingDayLabel(serviceDate: string, now: number): string {
-  const today = londonYmd(tonightServiceWindow(now).startMs);
+  const today = londonDayKey(tonightServiceWindow(now).startMs);
   if (serviceDate === today) return "Tonight";
-  const tomorrow = londonYmd(
+  const tomorrow = londonDayKey(
     tonightServiceWindow(tonightServiceWindow(now).endMs + EVENING_PROBE_MS).startMs,
   );
   if (serviceDate === tomorrow) return "Tomorrow";

@@ -8,6 +8,7 @@ import {
   type WhatsOnKindObservedAt,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
+import { londonDayKey } from "@/lib/londonHour";
 
 export const OUT_DAY_WINDOWS = ["tonight", "tomorrow", "weekend"] as const;
 export type OutDayWindow = (typeof OUT_DAY_WINDOWS)[number];
@@ -145,15 +146,6 @@ export function outWindowToApiDay(window: OutDayWindow): "today" | "tomorrow" | 
   return window === "tonight" ? "today" : window;
 }
 
-function londonYmd(ms: number): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(ms));
-}
-
 function addCalendarDays(ymd: string, days: number): string {
   const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = ymd.split("-").map(Number);
   const next = new Date(Date.UTC(year, month - 1, day + days));
@@ -169,7 +161,7 @@ function londonWeekdayMon0(ms: number): number {
 }
 
 function weekendYmds(now: number): Set<string> {
-  const today = londonYmd(now);
+  const today = londonDayKey(now);
   const dow = londonWeekdayMon0(now);
   const friday =
     dow <= 4
@@ -191,11 +183,11 @@ export function filterOutListings(
   const listed = listingKinds(rows);
   if (window === "tonight") return filterTonight(listed, now);
   if (window === "tomorrow") {
-    const tomorrow = addCalendarDays(londonYmd(now), 1);
-    return listed.filter((row) => row.startsAt && londonYmd(Date.parse(row.startsAt)) === tomorrow);
+    const tomorrow = addCalendarDays(londonDayKey(now), 1);
+    return listed.filter((row) => row.startsAt && londonDayKey(Date.parse(row.startsAt)) === tomorrow);
   }
   const days = weekendYmds(now);
-  return listed.filter((row) => row.startsAt && days.has(londonYmd(Date.parse(row.startsAt))));
+  return listed.filter((row) => row.startsAt && days.has(londonDayKey(Date.parse(row.startsAt))));
 }
 
 /**

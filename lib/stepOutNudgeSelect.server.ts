@@ -21,6 +21,7 @@ import type { WantedDTO } from "@/lib/wanted";
 import { wantedStore } from "@/lib/wantedStore";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { londonDayKey } from "@/lib/londonHour";
 
 type SoftPlanCandidate = { id: string; title: string };
 
@@ -46,17 +47,6 @@ export type StepOutNudgeSelectDeps = {
   ) => Promise<SoftPlanCandidate[]>;
   listTonightDeals: (now: Date) => Promise<DealCandidate[]>;
 };
-
-function londonDayKey(now: Date): string {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value;
-  return `${value("year")}-${value("month")}-${value("day")}`;
-}
 
 function isSameLondonDay(iso: string, now: Date): boolean {
   const ms = Date.parse(iso);
