@@ -23,7 +23,9 @@ The chapter uses document links for map arrivals. A soft return can reuse a moun
 On phones, a sheet retains its height cap even when its header and footer exceed that cap.
 `MobileSharedSheet` sets `data-sheet-cramped` only at rest, with no entry, drag, settling or exit motion.
 It checks again when the header or footer changes size, even if the cap stays unchanged.
-In this mode, the whole sheet permits scrolling, the body retains its natural height, and peek keeps the body visible.
+In this mode, the whole sheet permits scrolling.
+Above peek, the body retains its natural height and uses `overflow: visible`, so swipes over the body scroll the sheet.
+A venue peek with a footer keeps its body hidden at rest and gives it no layout space, including in cramped mode.
 Header swipes use native vertical scrolling instead of a sheet drag.
 Pins: `__tests__/mobileSharedSheetRevealSettle.test.tsx`. The [Pub Pal setup guide](../PUB_PAL_SETUP.md#voice-interruptions) owns voice-bar placement and scrolling.
 
