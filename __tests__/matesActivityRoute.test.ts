@@ -22,6 +22,7 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 import { GET } from "@/app/api/social/mates-activity/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { MATES_ACTIVITY_LIMIT, type MatesActivityPint } from "@/lib/matesActivity";
+import { readMatesActivity } from "@/lib/matesActivity.server";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import {
@@ -143,6 +144,42 @@ describe("GET /api/social/mates-activity", () => {
     const { status, items } = await ask();
     expect(status).toBe(200);
     expect(items).toEqual([]);
+  });
+
+  it("excludes a muted mate beyond 500 mutes without hiding a mate who muted the reader", async () => {
+    for (let index = 0; index < 500; index += 1) {
+      const unrelated = seed(`muted_other_${index}`);
+      setSocialMemoryMute(me.id, unrelated.id, true);
+    }
+    const muted = seed("muted_mate");
+    const kept = seed("kept_mate");
+    await mutual("muted_mate");
+    await mutual("kept_mate");
+    setSocialMemoryMute(me.id, muted.id, true);
+    setSocialMemoryMute(kept.id, me.id, true);
+    addPintDrop(drop("muted", "muted_mate", "2026-11-11T21:00:00.000Z"));
+    addPintDrop(drop("kept", "kept_mate", "2026-11-11T20:00:00.000Z", { visibility: "friends" }));
+
+    const { status, items } = await ask();
+    expect(status).toBe(200);
+    expect(items.map((item) => item.id)).toEqual(["kept"]);
+  });
+
+  it("does not read or return drops when a candidate mute check fails", async () => {
+    seed("mate_a");
+    await mutual("mate_a");
+    const listMateDrops = vi.fn(async () => [{
+      ...drop("mate-drop", "mate_a", "2026-11-11T20:00:00.000Z"),
+      pintPhotoUrl: null,
+      venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+    }]);
+
+    await expect(readMatesActivity({ profileId: me.id, handle: ME }, {
+      isMuted: async () => { throw new Error("Mute read unavailable"); },
+      listMateDrops,
+    })).rejects.toThrow("Mute read unavailable");
+    expect(listMateDrops).not.toHaveBeenCalled();
   });
 
   it("caps the answer at the newest rows", async () => {

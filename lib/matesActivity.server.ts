@@ -15,8 +15,10 @@ import { followStore } from "@/lib/followStore";
 import { MATES_ACTIVITY_LIMIT, type MatesActivityPint } from "@/lib/matesActivity";
 import { normalizeViewerHandle, visibilityOf, type ViewerContext } from "@/lib/pintDrops";
 import { pintDropsStore, type PintDropDTO } from "@/lib/pintDropsStore";
-import { listOwnSocialRelationships } from "@/lib/socialRelationshipList.server";
+import { profileStore } from "@/lib/profileStore";
+import { socialMemoryMutes } from "@/lib/socialBlockMemory";
 import { isLiveMutual, type MutualViewer } from "@/lib/socialMutual.server";
+import { admin, selectStore } from "@/lib/storeBackend";
 import { storedVenueName } from "@/lib/storedVenueRef";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { resolveStoredVenue, venueMapUrl } from "@/lib/venueIndex";
@@ -25,8 +27,7 @@ const VENUE_FALLBACK_LABEL = "A London pub";
 
 export type MatesActivityDependencies = {
   listMutuals(handle: string): Promise<string[]>;
-  /** The handles the reader muted. Throws when the list cannot be read. */
-  listMuted(profileId: string): Promise<string[]>;
+  isMuted(profileId: string, mateHandle: string): Promise<boolean>;
   /** One mate's drops as this reader may read them, newest first. */
   listMateDrops(mateHandle: string, viewer: ViewerContext): Promise<PintDropDTO[]>;
   /** True only when the pair is still mutual and neither side blocks the other. */
@@ -37,7 +38,24 @@ export type MatesActivityDependencies = {
 
 const defaultDependencies = (): MatesActivityDependencies => ({
   listMutuals: (handle) => followStore().listMutuals(handle),
-  listMuted: async (profileId) => (await listOwnSocialRelationships(profileId)).muted.map((entry) => entry.handle),
+  isMuted: async (profileId, mateHandle) => {
+    const mate = await profileStore().getByHandle(mateHandle);
+    if (!mate) return true;
+    return selectStore(
+      async () => socialMemoryMutes(profileId, mate.id),
+      async () => {
+        const { data, error } = await admin()
+          .from("social_mutes")
+          .select("muted_profile_id")
+          .eq("muter_profile_id", profileId)
+          .eq("muted_profile_id", mate.id)
+          .limit(1)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        return data !== null;
+      },
+    )();
+  },
   listMateDrops: (mateHandle, viewer) => pintDropsStore().listVisible(undefined, viewer, mateHandle, null),
   stillMutual: isLiveMutual,
   venue: async (venueId) => {
@@ -70,16 +88,10 @@ export async function readMatesActivity(
 ): Promise<MatesActivityPint[]> {
   const deps = { ...defaultDependencies(), ...dependencies };
   const self = normalizeViewerHandle(viewer.handle);
-  const [mutuals, muted] = await Promise.all([
-    deps.listMutuals(viewer.handle),
-    deps.listMuted(viewer.profileId),
-  ]);
-  const mutedHandles = new Set(muted.map(normalizeViewerHandle));
-  const mates = new Set(
-    mutuals
-      .map(normalizeViewerHandle)
-      .filter((handle) => handle && handle !== self && !mutedHandles.has(handle)),
-  );
+  const mutuals = await deps.listMutuals(viewer.handle);
+  const candidates = [...new Set(mutuals.map(normalizeViewerHandle).filter((handle) => handle && handle !== self))];
+  const muted = await Promise.all(candidates.map((mate) => deps.isMuted(viewer.profileId, mate)));
+  const mates = new Set(candidates.filter((_, index) => !muted[index]));
   if (mates.size === 0) return [];
 
   const readerContext: ViewerContext = { handle: self, mutualHandles: mates };
