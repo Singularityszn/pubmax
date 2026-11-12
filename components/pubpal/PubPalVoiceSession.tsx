@@ -559,7 +559,14 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
           void finalizeSession(attempt);
           return;
         }
-        const [, resumeContext] = await Promise.all([attempt.microphone.begin(), resumeUpdate]);
+        // The summary settles before the microphone hold is taken, so a stalled
+        // chunk that ends in a timeout or a cancel leaves no hold behind.
+        const resumeContext = await resumeUpdate;
+        if (!ownsAttempt(attempt)) {
+          void finalizeSession(attempt);
+          return;
+        }
+        await attempt.microphone.begin();
         if (!ownsAttempt(attempt)) {
           attempt.microphone.reportStartupFinished();
           void finalizeSession(attempt);
