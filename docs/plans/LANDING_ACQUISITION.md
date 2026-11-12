@@ -6,6 +6,8 @@
 > landing hierarchy lives in
 > `docs/superpowers/plans/2026-08-14-permanent-one-tap-landing.md` and its tests.
 > Do not implement the flag decisions below.
+> The [welcome tour guide](../../README.md#welcome-tour) owns the current tour.
+> The single-step W3 proposal below is historical.
 
 ---
 
