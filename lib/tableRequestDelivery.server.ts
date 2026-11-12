@@ -82,11 +82,10 @@ async function reconcileNotSent(
     try {
       const stored = await store.findForRequester(requestId, requesterUserId);
       if (stored?.delivery === "emailed") return { outcome: "sent" };
+      if (stored) return { outcome: "retryable" };
     } catch {
       return { outcome: "retryable" };
     }
-    // A concurrent attempt can still be resolving its recipients before storing a row.
-    return { outcome: "retryable" };
   }
   return reason ? { outcome: "not_sent", reason } : { outcome: "retryable" };
 }

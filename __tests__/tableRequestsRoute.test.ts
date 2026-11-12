@@ -502,42 +502,6 @@ describe("POST /api/table-requests: the two ways out", () => {
     }
   });
 
-  it.each(["operator", "address", "provider"])("keeps a retry uncertain when its %s disappears during the original lookup", async (missing) => {
-    await verifyOperator(OPERATOR, "venue-crown");
-    const lookupStarted = Promise.withResolvers<void>();
-    const addressLookup = Promise.withResolvers<string>();
-    const address = vi.mocked(operatorAccounts.operatorAccountAddress).mockImplementationOnce(() => {
-      lookupStarted.resolve();
-      return addressLookup.promise;
-    });
-    const payload = request({ requestKey: "test-key-removal-race" });
-    const original = POST(post(payload));
-    try {
-      await lookupStarted.promise;
-      if (missing === "operator") __resetVenueOperators();
-      else if (missing === "address") state.addresses.clear();
-      else state.noProvider = true;
-      const retry = await POST(post(payload));
-      expect(retry.status).toBe(503);
-      expect(await retry.json()).toMatchObject({ retryable: true });
-      expect(state.sent).toHaveLength(0);
-      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
-
-      addressLookup.resolve(OPERATOR_ADDRESS);
-      expect((await original).status).toBe(201);
-      expect(state.sent).toHaveLength(1);
-      expect((await memoryTableRequestsStore.listEmailedForVenue("venue-crown")).requests).toHaveLength(1);
-      const replay = await POST(post(payload));
-      expect(replay.status).toBe(201);
-      expect(await replay.json()).toEqual({ outcome: "sent" });
-      expect(state.sent).toHaveLength(1);
-    } finally {
-      addressLookup.resolve(OPERATOR_ADDRESS);
-      await original;
-      address.mockRestore();
-    }
-  });
-
   it("does not send to a partial audience when another address lookup is unavailable", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
     await verifyOperator(STRANGER, "venue-crown");
@@ -557,14 +521,14 @@ describe("POST /api/table-requests: the two ways out", () => {
     }
   });
 
-  it.each([false, true])("keeps an absent provider uncertain only for keyed requests (keyed: %s)", async (keyed) => {
+  it("offers manual contact without creating an attempt when the email provider is absent", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
     state.noProvider = true;
-    const payload = request(keyed ? { requestKey: "test-key-jjjjjjjjjjjjjjjj" } : {});
+    const payload = request({ requestKey: "test-key-jjjjjjjjjjjjjjjj" });
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const response = await POST(post(payload));
-      expect(response.status).toBe(keyed ? 503 : 200);
-      expect(await response.json()).toMatchObject(keyed ? { retryable: true } : { outcome: "not_sent" });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ outcome: "not_sent" });
     }
     expect(state.sent).toHaveLength(0);
     expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
