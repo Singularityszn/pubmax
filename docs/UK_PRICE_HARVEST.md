@@ -18,9 +18,9 @@ npm run validate-data                # refuse a row nobody could check
 
 `lib/harvest/sourcePolicy.ts` decides what may be read, and nothing takes a host
 from a caller. A pub's own site is first-party by definition and needs no table
-row; a chain estate needs one, and a host the table refuses on permission is
-refused wherever it turns up, including under one of its own pubs' brand
-domains (`REFUSED_ESTATE_HOSTS`).
+row. A chain estate needs one. The
+[source permission rule](rules/scripts-harvest-and-source-permission.md)
+owns estate refusals, including the terms restrictions that bind before robots checks.
 
 Permission is then asked AGAIN, live, per host, every run, through
 `lib/harvest/robots.ts`. An unreadable `robots.txt` is a REFUSAL, not a
@@ -28,7 +28,7 @@ missing one: a challenge page or a 403 means no permission can be read, and a
 page we cannot ask about is a page we do not take. A genuine 404 publishes no
 restriction and is honoured.
 
-The [harvest redirect contract](./rules/scripts-harvest-and-source-permission.md#a-url-we-decide-to-fetch-is-somebody-else-s-string-and-the-allow-list-is-asked-a)
+The [harvest redirect contract](./rules/scripts-harvest-and-source-permission.md)
 also governs page redirects, robots redirects and refusal reasons.
 
 Four findings live under that one word, and they are separated because only two
