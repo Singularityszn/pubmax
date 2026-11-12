@@ -55,6 +55,7 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
       getByUserId: async (userId) => [...profiles.values()].find((entry) => entry.userId === userId) ?? null,
     },
     follows: { isFollowing: async (a, b) => edges.has(`${a}>${b}`) },
+    liveMutual: async () => true,
     withdrawn: async () => false,
     dropViewer: async () => (USER_FOR[reader] ? { handle: reader, mutualHandles: new Set<string>() } : undefined),
     diary: async () => [{ venueId: "lamb", venueName: "The Lamb", date: "2026-10-01", source: "diary" }],
@@ -199,6 +200,21 @@ describe("GET been", () => {
 });
 
 describe("GET overlap", () => {
+  it.each(["blocked", "unavailable"])("refuses overlap when the live mate check is %s", async (state) => {
+    const result = await readPassportOverlap(request(), "owner", deps("mate", "public", {
+      liveMutual: async () => {
+        if (state === "unavailable") throw new Error("relationship unavailable");
+        return false;
+      },
+    }));
+    expect(result).toEqual({
+      ok: false,
+      status: 403,
+      code: "MATES_ONLY",
+      error: "Only mates see this.",
+    });
+  });
+
   it("gives a mate the two name lists and nothing else", async () => {
     const result = await readPassportOverlap(request(), "owner", deps("mate", "private"));
     expect(result).toEqual({

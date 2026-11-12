@@ -46,6 +46,7 @@ import {
 } from "@/lib/profilePassport";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore, type ProfileRecord, type ProfileStore } from "@/lib/profileStore";
+import { isLiveMutual } from "@/lib/socialMutual.server";
 import { socialPubRankingStore } from "@/lib/socialPubRankingStore";
 import { socialPubRankingEntries } from "@/lib/socialPubRankings";
 import { selectStore } from "@/lib/storeBackend";
@@ -64,6 +65,7 @@ export type PassportDeps = {
   verifyCaller(request: Request): Promise<string | null>;
   profiles: Pick<ProfileStore, "getByHandle" | "getByUserId">;
   follows: Pick<FollowStore, "isFollowing">;
+  liveMutual(viewer: ProfileRecord, ownerHandle: string): Promise<boolean>;
   /** A withdrawn handle reads as an unknown one, except to its owner. */
   withdrawn(request: Request, handle: string): Promise<boolean>;
   /** The drop store's own reader context for this request. */
@@ -437,6 +439,11 @@ export async function readPassportOverlap(
     return MATES_ONLY;
   }
   try {
+    if (!(await deps.liveMutual(viewerProfile, profile.handle))) return MATES_ONLY;
+  } catch {
+    return MATES_ONLY;
+  }
+  try {
     const [mineRanked, theirsRanked, mineWanted, theirsWanted, canonical, been] = await Promise.all([
       rankedWithNames(viewerProfile.id, deps),
       rankedWithNames(profile.id, deps),
@@ -579,6 +586,7 @@ export function defaultPassportDeps(): PassportDeps {
     verifyCaller: callerUserId,
     profiles: profileStore(),
     follows: followStore(),
+    liveMutual: (viewer, ownerHandle) => isLiveMutual({ profileId: viewer.id, handle: viewer.handle }, ownerHandle),
     withdrawn: handleWithdrawnFromCaller,
     dropViewer: (request) => resolveViewerContextFromRequest(request),
     async diary(ownerUserId) {
