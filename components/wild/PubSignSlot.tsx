@@ -10,7 +10,9 @@ import { useWildMode } from "@/lib/useWildMode";
 import type { PubSignProps } from "./PubSign";
 
 const PubSign = lazy(() => import("./PubSign"));
-const PubSignFallback = lazy(() => import("./PubSign").then((module) => ({ default: module.PubSignFallback })));
+const PubSignFallback = lazy(() => import("./PubSign")
+  .then((module) => ({ default: module.PubSignFallback }))
+  .catch(() => ({ default: ({ children }: { children: ReactNode }) => <>{children}</> })));
 
 /** A page's cover sign, for a pub with no photo. Nothing while the switch is off. */
 export default function PubSignSlot(props: PubSignProps) {
