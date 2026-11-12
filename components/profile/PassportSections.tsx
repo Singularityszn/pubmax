@@ -28,6 +28,7 @@ import {
 } from "@/lib/profilePassport";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
+import BeenCardShare from "./BeenCardShare";
 import {
   usePassportRead,
   type PassportBeenRead,
@@ -50,9 +51,11 @@ function mapHrefFor(venues: readonly BeenVenue[]): Route | null {
 function PassportBeenList({
   been,
   isOwner,
+  handle,
 }: {
   been: PassportBeenRead;
   isOwner: boolean;
+  handle?: string;
 }): React.JSX.Element {
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? been.venues : been.venues.slice(0, BEEN_SHOWN);
@@ -65,6 +68,7 @@ function PassportBeenList({
         </h2>
         {mapHref ? <Link prefetch={false} href={mapHref}>{PASSPORT_COPY.showOnMap}</Link> : null}
       </div>
+      {isOwner && handle ? <BeenCardShare handle={handle} count={been.venues.length} /> : null}
       {been.venues.length === 0 ? (
         <EmptyState title={isOwner ? "No pubs yet." : PASSPORT_COPY.beenEmptyOther}>
           {isOwner ? PASSPORT_COPY.beenEmptyOwner : null}
@@ -100,7 +104,9 @@ function PassportBeenList({
 
 function PassportBeen({ handle, isOwner }: { handle: string; isOwner: boolean }) {
   const been = usePassportRead<PassportBeenRead>("been", handle);
-  return been ? <PassportBeenList been={been} isOwner={isOwner && been.access === "full"} /> : null;
+  return been ? (
+    <PassportBeenList been={been} isOwner={isOwner && been.access === "full"} handle={handle} />
+  ) : null;
 }
 
 type RankingEntry = { venueId: string; venueName: string | null; place: number };

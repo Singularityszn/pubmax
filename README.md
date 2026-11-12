@@ -36,6 +36,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Your profile has a cover, personal details, statistics and section links. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.
 
+  In your passport's **Been** section, **Share your Been card** unlocks when the list shows five pubs. Before five, a non-empty list shows how many more pubs you need. The shared card shows that list's count and the day it was counted. It does not name pubs from the list.
+
+  If you logged a qualifying public pint, the card includes your cheapest one across all cities, with its receipt and logged day. Anonymous and friends-only drops are excluded. A hidden, deleted or restricted drop loses its receipt from the card. The dated count stays. Old links follow a handle rename. Withdrawn or deleted accounts no longer show a card. Sharing opens the device's share sheet or copies the text and link. If sharing fails after preparing the link, tap again to share the retained link.
+
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
 
   If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.
