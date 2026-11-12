@@ -25,7 +25,7 @@ import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import { bindPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import {
-  providerCallRecord,
+  providerCallSeconds,
   providerCallSecondsOnceEnded,
 } from "@/lib/pubPalVoiceProviderDuration.server";
 import { getPubPalResult } from "@/lib/pubPalStore";
@@ -33,12 +33,6 @@ import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/
 
 const usage = new Map<string, PalVoiceMeterState>();
 const RELEASE_ERROR_MAX_LENGTH = 160;
-/**
- * A signed URL must start its call within 15 minutes (ElevenLabs). Past this
- * age, plus a margin for clock skew, a conversation the provider does not know
- * was never started and never can be.
- */
-const UNSTARTED_GRANT_PROOF_AGE_MS = 20 * 60_000;
 
 type VoiceTokenBody = {
   action?: string;
@@ -177,37 +171,12 @@ async function ownsIssuedConversation(
   }
 }
 
-/** The issued conversations among `conversationIds` whose grant is old enough that its URL has expired. */
-async function unstartableConversations(
-  admin: ReturnType<typeof requireSupabaseAdmin>,
-  userId: string,
-  conversationIds: string[],
-): Promise<string[]> {
-  if (!conversationIds.length) return [];
-  try {
-    const { data, error } = await admin
-      .from("pub_pal_voice_grants")
-      .select("conversation_id, created_at")
-      .eq("owner_id", userId)
-      .eq("state", "issued")
-      .in("conversation_id", conversationIds);
-    if (error || !Array.isArray(data)) return [];
-    const cutoff = Date.now() - UNSTARTED_GRANT_PROOF_AGE_MS;
-    return data
-      .filter((row) => Date.parse(String(row.created_at)) < cutoff)
-      .map((row) => String(row.conversation_id))
-      .filter(isPubPalConversationId);
-  } catch {
-    return [];
-  }
-}
-
 /**
  * Settles the grants of the owner's month that a release left issued, from
- * the provider's own records. An ended call
- * settles at its recorded length. A call the provider has no record of
- * settles free only once its signed URL can no longer start it. Anything else
- * stays charged in full. `skip` names the session just issued.
+ * the provider's own records. An ended call settles at its recorded length.
+ * Anything else stays charged in full, including a call the provider has no
+ * record of: under zero retention mode that can be a finished call whose
+ * record is gone. `skip` names the session just issued.
  */
 async function settleIssuedGrants(
   admin: ReturnType<typeof requireSupabaseAdmin>,
@@ -227,16 +196,9 @@ async function settleIssuedGrants(
   } catch {
     return;
   }
-  const records = await Promise.all(conversationIds.map(async (conversationId) => ({
-    conversationId,
-    record: await providerCallRecord(conversationId, apiKey),
-  })));
-  const missing = records.filter(({ record }) => record.kind === "missing").map(({ conversationId }) => conversationId);
-  const unstartable = new Set(await unstartableConversations(admin, userId, missing));
-  await Promise.all(records.map(({ conversationId, record }) => {
-    if (record.kind === "ended") return settleConversation(admin, userId, conversationId, record.seconds);
-    if (unstartable.has(conversationId)) return settleConversation(admin, userId, conversationId, 0);
-    return false;
+  await Promise.all(conversationIds.map(async (conversationId) => {
+    const seconds = await providerCallSeconds(conversationId, apiKey);
+    if (seconds !== null) await settleConversation(admin, userId, conversationId, seconds);
   }));
 }
 

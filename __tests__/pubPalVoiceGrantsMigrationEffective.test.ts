@@ -63,8 +63,6 @@ async function afterResponse(): Promise<void> {
   while (harness.afterTasks.length) await harness.afterTasks.shift()?.();
 }
 
-const sqlText = (value: unknown) => `'${String(value).replaceAll("'", "''")}'`;
-
 vi.mock("@/lib/authServer", () => ({ callerUserId: async () => harness.userId }));
 vi.mock("@/lib/privateIdentityStore", () => ({
   privateIdentityStore: () => ({ read: async () => null }),
@@ -108,24 +106,6 @@ vi.mock("@/lib/supabase", () => ({
         throw new Error("settlement reply lost");
       }
       return { data: answer ? JSON.parse(answer) as unknown : null, error: null };
-    },
-    // A select of pub_pal_voice_grants with eq and in filters, as service_role.
-    from: (table: string) => {
-      const where: string[] = [];
-      let columns = "*";
-      const query = {
-        select: (list: string) => { columns = list; return query; },
-        eq: (column: string, value: unknown) => { where.push(`${column} = ${sqlText(value)}`); return query; },
-        in: (column: string, values: unknown[]) => {
-          where.push(`${column} in (${values.map(sqlText).join(", ") || "null"})`);
-          return query;
-        },
-        then: (resolve: (value: { data: unknown; error: null }) => unknown) => {
-          const answer = harness.sql?.(`set role service_role; select coalesce(json_agg(row_to_json(t)), '[]') from (select ${columns} from public.${table} where ${where.join(" and ") || "true"}) t`);
-          return Promise.resolve(resolve({ data: answer ? JSON.parse(answer) as unknown : [], error: null }));
-        },
-      };
-      return query;
     },
   }),
 }));

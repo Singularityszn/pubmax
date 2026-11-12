@@ -533,12 +533,12 @@ recorded duration, rounded up to started minutes. Zero seconds costs nothing.
 A call beyond the cap charges the difference. Settlement applies once under
 the caller's own grant. A repeated settlement cannot change the meter again.
 
-A never-started call settles at zero only when ElevenLabs returns HTTP 404
-and the grant's `created_at` is more than 20 minutes old. The signed URL can
-start a call for 15 minutes. The extra five minutes provide a clock-skew margin.
-A browser cancellation cannot prove that the URL is unusable. A running call,
-an unreadable provider response, or a missing final duration leaves the grant
-charged in full.
+A grant settles only from a final duration that ElevenLabs reports. An HTTP
+404 does not settle the grant, however old the grant is. The agent runs in zero
+retention mode, so a 404 can also come from a finished call whose record is
+gone. A browser cancellation cannot prove that the signed URL was not used. A
+running call, an unreadable provider response, or a missing final duration
+also leaves the grant charged in full.
 
 `refund_pub_pal_voice_grant` handles server failures before the server hands out
 a signed URL. It accepts reserved or issued grants, including a link that

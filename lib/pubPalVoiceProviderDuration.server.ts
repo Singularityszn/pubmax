@@ -15,22 +15,17 @@ const PROVIDER_SETTLE_POLL_MS = 1_000;
 const ENDED_STATUSES: ReadonlySet<string> = new Set(["processing", "done", "failed"]);
 
 /**
- * What ElevenLabs holds for one of our conversations. `ended` carries the
- * final call length in whole seconds. `missing` is a 404: the provider has
- * no record of the conversation. `unknown` is every other answer, including a
- * running call, an error and a timeout.
+ * The call length ElevenLabs recorded for one of our conversations, in whole
+ * seconds, or null while the call is running or when the provider cannot say.
+ * This is the only duration the voice meter settles from: the browser's own
+ * clock is never read. Null leaves the prepaid grant charged in full.
  */
-export type ProviderCallRecord =
-  | { kind: "ended"; seconds: number }
-  | { kind: "missing" }
-  | { kind: "unknown" };
-
-export async function providerCallRecord(
+export async function providerCallSeconds(
   conversationId: string,
   apiKey: string,
   timeoutMs: number = PROVIDER_READ_TIMEOUT_MS,
-): Promise<ProviderCallRecord> {
-  if (!isPubPalConversationId(conversationId) || isPalLocalThreadId(conversationId)) return { kind: "unknown" };
+): Promise<number | null> {
+  if (!isPubPalConversationId(conversationId) || isPalLocalThreadId(conversationId)) return null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, PROVIDER_READ_TIMEOUT_MS));
   try {
@@ -43,36 +38,20 @@ export async function providerCallRecord(
         redirect: "error",
       },
     );
-    if (response.status === 404) return { kind: "missing" };
-    if (!response.ok) return { kind: "unknown" };
+    if (!response.ok) return null;
     const payload = (await response.json()) as {
       status?: unknown;
       metadata?: { call_duration_secs?: unknown } | null;
     };
-    if (typeof payload.status !== "string" || !ENDED_STATUSES.has(payload.status)) return { kind: "unknown" };
+    if (typeof payload.status !== "string" || !ENDED_STATUSES.has(payload.status)) return null;
     const seconds = payload.metadata?.call_duration_secs;
-    if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) return { kind: "unknown" };
-    return { kind: "ended", seconds: Math.ceil(seconds) };
+    if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) return null;
+    return Math.ceil(seconds);
   } catch {
-    return { kind: "unknown" };
+    return null;
   } finally {
     clearTimeout(timeout);
   }
-}
-
-/**
- * The call length ElevenLabs recorded for one of our conversations, in whole
- * seconds, or null while the call is running or when the provider cannot say.
- * A release settles only from this provider duration, never the browser's
- * clock. Null leaves the prepaid grant charged for later settlement attempts.
- */
-export async function providerCallSeconds(
-  conversationId: string,
-  apiKey: string,
-  timeoutMs: number = PROVIDER_READ_TIMEOUT_MS,
-): Promise<number | null> {
-  const record = await providerCallRecord(conversationId, apiKey, timeoutMs);
-  return record.kind === "ended" ? record.seconds : null;
 }
 
 /**
