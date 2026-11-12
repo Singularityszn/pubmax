@@ -35,8 +35,9 @@
   white-space: nowrap;
 }
 
+/* The strong hairline, so an empty star still reads on the night panel. */
 .starRatingRow--empty {
-  color: var(--color-border);
+  color: var(--hairline-strong);
 }
 
 .starRatingRow--fill {
