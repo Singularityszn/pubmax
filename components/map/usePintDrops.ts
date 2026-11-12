@@ -79,6 +79,15 @@ import {
 } from "@/lib/pintDropReceipt";
 import { receiptShareFromSavedDrop, type ReceiptShare } from "@/lib/pintReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
+import { isPintDropRating, PINT_DROP_STARS_NOT_SAVED } from "@/lib/pintDropRating";
+import type { RatingValue } from "@/lib/ratings";
+
+function submittedRatingNotSaved(
+  rating: RatingValue | null,
+  data: { ratingSaved?: unknown; drop?: { rating?: unknown } | null },
+): boolean {
+  return rating !== null && (data.ratingSaved === false || data.drop?.rating !== rating);
+}
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -112,6 +121,7 @@ export type DropMsg = {
   receipt?: ReceiptShare | null;
   accountRevision?: number;
   ageRecovery?: { accountRevision: number };
+  retry?: { venueId: string; send: () => Promise<void> };
 };
 
 // ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
@@ -359,6 +369,7 @@ export function usePintDrops(
   // Selected vibe tags (client-side UX only — the server re-filters against its
   // own allowlist). Multi-select, capped at MAX_VIBE_TAGS by toggleVibeTag.
   const [vibeTags, setVibeTags] = useState<VibeTag[]>([]);
+  const [rating, setRating] = useState<RatingValue | null>(null);
   const [pintPhoto, setPintPhoto] = useState<PhotoSlot | null>(null);
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
@@ -559,9 +570,14 @@ export function usePintDrops(
     if (inputEl) inputEl.value = "";
   }
 
+  const composerRevision = useRef(0);
+
   // `keepPreviews` is the post: the slots empty, but their URLs now belong to
   // the optimistic row that is about to render them.
   const resetComposer = useCallback((options?: { keepPreviews?: boolean }) => {
+    composerRevision.current += 1;
+    setSubmitting(false);
+    setDropMsg((current) => current?.retry ? null : current);
     const release = (current: PhotoSlot | null) => {
       if (current && !options?.keepPreviews && livePreviewUrls.current.delete(current.previewUrl)) {
         revokeOptimisticSpillPhotoPreview(current.previewUrl);
@@ -581,11 +597,12 @@ export function usePintDrops(
       withWho: "",
     });
     setVibeTags([]);
+    setRating(null);
     setVisibility(DEFAULT_VISIBILITY);
     if (pintInputRef.current) pintInputRef.current.value = "";
     if (venueInputRef.current) venueInputRef.current.value = "";
     if (receiptInputRef.current) receiptInputRef.current.value = "";
-  }, []);
+  }, [setDropMsg]);
 
   // A different account does not inherit an unsent draft: its text, price and
   // photos belong to the account that typed and picked them. Deferred out of
@@ -630,6 +647,8 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
+    if (submitting) return;
+    if (dropMsg?.retry?.venueId === venueId) return dropMsg.retry.send();
     if (
       !spillHasSubmissionEvidence({
         price: dropForm.price,
@@ -695,6 +714,7 @@ export function usePintDrops(
       handle: submittedAuthor.handle,
       priceGbp: dropForm.price,
       drink: dropForm.drink,
+      rating: isPintDropRating(rating) ? rating : null,
       passedDownNote,
       era: dropForm.era,
       visibility,
@@ -749,6 +769,7 @@ export function usePintDrops(
       // preview the other two use, so the drinker sees their own evidence
       // before the upload lands.
       receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
+      ...(isPintDropRating(rating) ? { rating } : {}),
       optimistic: optimisticDrop.optimistic,
       ...trainFields,
     };
@@ -758,8 +779,6 @@ export function usePintDrops(
       return next;
     });
 
-    // Instant post UX (IDEAS A2): close the composer immediately and reconcile
-    // in the background. Failures keep the optimistic card in a retryable state.
     // Capture form fields BEFORE resetComposer clears them.
     const submittedHandle = submittedAuthor.handle.trim();
     const submittedDrink = dropForm.drink;
@@ -768,10 +787,13 @@ export function usePintDrops(
     const submittedEra = dropForm.era;
     const submittedVisibility = visibility;
     const submittedVibeTags = [...vibeTags];
+    const submittedRating = rating;
+    const submittedComposerRevision = composerRevision.current;
+    const ownsComposer = () => submittedRating === null || composerRevision.current === submittedComposerRevision;
     const submittedPintFile = fileOfPhoto(pintPhoto);
     const submittedVenueFile = fileOfPhoto(venuePhoto);
     const submittedReceiptFile = fileOfPhoto(receiptPhoto);
-    clearPintDropDraft(safeSessionStorage(), venueId);
+    if (submittedRating === null) clearPintDropDraft(safeSessionStorage(), venueId);
     const local = safeLocalStorage();
     if (local) {
       try {
@@ -784,16 +806,17 @@ export function usePintDrops(
     const handedOffPreviews = [pintPhoto, venuePhoto, receiptPhoto].flatMap((slot) =>
       slot ? [slot.previewUrl] : [],
     );
-    resetComposer({ keepPreviews: true });
-    setComposerOpen(false);
-    setSubmitting(false);
+    if (submittedRating === null) {
+      resetComposer({ keepPreviews: true });
+      setComposerOpen(false);
+      setSubmitting(false);
+    }
     const savingMsg: DropMsg = {
       ok: true,
       text: "Cheers. Saving your Pint Drop…",
       links: [{ href: "/social", label: "Open Social" }],
       accountRevision: submittedAccountRevision,
     };
-    setDropMsg(savingMsg);
 
     // A saved wrapper keeps its client ID. Cancellation owns only the original pending row.
     const isAbandonedDrop = (drop: Pick<DropWithPhotos, "id" | "optimistic">) =>
@@ -832,9 +855,12 @@ export function usePintDrops(
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
       }
       setOptimisticRow({ state: "failed", message, uploadProgress: null, canRetry: true, clientRequestId });
+      if (!ownsComposer()) return;
       setDropMsg({
         ok: false,
         text: message,
+        retry: submittedRating !== null && status !== "adult_check_required"
+          ? { venueId, send } : undefined,
         accountRevision: status === "adult_check_required" || status === "adult_check_failed"
           ? submittedAccountRevision : undefined,
         ageRecovery: status === "adult_check_required"
@@ -862,6 +888,7 @@ export function usePintDrops(
     // Repeated field entries — the route also accepts one comma-separated
     // value; the server re-filters against its allowlist either way.
     for (const tag of submittedVibeTags) body.append("vibe_tags", tag);
+    if (submittedRating !== null) body.set("rating", String(submittedRating));
     if (trainFields) {
       body.set("leaveByIso", trainFields.leaveByIso);
       body.set("lastTrainDecision", trainFields.lastTrainDecision);
@@ -870,9 +897,12 @@ export function usePintDrops(
     if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
     if (submittedReceiptFile) body.set("receipt_photo", submittedReceiptFile);
 
-    // Sent once on Log it, and once more with the same body after an adult
-    // tap when the first answer was the adult refusal.
+    let sending = false;
     const send = async () => {
+      if (sending || submittedAccountSignal.aborted || !ownsComposer()) return;
+      sending = true;
+      if (submittedRating !== null) setSubmitting(true);
+      setDropMsg(savingMsg);
       submittedAccountSignal.addEventListener("abort", disposeAbandonedSubmission, { once: true });
       try {
         const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
@@ -892,6 +922,7 @@ export function usePintDrops(
           markFailed(answered.message, data?.status);
           return;
         }
+        const ratingNotSaved = submittedRatingNotSaved(submittedRating, data);
         trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
         notifyCheapPintPingQualified();
 
@@ -909,12 +940,11 @@ export function usePintDrops(
           const next = new Map(current);
           next.set(venueId, [
             data.drop,
-            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
+            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id && drop.id !== data.drop.id),
           ]);
           return next;
         });
-        // The server row has replaced the optimistic one, so its previews go.
-        handedOffPreviews.forEach(revokePreview);
+        if (!ratingNotSaved) handedOffPreviews.forEach(revokePreview);
         void proposeWithTagsForDrop(data.drop, submittedWithHandles);
 
         const venueLabel = options?.venueName ?? unresolvedVenueLabel(venueId);
@@ -927,7 +957,12 @@ export function usePintDrops(
           venueName: venueLabel,
           dropRef: pintDropId(data.drop),
         });
-        if (submittedAccountRevision !== readProviderAccountRevision()) return;
+        if (submittedAccountRevision !== readProviderAccountRevision() || !ownsComposer()) return;
+        if (submittedRating !== null && !ratingNotSaved) {
+          clearPintDropDraft(safeSessionStorage(), venueId);
+          resetComposer({ keepPreviews: true });
+          setComposerOpen(false);
+        }
 
         const links: NonNullable<DropMsg["links"]> = [
           { href: "/social", label: "Open Social" },
@@ -948,8 +983,9 @@ export function usePintDrops(
         const outcome = parseConfirmationOutcome(data.confirmationOutcome);
         rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
         setDropMsg({
-          ok: true,
-          text: dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
+          ok: !ratingNotSaved,
+          text: ratingNotSaved ? PINT_DROP_STARS_NOT_SAVED : dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
+          retry: ratingNotSaved ? { venueId, send } : undefined,
           links,
           census: isPricedWrite(submittedPrice),
           receipt: receiptShareFromSavedDrop(data.drop, venueLabel),
@@ -958,6 +994,8 @@ export function usePintDrops(
       } catch {
         markFailed("Network or storage error. Try again.");
       } finally {
+        sending = false;
+        if (submittedRating !== null && submittedAccountRevision === readProviderAccountRevision() && ownsComposer()) setSubmitting(false);
         submittedAccountSignal.removeEventListener("abort", disposeAbandonedSubmission);
       }
     };
@@ -970,7 +1008,6 @@ export function usePintDrops(
         );
       }
       setOptimisticRow(optimisticDrop.optimistic);
-      setDropMsg(savingMsg);
       return send();
     };
     return send();
@@ -1145,6 +1182,8 @@ export function usePintDrops(
     vibeTags,
     setVibeTags,
     toggleVibeTag,
+    rating,
+    setRating,
     visibility,
     setVisibility,
     pintPhoto,

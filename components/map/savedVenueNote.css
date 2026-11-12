@@ -1,0 +1,15 @@
+/* The offline line on a pub sheet drawn from this device's saved copy. It sits
+   where the sheet's other detail notes sit, in the amber of a caution. */
+
+.savedVenueNote {
+  margin: 0 18px 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--amber) 32%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  color: var(--tint-ink-caution);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  overflow-wrap: break-word;
+}

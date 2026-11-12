@@ -406,6 +406,23 @@ describe("optimistic Spill posting", () => {
       expect(form.get("priceGbp")).toBe("3.40");
     });
 
+    it.each(["public", "anonymous"] as const)("keeps %s stars through failure, storage and retry", async (visibility) => {
+      const input = { ...halfWithNoPhotos, visibility, rating: 4 as const };
+      const storage = memoryStorage();
+      writeOptimisticSpills(storage, upsertOptimisticSpill(
+        [], buildOptimisticSpillDrop(input), buildOptimisticSpillRetryPayload(input),
+      ));
+      writeOptimisticSpills(storage, failOptimisticSpill(readOptimisticSpills(storage), "client-1", "Offline"));
+      const freshStorage = memoryStorage();
+      freshStorage.setItem("pubmax:optimistic-spill-posts:v1", storage.getItem("pubmax:optimistic-spill-posts:v1")!);
+      const [restored] = readOptimisticSpills(freshStorage);
+      expect(restored?.drop).toMatchObject({ rating: 4, handle: visibility === "anonymous" ? "a PUBMAXXER" : "owl" });
+      const form = await buildOptimisticSpillRetryFormData(restored!.retry!);
+      expect(form.get("rating")).toBe("4");
+      expect(form.get("visibility")).toBe(visibility);
+      expect(form.get("measure")).toBe("half");
+    });
+
     it("keeps the label of an other measure", async () => {
       const form = await buildOptimisticSpillRetryFormData(
         buildOptimisticSpillRetryPayload({ ...halfWithNoPhotos, measure: "other", measureLabel: "175ml" }),

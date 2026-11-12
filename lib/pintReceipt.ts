@@ -5,10 +5,12 @@ import { formatGbp } from "@/lib/formatGbp";
 import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { ANON_HANDLE_LABEL, type Visibility } from "@/lib/pintDropShared";
 import type { PriceEvidence } from "@/lib/pintDropReceipt";
+import { isPintDropRating, type PintDropRating } from "@/lib/pintDropRating";
 
 export type PintReceiptDrop = {
   venueName: string;
   drink: string;
+  rating?: PintDropRating;
   measure?: DrinkMeasure;
   measureLabel?: string;
   priceGbp: number | null;
@@ -23,6 +25,7 @@ export type PintReceipt = {
   /** "Pint", "Half", or the free label an `other` measure carries. */
   measure: string;
   drink: string | null;
+  rating?: PintDropRating;
   price: string | null;
   /** "Tue 10 Nov 2026" in London, or null when the timestamp is unreadable. */
   loggedOn: string | null;
@@ -70,6 +73,7 @@ export function buildPintReceipt(drop: PintReceiptDrop): PintReceipt {
     venueName: drop.venueName,
     measure: drinkMeasureName(drop.measure, drop.measureLabel),
     drink: drink || null,
+    ...(isPintDropRating(drop.rating) ? { rating: drop.rating } : {}),
     price: priceGbp === null ? null : formatGbp(priceGbp),
     loggedOn: londonDay(drop.createdAt),
     drinker: receiptDrinkerLabel(drop.handle, drop.visibility),
@@ -113,6 +117,7 @@ export type SavedDropForReceipt = {
   status?: unknown;
   visibility?: unknown;
   drink?: unknown;
+  rating?: unknown;
   measure?: unknown;
   measureLabel?: unknown;
   priceGbp?: unknown;
@@ -142,6 +147,7 @@ export function receiptShareFromSavedDrop(
   const receipt = buildPintReceipt({
     venueName,
     drink: text(saved.drink),
+    ...(isPintDropRating(saved.rating) ? { rating: saved.rating } : {}),
     measure: (text(saved.measure) || undefined) as DrinkMeasure | undefined,
     measureLabel: text(saved.measureLabel) || undefined,
     priceGbp,

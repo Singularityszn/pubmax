@@ -141,6 +141,11 @@ export async function lookupRetiredVenue(id: string): Promise<RetiredVenue | nul
   return (await loadVenueAliasResolver()).retired(id);
 }
 
+/** Whether the alias files were read. Without them every id resolves to itself. */
+export async function venueAliasesReady(): Promise<boolean> {
+  return (await loadAliases()).status === "ready";
+}
+
 export async function loadVenueAliasResolver(): Promise<VenueAliasResolver> {
   const result = await loadAliases();
   const aliases = result.status === "ready" ? result.aliases : new Map<string, string>();

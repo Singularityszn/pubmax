@@ -12,6 +12,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
+import { isPintDropRating, type PintDropRating } from "@/lib/pintDropRating";
 import { HANDLE_MAX, normalizeHandle as normalizeHandleCore } from "@/lib/handleNormalize";
 import type { CityId } from "@/lib/cities";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
@@ -184,6 +185,13 @@ export function validatePintDrop(input: unknown): ValidationResult {
     return { ok: false, error: MEASURE_ASK_LINE };
   }
 
+  let rating: PintDropRating | undefined;
+  if (raw.rating !== undefined && raw.rating !== null && raw.rating !== "") {
+    const parsed = typeof raw.rating === "string" ? Number(raw.rating) : raw.rating;
+    if (!isPintDropRating(parsed)) return { ok: false, error: "Pick 1 to 5 stars." };
+    rating = parsed;
+  }
+
   const provenance: Provenance = priceGbp !== null ? "contributor" : "anecdote";
 
   // Vibe tags are supporting metadata, not a standalone signal: they never
@@ -220,6 +228,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
       measure,
       ...(measureLabel ? { measureLabel } : {}),
       priceGbp,
+      ...(rating !== undefined ? { rating } : {}),
       passedDownNote: note,
       era: clean(raw.era, MAX_ERA),
       ...(vibeTags.length ? { vibeTags } : {}),

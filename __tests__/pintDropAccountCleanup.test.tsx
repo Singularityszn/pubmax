@@ -63,11 +63,11 @@ const otherPending: DropWithPhotos = {
   },
 };
 
-function Probe({ composer = false }: { composer?: boolean }) {
+function Probe({ composer = false, venueId = "venue-1" }: { composer?: boolean | "when-open"; venueId?: string }) {
   const state = usePintDrops();
   useEffect(() => { drops = state; }, [state]);
-  return composer
-    ? createElement(PintDropComposer, { venueId: "venue-1", state })
+  return composer && (composer === true || state.composerOpen)
+    ? createElement(PintDropComposer, { venueId, state })
     : createElement("p", { role: "status" }, state.dropMsg?.text);
 }
 
@@ -336,6 +336,82 @@ it.each(["owner-change", "tab-departure", "sign-out"])(
     expect(drops.dropForm.note).toBe("B's new note");
   },
 );
+
+it.each(["schema lag", "network failure"])("keeps rated submissions open and retries the same request after %s", async (failure) => {
+  await act(async () => {
+    root.render(createElement(Probe, { composer: "when-open" }));
+    drops.setComposerOpen(true);
+  });
+  await act(async () => { drops.setRating(4); });
+  const { pending } = await startPrice(false, false);
+  expect(drops.composerOpen).toBe(true);
+  expect(drops.submitting).toBe(true);
+  expect(container.querySelector('[role="slider"]')?.getAttribute("aria-valuetext")).toBe("4 out of 5 stars");
+  const first = defined(requests[0]);
+  await act(async () => {
+    if (failure === "schema lag") {
+      first.resolve(new Response(JSON.stringify({ drop: serverDrop("rated-drop"), ratingSaved: false }), { status: 201 }));
+    } else {
+      first.reject(new Error("offline"));
+    }
+    await pending;
+  });
+  expect(drops.composerOpen).toBe(true);
+  expect(drops.submitting).toBe(false);
+  expect(drops.rating).toBe(4);
+  expect(drops.dropForm).toMatchObject({ price: "5.50", drink: "Pale ale" });
+  expect(drops.dropMsg?.ok).toBe(false);
+  const retry = defined(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Retry"));
+  await act(async () => { retry.click(); });
+  const second = defined(requests[1]);
+  expect(second.body.get("clientRequestId")).toBe(first.body.get("clientRequestId"));
+  expect(second.body.get("rating")).toBe("4");
+  expect(second.body.get("priceGbp")).toBe("5.50");
+  await act(async () => {
+    second.resolve(new Response(JSON.stringify({ drop: { ...serverDrop("rated-drop"), rating: 4 }, ratingSaved: true }), { status: 201 }));
+  });
+  expect(drops.composerOpen).toBe(false);
+  expect(drops.rating).toBeNull();
+  expect(drops.dropMsg?.ok).toBe(true);
+  expect(mapIds()?.filter((id) => id === "rated-drop")).toHaveLength(1);
+});
+
+it("does not clear another pub's composer when a rated request finishes", async () => {
+  await act(async () => { root.render(createElement(Probe, { composer: true })); });
+  await act(async () => { drops.setRating(4); });
+  const { pending } = await startPrice(false, false);
+  await act(async () => { root.render(createElement(Probe, { composer: true, venueId: "venue-2" })); });
+  await act(async () => {
+    drops.setRating(2);
+    drops.setDropForm((form) => ({ ...form, drink: "Porter", price: "6.00" }));
+  });
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({ drop: { ...serverDrop("rated-drop"), rating: 4 }, ratingSaved: true }), { status: 201 }));
+    await pending;
+  });
+  expect(drops.rating).toBe(2);
+  expect(drops.dropForm).toMatchObject({ drink: "Porter", price: "6.00" });
+});
+
+it("clears both the saved rating and an uncommitted keyboard preview", async () => {
+  await act(async () => { root.render(createElement(Probe, { composer: true })); });
+  await act(async () => { drops.setRating(4); });
+  await act(async () => {
+    defined(container.querySelector('[role="slider"]') ?? undefined)
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+  });
+  expect(container.querySelector('[role="slider"]')?.getAttribute("aria-valuetext")).toContain("5 out of 5 stars");
+  await act(async () => {
+    defined(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Clear")).click();
+  });
+  expect(drops.rating).toBeNull();
+  expect(container.querySelector('[role="slider"]')?.getAttribute("aria-valuetext")).toContain("Not rated yet");
+  await act(async () => {
+    defined(container.querySelector('[role="slider"]') ?? undefined)
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  });
+  expect(drops.rating).toBeNull();
+});
 
 it("today: the composer never reads submitting while the price POST is in flight (W1)", async () => {
   const { pending } = await startPrice(false);

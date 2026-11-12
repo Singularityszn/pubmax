@@ -98,6 +98,7 @@ import { proveUploadedImageWrite, readUploadedImageObject, uploadUploadedImageOb
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
+import { isPintDropRating } from "@/lib/pintDropRating";
 
 import {
   PintDropDailyCapError,
@@ -240,7 +241,7 @@ export type PintDropStore = {
    * Every venue the author has a visible drop at, their anonymous drops
    * included. The author's own read only, for "somewhere new".
    */
-  listOwnVenueIds(authorHandle: string): Promise<string[]>;
+  listOwnVenueIds(authorHandle: string, cityId?: CityId | null): Promise<string[]>;
   cheapestOwnPublicPint(authorHandle: string): Promise<BeenCardDrop | null>;
   listOwnContributions(authorHandle: string): Promise<OwnDropContribution[]>;
   /**
@@ -390,6 +391,7 @@ function toRow(drop: PersistableDrop, capDay: string | null = null) {
     venue_id: drop.venueId,
     handle: drop.handle,
     drink: drop.drink,
+    ...(drop.rating !== undefined ? { rating: drop.rating } : {}),
     // The SERVING the price is about (migration 0147). Written explicitly on
     // every create rather than left to the column default, so a row always
     // states its own lane instead of inheriting one.
@@ -490,6 +492,7 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     venueId: String(row.venue_id),
     handle: String(row.handle),
     drink: String(row.drink ?? ""),
+    ...(isPintDropRating(row.rating) ? { rating: row.rating } : {}),
     // Coerce on the way out too (defence in depth): a row written before 0147,
     // or a hand-edited value, collapses to `pint` - the lane it already had.
     measure: cleanDrinkMeasure(row.measure),
@@ -667,6 +670,7 @@ export function toDTO(
     venueId: drop.venueId,
     handle,
     drink: drop.drink,
+    ...(drop.rating !== undefined ? { rating: drop.rating } : {}),
     // PUBLIC, and it has to be: the browser's own drop lanes (lib/venues.ts)
     // hold a non-pint row out of the pint lane, and a DTO that withheld the
     // measure would leave every reader defaulting a half back to a pint.
@@ -1010,10 +1014,10 @@ export const memoryPintDropStore: PintDropStore = {
       .filter((drop) => drop.status === "visible" && visibilityOf(drop) !== "legacy")
       .map(ownDropContribution);
   },
-  async listOwnVenueIds(authorHandle) {
+  async listOwnVenueIds(authorHandle, cityId) {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
     if (!author) return [];
-    return attributedAuthorVenueIds(listAllVisiblePintDrops(null), author, { handle: author.current }, true);
+    return attributedAuthorVenueIds(listAllVisiblePintDrops(cityId ?? null), author, { handle: author.current }, true);
   },
   async cheapestOwnPublicPint(authorHandle) {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
@@ -1340,6 +1344,11 @@ function isMissingPriceEvidenceColumnError(
   return (code === "42703" || code === "PGRST204") && message.includes("price_evidence");
 }
 
+function isMissingRatingColumnError(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(error && (error.code === "42703" || error.code === "PGRST204") &&
+    /\brating\b/i.test(error.message ?? ""));
+}
+
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
 function isMissingLastTrainColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -1553,7 +1562,13 @@ export const supabasePintDropStore: PintDropStore = {
       // Every insert, including schema fallbacks, can race with the first save.
       // Resolve its replay before treating a unique violation as a daily cap.
       const insert = async (candidate: typeof row) => {
-        const { error: insertError } = await admin().from(TABLE).insert(candidate);
+        let { error: insertError } = await admin().from(TABLE).insert(candidate);
+        if (isMissingRatingColumnError(insertError)) {
+          log("warn", "pint_drops.rating_column_missing", { dropId: drop.id });
+          delete candidate.rating;
+          delete persistable.rating;
+          ({ error: insertError } = await admin().from(TABLE).insert(candidate));
+        }
         if (insertError?.code === "23505") {
           const existing = replayBeforeCap(
             await durableCreatedDrop(drop.id), drop, photos, isDailyPriceCapViolation(insertError),
@@ -1801,8 +1816,8 @@ export const supabasePintDropStore: PintDropStore = {
     }
     return records;
   },
-  async listOwnVenueIds(authorHandle) {
-    return durableAuthorVenueIds(authorHandle, undefined, null, undefined, true);
+  async listOwnVenueIds(authorHandle, cityId) {
+    return durableAuthorVenueIds(authorHandle, undefined, cityId ?? null, undefined, true);
   },
 
   async cheapestOwnPublicPint(authorHandle) {

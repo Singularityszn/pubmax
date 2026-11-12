@@ -20,6 +20,8 @@ vi.mock("@/lib/authClient", async (importOriginal) => {
   return { ...actual, getAccessToken: async () => "test-access-token" };
 });
 
+import StarRating from "@/components/ratings/StarRating";
+import { SpillStarField } from "@/components/map/composer/SpillStarField";
 import VenueMenuTab from "@/components/map/inspector/VenueMenuTab";
 import { GET } from "@/app/api/ratings/route";
 import { publishAuthActionState } from "@/lib/authedFetch";
@@ -306,5 +308,43 @@ describe("drink rating surface fence", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ summaries: {} });
+  });
+});
+
+describe("whole-star Pint Drop picker", () => {
+  async function selectByKey(picker: Element, direction: string) {
+    await act(async () => {
+      picker.dispatchEvent(new KeyboardEvent("keydown", { key: direction, bubbles: true }));
+    });
+    await act(async () => {
+      picker.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+  }
+
+  it.each(["ArrowRight", "ArrowLeft"])("uses whole stars for %s while the menu keeps half stars", async (direction) => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const onRate = vi.fn();
+    await act(async () => root!.render(createElement(SpillStarField, { rating: 3, setRating: onRate })));
+    await selectByKey(container.querySelector('[role="slider"]')!, direction);
+    expect(onRate).toHaveBeenLastCalledWith(direction === "ArrowRight" ? 4 : 2);
+    await act(async () => root!.render(createElement(StarRating, { value: 3, label: "Menu drink", interactive: true, onRate })));
+    await selectByKey(container.querySelector('[role="slider"]')!, direction);
+    expect(onRate).toHaveBeenLastCalledWith(direction === "ArrowRight" ? 3.5 : 2.5);
+  });
+
+  it("snaps a pointer selection to whole stars", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const onRate = vi.fn();
+    await act(async () => root!.render(createElement(SpillStarField, { rating: null, setRating: onRate })));
+    const picker = container.querySelector('[role="slider"]')!;
+    vi.spyOn(picker, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, width: 100, height: 20, right: 100, bottom: 20, x: 0, y: 0, toJSON: () => ({}) });
+    await act(async () => {
+      picker.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 50 }));
+    });
+    expect(onRate).toHaveBeenCalledWith(3);
   });
 });

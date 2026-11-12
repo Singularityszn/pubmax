@@ -1,3 +1,4 @@
+import { isPintDropRating, type PintDropRating } from "@/lib/pintDropRating";
 import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import type { PintDropDTO } from "@/lib/feed";
 import type { Visibility } from "@/lib/spill";
@@ -20,6 +21,7 @@ export type OptimisticSpillInput = {
   handle: string;
   priceGbp: string;
   drink: string;
+  rating?: PintDropRating | null;
   passedDownNote: string;
   era: string;
   visibility: Visibility;
@@ -55,6 +57,7 @@ export type OptimisticSpillRetryPayload = {
   handle: string;
   priceGbp: string;
   drink: string;
+  rating?: PintDropRating | null;
   passedDownNote: string;
   era: string;
   visibility: Visibility;
@@ -125,6 +128,7 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
     handle,
     priceGbp,
     drink: cleanString(input.drink),
+    ...(isPintDropRating(input.rating) ? { rating: input.rating } : {}),
     passedDownNote: cleanString(input.passedDownNote),
     era: cleanString(input.era),
     provenance: priceGbp === null ? "anecdote" : "contributor",
@@ -157,6 +161,7 @@ export function buildOptimisticSpillRetryPayload(
     handle: input.handle,
     priceGbp: input.priceGbp,
     drink: input.drink,
+    ...(isPintDropRating(input.rating) ? { rating: input.rating } : {}),
     passedDownNote: input.passedDownNote,
     era: input.era,
     visibility: input.visibility,
@@ -289,6 +294,7 @@ export async function buildOptimisticSpillRetryFormData(
   body.set("venueId", payload.venueId);
   body.set("handle", payload.handle);
   body.set("drink", payload.drink);
+  if (payload.rating != null) body.set("rating", String(payload.rating));
   body.set("measure", measure);
   body.set("measureLabel", measure === "other" ? (payload.measureLabel ?? "") : "");
   body.set("priceGbp", payload.priceGbp);

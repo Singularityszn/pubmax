@@ -21,13 +21,22 @@
   font-size: var(--text-sm);
 }
 
+.starRating--lg .starRatingGlyphs {
+  font-size: min(var(--text-3xl), 44px);
+}
+
+.starRating--lg.starRating--interactive {
+  padding-block: 6px;
+}
+
 .starRatingRow {
   display: block;
   white-space: nowrap;
 }
 
+/* The strong hairline, so an empty star still reads on the night panel. */
 .starRatingRow--empty {
-  color: var(--color-border);
+  color: var(--hairline-strong);
 }
 
 .starRatingRow--fill {

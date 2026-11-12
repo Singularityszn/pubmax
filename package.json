@@ -31,6 +31,7 @@
     "perf:cwv-record": "PUBMAX_CWV_RECORD=1 playwright test --project=chromium-cwv",
     "e2e:seed": "tsx scripts/e2e-seed-user.ts",
     "e2e:teardown": "tsx scripts/e2e-seed-user.ts --teardown",
+    "poster:mint": "tsx scripts/mint-poster-code.ts",
     "gate:playwright": "node scripts/assert-playwright-gate.mjs",
     "gate:e2e-skips": "node scripts/assert-no-conditional-e2e-skips.mjs e2e",
     "gate:privacy": "node scripts/assert-privacy-response.mjs",
@@ -219,6 +220,7 @@
     "sharp": "^0.35.5",
     "tailwind-merge": "^3.7.0",
     "three": "0.186.1",
+    "uqr": "0.1.3",
     "web-push": "^3.6.7",
     "zod": "4.6.7"
   },

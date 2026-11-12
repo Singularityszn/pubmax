@@ -30,6 +30,7 @@ export function sameCreatedDrop(existing: PersistableDrop, input: PintDrop, phot
     Boolean(existing.receiptPhotoKey) === Boolean(photos.receipt) &&
     existing.priceGbp === input.priceGbp &&
     existing.drink === input.drink &&
+    (existing.rating === undefined || existing.rating === input.rating) &&
     cleanDrinkMeasure(existing.measure) === cleanDrinkMeasure(input.measure) &&
     (existing.measureLabel ?? "") === (input.measureLabel ?? "") &&
     existing.passedDownNote === input.passedDownNote &&

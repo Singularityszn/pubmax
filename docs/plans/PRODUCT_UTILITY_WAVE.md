@@ -50,7 +50,8 @@ Open PRs already own coffee taxonomy, Spoons prefer/filter, lens analytics, boro
 
 ### U7 — Poster QR → `/near` (stretch)
 **Branch:** `cursor/poster-near-landing-dd0b`  
-**Job:** `/?src=poster` (UTM preserved) lands on `/near` or map-near with one honest orientation line. Spec already in `docs/growth/POSTER_SPEC.md`.  
+**Job:** Follow the [QR poster and beer-mat spec](../growth/POSTER_SPEC.md#qr-code-spec-both-pieces) for printed links and arrivals.
+
 **Done when:** redirect/analytics test; no Social surface.
 
 ## Opened PRs
