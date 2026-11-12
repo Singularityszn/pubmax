@@ -54,9 +54,10 @@ export function mergeCrawlUrlSearch(
     const value = live.get(key);
     if (value !== null && !params.has(key)) params.set(key, value);
   }
-  const table = live.get("table");
-  if (table !== null && params.get("sel") && params.get("sel") === live.get("sel")) {
-    params.set("table", table);
+  const sameSelection = Boolean(params.get("sel")) && params.get("sel") === live.get("sel");
+  for (const key of ["table", "meet"] as const) {
+    const value = live.get(key);
+    if (value !== null && sameSelection) params.set(key, value);
   }
   const crawl = live.get("crawl");
   if (preserveCrawlParam && crawl !== null && !params.has("crawl")) {

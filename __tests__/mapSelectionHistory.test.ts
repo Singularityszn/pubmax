@@ -93,6 +93,12 @@ describe("browseSelectionUrl", () => {
       .toBe("/map?sel=pub-b&food=1");
   });
 
+  it("drops the previous pub's summon time on a direct selection change", () => {
+    expect(browseSelectionUrl("/map", "?sel=pub-a&meet=20%3A00&food=1", "pub-b"))
+      .toBe("/map?sel=pub-b&food=1");
+    expect(cleanMapUrl("/map", "?sel=pub-a&meet=20%3A00&food=1")).toBe("/map?food=1");
+  });
+
   it("keeps the table ask while refreshing the same selection", () => {
     expect(refreshSelectionUrl("/map", "?sel=pub-a&table=8", "pub-a"))
       .toBe("/map?sel=pub-a&table=8");
