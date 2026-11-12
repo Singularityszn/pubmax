@@ -366,7 +366,7 @@
       },
       "cadence": "episodic — node scripts/build_historic_index.mjs",
       "stalenessBudgetHours": 2160,
-      "refreshWorkflow": "monthly review PR (.github/workflows/heritage-refresh.yml), or manual (node scripts/build_historic_index.mjs). Rebuilds from the committed heritage cache and venue dataset. Wikipedia acquisition is excluded until scripts/integrate_wikipedia_london_pubs.mjs uses lib/harvest/sourcePolicy.ts.",
+      "refreshWorkflow": "monthly review PR (.github/workflows/heritage-refresh.yml), or manual (node scripts/build_historic_index.mjs). The generator advances this literal stamp only after writing the index, including byte-identical rebuilds. The review PR includes the registry. Rebuilds from the committed heritage cache and venue dataset. Wikipedia acquisition is excluded until scripts/integrate_wikipedia_london_pubs.mjs uses lib/harvest/sourcePolicy.ts.",
       "gate": "none (deterministic JOIN of committed heritage_cache.json + pint_prices_app_dataset.json)"
     },
     {

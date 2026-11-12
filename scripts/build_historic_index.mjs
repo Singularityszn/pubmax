@@ -46,6 +46,7 @@ const CACHE_PATH = path.join(ROOT, "public", "data", "heritage_cache.json");
 const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const ALIAS_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
 const OUT_PATH = path.join(ROOT, "public", "data", "historic_pubs.json");
+const REGISTRY_PATH = path.join(ROOT, "data", "freshness_registry.json");
 
 // --- venue id + name matching (mirror of scripts/lib/venueMatch.mjs) ---------
 // Kept as a plain mirror so this generator has no TS import gymnastics; the
@@ -494,7 +495,13 @@ export async function generate({
   datasetPath = DATASET_PATH,
   aliasPath = ALIAS_PATH,
   outPath = OUT_PATH,
+  registryPath = REGISTRY_PATH,
 } = {}) {
+  const registry = await readJson(registryPath);
+  const historic = registry.datasets.find((entry) => entry.id === "historic_pubs");
+  if (historic?.stamp?.kind !== "literal") {
+    throw new Error("historic_pubs requires a literal freshness stamp");
+  }
   const heritageCache = await readJson(cachePath);
   const dataset = await readJson(datasetPath);
   const venueAliases = await readVenueAliases(aliasPath);
@@ -505,6 +512,8 @@ export async function generate({
   });
   // Pretty-printed + trailing newline for a clean, diff-friendly, stable file.
   await writeFile(outPath, `${JSON.stringify(records, null, 2)}\n`);
+  historic.stamp.value = new Date().toISOString();
+  await writeFile(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
 
   const matched = records.filter((r) => r.venueId != null).length;
   const withEra = records.filter((r) => r.era != null).length;

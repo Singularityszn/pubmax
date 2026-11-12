@@ -617,7 +617,7 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 | What's-On GitHub recovery | `events-refresh.yml` (`workflow_dispatch` only; schedule disabled as duplicate) |
 | Weather cache PR | `weather-refresh.yml` |
 | Drink price PR | `drink-price-refresh.yml` |
-| Heritage facts PR, monthly (Wikidata + Historic England + offline historic index rebuild, with Wikipedia acquisition awaiting sourcePolicy) | `heritage-refresh.yml` |
+| Heritage facts PR, monthly (Wikidata + Historic England + offline historic index rebuild and freshness stamp, with Wikipedia acquisition awaiting sourcePolicy) | `heritage-refresh.yml` |
 | London Tavily pass PR | `tavily-london-nightly.yml` (see `docs/TAVILY_LONDON_NIGHTLY.md`) |
 | Performance budgets | `performance.yml` |
 | Freshness release gate, daily | `freshness.yml` |

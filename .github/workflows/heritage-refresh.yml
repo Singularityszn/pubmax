@@ -36,7 +36,7 @@ jobs:
       pull-requests: write # open the review PR
     timeout-minutes: 30
     env:
-      REFRESHED: public/data/wikidata_history/london.json public/data/heritage_listings.json data/heritage/nhle_london_points.json public/data/heritage_cache.json public/data/historic_pubs.json
+      REFRESHED: public/data/wikidata_history/london.json public/data/heritage_listings.json data/heritage/nhle_london_points.json public/data/heritage_cache.json public/data/historic_pubs.json data/freshness_registry.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
