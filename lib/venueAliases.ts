@@ -118,6 +118,7 @@ export async function resolveCanonicalVenueId(id: string): Promise<string> {
  * written under. An unavailable map answers as the identity.
  */
 export type VenueAliasResolver = {
+  status: "ready" | "unavailable";
   /** The current id a stored reference resolves to. */
   canonical(id: string): string;
   /** Every id a reference to this venue may be stored under, current id first. */
@@ -152,6 +153,7 @@ export async function loadVenueAliasResolver(): Promise<VenueAliasResolver> {
   }
   const canonical = (id: string) => aliases.get(id) ?? id;
   return {
+    status: result.status,
     canonical,
     storedIds(id) {
       const current = canonical(id);

@@ -22,7 +22,6 @@ import {
   type PointsBreakdown,
 } from "@/lib/points";
 import {
-  canonicalizer,
   defaultPassportDeps,
   foldBeenVenues,
   type PassportDeps,
@@ -31,6 +30,7 @@ import {
 import { normalizeHandle } from "@/lib/profiles";
 import type { ProfileRecord } from "@/lib/profileStore";
 import { ratingsStore } from "@/lib/ratingsStore";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { venueCorrectionsStore } from "@/lib/venueCorrectionsStore";
 import { readCityVenueIndex, type IndexedVenue } from "@/lib/venueIndex";
 import { venueSubmissionStore } from "@/lib/venueSubmissionStore";
@@ -81,17 +81,17 @@ export async function readPointsBreakdown(
     userId ? settle(() => deps.fixedPubs(userId), 0) : none(0),
     handle ? settle(() => deps.drinkReviews(handle), 0) : none(0),
     settle(() => deps.londonDistricts(), new Map<string, readonly string[]>() as ReadonlyMap<string, readonly string[]>),
-    canonicalizer(deps),
+    settle(() => deps.venueAliases(), (venueId: string) => venueId),
   ]);
 
   const venues = await foldBeenVenues(
     { diary: diary.value, drops: drops.value, plans: plans.value, beenHere: beenHere.value },
-    canonical,
+    canonical.value,
     deps,
   );
   const finished = finishedDistricts(districts.value, new Set(venues.map((venue) => venue.venueId)));
   const priced = drops.value.filter((drop) => drop.priced);
-  const degraded = [diary, drops, plans, beenHere, added, fixed, reviews, districts].some((read) => read.failed);
+  const degraded = [diary, drops, plans, beenHere, added, fixed, reviews, districts, canonical].some((read) => read.failed);
 
   return buildPointsBreakdown(
     {
@@ -177,7 +177,11 @@ function defaultPointsDeps(): PointsDeps {
     plans: passport.plans,
     beenHere: passport.beenHere,
     venue: passport.venue,
-    venueAliases: passport.venueAliases,
+    venueAliases: async () => {
+      const aliases = await loadVenueAliasResolver();
+      if (aliases.status === "unavailable") throw new Error("Venue aliases unavailable");
+      return aliases.canonical;
+    },
     async drops(ownerHandle) {
       const key = normalizeHandle(ownerHandle);
       const drops = await pintDropsStore().listOwnContributions(key);

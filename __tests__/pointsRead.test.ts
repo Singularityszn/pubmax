@@ -2,10 +2,14 @@
 // read the breakdown, and what a failed store does to the total. Every store
 // is a fake, so the breakdown is the whole of the proof.
 
-import { describe, expect, it } from "vitest";
+import { promises as fs } from "node:fs";
+
+import { describe, expect, it, vi } from "vitest";
 
 import { readPointsBreakdown, readProfilePoints, type PointsDeps } from "@/lib/points.server";
 import type { ProfileRecord } from "@/lib/profileStore";
+import { resetVenueAliasesForTests } from "@/lib/venueAliases";
+import * as venueIndex from "@/lib/venueIndex";
 
 const OWNER = { id: "p-owner", handle: "owner", userId: "u-owner", visibility: "public" } as ProfileRecord;
 const OTHER = { id: "p-other", handle: "other", userId: "u-other", visibility: "public" } as ProfileRecord;
@@ -114,6 +118,37 @@ describe("readPointsBreakdown", () => {
     );
     expect(breakdown.status).toBe("degraded");
     expect(line(breakdown, "district")).toMatchObject({ count: 0, points: 0 });
+  });
+
+  it("marks points degraded when venue aliases cannot be read", async () => {
+    const result = await readProfilePoints(
+      request(),
+      "owner",
+      deps("u-owner", {
+        diary: async () => [{ venueId: "anchor-old", venueName: "Anchor", date: "2026-10-01", source: "diary" }],
+        drops: async () => [
+          { venueId: "anchor", createdAt: "2026-10-05T19:00:00.000Z", priced: true, checked: false },
+        ],
+        venueAliases: async () => {
+          throw new Error("alias file unavailable");
+        },
+      }),
+    );
+    expect(result).toMatchObject({ ok: true, body: { status: "degraded" } });
+  });
+
+  it("preserves a real alias-file failure through the default points reader", async () => {
+    const indexRead = vi.spyOn(venueIndex, "readCityVenueIndex").mockResolvedValue(new Map());
+    const fileRead = vi.spyOn(fs, "readFile").mockRejectedValue(new Error("alias file missing"));
+    resetVenueAliasesForTests();
+    try {
+      const breakdown = await readPointsBreakdown({ handle: "" });
+      expect(breakdown).toMatchObject({ status: "degraded", total: 0 });
+    } finally {
+      fileRead.mockRestore();
+      indexRead.mockRestore();
+      resetVenueAliasesForTests();
+    }
   });
 });
 
