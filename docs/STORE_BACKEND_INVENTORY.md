@@ -196,6 +196,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/identityHandleStore.ts",
     "lib/ledgerLog.server.ts",
     "lib/mapSearchEvents.server.ts",
+    "lib/matesActivity.server.ts",
     "lib/messageAuth.ts",
     "lib/messagePhotoMedia.server.ts",
     "lib/messageSafety.server.ts",
