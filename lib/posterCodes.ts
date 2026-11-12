@@ -69,17 +69,12 @@ export function findPosterCode(
   return codes.find((entry) => entry.code === code) ?? null;
 }
 
-/**
- * Where /get/<code> sends a scan. A minted code carries its utm tags. An
- * unknown code still lands on /near as a poster arrival, so a scuffed or
- * mistyped code never ends on a 404.
- */
 export function posterCodeHref(
   rawCode: string,
   codes: readonly PosterCode[] = POSTER_CODES,
 ): Route {
   const entry = findPosterCode(rawCode.trim().toLowerCase(), codes);
-  if (!entry) return posterNearHref({ src: POSTER_LANDING_SRC });
+  if (!entry) return "/near";
   return posterNearHref({
     src: POSTER_LANDING_SRC,
     utm_source: entry.place,
