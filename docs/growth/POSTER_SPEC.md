@@ -41,15 +41,27 @@ Print production, both pieces:
 
 ## QR code spec (both pieces)
 
-- Target URL: a short link, `https://pubmaxxing.com/get/<code>`. Mint one code
-  per print run with `npm run poster:mint -- --place PUB-SLUG --medium
-  poster|beermat [--campaign CAMPAIGN]`, commit `lib/posterCodes.json`, and print
-  after the next deploy. The link opens `/near` with `src=poster` and the run's
-  `utm_*` tags, so a scan opens nearby prices rather than the marketing landing,
-  and PostHog's `poster_landing` event names the medium and the code. Use the
-  same code across a partner's whole print run.
+- Target URL: a short link, `https://pubmaxxing.com/get/<code>`. Use one code per
+  pub, medium and print run. Use the same code throughout that run.
+- Mint the code from the repository root:
+
+  1. Run `npm run poster:mint -- --place PUB-SLUG --medium poster` or use `--medium beermat` for beer mats.
+     Add `--campaign CAMPAIGN` for a campaign slug. Add `--code MEMORABLE-SLUG`
+     to choose an unused code instead of generating one. Slugs use lower-case
+     letters, digits and internal hyphens.
+  2. Commit the updated `lib/posterCodes.json`.
+  3. Print the returned link after a deployment includes that registry change.
+
+- A deployed code opens `/near` with `src=poster` and the run's `utm_*` tags.
+  The orientation line names the poster or beer mat. Code matching ignores
+  letter case and surrounding spaces. An unknown code opens plain `/near`,
+  without attribution tags, a poster note or a `poster_landing` event.
+- The [tracking plan](../analytics/TRACKING_PLAN.md#51-acquisition-and-arrival)
+  defines what `poster_landing` measures. Analytics requires consent and honours
+  Do Not Track. Consent granted later in the same document can record the arrival
+  after navigation away from `/near`.
 - A short link makes a smaller QR that scans more easily on a scuffed mat.
-  `https://pubmaxxing.com/?src=poster` with `utm_*` tags still works for codes
+  `https://pubmaxxing.com/?src=poster` with `utm_*` tags still works for links
   already printed.
 - Error correction: level H (30 percent). Bar-room posters get scuffed and part
   covered; H survives it.
@@ -183,8 +195,7 @@ Back: unchanged. The QR code with `Point your camera here.`, then
 ## Handoff checklist
 
 - Test-scan every proof under low light before approving the run.
-- Confirm the campaign tag on the QR matches the partner and is consistent across
-  their whole order.
+- Confirm the QR uses the deployed code for the partner, medium and print run.
 - Check no em dash slipped into artwork copy during layout.
 - Confirm the positioning line is present and spelled exactly as above.
 - Confirm no private individual appears on any artwork.

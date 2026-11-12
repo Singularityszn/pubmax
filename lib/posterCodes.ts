@@ -11,8 +11,8 @@ import {
 // Short links for printed posters and beer mats: pubmaxxing.com/get/<code>.
 // lib/posterCodes.json is the closed list of minted codes, written by
 // `npm run poster:mint`. A code goes live with the next deploy. Analytics
-// records only a code from this list, so a typed or forged code cannot add a
-// poster that was never printed.
+// records only a code from this list. A recorded visit does not prove that
+// the code was printed or scanned.
 
 export type PosterCode = {
   code: string;

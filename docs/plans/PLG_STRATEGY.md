@@ -124,7 +124,7 @@ Signup only at the contribution gate, with one clear bargain: “Log tonight’s
 - Reduce time from “saw a pub” → signed-in → first price logged
 - Provisional mark already exists; keep authority gates; improve empty-state honesty
 - Borough / Pint Index challenges: “Camden needs 20 corroborated pints this month” (status, not gamified spam)
-- Poster / beer-mat physical QR ([docs/growth/POSTER_SPEC.md](docs/growth/POSTER_SPEC.md)) into `/near` or map with UTM — distribution as product design (Thiel)
+- Use the [QR poster and beer-mat spec](../growth/POSTER_SPEC.md#qr-code-spec-both-pieces) for physical distribution.
 
 **Done when:** corroborated coverage rises week-on-week in 3+ boroughs without paid ads.
 

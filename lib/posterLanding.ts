@@ -1,9 +1,7 @@
 import type { Route } from "next";
 
-// Physical QR poster arrival (PLG Wave 2). Printed codes point at a short link,
-// `/get/<code>` (lib/posterCodes.ts), or at `/?src=poster` with utm_* tags. Both
-// land on `/near` with src=poster and the campaign query kept, so a scan opens
-// nearby prices rather than the marketing landing. See docs/growth/POSTER_SPEC.md.
+// Printed-link destinations and attribution rules live in
+// docs/growth/POSTER_SPEC.md. lib/posterCodes.ts resolves short links.
 
 export const POSTER_LANDING_SRC = "poster";
 
