@@ -1,0 +1,60 @@
+/* The Been card: the owner's shared page (app/u/[handle]/been/[token]) and the
+   share button in the passport's Been section. Launch tokens only. */
+
+.beenCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 32rem;
+  margin: var(--space-8) 0 0;
+}
+
+.beenCard__title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.beenCard__line {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.beenCard__line a {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.beenCard__pint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+}
+
+/* The bar counter the receipt lies on, as on the /p/[id] permalink, so the
+   paper reads as paper in both themes. */
+.beenCard__counter {
+  padding: clamp(16px, 5vw, 32px) clamp(12px, 4vw, 32px);
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+}
+
+.beenCard__label {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.beenCardDoor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}

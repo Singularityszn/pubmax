@@ -1,6 +1,7 @@
-// The click half of "Share this pint" and "Share your receipt", loaded only
-// when the reader taps one (components/share/SharePintButton.tsx and
-// components/pintdrop/ReceiptShareStep.tsx import this lazily), so the surfaces
+// The click half of "Share this pint", "Share your receipt" and "Share your
+// Been card", loaded only when the reader taps one (components/share/
+// SharePintButton.tsx, components/pintdrop/ReceiptShareStep.tsx and
+// components/profile/BeenCardShare.tsx import this lazily), so the surfaces
 // that offer the action carry a button and nothing else until then.
 //
 // The OS sheet first (the native shell seam, then the Web Share API), and the
@@ -14,6 +15,7 @@ import type { Route } from "next";
 import { trackEvent } from "@/lib/analytics";
 import type { ContentShareSurface } from "@/lib/analyticsEvents";
 import { shareViaNativeSheet } from "@/lib/nativeShare";
+import { beenCardShareText, beenCardTitle } from "@/lib/beenCard";
 import { buildPintShareText, pintShareUrl, type PintShare } from "@/lib/pintShare";
 import { buildPersonalReceiptShareText, type ReceiptShare } from "@/lib/pintReceipt";
 import { isUserCancelledShare } from "@/lib/venueShare";
@@ -98,6 +100,22 @@ export function shareReceipt(
       title: `My receipt from ${share.receipt.venueName}`,
       text: buildPersonalReceiptShareText(share.receipt),
       surface: "receipt",
+    },
+    deps,
+  );
+}
+
+/** The owner's Been card: the signed path the server minted, never a count the page holds. */
+export function shareBeenCard(
+  card: { path: string; handle: string; pubs: number },
+  deps: PintShareActionDeps = {},
+): Promise<PintShareOutcome> {
+  return shareLinkOrCopy(
+    {
+      path: card.path as Route,
+      title: beenCardTitle(card.handle, card.pubs),
+      text: beenCardShareText(card.pubs),
+      surface: "been",
     },
     deps,
   );
