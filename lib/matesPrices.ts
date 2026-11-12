@@ -74,7 +74,7 @@ export function matesPriceDrink(price: Pick<MatesPrice, "drink" | "measure" | "m
   const drink = price.drink.replace(/\s+/g, " ").trim();
   const measure = cleanDrinkMeasure(price.measure);
   const label = cleanDrinkMeasureLabel(price.measureLabel).toLowerCase();
-  if (drink && measureNamedInDrinkText(drink)) return drink;
+  if (drink && (measure === "pint" || measure === "half" || measure === "other") && measureNamedInDrinkText(drink)) return drink;
   if (measure === "half") return drink ? `a half of ${drink}` : "a half";
   if (measure === "other") {
     if (drink) return label ? `${drink} (${label})` : drink;
@@ -82,6 +82,7 @@ export function matesPriceDrink(price: Pick<MatesPrice, "drink" | "measure" | "m
   }
   if (measure === "pint") return drink || "a pint";
   const named = DRINK_MEASURE_LABEL[measure].toLowerCase();
+  if (drink && new RegExp(`\\b${measure.replace("ml", "\\s*ml")}\\b`, "i").test(drink)) return drink;
   if (drink) return `${drink} (${named})`;
   return /ml$/.test(measure) ? `a ${named} glass` : `a ${named}`;
 }
