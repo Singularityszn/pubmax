@@ -301,6 +301,12 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If you start while signed out, choose **Sign in to post** after entering your price. Both login tabs return you to the selected pub and price after you claim a handle. If **Log it** asks for age confirmation, choose **I'm 18 or over**. An accepted confirmation submits your retained Pint Drop automatically. You do not need to enter the price again.
 
+  Choose an optional rating from 1 to 5 whole stars under **How was it?**. **Clear** removes the selection. Each drop keeps its own stars, including anonymous drops. Later drops of the same drink do not change earlier ratings. Saved stars appear beside the drop and on its receipt. A star rating does not check the price.
+
+  A drop with stars keeps the composer open until the app confirms that both the drop and its stars saved. Without stars, the composer closes immediately. When the composer's **Retry** button appears, it resends the original request, even if you edit the form.
+
+  If the drop saved without stars, the form keeps your selection and says the stars were not saved. Retrying returns the saved drop without creating another one. It cannot add missing stars to an already saved drop.
+
   On the [configured Product Hunt log in public day](lib/logInPublicDay.ts), **Logged in public** replaces home's Recent prices strip and appears above Social's Posts. Other Social tabs keep their existing behaviour. The section lists public London prices logged that calendar day, newest first, with each pub, serving, price and London time. Demo drops, unpriced drops and other days' drops are excluded. The section shows its date and refreshes its day selection at London midnight and when the browser page resumes.
 
   Results come from a capped public read and can omit eligible drops. **Show more prices from today** expands the returned rows. An empty result does not establish that nobody logged a price. A failed read offers **Try again**. **Log a pint** opens the map's pub picker.
