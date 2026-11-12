@@ -15,6 +15,12 @@ type BoundaryCall = {
   value?: string;
 };
 
+type PublicationScenario = {
+  name: string;
+  changed: string[];
+  staged?: boolean;
+};
+
 const refreshedPaths = [
   "public/data/wikidata_history/london.json",
   "public/data/heritage_listings.json",
@@ -25,7 +31,7 @@ const refreshedPaths = [
 ];
 
 describe("heritage refresh publication", () => {
-  it.each([
+  it.each<PublicationScenario>([
     { name: "unchanged facts", changed: [] },
     { name: "unrelated changes only", changed: ["unrelated.txt"] },
     { name: "all refreshed outputs", changed: refreshedPaths },
