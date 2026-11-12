@@ -20,8 +20,9 @@ const OG_TEXT_SURFACES = [
   "app/historic/[slug]/opengraph-image.tsx",
   "app/invite/[token]/opengraph-image.tsx",
   "app/map/[city]/opengraph-image.tsx",
-  "app/p/[id]/opengraph-image.tsx",
+  "app/u/[handle]/been/[token]/opengraph-image.tsx",
   "app/u/[handle]/opengraph-image.tsx",
+  "lib/ogPintReceipt.tsx",
   "lib/recapCard.ts",
 ] as const;
 
