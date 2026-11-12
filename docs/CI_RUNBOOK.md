@@ -158,7 +158,7 @@ request to it, or use the "Merge when ready" button.
 
 Jobs use GitHub-hosted `ubuntu-latest` by default, including Browser law
 pins. The `MACOS_JOBS` list in `__tests__/ciRunnerIsolation.test.ts` owns the
-exceptions and their reasons. They run on the self-hosted `pubmax-mac` pool
+macOS exceptions and their reasons. They run on the self-hosted `pubmax-mac` pool
 (see "Self-hosted Mac runners" below):
 
 - The layout pins and the two nightly full-suite jobs. Their specs were proved on
@@ -168,6 +168,10 @@ exceptions and their reasons. They run on the self-hosted `pubmax-mac` pool
   full suite failed 19 more tests than the macOS nightly.
 - The two `performance.yml` jobs. Their route budgets were measured on macOS.
 - `prod-smoke.yml`. It runs once per production deploy.
+
+The `LINUX_PINNED_JOBS` list in the same test owns the hosted jobs that pin an
+Ubuntu image. The Effective RLS job runs on `ubuntu-24.04` because it installs
+`postgresql-16` from the Ubuntu archive, and `ubuntu-26.04` does not carry it.
 
 GitHub's free plan runs about 20 hosted Linux jobs at once. Hosted macOS
 jobs waited a long time in GitHub's queue, so the macOS jobs moved to the
@@ -182,6 +186,8 @@ not on the pull-request path.
 runs-on: ubuntu-latest
 # the MACOS_JOBS list only
 runs-on: pubmax-mac
+# the LINUX_PINNED_JOBS list only, with its own image
+runs-on: ubuntu-24.04
 ```
 
 `__tests__/ciRunnerIsolation.test.ts` checks those labels and the workflow's
