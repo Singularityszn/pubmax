@@ -12,7 +12,6 @@ import { cleanText } from "@/lib/textClean";
 import type { VenueKind } from "@/lib/venues";
 import { authedFetch } from "@/lib/authedFetch";
 import { loadVenueAliasMap } from "@/lib/venueAliasMap";
-import { BEEN_HERE_LIST, emitBeenHereChanged } from "@/lib/beenHere";
 
 // A list is now free text (built-in suggestion OR a custom name).
 export type ListType = string;
@@ -26,6 +25,12 @@ export type SavedPub = {
 };
 
 const STORAGE_KEY = "pubmax:savedPubs:v1";
+const savedPubsListeners = new Set<() => void>();
+
+export function subscribeSavedPubs(onChange: () => void): () => void {
+  savedPubsListeners.add(onChange);
+  return () => { savedPubsListeners.delete(onChange); };
+}
 
 // ── Pure core (no window, no storage) ────────────────────────────────────────
 // A saved entry is unique by (venueId, listType): the same pub can live in many
@@ -157,7 +162,9 @@ function write(list: SavedPub[]): void {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch {
     // Storage full / disabled / private mode — the demo degrades silently.
+    return;
   }
+  for (const listener of savedPubsListeners) listener();
 }
 
 async function setSaved(
@@ -190,7 +197,6 @@ async function setSaved(
         })
       : current.filter((entry) => !held(entry)),
   );
-  if (cleanedListType === BEEN_HERE_LIST) emitBeenHereChanged();
 }
 
 /**

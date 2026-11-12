@@ -11,7 +11,7 @@ import { sameIds } from "@/components/map/canvas/paintedPins";
 import { subscribeBeenHere } from "@/lib/beenHere";
 import { beenHereIds } from "@/lib/beenHereProgress";
 import { safeLocalStorage } from "@/lib/safeStorage";
-import { getSaved, readCanonicalSaved } from "@/lib/savedPubs";
+import { getSaved, readCanonicalSaved, subscribeSavedPubs } from "@/lib/savedPubs";
 
 const SAVED_STORAGE_KEY = "pubmax:savedPubs:v1";
 const POSTCODES_KEY = "pubmax:been-here-postcodes:v1";
@@ -24,9 +24,11 @@ function subscribeSavedLists(onChange: () => void): () => void {
     if (event.key === null || event.key === SAVED_STORAGE_KEY) onChange();
   };
   const unsubscribe = subscribeBeenHere(onChange);
+  const unsubscribeDevice = subscribeSavedPubs(onChange);
   window.addEventListener("storage", onStorage);
   return () => {
     unsubscribe();
+    unsubscribeDevice();
     window.removeEventListener("storage", onStorage);
   };
 }

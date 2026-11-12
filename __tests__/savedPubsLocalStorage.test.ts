@@ -5,6 +5,7 @@ import {
   canonicalizeStoredSaved,
   getSaved,
   savedByList,
+  subscribeSavedPubs,
   toggleSaveDurable,
 } from "@/lib/savedPubs";
 
@@ -69,10 +70,12 @@ describe("saved pubs when the browser refuses site data", () => {
 });
 
 describe("saved pubs when storage is available", () => {
-  it("publishes Been here additions and removals after the shared write", async () => {
+  it("publishes local writes without announcing committed account changes", async () => {
     installWindow(makeMemoryStorage());
     const observed: string[][] = [];
-    const unsubscribe = subscribeBeenHere(() => {
+    const accountChanges = vi.fn();
+    const unsubscribeAccount = subscribeBeenHere(accountChanges);
+    const unsubscribe = subscribeSavedPubs(() => {
       observed.push(getSaved().filter((row) => row.listType === BEEN_HERE_LIST).map((row) => row.venueId));
     });
     try {
@@ -83,10 +86,14 @@ describe("saved pubs when storage is available", () => {
       await toggleSaveDurable("", "venue-1", BEEN_HERE_LIST, undefined, "pub", false);
       await toggleSaveDurable("", "venue-2", BEEN_HERE_LIST, undefined, "pub", false);
 
-      expect(observed).toEqual([["venue-1"], ["venue-1", "venue-2"], ["venue-2"], []]);
+      expect(observed).toEqual([["venue-1"], ["venue-1", "venue-2"], ["venue-1", "venue-2"], ["venue-2"], []]);
+      expect(accountChanges).not.toHaveBeenCalled();
     } finally {
       unsubscribe();
+      unsubscribeAccount();
     }
+    await toggleSaveDurable("", "venue-4", BEEN_HERE_LIST);
+    expect(observed).toHaveLength(5);
   });
 
   it("round-trips a signed-out save through localStorage", async () => {

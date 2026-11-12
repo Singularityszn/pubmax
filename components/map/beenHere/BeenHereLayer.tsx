@@ -17,10 +17,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type * as maplibregl from "maplibre-gl";
 
 import { PIN_MIN_ZOOM, PROVISIONAL_BADGE_OFFSET_PX, PROVISIONAL_BADGE_RADIUS_MAX_PX } from "@/components/map/canvas/buildScene";
-import { paintedPinShapes, sameShapes, type PaintedPinShape } from "@/components/map/canvas/paintedPins";
+import { paintedPins, samePaintedPins, type PaintedPin } from "@/components/map/canvas/paintedPins";
 import { readTokens } from "@/components/map/canvas/tokens";
 import type { BeenHereProgress } from "@/lib/beenHereProgress";
-import type { Venue } from "@/lib/venues";
 
 import { useBeenHerePostcodesOn, useBeenHereVenueIds } from "./useBeenHere";
 import { useLondonBeenHereProgress } from "./useLondonBeenHereProgress";
@@ -185,15 +184,13 @@ function removeLayers(map: maplibregl.Map): void {
 
 function markFeatures(
   visited: ReadonlySet<string>,
-  painted: ReadonlyMap<string, PaintedPinShape>,
-  byId: ReadonlyMap<string, Venue>,
+  painted: ReadonlyMap<string, PaintedPin>,
 ): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
   for (const id of visited) {
-    const shape = painted.get(id);
-    const venue = byId.get(id);
-    if (!shape || !venue) continue;
-    features.push({ type: "Feature", properties: { id, pill: shape === "pill" }, geometry: { type: "Point", coordinates: [venue.longitude, venue.latitude] } });
+    const pin = painted.get(id);
+    if (!pin) continue;
+    features.push({ type: "Feature", properties: { id, pill: pin.shape === "pill" }, geometry: { type: "Point", coordinates: pin.coordinates } });
   }
   return { type: "FeatureCollection", features };
 }
@@ -215,14 +212,12 @@ function setData(map: maplibregl.Map, sourceId: string, data: GeoJSON.FeatureCol
   source?.setData(data);
 }
 
-export default function BeenHereLayer({ map, venues }: { map: maplibregl.Map; venues: readonly Venue[] }) {
+export default function BeenHereLayer({ map }: { map: maplibregl.Map }) {
   const visited = useBeenHereVenueIds();
   const postcodesOn = useBeenHerePostcodesOn();
   const progress = useLondonBeenHereProgress(postcodesOn, visited);
-  const byId = useMemo(() => new Map(venues.map((venue) => [venue.id, venue])), [venues]);
-
-  const [painted, setPainted] = useState<ReadonlyMap<string, PaintedPinShape>>(() => new Map());
-  const marks = useMemo(() => markFeatures(visited, painted, byId), [visited, painted, byId]);
+  const [painted, setPainted] = useState<ReadonlyMap<string, PaintedPin>>(() => new Map());
+  const marks = useMemo(() => markFeatures(visited, painted), [visited, painted]);
   const districts = useMemo(() => districtFeatures(postcodesOn ? progress : null), [postcodesOn, progress]);
   const settled = useRef(false);
   const latestDistricts = useRef(districts);
@@ -246,9 +241,9 @@ export default function BeenHereLayer({ map, venues }: { map: maplibregl.Map; ve
       // A style still loading its sources at mount fires no second style.load.
       if (!map.getLayer(MARK_LAYER)) draw();
       else placeLayers(map);
-      const next = paintedPinShapes(map);
+      const next = paintedPins(map);
       settled.current = true;
-      setPainted((current) => (sameShapes(current, next) ? current : next));
+      setPainted((current) => (samePaintedPins(current, next) ? current : next));
     };
     if (map.isStyleLoaded()) readPainted();
     map.on("style.load", draw);

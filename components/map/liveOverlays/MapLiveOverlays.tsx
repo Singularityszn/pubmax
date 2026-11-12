@@ -25,7 +25,7 @@ export default function MapLiveOverlays({ map, sunChaserOn, venues }: { map: Sun
   return (
     <>
       {sunChaserOn ? <SunChaserLayer map={map} venues={venues} /> : null}
-      {hasBeenHere && map ? <BeenHereLayer map={map} venues={venues} /> : null}
+      {hasBeenHere && map ? <BeenHereLayer map={map} /> : null}
       {night && map ? <CrewLiveLocationLayer key={`${owner}:${night.planId}:${night.via}`} map={map} night={night} /> : null}
     </>
   );

@@ -35,25 +35,32 @@ export function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean
 }
 
 /** How a painted pub is drawn: a price pill, or the glass glyph of a pub with no price on its pin. */
-export type PaintedPinShape = "pill" | "glyph";
+export type PaintedPin = { shape: "pill" | "glyph"; coordinates: GeoJSON.Position };
 
 /** The painted pub pins and the shape each one is drawn in. */
-export function paintedPinShapes(
+export function paintedPins(
   map: Pick<maplibregl.Map, "getLayer" | "queryRenderedFeatures">,
-): Map<string, PaintedPinShape> {
+): Map<string, PaintedPin> {
   const layers = PUB_PIN_LAYERS.filter((id) => Boolean(map.getLayer(id)));
-  const shapes = new Map<string, PaintedPinShape>();
-  if (layers.length === 0) return shapes;
+  const pins = new Map<string, PaintedPin>();
+  if (layers.length === 0) return pins;
   for (const feature of map.queryRenderedFeatures({ layers })) {
     const id = feature.properties?.id;
-    if (typeof id !== "string" || shapes.get(id) === "pill") continue;
-    shapes.set(id, feature.layer.id.includes("price-pill") ? "pill" : "glyph");
+    if (typeof id !== "string" || feature.geometry.type !== "Point" || pins.get(id)?.shape === "pill") continue;
+    pins.set(id, {
+      shape: feature.layer.id.includes("price-pill") ? "pill" : "glyph",
+      coordinates: feature.geometry.coordinates,
+    });
   }
-  return shapes;
+  return pins;
 }
 
-export function sameShapes(a: ReadonlyMap<string, PaintedPinShape>, b: ReadonlyMap<string, PaintedPinShape>): boolean {
+export function samePaintedPins(a: ReadonlyMap<string, PaintedPin>, b: ReadonlyMap<string, PaintedPin>): boolean {
   if (a.size !== b.size) return false;
-  for (const [id, shape] of a) if (b.get(id) !== shape) return false;
+  for (const [id, pin] of a) {
+    const next = b.get(id);
+    if (!next || next.shape !== pin.shape || next.coordinates.length !== pin.coordinates.length) return false;
+    if (pin.coordinates.some((coordinate, axis) => coordinate !== next.coordinates[axis])) return false;
+  }
   return true;
 }
