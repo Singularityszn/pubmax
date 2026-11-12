@@ -244,21 +244,6 @@ export default function MobileSharedSheet({
     };
   }, [initialSnap, kind, openAtSnap, requestEscape]);
 
-  useEffect(() => {
-    const sheet = sheetRef.current;
-    if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      recapToViewport();
-      updateCramped();
-    });
-    const portal = sheet.closest(".mobileSheetPortal");
-    if (portal) observer.observe(portal);
-    for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
-      observer.observe(part);
-    }
-    return () => observer.disconnect();
-  }, [footerEl, kind, recapToViewport]);
-
   // How far the sheet's top edge sits above the viewport bottom, for chrome
   // that docks on it (the live voice bar). Layout height, not the rect: the
   // entrance slide is a transform, and the dock waits where the sheet will rest.
@@ -266,7 +251,9 @@ export default function MobileSharedSheet({
     const sheet = sheetRef.current;
     const portal = sheet?.closest<HTMLElement>(".mobileSheetPortal");
     if (!kind || !sheet || !portal || typeof ResizeObserver === "undefined") return;
+    const header = sheet.querySelector<HTMLElement>(".mobileSharedSheetHeader");
     const publish = () => {
+      document.body.style.setProperty("--map-sheet-header-h", `${header?.offsetHeight ?? 64}px`);
       const top = portal.getBoundingClientRect().bottom - sheet.offsetHeight;
       publishMapSheetClearance(sheet, window.innerHeight - top);
     };
@@ -274,9 +261,11 @@ export default function MobileSharedSheet({
     const observer = new ResizeObserver(publish);
     observer.observe(sheet);
     observer.observe(portal);
+    if (header) observer.observe(header);
     return () => {
       observer.disconnect();
       releaseMapSheetClearance(sheet);
+      document.body.style.removeProperty("--map-sheet-header-h");
     };
   }, [kind]);
 
@@ -292,6 +281,21 @@ export default function MobileSharedSheet({
       resting && sheetHeight > 0 && sheetHeight + 1 < sheetChrome(sheet).chromePx,
     );
   });
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      recapToViewport();
+      updateCramped();
+    });
+    const portal = sheet.closest(".mobileSheetPortal");
+    if (portal) observer.observe(portal);
+    for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
+      observer.observe(part);
+    }
+    return () => observer.disconnect();
+  }, [footerEl, kind, recapToViewport]);
+
   useLayoutEffect(() => {
     updateCramped();
   }, [dragging, entering, footerEl, kind, settling, sheetHeight, visibleExit]);

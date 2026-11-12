@@ -136,6 +136,22 @@ describe("useSheetHeightDrag under a shrinking layout viewport", () => {
     expect(probe.snapshot!.sheetHeight).toBe(initialHeight);
   });
 
+  it("restores an open sheet after the voice band temporarily consumes its space", async () => {
+    setViewport(320, 568);
+    const portal = document.body.appendChild(document.createElement("div"));
+    portal.className = "mobileSheetPortal";
+    portal.style.bottom = "64px";
+    portal.style.paddingTop = "280px";
+    const probe = await mount();
+    await act(async () => probe.snapshot!.openAtSnap("full"));
+    expect(probe.snapshot!.sheetHeight).toBe(0);
+
+    portal.style.paddingTop = "132px";
+    await act(async () => probe.snapshot!.recapToViewport());
+    expect(probe.snapshot!.sheetHeight).toBe(124);
+    expect(probe.snapshot!.sheetSnap).toBe("full");
+  });
+
   it("re-caps an open sheet to the new viewport, jumping rather than springing", async () => {
     setViewport(773);
     const probe = await mount();

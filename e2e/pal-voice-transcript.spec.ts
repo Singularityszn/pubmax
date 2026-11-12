@@ -1084,6 +1084,61 @@ for (const width of [390, 568, 641, 768]) {
   });
 }
 
+test("568px: large text keeps the sheet exit and End reachable", async ({ page }, info) => {
+  await page.setViewportSize({ width: 568, height: 320 });
+  await storeThemeChoice(page, "light");
+  const socket = await openLiveVoice(page);
+  hear(socket, "Find four pubs in Soho");
+  const response = await page.request.post("/api/pub-pal/chat", { data: { query: "Find four pubs in Soho" } });
+  expect(response.ok()).toBe(true);
+  const answer = await response.json();
+  const index = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { rows: { id: string; lat: number; lng: number }[] };
+  const venues = index.rows.filter(venue => answer.cards.some((card: { venueId: string }) => card.venueId === venue.id));
+  const request = { tool_name: "search_venues", tool_call_id: `sheet-reserve-${++eventId}`, tool_type: "webhook", event_id: eventId };
+  socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+  socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+    ...request, is_error: false, is_called: true,
+    full_tool_result: JSON.stringify({ requestedTool: "search_venues", result: { ok: true, tool: "search_venues", answerHint: "Recorded results.", cards: answer.cards, data: { venues } } }),
+  } }));
+  await page.getByRole("list", { name: "Pubs from the voice answer" }).getByRole("link", { name: answer.cards[0].title, exact: true }).click();
+  await expect(page.locator(".palVoiceBar")).toBeVisible();
+  await expectMapLoadingFrameReleased(page);
+  socket.send(JSON.stringify({ type: "client_tool_call", client_tool_call: {
+    tool_name: "map_focus_pick", tool_call_id: `large-text-${++eventId}`, parameters: { number: 2 }, event_id: eventId,
+  } }));
+  await expect(page.locator(".palVoiceBarPick")).toContainText(answer.cards[1].title);
+  await page.evaluate(() => document.documentElement.style.fontSize = "32px");
+  const sheet = page.locator(".mobileSharedSheet");
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+  const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+  const end = page.getByRole("button", { name: "End", exact: true });
+  await expect(async () => {
+    for (const control of [close, end]) {
+      expect(await control.evaluate(button => {
+        const box = button.getBoundingClientRect();
+        return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
+    }
+    const bar = await page.locator(".palVoiceBar").boundingBox();
+    const box = await sheet.boundingBox();
+    expect(bar!.y).toBeGreaterThanOrEqual(0);
+    expect(bar!.y + bar!.height).toBeLessThanOrEqual(box!.y);
+  }).toPass({ timeout: 10_000 });
+  await info.attach("large-text-controls", { body: await page.screenshot({ path: `${SHOTS}/large-text-controls.png` }), contentType: "image/png" });
+  await page.locator(".palVoiceBarDetails").hover();
+  await expect(async () => {
+    await page.mouse.wheel(0, 400);
+    expect(await page.locator(".palVoiceBarCaption").evaluate(caption => {
+      const box = caption.getBoundingClientRect();
+      return caption.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    })).toBe(true);
+  }).toPass({ timeout: 10_000 });
+  await close.click();
+  await expect(sheet).toHaveCount(0);
+  await end.click();
+  await expect(page.locator(".palVoiceBar")).toHaveCount(0);
+});
+
 for (const surface of ["planner", "story"] as const) {
   test(`768px: the voice bar follows ${surface} to venue and browser Back`, async ({ page }, info) => {
     await page.setViewportSize({ width: 768, height: 900 });

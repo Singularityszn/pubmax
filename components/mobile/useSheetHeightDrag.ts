@@ -87,6 +87,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   const enteringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onDismissRef = useRef(onDismiss);
   const dismissingRef = useRef(false);
+  const hasOpenedRef = useRef(false);
   const {
     value: sheetHeight,
     running: settling,
@@ -168,6 +169,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   // input and are excluded from CLS by construction.
   const openAtSnap = useCallback(
     (snap: SheetSnap) => {
+      hasOpenedRef.current = true;
       dismissingRef.current = false;
       setRestingSnap(snap);
       stop();
@@ -207,8 +209,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   // The sheet's own header and footer can grow too (the venue command bar lands
   // after the sheet opens), so MobileSharedSheet calls this when they resize.
   const recapToViewport = useCallback(() => {
-    if (dragRef.current?.active || dismissingRef.current) return;
-    if (sheetHeightRef.current <= 0) return;
+    if (!hasOpenedRef.current || dragRef.current?.active || dismissingRef.current) return;
     const cap = capsForViewport()[sheetSnapRef.current];
     if (Math.abs(cap - sheetHeightRef.current) < 1) return;
     stop();
