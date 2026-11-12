@@ -280,7 +280,7 @@ function CompareColumn({ title, venues }: { title: string; venues: readonly Pass
 }
 
 /** The viewer's Been list next to a mate's, as three name lists. No score. */
-export function PassportBeenCompare({ been }: { been: BeenCompare }): React.JSX.Element {
+function PassportBeenCompare({ been }: { been: BeenCompare }): React.JSX.Element {
   const empty = !been.both.length && !been.onlyYou.length && !been.onlyThem.length;
   const bothMap = mapHrefFor(been.both);
   return (

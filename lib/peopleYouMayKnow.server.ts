@@ -26,7 +26,7 @@ import {
 import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
-export type MayKnowPerson = {
+type MayKnowPerson = {
   handle: string;
   displayName?: string;
   avatarUrl?: string;
@@ -62,7 +62,7 @@ const UNAVAILABLE: MayKnowResult = {
   error: "This is unavailable right now.",
 };
 
-export function defaultMayKnowDeps(): MayKnowDeps {
+function defaultMayKnowDeps(): MayKnowDeps {
   return {
     async viewerHandle(request) {
       const userId = await callerUserId(request);
