@@ -79,6 +79,10 @@ function buildBaseScratch(): string {
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
     join(scratchScripts, "lib", "slimShards.mjs"),
   );
+  cpSync(
+    join(ROOT, "scripts", "lib", "ukBaseOverview.mjs"),
+    join(scratchScripts, "lib", "ukBaseOverview.mjs"),
+  );
   // The shard plan stamps its payloads with the revision rule the whole build
   // shares, so the scratch copy needs that leaf or it dies at module resolution.
   cpSync(

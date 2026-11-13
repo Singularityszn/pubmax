@@ -14,7 +14,7 @@
 import type { MapBounds } from "@/lib/slimShards";
 import { discardBody } from "@/lib/responseBody";
 
-export const UK_BASE_OVERVIEW_PATH = "/data/uk_base/overview.json";
+const UK_BASE_OVERVIEW_PATH = "/data/uk_base/overview.json";
 const UK_BASE_OVERVIEW_VERSION = 1;
 
 export type UkBaseOverviewPoint = { lat: number; lng: number; count: number };
