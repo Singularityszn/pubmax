@@ -619,6 +619,8 @@ function londonPlaceDrawn(
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
+  "uk-base-overview",
+  "uk-base-overview-count",
   "pubs-drops-halo",
   "pubs-whatson-badge",
   "band-members-halo",
