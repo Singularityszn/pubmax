@@ -60,7 +60,7 @@ Details and caveats: `references/device-cli.md`.
 ## Live Reload Quick Path
 
 - Capacitor 9 (`@next`): `npx cap run ios --url http://192.168.1.68:5173`. The old `-l/--live-reload`, `--host`, `--port`, `--https` flags are removed.
-- Capacitor 8.5 (stable): `npx cap run ios -l --host 192.168.1.68 --port 5173` (add `--https` for an https dev server).
+- Capacitor 8: `npx cap run ios -l --host 192.168.1.68 --port 5173` (add `--https` for an https dev server).
 - Android emulator/USB: `--forwardPorts 5173:5173` runs `adb reverse` so `http://localhost:5173` works.
 - Dev server must bind to `0.0.0.0`; phone and Mac on the same Wi-Fi; iOS may ask for Local Network access; if denied the page never loads (re-enable in Settings > Privacy & Security > Local Network).
 - Never ship development hosts, LAN IPs, or `server.cleartext: true` in `capacitor.config.*`. This server-rendered app requires `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Keep that production URL in release builds.
