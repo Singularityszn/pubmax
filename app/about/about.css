@@ -124,12 +124,13 @@
 /* ── Press kit ──────────────────────────────────────────────── */
 .aboutPressGrid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   margin: 0 0 var(--space-8);
 }
 
 .aboutPressRow {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
   padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line-soft);
@@ -167,6 +168,7 @@
 /* A link in prose is ink with an underline, never a coral word. */
 .aboutLink {
   color: var(--ink);
+  overflow-wrap: anywhere;
   font-weight: 600;
   text-decoration: underline;
   text-decoration-thickness: 1px;
@@ -211,7 +213,7 @@
 /* Wider viewports: give press-kit rows a label/value split. */
 @media (min-width: 641px) {
   .aboutPressRow {
-    grid-template-columns: 8rem 1fr;
+    grid-template-columns: 8rem minmax(0, 1fr);
     gap: var(--space-3);
     align-items: baseline;
   }
