@@ -226,11 +226,23 @@ const MACOS_JOBS: Record<string, string> = {
 // The label runner-up serves this repository's self-hosted Mac places with.
 const MAC_POOL = "pubmax-mac";
 
-// A job pins an Ubuntu image only when ubuntu-latest lacks a package it needs.
+// Each fixed Ubuntu image needs an explicit exception and a reason.
 const LINUX_PINNED_JOBS: Record<string, { runner: string; reason: string }> = {
   "rls-session.yml / rls-session": {
     runner: "ubuntu-24.04",
     reason: "installs postgresql-16 from the Ubuntu archive, which ubuntu-26.04 does not carry",
+  },
+  "predeploy-gate.yml / commit": {
+    runner: "ubuntu-24.04",
+    reason: "keeps production release checks fixed when ubuntu-latest moves to another image",
+  },
+  "predeploy-gate.yml / ledger": {
+    runner: "ubuntu-24.04",
+    reason: "keeps production release checks fixed when ubuntu-latest moves to another image",
+  },
+  "predeploy-gate.yml / freshness": {
+    runner: "ubuntu-24.04",
+    reason: "keeps production release checks fixed when ubuntu-latest moves to another image",
   },
 };
 
