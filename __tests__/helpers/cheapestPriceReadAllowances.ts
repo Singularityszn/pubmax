@@ -59,7 +59,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "lib/landingPubCard.ts": [
     {"owner": "buildLandingPubCard", "count": 4, "reason": "Filters through comparableVenuePint before choosing the landing price."},
-    {"owner": "spanYears", "count": 1, "reason": "Measures archive span for an already selected venue."},
     {"owner": "buildLandingArchiveIndex", "count": 3, "reason": "Builds historical comparisons without choosing a current winner."},
     {"owner": "buildLandingAnchorRail", "count": 3, "reason": "Filters through comparableVenuePint before the rail price order."},
   ],
