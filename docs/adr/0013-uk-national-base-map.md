@@ -36,11 +36,9 @@ intent**, always on the same MapLibre canvas as curated packs.
 | Keep z≥12 gate and payload budgets | Colour base pins from uncorroborated prices |
 | Suspend base under drink/food lenses | Build a second map engine |
 
-National overview honesty: below zoom 12 the map fetches no shard. It draws
-count bubbles from one small overview file (`public/data/uk_base/overview.json`),
-and the pubs themselves load from zoom 12 (payload contract). A bubble counts
-OSM places, never prices. UI must say pubs load when you zoom in, never that the
-country is empty of pubs.
+The [base delivery contract](../../public/data/uk_base/README.md) owns national
+overview counts and the zoom gate. UI must explain how to load pubs, never
+claim that the country is empty of pubs.
 
 ## Consequences
 

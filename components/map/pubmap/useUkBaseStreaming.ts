@@ -20,12 +20,10 @@ import { useUkBaseOverview } from "./useUkBaseOverview";
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
 // source, one viewport at a time.
 //
-// The gate is the whole payload story: below UK_BASE_MIN_ZOOM this hook fetches
-// no shard and not the manifest, only the ~4 KB count overview
-// (useUkBaseOverview.ts) once the priced pins have painted. London's normal Map entry
-// starts at the gate so base pubs are useful at once. A wider restored camera
-// stays fetch-free until it crosses the gate. Above it, only cells covered by
-// the padded camera load.
+// Below UK_BASE_MIN_ZOOM this hook fetches no shard and no manifest. The
+// count overview (useUkBaseOverview.ts) waits until the priced pins have painted.
+// London's normal Map entry starts at the gate so base pubs are useful at once.
+// At or above the gate, only cells covered by the padded camera load.
 //
 // Zooming back out empties the source rather than leaving thousands of hidden
 // features parked in it: the layer's own `minzoom` would stop drawing them, but

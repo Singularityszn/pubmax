@@ -7,7 +7,7 @@ import type { SceneCtx } from "./buildScene";
 import { OSM_ATTRIBUTION } from "./tokens";
 
 // The UK base layer below its zoom gate (lib/ukBaseOverview.ts): count bubbles
-// where the country's unpriced pubs are, so a zoomed-out map is never empty.
+// for named OSM pubs and bars, without implying a price is known.
 //
 // A bubble wears the curated cluster's disc at its smaller size, without the
 // ink casing and at the base pin's opacity, with a count and never a price: it is the same "a pub is here,

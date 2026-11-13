@@ -1,8 +1,8 @@
-// The UK base layer seen from above its zoom gate: one point per shard with
+// The UK base layer seen below its zoom gate: one point per shard with
 // named pubs or bars, clustered by MapLibre into
 // count bubbles (components/map/canvas/ukBaseOverviewLayers.ts).
 //
-// Below UK_BASE_MIN_ZOOM no shard is fetched, so this ~4 KB file is what stops
+// Below UK_BASE_MIN_ZOOM no shard is fetched, so this overview file stops
 // the zoomed-out country reading as empty. It is fetched once, only after the
 // camera first goes below the gate and the priced pins have painted.
 // scripts/build_uk_base_overview.mjs writes it from the published shards.

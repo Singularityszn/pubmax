@@ -145,7 +145,7 @@ generation is removed so the published tree contains exactly one pack.
 
 - **Prices.** OSM is not a price source (`data/osm/uk/README.md`). A base pub
   has no price by construction; it is the canvas the community prices in.
-- **Duplicate pins.** A recorded curated owner suppresses its base row only
+- **Duplicate individual pins.** A recorded curated owner suppresses its base row only
   while that exact curated venue is drawable. Outside the loaded city, the base
   row remains available. OSM twin rows merge during generation, as described
   above.

@@ -80,12 +80,14 @@ report counts them under `londonScope.curatedWebsites`. Per host it reads the ho
 drinks list, to a per-host page ceiling. Resumable: `data-harvest/uk_prices/hosts.json`
 records what each host answered, so a rerun continues.
 
-`--city manchester,leeds` reads only the hosts that serve a pub inside those
-city maps' boxes (`lib/cityBounds.mjs`), so a city's prices land on a map that
-already shows prices. A host keeps every pub the snapshot gives it, because a
-host cut down to its in-city pubs can look like one pub's own site and so skip
-the estate rule (`scripts/harvest/uk-prices/cityScope.mjs`). Chain estates stay
-with the rendered lane, which takes the same flag with `--pub-sites`.
+`--city manchester,leeds` selects hosts that serve a pub inside those city maps'
+boxes (`lib/cityBounds.mjs`). Overlay menu-URL and Exa inputs join the national
+snapshot host list before city selection. Each host keeps its national pub membership, so
+city selection cannot make a shared host look like one pub's own website
+(`scripts/harvest/uk-prices/cityScope.mjs`). Use `--london` for London.
+The document lane refuses a run that combines `--city` and `--london`.
+For chain menus, use the [rendered lane](#lane-two-the-browser) with `--city`
+and without `--pub-sites`.
 
 ### Websites Exa found
 

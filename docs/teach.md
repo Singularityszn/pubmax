@@ -200,7 +200,7 @@ profiles it starts the manifest and core shard requests, and
 `lib/mapEarlyWarm.ts` lets the venue loaders reuse those promises. The London
 shell also warms the MapLibre chunk before its effect mounts.
 
-**Two pub sources, two contracts.** The curated `pubs` source owns clustering,
+**Two pub layers, separate contracts.** The curated `pubs` source owns clustering,
 prices, search, filters, and crawl routing. `lib/ukBasePubs.ts` loads the
 separate `uk-base` source only after the street-level zoom gate, then fetches
 only cells overlapping the padded viewport. Base pins remain unclustered and
